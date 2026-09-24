@@ -16,7 +16,6 @@ mod locations;
 mod products;
 use super::function_layout::{FunctionLayout, ParameterLayout, ProductTransport};
 use super::implementations::ImplementationMap;
-use super::javascript_resource::ResourceView;
 use super::raw_domains::{DomainInputs, DomainProof, Subject};
 use super::record_family::{ReadOrWrite, RecordFamily};
 use super::string_family::{StringChoice, StringFamily};
@@ -280,7 +279,6 @@ pub(super) struct DemandPlan<'program, 'src> {
     // requirement is monotone; it is not a source alias or per-helper index.
     writes_incoming_references: bool,
     contract: JavaScriptCompilationContract,
-    resource: ResourceView<'program>,
     mode: DemandMode,
     contexts: Vec<Context>,
     /// Physical roots in the verified module evaluation order. Every root is
@@ -322,25 +320,6 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         implementations: Option<&'program ImplementationMap>,
         contract: &JavaScriptCompilationContract,
         mode: DemandMode,
-        budget: Option<(&mut BudgetLedger, WorkDomain)>,
-    ) -> Result<Self, DemandError> {
-        Self::build_resource(
-            program,
-            uses,
-            implementations,
-            contract,
-            mode,
-            ResourceView::Whole,
-            budget,
-        )
-    }
-    pub(super) fn build_resource(
-        program: &'program Program<'src>,
-        uses: Option<&'program UseIndex>,
-        implementations: Option<&'program ImplementationMap>,
-        contract: &JavaScriptCompilationContract,
-        mode: DemandMode,
-        resource: ResourceView<'program>,
         budget: Option<(&mut BudgetLedger, WorkDomain)>,
     ) -> Result<Self, DemandError> {
         let _timing = crate::timing::JS_DEMAND.scope(0);
@@ -405,7 +384,6 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             unindexed_references,
             writes_incoming_references: false,
             contract: *contract,
-            resource,
             mode,
             contexts: Vec::new(),
             roots: budget.vector(program.initialization.len())?,
@@ -437,9 +415,6 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         plan.index_implementations(implementations, &mut budget)?;
         for &unit in program.initialization.iter() {
             budget.work(1)?;
-            if !resource.includes_initializer(unit) {
-                continue;
-            }
             let context =
                 plan.allocate_context(unit, None, None, ContextKind::Named, &mut budget)?;
             plan.roots.push(context);
@@ -449,10 +424,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             plan.seed_context(plan.roots[index], &mut budget)?;
         }
         let root = plan.root();
-        if let Some(export) = resource.producer_export() {
-            budget.work(1)?;
-            plan.need_cell(root, export.cell(), &mut budget)?;
-        } else if contract.abi.preserve_root_exports {
+        if contract.abi.preserve_root_exports {
             // The borrowed runtime filter visits type exports too.
             budget.work(program.exports().len())?;
             for (_, cell) in program.value_exports() {
@@ -501,11 +473,8 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         Ok(())
     }
     pub(super) fn root(&self) -> ContextId {
-        self.module_context(self.resource.entry_initializer(self.program))
-            .expect("verified resource entry has an initializer context")
-    }
-    pub(super) fn resource(&self) -> ResourceView<'program> {
-        self.resource
+        self.module_context(self.program.modules[self.program.entry.index()].initializer)
+            .expect("verified entry has an initializer context")
     }
     pub(super) fn roots(&self) -> &[ContextId] {
         &self.roots
@@ -1577,8 +1546,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         self.program.is_reference_parameter(cell)
     }
     fn isolated_cell(&self, cell: CellId) -> bool {
-        !self.resource.imported(cell)
-            && self.program.cells[cell.index()].binding != CellBinding::Foreign
+        self.program.cells[cell.index()].binding != CellBinding::Foreign
             // Sloppy functions can expose parameter writes through mapped
             // arguments, including lexical descendants and escaped views. A
             // lexical source cell is not proof of exclusive physical storage.
@@ -1599,11 +1567,6 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         operation: OpId,
         budget: &mut Budget<'_>,
     ) -> Result<bool, DemandError> {
-        if self.resource.imported(cell) {
-            // Import linkage owns this storage. A source annotation alone does
-            // not prove that its physical read is initialized or unobservable.
-            return Ok(false);
-        }
         if self.context(context).kind.is_inline() {
             return Ok(true);
         }
@@ -1729,9 +1692,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         observation: ObservationDemand,
         budget: &mut Budget<'_>,
     ) -> Result<(), DemandError> {
-        if self.program.cells[cell.index()].binding == CellBinding::Foreign
-            || self.resource.imported(cell)
-        {
+        if self.program.cells[cell.index()].binding == CellBinding::Foreign {
             return Ok(());
         }
         let observation = if self.isolated_cell(cell) {

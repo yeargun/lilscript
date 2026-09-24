@@ -233,7 +233,6 @@ fn source_name_overrides_have_a_qualified_finite_structural_neighborhood() {
     for (recipe, candidate) in candidates.into_iter().enumerate() {
         let descriptor = compiler
             .with_implementation_description(candidate, WorkDomain::Optional, |view| {
-                assert!(matches!(view.resource(), ResourceDescription::Whole));
                 view.recipe_words().to_vec()
             })
             .unwrap();
@@ -305,7 +304,6 @@ fn source_name_overrides_have_a_qualified_finite_structural_neighborhood() {
             }
             compiler
                 .with_qualified_artifact(&qualifications[2], |view, provenance| {
-                    assert!(view.dependency.is_none());
                     assert_eq!(view.implementation.recipe_words(), descriptor);
                     assert_eq!(provenance.naming(), &plan);
                 })

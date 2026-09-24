@@ -16,8 +16,7 @@ pub(super) struct Entry {
     pub(super) qualified: [Option<QualifiedArtifact>; 3],
     /// These measurements and identities remain immutable while stored. Only
     /// pending/scheduling metadata may change through get_mut.
-    /// Primary allocation only. The Portfolio counts shared dependency text
-    /// once across its existing entries; raw is the complete package score.
+    /// The entry file's allocation only; raw scores every delivered file.
     pub(super) capacity: usize,
     pub(super) raw: usize,
     pub(super) render_work: u64,
@@ -134,9 +133,9 @@ impl Entries {
             (self.count, self.text_bytes),
             "entries changed between preparation and insertion"
         );
-        // Complete raw transfer includes a dependency; it need not fit inside
-        // this entry's primary String capacity. Both text owners were admitted
-        // and bounded by the output/Portfolio before publication.
+        // Complete raw transfer includes every chunk; it need not fit inside
+        // the entry file's String capacity. Every text owner was admitted and
+        // bounded by the output before publication.
         if slot.index == self.slots.len() {
             assert!(
                 self.slots.len() < self.slots.capacity(),

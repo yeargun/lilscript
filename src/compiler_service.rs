@@ -522,7 +522,6 @@ impl<'src> CheckedSourceSession<'src> {
             "proposals": counters.proposals, "structures": counters.structures,
             "renders": counters.renders, "codec_probes": counters.codec_probes,
             "proof_queries": counters.proof_queries, "beam_evictions": counters.beam_evictions,
-            "interaction_attempts": counters.interaction_attempts,
             "admitted_artifacts": counters.admitted_artifacts,
             "stop": search.stopped().map(|error| format!("{error:?}")),
         });
@@ -786,16 +785,12 @@ fn deliver_javascript(
 ) -> Result<ServiceJavaScript, ServiceError> {
     let delivered = (|| {
         let (sizes, bundle, details) = compilation.with_qualified_artifact(&receipt, |view, provenance| {
-        if !matches!(view.implementation.resource(), ResourceDescription::Whole) {
-            return Err(ServiceError::new("handoff", "this service delivers Whole artifacts, not resource packages"));
-        }
         let plan = provenance.naming();
-        Ok((view.sizes, !view.chunks.is_empty(), json!({
+        (view.sizes, !view.chunks.is_empty(), json!({
             "recipe_words":view.implementation.recipe_words(),
             "recipe_fingerprint":view.recipe_fingerprint,
             "semantic":semantic_report(view.implementation.snapshot_identity(),
                 view.implementation.meaning_identity(), view.implementation.rewrites()),
-            "resource":"whole",
             "execution":format!("{:?}",view.execution),
             "style":format!("{:?}",plan.style),
             "source_names":plan.source_names.iter().map(|id|id.index()).collect::<Vec<_>>(),
@@ -804,8 +799,8 @@ fn deliver_javascript(
             "sizes":[Some(view.sizes.raw),view.sizes.gzip9,view.sizes.brotli11],
             "chunks":view.chunks.iter().map(|chunk| json!({"file":chunk.name,"modules":chunk.modules,"bytes":chunk.code.len(),"lazy":chunk.lazy})).collect::<Vec<_>>(),
             "policy_fingerprint":receipt.policy_fingerprint(),
-        })))
-    }).map_err(|error| ServiceError::new("handoff",error))??;
+        }))
+    }).map_err(|error| ServiceError::new("handoff",error))?;
         let (javascript, entry_links, chunks) = if bundle {
             let delivered = compilation
                 .take_qualified_bundle(receipt)
@@ -1027,12 +1022,6 @@ fn check_path_frontend<'src, T>(
     arena
         .with_ledger(|ledger, domain| ledger.charge(domain, WorkKind::Analysis, bytes))
         .map_err(|error| ServiceError::resources("frontend resources", error.into()))?;
-    // Refusal spans are module-local; name each module index once.
-    if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-        for (index, module) in modules.modules.iter().enumerate() {
-            eprintln!("module {index}: {}", module.path.display());
-        }
-    }
     // Relative host modules travel with the output (008-D3).
     let hosts = if build { host_requests(config, frontend.javascript.as_ref(), &modules) } else { None };
     if let Some((root_directory, requests, edition)) = hosts {

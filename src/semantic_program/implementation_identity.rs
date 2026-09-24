@@ -2,27 +2,16 @@
 //!
 //! Compilation establishes snapshot equality separately. These descriptors use
 //! local recipe positions in that snapshot's source tables, never checkpoint
-//! slots, revision allocation order or proof allocation addresses. Fixed resources
-//! also
-//! retain exact physical contracts, actual producer bytes and permission evidence
-//! through their existing shared owners. Adding another implementation parameter
-//! must extend the corresponding versioned descriptor.
-use super::fixed_resource::ResourceChoice;
+//! slots, revision allocation order or proof allocation addresses. Adding
+//! another implementation parameter must extend the versioned descriptor.
 use super::implementations::ImplementationMap;
-#[path = "resource_identity.rs"]
-mod resource;
-pub use resource::{
-    ArtifactProvenanceDescription, FrozenProducerDescription, PhysicalExportDescription,
-    PhysicalParameter, ProductTransport, ResourceDescription,
-};
 
 /// Complete borrowed selected implementation. `recipe_words` is the unchanged
-/// local-layout encoding; resources are a separate required identity component.
-/// No retained owner or proof can escape through this read-only description.
+/// local-layout encoding. No retained owner or proof can escape through this
+/// read-only description.
 #[derive(Debug, Clone, Copy)]
 pub struct ImplementationDescription<'a> {
     recipes: &'a [u32],
-    resource: ResourceDescription<'a>,
     rewrites: super::rewrite_lineage::RewriteDescription<'a>,
     snapshot: Option<RevisionId>,
     meaning: Option<RevisionId>,
@@ -30,9 +19,6 @@ pub struct ImplementationDescription<'a> {
 impl<'a> ImplementationDescription<'a> {
     pub fn recipe_words(self) -> &'a [u32] {
         self.recipes
-    }
-    pub fn resource(self) -> ResourceDescription<'a> {
-        self.resource
     }
     /// Includes inherited permission history. A step with another meaning ID
     /// preceded a SourceChange and is not a replay claim for the current root.
@@ -45,10 +31,9 @@ impl<'a> ImplementationDescription<'a> {
     pub fn meaning_identity(self) -> Option<RevisionId> {
         self.meaning
     }
-    /// Only unrevised Whole has a complete identity in the legacy word view.
+    /// Only an unrevised recipe has a complete identity in the word view.
     pub fn whole_words(self) -> Option<&'a [u32]> {
-        (matches!(self.resource, ResourceDescription::Whole) && self.rewrites.is_empty())
-            .then_some(self.recipes)
+        self.rewrites.is_empty().then_some(self.recipes)
     }
 }
 
@@ -77,7 +62,6 @@ const HASH_PRIME: u64 = 0x100000001b3;
 pub(super) struct ImplementationIdentity {
     words: Vec<u32>,
     fingerprint: u64,
-    resource: Option<ResourceChoice>,
     charge: RetainedCharge<RevisionId>,
 }
 
@@ -267,41 +251,12 @@ impl ImplementationIdentity {
             .checked_mul(size_of::<u32>())
             .ok_or(AllocationError::Capacity)?;
         let bytes = u64::try_from(bytes).map_err(|_| AllocationError::Capacity)?;
-        // Whole follows exactly the prior word/hash/admission path. Resource
-        // visits are paid before retaining any shared producer owner.
-        let selected_resource = map.and_then(ImplementationMap::resource);
-        if let Some(selected) = selected_resource {
-            resource::fingerprint(
-                ResourceDescription::of(Some(selected)),
-                &mut fingerprint,
-                &mut phase,
-            )?;
-        }
-        let resource = selected_resource
-            .map(|selected| selected.share(&mut phase))
-            .transpose()?;
-        let charge = match phase.detach_retained(owner, bytes) {
-            Ok(charge) => charge,
-            Err(error) => {
-                if let Some(resource) = resource {
-                    resource
-                        .discard(&mut phase)
-                        .expect("shared identity resource retains its original owner");
-                }
-                return Err(error);
-            }
-        };
+        let charge = phase.detach_retained(owner, bytes)?;
         Ok(Self {
             words,
             fingerprint,
-            resource,
             charge,
         })
-    }
-
-    #[cfg(test)]
-    pub(super) fn force_fingerprint_for_collision_test(&mut self, fingerprint: u64) {
-        self.fingerprint = fingerprint;
     }
 
     /// Hash-bucket hint only. It must never order ties or establish equality.
@@ -312,7 +267,6 @@ impl ImplementationIdentity {
     pub(super) fn description(&self) -> ImplementationDescription<'_> {
         ImplementationDescription {
             recipes: &self.words,
-            resource: ResourceDescription::of(self.resource.as_ref()),
             rewrites: Default::default(),
             snapshot: None,
             meaning: None,
@@ -320,34 +274,8 @@ impl ImplementationIdentity {
     }
 
     #[cfg(test)]
-    pub(super) fn whole_words(&self) -> Option<&[u32]> {
-        self.description().whole_words()
-    }
-
-    /// Compatibility accessor for already-qualified Whole clients. Resource
-    /// callers must use description(); word-only publication rejects them.
-    #[cfg(test)]
     pub(super) fn words(&self) -> &[u32] {
-        self.whole_words()
-            .expect("resource identity requires its full description")
-    }
-
-    /// The same paid owner used by frontier identity, borrowed through a scope
-    /// which releases actual storage on callback return, error or unwind.
-    #[cfg(test)]
-    pub(super) fn with_description<R>(
-        map: Option<&ImplementationMap>,
-        owner: RevisionId,
-        budget: &mut AllocationBudget<'_>,
-        inspect: impl FnOnce(ImplementationDescription<'_>) -> R,
-    ) -> Result<R, AllocationError> {
-        let identity = Self::build(map, owner, budget)?;
-        let scope = IdentityScope {
-            identity: Some(identity),
-            owner,
-            budget,
-        };
-        Ok(inspect(scope.identity.as_ref().unwrap().description()))
+        &self.words
     }
 
     /// Selected-recipe equality only: the caller must first establish the same
@@ -366,7 +294,7 @@ impl ImplementationIdentity {
 
     /// Stable structural tie descriptor; deliberately ignores all fingerprints
     /// and snapshot identities. Current-output naming ties belong to their
-    /// separate owner; fixed producer naming/eligibility is part of a resource.
+    /// separate owner.
     pub(super) fn compare(
         &self,
         other: &Self,
@@ -380,19 +308,10 @@ impl ImplementationIdentity {
             }
         }
         budget.work(WorkKind::Analysis, 1)?;
-        let order = self.words.len().cmp(&other.words.len());
-        if order != Ordering::Equal || (self.resource.is_none() && other.resource.is_none()) {
-            return Ok(order);
-        }
-        resource::compare(
-            self.description().resource(),
-            other.description().resource(),
-            budget,
-        )
+        Ok(self.words.len().cmp(&other.words.len()))
     }
 
-    /// Newly detached word backing only. Shared resource payload remains charged
-    /// exactly once by its original owner, including after source map disposal.
+    /// Newly detached word backing only.
     pub(super) fn retained_bytes(&self) -> u64 {
         self.charge.bytes()
     }
@@ -407,44 +326,12 @@ impl ImplementationIdentity {
         if !self.charge.belongs_to(&owner) {
             return Err((self, AllocationError::WrongOwner));
         }
-        let Self {
-            words,
-            resource,
-            charge,
-            ..
-        } = self;
+        let Self { words, charge, .. } = self;
         drop(words);
-        if let Some(resource) = resource {
-            let mut budget = AllocationBudget::new(Some((&mut *ledger, charge.domain())));
-            resource
-                .discard(&mut budget)
-                .expect("implementation identity resource allocation owner invariant");
-        }
         charge
             .discard(&owner, ledger)
             .unwrap_or_else(|_| panic!("implementation identity allocation owner invariant"));
         Ok(())
-    }
-}
-
-#[cfg(test)]
-struct IdentityScope<'budget, 'ledger> {
-    identity: Option<ImplementationIdentity>,
-    owner: RevisionId,
-    budget: &'budget mut AllocationBudget<'ledger>,
-}
-#[cfg(test)]
-impl Drop for IdentityScope<'_, '_> {
-    fn drop(&mut self) {
-        let identity = self.identity.take().unwrap();
-        self.budget.with_ledger(|ledger| {
-            identity
-                .discard(
-                    self.owner,
-                    ledger.expect("identity construction requires admission").0,
-                )
-                .unwrap();
-        });
     }
 }
 

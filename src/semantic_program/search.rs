@@ -6,8 +6,6 @@ use crate::compilation_policy::{
     AdmissionError, BaselineSeal, CandidateCostEvidence, CodecSchedule, OptimizationObjective,
 };
 use crate::output_budget::{AllocationClass::Retained, RetainedCharge};
-#[cfg(test)]
-use crate::semantic_program::artifact_provenance::ArtifactProvenance;
 use crate::semantic_program::artifact_provenance::ProvenanceError;
 use crate::semantic_program::implementation_identity::{
     ImplementationDescription, SharedImplementationIdentity,
@@ -19,10 +17,6 @@ use std::cmp::Ordering;
 #[path = "search_selection.rs"]
 mod selection;
 use selection::Portfolio;
-
-#[path = "search_pairs.rs"]
-mod pairs;
-use pairs::SeedPairs;
 
 #[cfg(test)]
 #[path = "search_cursor_tests.rs"]
@@ -126,8 +120,6 @@ pub struct SearchCounters {
     /// Attempted source opportunities / compatible map unions. This ordinal
     /// rotates structural objectives independently of permitted naming styles.
     pub structural_attempts: usize,
-    /// Optional unions of previously proved seeds, independent of beam retention.
-    pub interaction_attempts: usize,
     pub skipped_unknown: usize,
     pub skipped_truncated: usize,
     pub proof_queries: usize,
@@ -167,8 +159,6 @@ pub struct SearchObservation<'a> {
     pub output: OutputTactics,
     pub sizes: Sizes,
     pub javascript: &'a str,
-    /// Required second file, included once in each complete codec score.
-    pub dependency: Option<crate::semantic_program::artifacts::ArtifactResourceView<'a>>,
     pub baseline: bool,
 }
 
@@ -188,8 +178,6 @@ struct State {
 #[derive(Clone, Copy)]
 enum Seed {
     Unseen,
-    /// Caller-owned complete Consumer input, copied lazily after baseline seal.
-    Provided(CandidateId),
     /// Qualified to this search's pinned source, contract and fixed request.
     Unknown,
     /// No repeat under identical attempt ceilings. This is not a negative
@@ -225,10 +213,8 @@ pub struct JavaScriptSearch<'a, 'src> {
     states: Vec<Option<State>>,
     states_charge: Option<RetainedCharge<RevisionId>>,
     seeds: Vec<Seed>,
-    supplied_seeds: usize,
     seeds_charge: Option<RetainedCharge<RevisionId>>,
     inventory: Option<Inventory>,
-    pairs: Option<SeedPairs>,
     portfolio: Portfolio,
     counters: SearchCounters,
     sealed: Option<BaselineSeal>,
@@ -251,47 +237,9 @@ impl<'src> Compilation<'src> {
         source: SemanticId,
         policy: &ResolvedPolicy,
         request: SearchRequest,
-        observe: impl FnMut(SearchObservation<'_>),
-    ) -> Result<JavaScriptSearch<'a, 'src>, SearchError> {
-        self.search_javascript_with_candidates_observed(source, &[], policy, request, observe)
-    }
-
-    /// Explore already available complete Consumer inputs in the same frontier.
-    /// Their setup is paid before this call and is not cold Whole baseline work.
-    /// Search copies a supplied choice only when optional discovery reaches it;
-    /// the caller retains every original handle on success, refusal and unwind.
-    /// Zero optional alternatives leave supplied inputs untouched and unqueried.
-    /// A Consumer source is required delivery: its dependency remains in the
-    /// baseline and every descendant, including the zero-optional result.
-    pub fn search_javascript_with_candidates_observed<'a>(
-        &'a mut self,
-        source: SemanticId,
-        candidates: &[CandidateId],
-        policy: &ResolvedPolicy,
-        request: SearchRequest,
         mut observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<JavaScriptSearch<'a, 'src>, SearchError> {
-        // A required Consumer input keeps its exact dependency in the baseline
-        // and every descendant. Optional supplied Consumers are a separate
-        // portfolio input; a Producer fragment is never a complete baseline.
-        let source_slot = self.lookup(source)?;
-        let required_consumer = match self.slots[source_slot]
-            .checkpoint
-            .as_ref()
-            .unwrap()
-            .implementations
-            .as_ref()
-            .and_then(|map| map.resource())
-        {
-            Some(crate::semantic_program::fixed_resource::ResourceChoice::Producer(_)) => {
-                return Err(CandidateError::Artifact(
-                    "producer fragment is not a complete search baseline",
-                )
-                .into());
-            }
-            Some(crate::semantic_program::fixed_resource::ResourceChoice::Consumer { .. }) => true,
-            None => false,
-        };
+        self.lookup(source)?;
         self.ledger.require_preparing_baseline()?;
         let objective = policy.objective().ok_or(CandidateError::NotJavaScript)?;
         // This first producer has exact transfer evidence only. Do not compile
@@ -316,10 +264,8 @@ impl<'src> Compilation<'src> {
             states: Vec::new(),
             states_charge: None,
             seeds: Vec::new(),
-            supplied_seeds: 0,
             seeds_charge: None,
             inventory: None,
-            pairs: None,
             portfolio: Portfolio::new(owner),
             counters: SearchCounters::default(),
             sealed: None,
@@ -327,18 +273,9 @@ impl<'src> Compilation<'src> {
             discovery_refusal: None,
         };
         search.grow_states(1, WorkDomain::Baseline)?;
-        let direct = if required_consumer {
-            search.compilation.rebase_javascript(
-                CandidateId(source),
-                source,
-                policy,
-                WorkDomain::Baseline,
-            )?
-        } else {
-            search
-                .compilation
-                .direct_javascript(source, policy, WorkDomain::Baseline)?
-        };
+        let direct = search
+            .compilation
+            .direct_javascript(source, policy, WorkDomain::Baseline)?;
         search.insert_state(direct, 0, WorkDomain::Baseline)?;
         let (baseline_renders, continuation) =
             search.evaluate_baseline(policy, request.objectives, seeds, &mut observe)?;
@@ -352,7 +289,6 @@ impl<'src> Compilation<'src> {
                 request,
                 seeds,
                 baseline_renders,
-                candidates,
                 &mut observe,
             )
         });
@@ -447,15 +383,12 @@ impl JavaScriptSearch<'_, '_> {
             .take_winner(&mut self.compilation.artifacts, &mut budget, objective)
     }
 
-    /// Transfer the existing complete artifact owner, including any required
-    /// frozen producer, without copying either file. After dropping Search,
-    /// inspect or discard this handle through the originating Compilation.
-    /// Taking one artifact consumes all objective aliases of that winner.
+    /// Transfer the existing complete artifact owner without copying its
+    /// files. After dropping Search, inspect or discard this handle through
+    /// the originating Compilation. Taking one artifact consumes all
+    /// objective aliases of that winner.
     pub fn take_winner_artifact(&mut self, objective: Objective) -> Option<ArtifactId> {
-        let mut budget =
-            AllocationBudget::new(Some((&mut self.compilation.ledger, WorkDomain::Optional)));
-        self.portfolio
-            .take_winner_artifact(&self.compilation.artifacts, &mut budget, objective)
+        self.portfolio.take_winner_artifact(objective)
     }
 
     pub fn winner_qualification(&self, objective: Objective) -> Option<&QualifiedArtifact> {
@@ -525,24 +458,6 @@ impl JavaScriptSearch<'_, '_> {
         domain: WorkDomain,
     ) -> Result<Option<usize>, SearchError> {
         let result = (|| {
-            let slot = self.compilation.candidate_slot(candidate)?;
-            let map = self.compilation.slots[slot]
-                .checkpoint
-                .as_ref()
-                .unwrap()
-                .implementations
-                .as_ref();
-            if map.is_some_and(|map| {
-                matches!(
-                    map.resource(),
-                    Some(crate::semantic_program::fixed_resource::ResourceChoice::Producer(_))
-                )
-            }) {
-                return Err(CandidateError::Artifact(
-                    "producer fragment is not a complete search candidate",
-                )
-                .into());
-            }
             let identity = self
                 .compilation
                 .share_implementation_identity(candidate, domain)?;
@@ -789,18 +704,8 @@ impl JavaScriptSearch<'_, '_> {
                     })
                     .checked_sub(before_render)
                     .expect("one monotonic render-work owner");
-                let (raw, capacity) = output.with_artifact(artifact, |view| {
-                    (
-                        view.sizes.raw,
-                        view.retained_capacity
-                            .checked_add(
-                                view.dependency
-                                    .map_or(0, |dependency| dependency.retained_capacity),
-                            )
-                            .ok_or(AllocationError::Capacity),
-                    )
-                })?;
-                let capacity = capacity?;
+                let (raw, capacity) =
+                    output.with_artifact(artifact, |view| (view.sizes.raw, view.retained_capacity))?;
                 if capacity > available {
                     return Err(SearchError::Limit(SearchLimit::ArtifactBytes));
                 }
@@ -906,9 +811,6 @@ impl JavaScriptSearch<'_, '_> {
     }
 
     fn discard_discovery_owners(&mut self) {
-        if let Some(pairs) = self.pairs.take() {
-            pairs.discard(self.owner, &mut self.compilation.ledger);
-        }
         for seed in &self.seeds {
             if let Seed::Ready(candidate) = seed {
                 self.compilation
@@ -936,7 +838,6 @@ impl JavaScriptSearch<'_, '_> {
         request: SearchRequest,
         styles: &[Style],
         baseline_renders: usize,
-        candidates: &[CandidateId],
         observe: &mut impl FnMut(SearchObservation<'_>),
     ) -> Result<(), SearchError> {
         let state_limit = objective
@@ -976,25 +877,11 @@ impl JavaScriptSearch<'_, '_> {
             self.owner,
             &mut budget,
         )?);
-        let count = self
-            .inventory
-            .as_ref()
-            .unwrap()
-            .len()
-            .checked_add(candidates.len())
-            .ok_or(AllocationError::Capacity)?;
+        let count = self.inventory.as_ref().unwrap().len();
         self.counters.inventory_truncated = self.inventory.as_ref().unwrap().truncated();
-        budget.work(WorkKind::Analysis, candidates.len() as u64)?;
         self.seeds = budget.filled(Retained, count, Seed::Unseen)?;
-        for (slot, &candidate) in self.seeds.iter_mut().zip(candidates) {
-            *slot = Seed::Provided(candidate);
-        }
-        self.supplied_seeds = candidates.len();
         self.seeds_charge =
             Some(budget.detach_retained(self.owner, bytes::<Seed>(self.seeds.capacity())?)?);
-        if objective.search.interaction_interval.is_some() {
-            self.pairs = Some(SeedPairs::new(count, self.owner, &mut budget)?);
-        }
         drop(budget);
         if count == 0 {
             self.states[0].as_mut().unwrap().pending = false;
@@ -1012,88 +899,66 @@ impl JavaScriptSearch<'_, '_> {
                     .ok_or(AllocationError::Capacity)?;
             }
             self.reclaim_states()?;
-            let parent =
-                self.next_state(request.objectives, objective.search.diversity_interval)?;
-            let pair = if objective
-                .search
-                .interaction_interval
-                .is_some_and(|interval| {
-                    parent.is_none() || self.counters.structural_attempts % interval == interval - 1
-                }) {
-                self.next_pair()?
-            } else {
-                None
-            };
-            if parent.is_none() && pair.is_none() {
+            let Some(parent) =
+                self.next_state(request.objectives, objective.search.diversity_interval)?
+            else {
                 return Ok(());
-            }
+            };
             self.preflight_optional(objective, request.objectives)?;
             self.counters.structural_attempts = self
                 .counters
                 .structural_attempts
                 .checked_add(1)
                 .ok_or(AllocationError::Capacity)?;
-            let (base, seed, next) = if let Some((first, second)) = pair {
-                self.counters.interaction_attempts += 1;
-                let Seed::Ready(base) = self.seeds[first] else {
-                    unreachable!("published pair seed")
-                };
-                let Seed::Ready(seed) = self.seeds[second] else {
-                    unreachable!("published pair seed")
-                };
-                (base, seed, second + 1)
-            } else {
-                let parent = parent.unwrap();
-                self.states[parent].as_mut().unwrap().last_served =
-                    self.counters.structural_attempts;
-                let base = self.states[parent].as_ref().unwrap().candidate;
-                let step = self.states[parent].as_ref().unwrap().next;
-                self.states[parent].as_mut().unwrap().next += 1;
-                if step + 1 >= count {
-                    self.states[parent].as_mut().unwrap().pending = false;
-                }
-                let Some(seed) = self.proof(step, policy, request)? else {
-                    continue;
-                };
-                if let Some(OpportunityView::Function(body)) =
-                    Self::opportunity(self.inventory.as_ref().unwrap(), self.supplied_seeds, step)
-                {
-                    let base_slot = self.compilation.candidate_slot(base)?;
-                    let seed_slot = self.compilation.candidate_slot(seed)?;
-                    let base_map = self.compilation.slots[base_slot]
-                        .checkpoint
-                        .as_ref()
-                        .unwrap()
-                        .implementations
-                        .as_ref()
-                        .unwrap();
-                    let seed_map = self.compilation.slots[seed_slot]
-                        .checkpoint
-                        .as_ref()
-                        .unwrap()
-                        .implementations
-                        .as_ref()
-                        .unwrap();
-                    let mut budget = AllocationBudget::new(Some((
-                        &mut self.compilation.ledger,
-                        WorkDomain::Optional,
-                    )));
-                    let layout = seed_map
-                        .function_for_body(body, &mut budget)?
-                        .expect("function proof includes the requested body");
-                    if super::super::demand::shared_transport_support(
-                        base_map,
-                        layout,
-                        policy.javascript_contract().unwrap().execution,
-                        |n| budget.work(WorkKind::Analysis, n as u64),
-                    )? == super::super::demand::SharedTransportSupport::AllCreatorsInline
-                    {
-                        self.counters.inactive_function_layouts += 1;
-                        continue;
-                    }
-                }
-                (base, seed, step + 1)
+            self.states[parent].as_mut().unwrap().last_served =
+                self.counters.structural_attempts;
+            let base = self.states[parent].as_ref().unwrap().candidate;
+            let step = self.states[parent].as_ref().unwrap().next;
+            self.states[parent].as_mut().unwrap().next += 1;
+            if step + 1 >= count {
+                self.states[parent].as_mut().unwrap().pending = false;
+            }
+            let Some(seed) = self.proof(step, policy, request)? else {
+                continue;
             };
+            if let Some(OpportunityView::Function(body)) =
+                Self::opportunity(self.inventory.as_ref().unwrap(), step)
+            {
+                let base_slot = self.compilation.candidate_slot(base)?;
+                let seed_slot = self.compilation.candidate_slot(seed)?;
+                let base_map = self.compilation.slots[base_slot]
+                    .checkpoint
+                    .as_ref()
+                    .unwrap()
+                    .implementations
+                    .as_ref()
+                    .unwrap();
+                let seed_map = self.compilation.slots[seed_slot]
+                    .checkpoint
+                    .as_ref()
+                    .unwrap()
+                    .implementations
+                    .as_ref()
+                    .unwrap();
+                let mut budget = AllocationBudget::new(Some((
+                    &mut self.compilation.ledger,
+                    WorkDomain::Optional,
+                )));
+                let layout = seed_map
+                    .function_for_body(body, &mut budget)?
+                    .expect("function proof includes the requested body");
+                if super::super::demand::shared_transport_support(
+                    base_map,
+                    layout,
+                    policy.javascript_contract().unwrap().execution,
+                    |n| budget.work(WorkKind::Analysis, n as u64),
+                )? == super::super::demand::SharedTransportSupport::AllCreatorsInline
+                {
+                    self.counters.inactive_function_layouts += 1;
+                    continue;
+                }
+            }
+            let next = step + 1;
             // Admission before publishing a child means a failed growth never
             // leaves an otherwise unowned candidate checkpoint behind.
             self.prepare_state_slot(state_limit)?;
@@ -1118,31 +983,8 @@ impl JavaScriptSearch<'_, '_> {
         }
     }
 
-    fn opportunity(
-        inventory: &Inventory,
-        supplied_seeds: usize,
-        step: usize,
-    ) -> Option<OpportunityView<'_>> {
-        step.checked_sub(supplied_seeds)
-            .and_then(|index| inventory.get(index))
-    }
-
-    fn next_pair(&mut self) -> Result<Option<(usize, usize)>, SearchError> {
-        let Some(pairs) = self.pairs.as_mut() else {
-            return Ok(None);
-        };
-        let mut budget =
-            AllocationBudget::new(Some((&mut self.compilation.ledger, WorkDomain::Optional)));
-        Ok(pairs.next(&mut budget)?)
-    }
-
-    fn publish_pair_seed(&mut self, step: usize) -> Result<(), SearchError> {
-        if let Some(pairs) = self.pairs.as_mut() {
-            let mut budget =
-                AllocationBudget::new(Some((&mut self.compilation.ledger, WorkDomain::Optional)));
-            pairs.publish(step, &mut budget)?;
-        }
-        Ok(())
+    fn opportunity(inventory: &Inventory, step: usize) -> Option<OpportunityView<'_>> {
+        inventory.get(step)
     }
 
     fn proof(
@@ -1153,46 +995,6 @@ impl JavaScriptSearch<'_, '_> {
     ) -> Result<Option<CandidateId>, SearchError> {
         match self.seeds[step] {
             Seed::Ready(candidate) => return Ok(Some(candidate)),
-            Seed::Provided(candidate) => {
-                self.compilation
-                    .ledger
-                    .charge(WorkDomain::Optional, WorkKind::Analysis, 1)?;
-                let slot = self.compilation.candidate_slot(candidate)?;
-                let map = self.compilation.slots[slot]
-                    .checkpoint
-                    .as_ref()
-                    .unwrap()
-                    .implementations
-                    .as_ref()
-                    .unwrap();
-                if !matches!(
-                    map.resource(),
-                    Some(crate::semantic_program::fixed_resource::ResourceChoice::Consumer { .. })
-                ) {
-                    return Err(CandidateError::Artifact(
-                        "supplied search candidate must be a complete Consumer package",
-                    )
-                    .into());
-                }
-                let direct = self.states[0].as_ref().unwrap().candidate;
-                let owned = match self.compilation.combine_javascript(
-                    direct,
-                    candidate,
-                    policy,
-                    WorkDomain::Optional,
-                ) {
-                    Ok(candidate) => candidate,
-                    Err(CandidateError::ConflictingChoice) => {
-                        self.seeds[step] = Seed::Conflict;
-                        self.counters.conflicting_choices += 1;
-                        return Ok(None);
-                    }
-                    Err(error) => return Err(error.into()),
-                };
-                self.seeds[step] = Seed::Ready(owned);
-                self.publish_pair_seed(step)?;
-                return Ok(Some(owned));
-            }
             Seed::Equivalent(original) => {
                 let Seed::Ready(candidate) = self.seeds[original] else {
                     unreachable!("equivalent hints borrow an already published proof")
@@ -1203,7 +1005,7 @@ impl JavaScriptSearch<'_, '_> {
             Seed::Unseen => {}
         }
         if !matches!(
-            Self::opportunity(self.inventory.as_ref().unwrap(), self.supplied_seeds, step),
+            Self::opportunity(self.inventory.as_ref().unwrap(), step),
             Some(
                 OpportunityView::Scalar(_)
                     | OpportunityView::Product(_)
@@ -1219,7 +1021,7 @@ impl JavaScriptSearch<'_, '_> {
         let direct = self.states[0].as_ref().unwrap().candidate;
         let result = (|| -> Result<Seed, CandidateError> {
             Ok(
-                match Self::opportunity(self.inventory.as_ref().unwrap(), self.supplied_seeds, step)
+                match Self::opportunity(self.inventory.as_ref().unwrap(), step)
                     .unwrap()
                 {
                     OpportunityView::Scalar(cell) => match self
@@ -1297,14 +1099,7 @@ impl JavaScriptSearch<'_, '_> {
                         .outcome
                     {
                         HelperOutcome::Published(candidate) => Seed::Ready(candidate),
-                        HelperOutcome::Unknown(reason) => {
-                            // The refusal census behind 009's inlining task.
-                            if std::env::var_os("LILSCRIPT_DEBUG_HELPERS").is_some() {
-                                eprintln!(
-                                    "helper-unknown {cell:?} {} {reason:?}",
-                                    self.compilation.slots[0].checkpoint.as_ref().map_or("?", |c| c.semantic.program.cells[cell.index()].name.as_str())
-                                );
-                            }
+                        HelperOutcome::Unknown(_) => {
                             self.counters.unknown_proofs += 1;
                             Seed::Unknown
                         }
@@ -1354,11 +1149,8 @@ impl JavaScriptSearch<'_, '_> {
             Err(error) => return Err(error.into()),
         };
         self.seeds[step] = result;
-        if matches!(result, Seed::Ready(_)) {
-            self.publish_pair_seed(step)?;
-        }
         if matches!(
-            Self::opportunity(self.inventory.as_ref().unwrap(), self.supplied_seeds, step),
+            Self::opportunity(self.inventory.as_ref().unwrap(), step),
             Some(OpportunityView::Product(_))
         ) {
             if let Seed::Ready(candidate) = result {
@@ -1378,7 +1170,7 @@ impl JavaScriptSearch<'_, '_> {
     ) -> Result<(), SearchError> {
         let inventory = self.inventory.as_ref().unwrap();
         let Some(OpportunityView::Product(cell)) =
-            Self::opportunity(inventory, self.supplied_seeds, step)
+            Self::opportunity(inventory, step)
         else {
             unreachable!("product reuse follows a product opportunity");
         };
@@ -1411,7 +1203,6 @@ impl JavaScriptSearch<'_, '_> {
             let Some(index) = inventory.product_index(cell.cell) else {
                 continue;
             };
-            let index = index + self.supplied_seeds;
             if index > step && matches!(self.seeds[index], Seed::Unseen) {
                 self.seeds[index] = Seed::Equivalent(step);
                 reused += 1;
@@ -1567,7 +1358,7 @@ fn normalize_cursors(
                 Seed::Unknown => counters.skipped_unknown += 1,
                 Seed::Truncated => counters.skipped_truncated += 1,
                 Seed::Equivalent(_) | Seed::Conflict | Seed::Redundant => {}
-                Seed::Unseen | Seed::Provided(_) | Seed::Ready(_) => break,
+                Seed::Unseen | Seed::Ready(_) => break,
             }
             state.next += 1;
         }

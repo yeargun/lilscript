@@ -12,7 +12,6 @@ use super::demand::{
     ContextId, ContextKind, DemandError, DemandMode, DemandPlan, HelperOperation, RecordOperation,
 };
 use super::implementations::ImplementationMap;
-use super::javascript_resource::ResourceView;
 use super::record_family::RecordFamily;
 use super::string_family::StringChoice;
 use super::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
@@ -28,9 +27,6 @@ use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
 use crate::scalar_transfer::NumberFacts;
 use crate::structured_js as js;
-
-#[path = "javascript_resource_formation.rs"]
-mod resource_formation;
 
 #[path = "javascript_product_calls.rs"]
 mod product_calls;
@@ -354,7 +350,7 @@ pub(super) fn lower_admitted(
     compact: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
-    lower_resource_admitted(
+    lower_output_admitted(
         program,
         uses,
         implementations,
@@ -363,12 +359,12 @@ pub(super) fn lower_admitted(
         compact,
         false,
         None,
-        ResourceView::Whole,
         budget,
     )
 }
 
-pub(super) fn lower_resource_admitted(
+/// `lower_admitted` with the output's raw-structure choice and host modules.
+pub(super) fn lower_output_admitted(
     program: &Program<'_>,
     uses: &UseIndex,
     implementations: &ImplementationMap,
@@ -377,18 +373,16 @@ pub(super) fn lower_resource_admitted(
     compact: bool,
     raw_structure: bool,
     hosts: Option<&crate::host_modules::HostDelivery>,
-    resource: ResourceView<'_>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
     let mut phase = budget.scope();
     let demand = phase.with_ledger(|ledger| {
-        DemandPlan::build_resource(
+        DemandPlan::build(
             program,
             Some(uses),
             Some(implementations),
             contract,
             mode,
-            resource,
             ledger,
         )
     })?;
@@ -517,7 +511,6 @@ fn form_with_demand(
         records,
         struct_plan,
         reference_plan,
-        imported_binding: None,
         host_factories: Vec::new(),
         unit_functions: Vec::new(),
         foreign_bindings: Vec::new(),
@@ -528,7 +521,6 @@ fn form_with_demand(
         budget: &mut phase,
     };
     let result = (|| {
-        formation.plan_resource_import()?;
         // One artifact lexical environment owns all module cells. Establish
         // every physical root's bindings before forming any callable body,
         // since its captures may refer to a later module in an import cycle.
@@ -569,16 +561,7 @@ fn form_with_demand(
         }
         formation.finish_reference_prefix()?;
         let context = demand.root();
-        if let Some(export) = demand.resource().producer_export() {
-            formation.work(1)?;
-            let binding = formation.cell_binding(context, export.cell())?;
-            let name = formation.text(export.export_name())?;
-            formation.budget.push(
-                AllocationClass::Retained,
-                &mut formation.module.exports,
-                js::Export { binding, name },
-            )?;
-        } else if contract.abi.preserve_root_exports {
+        if contract.abi.preserve_root_exports {
             formation.work(program.exports().len())?;
             for (export_name, cell) in program.value_exports() {
                 formation.work(1)?;
@@ -1097,9 +1080,6 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     // Target-boundary classification, allocated only for programs with structs.
     struct_plan: structs::Plan,
     reference_plan: references::Plan,
-    // Only a resource consumer owns this physical endpoint. It is not a
-    // second semantic cell or alias table; the sealed view owns its CellId.
-    imported_binding: Option<js::BindingId>,
     /// One hoisted `JS.methodN` adapter factory per calling convention.
     host_factories: Vec<(u8, js::BindingId)>,
     /// Each formed function unit's target function, for export reflection.
@@ -1122,20 +1102,6 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
 impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     fn error(&self, span: Span, feature: &'static str) -> FormationError {
         FormationError::Unsupported(Unsupported { span, feature })
-    }
-
-    /// Spans are local to their module. Until refusals render a source
-    /// diagnostic (011), `LILSCRIPT_DEBUG_VERIFY` names the refused unit.
-    fn debug_refusal(&self, unit: UnitId, error: FormationError) -> FormationError {
-        if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-            let data = self.program.units[unit.index()].data();
-            eprintln!(
-                "formation refusal in module {} unit {:?}: {error:?}",
-                data.module.index(),
-                data.function_name.map(|name| &self.program.strings[name.index()]),
-            );
-        }
-        error
     }
 
     /// The function cell a named function's closure initializes, when that
@@ -1707,11 +1673,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 "multiply materialized semantic function unit",
             ));
         }
-        let strict_frame = self
-            .validate_struct_context(context)
-            .map_err(|error| self.debug_refusal(unit, error))?;
-        self.validate_reference_context(context)
-            .map_err(|error| self.debug_refusal(unit, error))?;
+        let strict_frame = self.validate_struct_context(context)?;
+        self.validate_reference_context(context)?;
         let data = self.program.units[unit.index()].data();
         let mut cells = self.budget.filled(
             AllocationClass::Scratch,
@@ -2346,12 +2309,6 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         context: ContextId,
         cell: CellId,
     ) -> Result<js::BindingId, FormationError> {
-        if self.demand.resource().imported(cell) {
-            self.work(1)?;
-            return self
-                .imported_binding
-                .ok_or_else(|| self.error(Span::default(), "unformed fixed resource import"));
-        }
         let captures = &self.contexts[context.index()].as_ref().unwrap().captures;
         self.budget.work(
             WorkKind::Render,
