@@ -8,6 +8,7 @@
 //! from; a cached view is also checked against its dependencies.
 use super::call_graph::Seal;
 use super::effects::ProgramEffects;
+use super::initialization::ProgramInitialization;
 use super::*;
 use std::sync::{Arc, OnceLock};
 
@@ -88,8 +89,9 @@ pub struct ProgramViews {
 
 #[derive(Debug, Default)]
 struct Slots {
-    /// Indexed by `Seal`: effects under structural (script) and module
-    /// sealing of root storage.
+    /// Indexed by `Seal`: effects, with the initialization facts built
+    /// beside them, under structural (script) and module sealing of root
+    /// storage.
     effects: [OnceLock<Arc<ProgramEffects>>; 2],
 }
 
@@ -100,6 +102,12 @@ impl Clone for ProgramViews {
 }
 
 impl<'src> Program<'src> {
+    /// The initialization facts under `seal` (`initialization.rs`), built
+    /// with the effect summaries they need and that read them.
+    pub fn initialization_facts(&self, seal: Seal) -> Arc<ProgramInitialization> {
+        Arc::clone(self.effects(seal).initialization())
+    }
+
     /// The effect summaries and call graph under `seal`, computed once per
     /// program. A cached view whose dependencies no longer match (a unit was
     /// replaced in place) is recomputed rather than served.

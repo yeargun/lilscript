@@ -1081,7 +1081,7 @@ fn known_callee(program: &Program<'_>, data: &UnitData, callee: ValueId) -> bool
         OperationKind::Closure(_) => true,
         OperationKind::Load(place) => match data.places[place.index()] {
             Place::Cell(cell) => program.cells().get(cell.index()).is_some_and(|cell| {
-                matches!(cell.binding, CellBinding::Function(_)) && !cell.assigned
+                matches!(cell.binding, CellBinding::Function(_)) && !cell.reassigned
             }),
             _ => false,
         },

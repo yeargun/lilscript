@@ -847,7 +847,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                                         matches!(
                                             self.program.cells[cell.index()].binding,
                                             CellBinding::Function(_)
-                                        ) && !self.program.cells[cell.index()].assigned
+                                        ) && !self.program.cells[cell.index()].reassigned
                                     }
                                     _ => false,
                                 },

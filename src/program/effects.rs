@@ -33,15 +33,16 @@
 //! `pure extern`'s host code has no proof, so a discarded `pure extern` call
 //! stays. The pending amendment (a declared `pure` asserts termination) is
 //! `DECLARED_PURE_ASSERTS_TERMINATION`, off until the owner rules.
-use super::activation::StructuredDominance;
 use super::call_graph::{callback_intrinsic, CallGraph, Callee, Seal};
 use super::facts::{self, EvaluationBehavior, MemoryAccess};
+use super::initialization::ProgramInitialization;
 use super::views::{Deps, Fact, Limit, Reason};
 use super::*;
 use crate::check::BuiltinCall;
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
 use crate::typed_array::TypedArrayKind;
 use ahash::AHashMap;
+use std::sync::Arc;
 
 /// D3.6 amendment, awaiting an owner ruling (architecture §7): whether a
 /// declared `pure` body or `pure extern` asserts that it terminates.
@@ -1279,19 +1280,52 @@ impl UnitEffects {
     }
 }
 
-/// Every unit's summary and the call graph they were computed over: the
-/// program table effects publish (keyed by `UnitId`).
+/// Every unit's summary, the call graph they were computed over and the
+/// initialization facts they read: the program table effects publish (keyed
+/// by `UnitId`).
 #[derive(Debug)]
 pub struct ProgramEffects {
     deps: Deps,
     graph: CallGraph,
+    initialization: Arc<ProgramInitialization>,
     units: Vec<Fact<UnitEffects>>,
     roots: Vec<Vec<Root>>,
 }
 
 impl ProgramEffects {
+    /// Effects and initialization order under `seal`, built together: each
+    /// needs the other. Summaries are first computed with the
+    /// initialization owner's structural answer; the root statements'
+    /// effects in them decide when each body may first run; the summaries
+    /// are then computed again with that complete answer, which only ever
+    /// removes a temporal-dead-zone throw. Both rounds are sound.
     pub fn build(program: &Program<'_>, seal: Seal) -> Self {
         let graph = CallGraph::build(program, seal);
+        let mut initialization = ProgramInitialization::structural(program, &graph);
+        // Module initializers are never called, so each one's operations
+        // are complete when it is summarized: callees come first.
+        let mut statements = vec![Vec::new(); program.units.len()];
+        Self::summarize_units(program, &graph, &initialization, Some(&mut statements));
+        initialization.schedule(program, &graph, &statements);
+        let initialization = Arc::new(initialization);
+        let (units, roots) = Self::summarize_units(program, &graph, &initialization, None);
+        Self {
+            deps: Deps::of_program(program),
+            graph,
+            initialization,
+            units,
+            roots,
+        }
+    }
+
+    /// Every unit's summary over `graph`, bottom-up over its components.
+    /// `record` receives, per module initializer, each operation's effects.
+    fn summarize_units(
+        program: &Program<'_>,
+        graph: &CallGraph,
+        access: &ProgramInitialization,
+        mut record: Option<&mut Vec<Vec<Effects>>>,
+    ) -> (Vec<Fact<UnitEffects>>, Vec<Vec<Root>>) {
         let count = program.units.len();
         let mut declared = vec![false; count];
         for cell in program.cells.iter() {
@@ -1329,8 +1363,29 @@ impl ProgramEffects {
             for _ in 0..if recursive { COMPONENT_ITERATIONS } else { 1 } {
                 let mut changed = false;
                 for &unit in component {
-                    let (summary, unit_roots) =
-                        summarize(program, &graph, &units, unit, declared[unit.index()]);
+                    // Module initializers are never called: their operations
+                    // are the root statements the initialization owner reads.
+                    let operations = match record.as_deref_mut() {
+                        Some(record)
+                            if program.unit(unit).is_some_and(|data| {
+                                data.kind == UnitKind::ModuleInitialization
+                            }) =>
+                        {
+                            let slot = &mut record[unit.index()];
+                            slot.clear();
+                            Some(slot)
+                        }
+                        _ => None,
+                    };
+                    let (summary, unit_roots) = summarize(
+                        program,
+                        graph,
+                        &units,
+                        unit,
+                        declared[unit.index()],
+                        access,
+                        operations,
+                    );
                     let summary = match summary {
                         Fact::Known(mut summary, deps) => {
                             summary.effects.may_diverge |= recursive;
@@ -1353,12 +1408,7 @@ impl ProgramEffects {
                 }
             }
         }
-        Self {
-            deps: Deps::of_program(program),
-            graph,
-            units,
-            roots,
-        }
+        (units, roots)
     }
 
     pub fn deps(&self) -> &Deps {
@@ -1366,6 +1416,10 @@ impl ProgramEffects {
     }
     pub fn graph(&self) -> &CallGraph {
         &self.graph
+    }
+    /// The initialization owner these summaries were computed with.
+    pub fn initialization(&self) -> &Arc<ProgramInitialization> {
+        &self.initialization
     }
     pub fn unit(&self, unit: UnitId) -> Option<&Fact<UnitEffects>> {
         self.units.get(unit.index())
@@ -1907,12 +1961,18 @@ impl Structure {
     }
 }
 
+/// A unit's summary. `access` answers whether an access of a cell is past
+/// that cell's initialization (the initialization owner, at the tier the
+/// caller has); `record`, when given, receives every operation's effects as
+/// the summary joins them, before the projection to what callers observe.
 fn summarize(
     program: &Program<'_>,
     graph: &CallGraph,
     summaries: &[Fact<UnitEffects>],
     unit: UnitId,
     declared_pure: bool,
+    access: &ProgramInitialization,
+    mut record: Option<&mut Vec<Effects>>,
 ) -> (Fact<UnitEffects>, Vec<Root>) {
     let data = program.unit(unit).unwrap();
     if data.suspension != Suspension::None {
@@ -1930,62 +1990,16 @@ fn summarize(
         summaries: Some(summaries),
     };
     let structure = Structure::new(data);
-    let dominance = StructuredDominance::build(
-        data,
-        vec![None; data.regions.len()],
-        vec![0; data.operations.len()],
-        |_| Ok::<(), ()>(()),
-    )
-    .expect("an infallible work counter");
-    let mut initializers: AHashMap<CellId, Vec<OpId>> = AHashMap::default();
-    // A catch binding, for-in key or for-of item is initialized throughout
-    // the region its construct enters.
-    let mut bound: AHashMap<CellId, RegionId> = AHashMap::default();
-    for (index, operation) in data.operations.iter().enumerate() {
-        match operation.kind {
-            OperationKind::Initialize(cell) => initializers
-                .entry(cell)
-                .or_default()
-                .push(OpId::from_index(index).unwrap()),
-            OperationKind::Try {
-                catch: Some((Some(cell), region)),
-                ..
-            }
-            | OperationKind::ForIn {
-                key: cell,
-                body: region,
-            }
-            | OperationKind::ForOf {
-                item: cell,
-                body: region,
-            } => {
-                bound.insert(cell, region);
-            }
-            _ => {}
-        }
-    }
     let mut effects = Effects::NONE;
     let mut result_primitive = Some(ParameterSet::EMPTY);
     for (index, operation) in data.operations.iter().enumerate() {
         let id = OpId::from_index(index).unwrap();
         let mut operation_effects = operation_effects(&ctx, &values, operation);
-        // A local read or write after its initialization in the same or an
-        // enclosing region cannot observe the temporal dead zone.
+        // An access past its cell's initialization cannot observe the
+        // temporal dead zone, its only failure.
         if operation_effects.may_throw {
             if let Some(cell) = access_cell(data, operation) {
-                let storage = &program.cells[cell.index()];
-                if storage.owner == unit
-                    && storage.binding == CellBinding::Local
-                    && (initializers.get(&cell).is_some_and(|sites| {
-                        sites.iter().any(|&initialize| {
-                            dominance
-                                .after(data, initialize, id, |_| Ok::<(), ()>(()))
-                                .unwrap_or(false)
-                        })
-                    }) || bound
-                        .get(&cell)
-                        .is_some_and(|&region| structure.within(data, operation.region, region)))
-                {
+                if access.initialized(program, unit, id, cell) {
                     operation_effects.may_throw = false;
                 }
             }
@@ -2014,6 +2028,9 @@ fn summarize(
                 }
             }
             _ => {}
+        }
+        if let Some(record) = record.as_deref_mut() {
+            record.push(operation_effects);
         }
         operation_effects.transfers_control = false;
         operation_effects.cell = None;

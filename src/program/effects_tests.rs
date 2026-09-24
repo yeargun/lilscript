@@ -135,10 +135,20 @@ fn empty_and_reading_bodies_have_no_effect_or_obligation() {
         warning.discardable() && !warning.effects.obligated(),
         "{warning:?}"
     );
-    // Reading module state is allowed; its temporal dead zone is a throw.
+    // Reading module state is allowed. `inRange` runs only after `limit`
+    // settles, so the read cannot throw (M6.5) and the call can go.
     assert!(reads.effects.reads.contains(Regions::CELLS));
     assert!(!reads.observable_effect());
-    assert!(reads.effects.may_throw && !reads.discardable());
+    assert!(!reads.effects.may_throw && reads.discardable(), "{reads:?}");
+    // Called by a statement before `limit` settles, the read's temporal dead
+    // zone is a throw.
+    let early = summary(
+        "bool first=inRange(1);int limit=4;\
+         bool inRange(int value){int copy=limit;return true;}print(first);",
+        "inRange",
+    );
+    assert!(early.effects.may_throw && !early.discardable(), "{early:?}");
+    assert!(!early.observable_effect());
 }
 
 #[test]
@@ -403,13 +413,15 @@ fn an_exported_function_survives_its_discarded_internal_calls() {
 
 #[test]
 fn a_call_whose_callee_read_must_stay_is_kept_whole() {
-    // The binding is initialized by a statement after `run` is created, so
-    // its read inside `run` keeps its temporal dead zone: dropping only the
-    // call would leave a bare read of `warning`.
+    // `run` is first called by a statement before `warning` is initialized,
+    // so its read of `warning` keeps its temporal dead zone (M6.5): dropping
+    // only the call would leave a bare read of `warning`.
     let javascript = compile(
         "void warningImpl(bool check,string message){}\
+         bool ready=run();\
          func(bool,string)->void warning=warningImpl;\
-         export void run(){warning(true,\"through\");warningImpl(true,\"direct\");print(\"ran\");}",
+         bool run(){warning(true,\"through\");warningImpl(true,\"direct\");print(\"ran\");return true;}\
+         print(ready);",
         true,
     );
     assert!(javascript.contains("\"through\""), "{javascript}");

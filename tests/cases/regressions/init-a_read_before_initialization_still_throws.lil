@@ -1,0 +1,7 @@
+// D3.7: `read` is a named function, so it exists before any statement runs,
+// and the first statement calls it before `K` is initialized. Its read of
+// `K` must still throw; after `K` settles the same call returns 4.
+try { print(read()); } catch (JsValue e) { print("dead zone"); }
+int K = 4;
+int read() { return K; }
+print(read());

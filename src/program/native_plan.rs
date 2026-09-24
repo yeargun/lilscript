@@ -1105,7 +1105,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             let id = CellId::from_index(index).unwrap();
             let error = |feature| fail(Some(cell.owner), None, cell.declaration, feature);
             let storage = match (cell.binding, classes[cell.ty.index()]) {
-                (CellBinding::Function(function), TypeClass::Function(_)) if !cell.assigned => {
+                (CellBinding::Function(function), TypeClass::Function(_)) if !cell.reassigned => {
                     if program.unit(cell.owner).unwrap().kind != UnitKind::ModuleInitialization
                         || program.unit(function).unwrap().kind != UnitKind::Function
                     {

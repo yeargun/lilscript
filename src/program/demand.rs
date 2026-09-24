@@ -3,7 +3,6 @@
 //! Results and required evaluation are independent roots. The worklist never
 //! changes source schedules: it retains their control/prepared-call envelopes.
 //! Storage writers wait for observable storage instead of rooting themselves.
-use super::activation::StructuredDominance;
 use super::callable_inputs::{CallObservations, CallableInputs, InputOutcome};
 use super::facts::{self, EvaluationBehavior, ObservationDemand};
 use super::helper_family::HelperFamily;
@@ -153,7 +152,6 @@ pub(super) struct Context {
     pub unit: UnitId,
     pub parent: Option<ContextId>,
     pub kind: ContextKind,
-    creation: Option<OpId>,
     values: Vec<ObservationDemand>,
     operations: Vec<bool>,
     execution: Vec<bool>,
@@ -170,11 +168,14 @@ pub(super) struct Context {
     product_banks: Vec<ProductBank>,
     product_snapshots: Vec<ProductSnapshot>,
 }
+/// How the unit writes an owned cell first: its parameter position, or its
+/// one exact `Initialize` (product locations and inline parameters read it).
+/// Whether an access is past initialization is the initialization owner's
+/// answer (`DemandPlan::initialized`).
 #[derive(Debug, Clone, Copy)]
 enum Initialization {
     Missing,
     Parameter(u32),
-    Catch(RegionId),
     Operation(OpId),
     Multiple,
 }
@@ -188,7 +189,6 @@ struct UnitSummary {
     named_context: Option<ContextId>,
     shared_strings: std::ops::Range<usize>,
     effects: Vec<EvaluationBehavior>,
-    dominance: StructuredDominance,
     region_owners: Vec<Option<OpId>>,
     call_envelopes: Vec<Option<OpId>>,
     prepares: Vec<Option<OpId>>,
@@ -1131,19 +1131,14 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                 };
             }
             if let OperationKind::Try {
-                catch: Some((Some(cell), region)),
+                catch: Some((Some(cell), _)),
                 ..
             }
-            | OperationKind::ForIn {
-                key: cell,
-                body: region,
-            }
-            | OperationKind::ForOf {
-                item: cell,
-                body: region,
-            } = operation.kind
+            | OperationKind::ForIn { key: cell, .. }
+            | OperationKind::ForOf { item: cell, .. } = operation.kind
             {
-                initializers[self.cell_ordinal(cell)] = Initialization::Catch(region);
+                // Bound by its construct, never by one exact operation.
+                initializers[self.cell_ordinal(cell)] = Initialization::Multiple;
             }
         }
         if let Some(proof) = raw_domains {
@@ -1186,9 +1181,6 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         let stack_bytes = stack.capacity() as u64 * size_of::<OpId>() as u64;
         drop(stack);
         budget.release(stack_bytes)?;
-        let parents = budget.filled(data.regions.len(), None)?;
-        let positions = budget.filled(data.operations.len(), 0usize)?;
-        let dominance = StructuredDominance::build(data, parents, positions, |n| budget.work(n))?;
         let domain_bytes = domains.capacity() as u64 * size_of::<bool>() as u64;
         drop(domains);
         budget.release(domain_bytes)?;
@@ -1206,7 +1198,6 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             named_context: None,
             shared_strings: shared_start..shared_end,
             effects,
-            dominance,
             region_owners,
             call_envelopes,
             prepares,
@@ -1252,7 +1243,6 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         let context = Context {
             unit,
             parent,
-            creation,
             product_banks,
             product_snapshots,
             kind,
@@ -1607,6 +1597,10 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                     .is_some_and(|users| !users.reference_exposed())
             })
     }
+    /// Whether an access of `cell` at `operation` in this context is past
+    /// the cell's initialization: the initialization owner's answer, which
+    /// holds in every context of the unit. An inlined helper body carries its
+    /// family's certified operation behavior instead.
     fn initialized(
         &self,
         context: ContextId,
@@ -1614,49 +1608,15 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         operation: OpId,
         budget: &mut Budget<'_>,
     ) -> Result<bool, DemandError> {
-        if self.context(context).kind.is_inline() {
+        let context = self.context(context);
+        if context.kind.is_inline() {
             return Ok(true);
         }
-        let owner = self.program.cells[cell.index()].owner;
-        let mut current = context;
-        let mut at = operation;
-        while self.context(current).unit != owner {
-            budget.work(1)?;
-            let source = self.context(current);
-            // An imported module cell is valid shared storage, but another
-            // module's lexical schedule does not prove it initialized. Keep
-            // the possible TDZ observation until a cross-module activation
-            // proof establishes more than source ownership alone.
-            if source.parent.is_none() && self.module_context(owner).is_some() {
-                return Ok(false);
-            }
-            at = source
-                .creation
-                .ok_or_else(|| unsupported("demand capture creator"))?;
-            current = source
-                .parent
-                .ok_or_else(|| unsupported("demand capture owner"))?;
-        }
-        let data = self.program.units[owner.index()].data();
-        let summary = self.summaries[owner.index()].as_ref().unwrap();
-        match summary.initializers[self.cell_ordinal(cell)] {
-            Initialization::Parameter(_) => Ok(true),
-            Initialization::Operation(initial) => summary
-                .dominance
-                .after(data, initial, at, |n| budget.work(n)),
-            Initialization::Catch(region) => {
-                let mut cursor = Some(data.operations[at.index()].region);
-                while let Some(current) = cursor {
-                    budget.work(1)?;
-                    if current == region {
-                        return Ok(true);
-                    }
-                    cursor = data.regions[current.index()].parent;
-                }
-                Ok(false)
-            }
-            Initialization::Missing | Initialization::Multiple => Ok(false),
-        }
+        budget.work(1)?;
+        Ok(self
+            .effects
+            .initialization()
+            .initialized(self.program, context.unit, operation, cell))
     }
     fn storage(&self, id: StorageId) -> &Storage {
         match id {

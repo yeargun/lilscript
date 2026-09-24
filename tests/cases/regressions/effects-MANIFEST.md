@@ -10,7 +10,7 @@ what the source means.
 | Case | What it pins |
 |---|---|
 | `effects-discarded_pure_calls_leave_output_unchanged` | `pure int twice(int x)`, a counted `for` loop and a string-length `while` loop, called with proven arguments and discarded: removed, output unchanged |
-| `effects-empty_warning_and_invariant_bodies` | motionlil's development-only `warning`/`invariant`: empty bodies reached through exported function-typed bindings. A direct call of the empty body goes. A call through the binding stays: the binding's read is not proven initialized (its temporal dead zone), and dropping the call alone would leave a bare read; initialization order (M6.5) owns that proof. An argument's own effect (`noted`) runs either way |
+| `effects-empty_warning_and_invariant_bodies` | motionlil's development-only `warning`/`invariant`: empty bodies reached through exported function-typed bindings. A direct call of the empty body goes. Since M6.5 a call through the binding goes too in the module lane: `clamp` runs only after the bindings settle, so their reads cannot throw. A classic script's root bindings are not sealed, so there the call stays. An argument's own effect (`noted`) runs either way |
 | `effects-discarded_call_arguments_still_run_in_order` | A removed call never removes its arguments: they run once, in order |
 | `effects-discarded_call_that_may_throw_still_throws` | A discarded call whose body may throw stays |
 | `effects-pure_extern_result_unused_still_runs` | D3.6 as settled: a `pure extern` has no observable effect (a `pure` function may call it), but no termination proof, so a discarded call stays. The pending amendment would change this case |
