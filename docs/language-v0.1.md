@@ -371,9 +371,8 @@ extern Document document;
 
 External globals are read-only bindings, external classes cannot be constructed,
 and declared member accesses emit direct JavaScript property operations. Their
-global and member names are exact by default. The current explicitly configured
-closed-key mode assumes every producer and consumer shares the renamed ABI; it
-must not be used for ordinary browser/host objects. Host property reads and methods are
+global and member names are exact; no configuration renames them (the old
+`mangle.extern_fields` switch is retired). Host property reads and methods are
 effectful unless a method has a trusted `pure` contract. The C and native targets
 reject host-object access because the Web platform has no portable C ABI. See
 [web-platform.md](web-platform.md) for the complete implemented boundary and
@@ -748,9 +747,12 @@ print(priced.total(2));
 ```
 
 A closed `object` is a singleton with ABI keys. Method bodies are ordinary
-private functions: they nest, mangle, and fold like other helpers. Keys stay
-stable unless `[mangle].exports` is enabled. Multiple files may contribute
-methods to the same exported object; the compiler owns one identity.
+private functions: they nest, mangle, and fold like other helpers. Keys are ABI
+and stay stable. Multiple files may contribute methods to the same exported
+object; the compiler owns one identity. **Until M10.10** the compiler does not
+compile `object` singletons: the checker accepts the declaration, but a use of it
+fails ("unknown identifier"). The architecture recommends deleting the feature
+in favour of module namespaces and const records; the owner decides.
 
 ```lilscript
 object Api {

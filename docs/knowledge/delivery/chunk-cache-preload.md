@@ -1,7 +1,9 @@
 # Chunk cost, cache identity, and preload
 
-Parent: [delivery](README.md). Planner:
-[chunk planning](../history/compilation/chunk-planning.md). Config: [`[bundle]`](../config/bundle.md).
+Parent: [delivery](README.md). Planner: the delivery plan in `src/js/delivery.rs`
+(the deleted route's planner is in [history](../history/compilation/chunk-planning.md)).
+Config: [`[bundle]`](../config/bundle.md). **Until plan M3.3**, `preserve-modules`
+chunks and lazy `import()` chunks are broken on this compiler.
 
 `[bundle.cost]` turns a complete emitted plan into deterministic byte-equivalent cost:
 weighted raw/gzip/Brotli sizes plus request overhead and dependency depth, adjusted by

@@ -2,9 +2,10 @@
 
 Parent: [language](README.md). Contract: [collections](../../language-v0.1.md#collection-literals-destructuring-and-iteration)
 and [standard library](../../language-v0.1.md#standard-library-surface). Compiler
-anchors: receiver and contextual-call checking in `src/semantic.rs`, primitive
-resolution and shared operation identity in `src/primitive.rs` (re-exported as
-`src/ir.rs::Intrinsic`), and intrinsic lowering in both code generators.
+anchors: receiver and contextual-call checking in `src/check.rs`, primitive
+resolution and shared operation identity in `src/primitive.rs`, and intrinsic
+lowering in JavaScript formation and the native C writer (`src/program/`). Plan
+M4.6 merges builtins and intrinsics into one operation catalog.
 
 | Family | Semantic boundary | Typical JS representation |
 |---|---|---|
@@ -36,10 +37,10 @@ when the JavaScript emitter selects a built-in spelling. Mutators retain a preci
 receiver-mutation effect. An explicit `JsValue` coercion or proxy-sensitive access
 is a different semantic boundary and cannot inherit these purity facts.
 `Record<T>` keys remain observable data even when internal nominal fields mangle.
-A JavaScript-only candidate can project exact closed record observations and remove
-the allocation. It never permits key mangling or ordinary-object backing for a
-surviving record. See
-[aggregate lowering](../history/compilation/aggregate-lowering.md#closed-record-observation-projection).
+The record family can replace a captured `Record<int>` that never escapes with
+scalars. It never permits key renaming or ordinary-object backing for a surviving
+record. The deleted route's record projection is in
+[history](../history/compilation/aggregate-lowering.md#closed-record-observation-projection).
 
 Collection tests need aliasing and mutation, callback evaluation order, absent keys,
 prototype-sensitive record keys, JSON order, `NaN` membership, negative indexes,

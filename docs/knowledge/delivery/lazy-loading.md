@@ -2,8 +2,9 @@
 
 Parent: [delivery](README.md). Language contract:
 [modules and lazy loading](../language/modules-lazy.md). Source anchors: dynamic
-import discovery/linking in `src/module.rs`, lazy-module IR in `src/ir.rs`, and chunk
-planning/emission in `src/compiler.rs` and `src/codegen_ir_js.rs`.
+import discovery in `src/module.rs`, module checking in `src/check/modules.rs`, and
+the delivery plan in `src/js/delivery.rs`. **Until plan M3.3**, lazy `import()`
+chunks are broken on this compiler: the build writes no chunks.
 
 `import("./feature")` accepts a compile-time literal and returns a
 `Task<module>`. The module namespace exposes declared runtime exports with their
