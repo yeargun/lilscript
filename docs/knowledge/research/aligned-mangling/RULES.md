@@ -95,7 +95,7 @@ past the reassignment of the variable holding the match. That is the `ident`
 lane's invariant, not a cost-model bug. Every size comparison in this
 repository should be paired with the port's own battery before it is believed.
 See [07](07-ports.md) for the historical reproduction. Current legality and
-identity work is owned by the [migration plan](../../../migration/index.md#004-semantic-facts-and-checked-edits).
+identity work is owned by the [migration plan](../../../migration/record-2026-09.md#004-semantic-facts-and-checked-edits).
 
 **17. Break a codec tie with raw size.**
 Under `priority = "size-first"` with a Brotli cost model, markedlil is taking

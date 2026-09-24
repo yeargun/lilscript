@@ -11,7 +11,7 @@ wrapper. Initialization runs once in dependency-first order.
 
 Compilation world and public roots determine what an export means; artifact
 format determines how it is delivered. The current compiler still couples some
-of these choices; the [migration plan](../../migration/index.md#008-whole-program-js-and-delivery)
+of these choices; the [migration plan](../../migration/record-2026-09.md#008-whole-program-js-and-delivery)
 assigns their replacement to the target/delivery owner.
 
 | World/boundary | Export behavior |
@@ -26,7 +26,7 @@ Type-only struct/class exports create no JS binding. That is a language contract
 `ExportBinding::TypeOnly`. `export constructor C [as PublicC];` explicitly
 publishes the constructor value and marks only that class identity-observed; see
 [compressor surface](compressor-surface.md) and
-[class identity](../compilation/class-identity.md). `mangle.exports = true` is safe
+[class identity](../history/compilation/class-identity.md). `mangle.exports = true` is safe
 only for a closed LilScript application whose importers are linked before codegen.
 Reusable ESM/script-tag surfaces keep it false. Public aggregate ABI, instance layout,
 property mangling, and function spelling are separate dimensions; “exports stable”

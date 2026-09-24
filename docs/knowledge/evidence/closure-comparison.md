@@ -1,6 +1,6 @@
 # Closure and corpus
 
-Parent: [Evidence](README.md). Mapping: [`docs/optimization-coverage.md`](../../optimization-coverage.md). Audit: [post-minify](vite-closure-minification-audit.md).
+Parent: [Evidence](README.md). Mapping: [`docs/optimization-coverage.md`](../history/optimization-coverage.md). Audit: [post-minify](vite-closure-minification-audit.md).
 
 ## What LilScript claims relative to Closure `ADVANCED`
 

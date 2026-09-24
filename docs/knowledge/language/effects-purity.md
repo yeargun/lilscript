@@ -1,6 +1,6 @@
 # Effects and purity
 
-Parent: [Language](README.md). Related: [escape](boundaries-escape.md), [IR optimizer](../compilation/ir-optimizer.md).
+Parent: [Language](README.md). Related: [escape](boundaries-escape.md), [IR optimizer](../history/compilation/ir-optimizer.md).
 
 ## Inference first, `pure` as a contract
 

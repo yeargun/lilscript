@@ -1,7 +1,7 @@
 # Configuration matrix
 
 Parent: [verification](README.md). Config behavior:
-[config](../config/README.md). Search: [candidate search](../compilation/candidate-search.md).
+[config](../config/README.md). Search: [candidate search](../history/compilation/candidate-search.md).
 
 ## Required axes
 

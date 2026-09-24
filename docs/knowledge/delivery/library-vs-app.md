@@ -1,7 +1,7 @@
 # Reusable library vs closed application
 
 Parent: [delivery](README.md). ABI controls:
-[JavaScript shape and ABI](../config/javascript-shape-abi.md). Language boundary:
+[JavaScript shape and ABI](../history/config/javascript-shape-abi.md). Language boundary:
 [packages and exports](../language/packages-exports-abi.md).
 
 These are different compilation claims, even when they share source.

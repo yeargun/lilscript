@@ -1,7 +1,7 @@
 # Gzip and Brotli as compiler objectives
 
 Parent: [research](README.md). Config:
-[cost model](../config/cost-model.md). Measurement:
+[cost model](../history/config/cost-model.md). Measurement:
 [codec contract](../verification/codec-measurement.md).
 
 ## Why raw-local minimization is insufficient

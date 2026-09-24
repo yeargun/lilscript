@@ -7,11 +7,11 @@ Compiler anchors: `Type` checking in `src/semantic.rs`, integer/finite analyses 
 LilScript distinguishes values whose JavaScript spelling looks similar because the
 distinction supplies optimization proofs.
 
-[Compiler design D1](../../compiler-design.md#decisions-and-scope) selects
+[Compiler design D1](../../future-architecture.md#17-decisions-taken-in-this-design) selects
 **value structs with explicit mutable references**. Caller-mutating helpers require
 an explicit reference to the original place; flattening cannot change assignment
 semantics. Nested/generic/nullable copies, reference fields and capture/lifetime
-details are specified and tested in [step 002](../../migration/index.md#002-language-and-public-boundaries).
+details are specified and tested in [step 002](../../migration/record-2026-09.md#002-language-and-public-boundaries).
 Complete implementation and JS/native conformance remain migration work; legacy
 struct transfers are inconsistent.
 

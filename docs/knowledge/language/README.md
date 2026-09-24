@@ -56,7 +56,7 @@ Every surface construct is judged by whether it gives the compiler a **proof** i
 ## Compilation consequence
 
 Language design is upstream of [compilation](../compilation/README.md). If a feature cannot be checked, escaped, and represented, the compressor cannot legally rewrite it. Prefer a smaller, explicit surface over a JS convenience that would force conservative lowering. Whether a legal representation is then **searched** or hard-wired is
-[decision registry](../compilation/decision-registry.md). How to write a port so
+[decision registry](../history/compilation/decision-registry.md). How to write a port so
 Terser/Oxc/Closure can lose: [compressor surface](compressor-surface.md).
 
 Config that changes **language-visible ABI** must be normalized into the

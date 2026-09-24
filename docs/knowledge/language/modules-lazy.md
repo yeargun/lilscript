@@ -1,6 +1,6 @@
 # Modules, lazy loading, progressive enhancement
 
-Parent: [Language](README.md). Related: [closed world](closed-world.md), [chunk planning](../compilation/chunk-planning.md), [delivery](../delivery/README.md). Contract: [`docs/modules-and-delivery.md`](../../modules-and-delivery.md).
+Parent: [Language](README.md). Related: [closed world](closed-world.md), [chunk planning](../history/compilation/chunk-planning.md), [delivery](../delivery/README.md). Contract: [`docs/modules-and-delivery.md`](../../modules-and-delivery.md).
 
 ## Static imports are the default because they shrink code
 

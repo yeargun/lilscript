@@ -1,6 +1,6 @@
 # Vite 8 and Closure ADVANCED minification audit
 
-Parent: [Evidence](README.md). Mapping: [`docs/optimization-coverage.md`](../../optimization-coverage.md).
+Parent: [Evidence](README.md). Mapping: [`docs/optimization-coverage.md`](../history/optimization-coverage.md).
 
 Audited 2026-08-09 against the current npm releases:
 
@@ -105,7 +105,7 @@ Vite library artifact that preserves that API is not a valid size comparison.
 ## What LilScript already takes further
 
 The detailed responsibility map lives in
-[`docs/optimization-coverage.md`](../../optimization-coverage.md). The important
+[`docs/optimization-coverage.md`](../history/optimization-coverage.md). The important
 advantages over general JavaScript input are:
 
 - typed closed-world CFG/SSA, finite/range propagation, and proven integer

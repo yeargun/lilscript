@@ -39,7 +39,7 @@ is a different semantic boundary and cannot inherit these purity facts.
 A JavaScript-only candidate can project exact closed record observations and remove
 the allocation. It never permits key mangling or ordinary-object backing for a
 surviving record. See
-[aggregate lowering](../compilation/aggregate-lowering.md#closed-record-observation-projection).
+[aggregate lowering](../history/compilation/aggregate-lowering.md#closed-record-observation-projection).
 
 Collection tests need aliasing and mutation, callback evaluation order, absent keys,
 prototype-sensitive record keys, JSON order, `NaN` membership, negative indexes,

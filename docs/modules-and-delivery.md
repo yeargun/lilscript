@@ -1,6 +1,6 @@
 # Modules and Delivery
 
-Reasoning: [knowledge/language/modules-lazy.md](knowledge/language/modules-lazy.md), [knowledge/delivery](knowledge/delivery/README.md), [chunk planning](knowledge/compilation/chunk-planning.md). This page is the delivery contract.
+Reasoning: [knowledge/language/modules-lazy.md](knowledge/language/modules-lazy.md), [knowledge/delivery](knowledge/delivery/README.md), [chunk planning](knowledge/history/compilation/chunk-planning.md). This page is the delivery contract.
 
 LilScript resolves a closed, typed module graph before SSA optimization. Static
 imports remain the default because they permit cross-file inlining, scalar

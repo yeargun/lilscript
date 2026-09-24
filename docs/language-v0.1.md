@@ -980,6 +980,6 @@ the selected boundary permit them.
 The implemented pipeline is documented in
 [current architecture](knowledge/compilation/current-architecture.md). The
 Closure responsibility comparison is
-[optimization-coverage.md](optimization-coverage.md). Project-wide completion
+[optimization-coverage.md](knowledge/history/optimization-coverage.md). Project-wide completion
 criteria and current state live in the [migration plan](migration/index.md) and
 [current status](current-status.md), not in the language semantics contract.

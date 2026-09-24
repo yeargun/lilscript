@@ -46,7 +46,7 @@ The −801 is the headline: it is bigger than every row in the
 rewrite that passes a 37-observation behavioural differential against the
 shipped artifact, and it was confirmed with `lilscript-codec`, not only with
 the diagnostic scorer. [05](05-concentration.md) has the mechanism;
-The [migration plan](../../../migration/index.md#010-bounded-codec-search) owns
+The [migration plan](../../../migration/record-2026-09.md#010-bounded-codec-search) owns
 any implementation work; these measurements are historical research.
 
 ## Pages

@@ -1,7 +1,7 @@
 # Release gates
 
 Parent: [verification](README.md). Active rollout:
-[retirement and final certification](../../migration/index.md#014-retirement-and-final-certification).
+[retirement and final certification](../../migration/record-2026-09.md#014-retirement-and-final-certification).
 
 ## Gate layers
 

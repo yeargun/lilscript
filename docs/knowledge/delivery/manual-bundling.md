@@ -1,7 +1,7 @@
 # Manual bundling and partition control
 
 Parent: [delivery](README.md). Algorithm:
-[chunk planning](../compilation/chunk-planning.md). Config: [`[bundle]`](../config/bundle.md).
+[chunk planning](../history/compilation/chunk-planning.md). Config: [`[bundle]`](../config/bundle.md).
 
 LilScript does not require one automatic partition policy. Authors choose semantic
 boundaries in source and deployment policy in TOML:

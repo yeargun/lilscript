@@ -27,11 +27,11 @@ native JavaScript completion order is preserved: `finally` runs for normal and a
 completion and may replace the earlier completion. Catch values are `JsValue`; no
 error-record shape is assumed.
 
-[Compiler design D3](../../compiler-design.md#decisions-and-scope) proposes that
+[Compiler design D3](../../future-architecture.md#17-decisions-taken-in-this-design) proposes that
 implementation-specific resource-exhaustion timing may differ after optimization,
 while ordinary throws/argument errors, host effects and divergence remain observable.
 Its exact wording and cross-target obligations are settled in
-[step 002](../../migration/index.md#002-language-and-public-boundaries).
+[step 002](../../migration/record-2026-09.md#002-language-and-public-boundaries).
 This proposal is not permission to remove ordinary exceptions or perform unbounded
 evaluation, and does not establish current backend enforcement.
 
@@ -48,7 +48,7 @@ recover a native optional chain only after proving receiver identity, the matchi
 null branch, lazy arm order, and a safe structured merge; otherwise the explicit CFG
 is the correctness fallback. A separately proven non-null receiver can erase the
 guard before CFG simplification. See the
-[IR optimizer](../compilation/ir-optimizer.md#proof-scoped-nullable-simplification).
+[IR optimizer](../history/compilation/ir-optimizer.md#proof-scoped-nullable-simplification).
 
 Tests must exercise effects in conditions/arms/indexes, loop-carried phis, labeled
 completion equivalents, updates on members, throws between mutable assignments, and

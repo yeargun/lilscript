@@ -1,7 +1,7 @@
 # Chunk cost, cache identity, and preload
 
 Parent: [delivery](README.md). Planner:
-[chunk planning](../compilation/chunk-planning.md). Config: [`[bundle]`](../config/bundle.md).
+[chunk planning](../history/compilation/chunk-planning.md). Config: [`[bundle]`](../config/bundle.md).
 
 `[bundle.cost]` turns a complete emitted plan into deterministic byte-equivalent cost:
 weighted raw/gzip/Brotli sizes plus request overhead and dependency depth, adjusted by

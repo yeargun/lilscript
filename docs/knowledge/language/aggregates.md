@@ -1,6 +1,6 @@
 # Aggregates
 
-Parent: [Language](README.md). Related: [types](types-not-glue.md), [escape](boundaries-escape.md). Config: [`public_aggregate_abi`](../config/javascript-priority.md), [`[mangle]`](../config/mangle.md).
+Parent: [Language](README.md). Related: [types](types-not-glue.md), [escape](boundaries-escape.md). Config: [`public_aggregate_abi`](../history/config/javascript-priority.md), [`[mangle]`](../history/config/mangle.md).
 
 ## Three layouts, three jobs
 
@@ -20,8 +20,8 @@ can admit a scored `keep-object` clone through `joint-representation-search`.
 Array vs named object is `aggregate_layout` unless that search is enabled. Root
 `lilscript.toml` omits the decision, so repo-default
 compiles do not compete layouts. ES `class` is constructor identity, not instance
-backing. Full map: [decision registry](../compilation/decision-registry.md#aggregates-class-struct-object-record),
-[class identity](../compilation/class-identity.md).
+backing. Full map: [decision registry](../history/compilation/decision-registry.md#aggregates-class-struct-object-record),
+[class identity](../history/compilation/class-identity.md).
 
 ## Inheritance is non-virtual on purpose
 
@@ -45,7 +45,7 @@ This is a compression-oriented OO subset, not a TS `extends` clone.
 
 ## Construction spelling
 
-`Point{10, 20}` is positional struct construction. `new Vector(3, 4)` is class construction. `record { key: value }` is an open record with a null-prototype semantic contract. `object { key: value }` is an ordinary-prototype, JavaScript-only `JsValue` dictionary and keeps inherited hook behavior. A JS-only whole-artifact candidate may project proven closed record observations and eliminate the materialized record, but a surviving record never changes backing. See [aggregate lowering](../compilation/aggregate-lowering.md#closed-record-observation-projection).
+`Point{10, 20}` is positional struct construction. `new Vector(3, 4)` is class construction. `record { key: value }` is an open record with a null-prototype semantic contract. `object { key: value }` is an ordinary-prototype, JavaScript-only `JsValue` dictionary and keeps inherited hook behavior. A JS-only whole-artifact candidate may project proven closed record observations and eliminate the materialized record, but a surviving record never changes backing. See [aggregate lowering](../history/compilation/aggregate-lowering.md#closed-record-observation-projection).
 
 `export class` does not produce a JS constructor. `export constructor C;`
 publishes a named, constructible ES class; `as` supplies a public export alias.

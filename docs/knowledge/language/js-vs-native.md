@@ -1,6 +1,6 @@
 # JavaScript vs native
 
-Parent: [Language](README.md). Related: [mission](../mission.md), [native config](../config/native.md).
+Parent: [Language](README.md). Related: [mission](../mission.md), [native config](../history/config/native.md).
 
 ## Shared frontend, two optimizer copies
 

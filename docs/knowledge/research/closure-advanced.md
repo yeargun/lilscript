@@ -1,7 +1,7 @@
 # Google Closure Compiler ADVANCED
 
 Parent: [research](README.md). Local mapping:
-[`docs/optimization-coverage.md`](../../optimization-coverage.md). Maintained lane:
+[`docs/optimization-coverage.md`](../history/optimization-coverage.md). Maintained lane:
 [`comparison/`](../../../comparison/README.md).
 
 ## Why it is the serious reference

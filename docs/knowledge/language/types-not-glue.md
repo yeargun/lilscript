@@ -53,7 +53,7 @@ Closed record observations can disappear only when a JS-only candidate proves an
 substitutes their exact results. A record that remains materialized keeps the
 null-prototype language contract; production does not infer ordinary-object safety
 from already projected IR. See
-[aggregate lowering](../compilation/aggregate-lowering.md#closed-record-observation-projection).
+[aggregate lowering](../history/compilation/aggregate-lowering.md#closed-record-observation-projection).
 
 **`JsValue` vs untyped JS.** Implemented operations: `truthy()`, `isArray()`, `isObject()`, `length`, index, `for-in`, `is string|float|bool`. No arbitrary member dispatch. This is the hatch for genuinely dynamic APIs (jQuery’s public bags, JSON.parse). Operations that can invoke coercion hooks, proxy traps, or dynamic throws are observable and invalidate `pure`; the type checker does not erase that boundary into an apparently scalar expression. Overuse is the main size tax on JS-shaped ports — see [compressor surface](compressor-surface.md) and [jQuery](../evidence/jquery.md).
 

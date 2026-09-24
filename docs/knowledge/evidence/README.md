@@ -13,7 +13,7 @@ generated reports own numbers; prose here explains scope and limitations.
 
 How the compiler decides representations (including heuristics that evidence
 cannot yet justify as global): [current architecture](../compilation/current-architecture.md),
-[objectives](../compilation/objectives.md). When a port loses, classify
+[objectives](../history/compilation/objectives.md). When a port loses, classify
 compiler bug vs missing proof vs JS-shaped rewrite:
 [compressor surface](../language/compressor-surface.md).
 
@@ -49,7 +49,7 @@ compiler bug vs missing proof vs JS-shaped rewrite:
 - [Benchmark results](benchmark-results.md) — core synthetic corpus sizes (no jQuery row)
 - [Post-minify audit](vite-closure-minification-audit.md) — post-minify is not a global win
 
-Related contracts: [`docs/optimization-coverage.md`](../../optimization-coverage.md),
+Related contracts: [`docs/optimization-coverage.md`](../history/optimization-coverage.md),
 [`docs/differential-testing.md`](../../differential-testing.md).
 Related labs: [`benchmarks/popular/RESULTS.md`](../../../benchmarks/popular/RESULTS.md),
 [`comparison/README.md`](../../../comparison/README.md).
@@ -75,5 +75,5 @@ Related labs: [`benchmarks/popular/RESULTS.md`](../../../benchmarks/popular/RESU
 `comparison/cases/summary.json` and other working summaries may be ignored or
 regenerated. Publication requires a tracked immutable report. The current
 large-library seed does not yet represent every latest Motion, Marked, MobX, and
-jQuery artifact; the [baseline/support inventory](../../migration/index.md#001-baselines-and-support-inventory)
+jQuery artifact; the [baseline/support inventory](../../migration/record-2026-09.md#001-baselines-and-support-inventory)
 must requalify the complete maintained set.

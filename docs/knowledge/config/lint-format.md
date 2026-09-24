@@ -6,7 +6,7 @@ These do not change emitted JS. They change what authors are allowed to ship, wh
 
 ## Lint
 
-`lilscript-lint` runs module-aware semantic checks and inspects **optimized** IR (so DCE’d allocations do not warn).
+`lilscript-lint` runs the same frontend a build runs, then checks each module's syntax, the module-graph checker's results and the Program IR they elaborate to (`src/lint.rs`). The IR rules see the program *before* any program rule runs, so an allocation that a later pass would remove can still warn; they move after the program rules when those land (plan M6, M7). `performance/aggregate-escape` returns with the escape fact (M6.6).
 
 | Key | Default | Meaning |
 |---|---|---|

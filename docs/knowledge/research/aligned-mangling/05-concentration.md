@@ -93,7 +93,7 @@ propose this, the port config asks for `candidate_search = "production"`, and
 the checked-in artifact still spells 106 names.** Either the proposal is not
 reaching the finalists on this artifact, or the checked-in artifact predates
 the then-current beam. Requalify this historical result through the
-[migration plan](../../../migration/index.md#010-bounded-codec-search) before assigning work.
+[migration plan](../../../migration/record-2026-09.md#010-bounded-codec-search) before assigning work.
 
 ## Proxies do not rank namings
 

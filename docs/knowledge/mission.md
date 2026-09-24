@@ -54,7 +54,7 @@ JavaScript minifiers start after JavaScript has committed to object shapes,
 property strings, wrappers, dynamic calls, and erased types. LilScript can make
 different legal programs before JavaScript is spelled:
 
-- a non-escaping aggregate can disappear into SSA values;
+- a non-escaping aggregate can disappear into plain locals;
 - a private owned field can become a positional slot or codec-friendly name;
 - a constructor whose identity is unobserved can dissolve, while a public
   constructor value remains a named class;
@@ -119,4 +119,4 @@ or a more abstract architecture is not automatically better.
 7. Does the appropriate semantic/API corpus pass before a size claim is made?
 
 Existing implementation: [current architecture](compilation/current-architecture.md).
-Future design and migration: [joint discussion](../compiler-design.md); old plans are retired.
+Architecture: [future-architecture.md](../future-architecture.md). Plan: [migration/index.md](../migration/index.md); old plans are retired.

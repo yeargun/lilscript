@@ -32,5 +32,5 @@ alternative or interaction worth measuring.
 - No full Cartesian product, unbounded codec probing, or solver without a
   measured case that requires it.
 
-Details: [objectives](../compilation/objectives.md),
-[candidate search](../compilation/candidate-search.md).
+Details: [objectives](../history/compilation/objectives.md),
+[candidate search](../history/compilation/candidate-search.md).
