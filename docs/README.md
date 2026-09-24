@@ -28,6 +28,7 @@ If two pages disagree, use the higher authority and fix the lower one.
 | The compiler's architecture and the language designed for size | [Future architecture](future-architecture.md) |
 | Implement a bounded migration step or check progress | [Single migration plan](migration/index.md) |
 | Whether a size claim is valid | [Verification](knowledge/verification/README.md) → [evidence](knowledge/evidence/README.md) |
+| Check a compiler binary: the case runner, the port runner and their expected-failure ledgers | [Testing](testing.md) |
 | Full linked map | [Knowledge tree](knowledge/README.md) |
 
 ## Normative Contracts
