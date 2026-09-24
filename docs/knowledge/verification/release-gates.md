@@ -1,7 +1,9 @@
 # Release gates
 
-Parent: [verification](README.md). Active rollout:
-[retirement and final certification](../../migration/record-2026-09.md#014-retirement-and-final-certification).
+Parent: [verification](README.md). Active rollout: plan phase M12, qualification and
+publication, in the [migration plan](../../migration/index.md) (the earlier step 014
+is in the [record](../../migration/record-2026-09.md#014-retirement-and-final-certification)).
+The runners that check a binary: [testing.md](../../testing.md).
 
 ## Gate layers
 
@@ -19,10 +21,13 @@ popular/scenario/browser lanes, and web builds. It now reaches
 `comparison/run-all.sh`, so both the micro contract and the Closure-inclusive
 11-pair/42-vector structural contract are release-blocking. That wiring does not
 upgrade either lane into browser or public-API evidence; those require their own
-gates below. The current canonical structural report selects all 11 cases and passes
-11/11 with zero failure events; every raw, gzip, and Brotli lane is an observed strict
-win. That makes the structural component green, but does not by itself establish the
-other release layers in this table.
+gates below. The canonical structural report that selects all 11 cases and passes
+11/11 (every raw, gzip and Brotli lane an observed strict win) was measured on the
+compiler route deleted in plan M1. On the one compiler the 11 cases total 3,345
+Brotli against that route's 2,305 (binary b80, 2026-09-23), and the gate has not been
+re-run; plan M7's exit requires `comparison/algorithms` at or below the old route.
+Even a green structural component would not by itself establish the other release
+layers in this table.
 
 ## Size rules
 

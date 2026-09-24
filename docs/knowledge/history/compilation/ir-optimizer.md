@@ -6,7 +6,7 @@ Parent: [Compilation](../../compilation/README.md). Sources:
 `src/optimizer.rs`,
 `src/value_analysis.rs`. Gates:
 [`[optimization]`](../config/optimization.md). Closure mapping:
-[`docs/optimization-coverage.md`](../optimization-coverage.md).
+[old-route optimization coverage](../optimization-coverage.md).
 
 ## Options
 
