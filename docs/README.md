@@ -32,6 +32,7 @@ If two pages disagree, use the higher authority and fix the lower one.
 |---|---|
 | Product intent and non-goals | [Why LilScript](../why-lilscript.md) → [mission](knowledge/mission.md) |
 | What exists and what is green | [Current status](current-status.md) |
+| The 2026-09-24 release: sizes against the last release and against Terser, Oxc/Rolldown and esbuild, plus compile times | [Release report](reports/2026-09-24-release.md) |
 | Syntax or semantics | [Language v0.1](language-v0.1.md) |
 | TOML behavior | [Configuration](configuration.md) |
 | Why a design choice exists | [Design decisions](knowledge/decisions/README.md) |
