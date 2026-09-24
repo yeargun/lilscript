@@ -26,7 +26,7 @@ A configuration is read in two steps:
 
 ```toml
 [javascript]
-priority = "size-first"      # the only accepted value; see "Refused keys"
+priority = "size-first"      # the only accepted value; see "Retired keys"
 cost_model = "brotli"         # raw | gzip | brotli: the codec whose bytes are minimized
 optimization_level = 13       # effort, 0..16; 13 is the default
 candidate_search = "production" # off | production | always; --mode development sets off

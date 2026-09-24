@@ -93,9 +93,10 @@ Every contested optimization spends three resources:
 2. compile time and peak memory;
 3. runtime/startup/allocation shape.
 
-`javascript.priority` defines their order and guards. `size-first` protects the
-selected transfer metric against its retained incumbent. Other priorities may
-accept a documented size/runtime trade. More search, more choices, more knobs,
+Size comes first (owner, 2026-09-23): `size-first` is the only accepted
+`javascript.priority`, and it protects the selected transfer metric against its
+retained incumbent. Runtime is a reported lane, not a gate, until runtime
+estimators exist; compile time is a gate per phase (plan rule 3). More search, more choices, more knobs,
 or a more abstract architecture is not automatically better.
 
 ## Refusals

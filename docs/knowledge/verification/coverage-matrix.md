@@ -30,9 +30,9 @@ case, one size case, and boundary/config variants where applicable.
 ## Cross-products
 
 Every row need not multiply by every config. Use pairwise covering arrays for broad
-config interaction, then hand-own high-risk triples: optimization × compression
-decision × search feature; public ABI × mangle × bundle mode; codec × priority × raw
-growth; and lazy boundary × preload × chunk limit.
+config interaction, then hand-own high-risk triples: tactic permission × effort
+level × candidate search; public ABI × naming × bundle mode; codec × effort ×
+budgets; and lazy boundary × preload × chunk limit.
 
 ## Structural complexity axis
 
