@@ -60,12 +60,6 @@
       "owner": "M1.9 (the struct-to-host family; the plan does not yet name this gap)"
     },
     {
-      "case": "cases/regressions/compiler-drops_unread_scheduler_store_and_host_value",
-      "lanes": "production/raw/module",
-      "reason": "Found by the case runner (not in the harvest manifest, which ran only the Brotli script lane): the raw-objective module build fails inside the compiler with Candidate(Output(Invalid(\"assignment requires a reference\"))).",
-      "owner": "M1.9"
-    },
-    {
       "case": [
         "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_captured_rebind",
         "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write",
