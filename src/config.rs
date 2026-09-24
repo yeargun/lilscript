@@ -83,6 +83,10 @@ pub const RETIRED_KEYS: &[(&str, Retirement)] = &[
         ),
     ),
     (
+        "policy.search.interaction_interval",
+        Retirement::NoEffect("the search has no pairwise interaction phase"),
+    ),
+    (
         "policy.constraints",
         Retirement::Refused(
             "size is the objective; runtime constraints need runtime estimators that do not exist yet; remove [policy.constraints]",

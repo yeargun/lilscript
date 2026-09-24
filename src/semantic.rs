@@ -9681,7 +9681,6 @@ mod tests {
         // grant that program access to another source state's checked facts.
         let other = parse_source(&arena, "\"seven\"; 7;").unwrap();
         assert!(!model.belongs_to(other.source_identity()));
-        assert!(crate::structured_js::lower::lower_slice(&other, &model).is_err());
         assert!(crate::interpreter::interpret_program(&other, &model).is_err());
         assert!(crate::semantic_program::from_checked_source(&other, &model).is_err());
     }

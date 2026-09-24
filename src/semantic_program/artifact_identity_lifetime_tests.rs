@@ -30,10 +30,6 @@ fn qualified_winner_keeps_complete_recipe_after_search_and_source_disposal() {
                 assert_eq!(view.implementation.recipe_words().as_ptr(), pointer);
                 assert_eq!(view.recipe_fingerprint, fingerprint);
                 assert_eq!(view.javascript, bytes);
-                assert!(matches!(
-                    view.implementation.resource(),
-                    ResourceDescription::Whole
-                ));
             })
             .unwrap();
         assert_eq!(compiler.take_qualified_artifact(receipt).unwrap(), bytes);

@@ -353,9 +353,6 @@ pub struct SearchSchedule {
     /// Every Nth structural expansion serves an old pending cursor; every Nth
     /// staged scoring event serves an old artifact. These are distinct clocks.
     pub diversity_interval: usize,
-    /// Opt-in proof-seed pair turns. Shares all existing effort/resource caps;
-    /// absence preserves the quality/age schedule without pair cursor storage.
-    pub interaction_interval: Option<usize>,
 }
 impl Default for SearchSchedule {
     fn default() -> Self {
@@ -363,7 +360,6 @@ impl Default for SearchSchedule {
             codec_schedule: CodecSchedule::Staged,
             render_batch: 8,
             diversity_interval: 4,
-            interaction_interval: None,
         }
     }
 }
@@ -378,7 +374,7 @@ pub struct PolicyConfig {
     pub resources: ResourceLimits,
     /// Hard constraints an admitted artifact must meet regardless of objective, checked before size is compared.
     pub constraints: CandidateConstraints,
-    /// The versioned search schedule: codec cadence, render batch, diversity and interaction intervals.
+    /// The versioned search schedule: codec cadence, render batch and diversity interval.
     pub search: SearchSchedule,
 }
 
@@ -408,10 +404,6 @@ impl PolicyConfig {
         for (name, value) in [
             ("render_batch", self.search.render_batch),
             ("diversity_interval", self.search.diversity_interval),
-            (
-                "interaction_interval",
-                self.search.interaction_interval.unwrap_or(1),
-            ),
         ] {
             if value == 0 {
                 return Err(format!("`policy.search.{name}` must be greater than zero"));
@@ -799,7 +791,7 @@ impl ResolvedPolicy {
                 "preload":format!("{preload:?}")
             }),
         };
-        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval,"interaction_interval":o.search.interaction_interval}}));
+        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
         json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| json!({"id":id, "state":self.tactic(id)})), "resources":self.resources, "constraints":self.constraints})
     }
     pub fn fingerprint(&self) -> [u8; 32] {
@@ -1234,7 +1226,6 @@ mod tests {
             codec_schedule: CodecSchedule::Staged,
             render_batch: 8,
             diversity_interval: 4,
-            interaction_interval: None,
         };
         assert_eq!(SearchSchedule::default(), default);
         assert_eq!(PolicyConfig::default().search, default);
@@ -1255,7 +1246,6 @@ mod tests {
                 "codec_schedule": "immediate",
                 "render_batch": 8,
                 "diversity_interval": 4,
-                "interaction_interval": null,
             })
         );
     }
@@ -1268,7 +1258,6 @@ mod tests {
                     codec_schedule,
                     render_batch: 3,
                     diversity_interval: 7,
-                    interaction_interval: Some(5),
                 },
                 ..PolicyConfig::default()
             };
@@ -1289,7 +1278,7 @@ mod tests {
 
     #[test]
     fn invalid_search_cadences_and_unknown_schedule_controls_are_rejected() {
-        for setting in ["render_batch", "diversity_interval", "interaction_interval"] {
+        for setting in ["render_batch", "diversity_interval"] {
             for schedule in ["immediate", "staged"] {
                 let project = config(&format!(
                     "[policy.search]\ncodec_schedule='{schedule}'\n{setting}=0"
@@ -1314,7 +1303,6 @@ mod tests {
             "codec_schedule='adaptive'",
             "render_batch=-1",
             "diversity_interval=-1",
-            "interaction_interval=-1",
             "remaining_budget_resizes_batch=true",
         ] {
             assert!(
@@ -1336,7 +1324,6 @@ mod tests {
             "codec_schedule='immediate'",
             "render_batch=9",
             "diversity_interval=5",
-            "interaction_interval=4",
         ] {
             let resolved = js(&format!("[policy.search]\n{configured}"));
             let canonical: [u8; 32] =
@@ -1361,7 +1348,7 @@ mod tests {
                 SEARCH_SCHEDULE_VERSION
             );
         }
-        assert_eq!(fingerprints.len(), 5);
+        assert_eq!(fingerprints.len(), 4);
     }
 
     #[test]

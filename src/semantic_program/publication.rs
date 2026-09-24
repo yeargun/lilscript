@@ -7,11 +7,11 @@
 //! adoption accounts already constructed input without retroactive admission of
 //! construction or externally retained source/type storage.
 
-pub use super::artifact_provenance::{LiteralOutput, OutputTactics};
+pub use super::artifact_provenance::{ArtifactProvenanceDescription, LiteralOutput, OutputTactics};
 pub use super::artifacts::{DeliveredBundle, DeliveredChunk, EntryLinks};
 use super::artifacts::ArtifactArena;
 pub use super::artifacts::{
-    ArtifactId, ArtifactResourceView, ArtifactRuntimeEvidence, ArtifactView,
+    ArtifactId, ArtifactRuntimeEvidence, ArtifactView,
     BudgetedJavaScriptOutput, NativeArtifactView, QualifiedArtifact, QualifiedNativeArtifact,
     ScopedArtifactId,
 };
@@ -20,10 +20,7 @@ use super::facts::{
     UnitFacts, LOCAL_FACTS_PLAN, LOCAL_FACTS_VERSION,
 };
 use super::implementation_identity::SharedImplementationIdentity;
-pub use super::implementation_identity::{
-    ArtifactProvenanceDescription, FrozenProducerDescription, ImplementationDescription,
-    PhysicalExportDescription, PhysicalParameter, ProductTransport, ResourceDescription,
-};
+pub use super::implementation_identity::ImplementationDescription;
 use super::implementations::{ImplementationError, ImplementationMap};
 pub use super::native::{BudgetedNativeOutput, NativeError, NativeHostBinding, NativeHostBindings};
 use super::rewrite_lineage::RewriteLineage;
@@ -40,10 +37,6 @@ use crate::compilation_policy::{
 use crate::output_budget::{AllocationBudget, AllocationError};
 use std::mem::size_of;
 use std::sync::Arc;
-
-#[path = "publication_fixed_resources.rs"]
-mod fixed_resources;
-pub use fixed_resources::{ProducerOutcome, ProducerPublication};
 
 #[path = "publication_edits.rs"]
 mod edits;
@@ -881,16 +874,7 @@ impl JavaScriptTarget<'_, '_> {
                     budget,
                 )
             })?;
-            let resource = match map.resource() {
-                None => super::artifacts::ResourceOutput::Whole,
-                Some(super::fixed_resource::ResourceChoice::Producer(contract)) => {
-                    super::artifacts::ResourceOutput::Producer { contract }
-                }
-                Some(super::fixed_resource::ResourceChoice::Consumer { producer, .. }) => {
-                    super::artifacts::ResourceOutput::Consumer(producer)
-                }
-            };
-            let mut facade = BudgetedJavaScriptOutput::new_with_resource(
+            let mut facade = BudgetedJavaScriptOutput::new(
                 &output,
                 artifacts,
                 *candidate,
@@ -899,7 +883,6 @@ impl JavaScriptTarget<'_, '_> {
                 policy,
                 policy.javascript_contract().unwrap().execution,
                 *choices,
-                resource,
             )
             .with_bundle(bundle.as_ref());
             Ok(inspect(&mut facade))
@@ -1344,24 +1327,17 @@ impl<'src> Compilation<'src> {
         inspect: impl FnOnce(&[u32]) -> R,
     ) -> Result<R, CandidateError> {
         let index = self.candidate_slot(candidate)?;
-        let map = self.slots[index]
+        if !self.slots[index]
             .checkpoint
             .as_ref()
             .unwrap()
-            .implementations
-            .as_ref();
-        if map.is_some_and(|map| map.resource().is_some())
-            || !self.slots[index]
-                .checkpoint
-                .as_ref()
-                .unwrap()
-                .semantic
-                .lineage
-                .description()
-                .is_empty()
+            .semantic
+            .lineage
+            .description()
+            .is_empty()
         {
             return Err(CandidateError::Artifact(
-                "complete implementation description is required for resources or rewrites",
+                "complete implementation description is required for rewrites",
             ));
         }
         self.ensure_implementation_identity(index, domain)?;
@@ -1375,8 +1351,7 @@ impl<'src> Compilation<'src> {
         Ok(inspect(identity.description().whole_words().unwrap()))
     }
 
-    /// Borrow the complete implementation identity, including any fixed resource
-    /// contract, producer bytes and actual provenance. Descriptor backing is
+    /// Borrow the complete implementation identity. Descriptor backing is
     /// admitted lazily and shared with completed artifacts, never rebuilt per view.
     pub fn with_implementation_description<R>(
         &mut self,
@@ -2099,7 +2074,6 @@ impl<'src> Compilation<'src> {
         self.ledger
             .charge(domain, WorkKind::Analysis, map.tactics().len() as u64)?;
         check_candidate_policy(map, policy)?;
-        check_resource_permissions(map, policy, &mut self.ledger, domain)?;
         let target = self
             .javascript
             .as_ref()
@@ -2114,16 +2088,7 @@ impl<'src> Compilation<'src> {
             super::demand::DemandMode::Preserve
         };
         let mut budget = AllocationBudget::new(Some((&mut self.ledger, domain)));
-        let resource = match map.resource() {
-            None => super::javascript_resource::ResourceView::Whole,
-            Some(super::fixed_resource::ResourceChoice::Producer(contract)) => {
-                super::javascript_resource::ResourceView::Producer(contract.borrow())
-            }
-            Some(super::fixed_resource::ResourceChoice::Consumer { consumed, .. }) => {
-                super::javascript_resource::ResourceView::Consumer(consumed.borrow())
-            }
-        };
-        let (module, literals) = super::javascript::lower_resource_admitted(
+        let (module, literals) = super::javascript::lower_output_admitted(
             &checkpoint.semantic.program,
             &checkpoint.semantic.uses,
             map,
@@ -2132,7 +2097,6 @@ impl<'src> Compilation<'src> {
             choices.target_compaction,
             choices.raw_structure,
             self.host_modules.as_ref().map(|(delivery, _)| delivery),
-            resource,
             &mut budget,
         )
         .map_err(|error| match error {
@@ -2233,7 +2197,6 @@ impl<'src> Compilation<'src> {
     }
 
     /// Deliver the exact single-file artifact admitted by this receipt.
-    /// A dependency-bearing package remains available through its qualified view.
     pub fn take_qualified_artifact(
         &mut self,
         artifact: QualifiedArtifact,
@@ -2377,7 +2340,6 @@ impl<'src> Compilation<'src> {
     ) -> Result<(u32, Charge), CandidateError> {
         let slot = self.free.ok_or(PublicationError::StoreFull)?;
         check_candidate_policy(&map, policy)?;
-        check_resource_permissions(map, policy, &mut self.ledger, domain)?;
         let semantic = &self.slots[base].checkpoint.as_ref().unwrap().semantic;
         work(&mut self.ledger, domain, semantic.lineage.tactics().len())?;
         check_semantic_policy(semantic, policy)?;
@@ -2688,18 +2650,6 @@ fn check_semantic_policy(
             _ => unreachable!("semantic lineage permission check"),
         })
 }
-fn check_resource_permissions(
-    map: &ImplementationMap,
-    policy: &ResolvedPolicy,
-    ledger: &mut BudgetLedger,
-    domain: WorkDomain,
-) -> Result<(), CandidateError> {
-    if let Some(super::fixed_resource::ResourceChoice::Consumer { producer, .. }) = map.resource() {
-        let mut budget = AllocationBudget::new(Some((ledger, domain)));
-        producer.check_permissions(policy, &mut budget)?;
-    }
-    Ok(())
-}
 fn validate_implementations(
     map: &ImplementationMap,
     semantic: &SemanticSnapshot<'_>,
@@ -2708,15 +2658,6 @@ fn validate_implementations(
 ) -> Result<(), CandidateError> {
     ledger.charge(domain, WorkKind::Analysis, map.published_validation_work()?)?;
     if !map.valid_for_published(&semantic.program, &semantic.uses) {
-        return Err(CandidateError::StaleEvidence);
-    }
-    let mut budget = AllocationBudget::new(Some((ledger, domain)));
-    if !map.validate_resource(
-        semantic.identity,
-        &semantic.program,
-        &semantic.uses,
-        &mut budget,
-    )? {
         return Err(CandidateError::StaleEvidence);
     }
     Ok(())

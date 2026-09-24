@@ -293,7 +293,6 @@ fn cold_low_search_and_high_warmed_low_search_keep_exact_winners_and_request_cha
             let mut observed = Vec::new();
             let search = compiler
                 .search_javascript_observed(source, &policy, plans, |entry| {
-                    assert!(entry.dependency.is_none());
                     run(
                         entry.javascript,
                         "",
@@ -324,7 +323,6 @@ fn cold_low_search_and_high_warmed_low_search_keep_exact_winners_and_request_cha
             let selected: [Row; 3] = std::array::from_fn(|index| {
                 search
                     .with_winner(CODECS[index], |view, naming| {
-                        assert!(view.dependency.is_none());
                         let matching: Vec<_> = observed
                             .iter()
                             .filter(|(candidate, row)| {

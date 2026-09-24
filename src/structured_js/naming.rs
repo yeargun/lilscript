@@ -166,7 +166,6 @@ impl Eligibility {
 
 pub(super) struct Basis<'a> {
     module: &'a Module,
-    choices: Option<extract::JavaScriptChoices<'a>>,
     required: Vec<Option<&'a str>>,
     preferred: Vec<Option<&'a str>>,
     hosts: Vec<&'a str>,
@@ -199,14 +198,12 @@ impl<'a> Basis<'a> {
     pub(super) fn new_in(
         module: &'a Module,
         structure: &verify::Structure,
-        choices: Option<extract::JavaScriptChoices<'a>>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, OutputError> {
         let _timing = crate::timing::TARGET_BASIS.scope(0);
         use AllocationClass::{Retained, Scratch};
         let mut basis = Self {
             module,
-            choices,
             required: budget.filled(Retained, module.bindings.len(), None)?,
             preferred: budget.filled(Retained, module.bindings.len(), None)?,
             hosts: budget.vector(Retained, 2)?,
@@ -240,7 +237,7 @@ impl<'a> Basis<'a> {
                 budget.work(WorkKind::Analysis, 1)?;
                 match statement {
                     Statement::Function { binding, function } => {
-                        if let Some(name) = extract::function_name(module, *function, choices) {
+                        if let Some(name) = module.functions[function.index()].name.exact() {
                             let name = name
                                 .as_unicode()
                                 .ok_or("declared function name is not an identifier")?;
@@ -366,7 +363,7 @@ impl<'a> Basis<'a> {
 
     fn prefer(&mut self, binding: BindingId, value: ExprId) {
         if let Expr::Function(function) = self.module.expressions[value.index()] {
-            if let Some(name) = extract::function_name(self.module, function, self.choices)
+            if let Some(name) = self.module.functions[function.index()].name.exact()
                 .and_then(StringValue::as_unicode)
             {
                 self.preferences.push((binding, function, name));
@@ -395,7 +392,7 @@ impl<'a> Basis<'a> {
             if function.arrow {
                 continue;
             }
-            let Some(name) = extract::function_name(module, FunctionId::new(index), self.choices)
+            let Some(name) = module.functions[index].name.exact()
                 .and_then(StringValue::as_unicode)
             else {
                 continue;
@@ -504,12 +501,6 @@ impl<'a> Basis<'a> {
             .map_err(|_| OutputError::Invalid("scoped naming cache raced"))?;
         phase.finish_retained()?;
         Ok(self.scoped.get().unwrap())
-    }
-
-    #[cfg(test)]
-    pub fn names(&self, plan: &Plan) -> Result<Names, String> {
-        self.names_in(plan, &mut AllocationBudget::new(None))
-            .map_err(|error| error.to_string())
     }
 
     pub(super) fn names_in(
@@ -857,7 +848,7 @@ impl Names {
         let mut budget = AllocationBudget::new(None);
         let structure =
             verify::verify_in(module, &mut budget).map_err(|error| error.to_string())?;
-        Basis::new_in(module, &structure, None, &mut budget)
+        Basis::new_in(module, &structure, &mut budget)
             .map_err(|error| error.to_string())?
             .names_in(
                 &Plan::new(if policy.mangle_bindings {

@@ -193,9 +193,6 @@ fn read_only_array(
                 .iter()
                 .any(|unit| unit.data().captures.contains(&cell))
         {
-            if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-                eprintln!("read-only array refused: cell {:?} assigned or captured", program.cells[cell.index()].name);
-            }
             return Ok(false);
         }
     }
@@ -225,9 +222,6 @@ fn read_only_array(
             }
         };
         if !admitted {
-            if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-                eprintln!("read-only array refused at {:?}", operation.kind);
-            }
             return Ok(false);
         }
     }
@@ -235,12 +229,7 @@ fn read_only_array(
     for place in &data.places {
         match *place {
             Place::Member { receiver, .. } if loads(receiver) => return Ok(false),
-            Place::Value(value) if loads(value) => {
-                if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-                    eprintln!("read-only array refused: value place");
-                }
-                return Ok(false);
-            }
+            Place::Value(value) if loads(value) => return Ok(false),
             _ => {}
         }
     }

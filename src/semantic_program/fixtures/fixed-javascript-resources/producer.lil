@@ -1,7 +1,0 @@
-export struct Point { int x; int y; }
-
-export int score(Point point) {
-    // Raw transport must not move x coercion ahead of the authored y read.
-    int second=point.y;
-    return point.x+second;
-}

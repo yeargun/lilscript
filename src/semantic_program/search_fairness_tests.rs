@@ -27,19 +27,9 @@ fn policy(beam: usize) -> ResolvedPolicy {
 }
 
 fn schedule_policy(beam: usize, probes: usize, schedule: &str) -> ResolvedPolicy {
-    configured_policy(beam, probes, schedule, None)
-}
-
-fn configured_policy(
-    beam: usize,
-    probes: usize,
-    schedule: &str,
-    interactions: Option<usize>,
-) -> ResolvedPolicy {
-    let mut config: crate::config::ProjectConfig = toml::from_str(&format!(
+    let config: crate::config::ProjectConfig = toml::from_str(&format!(
         "[javascript]\noptimization_level=15\npriority='size-first'\ncost_model='brotli'\nstrip_console=false\ncandidate_proposal_limit=24\nterminal_codec_probe_limit={probes}\ncandidate_limit=8\ncandidate_beam_width={beam}\n[policy.search]\ncodec_schedule='{schedule}'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\ninlining='on'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'"
     )).unwrap();
-    config.policy.as_mut().unwrap().search.interaction_interval = interactions;
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,
@@ -382,92 +372,6 @@ fn width_one_keeps_later_skip_cursor_and_executes_its_actual_scored_winners() {
 
 const VALLEY_SOURCE: &str = include_str!("fixtures/search-structural-valley/entry.lil");
 const VALLEY_HELPERS: [&str; 3] = ["distractor", "first", "second"];
-
-#[test]
-fn opt_in_seed_pairs_recover_losing_parents_without_extra_search_allowances() {
-    let oracle = valley_oracle(&policy(2));
-    for schedule in ["immediate", "staged"] {
-        for objectives in [Objectives::One(Objective::Brotli), Objectives::All] {
-            for interval in [None, Some(1), Some(4)] {
-                for probes in [2, 8, 48] {
-                    let policy = configured_policy(1, probes, schedule, interval);
-                    with_named_source(
-                        VALLEY_SOURCE,
-                        true,
-                        VALLEY_HELPERS,
-                        |compiler, source, _| {
-                            let mut request = request();
-                            request.objectives = objectives;
-                            let mut seen = Vec::new();
-                            let mut best = [usize::MAX; 3];
-                            let search = compiler
-                                .search_javascript_observed(source, &policy, request, |entry| {
-                                    let descriptor = entry.recipe_descriptor.whole_words().unwrap();
-                                    let (mask, known) = oracle
-                                        .iter()
-                                        .find(|(_, known)| {
-                                            known.descriptor == descriptor
-                                                && known.style == entry.naming.style
-                                        })
-                                        .unwrap();
-                                    assert_eq!(entry.javascript, known.javascript);
-                                    for (index, codec) in CODECS.into_iter().enumerate() {
-                                        if let Some(score) = entry.sizes.get(codec) {
-                                            assert_eq!(score, known.sizes[index]);
-                                            best[index] = best[index].min(score);
-                                        }
-                                    }
-                                    seen.push((*mask, entry.naming.style));
-                                })
-                                .unwrap();
-                            let counters = search.counters();
-                            assert!(counters.proposals <= 24);
-                            assert!(counters.codec_probes <= probes);
-                            assert!(counters.interaction_attempts <= counters.structural_attempts);
-                            if interval.is_none() {
-                                assert_eq!(counters.interaction_attempts, 0);
-                            }
-                            let mut winners = Vec::new();
-                            for (index, codec) in CODECS.into_iter().enumerate() {
-                                if !objectives.iter().any(|requested| requested == codec) {
-                                    continue;
-                                }
-                                search.with_winner(codec, |view, _| {
-                                let score = view.sizes.get(codec).unwrap();
-                                assert_eq!(score, best[index]);
-                                let baseline = oracle.iter().find(|(mask, known)| *mask == 0 && known.style == Style::Global).unwrap().1.sizes[index];
-                                assert!(score <= baseline);
-                                let observed = execute_valley(view.javascript);
-                                winners.push(json!({"codec":format!("{codec:?}"),"score":score,"javascript":view.javascript,"observed":observed}));
-                            }).unwrap();
-                            }
-                            if interval.is_some() && probes == 48 {
-                                assert!(counters.interaction_attempts > 0);
-                                assert!(
-                                    seen.iter().any(|(mask, _)| *mask == 6),
-                                    "recover the two losing parents: {seen:?}"
-                                );
-                                assert!(best[2] <= 161, "recover a joint Brotli win: {best:?}");
-                            }
-                            eprintln!(
-                                "seed-interaction-summary {}",
-                                json!({
-                                    "schedule":schedule,"objectives":format!("{objectives:?}"),"interval":interval,"probes_limit":probes,
-                                    "proposals":counters.proposals,"probes":counters.codec_probes,"structures":counters.structures,
-                                    "structural_attempts":counters.structural_attempts,"interaction_attempts":counters.interaction_attempts,
-                                    "proof_queries":counters.proof_queries,"renders":counters.renders,"beam_evictions":counters.beam_evictions,
-                                    "seen":seen.iter().map(|(mask,style)|json!([mask,format!("{style:?}")])).collect::<Vec<_>>(),"winners":winners,
-                                    "optional_work":search.ledger().work_used(WorkDomain::Optional),"peak_retained_bytes":search.ledger().peak_retained_bytes(),
-                                    "stop":search.stopped().map(|error|format!("{error:?}")),
-                                })
-                            );
-                        },
-                    );
-                }
-            }
-        }
-    }
-}
 
 #[test]
 fn finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults() {

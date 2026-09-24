@@ -752,7 +752,6 @@ fn public_factory_qualifies_combined_recipes_with_exact_scores_and_original_obse
                 };
                 let descriptor = compiler.with_implementation_description(
                     *candidate, WorkDomain::Optional, |description| {
-                        assert!(matches!(description.resource(), ResourceDescription::Whole));
                         assert_eq!(description.snapshot_identity(), Some(snapshot));
                         assert_eq!(description.meaning_identity(), Some(meaning));
                         assert!(description.rewrites().is_empty());
@@ -791,7 +790,6 @@ fn public_factory_qualifies_combined_recipes_with_exact_scores_and_original_obse
                     assert_eq!(receipt.policy_fingerprint(), policy.fingerprint());
                 }
                 let output = compiler.with_qualified_artifact(&receipts[2], |view, provenance| {
-                    assert!(view.dependency.is_none());
                     assert_eq!(view.implementation.recipe_words(), descriptor);
                     assert_eq!(view.implementation.snapshot_identity(), Some(snapshot));
                     assert_eq!(view.implementation.meaning_identity(), Some(meaning));

@@ -1,13 +1,14 @@
 //! Completed output owns its allocation admission, independently of a target.
 //! One arena implementation serves callback-local attempts and retained output.
 //! Handles never expose mutable bytes; codec scores belong to those exact bytes.
-use super::artifact_provenance::ArtifactProvenance;
+use super::artifact_provenance::{ArtifactProvenance, ProvenanceError};
 use super::ids::RevisionId;
 use super::implementation_identity::{ImplementationDescription, SharedImplementationIdentity};
 use super::publication::{CandidateError, CandidateId, LiteralOutput, OutputTactics};
 use crate::compilation_contract::JavaScriptExecution;
 use crate::compilation_policy::{
-    BudgetLedger, CandidateCostEvidence, CompilationContract, ResolvedPolicy, TacticUse, WorkKind,
+    AdmissionError, BudgetLedger, CandidateCostEvidence, CompilationContract, ResolvedPolicy,
+    TacticUse, WorkKind,
 };
 use crate::config::CompressionCostModel;
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError, RetainedCharge};
@@ -18,12 +19,6 @@ use crate::structured_js::{
 };
 use std::mem::size_of;
 use std::sync::atomic::{AtomicUsize, Ordering};
-#[path = "artifact_resources.rs"]
-mod resources;
-use resources::ArtifactResource;
-pub use resources::ArtifactResourceView;
-use resources::{discard_provenance, provenance_error};
-pub(super) use resources::{FrozenArtifact, PreparedFreeze, ResourceOutput};
 #[path = "artifact_native.rs"]
 mod native;
 use native::NativeRecord;
@@ -93,12 +88,10 @@ impl QualifiedArtifact {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ArtifactView<'a> {
-    /// Primary entry resource. `dependency`, when present, is part of the same
-    /// complete artifact and must be delivered with it.
+    /// The entry file.
     pub javascript: &'a str,
     /// Chunk files loaded by the entry; every one is part of the scored bytes.
     pub chunks: &'a [ArtifactChunk],
-    pub dependency: Option<ArtifactResourceView<'a>>,
     /// Module artifacts must be loaded as ECMAScript modules, including when
     /// their export list is empty. Script artifacts promise no strict entry.
     pub execution: JavaScriptExecution,
@@ -114,7 +107,6 @@ pub struct ArtifactView<'a> {
     pub retained_capacity: usize,
 }
 
-/// One cache for ordinary records and privately shared frozen producers.
 /// Canonical gzip/Brotli streams are nonempty, even for an empty input. Zero
 /// therefore denotes an unmeasured compressed coordinate without excluding
 /// any valid positive usize score or changing package/relative size ceilings.
@@ -241,9 +233,8 @@ struct Record {
     provenance: ArtifactProvenance,
     output: OutputTactics,
     // Only derived codec scores are mutable; source bytes and provenance are
-    // immutable. Frozen producers share this same cache through their owner.
+    // immutable.
     sizes: CachedSizes,
-    resource: ArtifactResource,
     charge: RetainedCharge<RevisionId>,
 }
 impl Record {
@@ -251,7 +242,6 @@ impl Record {
         ArtifactView {
             javascript: &self.text,
             chunks: &self.chunks,
-            dependency: self.resource.dependency().map(FrozenArtifact::view),
             execution: self.execution,
             candidate: self.candidate,
             implementation: self.identity.description(),
@@ -281,12 +271,7 @@ impl Record {
                 )?)
                 .ok_or(AllocationError::Capacity)?;
         }
-        if let Some(producer) = self.resource.dependency() {
-            size = size
-                .checked_add(producer.measure(codec, budget)?)
-                .ok_or(AllocationError::Capacity)?;
-        }
-        // A refusal in either file, a zero score, or an overflowing package
+        // A refusal in any file, a zero score, or an overflowing package
         // sum never publishes a partial coordinate. Other completed codecs
         // retain their independent monotone entries.
         self.sizes.publish(codec, size)
@@ -301,13 +286,10 @@ impl Record {
             chunks,
             entry_links,
             charge,
-            resource,
             provenance,
             identity,
             ..
         } = self;
-        debug_assert!(resource.dependency().is_none());
-        resource.discard(budget);
         discard_provenance(provenance, owner, budget);
         discard_identity(identity, owner, budget);
         release(charge, owner, budget);
@@ -333,7 +315,6 @@ impl Record {
             text,
             chunks,
             charge,
-            resource,
             provenance,
             identity,
             ..
@@ -343,10 +324,33 @@ impl Record {
             drop(chunk.code);
             release(chunk.charge, owner, budget);
         }
-        resource.discard(budget);
         discard_provenance(provenance, owner, budget);
         discard_identity(identity, owner, budget);
         release(charge, owner, budget);
+    }
+}
+
+fn discard_provenance(
+    provenance: ArtifactProvenance,
+    owner: RevisionId,
+    budget: &mut AllocationBudget<'_>,
+) {
+    budget.with_ledger(|ledger| {
+        let (ledger, _) = ledger.expect("artifact provenance belongs to compilation ledger");
+        provenance
+            .discard(owner, ledger)
+            .unwrap_or_else(|_| panic!("artifact provenance allocation owner invariant"));
+    });
+}
+
+fn provenance_error(error: ProvenanceError) -> CandidateError {
+    match error {
+        ProvenanceError::Allocation(error) => error.into(),
+        ProvenanceError::Naming(error) => error.into(),
+        ProvenanceError::Admission(AdmissionError::ForbiddenTactic(tactic)) => {
+            CandidateError::ForbiddenTactic(tactic)
+        }
+        ProvenanceError::Admission(error) => CandidateError::Admission(error),
     }
 }
 
@@ -373,16 +377,6 @@ fn same_streams(
     if left.sizes.raw != right.sizes.raw || left.javascript.len() != right.javascript.len() {
         return Ok(false);
     }
-    let dependencies = match (left.dependency, right.dependency) {
-        (None, None) => None,
-        (Some(left), Some(right))
-            if left.javascript.len() == right.javascript.len()
-                && left.specifier.len() == right.specifier.len() =>
-        {
-            Some((left, right))
-        }
-        _ => return Ok(false),
-    };
     if !equal_bytes(left.javascript, right.javascript, budget)? {
         return Ok(false);
     }
@@ -396,11 +390,7 @@ fn same_streams(
             return Ok(false);
         }
     }
-    match dependencies {
-        None => Ok(true),
-        Some((left, right)) => Ok(equal_bytes(left.specifier, right.specifier, budget)?
-            && equal_bytes(left.javascript, right.javascript, budget)?),
-    }
+    Ok(true)
 }
 
 enum StoredRecord {
@@ -615,11 +605,6 @@ impl ArtifactArena {
             return Err(CandidateError::ContractMismatch);
         }
         let record = self.get(id.0)?;
-        if matches!(record.resource, ArtifactResource::Producer(_)) {
-            return Err(CandidateError::Artifact(
-                "producer fragment is not a complete artifact",
-            ));
-        }
         let size = record
             .sizes
             .measured(codec)
@@ -640,14 +625,10 @@ impl ArtifactArena {
         } else {
             cost
         };
-        if let Some(dependency) = record.resource.dependency() {
-            dependency.check_policy(&record.provenance, policy, cost, base, budget)?;
-        } else {
-            record
-                .provenance
-                .admit(policy, cost, base, budget)
-                .map_err(provenance_error)?;
-        }
+        record
+            .provenance
+            .admit(policy, cost, base, budget)
+            .map_err(provenance_error)?;
         Ok(QualifiedArtifact {
             artifact: id,
             snapshot: record.identity.snapshot(),
@@ -679,7 +660,6 @@ impl ArtifactArena {
     }
     /// Reuse only exact scores from live retained records. Byte equality does
     /// not share candidate eligibility, provenance or structural continuations.
-    /// Frozen producers outside this arena retain their own existing cache.
     pub(super) fn reuse_scores(
         &self,
         id: ArtifactId,
@@ -734,11 +714,6 @@ impl ArtifactArena {
         id: ArtifactId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<String, CandidateError> {
-        if self.get(id.0)?.resource.dependency().is_some() {
-            return Err(CandidateError::Artifact(
-                "complete package requires both resource files",
-            ));
-        }
         if !self.get(id.0)?.chunks.is_empty() {
             return Err(CandidateError::Artifact(
                 "a multi-file artifact is delivered with all of its chunks",
@@ -752,11 +727,6 @@ impl ArtifactArena {
         id: ArtifactId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<DeliveredBundle, CandidateError> {
-        if self.get(id.0)?.resource.dependency().is_some() {
-            return Err(CandidateError::Artifact(
-                "complete package requires both resource files",
-            ));
-        }
         let (entry, entry_links, chunks) = self.remove(id.0)?.take(self.owner, budget);
         Ok(DeliveredBundle {
             entry,
@@ -843,7 +813,6 @@ pub struct BudgetedJavaScriptOutput<'scope, 'target> {
     policy: &'scope ResolvedPolicy,
     execution: JavaScriptExecution,
     choices: OutputTactics,
-    resource: ResourceOutput<'scope>,
     /// Multi-file delivery, when the contract asks for it.
     bundle: Option<&'scope BundleSpec>,
 }
@@ -862,29 +831,6 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         execution: JavaScriptExecution,
         choices: OutputTactics,
     ) -> Self {
-        Self::new_with_resource(
-            output,
-            retained,
-            candidate,
-            identity,
-            structural,
-            policy,
-            execution,
-            choices,
-            ResourceOutput::Whole,
-        )
-    }
-    pub(super) fn new_with_resource(
-        output: &'scope Output<'target>,
-        retained: &'scope mut ArtifactArena,
-        candidate: CandidateId,
-        identity: &'scope SharedImplementationIdentity,
-        structural: &'scope [TacticUse],
-        policy: &'scope ResolvedPolicy,
-        execution: JavaScriptExecution,
-        choices: OutputTactics,
-        resource: ResourceOutput<'scope>,
-    ) -> Self {
         Self {
             output,
             staging: ArtifactArena::new(retained.owner),
@@ -895,7 +841,6 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
             policy,
             execution,
             choices,
-            resource,
             bundle: None,
         }
     }
@@ -924,21 +869,12 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         }
         self.output
             .with_allocation_budget(|budget| self.staging.prepare_insert(budget))?;
-        let dependency_bytes = self.resource.dependency_bytes();
-        let primary_limit = byte_limit
-            .checked_sub(dependency_bytes)
-            .ok_or(crate::structured_js::extract::OutputError::ByteLimit)?;
         let (text, charge, literals, chunks, entry_links) = match self.bundle {
             Some(bundle) => {
-                if dependency_bytes != 0 {
-                    return Err(CandidateError::Artifact(
-                        "a multi-file delivery cannot also carry a fixed resource",
-                    ));
-                }
                 let (rendered, literals) = self.output.render_bundle_with_literals_admitted(
                     plan,
                     literals,
-                    primary_limit,
+                    byte_limit,
                     self.staging.owner,
                     bundle,
                 )?;
@@ -968,7 +904,7 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
                 let (text, charge, literals) = self.output.render_with_literals_admitted(
                     plan,
                     literals,
-                    primary_limit,
+                    byte_limit,
                     self.staging.owner,
                 )?;
                 (text, charge, literals, Vec::new(), EntryLinks::default())
@@ -988,18 +924,11 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
                 budget,
             )
             .map_err(provenance_error)?;
-            match self.resource.retain_actual(self.staging.owner, budget) {
-                Ok(resource) => match self.identity.share(budget) {
-                    Ok(identity) => Ok((resource, provenance, identity)),
-                    Err(error) => {
-                        resource.discard(budget);
-                        discard_provenance(provenance, self.staging.owner, budget);
-                        Err(error.into())
-                    }
-                },
+            match self.identity.share(budget) {
+                Ok(identity) => Ok((provenance, identity)),
                 Err(error) => {
                     discard_provenance(provenance, self.staging.owner, budget);
-                    Err(error)
+                    Err(error.into())
                 }
             }
         }) {
@@ -1015,11 +944,9 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
                 return Err(error);
             }
         };
-        let (resource, provenance, identity) = retained;
-        // The primary bound was reduced before rendering, so this addition
-        // cannot overflow and already includes the actual fixed resource.
+        let (provenance, identity) = retained;
         let chunk_bytes: usize = chunks.iter().map(|chunk| chunk.code.len()).sum();
-        let sizes = CachedSizes::new(text.len() + dependency_bytes + chunk_bytes);
+        let sizes = CachedSizes::new(text.len() + chunk_bytes);
         Ok(ScopedArtifactId(self.staging.insert(Record {
             text,
             chunks,
@@ -1030,7 +957,6 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
             provenance,
             output: actual_output,
             sizes,
-            resource,
             charge,
         })))
     }
@@ -1078,11 +1004,6 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         Ok(ArtifactId(self.retained.insert(self.staging.remove(id.0)?)))
     }
     pub fn take_artifact(&mut self, id: ScopedArtifactId) -> Result<String, CandidateError> {
-        if self.staging.get(id.0)?.resource.dependency().is_some() {
-            return Err(CandidateError::Artifact(
-                "complete package requires both resource files",
-            ));
-        }
         if !self.staging.get(id.0)?.chunks.is_empty() {
             return Err(CandidateError::Artifact(
                 "a multi-file artifact is delivered with all of its chunks",

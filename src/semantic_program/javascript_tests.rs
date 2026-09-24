@@ -271,8 +271,8 @@ fn public_packaging_preserves_live_bindings_and_callable_observations() {
 }
 
 #[test]
-fn direct_public_artifacts_are_packaged_and_named_before_codec_selection() {
-    use crate::structured_js::selection::{Budget, Objective, Objectives};
+fn direct_public_artifacts_are_packaged_and_named_in_every_naming_style() {
+    use crate::structured_js::selection::{Plan, Style};
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(
         &arena,
@@ -283,38 +283,11 @@ fn direct_public_artifacts_are_packaged_and_named_before_codec_selection() {
     let program = from_checked_source(&syntax, &semantics).unwrap();
     let target = program.to_javascript().unwrap();
     let output = target.prepare_output().unwrap();
-    let budget = Budget {
-        plans: 8,
-        candidate_bytes: 100_000,
-    };
-    let raw_only = output
-        .select(budget, Objectives::One(Objective::Raw), |_, _| {
-            panic!("a raw-only build must not invoke a codec")
-        })
-        .unwrap();
-    assert_eq!(raw_only.measurement_calls, 0);
-    assert!(raw_only.winner(Objective::Gzip).is_none());
-    assert!(raw_only.winner(Objective::Brotli).is_none());
-    let all = output
-        .select(budget, Objectives::All, |bytes, objective| {
-            assert!(std::str::from_utf8(bytes).unwrap().contains("export{"));
-            assert!(std::str::from_utf8(bytes)
-                .unwrap()
-                .contains("publicCalculation"));
-            crate::compression::measure(bytes, objective)
-        })
-        .unwrap();
-    for objective in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
-        let winner = all.winner(objective).unwrap();
-        assert_eq!(
-            winner.sizes.get(objective).unwrap(),
-            crate::compression::measure(winner.javascript.as_bytes(), objective).unwrap()
-        );
-        assert!(all
-            .candidates
-            .iter()
-            .all(|candidate| winner.sizes.get(objective) <= candidate.sizes.get(objective)));
-        let script = format!("const library=await import('data:text/javascript,'+encodeURIComponent({}));console.log(library.publicCalculation(4),library.publicCalculation.name,library.publicCalculation.length);", serde_json::to_string(&winner.javascript).unwrap());
+    for style in [Style::Global, Style::Scoped, Style::Source] {
+        let javascript = output.render(&Plan::new(style)).unwrap();
+        assert!(javascript.contains("export{"), "{javascript}");
+        assert!(javascript.contains("publicCalculation"), "{javascript}");
+        let script = format!("const library=await import('data:text/javascript,'+encodeURIComponent({}));console.log(library.publicCalculation(4),library.publicCalculation.name,library.publicCalculation.length);", serde_json::to_string(&javascript).unwrap());
         let result = Command::new("node")
             .args(["--input-type=module", "-e", &script])
             .output()
@@ -333,7 +306,7 @@ fn direct_public_artifacts_are_packaged_and_named_before_codec_selection() {
 
 #[test]
 fn prepared_public_output_preserves_mutable_intrinsics_and_integer_results() {
-    use crate::structured_js::selection::{Budget, Objective, Objectives};
+    use crate::structured_js::selection::{Plan, Style};
 
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(
@@ -352,22 +325,11 @@ fn prepared_public_output_preserves_mutable_intrinsics_and_integer_results() {
     let target = program.to_javascript().unwrap();
 
     // This is the direct core -> typed target -> Output::from_module boundary.
-    // It has no AnnotatedTree or source-derived extraction choices: a known
-    // string/index cannot prove what a mutable host method will return, or
-    // authorize removing the typed int normalization around that result.
+    // A known string/index cannot prove what a mutable host method will
+    // return, or authorize removing the typed int normalization around it.
     let output = target.prepare_output().unwrap();
-    let selection = output
-        .select(
-            Budget {
-                plans: 8,
-                candidate_bytes: 100_000,
-            },
-            Objectives::All,
-            crate::compression::measure,
-        )
-        .unwrap();
-    for objective in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
-        let javascript = &selection.winner(objective).unwrap().javascript;
+    for style in [Style::Global, Style::Scoped, Style::Source] {
+        let javascript = &output.render(&Plan::new(style)).unwrap();
         let script = format!(
             r#"
             const library=await import('data:text/javascript,'+encodeURIComponent({}));
@@ -409,7 +371,7 @@ fn prepared_public_output_preserves_mutable_intrinsics_and_integer_results() {
             .expect("Node is required for semantic JavaScript tests");
         assert!(
             result.status.success(),
-            "{objective:?}: {}\n{javascript}",
+            "{style:?}: {}\n{javascript}",
             String::from_utf8_lossy(&result.stderr)
         );
         assert_eq!(
@@ -419,7 +381,7 @@ fn prepared_public_output_preserves_mutable_intrinsics_and_integer_results() {
                 "0 2 lookup,lookup-reentry:1,argument:1,call:abc:2,call-reentry:2\n",
                 "777\nlookup stopped throwing-lookup\n",
             ),
-            "{objective:?}\n{javascript}"
+            "{style:?}\n{javascript}"
         );
     }
 }

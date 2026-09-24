@@ -9,9 +9,6 @@ use crate::semantic_program::search_entries::{Entries, Entry};
 #[path = "search_memory_tests.rs"]
 mod memory_tests;
 #[cfg(test)]
-#[path = "search_resource_tests.rs"]
-mod resource_tests;
-#[cfg(test)]
 #[path = "search_score_reuse_tests.rs"]
 mod reuse_tests;
 
@@ -25,8 +22,6 @@ pub(super) struct Portfolio {
     owner: RevisionId,
     ordinal: u64,
     score_events: usize,
-    // Physical dependency-bearing entries only; preserves the Whole fast path.
-    resource_entries: usize,
 }
 impl Portfolio {
     pub(super) fn new(owner: RevisionId) -> Self {
@@ -40,57 +35,8 @@ impl Portfolio {
             owner,
             ordinal: 0,
             score_events: 0,
-            resource_entries: 0,
         }
     }
-    /// The pool owns primary strings and shares fixed producer strings. Count
-    /// each actual dependency allocation once among the selected entry subset.
-    /// This is a bounded scan of existing owners, not a resource index. Equal
-    /// bytes in distinct allocations still count separately; semantic identity
-    /// and codec costs do not use this allocation equality.
-    fn retained_package_bytes(
-        &self,
-        arena: &ArtifactArena,
-        budget: &mut AllocationBudget<'_>,
-        primary_bytes: usize,
-        include: impl Fn(usize) -> bool,
-    ) -> Result<usize, SearchError> {
-        if self.resource_entries == 0 {
-            return Ok(primary_bytes);
-        }
-        let mut bytes = primary_bytes;
-        budget.work(WorkKind::Analysis, self.entries.capacity() as u64)?;
-        for (position, entry) in self.entries.iter() {
-            if !include(position) {
-                continue;
-            }
-            let Some(dependency) = arena.dependency(entry.artifact)? else {
-                continue;
-            };
-            let mut first = true;
-            budget.work(WorkKind::Analysis, self.entries.capacity() as u64)?;
-            for (previous, other) in self.entries.iter() {
-                if previous == position {
-                    break;
-                }
-                if include(previous)
-                    && arena
-                        .dependency(other.artifact)?
-                        .is_some_and(|other| dependency.same_owner(other))
-                {
-                    first = false;
-                    break;
-                }
-            }
-            if first {
-                bytes = bytes
-                    .checked_add(dependency.view().retained_capacity)
-                    .ok_or(AllocationError::Capacity)?;
-            }
-        }
-        Ok(bytes)
-    }
-
     pub(super) fn pins(
         &self,
         state: usize,
@@ -105,17 +51,8 @@ impl Portfolio {
         artifact: ScopedArtifactId,
         render_work: u64,
     ) -> Result<usize, SearchError> {
-        let (capacity, raw, resource) = output.with_artifact(artifact, |view| {
-            (
-                view.retained_capacity,
-                view.sizes.raw,
-                view.dependency.is_some(),
-            )
-        })?;
-        let resource_entries = self
-            .resource_entries
-            .checked_add(usize::from(resource))
-            .ok_or(AllocationError::Capacity)?;
+        let (capacity, raw) =
+            output.with_artifact(artifact, |view| (view.retained_capacity, view.sizes.raw))?;
         let ordinal = self
             .ordinal
             .checked_add(1)
@@ -138,7 +75,6 @@ impl Portfolio {
             },
         );
         self.ordinal = ordinal;
-        self.resource_entries = resource_entries;
         Ok(position)
     }
     /// A staged queue jointly consumes the retained count/byte pool. When the
@@ -182,12 +118,7 @@ impl Portfolio {
         loop {
             budget.work(WorkKind::Analysis, 1)?;
             if self.entries.len() <= objective.retained_candidates.max(1)
-                && self.retained_package_bytes(
-                    arena,
-                    budget,
-                    self.entries.retained_text_bytes(),
-                    |_| true,
-                )? <= limit
+                && self.entries.retained_text_bytes() <= limit
             {
                 self.entries.get_mut(position).unwrap().pending = true;
                 counters.queued_artifacts += 1;
@@ -405,10 +336,7 @@ impl Portfolio {
             replace[i] = order == Ordering::Less;
         }
         if baseline {
-            self.baseline_capacity =
-                self.retained_package_bytes(arena, budget, entry.capacity, |slot| {
-                    slot == position
-                })?;
+            self.baseline_capacity = entry.capacity;
             self.baseline_raw = Some(entry.raw);
             self.baseline = std::array::from_fn(|i| {
                 objectives
@@ -420,20 +348,17 @@ impl Portfolio {
         }
         if replace.iter().any(|&yes| yes) {
             let mut count = 1usize;
-            let mut primary = entry.capacity;
+            let mut retained = entry.capacity;
             budget.work(WorkKind::Analysis, self.entries.capacity() as u64)?;
             for (slot, other) in self.entries.iter() {
                 if slot != position && (0..3).any(|i| !replace[i] && self.selected[i] == Some(slot))
                 {
                     count += 1;
-                    primary = primary
+                    retained = retained
                         .checked_add(other.capacity)
                         .ok_or(AllocationError::Capacity)?;
                 }
             }
-            let retained = self.retained_package_bytes(arena, budget, primary, |slot| {
-                slot == position || (0..3).any(|i| !replace[i] && self.selected[i] == Some(slot))
-            })?;
             if !baseline && count > objective.retained_candidates.max(1) {
                 return Err(SearchError::Limit(SearchLimit::ArtifactCount));
             }
@@ -487,7 +412,6 @@ impl Portfolio {
                 output: view.output,
                 sizes,
                 javascript: view.javascript,
-                dependency: view.dependency,
                 baseline,
             })
         })?;
@@ -502,13 +426,7 @@ impl Portfolio {
         arena: &mut ArtifactArena,
         budget: &mut AllocationBudget<'_>,
     ) {
-        let artifact = self.entries.get(position).unwrap().artifact;
-        let resource = arena
-            .dependency(artifact)
-            .expect("search owns entry artifact")
-            .is_some();
         let entry = self.entries.remove(position);
-        self.resource_entries -= usize::from(resource);
         arena
             .discard(entry.artifact, budget)
             .expect("search owns every entry artifact");
@@ -551,29 +469,17 @@ impl Portfolio {
             }
         }
         self.selected = [None; 3];
-        debug_assert_eq!(self.resource_entries, 0);
         let entries = std::mem::replace(&mut self.entries, Entries::new(self.owner));
         budget.with_ledger(|ledger| entries.discard(self.owner, ledger.unwrap().0).unwrap());
     }
-    pub(super) fn take_winner_artifact(
-        &mut self,
-        arena: &ArtifactArena,
-        _budget: &mut AllocationBudget<'_>,
-        objective: Objective,
-    ) -> Option<ArtifactId> {
+    pub(super) fn take_winner_artifact(&mut self, objective: Objective) -> Option<ArtifactId> {
         let position = self.selected[index(objective)]?;
-        let artifact = self.entries.get(position).unwrap().artifact;
-        let resource = arena
-            .dependency(artifact)
-            .expect("search owns selected artifact")
-            .is_some();
         for slot in &mut self.selected {
             if *slot == Some(position) {
                 *slot = None;
             }
         }
         let entry = self.entries.remove(position);
-        self.resource_entries -= usize::from(resource);
         Some(entry.artifact)
     }
 
@@ -584,14 +490,6 @@ impl Portfolio {
         objective: Objective,
     ) -> Option<String> {
         let position = self.selected[index(objective)]?;
-        let artifact = self.entries.get(position).unwrap().artifact;
-        if arena
-            .dependency(artifact)
-            .expect("search owns selected artifact")
-            .is_some()
-        {
-            return None;
-        }
         for slot in &mut self.selected {
             if *slot == Some(position) {
                 *slot = None;

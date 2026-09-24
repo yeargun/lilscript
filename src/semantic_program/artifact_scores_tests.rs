@@ -8,8 +8,7 @@ fn completed_artifact_owners_preserve_compilation_send() {
     fn assert_send<T: Send>() {}
     fn assert_sync<T: Sync>() {}
     assert_send::<Compilation<'static>>();
-    assert_send::<FrozenArtifact>();
-    assert_sync::<FrozenArtifact>();
+    assert_sync::<CachedSizes>();
 }
 
 #[test]

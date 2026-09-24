@@ -665,7 +665,6 @@ fn scoped_source_edit_keeps_one_owner_and_delivers_qualified_parent_and_child() 
         }
         assert!(artifact.details()["policy_fingerprint"].is_array());
         assert!(artifact.details()["recipe_words"].is_array());
-        assert_eq!(artifact.details()["resource"], "whole");
     }
     assert_eq!(finished.ledger.retained_bytes(), 0);
     assert!(
@@ -692,120 +691,6 @@ fn scoped_direct_delivery_cannot_bypass_runtime_admission() {
             let error = session.render_javascript(candidate).unwrap_err();
             assert_eq!(error.phase, "javascript admission");
             assert!(error.message.contains("MissingCostEvidence"));
-        },
-    )
-    .unwrap();
-    assert_eq!(finished.ledger.retained_bytes(), 0);
-}
-
-#[test]
-fn scoped_package_delivery_refusal_releases_handoffs_without_discarding_inputs() {
-    use crate::semantic_program::CellId;
-    use crate::structured_js::selection::Style;
-
-    let entry = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/semantic_program/fixtures/fixed-javascript-resources/entry.lil");
-    let ((), finished) = with_checked_path(
-        &entry,
-        &config(""),
-        ServiceOptions {
-            objectives: Some(Objectives::All),
-            ..ServiceOptions::default()
-        },
-        |session| {
-            let source = session.source();
-            let cell = {
-                let view = session.compilation().view(source).unwrap();
-                (0..view.cell_count())
-                    .map(|index| CellId::from_index(index).unwrap())
-                    .find(|&cell| view.cell(cell).unwrap().name == "score")
-                    .unwrap()
-            };
-            let (whole, consumer) = {
-                let (owner, _, policy) = session.parts_mut();
-                let whole = owner
-                    .direct_javascript(source, policy, WorkDomain::Baseline)
-                    .unwrap();
-                let ProducerOutcome::Published(producer) = owner
-                    .producer_javascript(
-                        whole,
-                        cell,
-                        "./producer.mjs",
-                        "scoreABI",
-                        FunctionRequest {
-                            max_work: 500_000,
-                            scratch_bytes: 800_000,
-                            output_bytes: 800_000,
-                        },
-                        policy,
-                        WorkDomain::Baseline,
-                    )
-                    .unwrap()
-                    .outcome
-                else {
-                    panic!("complete physical export");
-                };
-                let artifact = owner
-                    .with_javascript_output(producer, policy, |output| {
-                        let artifact = output.render(&Plan::new(Style::Global)).unwrap();
-                        output.retain_artifact(artifact).unwrap()
-                    })
-                    .unwrap();
-                let consumer = owner
-                    .freeze_producer_javascript(whole, artifact, policy, WorkDomain::Baseline)
-                    .unwrap();
-                // Cache construction and arena slot capacity are intentional retained
-                // storage. Warm both before isolating refusal-path artifact ownership.
-                let retained = owner
-                    .with_javascript_output(consumer, policy, |output| {
-                        (0..64)
-                            .map(|_| {
-                                let artifact = output.render(&Plan::new(Style::Global)).unwrap();
-                                output.retain_artifact(artifact).unwrap()
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap();
-                for artifact in retained {
-                    owner.discard_artifact(artifact).unwrap();
-                }
-                (whole, consumer)
-            };
-            let before = session.compilation().ledger().retained_bytes();
-            for _ in 0..2 {
-                let error = session.render_javascript(consumer).unwrap_err();
-                assert_eq!(error.phase, "handoff");
-                assert!(error.message.contains("resource packages"));
-                assert_eq!(session.compilation().ledger().retained_bytes(), before);
-                assert!(session.compilation().view(consumer.semantic_id()).is_ok());
-            }
-            assert!(!session
-                .render_javascript(whole)
-                .unwrap()
-                .javascript()
-                .is_empty());
-            {
-                let (owner, _, policy) = session.parts_mut();
-                let request = search_request(
-                    ServiceOptions {
-                        objectives: Some(Objectives::All),
-                        ..ServiceOptions::default()
-                    },
-                    policy,
-                    Objectives::All,
-                );
-                owner
-                    .enable_local_facts(request.facts_cache, WorkDomain::Baseline)
-                    .unwrap();
-            }
-            let before = session.compilation().ledger().retained_bytes();
-            let error = session
-                .search_javascript(consumer.semantic_id(), |_| {})
-                .unwrap_err();
-            assert_eq!(error.phase, "handoff");
-            assert!(error.message.contains("resource packages"));
-            assert_eq!(session.compilation().ledger().retained_bytes(), before);
-            assert!(session.compilation().view(consumer.semantic_id()).is_ok());
         },
     )
     .unwrap();

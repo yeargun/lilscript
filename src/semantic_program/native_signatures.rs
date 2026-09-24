@@ -121,9 +121,6 @@ pub(super) fn register<'program, 'src>(
             }
         } else {
             let Some(value) = native_type(program, child, tables, budget)? else {
-                if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-                    eprintln!("native callable payload type refused: {child} in {}", frame.ty);
-                }
                 return Err(NativeError::unsupported(
                     None,
                     None,

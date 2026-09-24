@@ -225,6 +225,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ServiceTarget::JavaScript
         },
         preserve_root_exports: true,
+        chunk_extension: Default::default(),
         objectives: Some(Objectives::All),
         logical_work: args.work,
         retained_bytes: args.memory,

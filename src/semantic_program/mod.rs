@@ -11,7 +11,6 @@ mod artifacts;
 mod callable_inputs;
 mod demand;
 pub mod facts;
-mod fixed_resource;
 mod from_source;
 mod function_layout;
 mod helper_family;
@@ -19,14 +18,12 @@ pub mod ids;
 mod implementation_identity;
 mod implementations;
 mod javascript;
-mod javascript_resource;
 mod module_contract;
 mod native;
 mod native_memory;
 mod native_plan;
 mod native_runtime;
 mod native_string_runtime;
-mod physical_export;
 #[cfg(test)]
 mod product_demand_tests;
 mod product_family;
@@ -118,6 +115,8 @@ mod module_helper_tests;
 mod class_javascript_tests;
 #[cfg(test)]
 mod syntax_javascript_tests;
+#[cfg(test)]
+mod source_legality_tests;
 #[cfg(test)]
 mod d3_clause_tests;
 

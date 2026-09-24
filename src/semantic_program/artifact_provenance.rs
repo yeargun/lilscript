@@ -96,16 +96,39 @@ pub(super) struct ArtifactProvenance {
     charge: RetainedCharge<RevisionId>,
 }
 
+/// Actual output and permission evidence retained with an artifact's bytes.
+/// Naming provenance is explicit: the same Source plan can be a mandatory
+/// baseline or an optional explored plan with different policy eligibility.
+#[derive(Debug, Clone, Copy)]
+pub struct ArtifactProvenanceDescription<'a> {
+    naming: &'a Plan,
+    output: OutputTactics,
+    naming_tactics: &'a [TacticUse],
+    tactics: &'a [TacticUse],
+}
+impl<'a> ArtifactProvenanceDescription<'a> {
+    pub fn naming(self) -> &'a Plan {
+        self.naming
+    }
+    pub fn output(self) -> OutputTactics {
+        self.output
+    }
+    pub fn naming_tactics(self) -> &'a [TacticUse] {
+        self.naming_tactics
+    }
+    pub fn tactics(self) -> &'a [TacticUse] {
+        self.tactics
+    }
+}
+
 impl ArtifactProvenance {
-    pub(super) fn description(
-        &self,
-    ) -> super::implementation_identity::ArtifactProvenanceDescription<'_> {
-        super::implementation_identity::ArtifactProvenanceDescription::new(
-            &self.naming,
-            self.output,
-            self.naming_origin.tactics(),
-            self.tactics(),
-        )
+    pub(super) fn description(&self) -> ArtifactProvenanceDescription<'_> {
+        ArtifactProvenanceDescription {
+            naming: &self.naming,
+            output: self.output,
+            naming_tactics: self.naming_origin.tactics(),
+            tactics: self.tactics(),
+        }
     }
     pub(super) fn build<'a>(
         structural: impl IntoIterator<Item = &'a TacticUse>,
@@ -247,51 +270,6 @@ impl ArtifactProvenance {
             .map_err(ProvenanceError::Admission)
     }
 
-    /// One complete artifact has one cost and the union of both files' actual
-    /// tactic/risk origins. Applying aggregate cost independently to each file
-    /// would reject an increase whose permission belongs to the other file.
-    pub(super) fn admit_with_dependency(
-        &self,
-        dependency: &Self,
-        policy: &ResolvedPolicy,
-        cost: CandidateCostEvidence,
-        baseline: CandidateCostEvidence,
-        budget: &mut AllocationBudget<'_>,
-    ) -> Result<(), ProvenanceError> {
-        self.check_output_permissions(policy, budget)?;
-        dependency.check_output_permissions(policy, budget)?;
-        let mut risks = [None; TacticId::ALL.len()];
-        for &usage in self.tactics().iter().chain(dependency.tactics()) {
-            budget.work(WorkKind::Analysis, 1)?;
-            merge_risk(&mut risks[usage.tactic as usize], usage.risk);
-        }
-        let mut uses = [TacticUse {
-            tactic: TacticId::DeadCodeElimination,
-            risk: RuntimeRisk::Neutral,
-        }; TacticId::ALL.len()];
-        let mut count = 0;
-        for tactic in TacticId::ALL {
-            budget.work(WorkKind::Analysis, 1)?;
-            if let Some(risk) = risks[tactic as usize] {
-                uses[count] = TacticUse { tactic, risk };
-                count += 1;
-            }
-        }
-        policy
-            .admit_evidence(&uses[..count], cost, baseline)
-            .map_err(ProvenanceError::Admission)
-    }
-
-    pub(super) fn check_permissions(
-        &self,
-        policy: &ResolvedPolicy,
-        budget: &mut AllocationBudget<'_>,
-    ) -> Result<(), ProvenanceError> {
-        self.check_output_permissions(policy, budget)?;
-        policy
-            .check_tactic_permissions(self.tactics())
-            .map_err(ProvenanceError::Admission)
-    }
     fn check_output_permissions(
         &self,
         policy: &ResolvedPolicy,
@@ -306,6 +284,7 @@ impl ArtifactProvenance {
             .map_err(ProvenanceError::Naming)
     }
 
+    #[cfg(test)]
     pub(super) fn retained_bytes(&self) -> u64 {
         self.charge.bytes()
     }

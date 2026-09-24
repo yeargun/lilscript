@@ -6,7 +6,6 @@
 //! retain an uncharged clone. The compilation owner enforces same-ledger use
 //! and consuming discard. Ordinary Drop conservatively leaves memory charged.
 
-use super::fixed_resource::{union_resource, ResourceChoice};
 use super::function_layout::FunctionLayout;
 use super::helper_family::HelperFamily;
 use super::product_family::ProductFamily;
@@ -222,67 +221,6 @@ pub(super) struct SharedFunction {
     charge: Charge,
 }
 
-/// A retained reference to the existing selected function proof owner. Physical
-/// exports and implementation maps share this same evidence; no copied query
-/// result or auxiliary cache is introduced. The private handle has no Clone.
-#[derive(Debug)]
-#[must_use = "retain in the compilation or discard through its original ledger"]
-pub(super) struct FunctionEvidence(Arc<SharedFunction>);
-impl FunctionEvidence {
-    pub(super) fn borrow(&self) -> &FunctionLayout {
-        &self.0.family
-    }
-    pub(super) fn same_owner(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-    pub(super) fn retained_bytes(&self) -> u64 {
-        self.0.charge.bytes + self.0.family.retained_bytes()
-    }
-    pub(super) fn owns_shared(&self, owner: &Arc<SharedFunction>) -> bool {
-        Arc::ptr_eq(&self.0, owner)
-    }
-    /// Packed exports still require the complete proof. Its original family
-    /// charge moves into the same private wrapper used by selected layouts.
-    pub(super) fn from_family(
-        family: FunctionLayout,
-        budget: &mut AllocationBudget<'_>,
-    ) -> Result<Self, AllocationError> {
-        let prepared = (|| {
-            let mut phase = budget.scope();
-            phase.work(WorkKind::Edit, 1)?;
-            let bytes = (size_of::<SharedFunction>() - size_of::<FunctionLayout>()) as u64
-                + 2 * size_of::<usize>() as u64;
-            phase.retain(Retained, bytes)?;
-            let charge = phase.detach_retained((), bytes)?;
-            let domain = charge.domain();
-            // Transfer to the existing function wrapper's consuming protocol.
-            drop(charge);
-            Ok::<_, AllocationError>(Charge { domain, bytes })
-        })();
-        let charge = match prepared {
-            Ok(charge) => charge,
-            Err(error) => {
-                budget.with_ledger(|owner| family.discard(owner.unwrap().0))?;
-                return Err(error);
-            }
-        };
-        Ok(Self(Arc::new(SharedFunction { family, charge })))
-    }
-    pub(super) fn discard(self, ledger: &mut BudgetLedger) -> Result<(), BudgetError> {
-        Self::discard_shared(self.0, ledger)
-    }
-    fn discard_shared(
-        shared: Arc<SharedFunction>,
-        ledger: &mut BudgetLedger,
-    ) -> Result<(), BudgetError> {
-        if let Ok(SharedFunction { family, charge }) = Arc::try_unwrap(shared) {
-            family.discard(ledger)?;
-            ledger.release(charge.domain, charge.bytes)?;
-        }
-        Ok(())
-    }
-}
-
 #[derive(Debug)]
 struct SharedProduct {
     family: ProductFamily,
@@ -313,7 +251,6 @@ pub(super) struct ImplementationMap {
     /// A copied provenance summary, maintained only by the private constructor
     /// and insertion path. Policy queries never rescan retained definitions.
     pooled_strings: bool,
-    resource: Option<ResourceChoice>,
     charge: Charge,
 }
 
@@ -327,7 +264,6 @@ impl ImplementationMap {
             products: Vec::new(),
             functions: Vec::new(),
             pooled_strings: false,
-            resource: None,
             charge: Charge {
                 domain: WorkDomain::Baseline,
                 bytes: 0,
@@ -385,18 +321,6 @@ impl ImplementationMap {
             .map(|index| &self.functions[index].family))
     }
 
-    /// The immutable candidate already owns complete source-qualified evidence.
-    /// The same paid lookup can retain it for another client without a query.
-    pub(super) fn share_function(
-        &self,
-        body: super::UnitId,
-        budget: &mut AllocationBudget<'_>,
-    ) -> Result<Option<FunctionEvidence>, AllocationError> {
-        Ok(self
-            .function_position(body, budget)?
-            .map(|index| FunctionEvidence(Arc::clone(&self.functions[index]))))
-    }
-
     /// Product components are ordered by their canonical first cell, which may
     /// differ from the requested occurrence. Use their already sorted member
     /// lists to find the exact covering proof without another membership index.
@@ -430,66 +354,10 @@ impl ImplementationMap {
             && self.strings.is_empty()
             && self.products.is_empty()
             && self.functions.is_empty()
-            && self.resource.is_none()
     }
 
     pub(super) fn owns_shell(&self) -> bool {
         self.charge.bytes != 0
-    }
-
-    pub(super) fn resource(&self) -> Option<&ResourceChoice> {
-        self.resource.as_ref()
-    }
-
-    /// Allocate/charge a complete map shell even when its only choice will be
-    /// a resource. The future resource is installed only after all admissions.
-    pub(super) fn prepare_resource_map(
-        &self,
-        ledger: &mut BudgetLedger,
-        domain: WorkDomain,
-    ) -> Result<Self, ImplementationError> {
-        self.charge_sharing_work(
-            self.records.len(),
-            self.helpers.len(),
-            self.strings.len(),
-            self.products.len(),
-            self.functions.len(),
-            ledger,
-            domain,
-        )?;
-        let (mut map, _) = self.allocate_shared(
-            self.records.len(),
-            self.helpers.len(),
-            self.strings.len(),
-            self.products.len(),
-            self.functions.len(),
-            0,
-            ledger,
-            domain,
-        )?;
-        if let Some(resource) = map.resource.take() {
-            let mut budget = AllocationBudget::new(Some((ledger, domain)));
-            resource
-                .discard(&mut budget)
-                .unwrap_or_else(|error| panic!("shared resource owner invariant: {error:?}"));
-        }
-        Ok(map)
-    }
-    pub(super) fn install_resource_prepared(&mut self, resource: ResourceChoice) {
-        assert!(self.resource.is_none() && self.charge.bytes >= size_of::<Self>() as u64);
-        self.resource = Some(resource);
-    }
-    pub(super) fn validate_resource(
-        &self,
-        identity: super::RevisionId,
-        program: &Program<'_>,
-        uses: &UseIndex,
-        budget: &mut AllocationBudget<'_>,
-    ) -> Result<bool, AllocationError> {
-        match &self.resource {
-            None => Ok(true),
-            Some(resource) => resource.validate(identity, program, uses, self, budget),
-        }
     }
 
     /// Neutral is this recipe's risk class, not a measured runtime guarantee.
@@ -600,27 +468,6 @@ impl ImplementationMap {
             return self.share(ledger, domain);
         }
         let mut budget = AllocationBudget::new(Some((ledger, domain)));
-        let resource =
-            union_resource(self.resource.as_ref(), other.resource.as_ref(), &mut budget)?;
-        // Each input is a valid independent choice over this same snapshot.
-        // Inlining the fixed exported endpoint removes the physical function
-        // required by the resource cut. This is a choice conflict, not stale
-        // source evidence, and must refuse before any output map allocation.
-        if let Some(resource) = resource {
-            let endpoint = resource.export().cell();
-            for selected in [self, other] {
-                if selected.helpers.is_empty() {
-                    continue;
-                }
-                work(
-                    &mut budget,
-                    (usize::BITS - selected.helpers.len().leading_zeros()) as usize + 1,
-                )?;
-                if selected.helper_for_cell(endpoint).is_some() {
-                    return Err(ImplementationError::ConflictingChoice);
-                }
-            }
-        }
         let records = merge(
             &self.records,
             &other.records,
@@ -813,9 +660,6 @@ impl ImplementationMap {
                 Ok(())
             },
         )?;
-        let resource = resource
-            .map(|resource| resource.share(&mut budget))
-            .transpose()?;
         Self::finish_arrays(
             (
                 selected_records,
@@ -828,10 +672,7 @@ impl ImplementationMap {
             0,
             &mut budget,
         )
-        .map(|(mut map, _)| {
-            map.resource = resource;
-            map
-        })
+        .map(|(map, _)| map)
     }
 
     /// Add one independently analyzed family. Failure consumes/discards the
@@ -1028,14 +869,6 @@ impl ImplementationMap {
         domain: WorkDomain,
     ) -> Result<Self, ImplementationError> {
         let prepared = (|| {
-            // A newly proved helper and a union of pre-existing choices obey
-            // the same fixed endpoint requirement before map allocation.
-            if let Some(resource) = &self.resource {
-                ledger.charge(domain, WorkKind::Edit, 1)?;
-                if family.root().cell == resource.export().cell() {
-                    return Err(ImplementationError::ConflictingChoice);
-                }
-            }
             let count = self
                 .helpers
                 .len()
@@ -1220,21 +1053,12 @@ impl ImplementationMap {
         strings.extend(self.strings.iter().map(Arc::clone));
         products.extend(self.products.iter().map(Arc::clone));
         functions.extend(self.functions.iter().map(Arc::clone));
-        let resource = self
-            .resource
-            .as_ref()
-            .map(|resource| resource.share(&mut budget))
-            .transpose()?;
         Self::finish_arrays(
             (records, helpers, strings, products, functions),
             self.pooled_strings,
             wrapper_bytes,
             &mut budget,
         )
-        .map(|(mut map, wrapper)| {
-            map.resource = resource;
-            (map, wrapper)
-        })
     }
 
     fn allocate_arrays(
@@ -1294,7 +1118,6 @@ impl ImplementationMap {
                 products,
                 functions,
                 pooled_strings,
-                resource: None,
                 charge: Charge {
                     domain,
                     bytes: shell_bytes,
@@ -1341,7 +1164,7 @@ impl ImplementationMap {
     }
 
     /// Bound revision checks, including one complete index freshness check.
-    /// The owner charges this before calling valid_for; no bodies are rescanned.
+    #[cfg(test)]
     pub(super) fn validation_work(
         &self,
         program: &Program<'_>,
@@ -1402,6 +1225,7 @@ impl ImplementationMap {
         })
     }
 
+    #[cfg(test)]
     pub(super) fn valid_for(&self, program: &Program<'_>, uses: &UseIndex) -> bool {
         uses.valid_for(program) && self.valid_for_published(program, uses)
     }
@@ -1438,20 +1262,12 @@ impl ImplementationMap {
     }
 
     /// Reachable payload, not a reservation to charge again for shared evidence.
+    #[cfg(test)]
     pub(super) fn retained_bytes(&self) -> u64 {
         self.charge.bytes
             + self
-                .resource
-                .as_ref()
-                .map_or(0, ResourceChoice::retained_bytes)
-            + self
                 .functions
                 .iter()
-                .filter(|function| {
-                    self.resource
-                        .as_ref()
-                        .is_none_or(|resource| !resource.contains_function_owner(function))
-                })
                 .map(|function| function.charge.bytes + function.family.retained_bytes())
                 .sum::<u64>()
             + self
@@ -1484,15 +1300,8 @@ impl ImplementationMap {
             products,
             functions,
             pooled_strings: _,
-            resource,
             charge,
         } = self;
-        if let Some(resource) = resource {
-            let mut budget = AllocationBudget::new(Some((ledger, WorkDomain::Baseline)));
-            resource
-                .discard(&mut budget)
-                .unwrap_or_else(|error| panic!("fixed resource owner invariant: {error:?}"));
-        }
         for record in records {
             if let Ok(SharedRecord { family, charge }) = Arc::try_unwrap(record) {
                 family.discard(ledger)?;
@@ -1518,7 +1327,10 @@ impl ImplementationMap {
             }
         }
         for function in functions {
-            FunctionEvidence::discard_shared(function, ledger)?;
+            if let Ok(SharedFunction { family, charge }) = Arc::try_unwrap(function) {
+                family.discard(ledger)?;
+                ledger.release(charge.domain, charge.bytes)?;
+            }
         }
         ledger.release(charge.domain, charge.bytes)
     }

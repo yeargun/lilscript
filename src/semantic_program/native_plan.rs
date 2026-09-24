@@ -1000,9 +1000,6 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             } else if matches!(ty, Type::Function(_) | Type::GenericFunction(_)) {
                 TypeClass::Function(signatures::register(program, &mut tables, ty, budget)?)
             } else {
-                if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-                    eprintln!("native source type refused: {ty}");
-                }
                 return Err(fail(None, None, Span::default(), "native source type"));
             };
             classes.push(class);
@@ -2398,14 +2395,6 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                         && expected == plan.places[place.index()].storage
                                 }
                             };
-                            if !compatible && std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-                                if let CallArgument::Value(argument) = argument {
-                                    eprintln!(
-                                        "native call argument: expected {expected:?}, actual {:?}",
-                                        value(argument)
-                                    );
-                                }
-                            }
                             expect(compatible, "native call argument representation")?;
                         }
                         let expected = self.signatures[self.signature_for_unit(function)].result;

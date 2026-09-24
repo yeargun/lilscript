@@ -231,7 +231,6 @@ fn manual_joint_string_pool_has_a_qualified_finite_oracle_beyond_singleton_disco
     let descriptors = candidates.map(|candidate| {
         compiler
             .with_implementation_description(candidate, WorkDomain::Optional, |view| {
-                assert!(matches!(view.resource(), ResourceDescription::Whole));
                 view.recipe_words().to_vec()
             })
             .unwrap()
@@ -276,7 +275,6 @@ fn manual_joint_string_pool_has_a_qualified_finite_oracle_beyond_singleton_disco
             }
             compiler
                 .with_qualified_artifact(&qualifications[2], |view, provenance| {
-                    assert!(view.dependency.is_none());
                     assert_eq!(view.implementation.recipe_words(), descriptors[recipe]);
                     assert_eq!(provenance.naming().style, style);
                 })
