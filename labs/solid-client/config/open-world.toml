@@ -4,10 +4,8 @@ priority = "size-first"
 optimization_level = 15
 cost_model = "brotli"
 function_spelling = "arrow"
-# The package facade exposes raw runtime aggregates only as opaque handles.
-# Positional layout lets the compiler compact their internal fields while the
-# facade keeps the Solid-compatible named public API stable.
-public_aggregate_abi = "positional"
+# The positional aggregate layout this build once asked for is refused since
+# plan M1.4 (D2: public aggregates are plain objects with named fields).
 pool_numeric_literals = true
 
 [mangle]

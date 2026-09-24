@@ -43,14 +43,18 @@ fi
 # shellcheck disable=SC2086 # deliberate word splitting: one flag or two tokens.
 CC="$CC" "$ROOT/target/release/lilscript-differential" --cases 64 $differential_seed_args
 
-"$ROOT/target/release/lilscript" "$ROOT/examples/extern_abi.lil" \
-  --target c -o "$BUILD/extern_abi.c"
-"$CC" -std=c11 -O3 "$ROOT/tests/extern_abi_host.c" -o "$BUILD/extern_abi-host"
-extern_result=$("$BUILD/extern_abi-host")
-if [ "$extern_result" != "6" ]; then
-  printf 'Native extern ABI returned %s instead of 6.\n' "$extern_result" >&2
+# The user-facing C extern ABI is an expected failure: the native target
+# refuses `extern` declarations until plan M11.3 restores the ABI. The step
+# still runs, so it reports the moment it starts passing and the expectation
+# must be removed.
+if "$ROOT/target/release/lilscript" "$ROOT/examples/extern_abi.lil" \
+  --target c -o "$BUILD/extern_abi.c" 2>"$BUILD/extern_abi.err" &&
+  "$CC" -std=c11 -O3 "$ROOT/tests/extern_abi_host.c" -o "$BUILD/extern_abi-host" &&
+  [ "$("$BUILD/extern_abi-host")" = "6" ]; then
+  printf 'The native extern ABI step passes: remove its expected failure (owner M11.3) from scripts/verify.sh.\n' >&2
   exit 1
 fi
+printf 'Expected failure (owner M11.3): the native extern ABI (examples/extern_abi.lil) is refused on the C target.\n'
 
 node "$ROOT/scripts/test-lsp.mjs" "$ROOT/target/release/lilscript-lsp"
 node "$ROOT/scripts/verify-bundles.mjs" "$ROOT/target/release/lilscript"

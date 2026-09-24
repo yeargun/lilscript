@@ -10,7 +10,6 @@ priority = "size-first"
 ecmascript = "es2022"
 optimization_level = 15
 cost_model = "brotli"
-public_aggregate_abi = "positional"
 assume_pristine_builtins = false
 assume_pure_property_reads = false
 strip_console = true

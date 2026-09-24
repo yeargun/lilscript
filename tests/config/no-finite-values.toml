@@ -1,7 +1,0 @@
-[optimization]
-inlining = false
-scalar_replacement = false
-finite_value_propagation = false
-
-[javascript]
-cost_model = "brotli"

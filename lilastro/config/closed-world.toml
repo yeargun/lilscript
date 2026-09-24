@@ -4,7 +4,6 @@ priority = "size-first"
 optimization_level = 15
 cost_model = "brotli"
 function_spelling = "arrow"
-public_aggregate_abi = "positional"
 pool_numeric_literals = true
 local_name_reserve = 48
 

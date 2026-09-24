@@ -31,14 +31,16 @@ function resolvePolicy(directory, args = [], { config = true } = {}) {
   return { status: result.status, stderr: result.stderr, receipt: result.status === 0 ? JSON.parse(result.stdout) : null }
 }
 
-test("TOML resources are what the run uses when no flag overrides them", t => {
+test("TOML resources have no effect and are reported as retired keys", t => {
   const { receipt } = resolvePolicy(project(t, "[compiler.resources]\nthreads = 8\ncodec_workers = 4\n"))
-  assert.equal(receipt.execution.threads, 8)
-  assert.equal(receipt.execution.codec_workers, 4)
+  assert.equal(receipt.execution.threads, null)
+  assert.equal(receipt.execution.codec_workers, null)
+  assert.equal(receipt.warnings.length, 1)
+  assert.match(receipt.warnings[0], /^`compiler\.resources` has no effect in this compiler: .*; remove it$/)
 })
 
-test("command-line resource flags take precedence over TOML", t => {
-  const { receipt } = resolvePolicy(project(t, "[compiler.resources]\nthreads = 8\ncodec_workers = 4\n"), ["--jobs", "3", "--codec-jobs", "2"])
+test("command-line resource flags are recorded outside the policy", t => {
+  const { receipt } = resolvePolicy(project(t, "[javascript]\ncost_model = \"brotli\"\n"), ["--jobs", "3", "--codec-jobs", "2"])
   assert.equal(receipt.execution.threads, 3)
   assert.equal(receipt.execution.codec_workers, 2)
 })
@@ -94,19 +96,31 @@ test("an unknown key is an error, not a silently ignored setting", t => {
   assert.match(stderr, /unknown field `no_such_setting`/)
 })
 
-test("an invalid resource limit is refused", t => {
-  const { status } = resolvePolicy(project(t, "[compiler.resources]\ncodec_workers = 0\n"))
-  assert.notEqual(status, 0)
+test("an invalid resource flag is refused", t => {
   const flag = spawnSync(COMPILER, [join(project(t, null), "main.lil"), "--jobs", "0", "--print-policy"], { encoding: "utf8" })
   assert.notEqual(flag.status, 0, "--jobs 0 must be refused by the command line")
 })
 
-test("a sibling-line optimizer knob is accepted, reported and still validated", t => {
+test("a sibling-line optimizer knob is a retired key: accepted, reported, and without effect", t => {
   const accepted = resolvePolicy(project(t, "[javascript]\nname_ordering = \"idiom-converged\"\nterminal_cleanup_chain = true\n")).receipt
-  assert.equal(accepted.unimplemented_knobs.length, 2)
-  assert.match(accepted.unimplemented_knobs[0], /idiom-converged/)
-  const misspelled = resolvePolicy(project(t, "[javascript]\nname_ordering = \"idom-converged\"\n"))
-  assert.notEqual(misspelled.status, 0)
+  assert.equal(accepted.warnings.length, 2)
+  assert.match(accepted.warnings[0], /javascript\.name_ordering/)
+  const baseline = resolvePolicy(project(t, "")).receipt
+  assert.equal(accepted.fingerprint, baseline.fingerprint)
+})
+
+test("the route selector, runtime priorities, constraints and the positional ABI are refused", t => {
+  for (const [toml, message] of [
+    ["[compiler]\nbackend = \"semantic\"\n", /there is one compiler; remove \[compiler\] backend/],
+    ["[javascript]\npriority = \"balanced\"\n", /size is the objective/],
+    ["[policy.constraints]\nmax_startup_work = 1\n", /runtime estimators/],
+    ["[javascript]\npublic_aggregate_abi = \"positional\"\n", /\(D2\)/],
+    ["[optimization]\nfor_of_specialize_family = 8\n", /for_of_specialize_family = 8/],
+  ]) {
+    const { status, stderr } = resolvePolicy(project(t, toml))
+    assert.notEqual(status, 0, toml)
+    assert.match(stderr, message)
+  }
 })
 
 test("a lilscript.toml beside the input is discovered without --config", t => {

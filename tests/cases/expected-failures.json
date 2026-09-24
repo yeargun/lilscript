@@ -24,16 +24,16 @@
         "cases/regressions/irjs-dense_constructor_literals_ignore_inherited_prototype_setters-positional",
         "cases/regressions/irjs-direct_constructor_literals_preserve_named_and_positional_own_properties-positional"
       ],
-      "reason": "`public_aggregate_abi = \"positional\"` is ignored: the instance reaches the host as {value:7}, so `slot[0]` is undefined. M1.4 refuses the key at load; these cases then become refusal cases.",
-      "owner": "M1.4"
+      "reason": "Refused at configuration load by design (D2): the case sets `public_aggregate_abi = \"positional\"`, and its host reads positional slots (`slot[0]`). Public aggregates are plain objects with named fields; the named siblings of these cases pass.",
+      "owner": "D2 (refused since M1.4; the case documents the refusal)"
     },
     {
       "case": [
         "cases/regressions/irjs-direct_constructor_fusion_refuses_observable_host_defaults",
         "cases/regressions/irjs-direct_constructor_fusion_refuses_unmapped_host_defaults"
       ],
-      "reason": "Two faults: `public_aggregate_abi = \"positional\"` is ignored, and a field default (`new Map`) is evaluated before a constructor argument (D3.4 order).",
-      "owner": "M1.4 (positional refused), M1.9 (field-default order)"
+      "reason": "Refused at configuration load by design (D2): the cases set `public_aggregate_abi = \"positional\"` and their hosts read positional slots (`cache[0]`, `cache[1]`). The field-default order fault they also exposed was fixed in M1.9.",
+      "owner": "D2 (refused since M1.4; the cases document the refusal)"
     },
     {
       "case": [

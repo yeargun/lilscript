@@ -1,17 +1,23 @@
-[optimization]
-preset = "none"
-
+# Formation only: the one compiler with every optional transformation vetoed
+# and no candidate search. `print` is the observation channel, so it is kept.
+# The optimizer-disabled lane of scripts/verify-matrix.sh and of
+# lilscript-differential, like the case runner's formation-only lanes.
 [javascript]
 strip_console = false
+candidate_search = "off"
 
-[mangle]
-identifiers = false
-properties = false
-exports = false
-pool_strings = false
-
-[bundle]
-mode = "single"
-min_chunk_bytes = 4096
-max_chunks = 8
-shared_min_imports = 2
+[policy.tactics]
+dead-code-elimination = "off"
+constant-folding = "off"
+inlining = "off"
+scalar-replacement = "off"
+call-specialization = "off"
+helper-sharing = "off"
+target-compaction = "off"
+identifier-mangling = "off"
+property-mangling = "off"
+string-pooling = "off"
+string-array-packing = "off"
+startup-reconstruction = "off"
+recurring-reconstruction = "off"
+naming-search = "off"

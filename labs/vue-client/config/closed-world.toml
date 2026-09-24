@@ -8,7 +8,6 @@ identical_function_folding = true
 priority = "performance-first"
 optimization_level = 15
 cost_model = "brotli"
-public_aggregate_abi = "positional"
 assume_pristine_builtins = false
 strip_console = false
 pool_numeric_literals = true
