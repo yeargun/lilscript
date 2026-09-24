@@ -533,6 +533,14 @@ struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     budget: &'budget mut AllocationBudget<'ledger>,
 }
 
+/// The receiver of a class function call: a value the caller computed first,
+/// or the instance a construction creates after its explicit arguments.
+#[derive(Clone, Copy)]
+enum CallReceiver<'src> {
+    Value(ValueId),
+    Construction { class: &'src str, ty: TypeId, origin: Option<SourceNodeId> },
+}
+
 /// A class method or `init` (`name: None`), converted to a function unit that
 /// takes the instance as its first parameter and reached through a synthetic
 /// function cell. Dispatch is static: overriding is rejected by the checker.
@@ -1945,15 +1953,37 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         if self.host_derived(class, span)? {
             return self.construct_host_class(unit, region, class, arguments, ty, origin, span);
         }
-        let instance = self.class_instance(unit, region, class, ty, origin, span)?;
+        // `new C(args)` evaluates its explicit arguments, then creates the
+        // instance with every field at its default, then runs `init`, which
+        // materializes omitted parameters: JavaScript's order, where fields
+        // are initialized on entry, ahead of parameter defaults.
         match self.inherited_init(class, span)? {
             Some(init) => {
-                self.call_class_function(unit, region, init, instance, arguments, span)?;
+                if arguments
+                    .iter()
+                    .all(|argument| argument.passing == crate::primitive::ParameterPassing::Value)
+                {
+                    let mut values = self.budget.vector(Scratch, arguments.len())?;
+                    for argument in arguments {
+                        let value = self.expression(unit, region, &argument.expression)?;
+                        let value = self.copy_value(unit, region, value, argument.span)?;
+                        self.budget.push(Scratch, &mut values, value)?;
+                    }
+                    let instance =
+                        self.construct_class_values(unit, region, class, &values, ty, origin, span)?;
+                    drop_vector(values, Scratch, self.budget)?;
+                    return Ok(instance);
+                }
+                // A reference argument is a place the prepared call owns; the
+                // instance is created inside that call, after the arguments.
+                let receiver = CallReceiver::Construction { class, ty, origin };
+                let (_, instance) =
+                    self.call_class_function_with(unit, region, init, receiver, ty, arguments, span)?;
+                Ok(instance)
             }
-            None if arguments.is_empty() => {}
-            None => return self.unsupported(span, "arguments to a class without init"),
+            None if arguments.is_empty() => self.class_instance(unit, region, class, ty, origin, span),
+            None => self.unsupported(span, "arguments to a class without init"),
         }
-        Ok(instance)
     }
     /// `new C(...)` whose arguments are already evaluated (a default).
     fn construct_class_values(
@@ -1963,6 +1993,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         class: &'src str,
         arguments: &[ValueId],
         ty: TypeId,
+        origin: Option<SourceNodeId>,
         span: Span,
     ) -> Result<ValueId, ConversionError> {
         if self.host_derived(class, span)? {
@@ -1975,9 +2006,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             let mut values = Vec::with_capacity(arguments.len() + 1);
             values.push(constructor);
             values.extend_from_slice(arguments);
-            return self.value(unit, region, OperationKind::ConstructClass, &values, ty, None, span);
+            return self.value(unit, region, OperationKind::ConstructClass, &values, ty, origin, span);
         }
-        let instance = self.class_instance(unit, region, class, ty, None, span)?;
+        let instance = self.class_instance(unit, region, class, ty, origin, span)?;
         match self.inherited_init(class, span)? {
             Some(init) => {
                 let mut values = self.budget.vector(Scratch, arguments.len() + 1)?;
@@ -2129,10 +2160,34 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         arguments: &'ast [ast::Argument<'ast, 'src>],
         span: Span,
     ) -> Result<ValueId, ConversionError> {
+        let receiver_type = self.units[unit.index()].values[receiver.index()].ty;
+        let (value, _) = self.call_class_function_with(
+            unit,
+            region,
+            method,
+            CallReceiver::Value(receiver),
+            receiver_type,
+            arguments,
+            span,
+        )?;
+        Ok(value)
+    }
+    /// A class function call whose receiver is either already computed or the
+    /// instance a construction creates after its explicit arguments. Returns
+    /// the call's result and the receiver.
+    fn call_class_function_with(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        method: ClassMethod<'src>,
+        receiver: CallReceiver<'src>,
+        receiver_type: TypeId,
+        arguments: &'ast [ast::Argument<'ast, 'src>],
+        span: Span,
+    ) -> Result<(ValueId, ValueId), ConversionError> {
         self.reference(unit, method.cell)?;
         let callee = self.load_cell(unit, region, method.cell, span)?;
         let signature = self.program.cells[method.cell.index()].ty;
-        let receiver_type = self.units[unit.index()].values[receiver.index()].ty;
         let instantiation = self.class_instantiation(unit, method, receiver_type, span)?;
         let result = self.class_call_result(unit, signature, instantiation, span)?;
         let contract = CallContract {
@@ -2144,7 +2199,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             })?,
             defaults: DefaultConvention::MaterializeAtCaller,
         };
-        let (kind, operands) = self.prepare_call_with_receiver(
+        let (kind, operands, receiver) = self.prepare_call_with_receiver(
             unit,
             region,
             CallTarget::Value {
@@ -2158,7 +2213,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         )?;
         let value = self.value(unit, region, kind, &operands, result, None, span)?;
         drop_vector(operands, Scratch, self.budget)?;
-        Ok(value)
+        Ok((value, receiver.expect("a class function call has a receiver")))
     }
     fn declare(
         &mut self,
@@ -3957,7 +4012,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         arguments: &'ast [ast::Argument<'ast, 'src>],
         preparation: Span,
     ) -> Result<(OperationKind, Vec<ValueId>), ConversionError> {
-        self.prepare_call_with_receiver(unit, region, target, contract, None, arguments, preparation)
+        let (kind, operands, _) =
+            self.prepare_call_with_receiver(unit, region, target, contract, None, arguments, preparation)?;
+        Ok((kind, operands))
     }
     /// A call whose operands are values the caller already evaluated, in order.
     fn prepare_call_values(
@@ -4014,10 +4071,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         region: RegionId,
         target: CallTarget,
         contract: CallContract,
-        receiver: Option<ValueId>,
+        receiver: Option<CallReceiver<'src>>,
         arguments: &'ast [ast::Argument<'ast, 'src>],
         preparation: Span,
-    ) -> Result<(OperationKind, Vec<ValueId>), ConversionError> {
+    ) -> Result<(OperationKind, Vec<ValueId>, Option<ValueId>), ConversionError> {
         let call = CallId::from_index(self.units[unit.index()].calls.len()).ok_or(Unsupported {
             span: preparation,
             feature: "semantic call capacity",
@@ -4039,9 +4096,11 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             preparation,
         )?;
         let mut values = self.budget.vector(Scratch, arguments.len() + 1)?;
-        if let Some(receiver) = receiver {
+        let mut receiver_value = None;
+        if let Some(CallReceiver::Value(receiver)) = receiver {
             self.budget
                 .push(Scratch, &mut values, CallArgument::Value(receiver))?;
+            receiver_value = Some(receiver);
         }
         let offset = usize::from(receiver.is_some());
         for (index, argument) in arguments.iter().enumerate() {
@@ -4070,6 +4129,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 }
             }
         }
+        // A construction's instance exists once its explicit arguments are
+        // evaluated and before its parameter defaults, as in JavaScript: a
+        // class's fields are initialized on entry, ahead of the defaults.
+        if let Some(CallReceiver::Construction { class, ty, origin }) = receiver {
+            let instance = self.class_instance(unit, region, class, ty, origin, preparation)?;
+            values.insert(0, CallArgument::Value(instance));
+            receiver_value = Some(instance);
+        }
         if contract.defaults == DefaultConvention::MaterializeAtCaller {
             self.materialize_defaults(unit, region, contract, &mut values, preparation)?;
         }
@@ -4090,7 +4157,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             .extend_copy(Retained, &mut data.call_arguments, &values)?;
         data.calls[call.index()].arguments = ArgumentRange { start, len };
         drop_vector(values, Scratch, self.budget)?;
-        Ok((OperationKind::Call(call), Vec::new()))
+        Ok((OperationKind::Call(call), Vec::new(), receiver_value))
     }
     /// Omitted parameters with checked defaults are evaluated by the caller
     /// after every supplied argument, as the callee would evaluate them on
@@ -4224,7 +4291,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     let value = self.default_value(unit, region, argument, parameter, values, callee, span)?;
                     self.budget.push(Scratch, &mut operands, value)?;
                 }
-                let result = self.construct_class_values(unit, region, name, &operands, ty, span)?;
+                let result = self.construct_class_values(unit, region, name, &operands, ty, None, span)?;
                 drop_vector(operands, Scratch, self.budget)?;
                 return Ok(result);
             }

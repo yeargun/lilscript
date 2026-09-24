@@ -1034,6 +1034,11 @@ fn discover_qualified(
     let body_data = program.unit(body).unwrap();
     let initialize = producer.initialize.operation;
     budget.work(1)?;
+    // A suspending body completes with a promise or a generator, not with the
+    // value its `return` yields, so its call is not its body inlined.
+    if body_data.suspension != Suspension::None {
+        return Err(unknown(UnknownReason::CompletionShape));
+    }
     let tail_return = body_data.regions[body_data.entry.index()]
         .operations
         .last()

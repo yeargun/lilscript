@@ -4033,17 +4033,19 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 if op == BinaryOp::Nullish {
                     return self.save_nullish(unit, &operation, left, right);
                 }
-                // A typed nullable value is `T` or `null`, but a host may hand
-                // one over as `undefined` (a missing element, say): the loose
-                // test treats both as absent, as the legacy route does. A
-                // `JsValue` keeps strict equality, where they differ.
+                // Equality on a `JsValue` is JavaScript's `==`: a dynamic
+                // equality conversion (the language contract; `JS.strictEqual`
+                // is the strict form). A typed nullable value is `T` or `null`,
+                // but a host may hand one over as `undefined` (a missing
+                // element, say): the loose test treats both as absent.
                 let program = self.program;
                 let ty = |value: ValueId| &program.types[self.data(unit).values[value.index()].ty.index()];
-                let null_test = matches!(op, BinaryOp::Eq | BinaryOp::NotEq)
-                    && operands[..2].iter().any(|&value| matches!(ty(value), Type::Null))
-                    && !operands[..2]
+                let dynamic = matches!(op, BinaryOp::Eq | BinaryOp::NotEq)
+                    && operands[..2]
                         .iter()
                         .any(|&value| matches!(ty(value), Type::TypeParameter("$js")));
+                let null_test = matches!(op, BinaryOp::Eq | BinaryOp::NotEq)
+                    && operands[..2].iter().any(|&value| matches!(ty(value), Type::Null));
                 // Two numbers, two strings or two booleans compare the same
                 // loosely: `==` converts nothing when the types already agree.
                 let primitive = |ty: &Type<'_>| match ty {
@@ -4057,7 +4059,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     && primitive(ty(operands[0])).is_some()
                     && primitive(ty(operands[0])) == primitive(ty(operands[1]));
                 js::Expr::Binary {
-                    op: match (null_test || same_primitive, op) {
+                    op: match (dynamic || null_test || same_primitive, op) {
                         (true, BinaryOp::Eq) => js::Binary::Equal,
                         (true, _) => js::Binary::NotEqual,
                         _ => binary(op),
