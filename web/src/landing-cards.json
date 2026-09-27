@@ -94,15 +94,15 @@
       "external": true,
       "kicker": "Capture kernel + 5 packs",
       "title": "posthog-js",
-      "text": "The capture kernel of posthog-js 1.418.10, as published on 24 September. The bar is Oxc; SWC with kept names gives 5,482 B, 63 B more, a tie. The error-tracking pack still loses.",
+      "text": "The capture kernel of posthog-js 1.418.10, rewritten in idiomatic LilScript. The bar is Oxc; SWC with kept names gives 5,482 B, 351 B more. The error-tracking pack still loses.",
       "baselineLabel": "Oxc",
       "gzip": [
         6194,
-        6039
+        5734
       ],
       "brotli": [
         5622,
-        5419
+        5131
       ]
     },
     {
@@ -316,11 +316,11 @@
       "name": "posthoglil",
       "package": "@itslil/posthog-js",
       "file": "posthog.esm.js",
-      "now": 5419,
+      "now": 5131,
       "bar": 5622,
       "barLabel": "Oxc",
-      "builtBy": "aa2052f0 · 24 Sep",
-      "note": "An idiomatic rewrite is in release."
+      "builtBy": "d1d48c4c · 27 Sep",
+      "note": "Port source rewrite; same compiler source as 24968659."
     },
     {
       "name": "rehypelil",

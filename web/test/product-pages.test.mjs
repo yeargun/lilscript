@@ -175,7 +175,7 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(compare, /id="zod"/);
   assert.match(compare, /id="posthog"/);
   assert.match(compare, /181 <code>z<\/code> members/);
-  assert.match(compare, /5,419/);
+  assert.match(compare, /5,131/);
   assert.match(compare, /previous compiler, August 2026/);
   assert.match(home, /887,420/);
   assert.match(home, /Upstream modules<\/small><b>47/);
@@ -183,7 +183,7 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(home, /25,452/);
   assert.match(home, /9,287/);
   assert.match(home, /60,056/);
-  assert.match(home, /5,419/);
+  assert.match(home, /5,131/);
   assert.match(compare, /href="\/demos.html#solidlil-keyed"/);
   assert.match(compare, /href="\/demos.html#motion-showcase-carousel"/);
   assert.match(compare, /https:\/\/yeargun\.github\.io\/solidlil\//);
