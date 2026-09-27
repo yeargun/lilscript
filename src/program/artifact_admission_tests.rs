@@ -256,3 +256,50 @@ fn baseline_receipts_survive_byte_disposal_but_cannot_cross_source_meanings() {
         ));
     });
 }
+
+/// The admission parse (plan task M2.5): a delivered file whose independent
+/// parse is not the printed tree, or that does not parse, is refused with a
+/// diagnostic before any score can select it; the printed file is admitted.
+#[test]
+fn admission_parses_the_delivered_file_and_refuses_a_misprint() {
+    with_source(|compilation, source| {
+        let policy = policy("", true);
+        let artifact = render(compilation, source, &policy);
+        compilation
+            .measure_artifact(artifact, CompressionCostModel::Brotli, WorkDomain::Baseline)
+            .unwrap();
+        let printed = compilation
+            .with_artifact(artifact, |view| view.javascript.to_string())
+            .unwrap();
+        assert!(printed.contains("return 17"), "{printed}");
+        let qualify = |compilation: &mut Compilation<'_>| {
+            compilation.qualify_artifact(
+                artifact,
+                &policy,
+                CompressionCostModel::Brotli,
+                ArtifactRuntimeEvidence::default(),
+                None,
+                WorkDomain::Baseline,
+            )
+        };
+        // A keyword run into its operand: `return17` reads as an identifier.
+        compilation.replace_artifact_text(artifact, printed.replacen("return 17", "return17", 1));
+        match qualify(compilation) {
+            Err(CandidateError::AdmissionParse(message)) => {
+                assert!(message.contains("different structure"), "{message}")
+            }
+            other => panic!("a misprinted file was admitted: {other:?}"),
+        }
+        // A dropped brace: the file does not parse.
+        compilation.replace_artifact_text(artifact, printed.replacen('{', "", 1));
+        match qualify(compilation) {
+            Err(CandidateError::AdmissionParse(message)) => {
+                assert!(message.contains("does not parse"), "{message}")
+            }
+            other => panic!("an unparsable file was admitted: {other:?}"),
+        }
+        compilation.replace_artifact_text(artifact, printed.clone());
+        qualify(compilation).unwrap();
+        compilation.discard_artifact(artifact).unwrap();
+    });
+}

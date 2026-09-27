@@ -8,6 +8,7 @@ Three versioned runners check a compiler binary. Each pins the binary by SHA-256
 | `scripts/ports.mjs` | M2.6 | `finer/tools/semantic-port-tests.mjs`, `finer/tools/portgate.mjs` and the unversioned `~/lilscript-work/tools/*.sh` |
 | `scripts/ratchet.mjs` | M2.13 | the always-failing hard gates of `comparison/cases/run.mjs` and `comparison/algorithms/run.mjs` as per-change evidence |
 | `src/no_library_knowledge_tests.rs` (NO3) and `tests/idiom-debt.json` (NO4) | M2.13 | — |
+| the admission parse, inside the compiler (`src/admission_parse.rs`) | M2.5 | the old route's syntax-only parse of terminal leaves |
 
 Run both with Node 24 (`~/.nvm/versions/node/v24.11.1/bin/node` on the build host). There is one compiler, so neither selects a route. The generated differential batch, a third check, is described in [differential-testing.md](differential-testing.md).
 
@@ -222,6 +223,12 @@ Brotli totals, ours against each bar over the items where both exist, and how ma
 | algorithms vs competitor / Closure / old | 5 / 11 / 11 | 8 / 11 / 11 | 9 / 11 / 11 |
 
 Twelve cases fail in every lane, both ledgered: eleven are refused on record spread (M10.8) and one on `??=` on a place (M10.9). The 27 catalog variants that called name-keyed host helpers the old route gave bodies to (`mathMax`, `objectHasOwn`, `isFunctionValue`, …; dropped by design in M1), and the canonical `host/math-max`, were rewritten to declared host bindings (`extern class` views of `Math`, `Object` and `Reflect`, `globalThis`) or to the predicate the reference program spells; their JavaScript oracles are unchanged. The case configurations load with no "no effect" warning (BC12): the six retired keys they carried were removed, and each configuration's policy fingerprint is unchanged.
+
+## The admission parse (A5)
+
+Every artifact is parsed again before admission accepts it (`ArtifactArena::qualify`, `src/program/artifacts.rs`; plan task M2.5). Oxc, an independent standards parser, reads each delivered file as a module or a script, as the artifact executes (regular expression literals validated; `import`/`export` refused in a script). For a file printed whole, the structure Oxc reads must be the structure the printer printed: both sides reduce to one canonical form and compare digests (`src/admission_parse.rs` states the form and its closed list of spelling equivalences; `src/js/admission.rs` reduces the printed tree). A file that does not parse, or parses to another structure, is refused with a diagnostic that names where: the parser's message and byte offset, or the first group of top-level statements that differs, with an excerpt. The direct path and the search baseline then fail the build with it; a refused search candidate stops the search with the best admitted artifact (the report's `stop`); a refused terminal challenger is `Refused`. A bundle's files are parsed but not yet compared by structure, because the multi-file printer is M3.3's to replace (its plan verifier owns that check).
+
+The verdict is computed once per artifact and costs linear work in its bytes. `LILSCRIPT_TIMING=1` reports it as two buckets, `admission_structure` (the tree's digest, once per render) and `admission_parse` (once per qualified artifact). On 2026-09-27, level 13 at the shipped configurations: katexlil 525 ms of 23.9 s (2.2%; 32 renders and 32 parses of 261 KB), markedlil 62 ms of 1.56 s (4.0%).
 
 ## Library knowledge (NO3) and idiom debt (NO4)
 

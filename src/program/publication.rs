@@ -199,6 +199,9 @@ pub enum CandidateError {
     Unsupported(Unsupported),
     Output(crate::js::extract::OutputError),
     Artifact(&'static str),
+    /// The admission parse (plan task M2.5) refused a delivered file: it does
+    /// not parse, or it parses to another structure than the printed tree.
+    AdmissionParse(Box<str>),
     Codec(&'static str),
     LocalFacts(CompilationFactsError),
 }
@@ -2415,6 +2418,12 @@ impl<'src> Compilation<'src> {
             codec,
             &mut AllocationBudget::new(Some((&mut self.ledger, domain))),
         )
+    }
+
+    /// Tests only: see `ArtifactArena::replace_text`.
+    #[cfg(test)]
+    pub(crate) fn replace_artifact_text(&mut self, artifact: ArtifactId, text: String) {
+        self.artifacts.replace_text(artifact, text);
     }
 
     pub fn qualify_artifact(

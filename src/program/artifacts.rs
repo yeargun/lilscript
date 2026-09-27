@@ -5,6 +5,7 @@ use super::artifact_provenance::{ArtifactProvenance, ProvenanceError};
 use super::ids::RevisionId;
 use super::implementation_identity::{ImplementationDescription, SharedImplementationIdentity};
 use super::publication::{CandidateError, CandidateId, LiteralOutput, OutputTactics};
+use crate::admission_parse::StructureDigest;
 use crate::compilation_contract::JavaScriptExecution;
 use crate::compilation_policy::{
     AdmissionError, BudgetLedger, CandidateCostEvidence, CompilationContract, ResolvedPolicy,
@@ -235,9 +236,62 @@ struct Record {
     // Only derived codec scores are mutable; source bytes and provenance are
     // immutable.
     sizes: CachedSizes,
+    /// The printed tree's structural digest (plan task M2.5), for a file
+    /// printed whole; a bundle's files are parsed without one.
+    structure: Option<StructureDigest>,
+    /// The admission parse's verdict on these immutable bytes, once reached:
+    /// qualification under each codec reuses it.
+    parsed: std::sync::OnceLock<Result<(), Box<str>>>,
     charge: RetainedCharge<RevisionId>,
 }
 impl Record {
+    /// Admission's independent parse (plan task M2.5; architecture A5): every
+    /// delivered file parses under the artifact's execution, and a file printed
+    /// whole parses to the printed tree's structure. Charged once per record,
+    /// linear in its bytes.
+    fn admit_parse(&self, budget: &mut AllocationBudget<'_>) -> Result<(), CandidateError> {
+        let verdict = match self.parsed.get() {
+            Some(verdict) => verdict,
+            None => {
+                let _timing = crate::timing::ADMISSION_PARSE.scope(0);
+                let bytes = self.text.len()
+                    + self
+                        .chunks
+                        .iter()
+                        .map(|chunk| chunk.code.len())
+                        .sum::<usize>();
+                budget.work(
+                    WorkKind::Analysis,
+                    crate::admission_parse::work_units(bytes),
+                )?;
+                let module = self.execution == JavaScriptExecution::Module;
+                let verdict = (|| {
+                    match &self.structure {
+                        Some(expected) => {
+                            crate::admission_parse::admit(expected, &self.text, module)?
+                        }
+                        None => {
+                            crate::admission_parse::parse_canonical(&self.text, module)?;
+                        }
+                    }
+                    for chunk in &self.chunks {
+                        crate::admission_parse::parse_canonical(&chunk.code, true).map_err(
+                            |refusal| {
+                                crate::admission_parse::Refusal(format!(
+                                    "chunk {}: {}",
+                                    chunk.name, refusal.0
+                                ))
+                            },
+                        )?;
+                    }
+                    Ok(())
+                })()
+                .map_err(|refusal: crate::admission_parse::Refusal| refusal.0.into_boxed_str());
+                self.parsed.get_or_init(|| verdict)
+            }
+        };
+        verdict.clone().map_err(CandidateError::AdmissionParse)
+    }
     fn view(&self) -> ArtifactView<'_> {
         ArtifactView {
             javascript: &self.text,
@@ -577,6 +631,14 @@ impl ArtifactArena {
         budget.work(WorkKind::Analysis, 1)?;
         same_streams(self.get(left.0)?.view(), self.get(right.0)?.view(), budget)
     }
+    /// Tests only: put a delivered text in place that is not the printed
+    /// tree's, as a printer bug would, so admission's parse can refuse it.
+    #[cfg(test)]
+    pub(super) fn replace_text(&mut self, id: ArtifactId, text: String) {
+        let record = self.get_mut(id.0).unwrap();
+        record.text = text;
+        record.parsed = std::sync::OnceLock::new();
+    }
     pub(super) fn provenance(&self, id: ArtifactId) -> Result<&ArtifactProvenance, CandidateError> {
         Ok(&self.get(id.0)?.provenance)
     }
@@ -615,6 +677,7 @@ impl ArtifactArena {
             return Err(CandidateError::ContractMismatch);
         }
         let record = self.get(id.0)?;
+        record.admit_parse(budget)?;
         let size = record
             .sizes
             .measured(codec)
@@ -957,6 +1020,24 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         let (provenance, identity) = retained;
         let chunk_bytes: usize = chunks.iter().map(|chunk| chunk.code.len()).sum();
         let sizes = CachedSizes::new(text.len() + chunk_bytes);
+        let structure = match self.bundle {
+            Some(_) => None,
+            None => match self.output.structure_digest() {
+                Ok(structure) => Some(structure),
+                Err(error) => {
+                    drop(text);
+                    self.output.with_allocation_budget(|budget| {
+                        discard_provenance(provenance, self.staging.owner, budget);
+                        discard_identity(identity, self.staging.owner, budget);
+                        release(charge, self.staging.owner, budget);
+                        for chunk in chunks {
+                            release(chunk.charge, self.staging.owner, budget);
+                        }
+                    });
+                    return Err(error.into());
+                }
+            },
+        };
         Ok(ScopedArtifactId(self.staging.insert(Record {
             text,
             chunks,
@@ -967,6 +1048,8 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
             provenance,
             output: actual_output,
             sizes,
+            structure,
+            parsed: std::sync::OnceLock::new(),
             charge,
         })))
     }

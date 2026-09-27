@@ -184,9 +184,9 @@ fn check_refusal_and_native() {
     assert_eq!(
         delta,
         if enabled() {
-            [0, 0, 2, 1, 1, 1, 1, 0, 0]
+            [0, 0, 2, 1, 1, 1, 1, 0, 0, 0, 0]
         } else {
-            [0; 9]
+            [0; 11]
         }
     );
     let refused = compile_source(
@@ -230,8 +230,8 @@ fn check_refusal_and_native() {
     .unwrap();
     assert_eq!(raw.report()["search"]["codec_probes"], 0);
     assert_eq!(
-        &phase_counts()[7..],
-        &after[7..],
+        &phase_counts()[7..9],
+        &after[7..9],
         "raw has no encoder attempt"
     );
 }

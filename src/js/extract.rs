@@ -133,6 +133,19 @@ impl<'a> Output<'a> {
         self.budget.borrow().is_accounted()
     }
 
+    /// The structural digest of the single file `render_with_literals_admitted`
+    /// prints, for the admission parse (plan task M2.5). A bundle's files are
+    /// printed by `render_file_admitted` and are parsed without one.
+    pub(crate) fn structure_digest(
+        &self,
+    ) -> Result<crate::admission_parse::StructureDigest, OutputError> {
+        let _timing = crate::timing::ADMISSION_STRUCTURE.scope(0);
+        let mut budget = self.budget.borrow_mut();
+        let nodes = self.module.expressions.len() + self.module.regions.len();
+        budget.work(WorkKind::Analysis, nodes as u64)?;
+        Ok(super::admission::digest(self.module, self.hosts))
+    }
+
     /// Coordinate the compilation's private artifact owner without exposing the
     /// output budget or its underlying ledger to an external caller.
     pub(crate) fn with_allocation_budget<R>(

@@ -16,6 +16,7 @@ use crate::literal::StringValue;
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::primitive::{IntBinary, Intrinsic};
 
+pub(crate) mod admission;
 mod calls;
 pub mod choices;
 pub use choices::{AltId, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite};
