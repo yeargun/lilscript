@@ -70,7 +70,7 @@ fn hierarchy_resolution_moves_own_field_and_method_payloads_without_cloning() {
         ("ForeignBase", "inherited", "baseMethod"),
     ]
     .map(|(name, field_name, method_name)| {
-        let info = &analyzer.declarations.classes[name];
+        let info = &analyzer.declarations.classes[analyzer.facts.type_bindings[name].index()];
         let field = &info.fields[field_name];
         let method = &info.methods[method_name];
         assert_eq!(method.type_params, ["T"]);
@@ -88,7 +88,7 @@ fn hierarchy_resolution_moves_own_field_and_method_payloads_without_cloning() {
     analyzer.resolve_class_hierarchies().unwrap();
     for (name, field_name, field_id, payloads, method_name, method_id, params, signature) in before
     {
-        let info = &analyzer.declarations.classes[name];
+        let info = &analyzer.declarations.classes[analyzer.facts.type_bindings[name].index()];
         let field = &info.fields[field_name];
         let method = &info.methods[method_name];
         assert_eq!(field.member, field_id);
@@ -96,11 +96,11 @@ fn hierarchy_resolution_moves_own_field_and_method_payloads_without_cloning() {
         assert_eq!(method.member, method_id);
         assert_eq!(method.type_params.as_ptr(), params, "{name}.{method_name}");
         assert_eq!(Arc::as_ptr(&method.signature.0), signature);
-        assert_eq!(method.owner, name);
+        assert_eq!(method.owner, analyzer.facts.type_bindings[name]);
     }
     for (child, base) in [("Child", "Base"), ("ForeignChild", "ForeignBase")] {
-        let child = &analyzer.declarations.classes[child];
-        let base = &analyzer.declarations.classes[base];
+        let child = &analyzer.declarations.classes[analyzer.facts.type_bindings[child].index()];
+        let base = &analyzer.declarations.classes[analyzer.facts.type_bindings[base].index()];
         assert_eq!(child.fields["own"].index, 1);
         assert_eq!(
             child.fields["inherited"].member,
@@ -137,7 +137,7 @@ fn merged_object_members_keep_order_identity_and_shared_callable_payloads() {
         info.methods.keys().copied().collect::<Vec<_>>(),
         ["first", "second", "third"]
     );
-    let owner = model.nominal_id(&Type::Class("Api")).unwrap();
+    let owner = model.type_binding("Api").unwrap();
     let mut identities = AHashSet::default();
     for (index, name) in ["first", "second", "third"].into_iter().enumerate() {
         let field = &info.fields[name];
@@ -147,7 +147,7 @@ fn merged_object_members_keep_order_identity_and_shared_callable_payloads() {
         };
         assert!(Arc::ptr_eq(&field_signature.0, &method.signature.0));
         assert_eq!(field.index, index);
-        assert_eq!(method.owner, "Api");
+        assert_eq!(method.owner, owner);
         assert!(identities.insert(field.member));
         assert!(identities.insert(method.member));
         let field_definition = model.declarations.nominal_members[field.member.index()];
@@ -240,11 +240,11 @@ fn three_level_generic_inheritance_preserves_substitutions_and_declaring_slots()
         ("Leaf", "leaf", "own", 2),
     ] {
         let info = model.class_info(name).unwrap();
-        let owner = model.nominal_id(&Type::Class(name)).unwrap();
+        let owner = model.type_binding(name).unwrap();
         let field = &info.fields[field_name];
         let method = &info.methods[method_name];
         assert_eq!(field.index, index);
-        assert_eq!(method.owner, name);
+        assert_eq!(method.owner, owner);
         let field_definition = model.declarations.nominal_members[field.member.index()];
         let method_definition = model.declarations.nominal_members[method.member.index()];
         assert_eq!(field_definition.owner, owner);
@@ -333,13 +333,13 @@ fn hierarchy_errors_keep_original_spans_messages_and_own_member_storage() {
             Item::ExternClass(declaration) => (declaration.name.name, declaration.span),
             _ => unreachable!(),
         };
-        let info = &analyzer.declarations.classes[name];
+        let info = &analyzer.declarations.classes[analyzer.facts.type_bindings[name].index()];
         let expected_span = field.map_or(declaration_span, |field| info.fields[field].span);
         let own_fields = info.fields.clone();
         let own_methods = info.methods.clone();
         let error = analyzer.resolve_class_hierarchies().unwrap_err();
         assert_eq!(error, AdmittedCheckError::Semantic(CheckError::new(expected_span, message)), "{source}");
-        let info = &analyzer.declarations.classes[name];
+        let info = &analyzer.declarations.classes[analyzer.facts.type_bindings[name].index()];
         assert_eq!(info.fields, own_fields, "failed hierarchy must not consume own fields");
         assert_eq!(info.methods, own_methods, "failed hierarchy must not consume own methods");
         assert_eq!(AdmittedCheckError::Semantic(analyze(&program).unwrap_err()), error);

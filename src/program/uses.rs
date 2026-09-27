@@ -434,7 +434,7 @@ impl UseIndex {
                 exports.extend(program.exports().iter().enumerate().filter_map(
                     |(index, export)| match export.target {
                         InterfaceTarget::Value(cell) => Some((index as u32, cell)),
-                        InterfaceTarget::Struct(_) => None,
+                        InterfaceTarget::Type(_) => None,
                     },
                 ));
                 exports
@@ -756,7 +756,9 @@ fn walk_place(
                 emit(Event::Cell(cell, CellUse::Write { operation, place }))?;
             }
         }
-        Place::Value(receiver) | Place::Member { receiver, .. } => {
+        Place::Value(receiver)
+        | Place::Member { receiver, .. }
+        | Place::ClassField { receiver, .. } => {
             if write && matches!(selected, Place::Value(_)) {
                 return Err(UseError::InvalidProgram("write through value place"));
             }

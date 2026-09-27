@@ -257,13 +257,7 @@ fn convert_source<'ast, 'src>(
         }
         .into());
     }
-    if !source.imports.is_empty()
-        || !source.foreign_imports.is_empty()
-        || source
-            .exports
-            .iter()
-            .any(|export| export.kind == crate::ast::ExportKind::ConstructorValue)
-    {
+    if !source.imports.is_empty() || !source.foreign_imports.is_empty() {
         return Err(Unsupported {
             span: source.span,
             feature: "module graph conversion",
@@ -507,7 +501,7 @@ fn convert_modules<'ast, 'src>(
                 .and_then(|export| interface_target(export.target))
                 .and_then(|target| match target {
                     InterfaceTarget::Value(cell) => Some(cell),
-                    InterfaceTarget::Struct(_) => None,
+                    InterfaceTarget::Type(_) => None,
                 })
                 .ok_or_else(|| fail(module, "dynamic export has no runtime cell"))?;
             let name =
@@ -578,7 +572,7 @@ fn interface_target(target: crate::check::InterfaceTarget) -> Option<InterfaceTa
         crate::check::InterfaceTarget::Value(symbol) => {
             InterfaceTarget::Value(CellId::from_index(symbol.0 as usize)?)
         }
-        crate::check::InterfaceTarget::Struct(identity) => InterfaceTarget::Struct(identity),
+        crate::check::InterfaceTarget::Type(identity) => InterfaceTarget::Type(identity),
     })
 }
 
@@ -591,17 +585,19 @@ struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     /// Each converted class body: a method or `init` function unit.
     class_methods: Vec<ClassMethod<'src>>,
     /// The class and `this` cell of the `init` being converted, for `super`.
-    current_class: Option<(&'src str, CellId)>,
+    current_class: Option<(NominalId, CellId)>,
+    /// Each class's (and `object`'s) name binding, by symbol: built once.
+    class_values: Option<crate::stable_hash::StableHashMap<u32, NominalId>>,
     budget: &'budget mut AllocationBudget<'ledger>,
 }
 
 /// The receiver of a class function call: a value the caller computed first,
 /// or the instance a construction creates after its explicit arguments.
 #[derive(Clone, Copy)]
-enum CallReceiver<'src> {
+enum CallReceiver {
     Value(ValueId),
     Construction {
-        class: &'src str,
+        class: NominalId,
         ty: TypeId,
         origin: Option<SourceNodeId>,
     },
@@ -612,7 +608,9 @@ enum CallReceiver<'src> {
 /// function cell. Dispatch is static: overriding is rejected by the checker.
 #[derive(Clone, Copy)]
 struct ClassMethod<'src> {
-    class: &'src str,
+    class: NominalId,
+    /// The method's checked member identity; `None` for `init`.
+    member: Option<NominalMemberId>,
     name: Option<&'src str>,
     unit: UnitId,
     cell: CellId,
@@ -676,6 +674,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             allocations: budget.filled(Scratch, sources.len(), 0)?,
             class_methods: budget.vector(Scratch, 0)?,
             current_class: None,
+            class_values: None,
             budget,
         })
     }
@@ -820,13 +819,13 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     )?;
                 }
                 Item::Enum(declaration) => {
-                    let checked =
-                        semantics
-                            .enum_info(declaration.name.name)
-                            .ok_or(Unsupported {
-                                span: declaration.span,
-                                feature: "missing checked enum domain",
-                            })?;
+                    let checked = semantics
+                        .type_binding(declaration.name.name)
+                        .and_then(|identity| semantics.nominal_enum(identity))
+                        .ok_or(Unsupported {
+                            span: declaration.span,
+                            feature: "missing checked enum domain",
+                        })?;
                     let mut variants = self.budget.vector(Retained, checked.variants.len())?;
                     for (name, value) in &checked.variants {
                         let name = self.budget.string(Retained, name)?;
@@ -841,7 +840,11 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     self.budget.push(
                         Retained,
                         building_table(&mut self.program.enums),
-                        EnumDefinition { name, variants },
+                        EnumDefinition {
+                            identity: checked.declaration.identity,
+                            name,
+                            variants,
+                        },
                     )?;
                 }
                 Item::Stmt(_) => {}
@@ -862,10 +865,11 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         source: &ast::Program<'ast, 'src>,
     ) -> Result<(), ConversionError> {
         let region = RegionId::from_index(0).unwrap();
+        let mut emitted = Vec::new();
         for item in source.items {
             self.work(1)?;
             if let Item::Class(declaration) = item {
-                self.emit_class(root, region, declaration)?;
+                self.emit_class_after_base(root, region, source, declaration, &mut emitted)?;
             }
             if let Item::Function(function) = item {
                 let cell = self.cell(function.name)?;
@@ -925,9 +929,6 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         let start = self.program.exports.len();
         for export in source.exports {
             self.work(1)?;
-            if export.kind != ast::ExportKind::Binding {
-                return self.unsupported(export.span, "constructor export conversion");
-            }
             let target = self
                 .semantics
                 .export_target(export.local.span)
@@ -1484,9 +1485,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         Ok(())
     }
     /// Whether a class has an extern (host) ancestor.
-    fn host_derived(&mut self, class: &str, span: Span) -> Result<bool, ConversionError> {
+    fn host_derived(&mut self, class: NominalId, span: Span) -> Result<bool, ConversionError> {
         let mut current = self.class_info(class, span)?;
-        while let Some(base) = current.base.as_ref().and_then(base_class_name) {
+        while let Some(base) = current.base.as_ref().and_then(base_class) {
             self.work(1)?;
             current = self.class_info(base, span)?;
             if current.external {
@@ -1495,107 +1496,154 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         }
         Ok(false)
     }
-    /// The arguments of a host-derived construction or `super(...)`: each
-    /// evaluated in order, every declared parameter supplied.
-    fn host_arguments(
+    /// Whether a class stays a JavaScript class, the checker's fact: its
+    /// constructor is published, it has a host ancestor, or it shares an
+    /// internal inheritance chain with such a class.
+    fn kept(&self, class: NominalId, span: Span) -> Result<bool, ConversionError> {
+        Ok(self.class_info(class, span)?.observed)
+    }
+    /// The arguments a kept class's constructor receives, from `new` or
+    /// `super(...)`: each evaluated in order. A host (extern) constructor takes
+    /// every declared parameter. An internal constructor's omitted parameters
+    /// take their checked defaults here, as every typed caller supplies them,
+    /// except trailing arrow defaults, which the constructor builds.
+    fn constructor_arguments(
         &mut self,
         unit: UnitId,
         region: RegionId,
+        class: NominalId,
         arguments: &'ast [ast::Argument<'ast, 'src>],
-        expected: usize,
         span: Span,
     ) -> Result<Vec<ValueId>, ConversionError> {
-        if arguments.len() != expected {
+        let info = self.class_info(class, span)?;
+        let external = info.external;
+        let signature = info.constructor.clone();
+        let parameters = signature
+            .as_ref()
+            .map_or(0, |signature| signature.params.len());
+        if arguments.len() > parameters || (external && arguments.len() != parameters) {
             return self.unsupported(span, "host class construction with omitted arguments");
         }
-        let mut values = Vec::with_capacity(arguments.len());
+        let mut values = Vec::with_capacity(parameters);
         for argument in arguments {
             self.work(1)?;
             if argument.passing != crate::primitive::ParameterPassing::Value {
-                return self.unsupported(argument.span, "reference argument to a host constructor");
+                return self
+                    .unsupported(argument.span, "reference argument to a class constructor");
             }
             let value = self.expression(unit, region, &argument.expression)?;
-            values.push(self.copy_value(unit, region, value, argument.span)?);
+            let value = self.copy_value(unit, region, value, argument.span)?;
+            values.push(CallArgument::Value(value));
         }
-        Ok(values)
+        if let Some(signature) = signature.filter(|_| !external) {
+            let mut end = signature.params.len();
+            while end > values.len()
+                && matches!(
+                    signature.params[end - 1].default,
+                    Some(crate::check::DefaultValue::Arrow(_))
+                )
+            {
+                end -= 1;
+            }
+            for position in values.len()..end {
+                self.work(1)?;
+                let parameter = &signature.params[position];
+                let Some(default) = parameter.default.as_ref() else {
+                    return self.unsupported(span, "omitted argument without a checked default");
+                };
+                if matches!(default, crate::check::DefaultValue::Arrow(_)) {
+                    return self
+                        .unsupported(span, "arrow default before a caller-evaluated default");
+                }
+                let ty = self.ty(&parameter.ty)?;
+                let value = self.default_value(unit, region, default, ty, &values, false, span)?;
+                values.push(CallArgument::Value(value));
+            }
+        }
+        Ok(values
+            .into_iter()
+            .map(|argument| match argument {
+                CallArgument::Value(value) => value,
+                CallArgument::Reference(_) => unreachable!("constructor arguments are values"),
+            })
+            .collect())
     }
-    /// `super(...)` in a host-derived constructor: the base constructor runs
-    /// first, then this class's own fields take their defaults, in order, as
-    /// JavaScript initializes class fields when `super` returns.
-    fn host_super(
+    /// A kept class's own fields take their defaults, in order: at a root
+    /// constructor's entry, or once `super(...)` returns, as JavaScript
+    /// initializes class fields.
+    fn own_field_defaults(
         &mut self,
         unit: UnitId,
         region: RegionId,
-        class: &'src str,
+        class: NominalId,
+        this: CellId,
+        span: Span,
+    ) -> Result<(), ConversionError> {
+        let inherited = match self
+            .class_info(class, span)?
+            .base
+            .as_ref()
+            .and_then(base_class)
+        {
+            Some(base) => self.class_info(base, span)?.fields.len(),
+            None => 0,
+        };
+        let own = self
+            .registered_class(class)
+            .ok_or(Unsupported {
+                span,
+                feature: "field defaults of an unregistered class",
+            })?
+            .fields
+            .len();
+        for slot in inherited..own {
+            self.work(1)?;
+            let (_, ty) = self.registered_class(class).unwrap().fields[slot];
+            let value = self.field_default(unit, region, ty, span)?;
+            let receiver = self.load_cell(unit, region, this, span)?;
+            let field = FieldRef {
+                nominal: class,
+                slot: u32::try_from(slot).map_err(|_| AllocationError::Capacity)?,
+            };
+            let place = self.push_place(unit, Place::ClassField { receiver, field })?;
+            self.effect(unit, region, OperationKind::Store(place), &[value], span)?;
+        }
+        Ok(())
+    }
+    /// `super(...)` in a kept class's constructor: the base constructor runs
+    /// first, then this class's own fields take their defaults.
+    fn kept_super(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        class: NominalId,
         this: CellId,
         arguments: &'ast [ast::Argument<'ast, 'src>],
         span: Span,
     ) -> Result<(), ConversionError> {
         let info = self.class_info(class, span)?;
-        let base = info
-            .base
-            .as_ref()
-            .and_then(base_class_name)
-            .ok_or(Unsupported {
-                span,
-                feature: "super without a base class",
-            })?;
-        if !self.class_info(base, span)?.external {
-            return self.unsupported(span, "host-derived class extending a host-derived class");
-        }
-        let parameters = self
-            .class_info(base, span)?
-            .constructor
-            .as_ref()
-            .map_or(0, |signature| signature.params.len());
-        let values = self.host_arguments(unit, region, arguments, parameters, span)?;
+        let base = info.base.as_ref().and_then(base_class).ok_or(Unsupported {
+            span,
+            feature: "super without a base class",
+        })?;
+        let values = self.constructor_arguments(unit, region, base, arguments, span)?;
         self.effect(unit, region, OperationKind::SuperConstruct, &values, span)?;
-        let inherited = self.class_info(base, span)?.fields.len();
-        let definition = self
-            .program
-            .classes
-            .iter()
-            .position(|definition| definition.name == class)
-            .ok_or(Unsupported {
-                span,
-                feature: "super of an unregistered class",
-            })?;
-        let own = self.program.classes[definition].fields.len();
-        for slot in inherited..own {
-            self.work(1)?;
-            let (key, ty) = self.program.classes[definition].fields[slot];
-            let value = self.field_default(unit, region, ty, span)?;
-            let receiver = self.load_cell(unit, region, this, span)?;
-            let place = self.push_place(unit, Place::Member { receiver, key })?;
-            self.effect(unit, region, OperationKind::Store(place), &[value], span)?;
-        }
-        Ok(())
+        self.own_field_defaults(unit, region, class, this, span)
     }
-    /// `new C(...)` of a class with a host ancestor: its constructor makes a
-    /// host object, so there is no field allocation or static `init` call.
-    fn construct_host_class(
+    /// `new C(...)` of a kept class: its constructor creates the instance, so
+    /// there is no field allocation or static `init` call.
+    fn construct_kept_class(
         &mut self,
         unit: UnitId,
         region: RegionId,
-        class: &'src str,
+        class: NominalId,
         arguments: &'ast [ast::Argument<'ast, 'src>],
         ty: TypeId,
         origin: Option<SourceNodeId>,
         span: Span,
     ) -> Result<ValueId, ConversionError> {
-        let parameters = self
-            .class_info(class, span)?
-            .constructor
-            .as_ref()
-            .map_or(0, |signature| signature.params.len());
-        // The constructor is the class value: `new` reads it first.
-        let init = self.class_method(class, None)?.ok_or(Unsupported {
-            span,
-            feature: "host-derived class without init",
-        })?;
-        self.reference(unit, init.cell)?;
-        let constructor = self.load_cell(unit, region, init.cell, span)?;
-        let mut values = self.host_arguments(unit, region, arguments, parameters, span)?;
+        let mut values = self.constructor_arguments(unit, region, class, arguments, span)?;
+        let constructor = self.kept_constructor(unit, region, class, span)?;
         values.insert(0, constructor);
         self.value(
             unit,
@@ -1607,8 +1655,27 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             span,
         )
     }
-    fn class_info(&self, name: &str, span: Span) -> Result<&'sem ClassInfo<'src>, ConversionError> {
-        self.semantics.class_info(name).ok_or_else(|| {
+    /// A kept class's constructor value: `new` reads it before running it.
+    fn kept_constructor(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        class: NominalId,
+        span: Span,
+    ) -> Result<ValueId, ConversionError> {
+        let constructor = self.class_method(class, None)?.ok_or(Unsupported {
+            span,
+            feature: "kept class without a constructor",
+        })?;
+        self.reference(unit, constructor.cell)?;
+        self.load_cell(unit, region, constructor.cell, span)
+    }
+    fn class_info(
+        &self,
+        class: NominalId,
+        span: Span,
+    ) -> Result<&'sem ClassInfo<'src>, ConversionError> {
+        self.semantics.nominal_class(class).ok_or_else(|| {
             Unsupported {
                 span,
                 feature: "missing checked class",
@@ -1616,23 +1683,85 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             .into()
         })
     }
+    /// The class a declaration in the source being converted names.
+    fn declared_class(&self, name: ast::Ident<'src>) -> Result<NominalId, ConversionError> {
+        self.semantics
+            .type_binding(name.name)
+            .filter(|identity| identity.is_class())
+            .ok_or_else(|| {
+                Unsupported {
+                    span: name.span,
+                    feature: "missing checked class identity",
+                }
+                .into()
+            })
+    }
+    /// The class (or `object`) an identifier names as a value, if any.
+    fn class_value(
+        &mut self,
+        name: ast::Ident<'src>,
+    ) -> Result<Option<NominalId>, ConversionError> {
+        match self.semantics.identifier_symbol(name.span) {
+            Some(symbol) => {
+                let cell =
+                    CellId::from_index(symbol.0 as usize).ok_or(AllocationError::Capacity)?;
+                self.class_of_value(cell)
+            }
+            None => Ok(None),
+        }
+    }
+    /// The class (or `object`) whose name declares this cell's binding.
+    fn class_of_value(&mut self, cell: CellId) -> Result<Option<NominalId>, ConversionError> {
+        if self.class_values.is_none() {
+            let mut values = crate::stable_hash::StableHashMap::default();
+            for class in self.semantics.classes() {
+                if let Some(symbol) = class.value {
+                    values.insert(symbol.0, class.declaration.identity);
+                }
+            }
+            self.work(values.len())?;
+            self.class_values = Some(values);
+        }
+        Ok(self
+            .class_values
+            .as_ref()
+            .and_then(|values| values.get(&(cell.index() as u32)))
+            .copied())
+    }
+    /// A registered class field's spelling and declared type.
+    fn registered_class_field(&self, field: FieldRef) -> Option<(StringId, TypeId)> {
+        self.registered_class(field.nominal)?
+            .fields
+            .get(field.slot as usize)
+            .copied()
+    }
+    /// A class definition already registered in the program, by identity.
+    fn registered_class(&self, class: NominalId) -> Option<&ClassDefinition> {
+        self.program
+            .classes
+            .binary_search_by_key(&class, |definition| definition.identity)
+            .ok()
+            .map(|index| &self.program.classes[index])
+    }
+    /// A class's converted method by its member identity, or its `init`
+    /// (`member: None`).
     fn class_method(
         &mut self,
-        class: &str,
-        name: Option<&str>,
+        class: NominalId,
+        member: Option<NominalMemberId>,
     ) -> Result<Option<ClassMethod<'src>>, ConversionError> {
         self.work(self.class_methods.len())?;
         Ok(self
             .class_methods
             .iter()
             .copied()
-            .find(|method| method.class == class && method.name == name))
+            .find(|method| method.class == class && method.member == member))
     }
     /// The `init` a construction of `class` runs: its own, else the nearest
     /// base's (a derived class without `init` inherits its base's).
     fn inherited_init(
         &mut self,
-        mut class: &'src str,
+        mut class: NominalId,
         span: Span,
     ) -> Result<Option<ClassMethod<'src>>, ConversionError> {
         loop {
@@ -1644,7 +1773,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             let Some(base) = &info.base else {
                 return Ok(None);
             };
-            class = base_class_name(base).ok_or(Unsupported {
+            class = base_class(base).ok_or(Unsupported {
                 span,
                 feature: "class base is not a class",
             })?;
@@ -1704,18 +1833,16 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         declaration: &'ast ast::ExternClassDecl<'ast, 'src>,
     ) -> Result<(), ConversionError> {
         let span = declaration.span;
-        let info = self.class_info(declaration.name.name, span)?;
+        let identity = self.declared_class(declaration.name)?;
+        let info = self.class_info(identity, span)?;
         if !info.type_params.is_empty() {
             return self.unsupported(span, "generic extern class conversion");
         }
         let base = match &info.base {
-            Some(base) => {
-                let name = base_class_name(base).ok_or(Unsupported {
-                    span,
-                    feature: "class base is not a class",
-                })?;
-                Some(self.budget.string(Retained, name)?)
-            }
+            Some(base) => Some(base_class(base).ok_or(Unsupported {
+                span,
+                feature: "class base is not a class",
+            })?),
             None => None,
         };
         let mut fields = self.budget.vector(Retained, info.fields.len())?;
@@ -1734,13 +1861,19 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             Retained,
             building_table(&mut self.program.classes),
             ClassDefinition {
+                identity,
                 name,
+                module: self.current_module,
                 external: true,
                 base,
                 type_params: Vec::new(),
                 base_arguments: Vec::new(),
                 constructor,
                 fields,
+                observed: false,
+                value: None,
+                published: false,
+                prototype: Vec::new(),
             },
         )?;
         Ok(())
@@ -1750,15 +1883,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         declaration: &'ast ast::ClassDecl<'ast, 'src>,
     ) -> Result<(), ConversionError> {
         let span = declaration.span;
-        let info = self.class_info(declaration.name.name, span)?;
+        let identity = self.declared_class(declaration.name)?;
+        let info = self.class_info(identity, span)?;
         let base = match &info.base {
-            Some(base) => {
-                let name = base_class_name(base).ok_or(Unsupported {
-                    span,
-                    feature: "class base is not a class",
-                })?;
-                Some(self.budget.string(Retained, name)?)
-            }
+            Some(base) => Some(base_class(base).ok_or(Unsupported {
+                span,
+                feature: "class base is not a class",
+            })?),
             None => None,
         };
         let mut fields = self.budget.vector(Retained, info.fields.len())?;
@@ -1789,35 +1920,55 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 self.budget.push(Retained, &mut base_arguments, argument)?;
             }
         }
+        // A kept class stays a JavaScript class: its `init` is the class's
+        // constructor, held by the class's own value binding, which
+        // `super(...)` and `export constructor` reach.
+        let kept = info.observed;
+        let value = if kept {
+            let symbol = info.value.ok_or(Unsupported {
+                span,
+                feature: "kept class without a value binding",
+            })?;
+            Some(CellId::from_index(symbol.0 as usize).ok_or(AllocationError::Capacity)?)
+        } else {
+            None
+        };
+        let has_init = declaration
+            .members
+            .iter()
+            .any(|member| matches!(member, ast::ClassMember::Constructor(_)));
+        if kept && !info.type_params.is_empty() {
+            return self.unsupported(span, "a generic class kept as a JavaScript class");
+        }
+        if kept && !has_init && self.host_derived(identity, span)? {
+            return self.unsupported(span, "a class with a host ancestor needs an init");
+        }
+        // A JavaScript caller reaches the methods of a published class, and
+        // of every class it extends, on the prototype.
+        let prototype = kept && self.published_chain(identity)?;
         self.budget.push(
             Retained,
             building_table(&mut self.program.classes),
             ClassDefinition {
+                identity,
                 name,
+                module: self.current_module,
                 external: false,
                 base,
                 type_params,
                 base_arguments,
                 constructor: None,
                 fields,
+                observed: kept,
+                value,
+                published: prototype,
+                prototype: Vec::new(),
             },
         )?;
-        // A class with a host ancestor stays a real subclass: its `init` is
-        // the JavaScript constructor, which `super(...)` must reach.
-        let class_index =
-            u32::try_from(self.program.classes.len() - 1).map_err(|_| AllocationError::Capacity)?;
-        let host = self.host_derived(declaration.name.name, span)?;
-        if host
-            && !declaration
-                .members
-                .iter()
-                .any(|member| matches!(member, ast::ClassMember::Constructor(_)))
-        {
-            return self.unsupported(span, "a class with a host ancestor needs an init");
-        }
+        let receiver = self.ty(&Type::Class(info.declaration))?;
         for member in declaration.members {
             self.work(1)?;
-            let (name, this_span, signature) = match member {
+            let (name, member_id, this_span, signature) = match member {
                 ast::ClassMember::Field(_) => continue,
                 ast::ClassMember::Method(function) => {
                     if function.is_async || function.is_generator {
@@ -1832,6 +1983,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     }
                     (
                         Some(function.name.name),
+                        Some(method.member),
                         function.name.span,
                         method.signature.clone(),
                     )
@@ -1841,7 +1993,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         span: constructor.span,
                         feature: "missing checked constructor",
                     })?;
-                    (None, constructor.span, signature)
+                    (None, None, constructor.span, signature)
                 }
             };
             let this = ast::Ident {
@@ -1876,40 +2028,144 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 })
             })?;
             let unit = self.add_unit(UnitKind::Function)?;
-            if host && name.is_none() {
-                self.units[unit.index()].host_class = Some(class_index);
-            }
+            let constructor = kept && name.is_none();
             let label = name.unwrap_or("init");
-            let function_name = self.string(label)?;
-            self.units[unit.index()].function_name = Some(function_name);
-            self.units[unit.index()].callable_type = Some(callable);
             let initializer = self.program.modules[self.current_module.index()].initializer;
-            let cell = self.synthetic_cell(
-                initializer,
-                RegionId::from_index(0).unwrap(),
-                this,
-                label,
-                callable,
-            )?;
+            let cell = if constructor {
+                self.units[unit.index()].constructor_of = Some(identity);
+                value.expect("a kept class has a value binding")
+            } else {
+                self.synthetic_cell(
+                    initializer,
+                    RegionId::from_index(0).unwrap(),
+                    this,
+                    label,
+                    callable,
+                )?
+            };
             let data = &mut building_table(&mut self.program.cells)[cell.index()];
             data.binding = CellBinding::Function(unit);
+            data.ty = callable;
             data.reassigned = false;
             data.declared_pure = match member {
                 ast::ClassMember::Method(function) => function.declared_pure,
                 _ => false,
             };
+            // A function cell holds its unit under the unit's own name.
+            let function_name = if constructor {
+                self.string(declaration.name.name)?
+            } else {
+                self.string(label)?
+            };
+            self.units[unit.index()].function_name = Some(function_name);
+            self.units[unit.index()].callable_type = Some(callable);
+            if prototype {
+                if let Some(name) = name {
+                    let key = self.string(name)?;
+                    let definition = building_table(&mut self.program.classes)
+                        .last_mut()
+                        .expect("the class being registered");
+                    self.budget
+                        .push(Retained, &mut definition.prototype, (key, cell))?;
+                }
+            }
             self.budget.push(
                 Scratch,
                 &mut self.class_methods,
                 ClassMethod {
-                    class: declaration.name.name,
+                    class: identity,
+                    member: member_id,
                     name,
                     unit,
                     cell,
                 },
             )?;
         }
+        // A kept class without `init` gets JavaScript's implicit constructor:
+        // no parameters; `super()` first in a derived class; then the fields.
+        if kept && !has_init {
+            let function = crate::check::FunctionType::new(crate::check::FunctionSignature {
+                params: vec![crate::check::FunctionParameter::value(
+                    self.program.types[receiver.index()].clone(),
+                )],
+                return_type: Box::new(Type::Void),
+            });
+            let callable = self.ty(&Type::Function(function))?;
+            let unit = self.add_unit(UnitKind::Function)?;
+            self.units[unit.index()].constructor_of = Some(identity);
+            let function_name = self.string(declaration.name.name)?;
+            self.units[unit.index()].function_name = Some(function_name);
+            self.units[unit.index()].callable_type = Some(callable);
+            let cell = value.expect("a kept class has a value binding");
+            let data = &mut building_table(&mut self.program.cells)[cell.index()];
+            data.binding = CellBinding::Function(unit);
+            data.ty = callable;
+            data.reassigned = false;
+            data.declared_pure = false;
+            self.budget.push(
+                Scratch,
+                &mut self.class_methods,
+                ClassMethod {
+                    class: identity,
+                    member: None,
+                    name: None,
+                    unit,
+                    cell,
+                },
+            )?;
+        }
         Ok(())
+    }
+    /// Whether a class, or a class extending it, is published.
+    fn published_chain(&mut self, class: NominalId) -> Result<bool, ConversionError> {
+        let semantics = self.semantics;
+        for candidate in semantics.classes() {
+            self.work(1)?;
+            if !candidate.published {
+                continue;
+            }
+            let mut current = Some(candidate.declaration.identity);
+            while let Some(identity) = current {
+                self.work(1)?;
+                if identity == class {
+                    return Ok(true);
+                }
+                current = semantics.base_class(identity);
+            }
+        }
+        Ok(false)
+    }
+    /// A kept class's constructor evaluates its base (`extends`) when it is
+    /// created, so a base this module declares later is created first.
+    fn emit_class_after_base(
+        &mut self,
+        root: UnitId,
+        region: RegionId,
+        source: &ast::Program<'ast, 'src>,
+        declaration: &'ast ast::ClassDecl<'ast, 'src>,
+        emitted: &mut Vec<NominalId>,
+    ) -> Result<(), ConversionError> {
+        let class = self.declared_class(declaration.name)?;
+        if emitted.contains(&class) {
+            return Ok(());
+        }
+        emitted.push(class);
+        let base = self
+            .class_info(class, declaration.span)?
+            .base
+            .as_ref()
+            .and_then(base_class);
+        if let Some(base) = base.filter(|_| self.kept(class, declaration.span).unwrap_or(false)) {
+            for item in source.items {
+                self.work(1)?;
+                if let Item::Class(candidate) = item {
+                    if self.declared_class(candidate.name)? == base {
+                        self.emit_class_after_base(root, region, source, candidate, emitted)?;
+                    }
+                }
+            }
+        }
+        self.emit_class(root, region, declaration)
     }
     /// Method and `init` bodies, created in the module's instantiation prefix
     /// like declared functions so later declarations can call them.
@@ -1919,6 +2175,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         region: RegionId,
         declaration: &'ast ast::ClassDecl<'ast, 'src>,
     ) -> Result<(), ConversionError> {
+        let class = self.declared_class(declaration.name)?;
         for member in declaration.members {
             self.work(1)?;
             let (name, this_span, params, body, span) = match member {
@@ -1938,22 +2195,40 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     constructor.span,
                 ),
             };
-            let method = self
-                .class_method(declaration.name.name, name)?
-                .ok_or(Unsupported {
-                    span,
-                    feature: "unregistered class body",
-                })?;
+            let member = match name {
+                Some(name) => Some(
+                    self.class_info(class, span)?
+                        .methods
+                        .get(name)
+                        .ok_or(Unsupported {
+                            span,
+                            feature: "missing checked method",
+                        })?
+                        .member,
+                ),
+                None => None,
+            };
+            let method = self.class_method(class, member)?.ok_or(Unsupported {
+                span,
+                feature: "unregistered class body",
+            })?;
             let this = ast::Ident {
                 name: "this",
                 span: this_span,
             };
             let this_cell = self.cell(this)?;
-            let outer = self
-                .current_class
-                .replace((declaration.name.name, this_cell));
+            let outer = self.current_class.replace((class, this_cell));
             self.parameters_with_receiver(method.unit, Some(this), params)?;
-            self.statements(method.unit, RegionId::from_index(0).unwrap(), body)?;
+            let entry = RegionId::from_index(0).unwrap();
+            // A kept root class's fields take their defaults on entry; a
+            // derived one's once `super(...)` returns.
+            if name.is_none()
+                && self.kept(class, span)?
+                && self.class_info(class, span)?.base.is_none()
+            {
+                self.own_field_defaults(method.unit, entry, class, this_cell, span)?;
+            }
+            self.statements(method.unit, entry, body)?;
             self.current_class = outer;
             let ty = self.program.cells[method.cell.index()].ty;
             let value = self.value(
@@ -1973,7 +2248,60 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span,
             )?;
         }
-        Ok(())
+        self.emit_implicit_constructor(root, region, declaration, class)
+    }
+    /// The body of a kept class's implicit constructor (a class without
+    /// `init`): `super()` in a derived class, then the fields' defaults.
+    fn emit_implicit_constructor(
+        &mut self,
+        root: UnitId,
+        region: RegionId,
+        declaration: &'ast ast::ClassDecl<'ast, 'src>,
+        class: NominalId,
+    ) -> Result<(), ConversionError> {
+        let span = declaration.span;
+        let Some(constructor) = self.class_method(class, None)? else {
+            return Ok(());
+        };
+        if declaration
+            .members
+            .iter()
+            .any(|member| matches!(member, ast::ClassMember::Constructor(_)))
+        {
+            return Ok(());
+        }
+        let unit = constructor.unit;
+        let entry = RegionId::from_index(0).unwrap();
+        let this_ty = self.ty(&Type::Class(self.class_info(class, span)?.declaration))?;
+        let this = self.synthetic_cell(root, entry, declaration.name, "this", this_ty)?;
+        let data = &mut building_table(&mut self.program.cells)[this.index()];
+        data.owner = unit;
+        data.binding = CellBinding::Parameter(0);
+        data.reassigned = false;
+        data.observable_before_initialization = false;
+        self.budget
+            .push(Retained, &mut self.units[unit.index()].parameters, this)?;
+        if self.class_info(class, span)?.base.is_some() {
+            self.effect(unit, entry, OperationKind::SuperConstruct, &[], span)?;
+        }
+        self.own_field_defaults(unit, entry, class, this, span)?;
+        let ty = self.program.cells[constructor.cell.index()].ty;
+        let value = self.value(
+            root,
+            region,
+            OperationKind::Closure(unit),
+            &[],
+            ty,
+            None,
+            span,
+        )?;
+        self.effect(
+            root,
+            region,
+            OperationKind::Initialize(constructor.cell),
+            &[value],
+            span,
+        )
     }
     /// A field's value before any `init` statement runs: the legacy defaults.
     fn field_default(
@@ -2114,31 +2442,27 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         &mut self,
         unit: UnitId,
         region: RegionId,
-        class: &'src str,
+        class: NominalId,
         ty: TypeId,
         origin: Option<SourceNodeId>,
         span: Span,
     ) -> Result<ValueId, ConversionError> {
-        self.work(self.program.classes.len())?;
-        let Some(definition) = self
-            .program
-            .classes
-            .iter()
-            .position(|definition| definition.name == class)
+        let Some(fields) = self
+            .registered_class(class)
+            .map(|definition| definition.fields.len())
         else {
             return self.unsupported(span, "construction of an unconverted class");
         };
-        let fields = self.program.classes[definition].fields.len();
         let mut keys = self.budget.vector(Retained, fields)?;
         let mut values = self.budget.vector(Scratch, fields)?;
         for index in 0..fields {
             self.work(1)?;
-            let (key, field_ty) = self.program.classes[definition].fields[index];
+            let (key, field_ty) = self.registered_class(class).unwrap().fields[index];
             self.budget.push(Retained, &mut keys, key)?;
             let value = self.field_default(unit, region, field_ty, span)?;
             self.budget.push(Scratch, &mut values, value)?;
         }
-        let kind = self.allocation(unit, AllocationKind::Object(keys))?;
+        let kind = self.allocation(unit, AllocationKind::Instance { class, keys })?;
         let instance = self.value(unit, region, kind, &values, ty, origin, span)?;
         drop_vector(values, Scratch, self.budget)?;
         Ok(instance)
@@ -2148,14 +2472,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         &mut self,
         unit: UnitId,
         region: RegionId,
-        class: &'src str,
+        class: NominalId,
         arguments: &'ast [ast::Argument<'ast, 'src>],
         ty: TypeId,
         origin: Option<SourceNodeId>,
         span: Span,
     ) -> Result<ValueId, ConversionError> {
-        if self.host_derived(class, span)? {
-            return self.construct_host_class(unit, region, class, arguments, ty, origin, span);
+        if self.kept(class, span)? {
+            return self.construct_kept_class(unit, region, class, arguments, ty, origin, span);
         }
         // `new C(args)` evaluates its explicit arguments, then creates the
         // instance with every field at its default, then runs `init`, which
@@ -2196,19 +2520,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         &mut self,
         unit: UnitId,
         region: RegionId,
-        class: &'src str,
+        class: NominalId,
         arguments: &[ValueId],
         ty: TypeId,
         origin: Option<SourceNodeId>,
         span: Span,
     ) -> Result<ValueId, ConversionError> {
-        if self.host_derived(class, span)? {
-            let init = self.class_method(class, None)?.ok_or(Unsupported {
-                span,
-                feature: "host-derived class without init",
-            })?;
-            self.reference(unit, init.cell)?;
-            let constructor = self.load_cell(unit, region, init.cell, span)?;
+        if self.kept(class, span)? {
+            let constructor = self.kept_constructor(unit, region, class, span)?;
             let mut values = Vec::with_capacity(arguments.len() + 1);
             values.push(constructor);
             values.extend_from_slice(arguments);
@@ -2278,16 +2597,18 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         // An inherited body sees the receiver as its own class: substitute
         // each class's parameters into its `extends` arguments, up the chain.
         let (mut class, mut arguments) = match &self.program.types[receiver.index()] {
-            Type::ClassInstance { name, args } => (*name, args.clone()),
-            Type::Class(name) => (*name, Vec::new()),
+            Type::ClassInstance { declaration, args } => (declaration.identity, args.clone()),
+            Type::Class(declaration) => (declaration.identity, Vec::new()),
             _ => return self.unsupported(span, "generic class body on a non-class receiver"),
         };
         while class != method.class {
             self.work(1)?;
             let info = self.class_info(class, span)?;
             let (base, base_arguments) = match &info.base {
-                Some(Type::ClassInstance { name, args }) => (*name, args.clone()),
-                Some(Type::Class(name)) => (*name, Vec::new()),
+                Some(Type::ClassInstance { declaration, args }) => {
+                    (declaration.identity, args.clone())
+                }
+                Some(Type::Class(declaration)) => (declaration.identity, Vec::new()),
                 _ => {
                     return self.unsupported(span, "generic class body on another class's receiver")
                 }
@@ -2397,7 +2718,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         unit: UnitId,
         region: RegionId,
         method: ClassMethod<'src>,
-        receiver: CallReceiver<'src>,
+        receiver: CallReceiver,
         receiver_type: TypeId,
         arguments: &'ast [ast::Argument<'ast, 'src>],
         span: Span,
@@ -3021,9 +3342,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             );
         }
         let place = match self.semantics.resolved_member(expr.id) {
-            Some(NominalMember::Field { owner, .. }) if owner.is_class() => Place::Member {
+            Some(NominalMember::Field { owner, field }) if owner.is_class() => Place::ClassField {
                 receiver,
-                key: self.string(property.name)?,
+                field: class_field_ref(owner, field)?,
             },
             Some(NominalMember::Field { field, .. }) => {
                 let base = self.push_place(unit, Place::Value(receiver))?;
@@ -3334,14 +3655,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     span: *span,
                     feature: "super outside a class constructor",
                 })?;
-                if self.host_derived(class, *span)? {
-                    return self.host_super(unit, region, class, this, args, *span);
+                if self.kept(class, *span)? {
+                    return self.kept_super(unit, region, class, this, args, *span);
                 }
                 let base = self
                     .class_info(class, *span)?
                     .base
                     .as_ref()
-                    .and_then(base_class_name)
+                    .and_then(base_class)
                     .ok_or(Unsupported {
                         span: *span,
                         feature: "super without a base class",
@@ -3479,22 +3800,34 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let place = match &expr.kind {
             ExprKind::Ident(name) => {
                 let cell = self.cell(*name)?;
+                if let Some(class) = self.class_of_value(cell)? {
+                    // A class name read as a value: only a class kept as a
+                    // JavaScript class has one, its constructor.
+                    if !self.kept(class, name.span)? {
+                        return self
+                            .unsupported(name.span, "a class or object name used as a value");
+                    }
+                }
                 self.reference(unit, cell)?;
                 Place::Cell(cell)
             }
-            ExprKind::Member {
-                object, property, ..
-            } if matches!(
-                self.semantics.resolved_member(expr.id),
-                Some(NominalMember::Field { owner, .. }) if owner.is_class()
-            ) =>
+            ExprKind::Member { object, .. }
+                if matches!(
+                    self.semantics.resolved_member(expr.id),
+                    Some(NominalMember::Field { owner, .. }) if owner.is_class()
+                ) =>
             {
                 // A class instance is a shared mutable object: its field is a
-                // named member of the evaluated reference, not a value path.
+                // member of the evaluated reference, by the field's identity.
+                let Some(NominalMember::Field { owner, field }) =
+                    self.semantics.resolved_member(expr.id)
+                else {
+                    unreachable!("matched a class field")
+                };
                 let receiver = self.expression(unit, region, object)?;
-                Place::Member {
+                Place::ClassField {
                     receiver,
-                    key: self.string(property.name)?,
+                    field: class_field_ref(owner, field)?,
                 }
             }
             ExprKind::Member {
@@ -3561,15 +3894,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let declared = match self.units[unit.index()].places[base.index()] {
             Place::Cell(cell) => Some(self.program.cells[cell.index()].ty),
             Place::Field { field, .. } => self.program.field(field).map(|field| field.ty),
-            Place::Member { receiver, key } => {
-                self.work(self.program.classes.len())?;
+            Place::ClassField { receiver, field } => {
                 let receiver = self.units[unit.index()].values[receiver.index()].ty;
                 match &self.program.types[receiver.index()] {
-                    Type::Class(name) => self
-                        .program
-                        .class(name)
-                        .and_then(|class| class.fields.iter().find(|(field, _)| *field == key))
-                        .map(|(_, ty)| *ty),
+                    Type::Class(_) => self.registered_class_field(field).map(|(_, ty)| ty),
                     _ => None,
                 }
             }
@@ -3641,7 +3969,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         match self.units[unit.index()].places[root.index()] {
             // An array element, record entry or class field is rebuilt in
             // place from its current value, like a cell root.
-            Place::Cell(_) | Place::Member { .. } | Place::Index { .. } => {}
+            Place::Cell(_)
+            | Place::Member { .. }
+            | Place::ClassField { .. }
+            | Place::Index { .. } => {}
             Place::Value(_) => {
                 return self.unsupported(span, "mutation of a temporary struct value")
             }
@@ -3704,6 +4035,24 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 }
                 let specifier = self.string(source)?;
                 (OperationKind::LoadModule { module, specifier }, vec![])
+            }
+            ExprKind::Ident(name) if self.class_value(*name)?.is_some() => {
+                // A kept class's constructor, typed as its cell: its
+                // constructor unit, which takes the instance first.
+                let place = self.place(unit, region, expr)?;
+                let Place::Cell(cell) = self.units[unit.index()].places[place.index()] else {
+                    unreachable!("an identifier is a cell place")
+                };
+                let ty = self.program.cells[cell.index()].ty;
+                return self.value(
+                    unit,
+                    region,
+                    OperationKind::Load(place),
+                    &[],
+                    ty,
+                    origin,
+                    span,
+                );
             }
             ExprKind::Ident(_) | ExprKind::Index { .. } => {
                 (OperationKind::Load(self.place(unit, region, expr)?), vec![])
@@ -4023,11 +4372,17 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         span,
                     )?);
                 }
+                if let ExprKind::Ident(name) = &callee.kind {
+                    if self.class_value(*name)?.is_some() {
+                        return self.unsupported(span, "a class constructor called without `new`");
+                    }
+                }
                 if let ExprKind::Member { object, .. } = &callee.kind {
                     if let Some(NominalMember::Method { name, method, .. }) =
                         self.semantics.resolved_member(callee.id)
                     {
-                        if let Some(found) = self.class_method(method.owner, Some(name))? {
+                        let _ = name;
+                        if let Some(found) = self.class_method(method.owner, Some(method.member))? {
                             // Static dispatch: the checker rejects overriding.
                             let receiver = self.expression(unit, region, object)?;
                             return self
@@ -4169,10 +4524,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 self.prepare_call(unit, region, target, contract, args, callee.span())?
             }
             ExprKind::New { class, args, .. } => {
-                let ExpressionResolution::Primitive(operation @ ResolvedIntrinsic::Constructor(_)) =
-                    self.semantics.expression_resolution(expr.id)
-                else {
-                    return self.construct_class(unit, region, class.name, args, ty, origin, span);
+                let operation = match self.semantics.expression_resolution(expr.id) {
+                    ExpressionResolution::Primitive(
+                        operation @ ResolvedIntrinsic::Constructor(_),
+                    ) => operation,
+                    ExpressionResolution::NominalConstruction(nominal) => {
+                        return self.construct_class(unit, region, nominal, args, ty, origin, span);
+                    }
+                    _ => return self.unsupported(span, "construction without a checked class"),
                 };
                 let ResolvedIntrinsic::Constructor(constructor) = operation else {
                     unreachable!("matched constructor resolution")
@@ -4431,7 +4790,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         region: RegionId,
         target: CallTarget,
         contract: CallContract,
-        receiver: Option<CallReceiver<'src>>,
+        receiver: Option<CallReceiver>,
         arguments: &'ast [ast::Argument<'ast, 'src>],
         preparation: Span,
     ) -> Result<(OperationKind, Vec<ValueId>, Option<ValueId>), ConversionError> {
@@ -4604,17 +4963,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 return self.expression(unit, region, expression);
             }
             DefaultValue::Struct {
-                name,
+                declaration,
                 values: fields,
             } => {
-                let identity = self
-                    .semantics
-                    .struct_info(name)
-                    .map(|info| info.declaration.identity)
-                    .ok_or(Unsupported {
-                        span,
-                        feature: "missing checked struct default",
-                    })?;
+                let identity = declaration.identity;
                 let schema = self
                     .program
                     .structs
@@ -4640,10 +4992,11 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 drop_vector(operands, Scratch, self.budget)?;
                 return Ok(result);
             }
-            DefaultValue::NewClass { name, args } => {
+            DefaultValue::NewClass { declaration, args } => {
+                let class = declaration.identity;
                 let signature = self
                     .semantics
-                    .class_info(name)
+                    .nominal_class(class)
                     .and_then(|info| info.constructor.clone());
                 let mut operands = self.budget.vector(Scratch, args.len())?;
                 for (index, argument) in args.iter().enumerate() {
@@ -4661,7 +5014,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     self.budget.push(Scratch, &mut operands, value)?;
                 }
                 let result =
-                    self.construct_class_values(unit, region, name, &operands, ty, None, span)?;
+                    self.construct_class_values(unit, region, class, &operands, ty, None, span)?;
                 drop_vector(operands, Scratch, self.budget)?;
                 return Ok(result);
             }
@@ -4750,10 +5103,24 @@ fn effect_free_string_conversion(ty: &Type<'_>) -> bool {
 }
 
 /// The class a `base` type names (`Base` or `Base<T>`).
-fn base_class_name<'src>(base: &Type<'src>) -> Option<&'src str> {
+/// A checked class field's identity: its declaring class and its slot in
+/// that class's flattened field list.
+fn class_field_ref(
+    owner: NominalId,
+    field: &crate::check::FieldInfo<'_>,
+) -> Result<FieldRef, ConversionError> {
+    Ok(FieldRef {
+        nominal: owner,
+        slot: u32::try_from(field.index).map_err(|_| AllocationError::Capacity)?,
+    })
+}
+
+/// The class a class type names, by identity.
+fn base_class(base: &Type<'_>) -> Option<NominalId> {
     match base {
-        Type::Class(name) => Some(name),
-        Type::ClassInstance { name, .. } => Some(name),
+        Type::Class(declaration) | Type::ClassInstance { declaration, .. } => {
+            Some(declaration.identity)
+        }
         _ => None,
     }
 }

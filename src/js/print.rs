@@ -566,7 +566,7 @@ impl<'a> Printer<'a, '_, '_> {
             if matches!(expression, Expr::Binary { op: Binary::In, .. }) {
                 return true;
             }
-            if expression.created_function().is_some() {
+            if expression.creates_function() {
                 continue;
             }
             let _ = expression.visit_children(|child| {
@@ -1378,14 +1378,21 @@ impl<'a> Printer<'a, '_, '_> {
                 name,
                 base,
                 constructor,
+                methods,
             } => {
                 self.text("class ");
                 self.text(name);
-                self.text(" extends ");
-                // The heritage is a LeftHandSideExpression.
-                self.expression(*base, 18);
+                if let Some(base) = base {
+                    self.text(" extends ");
+                    // The heritage is a LeftHandSideExpression.
+                    self.expression(*base, 18);
+                }
                 self.text("{constructor");
                 self.function(*constructor);
+                for (method, function) in methods {
+                    self.text(method);
+                    self.function(*function);
+                }
                 self.text("}");
             }
             Expr::SuperCall { arguments } => {

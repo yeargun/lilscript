@@ -227,11 +227,14 @@ fn callable_context_refusals_release_partial_frames_but_keep_declarations() {
     let parameters = 4 * size_of::<AHashSet<&str>>() as u64;
     let returns = 4 * size_of::<ReturnContext<'_>>() as u64;
     let generators = 4 * size_of::<Option<Type<'_>>>() as u64;
-    let constructors = 4 * size_of::<Option<&str>>() as u64;
+    let constructors = 4 * size_of::<Option<NominalId>>() as u64;
     let declarations =
         4 * (size_of::<Symbol<'_>>() + size_of::<Option<crate::module::ModuleId>>()) as u64;
     let scoped = declarations + 4 * (s + n) + parameters;
     let scope_peak = declarations + parameters + (5 * s + n).max(4 * s + 5 * n);
+    // A class is declared in its registry before any frame exists.
+    let class_declarations = declarations + 4 * size_of::<ClassInfo<'_>>() as u64;
+    let class_scoped = class_declarations + 4 * (s + n) + parameters;
     for (source, required, peak, shared, capacities) in [
         (
             "int f(){return 1;}",
@@ -256,9 +259,9 @@ fn callable_context_refusals_release_partial_frames_but_keep_declarations() {
         ),
         (
             "class Box{init(){}}",
-            scoped + returns + constructors,
-            scoped + returns,
-            declarations,
+            class_scoped + returns + constructors,
+            class_scoped + returns,
+            class_declarations,
             (4, 4, 4, 0, 0),
         ),
     ] {
@@ -335,11 +338,11 @@ class Box<T> {
         * (size_of::<AHashMap<&str, SymbolId>>()
             + size_of::<Narrowing<'_>>()
             + size_of::<ReturnContext<'_>>()
-            + size_of::<Option<&str>>()
+            + size_of::<Option<NominalId>>()
             + size_of::<Option<Type<'_>>>())
         + 4 * size_of::<AHashSet<&str>>()) as u64;
-    let shared =
-        (8 * (size_of::<Symbol<'_>>() + size_of::<Option<crate::module::ModuleId>>())) as u64;
+    let shared = (8 * (size_of::<Symbol<'_>>() + size_of::<Option<crate::module::ModuleId>>())
+        + 4 * size_of::<ClassInfo<'_>>()) as u64;
     for unwind in [false, true] {
         let mut ledger = ledger(WORK, 1_000_000);
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));

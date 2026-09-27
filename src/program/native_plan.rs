@@ -421,12 +421,11 @@ pub(super) fn native_type<'program, 'src>(
             NativeType::Array(intern_array(tables, element, budget)?)
         }
         // A host (extern) class instance is a JavaScript object.
-        Type::Class(name) | Type::ClassInstance { name, .. } => {
-            work(budget, program.classes.len())?;
+        Type::Class(declaration) | Type::ClassInstance { declaration, .. } => {
+            work(budget, 1)?;
             match program
-                .classes
-                .iter()
-                .position(|class| class.name == *name && !class.external)
+                .class_index(declaration.identity)
+                .filter(|&index| !program.classes[index].external)
             {
                 Some(index) => NativeType::Object(index),
                 None => return Ok(None),
@@ -721,9 +720,16 @@ fn plan_places(
                     writable: true,
                 }
             }
-            Place::Member { receiver, key } => {
-                let ValueStorage::Value(NativeType::Object(class)) = values[receiver.index()]
-                else {
+            Place::Member { .. } => {
+                return Err(fail(
+                    None,
+                    None,
+                    Span::default(),
+                    "native host member place",
+                ));
+            }
+            Place::ClassField { receiver, field } => {
+                let ValueStorage::Value(NativeType::Object(_)) = values[receiver.index()] else {
                     return Err(fail(
                         None,
                         None,
@@ -731,15 +737,14 @@ fn plan_places(
                         "native host member place",
                     ));
                 };
-                let fields = &program.classes[class].fields;
-                work(budget, fields.len())?;
-                let slot = fields
-                    .iter()
-                    .position(|(name, _)| *name == key)
-                    .ok_or_else(|| fail(None, None, Span::default(), "native class member"))?;
+                work(budget, 1)?;
                 // The field's storage is laid out by the class declaring it,
                 // whose view of a generic base's field may be a tagged value.
-                let declaring = declaring_class(program, class, slot);
+                let declaring = program
+                    .class_index(field.nominal)
+                    .filter(|&index| program.classes[index].fields.len() > field.slot as usize)
+                    .ok_or_else(|| fail(None, None, Span::default(), "native class member"))?;
+                let slot = field.slot as usize;
                 let ty = match types[program.classes[declaring].fields[slot].1.index()] {
                     TypeClass::Value(ty) => ty,
                     TypeClass::Function(signature) => NativeType::Callable(signature),
@@ -851,12 +856,10 @@ fn indexed_union(
 /// the flattened (base-first) field list.
 pub(super) fn declaring_class(program: &Program<'_>, mut class: usize, slot: usize) -> usize {
     loop {
-        let Some(base) = program.classes[class].base.as_deref().and_then(|name| {
-            program
-                .classes
-                .iter()
-                .position(|candidate| candidate.name == name)
-        }) else {
+        let Some(base) = program.classes[class]
+            .base
+            .and_then(|base| program.class_index(base))
+        else {
             return class;
         };
         if slot >= program.classes[base].fields.len() {
@@ -1711,6 +1714,19 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     if matches!(usage, ValueUse::CallCallee { .. }) {
                         continue;
                     }
+                    // A kept class's constructor, run directly by `new`.
+                    if let ValueUse::Operand {
+                        operation,
+                        position: 0,
+                    } = *usage
+                    {
+                        if matches!(
+                            data.operations[operation.index()].kind,
+                            OperationKind::ConstructClass
+                        ) {
+                            continue;
+                        }
+                    }
                     if let (ValueStorage::Function(function), ValueUse::Operand { operation, .. }) =
                         (storage, *usage)
                     {
@@ -1786,6 +1802,34 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             _ => None,
         }
     }
+    /// A kept internal class's constructor unit: its value cell's function.
+    pub(super) fn constructor_unit(&self, class: crate::check::NominalId) -> Option<UnitId> {
+        let definition = self.program.class(class)?;
+        if definition.external {
+            return None;
+        }
+        match self.program.cells[definition.value?.index()].binding {
+            CellBinding::Function(unit) => Some(unit),
+            _ => None,
+        }
+    }
+    /// A constructor's explicit operands after its instance: each compatible
+    /// with its parameter; omitted trailing ones are arrow defaults.
+    fn constructor_arguments(
+        &self,
+        constructor: UnitId,
+        arguments: &[ValueId],
+        value: &impl Fn(ValueId) -> ValueStorage,
+    ) -> bool {
+        let parameters = &self.signatures[self.signature_for_unit(constructor)].parameters;
+        arguments.len() < parameters.len()
+            && arguments
+                .iter()
+                .zip(&parameters[1..])
+                .all(|(&argument, &parameter)| {
+                    self.compatible(ValueStorage::Value(parameter), value(argument))
+                })
+    }
     pub(super) fn signature_for_unit(&self, unit: UnitId) -> usize {
         self.signature_for_type(self.program.unit(unit).unwrap().callable_type.unwrap())
             .unwrap()
@@ -1810,13 +1854,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             }
             let Some(next) = self.program.classes[derived]
                 .base
-                .as_deref()
-                .and_then(|name| {
-                    self.program
-                        .classes
-                        .iter()
-                        .position(|candidate| candidate.name == name)
-                })
+                .and_then(|base| self.program.class_index(base))
             else {
                 return false;
             };
@@ -2179,12 +2217,15 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 Ok(())
             }
             OperationKind::Allocate {
-                kind: AllocationKind::Object(_),
+                kind: AllocationKind::Instance { class: nominal, .. },
                 ..
             } => {
                 let Some(Stored(NativeType::Object(class))) = result else {
                     return Err(error("native object representation"));
                 };
+                if self.program.class_index(*nominal) != Some(class) {
+                    return Err(error("native class instance identity"));
+                }
                 let fields = self.class_fields[class].len();
                 expect(
                     fields == operands.len()
@@ -2928,10 +2969,37 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 },
                 "native return representation",
             ),
-            // Host-class inheritance is JavaScript-only: its instances are
-            // host objects with a native prototype chain.
-            OperationKind::ConstructClass | OperationKind::SuperConstruct => {
-                Err(error("native host class inheritance"))
+            // A kept internal class is an ordinary instance natively: `new`
+            // allocates it and runs its constructor, and `super(...)` runs
+            // the base's. Host-class inheritance is JavaScript-only: its
+            // instances are host objects with a native prototype chain.
+            OperationKind::ConstructClass => {
+                let Some(Stored(NativeType::Object(class))) = result else {
+                    return Err(error("native class construction representation"));
+                };
+                let identity = self.program.classes[class].identity;
+                let constructor = self
+                    .constructor_unit(identity)
+                    .ok_or_else(|| error("native host class inheritance"))?;
+                expect(
+                    operand(0) == ValueStorage::Function(constructor)
+                        && self.constructor_arguments(constructor, &operands[1..], &value),
+                    "native class construction arguments",
+                )
+            }
+            OperationKind::SuperConstruct => {
+                let base = data
+                    .constructor_of
+                    .and_then(|class| self.program.class(class))
+                    .and_then(|class| class.base)
+                    .ok_or_else(|| error("native super construction"))?;
+                let constructor = self
+                    .constructor_unit(base)
+                    .ok_or_else(|| error("native host class inheritance"))?;
+                expect(
+                    self.constructor_arguments(constructor, operands, &value),
+                    "native super construction arguments",
+                )
             }
             // Only an omitted arrow default arrives as the empty callable;
             // every other default was evaluated by the caller.

@@ -359,9 +359,9 @@ fn primitive_type(ty: &Type<'_>) -> bool {
 fn host_type(program: &Program<'_>, ty: &Type<'_>) -> bool {
     match ty {
         Type::TypeParameter("$js") => true,
-        Type::Class(name) | Type::ClassInstance { name, .. } => {
-            program.class(name).is_some_and(|class| class.external)
-        }
+        Type::Class(declaration) | Type::ClassInstance { declaration, .. } => program
+            .class(declaration.identity)
+            .is_some_and(|class| class.external),
         Type::Nullable(inner) => host_type(program, inner),
         Type::Union(members) => members.iter().any(|member| host_type(program, member)),
         _ => false,
@@ -487,7 +487,11 @@ pub(super) fn operation_effects(
         Op::Call(call) => call_effects(ctx, values, *call),
         Op::Closure(_)
         | Op::Allocate {
-            kind: AllocationKind::Array | AllocationKind::Record(_) | AllocationKind::Object(_),
+            kind:
+                AllocationKind::Array
+                | AllocationKind::Record(_)
+                | AllocationKind::Object(_)
+                | AllocationKind::Instance { .. },
             ..
         } => Effects {
             creates_identity: true,
@@ -633,7 +637,7 @@ fn place_effects(
                     Effects::NONE
                 }
             }
-            Place::Member { receiver, .. } => {
+            Place::Member { receiver, .. } | Place::ClassField { receiver, .. } => {
                 return object_effects(ctx, values, receiver, None, access)
             }
             Place::Index { receiver, key } => {
@@ -1469,7 +1473,11 @@ impl ValueFacts for DomainFacts<'_> {
         self.roots.get(value.index()).copied().unwrap_or_else(|| {
             match self.data.operations[self.data.values[value.index()].definition.index()].kind {
                 OperationKind::Allocate {
-                    kind: AllocationKind::Array | AllocationKind::Record(_) | AllocationKind::Object(_),
+                    kind:
+                        AllocationKind::Array
+                        | AllocationKind::Record(_)
+                        | AllocationKind::Object(_)
+                        | AllocationKind::Instance { .. },
                     ..
                 } => Root::Fresh,
                 _ => Root::Unknown,
@@ -1831,12 +1839,12 @@ fn value_transfer(
                 None => none,
             },
             // Data reachable from a parameter stays that parameter's.
-            Place::Member { receiver, .. } | Place::Index { receiver, .. } => {
-                match values.root(receiver) {
-                    Root::Parameter(position) => (None, None, Root::Parameter(position)),
-                    _ => none,
-                }
-            }
+            Place::Member { receiver, .. }
+            | Place::ClassField { receiver, .. }
+            | Place::Index { receiver, .. } => match values.root(receiver) {
+                Root::Parameter(position) => (None, None, Root::Parameter(position)),
+                _ => none,
+            },
             Place::Field { .. } => match place_cell(data, *place)
                 .and_then(|cell| cells.get(&cell))
                 .and_then(|state| state.root)
@@ -1850,7 +1858,8 @@ fn value_transfer(
                 AllocationKind::Array
                 | AllocationKind::SpreadArray(_)
                 | AllocationKind::Record(_)
-                | AllocationKind::Object(_),
+                | AllocationKind::Object(_)
+                | AllocationKind::Instance { .. },
             ..
         }
         | Op::Closure(_) => (None, None, Root::Fresh),
@@ -1978,7 +1987,7 @@ fn summarize(
     if data.suspension != Suspension::None {
         return (Fact::Unknown(Reason::Suspending), Vec::new());
     }
-    if data.host_class.is_some() {
+    if data.constructor_of.is_some() {
         return (Fact::Unknown(Reason::HostConstructor), Vec::new());
     }
     let values = unit_values(program, graph, summaries, unit);

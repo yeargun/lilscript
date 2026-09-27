@@ -1,4 +1,5 @@
 use super::*;
+use crate::check::{test_class, NominalKind};
 use std::sync::Arc;
 
 fn signature(default: Option<DefaultValue<'static>>) -> FunctionType<'static> {
@@ -26,13 +27,13 @@ fn wrapped(kind: usize, value: Type<'static>) -> Type<'static> {
         9 => Type::Union(vec![Type::Int, value]),
         10 => Type::StructInstance {
             declaration: StructType {
-                identity: NominalId::new(0, false),
+                identity: NominalId::new(0, NominalKind::Struct),
                 name: "Container",
             },
             args: vec![value],
         },
         11 => Type::ClassInstance {
-            name: "Container",
+            declaration: test_class("Container"),
             args: vec![value],
         },
         _ => unreachable!(),

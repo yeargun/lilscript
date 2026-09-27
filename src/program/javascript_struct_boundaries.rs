@@ -77,8 +77,8 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 }
                 (Type::Class(expected), Type::Class(actual))
                 | (Type::Enum(expected), Type::Enum(actual)) => {
-                    self.work(expected.len().max(actual.len()))?;
-                    if expected != actual {
+                    self.work(1)?;
+                    if expected.identity != actual.identity {
                         return Err(
                             self.error(span, "value-struct transfer requires an ABI adapter")
                         );
@@ -213,7 +213,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 let ty = self.struct_field_type(field)?;
                 &self.program.types[ty.index()]
             }
-            Place::Member { receiver, .. } | Place::Index { receiver, .. } => {
+            Place::Member { .. } | Place::ClassField { .. } | Place::Index { .. } => {
                 match self.member_declared_type(context, place)? {
                     Some(declared) => declared,
                     None => {
@@ -239,9 +239,9 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         self.work(1)?;
         let program = self.program;
         let data = self.data(context);
-        let (receiver, key) = match data.places[place.index()] {
-            Place::Member { receiver, key } => (receiver, Some(key)),
-            Place::Index { receiver, .. } => (receiver, None),
+        let (receiver, field) = match data.places[place.index()] {
+            Place::Member { receiver, .. } | Place::Index { receiver, .. } => (receiver, None),
+            Place::ClassField { receiver, field } => (receiver, Some(field)),
             _ => return Ok(None),
         };
         Ok(
@@ -249,13 +249,16 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 Type::Array(inner) | Type::Record(inner) => Some(inner.as_ref()),
                 // A host object's property is a `JsValue` position.
                 dynamic @ Type::TypeParameter("$js") => Some(dynamic),
-                Type::Class(name) | Type::ClassInstance { name, .. } => {
-                    self.work(program.classes.len())?;
-                    let Some(key) = key else { return Ok(None) };
+                // The field's slot in the receiver's class, whose flattened
+                // layout carries the base's fields first with the receiver's
+                // type arguments applied.
+                Type::Class(declaration) | Type::ClassInstance { declaration, .. } => {
+                    self.work(1)?;
+                    let Some(field) = field else { return Ok(None) };
                     program
-                        .class(name)
+                        .class(declaration.identity)
                         .filter(|class| !class.external)
-                        .and_then(|class| class.fields.iter().find(|(field, _)| *field == key))
+                        .and_then(|class| class.fields.get(field.slot as usize))
                         .map(|(_, ty)| &program.types[ty.index()])
                 }
                 _ => None,
@@ -282,7 +285,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 let ty = self.struct_field_type(field)?;
                 &self.program.types[ty.index()]
             }
-            Place::Member { .. } | Place::Index { .. } => {
+            Place::Member { .. } | Place::ClassField { .. } | Place::Index { .. } => {
                 match self.member_declared_type(context, place)? {
                     Some(declared) => declared,
                     // Dynamic host receivers lack a product interface.
@@ -389,18 +392,29 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                         self.struct_transfer(context, value, expected, span)?;
                     }
                 }
-                AllocationKind::Object(keys) => {
+                AllocationKind::Instance { class, .. } => {
                     // An internal class instance never reaches host code, so
                     // each field's declared type is its representation.
                     let program = self.program;
-                    let class = match result_type {
-                        Some(Type::Class(name) | Type::ClassInstance { name, .. }) => {
-                            self.work(program.classes.len())?;
-                            program.class(name).filter(|class| !class.external)
-                        }
-                        _ => None,
+                    self.work(1)?;
+                    let Some(class) = program.class(*class).filter(|class| !class.external) else {
+                        return Err(self.error(span, "value-struct object entry ABI adaptation"));
                     };
-                    for (key, &value) in keys.iter().zip(operands) {
+                    for (&(_, declared), &value) in class.fields.iter().zip(operands) {
+                        self.work(1)?;
+                        if !self.struct_boundary_value(context, value) {
+                            continue;
+                        }
+                        self.struct_transfer(
+                            context,
+                            value,
+                            &program.types[declared.index()],
+                            span,
+                        )?;
+                    }
+                }
+                AllocationKind::Object(_) => {
+                    for &value in operands {
                         self.work(1)?;
                         if !self.struct_boundary_value(context, value) {
                             continue;
@@ -408,30 +422,12 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                         // An ordinary object literal is a host object: each
                         // entry is a `JsValue` position, where a struct takes
                         // its D2 public shape.
-                        if class.is_none()
-                            && matches!(result_type, Some(Type::TypeParameter("$js")))
-                        {
-                            self.struct_transfer(
-                                context,
-                                value,
-                                &Type::TypeParameter("$js"),
-                                span,
-                            )?;
-                            continue;
-                        }
-                        let declared = class
-                            .and_then(|class| class.fields.iter().find(|(field, _)| field == key));
-                        let Some(&(_, declared)) = declared else {
+                        if !matches!(result_type, Some(Type::TypeParameter("$js"))) {
                             return Err(
                                 self.error(span, "value-struct object entry ABI adaptation")
                             );
-                        };
-                        self.struct_transfer(
-                            context,
-                            value,
-                            &program.types[declared.index()],
-                            span,
-                        )?;
+                        }
+                        self.struct_transfer(context, value, &Type::TypeParameter("$js"), span)?;
                     }
                 }
                 AllocationKind::Struct(identity) => {
@@ -785,8 +781,9 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                             return Err(self
                                 .error(operation.span, "value-struct method receiver adaptation"));
                         }
-                        if let Place::Member { receiver, .. } | Place::Index { receiver, .. } =
-                            data.places[place.index()]
+                        if let Place::Member { receiver, .. }
+                        | Place::ClassField { receiver, .. }
+                        | Place::Index { receiver, .. } = data.places[place.index()]
                         {
                             boundary |= self.struct_boundary_value(context, receiver);
                         }

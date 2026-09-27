@@ -1,0 +1,40 @@
+// Private to this module: another module declares its own `Node` and `Kind`.
+enum Kind { Leaf, Branch, Root }
+
+class Node {
+  Node? parent;
+  Kind kind;
+  init(Node? parent) {
+    this.parent = parent;
+    this.kind = Kind.Branch;
+    if (parent == null) {
+      this.kind = Kind.Root;
+    }
+  }
+  int depth() {
+    int depth = 1;
+    Node? current = this.parent;
+    while (current != null) {
+      depth = depth + 1;
+      current = current.parent;
+    }
+    return depth;
+  }
+}
+
+export int parseDepth(int levels) {
+  Node node = new Node(null);
+  for (int level = 1; level < levels; level = level + 1) {
+    node = new Node(node);
+  }
+  return node.depth();
+}
+
+export string parseLabel(int levels) {
+  Node node = new Node(null);
+  return match (node.kind) {
+    Kind.Leaf => "leaf",
+    Kind.Branch => "branch",
+    Kind.Root => "depth:" + levels,
+  };
+}

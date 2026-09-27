@@ -1,4 +1,5 @@
 use super::*;
+use crate::check::{test_class, test_enum, NominalKind};
 use crate::check::{FunctionParameter, FunctionType, GenericFunctionType, NominalId, StructType};
 use crate::primitive::ParameterPassing;
 
@@ -38,14 +39,14 @@ fn corpus() -> Vec<Type<'static>> {
         Type::Void,
         Type::TypeParameter("$js"),
         Type::TypeParameter("T"),
-        Type::Enum("Number"),
-        Type::Class("Number"),
+        Type::Enum(test_enum("Number")),
+        Type::Class(test_class("Number")),
         Type::Struct(StructType {
-            identity: NominalId::new(0, false),
+            identity: NominalId::new(0, NominalKind::Struct),
             name: "P",
         }),
         Type::Struct(StructType {
-            identity: NominalId::new(1, false),
+            identity: NominalId::new(1, NominalKind::Struct),
             name: "P",
         }),
         Type::Union(vec![]),

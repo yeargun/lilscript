@@ -1,0 +1,8 @@
+enum Mode { Mute, Quiet, Loud }
+
+export string soundLabel(int level) {
+  Mode mode = Mode.Mute;
+  if (level == 1) { mode = Mode.Quiet; }
+  if (level == 2) { mode = Mode.Loud; }
+  return match (mode) { Mode.Mute => "mute", Mode.Quiet => "quiet", Mode.Loud => "loud" };
+}

@@ -106,7 +106,9 @@ fn load_result_recipe(
                 LoadResultRecipe::Raw
             };
         }
-        Place::Member { receiver, .. } | Place::Index { receiver, .. } => receiver,
+        Place::Member { receiver, .. }
+        | Place::ClassField { receiver, .. }
+        | Place::Index { receiver, .. } => receiver,
     };
     let receiver_ty = &program.types[unit.values[receiver.index()].ty.index()];
     let result_ty = &program.types[ty.index()];
@@ -662,8 +664,15 @@ fn form_head(
                     program.cells[cell.index()].binding,
                 ) {
                     formation.work(signature.params.len())?;
+                    // A class constructor's instance is `this`, not a
+                    // parameter of the published constructor.
+                    let receiver = usize::from(
+                        program
+                            .unit(unit)
+                            .is_some_and(|data| data.constructor_of.is_some()),
+                    );
                     // A `JS.undefined()` default needs no syntax: absence is it.
-                    let first = signature.params.iter().position(|parameter| {
+                    let first = signature.params[receiver..].iter().position(|parameter| {
                         parameter.default.as_ref().is_some_and(|default| {
                             !matches!(default, crate::check::DefaultValue::Undefined)
                         })
@@ -1460,7 +1469,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         else {
             return Ok(None);
         };
-        if self.program.unit(child).unwrap().kind != UnitKind::Function
+        // A class constructor is a class value, whatever reads it.
+        let body = self.program.unit(child).unwrap();
+        if body.kind != UnitKind::Function
+            || body.constructor_of.is_some()
             || self.struct_plan.wrapped(child)
         {
             return Ok(None);
@@ -2704,6 +2716,20 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             Place::Member { receiver, key } => {
                 // A literal key stays a string occurrence, so the string
                 // family can still pool it; the printer spells `o.name`.
+                let key = {
+                    let literal =
+                        js::Literal::String(self.string(&self.program.strings[key.index()])?);
+                    self.literal(literal)
+                }?;
+                (receiver, js::Property::Computed(key))
+            }
+            // A class field is the instance's own data property of the
+            // field's spelling.
+            Place::ClassField { receiver, field } => {
+                let (key, _) = self
+                    .program
+                    .class_field(field)
+                    .ok_or_else(|| self.error(Span::default(), "unknown class field"))?;
                 let key = {
                     let literal =
                         js::Literal::String(self.string(&self.program.strings[key.index()])?);
@@ -4424,7 +4450,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                     js::Expr::Array(values)
                 }
-                AllocationKind::Record(keys) | AllocationKind::Object(keys) => {
+                AllocationKind::Record(keys)
+                | AllocationKind::Object(keys)
+                | AllocationKind::Instance { keys, .. } => {
                     let count = keys
                         .len()
                         .checked_add(usize::from(matches!(kind, AllocationKind::Record(_))))
@@ -4472,6 +4500,27 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     .child(unit, operation_id)
                     .ok_or_else(|| self.error(operation.span, "missing callable demand context"))?;
                 self.plan_context(child, body)?;
+                // A kept root class's constructor holds its instance from
+                // entry: `this`. A derived one's is bound where `super(...)`
+                // returns.
+                if let Some(class) = self.data(child).constructor_of {
+                    if self
+                        .program
+                        .class(class)
+                        .is_some_and(|definition| definition.base.is_none())
+                    {
+                        let instance = self.data(child).parameters[0];
+                        let this = self.expression(js::Expr::This)?;
+                        let binding = self.cell_binding(child, instance)?;
+                        self.statement(
+                            body,
+                            js::Statement::Let {
+                                binding,
+                                value: Some(this),
+                            },
+                        )?;
+                    }
+                }
                 self.statement_region(child, self.data(child).entry)?;
                 self.finish_unit(child)?;
                 let parameters = self.physical_parameters(child)?;
@@ -4550,9 +4599,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 // A host-derived class's constructor: its instance parameter
                 // is `this`, bound where `super(...)` returns.
-                let host_class = self.data(child).host_class;
+                let constructor_of = self.data(child).constructor_of;
                 let mut parameters = parameters;
-                if host_class.is_some() {
+                if constructor_of.is_some() {
                     parameters.remove(0);
                 }
                 self.budget.push(
@@ -4561,13 +4610,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     js::Function {
                         parameters,
                         body,
-                        arrow: arrow && host_class.is_none(),
-                        name: if host_class.is_some() {
+                        arrow: arrow && constructor_of.is_none(),
+                        name: if constructor_of.is_some() {
                             js::FunctionName::Unobserved
                         } else {
                             name
                         },
-                        strict: strict && host_class.is_none(),
+                        strict: strict && constructor_of.is_none(),
                         length: None,
                         suspension,
                     },
@@ -4595,19 +4644,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         return Ok(None);
                     }
                 }
-                match host_class {
-                    Some(class) => {
-                        let definition = &self.program.classes[class as usize];
-                        let base = definition.base.as_deref().ok_or_else(|| {
-                            self.error(operation.span, "host-derived class without a base")
-                        })?;
-                        let base = self.expression(js::Expr::Host(base.to_owned()))?;
-                        js::Expr::Class {
-                            name: definition.name.clone(),
-                            base,
-                            constructor: function,
-                        }
-                    }
+                match constructor_of {
+                    Some(class) => self.class_expression(
+                        unit,
+                        operation.region,
+                        class,
+                        function,
+                        operation.span,
+                    )?,
                     None => js::Expr::Function(function),
                 }
             }
@@ -4622,6 +4666,129 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             .module
             .expression_in(node, operation.origin, self.budget)?;
         self.save(unit, &operation, value)
+    }
+
+    /// A kept class as a JavaScript class value: its name, its base (a host
+    /// base by its extern declaration's name, which is the host's; an internal
+    /// base by its constructor's binding), its constructor, and for a
+    /// published chain its prototype methods.
+    fn class_expression(
+        &mut self,
+        unit: ContextId,
+        region: RegionId,
+        class: crate::check::NominalId,
+        constructor: js::FunctionId,
+        span: Span,
+    ) -> Result<js::Expr, FormationError> {
+        let program = self.program;
+        let definition = program
+            .class(class)
+            .ok_or_else(|| self.error(span, "kept class without a definition"))?;
+        let base = match definition.base {
+            None => None,
+            Some(base) => {
+                let base = program
+                    .class(base)
+                    .ok_or_else(|| self.error(span, "kept class with an undeclared base"))?;
+                Some(if base.external {
+                    let name = self.text(&base.name)?;
+                    self.expression(js::Expr::Host(name))?
+                } else {
+                    let cell = base
+                        .value
+                        .ok_or_else(|| self.error(span, "kept class with a dissolved base"))?;
+                    self.cell(unit, cell)?
+                })
+            }
+        };
+        let mut methods = self
+            .budget
+            .vector(AllocationClass::Retained, definition.prototype.len())?;
+        for &(key, cell) in &definition.prototype {
+            self.work(1)?;
+            let name = program.strings[key.index()]
+                .as_unicode()
+                .filter(|name| *name != "constructor")
+                .ok_or_else(|| self.error(span, "prototype method name"))?;
+            let name = self.text(name)?;
+            let method = self.prototype_method(unit, region, cell, span)?;
+            self.append(&mut methods, (name, method))?;
+        }
+        Ok(js::Expr::Class {
+            name: definition.name.clone(),
+            base,
+            constructor,
+            methods,
+        })
+    }
+
+    /// A published class's prototype method, `name(p…){return m(this,p…)}`:
+    /// the static method unit `m` called with the receiver. Its `length`
+    /// stops at the first default, as the source method's would.
+    fn prototype_method(
+        &mut self,
+        unit: ContextId,
+        region: RegionId,
+        cell: CellId,
+        span: Span,
+    ) -> Result<js::FunctionId, FormationError> {
+        let program = self.program;
+        let CellBinding::Function(method) = program.cells[cell.index()].binding else {
+            return Err(self.error(span, "prototype method without a function"));
+        };
+        let signature = match program
+            .unit(method)
+            .and_then(|data| data.callable_type)
+            .map(|ty| &program.types[ty.index()])
+        {
+            Some(Type::Function(signature)) => signature.clone(),
+            _ => return Err(self.error(span, "prototype method signature")),
+        };
+        let parent = self.plan(unit).regions[region.index()];
+        let scope = self.module.regions[parent.index()].scope;
+        let body = self.module.region_in(scope, self.budget)?;
+        let inner = self.module.regions[body.index()].scope;
+        let count = signature.params.len().saturating_sub(1);
+        let mut parameters = self.budget.vector(AllocationClass::Retained, count)?;
+        let mut arguments = self.budget.vector(AllocationClass::Retained, count + 1)?;
+        let this = self.expression(js::Expr::This)?;
+        self.append(&mut arguments, this)?;
+        for _ in 0..count {
+            self.work(1)?;
+            let parameter = self.fresh_binding(inner, "argument")?;
+            self.append(&mut parameters, parameter)?;
+            let value = self.reference(parameter)?;
+            self.append(&mut arguments, value)?;
+        }
+        let callee = self.cell(unit, cell)?;
+        let call = self.expression(js::Expr::Call {
+            callee,
+            arguments,
+            invocation: Invocation::Value,
+        })?;
+        self.statement(body, js::Statement::Return(Some(call)))?;
+        let length = signature.params[1..].iter().position(|parameter| {
+            parameter
+                .default
+                .as_ref()
+                .is_some_and(|default| !matches!(default, crate::check::DefaultValue::Undefined))
+        });
+        let function = js::FunctionId::try_new(self.module.functions.len())
+            .ok_or(AllocationError::Capacity)?;
+        self.budget.push(
+            AllocationClass::Retained,
+            &mut self.module.functions,
+            js::Function {
+                parameters,
+                body,
+                arrow: false,
+                name: js::FunctionName::Unobserved,
+                strict: false,
+                length,
+                suspension: js::Suspension::None,
+            },
+        )?;
+        Ok(function)
     }
 
     fn statement_region(

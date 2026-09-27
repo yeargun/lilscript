@@ -823,7 +823,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 ))?;
             }
             OperationKind::Allocate {
-                kind: AllocationKind::Object(_),
+                kind: AllocationKind::Instance { .. },
                 ..
             } => {
                 let result = result.unwrap();
@@ -915,6 +915,42 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 ))?;
             }
             OperationKind::Call(call) => self.call(id, *call, result)?,
+            OperationKind::ConstructClass => {
+                let result = result.unwrap();
+                let ValueStorage::Value(NativeType::Object(class)) =
+                    self.plan.units[id.index()].values[result.index()]
+                else {
+                    unreachable!("native class construction is an instance")
+                };
+                let identity = self.plan.program.classes[class].identity;
+                let constructor = self
+                    .plan
+                    .constructor_unit(identity)
+                    .expect("native plan admits the constructor");
+                self.allocate_empty_object(id, result, class)?;
+                self.write(format_args!(
+                    "ls_fn{}(ls_v{}",
+                    constructor.index(),
+                    result.index()
+                ))?;
+                self.constructor_call_arguments(id, constructor, &args[1..])?;
+            }
+            OperationKind::SuperConstruct => {
+                let data = self.plan.program.unit(id).unwrap();
+                let base = data
+                    .constructor_of
+                    .and_then(|class| self.plan.program.class(class))
+                    .and_then(|class| class.base)
+                    .expect("native plan admits the base");
+                let constructor = self
+                    .plan
+                    .constructor_unit(base)
+                    .expect("native plan admits the base constructor");
+                let instance = data.parameters[0];
+                self.write(format_args!("ls_fn{}(", constructor.index()))?;
+                self.cell_place(id, instance)?;
+                self.constructor_call_arguments(id, constructor, args)?;
+            }
             OperationKind::TypeTest(target) => {
                 let test =
                     crate::primitive::runtime_type_test(&self.plan.program.types[target.index()])
@@ -1225,6 +1261,30 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 "ls_v{result} = ls_v{left} {token} ls_v{right};\n"
             )),
         }
+    }
+    /// A constructor call's explicit arguments, after its instance: each
+    /// converted to its parameter, then the empty callable for each omitted
+    /// trailing arrow default, which the constructor's guard replaces.
+    fn constructor_call_arguments(
+        &mut self,
+        unit: UnitId,
+        constructor: UnitId,
+        args: &[ValueId],
+    ) -> Result<(), NativeError> {
+        let signature = self.plan.signature_for_unit(constructor);
+        let parameters = self.plan.signatures[signature].parameters.clone();
+        for (index, &value) in args.iter().enumerate() {
+            self.budget.work(WorkKind::Render, 1)?;
+            self.text(",")?;
+            self.converted(unit, value, parameters[index + 1])?;
+        }
+        for parameter in &parameters[args.len() + 1..] {
+            self.write(format_args!(",({parameter}){{0}}"))?;
+        }
+        self.text(
+            ");
+",
+        )
     }
     fn call(
         &mut self,

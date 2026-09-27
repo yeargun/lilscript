@@ -1,0 +1,7 @@
+export extern class Node {
+  string nodeName;
+}
+extern Node makeHostNode(string name);
+
+export Node hostNode(string name) { return makeHostNode(name); }
+export string hostName(Node node) { return node.nodeName; }

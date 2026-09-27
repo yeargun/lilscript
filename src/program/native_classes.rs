@@ -9,12 +9,9 @@ use super::*;
 impl Emitter<'_, '_, '_, '_, '_> {
     fn base_class(&self, class: usize) -> Option<usize> {
         let program = self.plan.program;
-        program.classes[class].base.as_deref().and_then(|name| {
-            program
-                .classes
-                .iter()
-                .position(|candidate| candidate.name == name)
-        })
+        program.classes[class]
+            .base
+            .and_then(|base| program.class_index(base))
     }
 
     pub(super) fn class_types(&mut self) -> Result<(), NativeError> {
@@ -72,6 +69,24 @@ static void ls_object_clear(ls_native_object **slot) { ls_native_release(*slot);
             }
         }
         Ok(())
+    }
+
+    /// A fresh instance for a kept class's constructor, which stores every
+    /// field before any read: each field starts zeroed (no owner).
+    pub(super) fn allocate_empty_object(
+        &mut self,
+        unit: UnitId,
+        result: ValueId,
+        class: usize,
+    ) -> Result<(), NativeError> {
+        self.write(format_args!(
+            "{{\nls_object{class} *ls_o = ls_native_allocate(sizeof *ls_o, ls_object{class}_destroy);\nmemset((char *)ls_o + sizeof(ls_native_object), 0, sizeof *ls_o - sizeof(ls_native_object));\n"
+        ))?;
+        let destination = Destination::Value(result);
+        self.assignment_start(unit, destination, true)?;
+        self.text("(ls_native_object *)ls_o")?;
+        self.assignment_end(unit, destination)?;
+        self.text("}\n")
     }
 
     /// A fresh instance: every field receives its operand, and a managed

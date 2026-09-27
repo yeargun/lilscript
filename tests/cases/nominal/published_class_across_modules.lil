@@ -1,0 +1,23 @@
+// A module publishes a class and its base with `export constructor`; the
+// entry imports the class type and constructs, extends and reads it. The
+// published chain stays a JavaScript class; the entry's own subclass extends
+// it. Construction, `super(...)`, defaults and fields behave as for any class.
+import { Shape, Circle, describe } from "./published_class_across_modules/shapes";
+
+class Ring extends Circle {
+  int inner;
+  init(int radius, int inner) {
+    super(radius);
+    this.inner = inner;
+  }
+  int thickness() { return this.radius - this.inner; }
+}
+
+Circle circle = new Circle(3);
+print(describe(circle));
+Ring ring = new Ring(5, 2);
+print(ring.thickness());
+print(describe(ring));
+Shape plain = new Shape();
+print(plain.label());
+print(ring.label() + ":" + ring.scaled());

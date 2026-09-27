@@ -1036,7 +1036,7 @@ impl Module {
                         return Ok(false);
                     }
                 }
-                if let Some(function) = expression.created_function() {
+                for function in expression.created_functions() {
                     regions.push(self.functions[function.index()].body);
                 }
                 let _ = expression.visit_children(|child| {
@@ -1129,7 +1129,7 @@ impl Module {
                 Expr::Binding(binding) if self.bindings[binding.index()].scope == scope => {
                     return Ok(false)
                 }
-                _ if expression.created_function().is_some() => return Ok(false),
+                _ if expression.creates_function() => return Ok(false),
                 _ => {}
             }
             let _ = expression.visit_children(|child| {

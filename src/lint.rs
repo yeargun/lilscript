@@ -173,9 +173,9 @@ fn host_access(program: &Program<'_>, data: &UnitData, operation: &Operation) ->
 
 fn host_member(program: &Program<'_>, data: &UnitData, place: PlaceId) -> bool {
     match data.places[place.index()] {
-        Place::Member { receiver, .. } | Place::Index { receiver, .. } => {
-            host_receiver(program, data, receiver)
-        }
+        Place::Member { receiver, .. }
+        | Place::ClassField { receiver, .. }
+        | Place::Index { receiver, .. } => host_receiver(program, data, receiver),
         _ => false,
     }
 }
@@ -957,15 +957,11 @@ fn lint_loop_operation(
         | OperationKind::ConstructClass => {
             pending.push(allocation("aggregate", "performance/allocation-in-loop"))
         }
+        // A class instance is an aggregate by its allocation's nominal.
         OperationKind::Allocate {
-            kind: AllocationKind::Object(_),
+            kind: AllocationKind::Instance { .. },
             ..
-        } if operation
-            .result
-            .is_some_and(|result| class_instance(program, data, result)) =>
-        {
-            pending.push(allocation("aggregate", "performance/allocation-in-loop"))
-        }
+        } => pending.push(allocation("aggregate", "performance/allocation-in-loop")),
         OperationKind::Intrinsic(operation_kind) => {
             if let Some(kind) = intrinsic_allocation_kind(*operation_kind) {
                 pending.push(allocation(kind, "performance/allocation-in-loop"));
@@ -1054,13 +1050,6 @@ fn produced_by_pipeline_stage(data: &UnitData, value: ValueId) -> bool {
 }
 
 /// A class construction's instance, as opposed to an object literal.
-fn class_instance(program: &Program<'_>, data: &UnitData, value: ValueId) -> bool {
-    matches!(
-        program.ty(data.values[value.index()].ty),
-        Some(crate::check::Type::Class(_) | crate::check::Type::ClassInstance { .. })
-    )
-}
-
 /// A call through a value the program does not name as one function, or
 /// through a member of a program-owned object. Host functions and host
 /// methods are the host's calls, not indirect ones.

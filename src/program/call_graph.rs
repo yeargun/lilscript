@@ -350,7 +350,9 @@ impl CallGraph {
                 }
             }
         }
-        // Exported storage and `import()` namespaces hand bodies to the host.
+        // Exported storage and `import()` namespaces hand bodies to the host,
+        // and so does a published class: its constructor and its prototype
+        // methods, which JavaScript calls with any arguments.
         let exported = program
             .modules
             .iter()
@@ -359,10 +361,22 @@ impl CallGraph {
                     .iter()
                     .filter_map(|export| match export.target {
                         InterfaceTarget::Value(cell) => Some(cell),
-                        InterfaceTarget::Struct(_) => None,
+                        InterfaceTarget::Type(_) => None,
                     })
                     .chain(module.namespace.iter().map(|(_, cell)| *cell))
             })
+            .chain(
+                program
+                    .classes
+                    .iter()
+                    .filter(|class| class.published)
+                    .flat_map(|class| {
+                        class
+                            .value
+                            .into_iter()
+                            .chain(class.prototype.iter().map(|(_, cell)| *cell))
+                    }),
+            )
             .collect::<Vec<_>>();
         for cell in exported {
             if let Some(Target::Unit(body)) = self.targets.get(cell.index()).copied().flatten() {

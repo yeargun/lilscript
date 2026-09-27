@@ -169,15 +169,44 @@ fn verify_places<'program, 'src>(
                 let ty = match value_type(receiver)? {
                     Type::Array(element) | Type::Record(element) => Some(element.as_ref()),
                     dynamic @ Type::TypeParameter("$js") => Some(dynamic),
-                    // An internal class declares its flattened fields.
-                    Type::Class(name) => {
-                        TypeQueryAdmission::new(budget).work(program.classes.len() + 1)?;
-                        program
-                            .class(name)
-                            .filter(|class| !class.external)
-                            .and_then(|class| class.fields.iter().find(|(field, _)| *field == key))
-                            .map(|(_, ty)| &program.types[ty.index()])
-                    }
+                    _ => None,
+                };
+                (ty, own, true)
+            }
+            Place::ClassField { receiver, field } => {
+                let (Type::Class(declaration) | Type::ClassInstance { declaration, .. }) =
+                    value_type(receiver)?
+                else {
+                    return Err("class field of a non-class receiver".into());
+                };
+                let class = program
+                    .class(declaration.identity)
+                    .ok_or("class field of an undeclared class")?;
+                // The field belongs to the receiver's class or one of its
+                // bases, and its slot names the same field in both layouts.
+                let mut current = Some(declaration.identity);
+                while current.is_some_and(|class| class != field.nominal) {
+                    TypeQueryAdmission::new(budget).work(1)?;
+                    current = current
+                        .and_then(|class| program.class(class))
+                        .and_then(|class| class.base);
+                }
+                if current.is_none() {
+                    return Err("class field outside its receiver's class chain".into());
+                }
+                let declared = program
+                    .class_field(field)
+                    .ok_or("class field slot outside its class")?;
+                let &(key, declared_ty) = class
+                    .fields
+                    .get(field.slot as usize)
+                    .ok_or("class field slot outside the receiver's class")?;
+                if key != declared.0 {
+                    return Err("class field slot disagrees with its declaring class".into());
+                }
+                // An internal, non-generic class declares its field's type.
+                let ty = match value_type(receiver)? {
+                    Type::Class(_) if !class.external => Some(&program.types[declared_ty.index()]),
                     _ => None,
                 };
                 (ty, own, true)
@@ -260,12 +289,18 @@ fn verify_tables(
     let mut named_functions = budget.filled(Scratch, program.units.len(), 0usize)?;
     let mut scope = budget.scope();
     let budget = &mut scope;
-    let mut enum_names = budget.vector(Scratch, program.enums.len())?;
-    let mut enum_name_work = 1;
+    // Nominal tables are keyed by identity, in identity order. Spellings are
+    // display data: two modules may each declare an enum or class of one name.
+    let mut previous_enum = None;
     work(budget, program.enums.len())?;
     for definition in program.enums.iter() {
-        enum_names.push(definition.name.as_str());
-        enum_name_work = enum_name_work.max(definition.name.len().saturating_add(1));
+        if !definition.identity.is_enum()
+            || previous_enum
+                .replace(definition.identity)
+                .is_some_and(|previous| previous >= definition.identity)
+        {
+            return fail("enum definitions are not in identity order");
+        }
         let mut variants = budget.scope();
         let mut names = variants.vector(Scratch, definition.variants.len())?;
         let mut values = variants.vector(Scratch, definition.variants.len())?;
@@ -282,8 +317,39 @@ fn verify_tables(
             return fail("duplicate enum variant");
         }
     }
-    if !scratch::unique(&mut enum_names, budget, enum_name_work, Ord::cmp)? {
-        return fail("duplicate enum declaration");
+    let mut previous_class = None;
+    work(budget, program.classes.len())?;
+    for definition in program.classes.iter() {
+        if !definition.identity.is_class()
+            || previous_class
+                .replace(definition.identity)
+                .is_some_and(|previous| previous >= definition.identity)
+            || definition.module.index() >= program.modules.len()
+        {
+            return fail("class definitions are not in identity order");
+        }
+        if let Some(base) = definition.base {
+            let Some(base) = program.class(base) else {
+                return fail("class extends an undeclared class");
+            };
+            // A base's fields lead the derived class's flattened layout.
+            if base.fields.len() > definition.fields.len()
+                || base
+                    .fields
+                    .iter()
+                    .zip(&definition.fields)
+                    .any(|((base, _), (own, _))| base != own)
+                || (definition.external && !base.external)
+            {
+                return fail("class layout disagrees with its base");
+            }
+        }
+        work(budget, definition.fields.len())?;
+        for &(key, ty) in &definition.fields {
+            if key.index() >= program.strings.len() || ty.index() >= program.types.len() {
+                return fail("invalid class field");
+            }
+        }
     }
     work(budget, program.cells.len())?;
     let checked_cells = program
@@ -298,9 +364,13 @@ fn verify_tables(
         let identity = if index < checked_cells {
             !cell.synthetic && cell.source_symbol.0 as usize == index
         } else {
+            // A synthetic parameter is an implicit constructor's instance.
             cell.synthetic
                 && (cell.source_symbol.0 as usize) < checked_cells
-                && matches!(cell.binding, CellBinding::Local | CellBinding::Function(_))
+                && matches!(
+                    cell.binding,
+                    CellBinding::Local | CellBinding::Function(_) | CellBinding::Parameter(0)
+                )
         };
         if !identity
             || cell.ty.index() >= program.types.len()
@@ -371,7 +441,7 @@ fn verify_tables(
         let Some(members) = program.fields.get(definition.fields.clone()) else {
             return fail("invalid nominal field range");
         };
-        if definition.identity.is_class()
+        if !definition.identity.is_struct()
             || definition.identity.index() != definition_index
             || definition.module.index() >= program.modules.len()
             || definition.span.start > definition.span.end
@@ -738,6 +808,7 @@ fn verify_units(
                                 }
                                 Ok(())
                             }
+                            Place::ClassField { receiver, .. } => check_value(receiver),
                             Place::Index { receiver, key } => {
                                 check_value(receiver)?;
                                 check_value(key)
@@ -793,7 +864,10 @@ fn verify_units(
                             if !checkable
                                 || !matches!(
                                     unit.places[checked.root.index()],
-                                    Place::Cell(_) | Place::Member { .. } | Place::Index { .. }
+                                    Place::Cell(_)
+                                        | Place::Member { .. }
+                                        | Place::ClassField { .. }
+                                        | Place::Index { .. }
                                 )
                                 || !checked.writable
                             {
@@ -1032,7 +1106,7 @@ fn verify_units(
                         }
                         OperationKind::ConstructClass => (None, true),
                         OperationKind::SuperConstruct => {
-                            if unit.host_class.is_none() {
+                            if unit.constructor_of.is_none() {
                                 return fail(
                                     "super construction outside a host-derived constructor",
                                 );
@@ -1172,7 +1246,7 @@ pub(super) fn validate_nominal_type(
     let definition = structs
         .get(declaration.identity.index())
         .filter(|definition| {
-            !declaration.identity.is_class() && definition.identity == declaration.identity
+            declaration.identity.is_struct() && definition.identity == declaration.identity
         })
         .ok_or("dangling canonical nominal type identity")?;
     if declaration.name != definition.name {
@@ -1190,8 +1264,8 @@ pub(super) fn validate_interface_target(
 ) -> Result<(), &'static str> {
     match target {
         InterfaceTarget::Value(cell) if cell.index() < program.cells.len() => Ok(()),
-        InterfaceTarget::Struct(identity)
-            if !identity.is_class()
+        InterfaceTarget::Type(identity)
+            if identity.is_struct()
                 && program
                     .structs
                     .get(identity.index())
@@ -1202,8 +1276,16 @@ pub(super) fn validate_interface_target(
         {
             Ok(())
         }
+        InterfaceTarget::Type(identity)
+            if program
+                .class(identity)
+                .is_some_and(|definition| definition.module.index() < program.modules.len())
+                || program.enum_definition(identity).is_some() =>
+        {
+            Ok(())
+        }
         InterfaceTarget::Value(_) => Err("dangling export binding"),
-        InterfaceTarget::Struct(_) => Err("dangling canonical type export"),
+        InterfaceTarget::Type(_) => Err("dangling canonical type export"),
     }
 }
 
@@ -1250,7 +1332,12 @@ fn verify_modules(
             {
                 return Err("overlapping module export ranges".into());
             }
-            exports.push((id, export.name.as_str(), export.target));
+            exports.push((
+                id,
+                export.name.as_str(),
+                matches!(export.target, InterfaceTarget::Value(_)),
+                export.target,
+            ));
             export_name_work = export_name_work.max(export.name.len().saturating_add(2));
             validate_interface_target(program, export.target)?;
         }
@@ -1275,8 +1362,9 @@ fn verify_modules(
             }
         }
     }
+    // One name may export a class's type and its constructor value.
     if !scratch::unique(&mut exports, budget, export_name_work, |left, right| {
-        (left.0, left.1).cmp(&(right.0, right.1))
+        (left.0, left.1, left.2).cmp(&(right.0, right.1, right.2))
     })? {
         return Err("duplicate public export within a module".into());
     }
@@ -1321,15 +1409,19 @@ fn verify_modules(
             let dependency = scratch::find(&dependencies, budget, |row, budget| {
                 scratch::scalar(row, &(id, import.module), budget)
             })?;
+            let value = matches!(import.target, InterfaceTarget::Value(_));
             let export = scratch::find(&exports, budget, |row, budget| {
                 let module = scratch::scalar(&row.0, &import.module, budget)?;
-                if module == Ordering::Equal {
-                    scratch::text(row.1, &import.name, budget)
-                } else {
-                    Ok(module)
+                if module != Ordering::Equal {
+                    return Ok(module);
                 }
+                let name = scratch::text(row.1, &import.name, budget)?;
+                if name != Ordering::Equal {
+                    return Ok(name);
+                }
+                scratch::scalar(&row.2, &value, budget)
             })?;
-            if dependency.is_none() || export.map(|row| row.2) != Some(import.target) {
+            if dependency.is_none() || export.map(|row| row.3) != Some(import.target) {
                 return Err("module import does not name its dependency's canonical export".into());
             }
         }
@@ -1512,26 +1604,15 @@ fn verify_types(
         OperationKind::Constant(constant) => {
             let literal_type = match constant {
                 Constant::Integer(value) if matches!(result, Some(Type::Enum(_))) => {
-                    let Some(Type::Enum(name)) = result else {
+                    let Some(Type::Enum(declaration)) = result else {
                         unreachable!()
                     };
-                    // Enum identity is still name-owned. Pay this actual query,
-                    // including compared name bytes, without building an index.
-                    for definition in program.enums.iter() {
-                        query.work(
-                            definition
-                                .name
-                                .len()
-                                .min(name.len())
-                                .checked_add(1)
-                                .ok_or(AllocationError::Capacity)?,
-                        )?;
-                        if definition.name == *name {
-                            for variant in &definition.variants {
-                                query.work(1)?;
-                                if variant.value == *value {
-                                    return Ok(());
-                                }
+                    query.work(1)?;
+                    if let Some(definition) = program.enum_definition(declaration.identity) {
+                        for variant in &definition.variants {
+                            query.work(1)?;
+                            if variant.value == *value {
+                                return Ok(());
                             }
                         }
                     }
@@ -1715,14 +1796,14 @@ fn verify_types(
         )),
         // A host-derived class's own constructor, with every parameter.
         OperationKind::ConstructClass => {
-            let Some(Type::Class(name) | Type::ClassInstance { name, .. }) = result else {
+            let Some(Type::Class(declaration) | Type::ClassInstance { declaration, .. }) = result
+            else {
                 return Err(error());
             };
-            query.work(program.classes.len())?;
-            let class = program
-                .classes
-                .iter()
-                .position(|class| class.name == *name)
+            query.work(1)?;
+            let class = declaration.identity;
+            program
+                .class(class)
                 .ok_or("construction of an unknown class")?;
             let parameters = host_constructor_parameters(program, class, &mut query)?
                 .ok_or("construction of a class without a host constructor")?;
@@ -1733,45 +1814,36 @@ fn verify_types(
             if !matches!(value_type(constructor), Type::Function(_)) {
                 return Err(error());
             }
-            expect(
-                arguments.len() == parameters.len() && {
-                    let mut all = true;
-                    for (&operand, expected) in arguments.iter().zip(parameters) {
-                        all &=
-                            class_assignable(program, expected, value_type(operand), &mut query)?;
-                    }
-                    all
-                },
-            )
+            expect(constructor_arguments(
+                program,
+                arguments,
+                &parameters,
+                &mut query,
+                value_type,
+            )?)
         }
         // The base constructor of this constructor's class.
         OperationKind::SuperConstruct => {
-            let class =
-                unit.host_class
-                    .ok_or("super construction outside a constructor")? as usize;
+            let class = unit
+                .constructor_of
+                .ok_or("super construction outside a constructor")?;
             let base = program
-                .classes
-                .get(class)
-                .and_then(|class| class.base.as_deref())
+                .class(class)
+                .and_then(|class| class.base)
                 .ok_or("super construction without a base class")?;
-            query.work(program.classes.len())?;
-            let base = program
-                .classes
-                .iter()
-                .position(|class| class.name == base)
+            query.work(1)?;
+            program
+                .class(base)
                 .ok_or("super construction of an unknown base")?;
             let parameters = host_constructor_parameters(program, base, &mut query)?
                 .ok_or("super construction of a base without a constructor")?;
-            expect(
-                operands.len() == parameters.len() && {
-                    let mut all = true;
-                    for (&operand, expected) in operands.iter().zip(parameters) {
-                        all &=
-                            class_assignable(program, expected, value_type(operand), &mut query)?;
-                    }
-                    all
-                },
-            )
+            expect(constructor_arguments(
+                program,
+                operands,
+                &parameters,
+                &mut query,
+                value_type,
+            )?)
         }
         OperationKind::Yield { delegate } => {
             let signature =
@@ -1872,20 +1944,22 @@ fn verify_types(
                 }
                 Ok(())
             }
-            // A JS object literal, or an internal class instance holding
+            // A JS object literal.
+            AllocationKind::Object(_) => expect(matches!(result, Some(Type::TypeParameter("$js")))),
+            // An internal class instance of its result's class, holding
             // exactly its declared fields in order.
-            AllocationKind::Object(keys) => expect(match result {
-                Some(Type::TypeParameter("$js")) => true,
-                Some(Type::Class(name) | Type::ClassInstance { name, .. }) => {
-                    program.class(name).is_some_and(|class| {
-                        !class.external
-                            && class.fields.len() == keys.len()
-                            && class
-                                .fields
-                                .iter()
-                                .zip(keys)
-                                .all(|((key, _), actual)| key == actual)
-                    })
+            AllocationKind::Instance { class, keys } => expect(match result {
+                Some(Type::Class(declaration) | Type::ClassInstance { declaration, .. }) => {
+                    declaration.identity == *class
+                        && program.class(*class).is_some_and(|class| {
+                            !class.external
+                                && class.fields.len() == keys.len()
+                                && class
+                                    .fields
+                                    .iter()
+                                    .zip(keys)
+                                    .all(|((key, _), actual)| key == actual)
+                        })
                 }
                 _ => false,
             }),
@@ -2401,19 +2475,22 @@ fn materialized_default(
             },
         ) => true,
         (
-            DefaultValue::Struct { .. },
+            DefaultValue::Struct { declaration, .. },
             OperationKind::Allocate {
-                kind: AllocationKind::Struct(_),
+                kind: AllocationKind::Struct(identity),
                 ..
             },
         )
         | (
-            DefaultValue::NewClass { .. },
+            DefaultValue::NewClass { declaration, .. },
             OperationKind::Allocate {
-                kind: AllocationKind::Object(_),
+                kind:
+                    AllocationKind::Instance {
+                        class: identity, ..
+                    },
                 ..
             },
-        ) => true,
+        ) => declaration.identity == *identity,
         _ => false,
     }
 }
@@ -2424,49 +2501,77 @@ fn materialized_default(
 /// The parameters of a class's JavaScript constructor: an extern class's
 /// declared host constructor, or a host-derived class's constructor unit
 /// without its instance parameter.
+/// A constructor's operands: every parameter supplied in order, except
+/// trailing ones the constructor builds itself.
+fn constructor_arguments<'program, 'src>(
+    program: &'program Program<'src>,
+    arguments: &[ValueId],
+    parameters: &[(&'program Type<'src>, bool)],
+    query: &mut TypeQueryAdmission<'_, '_>,
+    value_type: impl Fn(ValueId) -> &'program Type<'src>,
+) -> Result<bool, AllocationError> {
+    if arguments.len() > parameters.len()
+        || parameters[arguments.len()..]
+            .iter()
+            .any(|(_, omittable)| !omittable)
+    {
+        return Ok(false);
+    }
+    for (&operand, (expected, _)) in arguments.iter().zip(parameters) {
+        if !class_assignable(program, expected, value_type(operand), query)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 fn host_constructor_parameters<'program, 'src>(
     program: &'program Program<'src>,
-    class: usize,
+    class: NominalId,
     query: &mut TypeQueryAdmission<'_, '_>,
-) -> Result<Option<Vec<&'program Type<'src>>>, AllocationError> {
-    let definition = &program.classes[class];
-    let signature = if definition.external {
+) -> Result<Option<Vec<(&'program Type<'src>, bool)>>, AllocationError> {
+    let Some(definition) = program.class(class) else {
+        return Ok(None);
+    };
+    query.work(1)?;
+    let (signature, receiver) = if definition.external {
         match definition.constructor.map(|ty| &program.types[ty.index()]) {
-            Some(Type::Function(signature)) => {
-                return Ok(Some(
-                    signature
-                        .params
-                        .iter()
-                        .map(|parameter| &parameter.ty)
-                        .collect(),
-                ))
-            }
+            Some(Type::Function(signature)) => (signature, 0),
             _ => return Ok(None),
         }
     } else {
-        query.work(program.units.len())?;
-        let Some(unit) = program
-            .units
-            .iter()
-            .find(|unit| unit.data().host_class == Some(class as u32))
+        // A kept class's constructor unit is its value cell's function.
+        let Some(unit) = definition
+            .value
+            .and_then(|cell| match program.cells.get(cell.index())?.binding {
+                CellBinding::Function(unit) => program.unit(unit),
+                _ => None,
+            })
+            .filter(|unit| unit.constructor_of == Some(class))
         else {
             return Ok(None);
         };
-        match unit
-            .data()
-            .callable_type
-            .map(|ty| &program.types[ty.index()])
-        {
-            Some(Type::Function(signature)) => signature,
+        match unit.callable_type.map(|ty| &program.types[ty.index()]) {
+            Some(Type::Function(signature)) => (signature, 1),
             _ => return Ok(None),
         }
     };
+    // An internal constructor builds an omitted trailing arrow default itself.
     Ok(Some(
         signature
             .params
             .iter()
-            .skip(1)
-            .map(|parameter| &parameter.ty)
+            .skip(receiver)
+            .map(|parameter| {
+                (
+                    &parameter.ty,
+                    receiver == 1
+                        && matches!(
+                            parameter.default,
+                            Some(crate::check::DefaultValue::Arrow(_))
+                        ),
+                )
+            })
             .collect(),
     ))
 }
@@ -2526,18 +2631,18 @@ fn class_assignable(
         ) if matches!(expected, Type::ClassInstance { .. })
             || matches!(actual, Type::ClassInstance { .. }) =>
         {
-            let (target, target_args): (&str, &[Type<'_>]) = match expected {
-                Type::ClassInstance { name, args } => (name, args),
-                Type::Class(name) => (name, &[]),
+            let (target, target_args): (NominalId, &[Type<'_>]) = match expected {
+                Type::ClassInstance { declaration, args } => (declaration.identity, args),
+                Type::Class(declaration) => (declaration.identity, &[]),
                 _ => unreachable!(),
             };
-            let (mut current, mut args): (&str, Vec<Type<'_>>) = match actual {
-                Type::ClassInstance { name, args } => (name, args.clone()),
-                Type::Class(name) => (name, Vec::new()),
+            let (mut current, mut args): (NominalId, Vec<Type<'_>>) = match actual {
+                Type::ClassInstance { declaration, args } => (declaration.identity, args.clone()),
+                Type::Class(declaration) => (declaration.identity, Vec::new()),
                 _ => unreachable!(),
             };
             loop {
-                query.work(program.classes.len())?;
+                query.work(1)?;
                 if current == target {
                     if args.len() != target_args.len() {
                         break false;
@@ -2551,7 +2656,7 @@ fn class_assignable(
                 let Some(class) = program.class(current) else {
                     break false;
                 };
-                let Some(base) = class.base.as_deref() else {
+                let Some(base) = class.base else {
                     break false;
                 };
                 let mut next = Vec::with_capacity(class.base_arguments.len());
@@ -2575,16 +2680,13 @@ fn class_assignable(
         }
         (Type::Class(expected), Type::Class(actual)) => {
             // Conversion admits only non-generic inheritance.
-            let mut current: &str = actual;
+            let mut current = actual.identity;
             loop {
-                query.work(program.classes.len())?;
-                let Some(base) = program
-                    .class(current)
-                    .and_then(|class| class.base.as_deref())
-                else {
+                query.work(1)?;
+                let Some(base) = program.class(current).and_then(|class| class.base) else {
                     break false;
                 };
-                if base == *expected {
+                if base == expected.identity {
                     break true;
                 }
                 current = base;

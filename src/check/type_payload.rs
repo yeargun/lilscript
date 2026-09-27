@@ -107,21 +107,20 @@ pub(crate) fn measure_payload<'a, 'src, E>(
         while let Some(node) = next.take().or_else(|| pending.pop()) {
             records(&mut measured, &mut scope, 1)?;
             match node {
-                Payload::Type(
-                    Type::Enum(name)
-                    | Type::Class(name)
-                    | Type::TypeParameter(name)
-                    | Type::ClassInstance { name, .. },
-                )
-                | Payload::Default(
-                    DefaultValue::String(name)
-                    | DefaultValue::Struct { name, .. }
-                    | DefaultValue::NewClass { name, .. },
-                ) => {
+                Payload::Type(Type::TypeParameter(name))
+                | Payload::Default(DefaultValue::String(name)) => {
                     text(&mut measured, &mut scope, name)?;
                 }
                 Payload::Type(
-                    Type::Struct(declaration) | Type::StructInstance { declaration, .. },
+                    Type::Enum(declaration)
+                    | Type::Class(declaration)
+                    | Type::ClassInstance { declaration, .. }
+                    | Type::Struct(declaration)
+                    | Type::StructInstance { declaration, .. },
+                )
+                | Payload::Default(
+                    DefaultValue::Struct { declaration, .. }
+                    | DefaultValue::NewClass { declaration, .. },
                 ) => {
                     text(&mut measured, &mut scope, declaration.name)?;
                 }

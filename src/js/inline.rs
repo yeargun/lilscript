@@ -787,7 +787,7 @@ impl Module {
                     if let Expr::Binding(binding) = expression {
                         references.push((*binding, owner));
                     }
-                    if let Some(function) = expression.created_function() {
+                    for function in expression.created_functions() {
                         for parameter in &self.functions[function.index()].parameters {
                             declared[parameter.index()] = Some(Some(function));
                             reach.parameters[parameter.index()] = true;
@@ -851,7 +851,7 @@ impl Module {
                     if !expanded {
                         pending.push((id, true));
                         let expression = &old[id.index()];
-                        if let Some(function) = expression.created_function() {
+                        for function in expression.created_functions() {
                             regions.push(self.functions[function.index()].body);
                         }
                         let _ = expression.visit_children(|child| {

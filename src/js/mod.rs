@@ -245,14 +245,17 @@ pub enum Expr {
     /// converted between a data property and the prototype-setting syntax.
     Object(Vec<(Property, ExprId)>),
     Function(FunctionId),
-    /// `class name extends base { constructor(...) {...} }` as a value: a
-    /// real subclass of a host constructor. `name` is the class's observable
+    /// `class name [extends base] { constructor(...) {...} method(...) {...} }`
+    /// as a value: a class whose identity is observed (published, or a
+    /// subclass of a host constructor). `name` is the class's observable
     /// `name`, independent of whichever binding holds it. Evaluating it reads
-    /// `base`, which throws unless it is a constructor.
+    /// `base`, which throws unless it is a constructor. The methods are
+    /// non-enumerable prototype methods, in order.
     Class {
         name: String,
-        base: ExprId,
+        base: Option<ExprId>,
         constructor: FunctionId,
+        methods: Vec<(String, FunctionId)>,
     },
     /// `super(arguments)`, only in a class constructor: runs the base
     /// constructor, after which `this` is the new instance.
@@ -292,17 +295,25 @@ pub enum Expr {
 }
 
 impl Expr {
-    /// The function this expression creates: a function value, or the
-    /// constructor of a class value.
-    pub(crate) fn created_function(&self) -> Option<FunctionId> {
-        match *self {
-            Self::Function(function)
-            | Self::Class {
-                constructor: function,
+    /// The functions this expression creates, each once: a function value,
+    /// or a class value's constructor and methods.
+    pub(crate) fn created_functions(&self) -> impl Iterator<Item = FunctionId> + '_ {
+        let (first, methods) = match self {
+            Self::Function(function) => (Some(*function), &[][..]),
+            Self::Class {
+                constructor,
+                methods,
                 ..
-            } => Some(function),
-            _ => None,
-        }
+            } => (Some(*constructor), methods.as_slice()),
+            _ => (None, &[][..]),
+        };
+        first
+            .into_iter()
+            .chain(methods.iter().map(|(_, function)| *function))
+    }
+    /// Whether this expression creates a function (see `created_functions`).
+    pub(crate) fn creates_function(&self) -> bool {
+        matches!(self, Self::Function(_) | Self::Class { .. })
     }
     pub(super) fn remap_children(&mut self, mut map: impl FnMut(ExprId) -> ExprId) {
         let property = |key: &mut Property, map: &mut dyn FnMut(ExprId) -> ExprId| {
@@ -354,7 +365,11 @@ impl Expr {
                     *value = map(*value);
                 }
             }
-            Self::Class { base, .. } => *base = map(*base),
+            Self::Class { base, .. } => {
+                if let Some(base) = base {
+                    *base = map(*base);
+                }
+            }
             Self::SuperCall { arguments } => {
                 for value in arguments {
                     *value = map(*value);
@@ -452,7 +467,11 @@ impl Expr {
                     visit(*argument)?;
                 }
             }
-            Self::Class { base, .. } => visit(*base)?,
+            Self::Class { base, .. } => {
+                if let Some(base) = base {
+                    visit(*base)?;
+                }
+            }
             Self::SuperCall { arguments } => {
                 for argument in arguments {
                     visit(*argument)?;
@@ -1463,7 +1482,7 @@ impl Module {
                         }
                     }
                     let expression = &self.expressions[id.index()];
-                    if let Some(function) = expression.created_function() {
+                    for function in expression.created_functions() {
                         regions.push(self.functions[function.index()].body);
                     }
                     match *expression {
@@ -1784,7 +1803,7 @@ impl Module {
         let mut pending = vec![root];
         while let Some(id) = pending.pop() {
             let expression = &self.expressions[id.index()];
-            if expression.created_function().is_some() {
+            if expression.creates_function() {
                 return true;
             }
             let _ = expression.visit_children(|child| {
@@ -2256,7 +2275,7 @@ impl Module {
                 if let Expr::Binding(binding) = expression {
                     visit(*binding);
                 }
-                if let Some(function) = expression.created_function() {
+                for function in expression.created_functions() {
                     regions.push(self.functions[function.index()].body);
                 }
                 let _ = expression.visit_children(|child| {
@@ -2309,7 +2328,7 @@ impl Module {
                     }
                     _ => {}
                 }
-                if let Some(function) = expression.created_function() {
+                for function in expression.created_functions() {
                     regions.push(self.functions[function.index()].body);
                 }
                 let _ = expression.visit_children(|child| {
@@ -2586,7 +2605,7 @@ impl Module {
                     while let Some(id) = pending.pop() {
                         budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
                         let expression = &self.expressions[id.index()];
-                        if let Some(function) = expression.created_function() {
+                        for function in expression.created_functions() {
                             bodies.push(self.functions[function.index()].body);
                         }
                         let _ = expression.visit_children(|child| {
@@ -2924,7 +2943,7 @@ impl Module {
                 while let Some((id, at)) = expressions.pop() {
                     budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
                     let expression = &self.expressions[id.index()];
-                    if let Some(function) = expression.created_function() {
+                    for function in expression.created_functions() {
                         regions.push((self.functions[function.index()].body, at + 2));
                     }
                     let _ = expression.visit_children(|child| {
@@ -2947,7 +2966,7 @@ impl Module {
             if let Some((id, at)) = expressions.pop() {
                 deepest = deepest.max(at);
                 let expression = &self.expressions[id.index()];
-                if let Some(function) = expression.created_function() {
+                for function in expression.created_functions() {
                     regions.push((self.functions[function.index()].body, at + 2));
                 }
                 let _ = expression.visit_children(|child| {
@@ -3056,7 +3075,7 @@ impl Module {
                     (Property::Computed(key), _) => *key,
                     (Property::Named(_), value) => *value,
                 },
-                Expr::Class { base, .. } => *base,
+                Expr::Class { base, .. } => (*base)?,
                 _ => return None,
             };
             parent = Leaf::Child(current);
@@ -3096,7 +3115,7 @@ impl Module {
                     {
                         return true;
                     }
-                    if let Some(function) = expression.created_function() {
+                    for function in expression.created_functions() {
                         stack.push(Node::Region(self.functions[function.index()].body, true));
                     }
                     let _ = expression.visit_children(|child| {

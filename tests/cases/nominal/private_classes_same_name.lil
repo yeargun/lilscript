@@ -1,0 +1,20 @@
+// Two modules each declare a private `class Node` and a private
+// `enum Kind`; the entry declares a third `Node`. Each name is scoped to its
+// module (docs/language-v0.1.md, Modules), so the three classes are three
+// identities with their own fields and methods, used together here.
+import { lexTotal, lexLabel } from "./private_classes_same_name/lexer";
+import { parseDepth, parseLabel } from "./private_classes_same_name/parser";
+
+class Node {
+  string text;
+  init(string text) { this.text = text; }
+  string shout() { return this.text + "!"; }
+}
+
+Node local = new Node("entry");
+print(local.shout());
+print(lexTotal([3, 4, 5]));
+print(lexLabel(2));
+print(parseDepth(4));
+print(parseLabel(1));
+print(local.text);

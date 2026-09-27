@@ -236,7 +236,11 @@ fn read_only_array(
     // Places hold the array only as an element receiver of those reads.
     for place in &data.places {
         match *place {
-            Place::Member { receiver, .. } if loads(receiver) => return Ok(false),
+            Place::Member { receiver, .. } | Place::ClassField { receiver, .. }
+                if loads(receiver) =>
+            {
+                return Ok(false)
+            }
             Place::Value(value) if loads(value) => return Ok(false),
             _ => {}
         }

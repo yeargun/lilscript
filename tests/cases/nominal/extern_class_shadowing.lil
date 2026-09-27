@@ -1,0 +1,18 @@
+// `Node` names a host (extern) class in two modules and an internal class in
+// the entry. Each declaration is its module's own identity: the host objects
+// keep their host property names, the internal class dissolves.
+import { hostNode, hostName } from "./extern_class_shadowing/dom";
+import { otherName } from "./extern_class_shadowing/other";
+
+class Node {
+  int depth;
+  init(int depth) { this.depth = depth; }
+}
+
+auto host = hostNode("div");
+Node node = new Node(3);
+print(hostName(host));
+print(otherName("span"));
+print(node.depth);
+host.nodeName = "p";
+print(host.nodeName);

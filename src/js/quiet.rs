@@ -171,7 +171,7 @@ impl Module {
                 if let Some(id) = expressions.pop() {
                     budget.work(Analysis, 1)?;
                     let expression = &self.expressions[id.index()];
-                    if let Some(function) = expression.created_function() {
+                    for function in expression.created_functions() {
                         created[function.index()] = Some(moment);
                         regions.push(self.functions[function.index()].body);
                     }
@@ -357,7 +357,7 @@ impl Module {
                         None => Owner::Root(index),
                     });
                     let expression = &self.expressions[id.index()];
-                    if let Some(created) = expression.created_function() {
+                    for created in expression.created_functions() {
                         regions.push((self.functions[created.index()].body, Some(created), index));
                     }
                     let _ = expression.visit_children(|child| {
@@ -432,7 +432,7 @@ impl Module {
                     assigns.push(assigned);
                 }
             }
-            if expression.created_function().is_none() {
+            if !expression.creates_function() {
                 let _ = expression.visit_children(|child| {
                     pending.push(child);
                     Ok::<_, ()>(())
@@ -787,7 +787,7 @@ impl Module {
             if !reads {
                 return Ok(false);
             }
-            if expression.created_function().is_none() {
+            if !expression.creates_function() {
                 let _ = expression.visit_children(|child| {
                     pending.push(child);
                     Ok::<_, ()>(())

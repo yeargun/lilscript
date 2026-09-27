@@ -3191,7 +3191,10 @@ fn plan_patch(
             return Err(PublicationError::Capacity);
         }
         if let OperationKind::Allocate {
-            kind: AllocationKind::Record(keys) | AllocationKind::Object(keys),
+            kind:
+                AllocationKind::Record(keys)
+                | AllocationKind::Object(keys)
+                | AllocationKind::Instance { keys, .. },
             ..
         } = kind
         {
@@ -3261,7 +3264,7 @@ fn table_bytes(
             workspace.work(program.structs.len())?;
             total = sum(&[total, capacity(&program.structs)?])?;
             for (index, definition) in program.structs.iter().enumerate() {
-                if definition.identity.is_class()
+                if !definition.identity.is_struct()
                     || definition.identity.index() != index
                     || definition.module.index() >= program.modules.len()
                     || definition.span.start > definition.span.end
@@ -3368,10 +3371,10 @@ fn table_bytes(
                 total = sum(&[
                     total,
                     class.name.capacity() as u64,
-                    class.base.as_ref().map_or(0, |base| base.capacity() as u64),
                     capacity(&class.fields)?,
                     capacity(&class.type_params)?,
                     capacity(&class.base_arguments)?,
+                    capacity(&class.prototype)?,
                 ])?;
                 for parameter in &class.type_params {
                     total = sum(&[total, parameter.capacity() as u64])?;

@@ -231,7 +231,9 @@ pub(super) fn plan(
             projected = true;
         }
         let (receiver, key) = match data.places[root.index()] {
-            Place::Member { receiver, .. } if projected => (receiver, None),
+            Place::Member { receiver, .. } | Place::ClassField { receiver, .. } if projected => {
+                (receiver, None)
+            }
             Place::Index { receiver, key } if projected => (receiver, Some(key)),
             _ => continue,
         };

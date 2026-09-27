@@ -121,7 +121,8 @@ pub enum BuiltinCall {
 pub enum Type<'src> {
     Int,
     Float,
-    Enum(&'src str),
+    /// An enum by its checked identity; the spelling is display data.
+    Enum(NominalType<'src>),
     String,
     Bool,
     Null,
@@ -150,13 +151,14 @@ pub enum Type<'src> {
     Nullable(Box<Type<'src>>),
     Union(Vec<Type<'src>>),
     Struct(StructType<'src>),
-    Class(&'src str),
+    /// A class or extern class by its checked identity.
+    Class(NominalType<'src>),
     StructInstance {
         declaration: StructType<'src>,
         args: Vec<Type<'src>>,
     },
     ClassInstance {
-        name: &'src str,
+        declaration: NominalType<'src>,
         args: Vec<Type<'src>>,
     },
     TypeParameter(&'src str),
@@ -258,7 +260,7 @@ impl fmt::Display for Type<'_> {
         match self {
             Self::Int => f.write_str("int"),
             Self::Float => f.write_str("float"),
-            Self::Enum(name) => f.write_str(name),
+            Self::Enum(declaration) => f.write_str(declaration.name),
             Self::String => f.write_str("string"),
             Self::Bool => f.write_str("bool"),
             Self::Null => f.write_str("null"),
@@ -300,13 +302,15 @@ impl fmt::Display for Type<'_> {
                 }
                 Ok(())
             }
-            Self::Struct(declaration) => f.write_str(declaration.name),
-            Self::Class(name) => f.write_str(name),
+            Self::Struct(declaration) | Self::Class(declaration) => f.write_str(declaration.name),
             Self::StructInstance {
-                declaration: StructType { name, .. },
+                declaration: NominalType { name, .. },
                 args,
             }
-            | Self::ClassInstance { name, args } => {
+            | Self::ClassInstance {
+                declaration: NominalType { name, .. },
+                args,
+            } => {
                 write!(f, "{name}<")?;
                 for (index, argument) in args.iter().enumerate() {
                     if index != 0 {
@@ -466,12 +470,17 @@ pub enum DefaultValue<'src> {
     },
     Array(Vec<DefaultValue<'src>>),
     Arrow(SourceNodeId),
+    /// A struct literal default, by the identity its declaring scope
+    /// resolved; the spelling is display data.
     Struct {
-        name: &'src str,
+        declaration: NominalType<'src>,
         values: Vec<DefaultValue<'src>>,
     },
+    /// A `new C(...)` default, by the class identity its declaring scope
+    /// resolved. A caller in another module constructs that class, whatever
+    /// its own scope names `C`.
     NewClass {
-        name: &'src str,
+        declaration: NominalType<'src>,
         args: Vec<DefaultValue<'src>>,
     },
 }
@@ -482,46 +491,110 @@ pub struct GenericFunctionType<'src> {
     pub signature: FunctionType<'src>,
 }
 
-/// A program-local declaration handle. The two existing nominal registries
-/// own their definitions; the low tag distinguishes their indexed namespaces.
-/// No source spelling or diagnostic span is needed to dereference this handle.
+/// The registry a nominal declaration belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NominalKind {
+    Struct,
+    /// A class, an extern class or an `object`.
+    Class,
+    Enum,
+}
+
+/// A program-local declaration handle for every nominal kind. Each kind's
+/// registry owns its definitions; the low two bits tag the registry. No
+/// source spelling or diagnostic span is needed to dereference this handle,
+/// and two modules' private declarations of one name are two identities
+/// (Closure keys its type table by scope and compares resolved nominal
+/// types by reference; esbuild and Rolldown key symbols by source index).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct NominalId(std::num::NonZeroU32);
 
 impl NominalId {
-    fn new(index: usize, class: bool) -> Self {
+    pub(crate) fn new(index: usize, kind: NominalKind) -> Self {
+        let tag = match kind {
+            NominalKind::Struct => 0,
+            NominalKind::Class => 1,
+            NominalKind::Enum => 2,
+        };
         let encoded = u32::try_from(index)
             .ok()
-            .and_then(|index| index.checked_mul(2))
-            .and_then(|index| index.checked_add(1 + u32::from(class)))
+            .and_then(|index| index.checked_mul(4))
+            .and_then(|index| index.checked_add(1 + tag))
             .and_then(std::num::NonZeroU32::new)
             .expect("nominal declaration capacity exceeded");
         Self(encoded)
     }
 
+    /// The index in this identity's own registry.
     pub(crate) fn index(self) -> usize {
-        ((self.0.get() - 1) / 2) as usize
+        ((self.0.get() - 1) / 4) as usize
+    }
+    pub fn kind(self) -> NominalKind {
+        match (self.0.get() - 1) & 3 {
+            0 => NominalKind::Struct,
+            1 => NominalKind::Class,
+            _ => NominalKind::Enum,
+        }
+    }
+    pub fn is_struct(self) -> bool {
+        self.kind() == NominalKind::Struct
     }
     pub fn is_class(self) -> bool {
-        (self.0.get() - 1) & 1 != 0
+        self.kind() == NominalKind::Class
+    }
+    pub fn is_enum(self) -> bool {
+        self.kind() == NominalKind::Enum
     }
 }
 
 /// A canonical declaration reference within one checked declaration owner.
-/// The spelling is diagnostic metadata; aliases never change identity.
+/// The spelling is diagnostic and display metadata; aliases never change
+/// identity, and equal spellings never merge two identities.
 #[derive(Debug, Clone, Copy)]
-pub struct StructType<'src> {
+pub struct NominalType<'src> {
     pub identity: NominalId,
     pub name: &'src str,
 }
 
-impl PartialEq for StructType<'_> {
+/// A struct's nominal reference.
+pub type StructType<'src> = NominalType<'src>;
+
+/// Tests that build types without a checker: one identity per spelling, so
+/// equal spellings are one declaration, as in a single scope.
+#[cfg(test)]
+pub(crate) fn test_nominal(kind: NominalKind, name: &str) -> NominalType<'_> {
+    let index = name.bytes().fold(0x811c_9dc5u32, |hash, byte| {
+        (hash ^ u32::from(byte)).wrapping_mul(0x0100_0193)
+    }) & 0x00ff_ffff;
+    NominalType {
+        identity: NominalId::new(index as usize, kind),
+        name,
+    }
+}
+/// Tests: the class a checked single source declares under `name`.
+#[cfg(test)]
+pub(crate) fn declared_class<'src>(
+    model: &CheckedModule<'_, 'src>,
+    name: &str,
+) -> NominalType<'src> {
+    model.class_info(name).unwrap().declaration
+}
+#[cfg(test)]
+pub(crate) fn test_class(name: &str) -> NominalType<'_> {
+    test_nominal(NominalKind::Class, name)
+}
+#[cfg(test)]
+pub(crate) fn test_enum(name: &str) -> NominalType<'_> {
+    test_nominal(NominalKind::Enum, name)
+}
+
+impl PartialEq for NominalType<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.identity == other.identity
     }
 }
-impl Eq for StructType<'_> {}
-impl std::hash::Hash for StructType<'_> {
+impl Eq for NominalType<'_> {}
+impl std::hash::Hash for NominalType<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         std::hash::Hash::hash(&self.identity, state);
     }
@@ -600,21 +673,36 @@ pub struct StructInfo<'src> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassInfo<'src> {
+    /// The class's identity and display spelling.
+    pub declaration: NominalType<'src>,
+    /// The module whose scope declares it (none for a single source).
+    pub module: Option<crate::module::ModuleId>,
     pub name: &'src str,
     pub type_params: Vec<&'src str>,
     pub base: Option<Type<'src>>,
     pub fields: IndexMap<&'src str, FieldInfo<'src>>,
     pub methods: IndexMap<&'src str, MethodInfo<'src>>,
     pub constructor: Option<FunctionType<'src>>,
+    /// The binding the class's name declares as a value: its constructor
+    /// (an internal class; only a class kept as a JavaScript class has one at
+    /// run time) or the singleton (an `object`).
+    pub value: Option<SymbolId>,
     pub external: bool,
     pub object: bool,
+    /// Some module publishes the class's constructor (`export constructor`).
+    pub published: bool,
+    /// The class's identity is observable, so it stays a JavaScript class:
+    /// it is published, has a host (extern) ancestor, or shares an internal
+    /// inheritance chain with such a class. Every other class may dissolve.
+    pub observed: bool,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MethodInfo<'src> {
     pub member: NominalMemberId,
-    pub owner: &'src str,
+    /// The class that declares the method (a base, for an inherited one).
+    pub owner: NominalId,
     pub type_params: Vec<&'src str>,
     pub signature: FunctionType<'src>,
     pub declared_pure: bool,
@@ -622,6 +710,8 @@ pub struct MethodInfo<'src> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumInfo<'src> {
+    pub declaration: NominalType<'src>,
+    pub module: Option<crate::module::ModuleId>,
     pub name: &'src str,
     pub variants: IndexMap<&'src str, i64>,
     pub span: Span,
@@ -771,10 +861,11 @@ struct DeclarationTables<'src> {
     /// functions, which exist from instantiation).
     module_bindings: AHashSet<SymbolId>,
     symbols: Vec<Symbol<'src>>,
+    /// Each nominal registry, indexed by `NominalId::index` of its kind.
     structs: Vec<StructInfo<'src>>,
-    classes: IndexMap<&'src str, ClassInfo<'src>>,
+    classes: Vec<ClassInfo<'src>>,
     nominal_members: Vec<MemberDefinition>,
-    enums: AHashMap<&'src str, EnumInfo<'src>>,
+    enums: Vec<EnumInfo<'src>>,
     symbol_modules: Vec<Option<crate::module::ModuleId>>,
     foreign_symbols: AHashMap<&'src str, (SymbolId, bool)>,
 }
@@ -786,7 +877,9 @@ struct ModuleFacts<'ast, 'src> {
     expression_types: Vec<Option<Type<'src>>>,
     source_info: Vec<SourceInfo<'ast, 'src>>,
     call_instantiations: AHashMap<SourceNodeId, CheckedCallInstantiation<'src>>,
-    struct_bindings: AHashMap<&'src str, NominalId>,
+    /// This source's type scope: every nominal name it declares or imports,
+    /// resolved once to its identity. Nothing else resolves a type by name.
+    type_bindings: AHashMap<&'src str, NominalId>,
     optional_present_types: AHashMap<Span, Type<'src>>,
     type_check_types: AHashMap<Span, Type<'src>>,
     binding_types: AHashMap<Span, BindingType<'src>>,
@@ -870,6 +963,7 @@ pub struct CheckedView<'view, 'ast, 'src> {
 }
 
 impl<'ast, 'src> ModuleFacts<'ast, 'src> {
+    #[cfg(test)]
     fn new(source: &crate::ast::SourceIdentity) -> Self {
         Self::from_buffers(
             source,
@@ -906,7 +1000,7 @@ impl<'ast, 'src> ModuleFacts<'ast, 'src> {
             expression_types,
             source_info,
             call_instantiations: AHashMap::default(),
-            struct_bindings: AHashMap::default(),
+            type_bindings: AHashMap::default(),
             optional_present_types: AHashMap::default(),
             type_check_types: AHashMap::default(),
             binding_types: AHashMap::default(),
@@ -968,6 +1062,77 @@ impl<'src> DeclarationTables<'src> {
             MemberDefinition { owner, slot },
         )?;
         Ok(id)
+    }
+
+    /// Marks the classes whose identity is observable (`ClassInfo::observed`)
+    /// once every hierarchy is resolved: published classes and classes with a
+    /// host ancestor, their internal ancestors, and every class that extends
+    /// one of them. A published class that inherits must state its `init`.
+    pub(super) fn mark_observed_classes(
+        &mut self,
+    ) -> Result<(), (Option<crate::module::ModuleId>, CheckError)> {
+        let classes = &mut self.classes;
+        let base_of = |classes: &[ClassInfo<'src>], index: usize| {
+            classes[index]
+                .base
+                .as_ref()
+                .and_then(class_type_identity)
+                .map(NominalId::index)
+        };
+        for index in 0..classes.len() {
+            let info = &classes[index];
+            if info.external || info.object {
+                continue;
+            }
+            if info.published && info.base.is_some() && info.constructor.is_none() {
+                return Err((
+                    info.module,
+                    CheckError::new(
+                        info.span,
+                        format!(
+                            "an inherited constructor export requires an explicit `init` with `super(...)` in class `{}`",
+                            info.name
+                        ),
+                    ),
+                ));
+            }
+            let mut host = false;
+            let mut current = base_of(classes, index);
+            while let Some(base) = current {
+                if classes[base].external {
+                    host = true;
+                    break;
+                }
+                current = base_of(classes, base);
+            }
+            if info.published || host {
+                // The seed and its internal ancestors.
+                let mut current = Some(index);
+                while let Some(class) = current {
+                    if classes[class].external {
+                        break;
+                    }
+                    classes[class].observed = true;
+                    current = base_of(classes, class);
+                }
+            }
+        }
+        // Every class extending an observed class, to a fixed point.
+        loop {
+            let mut changed = false;
+            for index in 0..classes.len() {
+                if classes[index].observed || classes[index].external {
+                    continue;
+                }
+                if base_of(classes, index).is_some_and(|base| classes[base].observed) {
+                    classes[index].observed = true;
+                    changed = true;
+                }
+            }
+            if !changed {
+                return Ok(());
+            }
+        }
     }
 
     #[cfg(any(test, debug_assertions))]
@@ -1127,12 +1292,15 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().struct_info(name)
     }
 
-    pub fn enum_info(&self, name: &str) -> Option<&EnumInfo<'src>> {
-        self.view().enum_info(name)
+    /// The identity this source's scope gives a written type name.
+    pub fn type_binding(&self, name: &str) -> Option<NominalId> {
+        self.view().type_binding(name)
     }
 
+    /// Test convenience: the class this source's scope names `name`.
+    #[cfg(test)]
     pub fn class_info(&self, name: &str) -> Option<&ClassInfo<'src>> {
-        self.view().class_info(name)
+        self.nominal_class(self.type_binding(name)?)
     }
 
     pub fn nominal_id(&self, ty: &Type<'src>) -> Option<NominalId> {
@@ -1151,6 +1319,10 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().nominal_class(id)
     }
 
+    pub fn nominal_enum(&self, id: NominalId) -> Option<&EnumInfo<'src>> {
+        self.view().nominal_enum(id)
+    }
+
     pub fn nominal_member(&self, id: NominalMemberId) -> Option<NominalMember<'_, 'src>> {
         self.view().nominal_member(id)
     }
@@ -1159,23 +1331,14 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().resolved_member(id)
     }
 
-    pub fn is_extern_class(&self, name: &str) -> bool {
-        self.view().is_extern_class(name)
+    pub(crate) fn base_class(&self, class: NominalId) -> Option<NominalId> {
+        self.view().base_class(class)
     }
 
-    pub fn is_object(&self, name: &str) -> bool {
-        self.view().is_object(name)
-    }
-
-    pub(crate) fn class_method_owner(&self, class: &str, method: &str) -> Option<&'src str> {
-        self.view().class_method_owner(class, method)
-    }
-
-    pub(crate) fn base_class_name(&self, class: &str) -> Option<&'src str> {
-        self.view().base_class_name(class)
-    }
-
-    pub(crate) fn base_constructor(&self, class: &str) -> Option<(&'src str, FunctionType<'src>)> {
+    pub(crate) fn base_constructor(
+        &self,
+        class: NominalId,
+    ) -> Option<(NominalId, FunctionType<'src>)> {
         self.view().base_constructor(class)
     }
 
@@ -1292,8 +1455,15 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
         &self.declarations.symbols
     }
 
+    /// The identity this source's scope gives a written type name: the one
+    /// lexical step from a spelling to a nominal. Every later question is
+    /// asked of the identity.
+    pub fn type_binding(&self, name: &str) -> Option<NominalId> {
+        self.facts.type_bindings.get(name).copied()
+    }
+
     pub fn struct_type(&self, name: &str) -> Option<StructType<'src>> {
-        self.nominal_struct(*self.facts.struct_bindings.get(name)?)
+        self.nominal_struct(self.type_binding(name)?)
             .map(|info| info.declaration)
     }
 
@@ -1301,104 +1471,115 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
         if let Some(symbol) = self.identifier_symbol(span) {
             return Some(InterfaceTarget::Value(symbol));
         }
-        match self.binding_type(span) {
-            Some(Type::Struct(declaration) | Type::StructInstance { declaration, .. }) => {
-                Some(InterfaceTarget::Struct(declaration.identity))
-            }
-            _ => None,
-        }
+        self.binding_type(span)
+            .and_then(|ty| self.nominal_id(ty))
+            .map(InterfaceTarget::Type)
     }
 
     pub fn struct_info(&self, name: &str) -> Option<&'view StructInfo<'src>> {
-        self.nominal_struct(*self.facts.struct_bindings.get(name)?)
+        self.nominal_struct(self.type_binding(name)?)
     }
 
-    pub fn enum_info(&self, name: &str) -> Option<&'view EnumInfo<'src>> {
-        self.declarations.enums.get(name)
-    }
-
-    pub fn class_info(&self, name: &str) -> Option<&'view ClassInfo<'src>> {
-        self.declarations.classes.get(name)
-    }
-
+    /// The identity a nominal type names. It is carried by the type itself.
     pub fn nominal_id(&self, ty: &Type<'src>) -> Option<NominalId> {
         match ty {
-            Type::Struct(declaration) | Type::StructInstance { declaration, .. } => {
-                Some(declaration.identity)
-            }
-            Type::Class(name) | Type::ClassInstance { name, .. } => self
-                .declarations
-                .classes
-                .get_index_of(name)
-                .map(|index| NominalId::new(index, true)),
+            Type::Struct(declaration)
+            | Type::StructInstance { declaration, .. }
+            | Type::Class(declaration)
+            | Type::ClassInstance { declaration, .. }
+            | Type::Enum(declaration) => Some(declaration.identity),
             _ => None,
         }
     }
 
+    /// The type that names a nominal declaration (its bare, unapplied form).
+    pub fn nominal_type(&self, id: NominalId) -> Option<Type<'src>> {
+        let declaration = NominalType {
+            identity: id,
+            name: self.nominal_name(id)?,
+        };
+        Some(match id.kind() {
+            NominalKind::Struct => Type::Struct(declaration),
+            NominalKind::Class => Type::Class(declaration),
+            NominalKind::Enum => Type::Enum(declaration),
+        })
+    }
+
     pub fn nominal_name(&self, id: NominalId) -> Option<&'src str> {
-        if id.is_class() {
-            self.declarations
-                .classes
-                .get_index(id.index())
-                .map(|(name, _)| *name)
-        } else {
-            self.declarations
+        match id.kind() {
+            NominalKind::Struct => self
+                .declarations
                 .structs
                 .get(id.index())
-                .map(|info| info.declaration.name)
+                .map(|info| info.declaration.name),
+            NominalKind::Class => self
+                .declarations
+                .classes
+                .get(id.index())
+                .map(|info| info.declaration.name),
+            NominalKind::Enum => self
+                .declarations
+                .enums
+                .get(id.index())
+                .map(|info| info.declaration.name),
         }
     }
 
     pub fn nominal_struct(&self, id: NominalId) -> Option<&'view StructInfo<'src>> {
-        (!id.is_class())
+        id.is_struct()
             .then(|| self.declarations.structs.get(id.index()))
             .flatten()
     }
 
     pub fn nominal_class(&self, id: NominalId) -> Option<&'view ClassInfo<'src>> {
         id.is_class()
-            .then(|| {
-                self.declarations
-                    .classes
-                    .get_index(id.index())
-                    .map(|(_, info)| info)
-            })
+            .then(|| self.declarations.classes.get(id.index()))
+            .flatten()
+    }
+
+    pub fn nominal_enum(&self, id: NominalId) -> Option<&'view EnumInfo<'src>> {
+        id.is_enum()
+            .then(|| self.declarations.enums.get(id.index()))
             .flatten()
     }
 
     pub fn nominal_member(&self, id: NominalMemberId) -> Option<NominalMember<'view, 'src>> {
         let MemberDefinition { owner, slot } =
             *self.declarations.nominal_members.get(id.index())?;
-        let value = if owner.is_class() {
-            let (_, class) = self.declarations.classes.get_index(owner.index())?;
-            match slot {
-                MemberSlot::Field(index) => NominalMember::Field {
-                    owner,
-                    field: class.fields.get_index(index as usize)?.1,
-                },
-                MemberSlot::Method(index) => {
-                    let (name, method) = class.methods.get_index(index as usize)?;
-                    NominalMember::Method {
+        let value = match owner.kind() {
+            NominalKind::Class => {
+                let class = self.declarations.classes.get(owner.index())?;
+                match slot {
+                    MemberSlot::Field(index) => NominalMember::Field {
                         owner,
-                        name,
-                        method,
+                        field: class.fields.get_index(index as usize)?.1,
+                    },
+                    MemberSlot::Method(index) => {
+                        let (name, method) = class.methods.get_index(index as usize)?;
+                        NominalMember::Method {
+                            owner,
+                            name,
+                            method,
+                        }
                     }
                 }
             }
-        } else {
-            let MemberSlot::Field(index) = slot else {
-                return None;
-            };
-            NominalMember::Field {
-                owner,
-                field: self
-                    .declarations
-                    .structs
-                    .get(owner.index())?
-                    .fields
-                    .get_index(index as usize)?
-                    .1,
+            NominalKind::Struct => {
+                let MemberSlot::Field(index) = slot else {
+                    return None;
+                };
+                NominalMember::Field {
+                    owner,
+                    field: self
+                        .declarations
+                        .structs
+                        .get(owner.index())?
+                        .fields
+                        .get_index(index as usize)?
+                        .1,
+                }
             }
+            NominalKind::Enum => return None,
         };
         debug_assert_eq!(
             id,
@@ -1417,48 +1598,29 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
         self.nominal_member(member)
     }
 
-    pub fn is_extern_class(&self, name: &str) -> bool {
-        self.declarations
-            .classes
-            .get(name)
-            .is_some_and(|class| class.external)
+    /// The class a class extends, by identity.
+    pub(crate) fn base_class(&self, class: NominalId) -> Option<NominalId> {
+        self.nominal_class(class)?
+            .base
+            .as_ref()
+            .and_then(class_type_identity)
     }
 
-    pub fn is_object(&self, name: &str) -> bool {
-        self.declarations
-            .classes
-            .get(name)
-            .is_some_and(|class| class.object)
-    }
-
-    pub(crate) fn class_method_owner(&self, class: &str, method: &str) -> Option<&'src str> {
-        self.declarations
-            .classes
-            .get(class)
-            .and_then(|class| class.methods.get(method))
-            .map(|method| method.owner)
-    }
-
-    pub(crate) fn base_class_name(&self, class: &str) -> Option<&'src str> {
-        self.declarations
-            .classes
-            .get(class)
-            .and_then(|class| class.base.as_ref())
-            .and_then(class_type_name)
-    }
-
-    pub(crate) fn base_constructor(&self, class: &str) -> Option<(&'src str, FunctionType<'src>)> {
-        let class = self.declarations.classes.get(class)?;
+    pub(crate) fn base_constructor(
+        &self,
+        class: NominalId,
+    ) -> Option<(NominalId, FunctionType<'src>)> {
+        let class = self.nominal_class(class)?;
         let base_ty = class.base.as_ref()?;
-        let (base_name, base_args) = class_type_parts(base_ty)?;
-        let base = self.declarations.classes.get(base_name)?;
+        let (base_declaration, base_args) = class_type_parts(base_ty)?;
+        let base = self.nominal_class(base_declaration.identity)?;
         let signature = base.constructor.clone()?;
         let substitutions = substitutions_for(&base.type_params, base_args);
         let Type::Function(signature) = substitute_type(&Type::Function(signature), &substitutions)
         else {
             unreachable!("constructor substitution preserves function type")
         };
-        Some((base_name, signature))
+        Some((base_declaration.identity, signature))
     }
 
     pub(crate) fn enum_variant_value(&self, span: Span) -> Option<i64> {
@@ -1470,7 +1632,7 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
     }
 
     pub(crate) fn classes(&self) -> impl Iterator<Item = &'view ClassInfo<'src>> + 'view {
-        self.declarations.classes.values()
+        self.declarations.classes.iter()
     }
 
     pub(crate) fn dynamic_import_module(&self, span: Span) -> Option<u32> {
@@ -1490,18 +1652,15 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
 pub fn analyze<'ast, 'src>(
     program: &Program<'ast, 'src>,
 ) -> Result<CheckedModule<'ast, 'src>, CheckError> {
-    analyze_with_facts(
-        program,
-        ModuleFacts::new(program.source_identity()),
-        &mut AllocationBudget::new(None),
+    analyze_single_source(program, &mut AllocationBudget::new(None)).map_err(
+        |failure| match failure {
+            AdmittedCheckError::Semantic(error) => error,
+            AdmittedCheckError::Resources(reason) => CheckError::new(
+                program.span,
+                format!("semantic checking allocation failed: {reason}"),
+            ),
+        },
     )
-    .map_err(|failure| match failure {
-        AdmittedCheckError::Semantic(error) => error,
-        AdmittedCheckError::Resources(reason) => CheckError::new(
-            program.span,
-            format!("semantic checking allocation failed: {reason}"),
-        ),
-    })
 }
 
 /// Fixed source-node tables and canonical declaration vectors are admitted.
@@ -1512,8 +1671,7 @@ pub(crate) fn with_analyzed_source<'ast, 'src, R>(
     client: impl FnOnce(&CheckedModule<'ast, 'src>, &mut AllocationBudget<'_>) -> R,
 ) -> Result<R, AdmittedCheckError> {
     let mut scope = budget.scope();
-    let facts = ModuleFacts::new_admitted(program.source_identity(), &mut scope)?;
-    let model = analyze_with_facts(program, facts, &mut scope)?;
+    let model = analyze_single_source(program, &mut scope)?;
     #[cfg(test)]
     let model = AdmittedFactsOwner::new(model, 1);
     let output = client(&model, &mut scope);
@@ -1548,11 +1706,17 @@ mod narrowing_admission_tests;
 #[path = "check/narrowing_input_tests.rs"]
 mod narrowing_input_tests;
 
-fn analyze_with_facts<'ast, 'src>(
+/// Test driver for the checker's own admission accounting: one Analyzer
+/// through one source's phases (`Analyzer::analyze_program`), with no module
+/// graph around it. Compilation checks through `analyze_single_source`.
+#[cfg(test)]
+pub(crate) fn with_single_analyzer<'ast, 'src, R>(
     program: &Program<'ast, 'src>,
-    facts: ModuleFacts<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
-) -> Result<CheckedModule<'ast, 'src>, AdmittedCheckError> {
+    client: impl FnOnce(&CheckedModule<'ast, 'src>, &mut AllocationBudget<'_>) -> R,
+) -> Result<R, AdmittedCheckError> {
+    let mut scope = budget.scope();
+    let facts = ModuleFacts::new_admitted(program.source_identity(), &mut scope)?;
     let mut model = CheckedModule {
         declarations: DeclarationTables::default(),
         facts,
@@ -1563,9 +1727,33 @@ fn analyze_with_facts<'ast, 'src>(
         &mut model.declarations,
         &mut initialization,
         None,
-        budget,
+        &mut scope,
     )?
     .analyze_program(program)?;
+    let model = AdmittedFactsOwner::new(model, 1);
+    let output = client(&model, &mut scope);
+    drop(model);
+    scope
+        .finish_retained()
+        .expect("checked-source callback transfers within its allocation owner");
+    Ok(output)
+}
+
+/// A single source is checked as a module graph of one module, through the
+/// one checking entry (`modules::analyze_modules_in`): there is one phase
+/// order. Only its refusal of imports is the single source's own.
+fn analyze_single_source<'ast, 'src>(
+    program: &Program<'ast, 'src>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<CheckedModule<'ast, 'src>, AdmittedCheckError> {
+    if let Some(import) = program.imports.first() {
+        return Err(AdmittedCheckError::new(
+            import.span,
+            "imports require file-based compilation so the module graph can be resolved",
+        ));
+    }
+    let checked = modules::analyze_source_in(program, budget).map_err(|failure| failure.error)?;
+    let model = checked.into_single();
     #[cfg(debug_assertions)]
     assert!(
         model.identifier_index_is_consistent(),
@@ -1597,7 +1785,7 @@ struct Analyzer<'check, 'budget, 'ast, 'src> {
     /// Inside a parameter default: its reads run at each call site.
     parameter_defaults: usize,
     module_binding_declarations: AHashMap<Span, SymbolId>,
-    constructor_classes: Vec<Option<&'src str>>,
+    constructor_classes: Vec<Option<NominalId>>,
     generator_contexts: Vec<Option<Type<'src>>>,
 }
 
@@ -1811,6 +1999,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok(analyzer)
     }
 
+    /// Test driver: one Analyzer through one source's phases, so admission
+    /// tests can observe its frames. Compilation checks every source through
+    /// the module-graph entry (`modules::analyze_modules_in`).
+    #[cfg(test)]
     fn analyze_program(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedCheckError> {
         if let Some(import) = program.imports.first() {
             return Err(AdmittedCheckError::new(
@@ -1825,6 +2017,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.define_classes(program)?;
         self.define_extern_classes(program)?;
         self.resolve_class_hierarchies()?;
+        self.declarations
+            .mark_observed_classes()
+            .map_err(|(_, error)| AdmittedCheckError::Semantic(error))?;
         self.declare_functions(program)?;
 
         self.analyze_items(program)?;
@@ -1836,7 +2031,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             } else {
                 match (
                     self.scopes[0].get(export.local.name).copied(),
-                    self.facts.struct_bindings.get(export.local.name).copied(),
+                    self.facts
+                        .type_bindings
+                        .get(export.local.name)
+                        .copied()
+                        .filter(|identity| identity.is_struct()),
                 ) {
                     (Some(_), Some(_)) => {
                         return Err(AdmittedCheckError::new(
@@ -1845,7 +2044,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         ));
                     }
                     (Some(symbol), None) => Some(InterfaceTarget::Value(symbol)),
-                    (None, Some(identity)) => Some(InterfaceTarget::Struct(identity)),
+                    (None, Some(identity)) => Some(InterfaceTarget::Type(identity)),
                     (None, None) => None, // Existing enum/type-only and unresolved-export owners remain unchanged.
                 }
             };
@@ -1862,13 +2061,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     }
                     self.record_identifier(export.local.span, symbol);
                 }
-                Some(InterfaceTarget::Struct(identity)) => {
-                    self.facts.binding_types.insert(
-                        export.local.span,
-                        BindingType::Inline(Type::Struct(
-                            self.declarations.structs[identity.index()].declaration,
-                        )),
-                    );
+                Some(InterfaceTarget::Type(identity)) => {
+                    if let Some(ty) = self.view().nominal_type(identity) {
+                        self.facts
+                            .binding_types
+                            .insert(export.local.span, BindingType::Inline(ty));
+                    }
                 }
                 None => {}
             }
@@ -1939,93 +2137,150 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
     }
 
+    /// The declaration phase: every nominal this source declares gets its
+    /// identity and a binding in this source's type scope. Two sources'
+    /// declarations of one name are two identities; only one scope refuses
+    /// a second declaration (Closure's per-scope type table, esbuild's
+    /// per-source symbol arrays).
     fn declare_nominal_types(
         &mut self,
         program: &Program<'ast, 'src>,
     ) -> Result<(), AdmittedCheckError> {
         for item in program.items {
-            let (name, type_params, span, is_struct, external, object) = match item {
+            let (name, type_params, span, kind, external, object) = match item {
                 Item::Struct(decl) => (
-                    decl.name.name,
+                    decl.name,
                     decl.type_params,
                     decl.span,
-                    true,
+                    NominalKind::Struct,
                     false,
                     false,
                 ),
                 Item::Class(decl) => (
-                    decl.name.name,
+                    decl.name,
                     decl.type_params,
                     decl.span,
-                    false,
+                    NominalKind::Class,
                     false,
                     decl.object,
                 ),
                 Item::ExternClass(decl) => (
-                    decl.name.name,
+                    decl.name,
                     decl.type_params,
                     decl.span,
-                    false,
+                    NominalKind::Class,
                     true,
+                    false,
+                ),
+                Item::Enum(decl) => (
+                    decl.name,
+                    &[][..],
+                    decl.span,
+                    NominalKind::Enum,
+                    false,
                     false,
                 ),
                 _ => continue,
             };
             let type_params = validate_type_params(type_params)?;
 
-            if self.facts.struct_bindings.contains_key(name) {
-                return Err(AdmittedCheckError::new(
-                    span,
-                    format!("duplicate type declaration `{name}`"),
-                ));
-            }
-            if let Some(existing) = self.declarations.classes.get(name) {
-                if existing.object && object {
+            if let Some(&existing) = self.facts.type_bindings.get(name.name) {
+                // Several `object` declarations of one name in one scope
+                // contribute members to one object.
+                if object
+                    && self
+                        .view()
+                        .nominal_class(existing)
+                        .is_some_and(|class| class.object)
+                {
                     continue;
                 }
                 return Err(AdmittedCheckError::new(
                     span,
-                    format!("duplicate type declaration `{name}`"),
+                    format!("duplicate type declaration `{}`", name.name),
                 ));
             }
 
-            if is_struct {
-                let identity = NominalId::new(self.declarations.structs.len(), false);
-                let declaration = StructType { identity, name };
-                self.budget.push(
-                    AllocationClass::Scratch,
-                    &mut self.declarations.structs,
-                    StructInfo {
-                        declaration,
-                        module: self.module,
-                        type_params,
-                        fields: IndexMap::new(),
-                        span,
-                    },
-                )?;
-                self.facts.struct_bindings.insert(name, identity);
-                if let Item::Struct(decl) = item {
-                    self.facts.binding_types.insert(
-                        decl.name.span,
-                        BindingType::Inline(Type::Struct(declaration)),
-                    );
+            let identity = match kind {
+                NominalKind::Struct => {
+                    let identity = NominalId::new(self.declarations.structs.len(), kind);
+                    let declaration = NominalType {
+                        identity,
+                        name: name.name,
+                    };
+                    self.budget.push(
+                        AllocationClass::Scratch,
+                        &mut self.declarations.structs,
+                        StructInfo {
+                            declaration,
+                            module: self.module,
+                            type_params,
+                            fields: IndexMap::new(),
+                            span,
+                        },
+                    )?;
+                    self.facts
+                        .binding_types
+                        .insert(name.span, BindingType::Inline(Type::Struct(declaration)));
+                    identity
                 }
-            } else {
-                self.declarations.classes.insert(
-                    name,
-                    ClassInfo {
-                        name,
-                        type_params,
-                        base: None,
-                        fields: IndexMap::new(),
-                        methods: IndexMap::new(),
-                        constructor: None,
-                        external,
-                        object,
-                        span,
-                    },
-                );
-            }
+                NominalKind::Class => {
+                    let identity = NominalId::new(self.declarations.classes.len(), kind);
+                    let declaration = NominalType {
+                        identity,
+                        name: name.name,
+                    };
+                    self.budget.push(
+                        AllocationClass::Scratch,
+                        &mut self.declarations.classes,
+                        ClassInfo {
+                            declaration,
+                            module: self.module,
+                            name: name.name,
+                            type_params,
+                            base: None,
+                            fields: IndexMap::new(),
+                            methods: IndexMap::new(),
+                            constructor: None,
+                            value: None,
+                            external,
+                            object,
+                            published: false,
+                            observed: false,
+                            span,
+                        },
+                    )?;
+                    if !object {
+                        self.facts
+                            .binding_types
+                            .insert(name.span, BindingType::Inline(Type::Class(declaration)));
+                    }
+                    identity
+                }
+                NominalKind::Enum => {
+                    let identity = NominalId::new(self.declarations.enums.len(), kind);
+                    let declaration = NominalType {
+                        identity,
+                        name: name.name,
+                    };
+                    self.budget.push(
+                        AllocationClass::Scratch,
+                        &mut self.declarations.enums,
+                        EnumInfo {
+                            declaration,
+                            module: self.module,
+                            name: name.name,
+                            variants: IndexMap::new(),
+                            span,
+                        },
+                    )?;
+                    self.facts
+                        .binding_types
+                        .insert(name.span, BindingType::Inline(Type::Enum(declaration)));
+                    identity
+                }
+            };
+            self.facts.type_bindings.insert(name.name, identity);
         }
         Ok(())
     }
@@ -2035,15 +2290,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             let Item::Enum(decl) = item else {
                 continue;
             };
-            if self.declarations.enums.contains_key(decl.name.name)
-                || self.facts.struct_bindings.contains_key(decl.name.name)
-                || self.declarations.classes.contains_key(decl.name.name)
-            {
-                return Err(AdmittedCheckError::new(
-                    decl.span,
-                    format!("duplicate type declaration `{}`", decl.name.name),
-                ));
-            }
             let mut variants = IndexMap::new();
             for (index, variant) in decl.variants.iter().enumerate() {
                 if variants.insert(variant.name, index as i64).is_some() {
@@ -2056,14 +2302,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ));
                 }
             }
-            self.declarations.enums.insert(
-                decl.name.name,
-                EnumInfo {
-                    name: decl.name.name,
-                    variants,
-                    span: decl.span,
-                },
-            );
+            let identity = self.facts.type_bindings[decl.name.name];
+            self.declarations.enums[identity.index()].variants = variants;
         }
         Ok(())
     }
@@ -2077,7 +2317,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
 
             let fields = self.resolve_fields(decl)?;
             self.pop_type_params();
-            let identity = self.facts.struct_bindings[decl.name.name];
+            let identity = self.facts.type_bindings[decl.name.name];
             self.declarations.structs[identity.index()].fields = fields;
         }
         Ok(())
@@ -2089,10 +2329,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 continue;
             };
 
-            let owner = self
-                .view()
-                .nominal_id(&Type::Class(decl.name.name))
-                .expect("class declared before member definitions");
+            let owner = self.facts.type_bindings[decl.name.name];
+            let declaration = self.declarations.classes[owner.index()].declaration;
 
             self.push_type_params(decl.type_params)?;
 
@@ -2182,7 +2420,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                     MemberSlot::method(methods.len()),
                                     self.budget,
                                 )?,
-                                owner: decl.name.name,
+                                owner,
                                 type_params: validate_type_params(method.type_params)?,
                                 signature,
                                 declared_pure: method.declared_pure,
@@ -2209,11 +2447,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 "constructors do not support mutable-reference parameters",
                             ));
                         }
-                        resolve_parameter_defaults(constructor_decl.params, &mut params)?;
+                        resolve_parameter_defaults(
+                            constructor_decl.params,
+                            &mut params,
+                            &self.facts.type_bindings,
+                        )?;
                         constructor = Some(FunctionType::new(FunctionSignature {
                             params,
                             return_type: Box::new(applied_class_type(
-                                decl.name.name,
+                                declaration,
                                 &validate_type_params(decl.type_params)?,
                             )),
                         }));
@@ -2222,11 +2464,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
 
             let merge_object = {
-                let info = self
-                    .declarations
-                    .classes
-                    .get_mut(decl.name.name)
-                    .expect("class name was declared in the first semantic pass");
+                let info = &mut self.declarations.classes[owner.index()];
                 if decl.object
                     && info.object
                     && self
@@ -2273,22 +2511,26 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     self.record_identifier(decl.name.span, symbol);
                     self.facts.binding_types.insert(
                         decl.name.span,
-                        BindingType::Inline(Type::Class(decl.name.name)),
+                        BindingType::Inline(Type::Class(declaration)),
                     );
                 }
                 continue;
             }
 
             if decl.object {
-                self.declare(decl.name, Type::Class(decl.name.name))?;
+                let value = self.declare(decl.name, Type::Class(declaration))?;
+                self.declarations.classes[owner.index()].value = Some(value);
                 continue;
             }
 
+            // The class's name as a value is its constructor: only a class
+            // kept as a JavaScript class has one at run time, and LilScript
+            // constructs with `new`, never by a call (conversion refuses both).
             let constructor_signature =
                 constructor.unwrap_or(FunctionType::new(FunctionSignature {
                     params: Vec::new(),
                     return_type: Box::new(applied_class_type(
-                        decl.name.name,
+                        declaration,
                         &validate_type_params(decl.type_params)?,
                     )),
                 }));
@@ -2300,7 +2542,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     signature: constructor_signature,
                 })
             };
-            self.declare(decl.name, constructor)?;
+            let value = self.declare(decl.name, constructor)?;
+            self.declarations.classes[owner.index()].value = Some(value);
         }
         Ok(())
     }
@@ -2313,10 +2556,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             let Item::ExternClass(decl) = item else {
                 continue;
             };
-            let owner = self
-                .view()
-                .nominal_id(&Type::Class(decl.name.name))
-                .expect("extern class declared before member definitions");
+            let owner = self.facts.type_bindings[decl.name.name];
             self.push_type_params(decl.type_params)?;
             let base = decl
                 .base
@@ -2418,7 +2658,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                     MemberSlot::method(methods.len()),
                                     self.budget,
                                 )?,
-                                owner: decl.name.name,
+                                owner,
                                 type_params: validate_type_params(method.type_params)?,
                                 signature: self.extern_type(method)?,
                                 declared_pure: method.declared_pure,
@@ -2428,11 +2668,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
             }
             self.pop_type_params();
-            let info = self
-                .declarations
-                .classes
-                .get_mut(decl.name.name)
-                .expect("extern class name was declared in the first semantic pass");
+            let info = &mut self.declarations.classes[owner.index()];
             info.fields = fields;
             info.methods = methods;
             info.base = base;
@@ -2444,37 +2680,29 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     }
 
     fn resolve_class_hierarchies(&mut self) -> Result<(), AdmittedCheckError> {
-        let names = self
-            .declarations
-            .classes
-            .keys()
-            .copied()
-            .collect::<Vec<_>>();
         let mut visiting = AHashSet::default();
         let mut complete = AHashSet::default();
-        for name in names {
-            self.resolve_class_hierarchy(name, &mut visiting, &mut complete)?;
+        for index in 0..self.declarations.classes.len() {
+            let class = NominalId::new(index, NominalKind::Class);
+            self.resolve_class_hierarchy(class, &mut visiting, &mut complete)?;
         }
         Ok(())
     }
 
     fn resolve_class_hierarchy(
         &mut self,
-        name: &'src str,
-        visiting: &mut AHashSet<&'src str>,
-        complete: &mut AHashSet<&'src str>,
+        class: NominalId,
+        visiting: &mut AHashSet<NominalId>,
+        complete: &mut AHashSet<NominalId>,
     ) -> Result<(), AdmittedCheckError> {
-        if complete.contains(name) {
+        if complete.contains(&class) {
             return Ok(());
         }
-        let info = self
-            .declarations
-            .classes
-            .get(name)
-            .expect("class hierarchy names come from the semantic model");
+        let info = &self.declarations.classes[class.index()];
+        let name = info.name;
         let span = info.span;
         let external = info.external;
-        if !visiting.insert(name) {
+        if !visiting.insert(class) {
             return Err(AdmittedCheckError::new(
                 span,
                 format!("inheritance cycle involving class `{name}`"),
@@ -2482,15 +2710,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
 
         let Some(base_ty) = &info.base else {
-            visiting.remove(name);
-            complete.insert(name);
+            visiting.remove(&class);
+            complete.insert(class);
             return Ok(());
         };
-        let base_name =
-            class_type_name(base_ty).expect("base classes were validated while defining classes");
-        let base = self.declarations.classes.get(base_name).ok_or_else(|| {
-            AdmittedCheckError::new(span, format!("unknown base class `{base_name}`"))
-        })?;
+        let base_class = class_type_identity(base_ty)
+            .expect("base classes were validated while defining classes");
+        let base = &self.declarations.classes[base_class.index()];
         // An internal class may extend a host (`extern`) class: that is how a
         // typed class becomes a real `Error` subclass, with a native prototype
         // chain, `instanceof`, `stack` and `message`, instead of hand-written
@@ -2502,23 +2728,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 "an extern class cannot extend an internal class",
             ));
         }
-        self.resolve_class_hierarchy(base_name, visiting, complete)?;
-        let info = self
-            .declarations
-            .classes
-            .get(name)
-            .expect("derived class remains declared");
+        self.resolve_class_hierarchy(base_class, visiting, complete)?;
+        let info = &self.declarations.classes[class.index()];
         let (_, base_args) = class_type_parts(
             info.base
                 .as_ref()
                 .expect("derived class keeps its base type"),
         )
         .expect("base classes were validated while defining classes");
-        let base = self
-            .declarations
-            .classes
-            .get(base_name)
-            .expect("resolved base class remains declared");
+        let base = &self.declarations.classes[base_class.index()];
         let substitutions = substitutions_for(&base.type_params, base_args);
         let mut fields = IndexMap::new();
         for field in base.fields.values() {
@@ -2579,11 +2797,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             self.declarations.nominal_members[method.member.index()].slot =
                 MemberSlot::method(methods.len() + offset);
         }
-        let resolved = self
-            .declarations
-            .classes
-            .get_mut(name)
-            .expect("derived class remains declared");
+        let resolved = &mut self.declarations.classes[class.index()];
         for (_, mut field) in std::mem::take(&mut resolved.fields) {
             field.index = fields.len();
             fields.insert(field.name, field);
@@ -2591,8 +2805,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         methods.extend(std::mem::take(&mut resolved.methods));
         resolved.fields = fields;
         resolved.methods = methods;
-        visiting.remove(name);
-        complete.insert(name);
+        visiting.remove(&class);
+        complete.insert(class);
         Ok(())
     }
 
@@ -2724,7 +2938,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         for param in function.params {
             params.push(self.resolve_parameter_type(&param.parameter, "parameter")?);
         }
-        resolve_parameter_defaults(function.params, &mut params)?;
+        resolve_parameter_defaults(function.params, &mut params, &self.facts.type_bindings)?;
         let declared_return = self.resolve_type(function.return_type, true, "return type")?;
         let return_type = if function.is_async {
             Type::Task(Box::new(declared_return))
@@ -2755,7 +2969,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         for param in extern_decl.params {
             params.push(self.resolve_parameter_type(&param.parameter, "extern parameter")?);
         }
-        resolve_parameter_defaults(extern_decl.params, &mut params)?;
+        resolve_parameter_defaults(extern_decl.params, &mut params, &self.facts.type_bindings)?;
         let return_type = self.resolve_type(extern_decl.return_type, true, "extern return type")?;
         let signature = FunctionType::new(FunctionSignature {
             params,
@@ -2776,13 +2990,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         class: &'ast ClassDecl<'ast, 'src>,
     ) -> Result<(), AdmittedCheckError> {
         self.push_type_params(class.type_params)?;
+        let identity = self.facts.type_bindings[class.name.name];
         let requires_super = self
-            .declarations
-            .classes
-            .get(class.name.name)
-            .and_then(|info| info.base.as_ref())
-            .and_then(class_type_name)
-            .and_then(|base| self.declarations.classes.get(base))
+            .view()
+            .base_class(identity)
+            .and_then(|base| self.view().nominal_class(base))
             .is_some_and(|base| base.constructor.is_some());
         if requires_super
             && !class
@@ -2801,11 +3013,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
         for member in class.members {
             match member {
-                ClassMember::Method(method) => {
-                    self.analyze_function(method, Some(class.name.name))?
-                }
+                ClassMember::Method(method) => self.analyze_function(method, Some(identity))?,
                 ClassMember::Constructor(constructor) => {
-                    self.analyze_constructor(constructor, class.name.name)?
+                    self.analyze_constructor(constructor, identity)?
                 }
                 ClassMember::Field(_) => {}
             }
@@ -2817,38 +3027,30 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     fn analyze_constructor(
         &mut self,
         constructor: &'ast ConstructorDecl<'ast, 'src>,
-        class_name: &'src str,
+        class: NominalId,
     ) -> Result<(), AdmittedCheckError> {
-        let class_info = self
-            .declarations
-            .classes
-            .get(class_name)
-            .expect("constructors belong to declared classes");
         let super_calls = count_super_calls(constructor.body);
-        match class_info.base.as_ref().and_then(class_type_name) {
+        match self.view().base_class(class) {
             None if super_calls != 0 => {
                 return Err(AdmittedCheckError::new(
                     constructor.span,
                     "`super` is only valid in a derived class constructor",
                 ));
             }
-            Some(base_name) => {
+            Some(base) => {
                 if super_calls > 1 {
                     return Err(AdmittedCheckError::new(
                         constructor.span,
                         "a derived constructor may call `super` only once",
                     ));
                 }
-                let base_has_constructor = self
-                    .declarations
-                    .classes
-                    .get(base_name)
-                    .is_some_and(|base| base.constructor.is_some());
-                if base_has_constructor && super_calls == 0 {
+                let base = &self.declarations.classes[base.index()];
+                if base.constructor.is_some() && super_calls == 0 {
                     return Err(AdmittedCheckError::new(
                         constructor.span,
                         format!(
-                            "derived constructor must begin with `super(...)` for `{base_name}`"
+                            "derived constructor must begin with `super(...)` for `{}`",
+                            base.name
                         ),
                     ));
                 }
@@ -2871,18 +3073,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.callable_depth += 1;
         self.analyze_parameter_defaults(constructor.params, &parameters)?;
         self.push_scope()?;
-        let class_type_params = self
-            .declarations
-            .classes
-            .get(class_name)
-            .map(|class| class.type_params.as_slice())
-            .unwrap_or_default();
+        let class_info = &self.declarations.classes[class.index()];
+        let this = applied_class_type(class_info.declaration, &class_info.type_params);
         self.declare(
             Ident {
                 name: "this",
                 span: constructor.span,
             },
-            applied_class_type(class_name, class_type_params),
+            this,
         )?;
         for (param, parameter) in constructor.params.iter().zip(parameters) {
             self.declare(param.name, parameter.ty)?;
@@ -2898,7 +3096,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.budget.push(
             AllocationClass::Scratch,
             &mut self.constructor_classes,
-            Some(class_name),
+            Some(class),
         )?;
         self.budget
             .push(AllocationClass::Scratch, &mut self.generator_contexts, None)?;
@@ -2916,11 +3114,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     fn analyze_function(
         &mut self,
         function: &'ast FunctionDecl<'ast, 'src>,
-        class_name: Option<&'src str>,
+        class: Option<NominalId>,
     ) -> Result<(), AdmittedCheckError> {
         self.push_type_params(function.type_params)?;
         let signature = self.function_type_in_current_scope(function)?;
-        if class_name.is_some() {
+        if class.is_some() {
             self.require_value_parameters(&signature, function.span)?;
         }
         let outer_pending = std::mem::take(&mut self.pending_references);
@@ -2935,21 +3133,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.analyze_parameter_defaults(function.params, &signature.params)?;
         self.push_scope()?;
 
-        if let Some(class_name) = class_name {
+        if let Some(class) = class {
+            let class_info = &self.declarations.classes[class.index()];
+            let this = applied_class_type(class_info.declaration, &class_info.type_params);
             self.declare(
                 Ident {
                     name: "this",
                     span: function.name.span,
                 },
-                applied_class_type(
-                    class_name,
-                    &self
-                        .declarations
-                        .classes
-                        .get(class_name)
-                        .map(|class| class.type_params.clone())
-                        .unwrap_or_default(),
-                ),
+                this,
             )?;
         }
 
@@ -3053,6 +3245,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok(())
     }
 
+    #[cfg(test)]
     fn finalize_parameter_default_bindings(&mut self) -> Result<(), AdmittedCheckError> {
         let source_info = &self.facts.source_info;
         for ty in self.facts.expression_types.iter_mut().flatten() {
@@ -3077,7 +3270,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 finalize_default_bindings_in_type(&mut field.ty, source_info, false)?;
             }
         }
-        for info in self.declarations.classes.values_mut() {
+        for info in self.declarations.classes.iter_mut() {
             if let Some(base) = &mut info.base {
                 finalize_default_bindings_in_type(base, source_info, false)?;
             }
@@ -3136,12 +3329,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
         }
         for item in program.items {
-            let Item::Class(class) = item else {
+            let name = match item {
+                Item::Class(class) => class.name.name,
+                Item::ExternClass(class) => class.name.name,
+                _ => continue,
+            };
+            let Some(&identity) = self.facts.type_bindings.get(name) else {
                 continue;
             };
-            let Some(info) = self.declarations.classes.get_mut(class.name.name) else {
-                continue;
-            };
+            let info = &mut self.declarations.classes[identity.index()];
             for field in info.fields.values_mut() {
                 finalize_default_bindings_in_type(&mut field.ty, source_info, true)?;
             }
@@ -3507,7 +3703,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             args,
             "super calls do not support mutable-reference arguments",
         )?;
-        let class_name = self
+        let class = self
             .constructor_classes
             .last()
             .copied()
@@ -3518,21 +3714,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     "`super` is only valid in a derived class constructor",
                 )
             })?;
-        let class = self
-            .declarations
-            .classes
-            .get(class_name)
-            .expect("constructor class metadata exists");
+        let class = &self.declarations.classes[class.index()];
         let base_ty = class.base.as_ref().ok_or_else(|| {
             AdmittedCheckError::new(span, "`super` is only valid in a derived class constructor")
         })?;
-        let (base_name, base_args) =
+        let (base_declaration, base_args) =
             class_type_parts(base_ty).expect("derived class bases are class types");
-        let base = self
-            .declarations
-            .classes
-            .get(base_name)
-            .expect("base class was resolved");
+        let base_name = base_declaration.name;
+        let base = &self.declarations.classes[base_declaration.identity.index()];
         let substitutions = substitutions_for(&base.type_params, base_args);
         let signature = base.constructor.as_ref().map(|signature| {
             match substitute_type(&Type::Function(signature.clone()), &substitutions) {
@@ -4008,15 +4197,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ..
             } => {
                 let info = self
-                    .declarations
-                    .structs
-                    .get(
-                        self.facts
-                            .struct_bindings
-                            .get(name.name)
-                            .map(|id| id.index())
-                            .unwrap_or(usize::MAX),
-                    )
+                    .facts
+                    .type_bindings
+                    .get(name.name)
+                    .and_then(|&identity| self.view().nominal_struct(identity))
                     .ok_or_else(|| {
                         AdmittedCheckError::new(
                             name.span,
@@ -4107,18 +4291,22 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 )? {
                     ty
                 } else {
-                    let info = self.declarations.classes.get(class.name).ok_or_else(|| {
-                        AdmittedCheckError::new(
-                            class.span,
-                            format!("unknown class `{}`", class.name),
-                        )
-                    })?;
+                    let identity = self
+                        .facts
+                        .type_bindings
+                        .get(class.name)
+                        .copied()
+                        .filter(|identity| identity.is_class())
+                        .ok_or_else(|| {
+                            AdmittedCheckError::new(
+                                class.span,
+                                format!("unknown class `{}`", class.name),
+                            )
+                        })?;
+                    let info = &self.declarations.classes[identity.index()];
+                    let declaration = info.declaration;
                     self.facts.source_info[expr.id.index()].resolution =
-                        ExpressionResolution::NominalConstruction(
-                            self.view()
-                                .nominal_id(&Type::Class(class.name))
-                                .expect("checked class declaration"),
-                        );
+                        ExpressionResolution::NominalConstruction(identity);
                     if info.external {
                         return Err(AdmittedCheckError::new(
                             *span,
@@ -4169,11 +4357,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         )?;
                         substitutions.extend(type_params.iter().copied().zip(resolved));
                     } else if let Some(Type::ClassInstance {
-                        name,
+                        declaration: expected_declaration,
                         args: expected_args,
                     }) = expected
                     {
-                        if *name == class.name && expected_args.len() == type_params.len() {
+                        if *expected_declaration == declaration
+                            && expected_args.len() == type_params.len()
+                        {
                             substitutions.extend(
                                 type_params
                                     .iter()
@@ -4219,10 +4409,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         self.require_assignable(&resolved, actual, arg.span)?;
                     }
                     if type_params.is_empty() {
-                        Type::Class(class.name)
+                        Type::Class(declaration)
                     } else {
                         Type::ClassInstance {
-                            name: class.name,
+                            declaration,
                             args: resolved_args,
                         }
                     }
@@ -4240,24 +4430,26 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         span,
                     },
                 ..
-            } if self.declarations.enums.contains_key(enum_name.name) => {
-                let value = self
-                    .declarations
-                    .enums
-                    .get(enum_name.name)
-                    .and_then(|info| info.variants.get(property.name))
-                    .copied()
-                    .ok_or_else(|| {
-                        AdmittedCheckError::new(
-                            property.span,
-                            format!(
-                                "enum `{}` has no variant `{}`",
-                                enum_name.name, property.name
-                            ),
-                        )
-                    })?;
+            } if self
+                .facts
+                .type_bindings
+                .get(enum_name.name)
+                .is_some_and(|identity| identity.is_enum()) =>
+            {
+                let info =
+                    &self.declarations.enums[self.facts.type_bindings[enum_name.name].index()];
+                let declaration = info.declaration;
+                let value = info.variants.get(property.name).copied().ok_or_else(|| {
+                    AdmittedCheckError::new(
+                        property.span,
+                        format!(
+                            "enum `{}` has no variant `{}`",
+                            enum_name.name, property.name
+                        ),
+                    )
+                })?;
                 self.facts.enum_variant_values.insert(*span, value);
-                Type::Enum(enum_name.name)
+                Type::Enum(declaration)
             }
             Expr {
                 kind:
@@ -4966,12 +5158,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             ));
         }
         let variants = match value_type {
-            Type::Enum(enum_name) => Some((
-                enum_name,
-                self.declarations
-                    .enums
-                    .get(enum_name)
-                    .expect("checked enum type has metadata")
+            Type::Enum(declaration) => Some((
+                declaration.name,
+                self.declarations.enums[declaration.identity.index()]
                     .variants
                     .clone(),
             )),
@@ -4999,7 +5188,18 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             format!("enum pattern cannot match `{value_type}`"),
                         ));
                     };
-                    if pattern_enum.name != *enum_name {
+                    // The scrutinee's type fixes the enum; the pattern must
+                    // name that identity in this scope, or spell its declared
+                    // name where this scope does not bind it.
+                    let names_scrutinee =
+                        match (self.facts.type_bindings.get(pattern_enum.name), &value_type) {
+                            (Some(identity), Type::Enum(declaration)) => {
+                                *identity == declaration.identity
+                            }
+                            (None, _) => pattern_enum.name == *enum_name,
+                            _ => false,
+                        };
+                    if !names_scrutinee {
                         return Err(AdmittedCheckError::new(
                             pattern_enum.span,
                             format!(
@@ -5188,12 +5388,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ExpressionResolution::NominalMember(field.member);
                 Ok(substitute_type(&field.ty, &substitutions))
             }
-            Type::Class(name) => {
-                let class = self
-                    .declarations
-                    .classes
-                    .get(name)
-                    .expect("class types always have class metadata");
+            Type::Class(declaration) => {
+                let name = declaration.name;
+                let class = &self.declarations.classes[declaration.identity.index()];
                 if let Some(field) = class.fields.get(property.name) {
                     self.facts.source_info[id.index()].resolution =
                         ExpressionResolution::NominalMember(field.member);
@@ -5209,12 +5406,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     format!("class `{name}` has no member `{}`", property.name),
                 ))
             }
-            Type::ClassInstance { name, args } => {
-                let class = self
-                    .declarations
-                    .classes
-                    .get(name)
-                    .expect("class instances always have class metadata");
+            Type::ClassInstance { declaration, args } => {
+                let name = declaration.name;
+                let class = &self.declarations.classes[declaration.identity.index()];
                 let substitutions = substitutions_for(&class.type_params, &args);
                 if let Some(field) = class.fields.get(property.name) {
                     self.facts.source_info[id.index()].resolution =
@@ -7279,10 +7473,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 validate_collection_key(&element, ty.span, "Set element")?;
                 Ok(Type::Set(Box::new(element)))
             }
-            TypeKind::Named { name: "Task", args }
-                if !self.facts.struct_bindings.contains_key("Task")
-                    && !self.declarations.classes.contains_key("Task") =>
-            {
+            TypeKind::Named { name: "Task", args } if !self.binds_aggregate_type("Task") => {
                 let [value]: [Type<'src>; 1] = self
                     .resolve_type_arguments("Task", args, &["T"], ty.span)?
                     .try_into()
@@ -7292,9 +7483,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             TypeKind::Named {
                 name: "Generator",
                 args,
-            } if !self.facts.struct_bindings.contains_key("Generator")
-                && !self.declarations.classes.contains_key("Generator") =>
-            {
+            } if !self.binds_aggregate_type("Generator") => {
                 let [value]: [Type<'src>; 1] = self
                     .resolve_type_arguments("Generator", args, &["T"], ty.span)?
                     .try_into()
@@ -7352,48 +7541,54 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     .expect("Record arity was checked");
                 Ok(Type::Record(Box::new(value)))
             }
-            TypeKind::Named { name, args } if self.declarations.enums.contains_key(name) => {
-                self.resolve_type_arguments(name, args, &[], ty.span)?;
-                Ok(Type::Enum(name))
-            }
-            TypeKind::Named { name, args } if self.facts.struct_bindings.contains_key(name) => {
-                let info = self
-                    .view()
-                    .struct_info(name)
-                    .expect("source struct binding");
-                let declaration = info.declaration;
-                let parameters = &info.type_params;
-                let arguments = self.resolve_type_arguments(name, args, parameters, ty.span)?;
-                if parameters.is_empty() {
-                    Ok(Type::Struct(declaration))
-                } else {
-                    Ok(Type::StructInstance {
-                        declaration,
-                        args: arguments,
-                    })
-                }
-            }
-            TypeKind::Named { name, args } if self.declarations.classes.contains_key(name) => {
-                let parameters = &self.declarations.classes[name].type_params;
-                let arguments = self.resolve_type_arguments(name, args, parameters, ty.span)?;
-                if parameters.is_empty() {
-                    Ok(Type::Class(name))
-                } else {
-                    Ok(Type::ClassInstance {
-                        name,
-                        args: arguments,
-                    })
+            TypeKind::Named { name, args } if self.facts.type_bindings.contains_key(name) => {
+                let identity = self.facts.type_bindings[name];
+                let declaration = NominalType { identity, name };
+                match identity.kind() {
+                    NominalKind::Enum => {
+                        self.resolve_type_arguments(name, args, &[], ty.span)?;
+                        Ok(Type::Enum(
+                            self.declarations.enums[identity.index()].declaration,
+                        ))
+                    }
+                    NominalKind::Struct => {
+                        let info = &self.declarations.structs[identity.index()];
+                        let declaration = info.declaration;
+                        let parameters = info.type_params.clone();
+                        let arguments =
+                            self.resolve_type_arguments(name, args, &parameters, ty.span)?;
+                        if parameters.is_empty() {
+                            Ok(Type::Struct(declaration))
+                        } else {
+                            Ok(Type::StructInstance {
+                                declaration,
+                                args: arguments,
+                            })
+                        }
+                    }
+                    NominalKind::Class => {
+                        let info = &self.declarations.classes[identity.index()];
+                        let declaration = NominalType {
+                            name: info.declaration.name,
+                            ..declaration
+                        };
+                        let parameters = info.type_params.clone();
+                        let arguments =
+                            self.resolve_type_arguments(name, args, &parameters, ty.span)?;
+                        if parameters.is_empty() {
+                            Ok(Type::Class(declaration))
+                        } else {
+                            Ok(Type::ClassInstance {
+                                declaration,
+                                args: arguments,
+                            })
+                        }
+                    }
                 }
             }
             TypeKind::Named { name, .. } => Err(AdmittedCheckError::new(
                 ty.span,
-                if self.module.is_some() {
-                    format!(
-                        "direct module checking does not yet support nominal or unknown type `{name}`"
-                    )
-                } else {
-                    format!("unknown type `{name}`")
-                },
+                format!("unknown type `{name}`"),
             )),
             TypeKind::Array(element) => {
                 let element = self.resolve_value_type(*element, "array element")?;
@@ -7459,6 +7654,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .collect()
     }
 
+    /// Whether this scope binds `name` to a struct or class, which shadows a
+    /// built-in generic of that name.
+    fn binds_aggregate_type(&self, name: &str) -> bool {
+        self.facts
+            .type_bindings
+            .get(name)
+            .is_some_and(|identity| !identity.is_enum())
+    }
+
     fn push_type_params(&mut self, params: &[Ident<'src>]) -> Result<(), AdmittedCheckError> {
         let names = validate_type_params(params)?;
         for parameter in params {
@@ -7501,19 +7705,44 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         } else {
             let mut message = format!("expected `{expected}`, found `{actual}`");
             let declaration = |ty: &Type<'src>| match ty {
-                Type::Struct(declaration) | Type::StructInstance { declaration, .. } => {
-                    Some(*declaration)
-                }
+                Type::Struct(declaration)
+                | Type::StructInstance { declaration, .. }
+                | Type::Class(declaration)
+                | Type::ClassInstance { declaration, .. }
+                | Type::Enum(declaration) => Some(*declaration),
                 _ => None,
             };
             if let (Some(expected), Some(actual)) = (declaration(expected), declaration(actual)) {
-                if expected.name == actual.name && expected.identity != actual.identity {
-                    let expected = &self.declarations.structs[expected.identity.index()];
-                    let actual = &self.declarations.structs[actual.identity.index()];
+                if expected.name == actual.name
+                    && expected.identity != actual.identity
+                    && expected.identity.kind() == actual.identity.kind()
+                {
+                    // Two declarations of one spelling: say where each is.
+                    let place = |identity: NominalId| match identity.kind() {
+                        NominalKind::Struct => {
+                            let info = &self.declarations.structs[identity.index()];
+                            (info.module, info.span)
+                        }
+                        NominalKind::Class => {
+                            let info = &self.declarations.classes[identity.index()];
+                            (info.module, info.span)
+                        }
+                        NominalKind::Enum => {
+                            let info = &self.declarations.enums[identity.index()];
+                            (info.module, info.span)
+                        }
+                    };
+                    let kind = match expected.identity.kind() {
+                        NominalKind::Struct => "struct",
+                        NominalKind::Class => "class",
+                        NominalKind::Enum => "enum",
+                    };
+                    let (expected_module, expected_span) = place(expected.identity);
+                    let (actual_module, actual_span) = place(actual.identity);
                     use std::fmt::Write;
-                    write!(message, " (distinct struct declarations: expected module {:?} at {}..{}, found module {:?} at {}..{})",
-                        expected.module, expected.span.start, expected.span.end,
-                        actual.module, actual.span.start, actual.span.end).expect("String formatting");
+                    write!(message, " (distinct {kind} declarations: expected module {:?} at {}..{}, found module {:?} at {}..{})",
+                        expected_module, expected_span.start, expected_span.end,
+                        actual_module, actual_span.start, actual_span.end).expect("String formatting");
                 }
             }
             Err(AdmittedCheckError::new(span, message))
@@ -7550,10 +7779,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 Type::Class(_) | Type::ClassInstance { .. },
             ) => {
                 let mut current = actual.clone();
-                while let Some((name, args)) = class_type_parts(&current) {
-                    let info = match self.declarations.classes.get(name) {
-                        Some(info) => info,
-                        None => return false,
+                while let Some((declaration, args)) = class_type_parts(&current) {
+                    let Some(info) = self.declarations.classes.get(declaration.identity.index())
+                    else {
+                        return false;
                     };
                     let Some(base) = &info.base else {
                         return false;
@@ -7990,9 +8219,12 @@ fn validate_type_params<'src>(params: &[Ident<'src>]) -> Result<Vec<&'src str>, 
     Ok(names)
 }
 
+/// `scope` is the declaring source's type scope: a nominal default names
+/// the identity its declaration sees, wherever it is later evaluated.
 fn resolve_parameter_defaults<'ast, 'src>(
     params: &[crate::ast::Param<'ast, 'src>],
     parameters: &mut [FunctionParameter<'src>],
+    scope: &AHashMap<&'src str, NominalId>,
 ) -> Result<(), CheckError> {
     for (param, parameter) in params.iter().zip(parameters) {
         let ty = &parameter.ty;
@@ -8030,7 +8262,7 @@ fn resolve_parameter_defaults<'ast, 'src>(
                     ));
                 }
             }
-            literal_default_value(expression, ty)
+            literal_default_value(expression, ty, scope)
                 .map(Some)
                 .ok_or_else(|| {
                     CheckError::new(
@@ -8052,7 +8284,7 @@ fn resolve_analyzed_parameter_defaults<'ast, 'src>(
     parameter_defaults_in_scope: bool,
     global_symbols: &AHashSet<SymbolId>,
 ) -> Result<(), CheckError> {
-    resolve_parameter_defaults(params, parameters)?;
+    resolve_parameter_defaults(params, parameters, &model.facts.type_bindings)?;
     let parameter_symbols = if parameter_defaults_in_scope {
         params
             .iter()
@@ -8516,6 +8748,7 @@ mod type_resolution_tests;
 fn literal_default_value<'ast, 'src>(
     expression: &Expr<'ast, 'src>,
     expected: &Type<'src>,
+    scope: &AHashMap<&'src str, NominalId>,
 ) -> Option<DefaultValue<'src>> {
     if matches!(expression.kind, ExprKind::ArrowFunction { .. }) {
         return matches!(expected, Type::Function(_)).then_some(DefaultValue::Arrow(expression.id));
@@ -8525,16 +8758,16 @@ fn literal_default_value<'ast, 'src>(
         ..
     } = expression
     {
-        let expected_name = nominal_default_name(expected, false)?;
-        if name.name != expected_name {
+        let declaration = nominal_default_declaration(expected, NominalKind::Struct)?;
+        if scope.get(name.name) != Some(&declaration.identity) {
             return None;
         }
         return values
             .iter()
-            .map(uncontextualized_default_value)
+            .map(|value| uncontextualized_default_value(value, scope))
             .collect::<Option<Vec<_>>>()
             .map(|values| DefaultValue::Struct {
-                name: name.name,
+                declaration,
                 values,
             });
     }
@@ -8543,22 +8776,19 @@ fn literal_default_value<'ast, 'src>(
         ..
     } = expression
     {
-        let expected_name = nominal_default_name(expected, true)?;
-        if class.name != expected_name {
+        let declaration = nominal_default_declaration(expected, NominalKind::Class)?;
+        if scope.get(class.name) != Some(&declaration.identity) {
             return None;
         }
         return args
             .iter()
             .map(|argument| {
                 (argument.passing == ParameterPassing::Value)
-                    .then(|| uncontextualized_default_value(&argument.expression))
+                    .then(|| uncontextualized_default_value(&argument.expression, scope))
                     .flatten()
             })
             .collect::<Option<Vec<_>>>()
-            .map(|args| DefaultValue::NewClass {
-                name: class.name,
-                args,
-            });
+            .map(|args| DefaultValue::NewClass { declaration, args });
     }
     if let Expr {
         kind: ExprKind::ArrayLiteral { elements, .. },
@@ -8569,7 +8799,7 @@ fn literal_default_value<'ast, 'src>(
         return elements
             .iter()
             .map(|element_value| match element_value {
-                ArrayElement::Value(value) => literal_default_value(value, element),
+                ArrayElement::Value(value) => literal_default_value(value, element, scope),
                 ArrayElement::Spread { .. } => None,
             })
             .collect::<Option<Vec<_>>>()
@@ -8581,6 +8811,7 @@ fn literal_default_value<'ast, 'src>(
 
 fn uncontextualized_default_value<'ast, 'src>(
     expression: &Expr<'ast, 'src>,
+    scope: &AHashMap<&'src str, NominalId>,
 ) -> Option<DefaultValue<'src>> {
     if let Some((value, _)) = scalar_default_value(expression) {
         return Some(value);
@@ -8592,7 +8823,7 @@ fn uncontextualized_default_value<'ast, 'src>(
         } => elements
             .iter()
             .map(|element| match element {
-                ArrayElement::Value(value) => uncontextualized_default_value(value),
+                ArrayElement::Value(value) => uncontextualized_default_value(value, scope),
                 ArrayElement::Spread { .. } => None,
             })
             .collect::<Option<Vec<_>>>()
@@ -8604,43 +8835,56 @@ fn uncontextualized_default_value<'ast, 'src>(
         Expr {
             kind: ExprKind::StructLiteral { name, values, .. },
             ..
-        } => values
-            .iter()
-            .map(uncontextualized_default_value)
-            .collect::<Option<Vec<_>>>()
-            .map(|values| DefaultValue::Struct {
+        } => {
+            let identity = scope.get(name.name).copied().filter(|id| id.is_struct())?;
+            let declaration = NominalType {
+                identity,
                 name: name.name,
-                values,
-            }),
+            };
+            values
+                .iter()
+                .map(|value| uncontextualized_default_value(value, scope))
+                .collect::<Option<Vec<_>>>()
+                .map(|values| DefaultValue::Struct {
+                    declaration,
+                    values,
+                })
+        }
         Expr {
             kind: ExprKind::New { class, args, .. },
             ..
-        } => args
-            .iter()
-            .map(|argument| {
-                (argument.passing == ParameterPassing::Value)
-                    .then(|| uncontextualized_default_value(&argument.expression))
-                    .flatten()
-            })
-            .collect::<Option<Vec<_>>>()
-            .map(|args| DefaultValue::NewClass {
+        } => {
+            let identity = scope.get(class.name).copied().filter(|id| id.is_class())?;
+            let declaration = NominalType {
+                identity,
                 name: class.name,
-                args,
-            }),
+            };
+            args.iter()
+                .map(|argument| {
+                    (argument.passing == ParameterPassing::Value)
+                        .then(|| uncontextualized_default_value(&argument.expression, scope))
+                        .flatten()
+                })
+                .collect::<Option<Vec<_>>>()
+                .map(|args| DefaultValue::NewClass { declaration, args })
+        }
         _ => None,
     }
 }
 
-fn nominal_default_name<'src>(ty: &Type<'src>, class: bool) -> Option<&'src str> {
-    match (class, ty) {
-        (false, Type::Struct(declaration)) | (false, Type::StructInstance { declaration, .. }) => {
-            Some(declaration.name)
-        }
-        (true, Type::Class(name)) | (true, Type::ClassInstance { name, .. }) => Some(name),
-        (_, Type::Nullable(inner)) => nominal_default_name(inner, class),
+fn nominal_default_declaration<'src>(
+    ty: &Type<'src>,
+    kind: NominalKind,
+) -> Option<NominalType<'src>> {
+    match (kind, ty) {
+        (NominalKind::Struct, Type::Struct(declaration))
+        | (NominalKind::Struct, Type::StructInstance { declaration, .. })
+        | (NominalKind::Class, Type::Class(declaration))
+        | (NominalKind::Class, Type::ClassInstance { declaration, .. }) => Some(*declaration),
+        (_, Type::Nullable(inner)) => nominal_default_declaration(inner, kind),
         (_, Type::Union(members)) => members
             .iter()
-            .find_map(|member| nominal_default_name(member, class)),
+            .find_map(|member| nominal_default_declaration(member, kind)),
         _ => None,
     }
 }
@@ -8710,12 +8954,15 @@ fn scalar_default_value<'ast, 'src>(
     }
 }
 
-fn applied_class_type<'src>(name: &'src str, parameters: &[&'src str]) -> Type<'src> {
+fn applied_class_type<'src>(
+    declaration: NominalType<'src>,
+    parameters: &[&'src str],
+) -> Type<'src> {
     if parameters.is_empty() {
-        Type::Class(name)
+        Type::Class(declaration)
     } else {
         Type::ClassInstance {
-            name,
+            declaration,
             args: parameters
                 .iter()
                 .map(|parameter| Type::TypeParameter(parameter))
@@ -8907,11 +9154,11 @@ fn infer_type_arguments<'src>(
         }
         (
             Type::ClassInstance {
-                name: pattern,
+                declaration: pattern,
                 args: pattern_args,
             },
             Type::ClassInstance {
-                name: actual,
+                declaration: actual,
                 args: actual_args,
             },
         ) if pattern == actual && pattern_args.len() == actual_args.len() => {
@@ -8996,14 +9243,16 @@ fn statement_guarantees_return(statement: &Stmt<'_, '_>) -> bool {
     }
 }
 
-fn class_type_name<'src>(ty: &Type<'src>) -> Option<&'src str> {
-    class_type_parts(ty).map(|(name, _)| name)
+fn class_type_identity(ty: &Type<'_>) -> Option<NominalId> {
+    class_type_parts(ty).map(|(declaration, _)| declaration.identity)
 }
 
-fn class_type_parts<'ty, 'src>(ty: &'ty Type<'src>) -> Option<(&'src str, &'ty [Type<'src>])> {
+fn class_type_parts<'ty, 'src>(
+    ty: &'ty Type<'src>,
+) -> Option<(NominalType<'src>, &'ty [Type<'src>])> {
     match ty {
-        Type::Class(name) => Some((*name, &[])),
-        Type::ClassInstance { name, args } => Some((*name, args)),
+        Type::Class(declaration) => Some((*declaration, &[])),
+        Type::ClassInstance { declaration, args } => Some((*declaration, args)),
         _ => None,
     }
 }
@@ -9871,7 +10120,9 @@ mod tests {
     #[test]
     fn shared_callable_metadata_finalizes_in_each_checking_context() {
         use super::*;
-        assert!(std::mem::size_of::<Type>() <= 48);
+        // Class and enum types carry their identity with their display name;
+        // M4.2 interns types by id without source lifetimes.
+        assert!(std::mem::size_of::<Type>() <= 56);
         assert_eq!(
             std::mem::size_of::<FunctionType>(),
             std::mem::size_of::<usize>()

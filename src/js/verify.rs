@@ -423,7 +423,7 @@ impl Walk<'_, '_, '_> {
         if let Expr::Binding(symbol) = expression {
             self.binding(*symbol, scope, false)?;
         }
-        if let Some(function) = expression.created_function() {
+        for function in expression.created_functions() {
             self.function(function, scope, depth + 1)?;
         }
         expression.visit_children(|child| self.expression(child, scope, depth + 1))?;

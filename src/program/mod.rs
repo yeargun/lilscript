@@ -169,11 +169,12 @@ pub struct UnitData {
     pub kind: UnitKind,
     /// How this callable body suspends; module initialization never does.
     pub suspension: Suspension,
-    /// Set on the `init` of a class with a host ancestor: the index of that
-    /// class in `Program::classes`. Such a class stays a real JavaScript
-    /// subclass, and this body is its constructor: its first parameter is
-    /// the instance, bound once `SuperConstruct` has run.
-    pub host_class: Option<u32>,
+    /// Set on the constructor of a class kept as a JavaScript class (its
+    /// identity is observed: `ClassDefinition::observed`): that class. The
+    /// body is the class's constructor. Its first parameter is the instance:
+    /// `this`, bound on entry, or once `SuperConstruct` has run in a derived
+    /// class.
+    pub constructor_of: Option<NominalId>,
     /// Original source owner; operation node IDs and spans stay local to it.
     pub module: ModuleId,
     /// Number of entry-region operations that instantiate named functions.
@@ -233,7 +234,9 @@ pub(crate) fn host_call(program: &Program<'_>, data: &UnitData, target: &CallTar
             )
         }
         CallTarget::Reference { place } => match data.places[place.index()] {
-            Place::Member { receiver, .. } => host_receiver(program, data, receiver),
+            Place::Member { receiver, .. } | Place::ClassField { receiver, .. } => {
+                host_receiver(program, data, receiver)
+            }
             _ => false,
         },
         CallTarget::Builtin(_) | CallTarget::Intrinsic { .. } => false,
@@ -245,9 +248,9 @@ pub(crate) fn host_call(program: &Program<'_>, data: &UnitData, target: &CallTar
 pub(crate) fn host_receiver(program: &Program<'_>, data: &UnitData, receiver: ValueId) -> bool {
     match &program.types[data.values[receiver.index()].ty.index()] {
         Type::TypeParameter("$js") => true,
-        Type::Class(name) | Type::ClassInstance { name, .. } => {
-            program.class(name).is_some_and(|class| class.external)
-        }
+        Type::Class(declaration) | Type::ClassInstance { declaration, .. } => program
+            .class(declaration.identity)
+            .is_some_and(|class| class.external),
         _ => false,
     }
 }
@@ -257,7 +260,7 @@ impl UnitData {
         Self {
             kind,
             suspension: Suspension::None,
-            host_class: None,
+            constructor_of: None,
             module: ModuleId::from_index(0).unwrap(),
             instantiation_prefix: 0,
             function_name: None,
@@ -433,9 +436,29 @@ impl<'src> Program<'src> {
     pub fn classes(&self) -> &[ClassDefinition] {
         &self.classes
     }
-    /// The declaration of a nominal class type, by its checked name.
-    pub fn class(&self, name: &str) -> Option<&ClassDefinition> {
-        self.classes.iter().find(|class| class.name == name)
+    /// A class declaration by its identity. The table is in identity order.
+    pub fn class(&self, identity: NominalId) -> Option<&ClassDefinition> {
+        self.class_index(identity).map(|index| &self.classes[index])
+    }
+    /// An enum declaration by its identity. The table is in identity order.
+    pub fn enum_definition(&self, identity: NominalId) -> Option<&EnumDefinition> {
+        self.enums
+            .binary_search_by_key(&identity, |definition| definition.identity)
+            .ok()
+            .map(|index| &self.enums[index])
+    }
+    /// A class's position in `classes()`, by its identity.
+    pub fn class_index(&self, identity: NominalId) -> Option<usize> {
+        self.classes
+            .binary_search_by_key(&identity, |class| class.identity)
+            .ok()
+    }
+    /// A class field's spelling and declared type, by its identity.
+    pub fn class_field(&self, field: FieldRef) -> Option<(StringId, TypeId)> {
+        self.class(field.nominal)?
+            .fields
+            .get(field.slot as usize)
+            .copied()
     }
     pub fn exports(&self) -> &[Export] {
         self.modules
@@ -450,7 +473,7 @@ impl<'src> Program<'src> {
             .iter()
             .filter_map(|export| match export.target {
                 InterfaceTarget::Value(cell) => Some((export.name.as_str(), cell)),
-                InterfaceTarget::Struct(_) => None,
+                InterfaceTarget::Type(_) => None,
             })
     }
     pub fn modules(&self) -> &[ModuleInterface] {
@@ -526,9 +549,15 @@ pub struct StructDefinition {
 /// own, not flattened with a base) and it has no units.
 #[derive(Debug, Clone)]
 pub struct ClassDefinition {
+    /// The checked identity. Two modules' private classes of one name are two
+    /// definitions; `name` is display data, and an ABI name only where the
+    /// class meets the host (an extern class, a host-derived class's `name`).
+    pub identity: NominalId,
     pub name: String,
+    /// The module whose scope declares the class.
+    pub module: ModuleId,
     pub external: bool,
-    pub base: Option<String>,
+    pub base: Option<NominalId>,
     /// The class's own type parameters, and its base's type arguments in
     /// terms of them (empty for a non-generic base): an upcast of an
     /// instance substitutes these up the chain.
@@ -537,12 +566,39 @@ pub struct ClassDefinition {
     /// An extern class's host constructor, as its checked function type:
     /// what `super(...)` of a subclass calls. Internal classes have none.
     pub constructor: Option<TypeId>,
-    /// Flattened field names and types, base fields first.
+    /// Flattened field names and types, base fields first; a field's slot is
+    /// its index here, in the class that declares it (`FieldRef`).
     pub fields: Vec<(StringId, TypeId)>,
+    /// The class's identity is observable, so it stays a JavaScript class:
+    /// construction runs its constructor unit (`ConstructClass`), and a
+    /// derived constructor calls its base's (`SuperConstruct`).
+    pub observed: bool,
+    /// An internal observed class's constructor, as a value: the cell of its
+    /// constructor unit, which `export constructor` publishes.
+    pub value: Option<CellId>,
+    /// JavaScript callers reach the class's constructor and prototype: it or
+    /// a class extending it is published. Its constructor and prototype
+    /// methods are entry points with unknown callers.
+    pub published: bool,
+    /// The methods a JavaScript caller reaches on the prototype: every method
+    /// the class declares, when it or a class extending it is published.
+    /// Each is the spelling and the cell of its (static) method unit.
+    pub prototype: Vec<(StringId, CellId)>,
+}
+
+/// A class field by identity: the class that declares it and its slot in
+/// that class's flattened (base-first) field list. Every class instance
+/// access is a `Place::ClassField` of one; the field's spelling is display
+/// and ABI data on its class definition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct FieldRef {
+    pub nominal: NominalId,
+    pub slot: u32,
 }
 
 #[derive(Debug, Clone)]
 pub struct EnumDefinition {
+    pub identity: NominalId,
     pub name: String,
     pub variants: Vec<EnumVariant>,
 }
@@ -562,10 +618,12 @@ pub struct Field {
     pub index: usize,
 }
 
+/// What an export names: a runtime value's cell, or a nominal type, which
+/// has no storage, binding or execution event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InterfaceTarget {
     Value(CellId),
-    Struct(NominalId),
+    Type(NominalId),
 }
 
 #[derive(Debug, Clone)]
@@ -651,6 +709,13 @@ pub enum Place {
         receiver: ValueId,
         key: StringId,
     },
+    /// A field of a class instance (or of an extern class's host object):
+    /// the evaluated reference and the field's identity. It reads and writes
+    /// the instance's own data property of the field's spelling.
+    ClassField {
+        receiver: ValueId,
+        field: FieldRef,
+    },
     Index {
         receiver: ValueId,
         key: ValueId,
@@ -665,7 +730,24 @@ pub enum AllocationKind {
     SpreadArray(Vec<bool>),
     Record(Vec<StringId>),
     Object(Vec<StringId>),
+    /// An internal class instance: an object holding the class's flattened
+    /// fields in order. The keys are those fields' spellings.
+    Instance {
+        class: NominalId,
+        keys: Vec<StringId>,
+    },
     Struct(NominalId),
+}
+
+impl AllocationKind {
+    /// The property keys of an object an allocation creates, in order: a JS
+    /// object literal's or a class instance's fields.
+    pub fn object_keys(&self) -> Option<&[StringId]> {
+        match self {
+            Self::Object(keys) | Self::Instance { keys, .. } => Some(keys),
+            _ => None,
+        }
+    }
 }
 
 /// One call owns its target and checked invocation contract. The signature is
@@ -987,3 +1069,6 @@ mod search_string_group_tests;
 
 #[cfg(test)]
 mod search_naming_neighborhood_tests;
+
+#[cfg(test)]
+mod nominal_identity_tests;

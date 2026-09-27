@@ -275,7 +275,7 @@ fn struct_and_member_backings_refuse_at_initial_and_later_growth() {
             as u64;
         let mut ledger = ledger(WORK, SENTINEL + facts + frames + required - 1);
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
-        let error = with_analyzed_source(&syntax, &mut budget, |_, _| {
+        let error = with_single_analyzer(&syntax, &mut budget, |_, _| {
             panic!("refused declaration must not reach callback")
         })
         .unwrap_err();
@@ -300,7 +300,10 @@ fn all_four_backings_and_detached_symbols_release_on_callback_error_and_unwind()
     let source = "struct A{int a;int b;int c;int d;int e;}struct B{}struct C{}struct D{}struct E{}extern void consume(int left,int right);int first=1;int second=2;";
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, source).unwrap();
-    let expected = analyze(&syntax).unwrap();
+    let expected = with_single_analyzer(&syntax, &mut AllocationBudget::new(None), |model, _| {
+        format!("{model:?}")
+    })
+    .unwrap();
     let nodes = syntax.source_identity().len() as u64;
     let facts = nodes * (size_of::<Option<Type<'_>>>() + size_of::<SourceInfo<'_, '_>>()) as u64;
     let s = size_of::<Symbol<'_>>() as u64;
@@ -320,8 +323,8 @@ fn all_four_backings_and_detached_symbols_release_on_callback_error_and_unwind()
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
         let parent = budget.string(AllocationClass::Retained, "parent").unwrap();
         let result = catch_unwind(AssertUnwindSafe(|| {
-            with_analyzed_source(&syntax, &mut budget, |model, scope| {
-                assert_eq!(format!("{model:?}"), format!("{expected:?}"));
+            with_single_analyzer(&syntax, &mut budget, |model, scope| {
+                assert_eq!(format!("{model:?}"), expected);
                 assert_eq!(
                     (
                         model.declarations.symbols.len(),

@@ -279,10 +279,29 @@ impl Formation<'_, '_, '_, '_, '_> {
         }
         Ok(prefix)
     }
+    /// Whether a unit is a published class's constructor or prototype method.
+    fn published_class_entry(&mut self, unit: UnitId) -> Result<bool, FormationError> {
+        let program = self.program;
+        for class in program.classes().iter().filter(|class| class.published) {
+            self.work(class.prototype.len() + 1)?;
+            let entry = class
+                .value
+                .into_iter()
+                .chain(class.prototype.iter().map(|(_, cell)| *cell))
+                .any(|cell| program.cells()[cell.index()].binding == CellBinding::Function(unit));
+            if entry {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
     pub(super) fn physical_parameters(
         &mut self,
         context: ContextId,
     ) -> Result<Vec<js::BindingId>, FormationError> {
+        // JavaScript calls a published class's constructor and prototype
+        // methods with any arguments: their parameters are not typed-defined.
+        let entry = self.published_class_entry(self.semantic(context))?;
         let cells = &self.data(context).parameters;
         let mut parameters = self.budget.vector(AllocationClass::Retained, cells.len())?;
         for (position, &cell) in cells.iter().enumerate() {
@@ -323,7 +342,8 @@ impl Formation<'_, '_, '_, '_, '_> {
                         | Type::StructInstance { .. }
                         | Type::ClassInstance { .. }
                         | Type::Function(_)
-                ) && !references::is_reference(self.program, cell);
+                ) && !references::is_reference(self.program, cell)
+                    && !entry;
                 if defined {
                     self.budget.push(
                         AllocationClass::Retained,

@@ -149,7 +149,9 @@ fn scratch_indexes_keep_duplicate_contracts_and_admit_compared_name_bytes() {
         let (result, _) = run(&repeated_enum, MEMORY, WORK);
         assert!(matches!(
             result,
-            Err(VerificationError::Invalid("duplicate enum declaration"))
+            Err(VerificationError::Invalid(
+                "enum definitions are not in identity order"
+            ))
         ));
         let mut repeated_variant = program.clone();
         let definition = &mut std::sync::Arc::make_mut(&mut repeated_variant.enums)[0];

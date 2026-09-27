@@ -2178,6 +2178,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             (
                 Place::Value(receiver)
                 | Place::Member { receiver, .. }
+                | Place::ClassField { receiver, .. }
                 | Place::Index { receiver, .. },
                 0,
             ) => (*receiver, EffectiveUseRole::PlaceReceiver(place)),
@@ -2523,6 +2524,26 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                         ContextKind::Named,
                         budget,
                     )?;
+                }
+                // A kept class's value reads its internal base's constructor
+                // (`extends`) and holds its prototype methods.
+                if let Some(class) = self.program.units[child.index()].data().constructor_of {
+                    let root = self.root();
+                    if let Some(definition) = self.program.class(class) {
+                        let base = definition
+                            .base
+                            .and_then(|base| self.program.class(base))
+                            .and_then(|base| base.value);
+                        budget.work(definition.prototype.len() + 1)?;
+                        let methods = definition.prototype.len();
+                        if let Some(base) = base {
+                            self.need_cell(root, base, budget)?;
+                        }
+                        for index in 0..methods {
+                            let cell = self.program.class(class).unwrap().prototype[index].1;
+                            self.need_cell(root, cell, budget)?;
+                        }
+                    }
                 }
             }
             OperationKind::Loop { test, update, .. } => {
