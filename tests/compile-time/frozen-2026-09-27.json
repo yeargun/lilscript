@@ -1,0 +1,266 @@
+{
+ "schema": 1,
+ "about": "Frozen compile-time baselines (plan task M2.14; architecture 13.2): the pre-M1 binary's times on the reference ports' 2026-09-27 sources and configurations, which later sources will not compile. Each wall time is the median of five runs alternated with the head binary (head-d1d48c4c, given beside it) after one warm-up, in a quiet window after a reboot. The main entry is compiled at optimization_level 13 (the port's configuration otherwise); the package build is the port's source-build command, rotated with head's and with upstream's own build at its pinned commit; Terser 5.51.2 runs on upstream's bundled ESM graph. secondsPer100KB divides the pre-M1 main entry's time by its output. Receipt, raw samples and method: ~/lilscript-work/baselines/2026-09-27/ (receipt.json, frozen-baselines.md).",
+ "measured": "2026-09-27T17:38:30Z/2026-09-27T18:55:21Z",
+ "host": {
+  "instance": "Azure Standard_B8als_v2, 8 vCPUs",
+  "load1": {
+   "min": 0.49,
+   "median": 2.63,
+   "max": 4.48
+  },
+  "stealShareMax": 0.0,
+  "note": "quiet window after a reboot at 17:17 UTC; no other compile, build or test ran"
+ },
+ "binaries": {
+  "pre-m1": {
+   "sha256": "01c5e2987cad21e7ee8e96c6a5a1721aff06e1ae3ae6e003db748e47a1c78913",
+   "source": "~/lilscript-work/bin/pre-m1/lilscript"
+  },
+  "head": {
+   "sha256": "47048e41164027e92d3bf1d1840d8d83e04c60532c031ceb3346222e194b3041",
+   "source": "~/lilscript-work/bin/head-d1d48c4c/lilscript"
+  }
+ },
+ "node": "v24.11.1",
+ "ports": {
+  "markedlil": {
+   "source": "019e9b449c01721f78e467ca772742c67f9ac377",
+   "mainEntry": {
+    "entry": "src/entry.lil",
+    "config": "lilscript.toml at optimization_level 13",
+    "preM1Seconds": 0.8154,
+    "preM1CpuSeconds": 0.7823,
+    "preM1OutputBytes": 36520,
+    "secondsPer100KB": 2.286,
+    "headSeconds": 1.1663,
+    "headOutputBytes": 36523
+   },
+   "shippedLevel": {
+    "L15": {
+     "preM1": 0.8156,
+     "head": 1.3664
+    }
+   },
+   "packageBuild": {
+    "command": "node scripts/build.mjs --compile --force",
+    "preM1Seconds": 2.1685,
+    "headSeconds": 3.6215
+   },
+   "upstreamBuild": {
+    "command": "npm run build",
+    "seconds": 6.0776
+   },
+   "terser": {
+    "input": "markedlil.original.unminified.js",
+    "inputBytes": 67044,
+    "cmSeconds": 0.3646,
+    "passes3Seconds": 0.5149
+   }
+  },
+  "zodlil": {
+   "source": "4709ad60b36f2b8e7dc07105bcc999ab1d40d60f",
+   "mainEntry": {
+    "entry": "scripts/zod.lil",
+    "config": "lilscript.toml at optimization_level 13",
+    "preM1Seconds": 0.8153,
+    "preM1CpuSeconds": 0.7772,
+    "preM1OutputBytes": 90646,
+    "secondsPer100KB": 0.921,
+    "headSeconds": 2.0183,
+    "headOutputBytes": 90391
+   },
+   "shippedLevel": {
+    "L15": {
+     "preM1": 0.7654,
+     "head": 2.7694
+    }
+   },
+   "packageBuild": {
+    "command": "node scripts/build.mjs --compile",
+    "preM1Seconds": 1.0159,
+    "headSeconds": 3.0203
+   },
+   "upstreamBuild": {
+    "command": "corepack pnpm --filter zod build",
+    "seconds": 11.394
+   },
+   "terser": {
+    "input": "zodlil.original.unminified.js",
+    "inputBytes": 260823,
+    "cmSeconds": 0.8656,
+    "passes3Seconds": 1.3669
+   },
+   "coreEntry": {
+    "entry": "src/entry.lil",
+    "preM1Seconds": 0.6653,
+    "headSeconds": 1.7675
+   }
+  },
+  "posthoglil": {
+   "source": "1e133411dc0d9aaad3a8b8283c511084ecc57b77",
+   "mainEntry": {
+    "entry": "src/entry.lil",
+    "config": "lilscript.toml at optimization_level 13",
+    "preM1Seconds": 0.114,
+    "preM1CpuSeconds": 0.0982,
+    "preM1OutputBytes": 17531,
+    "secondsPer100KB": 0.666,
+    "headSeconds": 0.4149,
+    "headOutputBytes": 17238
+   },
+   "shippedLevel": {
+    "L15": {
+     "preM1": 0.1141,
+     "head": 0.4147
+    }
+   },
+   "packageBuild": {
+    "command": "node scripts/build.mjs --compile --force && node scripts/build-packs.mjs --compile",
+    "preM1Seconds": 0.7154,
+    "headSeconds": 2.0678
+   },
+   "upstreamBuild": {
+    "command": "corepack pnpm exec turbo run build --filter=posthog-js... --force",
+    "seconds": 299.7438
+   },
+   "terser": {
+    "input": "posthoglil.original.unminified.js",
+    "inputBytes": 35538,
+    "cmSeconds": 0.2644,
+    "passes3Seconds": 0.3144
+   }
+  },
+  "micromarklil": {
+   "source": "5fca66d31cb9a533858a794e825e24b08d6f1349",
+   "mainEntry": {
+    "entry": "src/index.lil",
+    "config": "lilscript.toml at optimization_level 13",
+    "preM1Seconds": 0.6653,
+    "preM1CpuSeconds": 0.6155,
+    "preM1OutputBytes": 71073,
+    "secondsPer100KB": 0.959,
+    "headSeconds": 2.2688,
+    "headOutputBytes": 70981
+   },
+   "shippedLevel": {
+    "L15": {
+     "preM1": 0.6152,
+     "head": 2.2689
+    }
+   },
+   "packageBuild": {
+    "command": "node scripts/build.mjs --compile --force",
+    "preM1Seconds": 2.0178,
+    "headSeconds": 6.7775
+   },
+   "upstreamBuild": {
+    "command": "npm run build",
+    "seconds": 10.9882
+   },
+   "terser": {
+    "input": "micromarklil.original.unminified.js",
+    "inputBytes": 133415,
+    "cmSeconds": 0.565,
+    "passes3Seconds": 0.8156
+   }
+  },
+  "katexlil": {
+   "source": "55c34b540abfd36dbfaa575852babe9c17fcb81b",
+   "mainEntry": {
+    "entry": "src/entry.lil",
+    "config": "lilscript.toml at optimization_level 13",
+    "preM1Seconds": 4.6227,
+    "preM1CpuSeconds": 4.5861,
+    "preM1OutputBytes": 278729,
+    "secondsPer100KB": 1.698,
+    "headSeconds": 17.6013,
+    "headOutputBytes": 261389
+   },
+   "shippedLevel": {},
+   "packageBuild": {
+    "command": "node scripts/build.mjs --compile --force",
+    "preM1Seconds": 10.7363,
+    "headSeconds": 37.2916
+   },
+   "upstreamBuild": {
+    "command": "corepack yarn build",
+    "seconds": 12.7446
+   },
+   "terser": {
+    "input": "katexlil.original.unminified.js",
+    "inputBytes": 495850,
+    "cmSeconds": 1.1164,
+    "passes3Seconds": 1.7176
+   }
+  },
+  "jquerylil": {
+   "source": "2ab4b893ca1080cd760d8b3f299fc1dcdb1ee9f7",
+   "mainEntry": {
+    "entry": "src/entry.lil",
+    "config": "lilscript.toml at optimization_level 13",
+    "preM1Seconds": 28.8305,
+    "preM1CpuSeconds": 28.7884,
+    "preM1OutputBytes": 76062,
+    "secondsPer100KB": 38.814,
+    "headSeconds": 30.634,
+    "headOutputBytes": 75826
+   },
+   "shippedLevel": {
+    "L15": {
+     "preM1": 23.8689,
+     "head": 22.3631
+    }
+   },
+   "packageBuild": {
+    "command": "node scripts/build.mjs --compile --force",
+    "preM1Seconds": 23.511,
+    "headSeconds": 22.0082
+   },
+   "upstreamBuild": {
+    "command": "npm run build-all-variants",
+    "seconds": 3.1204
+   },
+   "terser": {
+    "input": "jquerylil.original.unminified.js",
+    "inputBytes": 246365,
+    "cmSeconds": 1.1162,
+    "passes3Seconds": 1.5674
+   }
+  },
+  "motionlil": {
+   "source": "33826f63631470281457331eabfa22367b10360f",
+   "mainEntry": {
+    "entry": "src/full.lil",
+    "config": "src/lilscript.toml at optimization_level 13",
+    "preM1Seconds": 14.3411,
+    "preM1CpuSeconds": 14.3244,
+    "preM1OutputBytes": 113725,
+    "secondsPer100KB": 12.913,
+    "headSeconds": 16.5006,
+    "headOutputBytes": 112350
+   },
+   "shippedLevel": {
+    "L15": {
+     "preM1": 14.6945,
+     "head": 18.0019
+    }
+   },
+   "packageBuild": {
+    "command": "node scripts/build.mjs",
+    "preM1Seconds": 19.7582,
+    "headSeconds": 22.8658
+   },
+   "upstreamBuild": {
+    "command": "corepack yarn turbo run build --filter=motion... --force",
+    "seconds": 32.7861
+   },
+   "terser": {
+    "input": "motionlil.original.unminified.js",
+    "inputBytes": 329659,
+    "cmSeconds": 1.016,
+    "passes3Seconds": 1.6676
+   }
+  }
+ }
+}

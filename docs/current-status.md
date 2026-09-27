@@ -5,8 +5,8 @@
 and the one compiler, [migration/index.md](migration/index.md) is the only plan
 and records what landed, and [testing.md](testing.md) says how a binary is
 checked. M1 closed on 2026-09-24. On 2026-09-27 M3.3a and batch A1 (M8.2)
-landed, and the first tools of the plan's step 3 (M2.13, M2.5); the rest
-of step 3 (M2.10–M2.12, M2.14, M2.15) is next. The
+landed, and the first tools of the plan's step 3 (M2.13, M2.5, M2.14); the rest
+of step 3 (M2.10–M2.12, M2.15) is next. The
 status page of 2026-09-24 is in git history; the one of 2026-09-20, from before
 M1, is in [history](knowledge/history/status-2026-09-20.md).
 
@@ -45,7 +45,8 @@ The plan's "Where we are" has each record with its evidence. In short:
   native arithmetic without per-operation barriers.
 - **M2.13** the generic corpus ratchet, the NO3 library-name test and the NO4
   idiom debt ledger ([testing.md](testing.md#the-generic-corpus-ratchet));
-  **M2.5** the admission parse ([testing.md](testing.md#the-admission-parse-a5)).
+  **M2.5** the admission parse ([testing.md](testing.md#the-admission-parse-a5));
+  **M2.14** the frozen compile-time baselines (architecture §13.2).
 
 ## Standings
 
@@ -85,6 +86,5 @@ Each is a ratchet over a ledger whose entries name an owner task (law L21):
 
 The plan's "Next action" is authoritative. In order: the rest of step 3's tools
 (the benchmark contract M2.10, the held-out set M2.11, the perf runner M2.12,
-the frozen compile-time baselines M2.14, the calibration corpus M2.15), the
-floor slice of exact program rules, the budget model (M3.5), then language
-slice 1.
+the calibration corpus M2.15), the floor slice of exact program rules, the
+budget model (M3.5), then language slice 1.
