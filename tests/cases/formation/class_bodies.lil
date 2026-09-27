@@ -1,0 +1,49 @@
+// Observed classes print with their bodies (plan M8.2 A1, diagnosis C1): a
+// prototype method whose static body nothing else calls is that body with
+// its receiver as `this`; a body other code also calls stays shared behind a
+// forwarding method; a root class whose constructor takes nothing and does
+// nothing keeps JavaScript's implicit one; no dead `let r=this` alias.
+export class Greeter {
+  string hello(string who) { return "hi " + who; }
+  string twice(string who) { return this.hello(who) + "/" + this.hello(who); }
+}
+
+export class Counter {
+  int value;
+  init(int start) { this.value = start; }
+  int bump(int by) {
+    this.value = this.value + by;
+    return this.value;
+  }
+  // The receiver read by an arrow that outlives the call.
+  func()->int reader() {
+    return () => this.value;
+  }
+  int twiceBumped(int by) {
+    this.bump(by);
+    return this.bump(by);
+  }
+}
+
+class Doubler extends Counter {
+  init(int start) { super(start * 2); }
+  int tripled(int by) { return this.value * 3 + by; }
+}
+
+export constructor Greeter;
+export constructor Counter;
+export constructor Doubler;
+
+// Calls through the prototype, as a JavaScript caller makes them.
+JsValue greeter = new Greeter();
+print(JS.invoke(greeter, "hello", "a"));
+print(JS.invoke(greeter, "twice", "b"));
+JsValue counter = new Counter(3);
+print(JS.invoke(counter, "twiceBumped", 4));
+JsValue read = JS.invoke(counter, "reader");
+JS.invoke(counter, "bump", 1);
+print(JS.call(read, JS.undefined()));
+JsValue doubler = new Doubler(5);
+print(JS.invoke(doubler, "tripled", 1));
+print(JS.invoke(doubler, "bump", 1));
+print(doubler["value"]);

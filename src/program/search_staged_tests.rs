@@ -95,7 +95,7 @@ fn policy(
     };
     let structural = if representations { "on" } else { "off" };
     let text = format!(
-        "[javascript]\nstrip_console=false\ncandidate_proposal_limit=384\nterminal_codec_probe_limit={probes}\ncandidate_limit={pool}\ncandidate_beam_width=12\n[policy.search]\ncodec_schedule='{schedule}'\nrender_batch={batch}\ndiversity_interval={diversity}\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='{compact}'\nscalar-replacement='{structural}'\ninlining='{structural}'\nconstant-folding='on'\nstring-pooling='on'"
+        "[javascript]\ncandidate_proposal_limit=384\nterminal_codec_probe_limit={probes}\ncandidate_limit={pool}\ncandidate_beam_width=12\n[policy.search]\ncodec_schedule='{schedule}'\nrender_batch={batch}\ndiversity_interval={diversity}\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='{compact}'\nscalar-replacement='{structural}'\ninlining='{structural}'\nconstant-folding='on'\nstring-pooling='on'"
     );
     let config: crate::config::ProjectConfig = toml::from_str(&text).unwrap();
     config
@@ -383,9 +383,10 @@ fn queue_pressure_scores_an_old_trial_without_losing_the_incoming_trial() {
         Objectives::One(Objective::Gzip),
     );
     assert!(result.counters.pressure_scores > 0);
-    // Global incumbent plus queued Scoped fills the pool. Incoming Source
-    // forces Scoped's score. The incoming losing artifact must still be scored
-    // later, preserving its ownership while the selected union is replaced.
+    // The seed's (Scoped) incumbent plus queued Global fills the pool.
+    // Incoming Source forces Global's score. The incoming losing artifact must
+    // still be scored later, preserving its ownership while the selected
+    // union is replaced.
     for style in [Style::Global, Style::Scoped, Style::Source] {
         assert!(
             result
@@ -395,9 +396,18 @@ fn queue_pressure_scores_an_old_trial_without_losing_the_incoming_trial() {
             "incoming/queued naming plan disappeared: {style:?}"
         );
     }
+    // The winner is the smallest observed artifact; a later plan replaces
+    // the seed only by strictly improving it.
     let gzip = result.winners[1].as_ref().unwrap();
-    assert_eq!(gzip.naming.style, Style::Scoped);
-    assert!(gzip.sizes.gzip9 < result.observed[0].sizes.gzip9);
+    let best = result
+        .observed
+        .iter()
+        .filter_map(|entry| entry.sizes.gzip9)
+        .min();
+    assert_eq!(gzip.sizes.gzip9, best);
+    if best == result.observed[0].sizes.gzip9 {
+        assert_eq!(gzip.naming.style, Style::Scoped);
+    }
 }
 
 #[test]

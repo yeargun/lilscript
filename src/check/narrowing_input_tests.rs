@@ -371,7 +371,6 @@ print(present(null));print(present("x"));print(absent(null));print(absent(""));p
         "||false".repeat(64)
     );
     let mut config = crate::config::ProjectConfig::default();
-    config.javascript.strip_console = false;
     for preserve_root_exports in [false, true] {
         let options = crate::build::ServiceOptions {
             preserve_root_exports,

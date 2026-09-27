@@ -234,7 +234,7 @@ fn reference_formal_access_and_preparation_remain_effectful_when_results_are_dis
     checked("void set(ref int target){target=7;int discarded=target+1;}int state=1;set(ref state);print(state);",|program| {
         let mut budget=ledger(20_000_000);
         let uses=UseIndex::build(&program,&mut budget,WorkDomain::Baseline).unwrap();
-        let mut config=crate::config::ProjectConfig::default();config.javascript.strip_console=false;
+        let config=crate::config::ProjectConfig::default();
         let policy=config.resolve_policy(CompilationRequest::JavaScript{preserve_root_exports:true}).unwrap();
         let demand=DemandPlan::build(&program,Some(&uses),None,policy.javascript_contract().unwrap(),DemandMode::Prune,Some((&mut budget,WorkDomain::Optional))).unwrap();
         let body=function(&program,"set");

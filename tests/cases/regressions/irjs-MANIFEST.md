@@ -56,10 +56,14 @@ that commit. Expected stdout comes from each test's own assertions, never from r
 ## Expectation conflicts with the language spec
 
 - `suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate` expects the wrapper name `handle`, and
-  `...-unused_receiver` expects a non-empty wrapper name. docs/language-v0.1.md says each adapter evaluation returns an
+  `...-unused_receiver` expects a non-empty wrapper name. docs/language-v0.1.md said each adapter evaluation returns an
   anonymous function, and that the fused spelling keeps it anonymous where JavaScript would infer a name. The `.out`
-  files keep the test's values as instructed. The semantic route is spec-conformant on `-aggregate` (it fails) and
-  not on `-unused_receiver` (it passes). Decide which rule is right before relying on either case.
+  files keep the test's values as instructed.
+  **Decided (architecture §10.2, plan M8.2 A1, 2026-09-27):** a method formed from an adapter's callback keeps the
+  adapter result's anonymous name only where the contract observes names (`keep_function_names`, or a published
+  value); otherwise its name is unobservable (R6) and it may carry the name JavaScript infers. `-local`, which asserts
+  the anonymous name, now states that contract in its `.toml`; `-aggregate` and `-unused_receiver` assert names no
+  lane owes and stay ledgered (M10.14).
 
 ## Cases
 

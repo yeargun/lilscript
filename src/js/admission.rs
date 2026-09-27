@@ -33,10 +33,24 @@ pub(crate) fn program(
 ) -> Vec<Canon> {
     let hosts = hosts.map(|(hosts, _)| hosts);
     let mut out = Vec::new();
-    for import in &module.imports {
-        if !hosted(hosts, import) {
-            out.push(Canon::Import(1));
+    // One import declaration per foreign specifier, at its first occurrence,
+    // with every import of that specifier (the printer's `foreign_imports`).
+    let mut sources: Vec<(&crate::literal::StringValue, usize)> = Vec::new();
+    for import in module
+        .imports
+        .iter()
+        .filter(|import| !hosted(hosts, import))
+    {
+        match sources
+            .iter_mut()
+            .find(|(source, _)| **source == import.source)
+        {
+            Some((_, count)) => *count += 1,
+            None => sources.push((&import.source, 1)),
         }
+    }
+    for (_, specifiers) in sources {
+        out.push(Canon::Import(specifiers));
     }
     if module.imports.iter().any(|import| hosted(hosts, import)) {
         // `let{…}=<host modules>;`: foreign text, compared by kind.
@@ -195,16 +209,17 @@ impl Walk<'_> {
     fn function(&self, id: FunctionId) -> CanonFunction {
         let (defaults, absorbed) = self.native_defaults(id);
         let function = &self.module.functions[id.index()];
+        // From `length` on, a parameter prints its native default; the one at
+        // `length` without a default prints `=void 0`, which keeps the
+        // reflected length, and later ones print none.
         let parameters = (0..function.parameters.len())
             .map(|index| {
-                function.length.filter(|&length| index >= length).map(|_| {
-                    defaults
-                        .get(index)
-                        .copied()
-                        .flatten()
-                        // `b=void 0` keeps the length without a default.
-                        .map_or(Canon::Lit, |default| self.expression(default))
-                })
+                let length = function.length.filter(|&length| index >= length)?;
+                match defaults.get(index).copied().flatten() {
+                    Some(default) => Some(self.expression(default)),
+                    None if index == length => Some(Canon::Lit),
+                    None => None,
+                }
             })
             .collect();
         CanonFunction {
@@ -326,7 +341,9 @@ impl Walk<'_> {
                 ..
             } => Canon::Class(
                 base.map(|base| Box::new(self.expression(base))),
-                std::iter::once(*constructor)
+                constructor
+                    .iter()
+                    .copied()
                     .chain(methods.iter().map(|(_, function)| *function))
                     .map(|function| self.function(function))
                     .collect(),

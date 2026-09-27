@@ -33,7 +33,6 @@ fn compiler<'src>() -> Compilation<'src> {
 }
 fn policy(text: &str) -> ResolvedPolicy {
     let mut config: crate::config::ProjectConfig = toml::from_str(text).unwrap();
-    config.javascript.strip_console = false;
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

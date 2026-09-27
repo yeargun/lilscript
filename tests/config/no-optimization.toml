@@ -1,9 +1,9 @@
 # Formation only: the one compiler with every optional transformation vetoed
-# and no candidate search. `print` is the observation channel, so it is kept.
+# and no candidate search. `print` is the observation channel, a program effect
+# the compiler never strips.
 # The optimizer-disabled lane of scripts/verify-matrix.sh and of
 # lilscript-differential, like the case runner's formation-only lanes.
 [javascript]
-strip_console = false
 candidate_search = "off"
 
 [policy.tactics]

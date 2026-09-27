@@ -1,0 +1,71 @@
+// A method is its own function (plan M8.2 A1, law P1): JS.methodN and
+// JS.methodRest of a private lambda print as a function whose receiver reads
+// `this`, or an alias where a nested function has a `this` of its own, and
+// whose rest list reads named formals, `arguments`, or an alias.
+JsValue proto = JS.object("prefix", "p");
+proto["greet"] = JS.method1((JsValue self, JsValue who) => JS.add(JS.add(self["prefix"], ":"), who));
+// A nested arrow sees the method's `this`.
+proto["later"] = JS.method0((JsValue self) => {
+  func()->JsValue read = () => self["prefix"];
+  return read();
+});
+// A nested method has a `this` of its own: the outer receiver it reads keeps
+// its meaning, and the inner one keeps its adapter.
+proto["pair"] = JS.method0((JsValue self) => JS.method0((JsValue other) => JS.add(self["prefix"], other["prefix"])));
+// The receiver is assigned: an alias.
+proto["either"] = JS.method1((JsValue self, JsValue other) => {
+  if (other.truthy()) {
+    self = other;
+  }
+  return self["prefix"];
+});
+// An unread receiver.
+proto["echo"] = JS.method2((JsValue _self, JsValue a, JsValue b) => JS.add(a, b));
+JsValue object = JS.object("prefix", "o");
+print(JS.call(proto["greet"], object, "x"));
+print(JS.call(proto["later"], object));
+JsValue pair = JS.call(proto["pair"], object);
+print(JS.call(pair, JS.object("prefix", "q")));
+print(JS.call(proto["either"], object, JS.object("prefix", "r")));
+print(JS.call(proto["either"], object, false));
+print(JS.call(proto["echo"], object, 1, 2));
+// Each keeps the adapter's `length` and is constructible.
+print(JS.get(proto["greet"], "length"));
+print(JS.get(proto["later"], "length"));
+print(JS.get(proto["echo"], "length"));
+print(JS.typeOf(JS.construct(proto["later"])));
+
+// A rest method read only at constant indices takes formals; its `length`
+// stays the adapter's 0. `new` runs it with a fresh receiver.
+JsValue Point = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue x = args[0];
+  JsValue z = args[2];
+  self["x"] = x;
+  self["z"] = z;
+  return JS.undefined();
+});
+JsValue point = JS.construct(Point, 1, 2, 3);
+print(JS.add(JS.add(point["x"], ","), point["z"]));
+JsValue partial = JS.construct(Point, 7);
+print(JS.typeOf(partial["z"]));
+print(JS.get(Point, "length"));
+// A rest list whose length is read reads `arguments`.
+JsValue count = JS.methodRest((JsValue self, JsValue args) => args["length"]);
+print(JS.call(count, object, 1, 2, 3, 4));
+print(JS.get(count, "length"));
+// A rest list handed on whole.
+JsValue first(JsValue list) {
+  return list[0];
+}
+JsValue forward = JS.methodRest((JsValue self, JsValue args) => first(args));
+print(JS.call(forward, object, "f", "g"));
+// A rest list a nested arrow reads is the method's `arguments`.
+JsValue later = JS.methodRest((JsValue self, JsValue args) => {
+  func()->JsValue read = () => args["length"];
+  return read();
+});
+print(JS.call(later, object, 5, 6));
+// A static rest adapter has no receiver.
+JsValue second = JS.staticRest((JsValue args) => args[1]);
+print(JS.call(second, object, "a", "b"));
+print(JS.get(second, "length"));

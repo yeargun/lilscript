@@ -55,7 +55,6 @@ fn request() -> LocalFactsRequest {
 
 fn policy() -> ResolvedPolicy {
     let mut config = crate::config::ProjectConfig::default();
-    config.javascript.strip_console = false;
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

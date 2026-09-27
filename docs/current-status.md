@@ -4,9 +4,9 @@
 [future-architecture.md](future-architecture.md) is the design of the language
 and the one compiler, [migration/index.md](migration/index.md) is the only plan
 and records what landed, and [testing.md](testing.md) says how a binary is
-checked. M1 closed on 2026-09-24. The plan's step 3, the tools every later batch
-is judged by (M2.5, M2.10–M2.15), is in progress next to batch A1 (M8.2); M3.3a
-landed on 2026-09-27. The
+checked. M1 closed on 2026-09-24. On 2026-09-27 M3.3a and batch A1 (M8.2)
+landed, and the first tools of the plan's step 3 (M2.13, M2.5); the rest
+of step 3 (M2.10–M2.12, M2.14, M2.15) is next. The
 status page of 2026-09-24 is in git history; the one of 2026-09-20, from before
 M1, is in [history](knowledge/history/status-2026-09-20.md).
 
@@ -38,6 +38,11 @@ The plan's "Where we are" has each record with its evidence. In short:
   roots, root rows, placement with its plan verifier, plans rendered, scored
   and delivered, manifest v3; `-j` is the one parallelism flag and
   `--codec-jobs` warns that it is removed.
+- **Batch A1** canonical formation without tree analysis: a method is its own
+  function, observed classes print with their bodies, no operand spills, one
+  decoder per schema, imports by identity, `print` is never stripped
+  (`strip_debug` and `strip_console_calls`), naming's seed at every level, and
+  native arithmetic without per-operation barriers.
 - **M2.13** the generic corpus ratchet, the NO3 library-name test and the NO4
   idiom debt ledger ([testing.md](testing.md#the-generic-corpus-ratchet));
   **M2.5** the admission parse ([testing.md](testing.md#the-admission-parse-a5)).
@@ -71,7 +76,7 @@ Each is a ratchet over a ledger whose entries name an owner task (law L21):
 - the case runner, `tests/cases/expected-failures.json`;
 - the port runner, `tests/ports/expected-failures.json`;
 - the generic corpus ratchet, `tests/ratchet/` (bars, baseline, ledger);
-- NO3, `tests/no3-allowlist.json`: 30 mentions of ports and upstream libraries
+- NO3, `tests/no3-allowlist.json`: 31 mentions of ports and upstream libraries
   in non-test `src/`, which may only shrink (M8.7 empties it);
 - the admission parse, inside the compiler: every delivered file is parsed
   again by Oxc and, printed whole, must parse to the printed tree's structure.
@@ -80,6 +85,6 @@ Each is a ratchet over a ledger whose entries name an owner task (law L21):
 
 The plan's "Next action" is authoritative. In order: the rest of step 3's tools
 (the benchmark contract M2.10, the held-out set M2.11, the perf runner M2.12,
-the frozen compile-time baselines M2.14, the calibration corpus M2.15), batch
-A1 (canonical formation), the floor slice of exact program rules, the budget
-model (M3.5), then language slice 1.
+the frozen compile-time baselines M2.14, the calibration corpus M2.15), the
+floor slice of exact program rules, the budget model (M3.5), then language
+slice 1.

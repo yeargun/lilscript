@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "about": "NO3 allowlist ledger (architecture §18.3, plan rule 10, task M2.13): every mention of a port or upstream library in non-test src/, per file and library, with why it is there and the plan task that removes it. Checked by src/no_library_knowledge_tests.rs (cargo test --lib): a file may not gain a mention, and an entry must shrink with its file. M8.7 empties the ledger. Recorded 2026-09-27 at 24968659 (compiler source d1d48c4c): 30 mentions in 22 entries, all comments that justify a rule, a default or a schedule constant by one port's measurement.",
+  "about": "NO3 allowlist ledger (architecture §18.3, plan rule 10, task M2.13): every mention of a port or upstream library in non-test src/, per file and library, with why it is there and the plan task that removes it. Checked by src/no_library_knowledge_tests.rs (cargo test --lib): a file may not gain a mention, and an entry must shrink with its file. M8.7 empties the ledger. Recorded 2026-09-27 at 24968659 (compiler source d1d48c4c): 30 mentions in 22 entries, all comments that justify a rule, a default or a schedule constant by one port's measurement. After merging batch A1 (e30cc68f): 31 mentions in 22 entries; A1 removed the katex import pin and added two citations (src/js/tables.rs, src/program/javascript_methods.rs).",
   "entries": [
     {
       "file": "src/config.rs",
@@ -131,8 +131,8 @@
     {
       "file": "src/js/tables.rs",
       "name": "katex",
-      "count": 1,
-      "reason": "The module documentation cites katex's font metrics as the table encodings' evidence (-1,302 Brotli).",
+      "count": 2,
+      "reason": "The module documentation cites katex's font metrics as the table encodings' evidence (-1,302 Brotli), and batch A1's one-decoder-per-schema comment cites katexlil's two byte-identical decoders.",
       "owner": "M9.8 (legality by declaration after M10.3; the evidence moves to the plan record)"
     },
     {
@@ -150,11 +150,11 @@
       "owner": "M7.5a (the limit goes with the JS tree inliners' removing half)"
     },
     {
-      "file": "src/program/javascript.rs",
+      "file": "src/program/javascript_methods.rs",
       "name": "katex",
       "count": 1,
-      "reason": "A foreign import's spelling is pinned because katex inlines its font metrics that way.",
-      "owner": "M8.2 batch A1 (import identity by (source, imported), from M8.1)"
+      "reason": "Batch A1's module documentation cites the katex-perf diagnosis of 2026-09-27 (shared receiver adapters turn a call site megamorphic) as the evidence for law P1's method formation.",
+      "owner": "M8.7 (the evidence moves to the plan record; the law is stated generically)"
     }
   ]
 }

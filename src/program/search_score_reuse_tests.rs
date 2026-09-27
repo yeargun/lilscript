@@ -4,7 +4,7 @@ use crate::compilation_policy::{BaselineFirstPlan, CompilationRequest, ResourceL
 
 fn policy(proposals: usize, naming: &str) -> ResolvedPolicy {
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=2\ncandidate_limit=4\n[policy.search]\ncodec_schedule='staged'\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='{naming}'\n"
+        "[javascript]\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=2\ncandidate_limit=4\n[policy.search]\ncodec_schedule='staged'\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='{naming}'\n"
     ))
     .unwrap();
     config
@@ -80,7 +80,7 @@ fn staged_equal_bytes_reuse_exhausted_probes_but_recheck_naming_permission() {
                 0,
                 &optional,
                 Objectives::All,
-                &[Style::Scoped],
+                &[Style::Global],
                 &mut |entry| observed.push(entry.naming.style),
             )
             .unwrap();
@@ -96,7 +96,7 @@ fn staged_equal_bytes_reuse_exhausted_probes_but_recheck_naming_permission() {
         });
         if permitted {
             assert!(matches!(result, Ok(true)));
-            assert_eq!(observed, [Style::Scoped]);
+            assert_eq!(observed, [Style::Global]);
             assert_eq!(search.counters.admitted_artifacts, 2);
         } else {
             assert!(matches!(

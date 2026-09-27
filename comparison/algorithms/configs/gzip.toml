@@ -11,7 +11,8 @@ candidate_search = "always"
 candidate_limit = 1536
 candidate_byte_budget = 1048576
 candidate_beam_width = 12
-strip_console = false
+strip_debug = false
+strip_console_calls = false
 
 [mangle]
 identifiers = true

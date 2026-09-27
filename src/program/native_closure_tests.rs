@@ -276,8 +276,7 @@ fn fixture_artifacts(
     assert!(header.contains("host_keep_arg1_call"));
     assert!(header.contains("host_take_result"));
     let executions = execute_host_artifacts(&c, &header, expected, name);
-    let config: crate::config::ProjectConfig =
-        toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
+    let config: crate::config::ProjectConfig = toml::from_str("[javascript]\n").unwrap();
     let policy = config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,
@@ -481,8 +480,7 @@ fn public_qualified_pair(
 }
 
 fn qualify_public_factory(name: &str, source_text: &str, expected: &str, path_factory: bool) {
-    let config: crate::config::ProjectConfig =
-        toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
+    let config: crate::config::ProjectConfig = toml::from_str("[javascript]\n").unwrap();
     let options = ServiceOptions {
         target: ServiceTarget::Native,
         logical_work: WORK,

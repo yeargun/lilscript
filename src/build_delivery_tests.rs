@@ -28,7 +28,7 @@ fn options() -> ServiceOptions {
 
 fn config(delivery: &str) -> ProjectConfig {
     crate::config::parse_project_config(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[delivery]\n{delivery}"
+        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[delivery]\n{delivery}"
     ))
     .unwrap()
     .config
@@ -503,7 +503,7 @@ const HOST: &str = "import { sum } from \"./math.ts\"\n// Adds.\nexport function
 
 fn with_config(directory: &Path, extra: &str) -> Result<ServiceCompilation, ServiceError> {
     let config: ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
+        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
     ))
     .unwrap();
     compile_path(
@@ -540,8 +540,7 @@ fn relative_host_modules_travel_with_the_output() {
     }
     // A script output runs host code strict, as the module it was written as.
     let config: ProjectConfig =
-        toml::from_str("[javascript]\nstrip_console=false\n[delivery]\nhost_modules='embed'")
-            .unwrap();
+        toml::from_str("[javascript]\n[delivery]\nhost_modules='embed'").unwrap();
     let script = compile_path(
         &directory.join("main.lil"),
         &config,
@@ -609,7 +608,11 @@ fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
         .unwrap()
         .javascript()
         .to_string();
-    assert!(text.contains("import{add}from\"./host.ts\""), "{text}");
+    // Its local name is the naming allocator's (C18).
+    assert!(
+        text.contains("import{add as ") && text.contains("}from\"./host.ts\""),
+        "{text}"
+    );
     let _ = fs::remove_dir_all(directory);
 }
 
@@ -711,10 +714,7 @@ fn unread_exceptions_and_argumentless_constructions_print_short() {
     let source = "extern int read();int total=0;try{if(read()>0){throw \"x\";}}catch(auto e){total=total+1;}\
                   Map<string,int> map=new Map<string,int>();map.set(\"a\",total);print(map.size);";
     let config = |edition: &str| -> ProjectConfig {
-        toml::from_str(&format!(
-            "[javascript]\nstrip_console=false\necmascript='{edition}'"
-        ))
-        .unwrap()
+        toml::from_str(&format!("[javascript]\necmascript='{edition}'")).unwrap()
     };
     let text = |edition: &str| {
         compile_source(source, &config(edition), ServiceOptions::default())
@@ -751,7 +751,7 @@ fn js_call_with_an_undefined_receiver_is_a_plain_call() {
     let source = "extern JsValue target;JsValue undef(){return JS.undefined();}\
                   JsValue noisy(){print(\"receiver\");return JS.undefined();}\
                   print(JS.call(target, undef(), 1));print(JS.call(target, noisy(), 2));";
-    let config: ProjectConfig = toml::from_str("[javascript]\nstrip_console=false").unwrap();
+    let config: ProjectConfig = toml::from_str("").unwrap();
     let text = compile_source(source, &config, ServiceOptions::default())
         .unwrap()
         .javascript(Objective::Brotli)

@@ -184,11 +184,10 @@ fn compile(body: &[u8], stream: &mut TcpStream) -> Result<(), String> {
 }
 
 /// The compiler's JavaScript for the page, or its rendered diagnostic. The page
-/// evaluates the output as a classic script and shows what it prints, so the
-/// program keeps `print` and executes as a script.
+/// evaluates the output as a classic script and shows what it prints (`print`
+/// is a program effect, never stripped), so the program executes as a script.
 fn compile_playground(source: &str) -> Result<String, String> {
-    let mut config = ProjectConfig::default();
-    config.javascript.strip_console = false;
+    let config = ProjectConfig::default();
     let options = ServiceOptions {
         target: ServiceTarget::JavaScript,
         preserve_root_exports: false,

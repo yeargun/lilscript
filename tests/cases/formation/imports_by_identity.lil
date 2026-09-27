@@ -1,0 +1,13 @@
+// An import's identity is `(source, imported)` (plan M8.2 A1, diagnosis
+// C18): modules importing one export under different local names share one
+// binding, a default import is the default binding, and the local names are
+// the naming allocator's.
+import { answerTwice } from "./imports_by_identity/other.lil";
+import extern { default as config, greeting, twice } from "./imports_by_identity/host.mjs";
+extern JsValue config;
+extern string greeting;
+extern int twice(int value);
+print(greeting);
+print(JS.get(config, "answer"));
+print(twice(21));
+print(answerTwice());

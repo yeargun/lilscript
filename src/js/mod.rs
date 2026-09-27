@@ -254,11 +254,13 @@ pub enum Expr {
     /// subclass of a host constructor). `name` is the class's observable
     /// `name`, independent of whichever binding holds it. Evaluating it reads
     /// `base`, which throws unless it is a constructor. The methods are
-    /// non-enumerable prototype methods, in order.
+    /// non-enumerable prototype methods, in order. No constructor is
+    /// JavaScript's implicit one (ECMA-262 ClassDefinitionEvaluation): for a
+    /// root class, `constructor(){}`, whose `length` is 0 too.
     Class {
         name: String,
         base: Option<ExprId>,
-        constructor: FunctionId,
+        constructor: Option<FunctionId>,
         methods: Vec<(String, FunctionId)>,
     },
     /// `super(arguments)`, only in a class constructor: runs the base
@@ -308,7 +310,7 @@ impl Expr {
                 constructor,
                 methods,
                 ..
-            } => (Some(*constructor), methods.as_slice()),
+            } => (*constructor, methods.as_slice()),
             _ => (None, &[][..]),
         };
         first
@@ -940,8 +942,10 @@ pub struct Function {
     /// caller and arguments from a sloppy host inside a classic script.
     pub strict: bool,
     /// The reflected `length` when it is shorter than the parameter count:
-    /// JavaScript counts parameters before the first default, so each later
-    /// one prints as `p=void 0`. The body still applies the real default.
+    /// JavaScript counts parameters before the first one with an
+    /// initializer, so that one prints as `p=void 0` (or its own literal
+    /// default) and the later ones need none. The body still applies the
+    /// real default.
     pub length: Option<usize>,
     /// `async function` / `function*`: only such a body may `await` or
     /// `yield`. A generator is never an arrow.

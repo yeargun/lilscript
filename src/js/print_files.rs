@@ -152,7 +152,13 @@ fn esm(
             printer.text(";");
         }
     }
-    foreign_imports(printer, &file.links.foreign, hosts, own_name(planned));
+    // The foreign imports this file uses, one declaration per specifier;
+    // carried host modules print as host bindings instead.
+    printer.foreign_imports(
+        file.links.foreign.iter().copied(),
+        hosts,
+        Some(own_name(planned)),
+    );
     if let Some(hosts) = hosts {
         if !file.links.hosted.is_empty() {
             printer.host_bindings(hosts, file.links.hosted.iter().copied());
@@ -220,7 +226,7 @@ fn own_name<'a>(planned: &PlannedPrint<'a>) -> &'a str {
 /// A relative foreign specifier is spelled from the output directory, which
 /// stands for the first entry's source directory (as a one-file output
 /// does); a file delivered `depth` directories below it climbs back first.
-fn rebased(source: &str, file: &str) -> Option<String> {
+pub(super) fn rebased(source: &str, file: &str) -> Option<String> {
     let depth = file.matches('/').count();
     if depth == 0 || !(source.starts_with("./") || source.starts_with("../")) {
         return None;
@@ -228,42 +234,6 @@ fn rebased(source: &str, file: &str) -> Option<String> {
     let mut rebased = "../".repeat(depth);
     rebased.push_str(source.strip_prefix("./").unwrap_or(source));
     Some(rebased)
-}
-
-/// `import{imported as local}from"source";` for each foreign import this
-/// file uses; carried host modules print as host bindings instead.
-fn foreign_imports(
-    printer: &mut Printer<'_, '_, '_>,
-    foreign: &[usize],
-    hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
-    file: &str,
-) {
-    for &index in foreign {
-        if !printer.output.work(1) {
-            return;
-        }
-        let import = &printer.module.imports[index];
-        if hosted(hosts, import) {
-            continue;
-        }
-        printer.text("import{");
-        printer.text(&import.imported);
-        let local = printer.names.get(import.binding);
-        if local != import.imported {
-            printer.text(" as ");
-            printer.text(local);
-        }
-        printer.text("}from");
-        match import
-            .source
-            .as_unicode()
-            .and_then(|source| rebased(source, file))
-        {
-            Some(source) => printer.string(&StringValue::from(source.as_str())),
-            None => printer.string(&import.source),
-        }
-        printer.text(";");
-    }
 }
 
 #[cfg(test)]

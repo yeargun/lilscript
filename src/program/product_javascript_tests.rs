@@ -41,7 +41,7 @@ macro_rules! case {
 }
 fn policy(compact: bool) -> ResolvedPolicy {
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\ntarget-compaction='{}'\n",
+        "[javascript]\n[policy.tactics]\ntarget-compaction='{}'\n",
         if compact { "on" } else { "off" },
     ))
     .unwrap();
@@ -313,7 +313,7 @@ fn automatic_search(case: &Case, oracle: &[Json]) {
     let source = compiler
         .adopt_checked(program, WorkDomain::Baseline)
         .unwrap();
-    let config:crate::config::ProjectConfig=toml::from_str("[javascript]\nstrip_console=false\ncandidate_proposal_limit=192\nterminal_codec_probe_limit=384\ncandidate_beam_width=8\n[policy.tactics]\nscalar-replacement='on'\ninlining='on'\ntarget-compaction='on'\nidentifier-mangling='on'\nnaming-search='on'\n").unwrap();
+    let config:crate::config::ProjectConfig=toml::from_str("[javascript]\ncandidate_proposal_limit=192\nterminal_codec_probe_limit=384\ncandidate_beam_width=8\n[policy.tactics]\nscalar-replacement='on'\ninlining='on'\ntarget-compaction='on'\nidentifier-mangling='on'\nnaming-search='on'\n").unwrap();
     let policy = config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

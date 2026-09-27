@@ -1,13 +1,26 @@
 //! Concrete C11 recipes for the shared primitive identities. No source/CFG
 //! analysis, target graph, allocation or runtime library discovery lives here.
 //! The caller admits emitted bytes and invokes ls_runtime_init before source
-//! initialization. Its qualified C driver also fixes -fno-fast-math and
-//! -ffp-contract=off; arbitrary command-line floating-point modes are not an ABI.
+//! initialization.
+//!
+//! **Binary64 without per-operation barriers** (plan M11.2). Every double
+//! operation is one correctly rounded IEEE operation because the translation
+//! unit itself guarantees it under the user's flags, not the driver's:
+//! `FLT_EVAL_METHOD == 0` (no excess precision), contraction off in source
+//! (`#pragma STDC FP_CONTRACT OFF`; GCC ignores it, so
+//! `#pragma GCC optimize("fp-contract=off")`; Clang also gets
+//! `#pragma clang fp contract(off)` and `reassociate(off)`), GCC's unsafe-math
+//! modes refused by their macros, and a startup check that refuses the one
+//! mode that ignores pragmas (Clang's `-ffp-contract=fast`). The emitted file's
+//! header states the flags. `ls_f64` is therefore the identity: the volatile
+//! store it once was cost 3.8x on float loops.
 
-/// Common scalar ABI and bounded execution qualification. FP_CONTRACT is an
-/// additional compiler-supported guard: separate volatile ls_f64 boundaries
-/// and the qualified driver flags carry the actual operation-rounding contract.
-pub(super) const PROLOGUE: &str = r#"#include <stdbool.h>
+/// Common scalar ABI and bounded execution qualification.
+pub(super) const PROLOGUE: &str = r#"/* LilScript native: build as C11 or later with the compiler's default
+   floating-point options (`cc -O2 file.c -lm`). No -ffast-math, unsafe-math,
+   -fno-signed-zeros or -ffp-contract=fast: each double operation must round
+   as in JavaScript. The file disables contraction and checks the rest. */
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -23,10 +36,20 @@ pub(super) const PROLOGUE: &str = r#"#include <stdbool.h>
 #if defined(__FAST_MATH__) || (defined(__FINITE_MATH_ONLY__) && __FINITE_MATH_ONLY__ != 0)
 #error "LilScript native forbids fast-math and finite-only arithmetic"
 #endif
+#if defined(__ASSOCIATIVE_MATH__) || defined(__RECIPROCAL_MATH__) || defined(__NO_SIGNED_ZEROS__)
+#error "LilScript native forbids reassociation, reciprocal and signed-zero-free arithmetic"
+#endif
 #if FLT_EVAL_METHOD != 0
 #error "LilScript native requires evaluation in the declared floating type"
 #endif
 #pragma STDC FP_CONTRACT OFF
+#if defined(__clang__)
+#pragma clang fp contract(off)
+#pragma clang fp reassociate(off)
+#elif defined(__GNUC__)
+#pragma GCC optimize("fp-contract=off")
+#endif
+_Static_assert((-1 >> 1) == -1, "LilScript native requires arithmetic right shifts of negative values");
 _Static_assert(CHAR_BIT == 8, "LilScript native requires 8-bit bytes");
 _Static_assert(sizeof(uint16_t) == 2 && sizeof(uint32_t) == 4 && sizeof(uint64_t) == 8,
                "LilScript native requires exact integer widths");
@@ -55,6 +78,16 @@ static int ls_runtime_init(void) {
     memcpy(&doubled_bits, &observed, sizeof doubled_bits);
     if (doubled_bits != UINT64_C(2)) {
         fputs("LilScript native requires gradual binary64 underflow\n", stderr);
+        return 0;
+    }
+    /* (1+2^-27)(1-2^-27)-1 is 0 when the product is rounded and -2^-54 when a
+       fused multiply-add contracts it: Clang's -ffp-contract=fast ignores the
+       pragmas above. Separate volatile reads keep the two products apart. */
+    volatile double left = 1.0 + 0x1p-27, right = 1.0 - 0x1p-27, addend = -1.0;
+    double combined = left * right + addend;
+    volatile double product = left * right;
+    if (combined != product + addend) {
+        fputs("LilScript native forbids floating-point contraction (-ffp-contract=fast)\n", stderr);
         return 0;
     }
     return 1;
@@ -141,10 +174,9 @@ impl Helper {
             Self::ToInt32
             | Self::Imul
             | Self::ShiftLeft
-            | Self::ShiftRight
             | Self::UnsignedShiftRight
             | Self::StringLength => &[Self::FromU32],
-            Self::Multiply => &[Self::ToInt32, Self::RoundBinary64],
+            Self::Multiply => &[Self::ToInt32, Self::FromU32],
             Self::Strings => &[Self::StringEqual],
             Self::Dynamic => &[Self::Strings, Self::ClosureRuntime],
             Self::Collections => &[Self::Dynamic],
@@ -184,10 +216,11 @@ impl Helper {
 }
 "#
             }
+            // Each operation is already one rounded binary64 operation (see
+            // the module comment); this names the boundary and costs nothing.
             Self::RoundBinary64 => {
                 r#"static inline double ls_f64(double value) {
-    volatile double rounded = value;
-    return rounded;
+    return value;
 }
 "#
             }
@@ -199,9 +232,16 @@ impl Helper {
 }
 "#
             }
+            // JavaScript's `(a*b)|0`: the exact product while it is at most
+            // 2^53 in magnitude, where the double product is exact too, wrapped
+            // to 32 bits; beyond it, ToInt32 of the rounded double product.
             Self::Multiply => {
                 r#"static inline int32_t ls_mul(int32_t left, int32_t right) {
-    return ls_to_i32(ls_f64((double)left * (double)right));
+    int64_t product = (int64_t)left * (int64_t)right;
+    if (product >= -INT64_C(9007199254740992) && product <= INT64_C(9007199254740992)) {
+        return ls_from_u32((uint32_t)(uint64_t)product);
+    }
+    return ls_to_i32((double)left * (double)right);
 }
 "#
             }
@@ -234,13 +274,13 @@ impl Helper {
 }
 "#
             }
+            // Arithmetic, as the prologue's static assertion requires of `>>`
+            // on a negative value (implementation-defined in C11 6.5.7p5).
+            // Left shifts stay on `uint32_t` (`ls_shl`): a signed left shift
+            // of a negative value is undefined (6.5.7p4).
             Self::ShiftRight => {
                 r#"static inline int32_t ls_shr(int32_t value, int32_t count) {
-    uint32_t shift = (uint32_t)count & UINT32_C(31);
-    if (shift == 0) return value;
-    uint32_t bits = (uint32_t)value >> shift;
-    if (value < 0) bits |= (uint32_t)(UINT32_MAX << (32 - shift));
-    return ls_from_u32(bits);
+    return value >> ((uint32_t)count & UINT32_C(31));
 }
 "#
             }

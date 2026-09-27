@@ -82,9 +82,15 @@ export function parseRetiredKeys(text) {
   const body = text.slice(start, text.indexOf("\n];", start))
   const string = String.raw`"(?:[^"\\]|\\[\s\S])*"`
   const entries = []
-  const pattern = new RegExp(String.raw`\(\s*(${string}),\s*Retirement::(NoEffect|Refused|RefusedUnless)\s*(?:\(\s*(${string}|[A-Z_]+)\s*,?\s*\)|\{([\s\S]*?)\})\s*,?\s*\)`, "g")
+  const pattern = new RegExp(String.raw`\(\s*(${string}),\s*Retirement::(NoEffect|Refused|RefusedUnless|Renamed)\s*(?:\(\s*(${string}|[A-Z_]+)\s*,?\s*\)|\{([\s\S]*?)\})\s*,?\s*\)`, "g")
   for (const match of body.matchAll(pattern)) {
     const [, key, kind, simple, fields] = match
+    if (kind === "Renamed") {
+      const to = new RegExp(String.raw`to:\s*(${string})`).exec(fields)
+      const why = new RegExp(String.raw`reason:\s*(${string})`).exec(fields)
+      entries.push({ key: rustString(key), kind, to: rustString(to[1]), reason: rustString(why[1]) })
+      continue
+    }
     if (kind !== "RefusedUnless") { entries.push({ key: rustString(key), kind, reason: reason(simple) }); continue }
     const value = /value:\s*RetiredValue::(?:String\((".*?")\)|Integer\((-?\d+)\))/.exec(fields)
     const then = new RegExp(String.raw`then:\s*(None|Some\(\s*(${string})\s*\))`).exec(fields)
@@ -166,7 +172,8 @@ export function buildSchema() {
     "",
     "Applied to the parsed file before the tables above are read (`RETIRED_KEYS` in `src/config.rs`). A",
     "*no effect* key is removed and the CLI warns `<key> has no effect in this compiler: <reason>; remove it`;",
-    "`--print-policy` lists the same warnings. A *refused* key stops the build with its reason. A table",
+    "`--print-policy` lists the same warnings. A *refused* key stops the build with its reason. A *replaced*",
+    "key's value moves to its successor key, unless that key is set too, with a warning. A table",
     "path covers every key in that table.",
     "",
     "| Key | Outcome | Reason |",
@@ -174,6 +181,7 @@ export function buildSchema() {
   )
   for (const entry of retired.entries) {
     const outcome = entry.kind === "NoEffect" ? "no effect" : entry.kind === "Refused" ? "refused" :
+      entry.kind === "Renamed" ? `replaced by \`${cell(entry.to)}\`` :
       `refused unless \`${cell(String(entry.value))}\`, which ${entry.then ? "has no effect" : "is kept"}`
     const why = entry.kind === "RefusedUnless" && entry.then ? `${entry.reason} (with \`${cell(String(entry.value))}\`: ${entry.then})` : entry.reason
     lines.push(`| \`${entry.key}\` | ${outcome} | ${cell(why)} |`)

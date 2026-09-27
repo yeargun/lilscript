@@ -306,6 +306,11 @@ impl Formation<'_, '_, '_, '_, '_> {
         let mut parameters = self.budget.vector(AllocationClass::Retained, cells.len())?;
         for (position, &cell) in cells.iter().enumerate() {
             self.work(1)?;
+            // A method's receiver read as `this`, a rest list read as
+            // `arguments` or formals, or either unread: no parameter.
+            if self.unbound_cells.contains(&cell) {
+                continue;
+            }
             if let Some(index) = self.product_parameter_index(context, position as u32)? {
                 let width = match &self.contexts[context.index()]
                     .as_ref()

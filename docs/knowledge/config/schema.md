@@ -42,7 +42,8 @@ error, not a silently ignored setting.
 | `assume_unconstructed_callbacks` | `bool` | `false` | A function made from a lambda is never constructed (with `new`) nor its `prototype` read, except through the variable the program declared it in, the way Terser's `unsafe_arrows` assumes. |
 | `keep_function_names` | `bool` | `false` | Keep the exact source `name` of every function whose name some code could read, not only of published exports. |
 | `keep_published_function_names` | `bool` | `true` | Keep the exact source `name` of published functions (D2). |
-| `strip_console` | `bool` | `true` | Drop `print()` / `debugLog` from JavaScript. |
+| `strip_debug` | `bool` | `false` | Drop calls of the host `debugLog` extern from JavaScript, keeping the evaluation of their arguments (the `debug` effect class of plan M10.11 generalizes it). |
+| `strip_console_calls` | `bool` | `false` | Drop calls of the host `console` object's methods (`console.warn(x)` through an extern `console`), keeping the evaluation of their arguments: a declared relaxation of host console output (D3.4). |
 
 ## `[mangle]` — closed
 
@@ -120,7 +121,8 @@ error, not a silently ignored setting.
 
 Applied to the parsed file before the tables above are read (`RETIRED_KEYS` in `src/config.rs`). A
 *no effect* key is removed and the CLI warns `<key> has no effect in this compiler: <reason>; remove it`;
-`--print-policy` lists the same warnings. A *refused* key stops the build with its reason. A table
+`--print-policy` lists the same warnings. A *refused* key stops the build with its reason. A *replaced*
+key's value moves to its successor key, unless that key is set too, with a warning. A table
 path covers every key in that table.
 
 | Key | Outcome | Reason |
@@ -179,6 +181,7 @@ path covers every key in that table.
 | `javascript.local_phi_expression_regions` | no effect | it chose a spelling in the old compiler's JavaScript emitter, which was deleted |
 | `javascript.rematerialize_member_reads` | no effect | it chose a spelling in the old compiler's JavaScript emitter, which was deleted |
 | `javascript.aggregate_layout` | no effect | it chose a spelling in the old compiler's JavaScript emitter, which was deleted |
+| `javascript.strip_console` | replaced by `javascript.strip_debug` | `print` is a program effect and is never stripped; the key's other half, dropping `debugLog` calls, is `javascript.strip_debug` (host `console.*` calls are `javascript.strip_console_calls`) |
 | `javascript.startup` | no effect | it weighted the old compiler's static runtime-cost scores; size is the objective, and runtime limits need runtime estimators that do not exist yet |
 | `javascript.performance` | no effect | it weighted the old compiler's static runtime-cost scores; size is the objective, and runtime limits need runtime estimators that do not exist yet |
 | `mangle.exports` | no effect | a library build (`--target js-module`) keeps its export names and an application build has none to keep |

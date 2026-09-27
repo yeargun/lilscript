@@ -83,7 +83,6 @@ fn with_targets(
         cache.discard(&mut ledger).unwrap();
     }
     let mut config = crate::config::ProjectConfig::default();
-    config.javascript.strip_console = false;
     let policy = config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

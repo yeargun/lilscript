@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { codeOnly, composeConfig, LANES, parseTomlTables, selectLanes } from "./cases.mjs";
-import { diffAgainstLedger, failingTests, rewriteObjective, testTotals } from "./ports.mjs";
+import { diffAgainstLedger, failingTests, rewriteObjective, suiteRan, testTotals } from "./ports.mjs";
 import { applyLedger, catalogId, compareWithBaseline, countLosses, lossRows, selectItems, validateLedger } from "./ratchet.mjs";
 import { validateIdiomDebt } from "./lib/idiom-debt.mjs";
 
@@ -31,13 +31,13 @@ test("a case configuration merges into the lane's tables, one [javascript] table
   const text = composeConfig(lane, ["inlining", "naming-search"], '# comment\n[javascript]\nassume_pristine_builtins = false # why\n[mangle]\nexports = false\n');
   assert.equal(text.match(/^\[javascript\]$/gm).length, 1);
   const tables = parseTomlTables(text);
-  assert.equal(tables.get("javascript").get("strip_console"), "false");
+  assert.equal(tables.get("javascript").has("strip_console"), false);
   assert.equal(tables.get("javascript").get("cost_model"), '"gzip"');
   assert.equal(tables.get("javascript").get("candidate_search"), '"off"');
   assert.equal(tables.get("javascript").get("assume_pristine_builtins"), "false");
   assert.equal(tables.get("policy.tactics").get("naming-search"), '"off"');
   assert.equal(tables.get("mangle").get("exports"), "false");
-  assert.throws(() => composeConfig(lane, [], "[javascript]\nstrip_console = true\n"), /strip_console/);
+  assert.throws(() => composeConfig(lane, [], "[javascript]\nstrip_console = false\n"), /strip_console/);
 });
 
 test("production lanes carry no tactic table", () => {
@@ -77,6 +77,15 @@ test("the port ledger: regressions, removals, and intermittent entries", () => {
   assert.deepEqual(diffAgainstLedger(["slow"], entries, true).regressions, []);
   assert.deepEqual(diffAgainstLedger([], entries, true).nowPassing, ["a", "b"]);
   assert.deepEqual(diffAgainstLedger([], entries, false).nowPassing, []);
+});
+
+test("a suite that ran no test reports no ledgered test as passing", () => {
+  // Every jest suite failed to load (mobxlil, 2026-09-27): no test ran.
+  const crashed = "FAIL tests/a.test.js\n  ● Test suite failed to run\n\nTest Suites: 37 failed, 37 total\nTests:       0 total\n";
+  assert.equal(suiteRan({ ...testTotals(crashed), failing: failingTests(crashed) }), false);
+  assert.equal(suiteRan(undefined), false);
+  const ran = "Tests:       1 failed, 2 passed, 3 total\n";
+  assert.equal(suiteRan({ ...testTotals(ran) }), true);
 });
 
 // The generic corpus ratchet (scripts/ratchet.mjs): verdicts, the baseline

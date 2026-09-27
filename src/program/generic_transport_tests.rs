@@ -16,7 +16,7 @@ fn output(source: &str, compact: bool, module: bool) -> Result<String, Candidate
     let program = from_checked_source(&syntax, &checked).unwrap();
     program.verify().unwrap();
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\ntarget-compaction='{}'\n",
+        "[javascript]\n[policy.tactics]\ntarget-compaction='{}'\n",
         if compact { "on" } else { "off" },
     ))
     .unwrap();
