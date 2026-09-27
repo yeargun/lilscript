@@ -87,7 +87,9 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
     assert_eq!(names, declared, "every declared challenger, in order");
     let before = stage["before"].as_i64().unwrap();
     let mut incumbent = before;
-    for trial in trials(stage) {
+    // The choice trials (M9.1) continue from the challengers' incumbent.
+    let choice_trials = stage["choice_trials"].as_array().unwrap();
+    for trial in trials(stage).iter().chain(choice_trials) {
         match outcome(trial) {
             "kept" => {
                 let delta = trial["delta"].as_i64().unwrap();
@@ -122,6 +124,39 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
     let scored = count(&["kept", "rejected"]);
     assert_eq!(stage["scored"].as_u64().unwrap() as usize, scored);
     assert!(scored <= stage["budget"].as_u64().unwrap() as usize);
+    let choices = |outcomes: &[&str]| {
+        choice_trials
+            .iter()
+            .filter(|trial| outcomes.contains(&outcome(trial)))
+            .count()
+    };
+    assert_eq!(
+        stage["choices_tried"].as_u64().unwrap() as usize,
+        choices(&["kept", "rejected", "identical", "refused"])
+    );
+    let scored = choices(&["kept", "rejected"]);
+    assert_eq!(stage["choices_scored"].as_u64().unwrap() as usize, scored);
+    assert!(scored <= stage["choice_budget"].as_u64().unwrap() as usize);
+    // Every delivered choice site names an alternative it offers.
+    for site in stage["choices"].as_array().unwrap() {
+        let offered: Vec<&str> = site["offered"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|pair| pair[0].as_str().unwrap())
+            .collect();
+        assert!(
+            offered.contains(&site["delivered"].as_str().unwrap()),
+            "{site}"
+        );
+        assert!(offered.contains(&site["seed"].as_str().unwrap()), "{site}");
+    }
+}
+
+/// `check_stage`, and the delivered program prints the spellings case's
+/// expected output.
+fn check_spellings(compiled: &ServiceCompilation, codec: &str) {
+    check_stage(compiled, codec);
     let javascript = compiled.javascript(codec_of(codec)).unwrap().javascript();
     assert_eq!(execute(javascript), EXPECTED, "{codec}: {javascript}");
 }
@@ -130,7 +165,7 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
 fn the_stage_keeps_a_challenger_that_shrinks_the_artifact_and_rejects_one_that_grows_it() {
     // Level 15 tries the whole schedule.
     let compiled = compile("brotli", "optimization_level=15");
-    check_stage(&compiled, "brotli");
+    check_spellings(&compiled, "brotli");
     let stage = stage(&compiled);
     let kept = trials(stage)
         .iter()
@@ -153,7 +188,7 @@ fn the_objective_seeds_the_families_and_its_codec_judges_them() {
     let brotli = compile("brotli", "optimization_level=15");
     let gzip = compile("gzip", "optimization_level=15");
     for (compiled, codec) in [(&raw, "raw"), (&gzip, "gzip"), (&brotli, "brotli")] {
-        check_stage(compiled, codec);
+        check_spellings(compiled, codec);
     }
     let spelling = |compiled: &ServiceCompilation| stage(compiled)["spelling"].clone();
     // Each objective starts from its own seed and keeps what its own codec
@@ -184,7 +219,7 @@ fn the_effort_sets_the_schedule_prefix_and_a_longer_one_never_ends_larger() {
     let mut previous: Option<(i64, i64)> = None;
     for (level, budget) in [(8u8, 3usize), (13, 7), (15, usize::MAX)] {
         let compiled = compile("brotli", &format!("optimization_level={level}"));
-        check_stage(&compiled, "brotli");
+        check_spellings(&compiled, "brotli");
         let stage = stage(&compiled);
         if budget != usize::MAX {
             assert_eq!(stage["budget"].as_u64().unwrap() as usize, budget);
@@ -232,7 +267,7 @@ fn a_vetoed_family_is_never_formed() {
         "brotli",
         "optimization_level=15\n[policy.tactics]\ntarget-compaction='off'",
     );
-    check_stage(&compiled, "brotli");
+    check_spellings(&compiled, "brotli");
     for trial in trials(stage(&compiled)) {
         match trial["challenger"].as_str().unwrap() {
             // The naming plan's spelling needs no formation permission.
@@ -268,4 +303,75 @@ fn the_stage_is_deterministic_across_runs_and_threads() {
     for result in concurrent {
         assert_eq!(result, first);
     }
+}
+
+const TABLES: &str = include_str!("../tests/cases/data_tables.lil");
+const TABLES_HOST: &str = include_str!("../tests/cases/data_tables.host.js");
+const TABLES_EXPECTED: &str = include_str!("../tests/cases/data_tables.out");
+
+#[test]
+fn every_objective_judges_the_data_tables_and_delivers_them_exactly() {
+    // Plan M9.1 and M9.8: each table site's alternatives are judged by the
+    // objective's codec after the challengers, within the choice budget, and
+    // whatever each objective keeps decodes to the literal's own graph.
+    let mut delivered = Vec::new();
+    for codec in ["raw", "gzip", "brotli"] {
+        let config: ProjectConfig = toml::from_str(&format!(
+            "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\n\
+             cost_model='{codec}'\noptimization_level=15\n"
+        ))
+        .unwrap();
+        let compiled = compile_source(TABLES, &config, ServiceOptions::default()).unwrap();
+        check_stage(&compiled, codec);
+        let stage = stage(&compiled);
+        let sites = stage["choices"].as_array().unwrap();
+        assert!(sites.len() >= 3, "{stage}");
+        assert!(
+            sites.iter().any(|site| site["delivered"] != "literal"),
+            "{codec}: some table is encoded: {stage}"
+        );
+        // Every offered alternative other than the delivered one was judged.
+        assert!(stage["choice_trials"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|trial| trial["outcome"] != "budget"));
+        let javascript = compiled.javascript(codec_of(codec)).unwrap().javascript();
+        let script = format!(
+            "{TABLES_HOST}\nawait import('data:text/javascript,'+encodeURIComponent({}));",
+            serde_json::to_string(javascript).unwrap(),
+        );
+        let output = Command::new("node")
+            .args(["--input-type=module", "-e", &script])
+            .output()
+            .expect("Node is required for terminal stage observation tests");
+        assert!(output.status.success(), "{codec}: {javascript}");
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            TABLES_EXPECTED,
+            "{codec}: {javascript}"
+        );
+        delivered.push(
+            sites
+                .iter()
+                .map(|site| site["delivered"].as_str().unwrap().to_string())
+                .collect::<Vec<_>>(),
+        );
+    }
+    // The raw objective's estimator seeds; the codecs judged some site
+    // otherwise (when this landed, three objectives, three assignments).
+    assert!(
+        delivered[0] != delivered[1] || delivered[0] != delivered[2],
+        "{delivered:?}"
+    );
+    // Without the choice budget (the search-off levels), the seeds ship.
+    let config: ProjectConfig = toml::from_str(
+        "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\n\
+         cost_model='brotli'\noptimization_level=0\n",
+    )
+    .unwrap();
+    let compiled = compile_source(TABLES, &config, ServiceOptions::default()).unwrap();
+    let stage = stage(&compiled);
+    assert_eq!(stage["choice_budget"], 0);
+    assert!(stage["choice_trials"].as_array().unwrap().is_empty());
 }

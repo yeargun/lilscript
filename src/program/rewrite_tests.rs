@@ -166,6 +166,7 @@ fn render(
                 target_compaction: false,
                 literals: LiteralOutput::Original,
                 families: crate::js::OutputFamilies::NONE,
+                choices: crate::js::ChoiceMap::SEEDS,
             },
             WorkDomain::Baseline,
             |output| {

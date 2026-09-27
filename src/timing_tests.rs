@@ -52,13 +52,23 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
         let stages = compiled.report()["search"]["terminal"]["objectives"]
             .as_array()
             .unwrap();
+        // Choice alternatives form and render like challengers; a survey
+        // forms a tail only, to read the incumbent's choice sites.
         let tried: u64 = stages
             .iter()
-            .map(|stage| stage["tried"].as_u64().unwrap())
+            .map(|stage| {
+                stage["tried"].as_u64().unwrap() + stage["choices_tried"].as_u64().unwrap()
+            })
+            .sum();
+        let surveys: u64 = stages
+            .iter()
+            .map(|stage| stage["surveys"].as_u64().unwrap())
             .sum();
         let heads = stages
             .iter()
-            .filter(|stage| stage["tried"].as_u64().unwrap() > 0)
+            .filter(|stage| {
+                stage["tried"].as_u64().unwrap() + stage["surveys"].as_u64().unwrap() > 0
+            })
             .count() as u64;
         let terminal_encodes: u64 = stages
             .iter()
@@ -82,7 +92,15 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             } else {
                 [1, 1, 2, 2, 2, 3, 3]
             };
-            let terminal = [heads, heads + tried, tried, tried, tried, tried, tried];
+            let terminal = [
+                heads,
+                heads + tried + surveys,
+                tried,
+                tried,
+                tried,
+                tried,
+                tried,
+            ];
             assert_eq!(
                 phases[..7]
                     .iter()

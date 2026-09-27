@@ -182,7 +182,7 @@ struct Row {
     javascript: String,
     sizes: [usize; 3],
 }
-fn output_json(output: OutputTactics) -> Json {
+fn output_json(output: &OutputTactics) -> Json {
     json!({"dead_code_elimination":output.dead_code_elimination,
         "target_compaction":output.target_compaction,"literals":format!("{:?}",output.literals)})
 }
@@ -190,7 +190,7 @@ fn emit(case: Case, kind: &str, inlined: bool, cap: Option<usize>, row: &Row, ob
     eprintln!(
         "observation-output-artifact {}",
         json!({"schema":1,"case":case.name,"kind":kind,"inline":inlined,"search_cap":cap,
-        "style":format!("{:?}",row.style),"requested":if kind == "manual" { json!(format!("{:?}",row.requested)) } else { Json::Null },"output":output_json(row.output),
+        "style":format!("{:?}",row.style),"requested":if kind == "manual" { json!(format!("{:?}",row.requested)) } else { Json::Null },"output":output_json(&row.output),
         "source":case.source,"source_sha256":digest(case.source),"setup":case.setup,"observations":case.observations,
         "javascript":row.javascript,"javascript_sha256":digest(&row.javascript),"sizes":row.sizes,
         "expected":serde_json::from_str::<Json>(case.expected).unwrap(),"observed":observed})
@@ -428,13 +428,14 @@ fn literal_output_refusals_preserve_prior_artifacts_and_never_return_false_avail
                 target_compaction: false,
                 literals: LiteralOutput::Original,
                 families: crate::js::OutputFamilies::NONE,
+                choices: crate::js::ChoiceMap::SEEDS,
                 ..OutputTactics::from_policy(&p)
             };
             compiler
                 .with_javascript_output_choices_in(
                     candidate,
                     &p,
-                    off,
+                    off.clone(),
                     WorkDomain::Optional,
                     |output| {
                         assert!(!output.has_literal_alternative().unwrap());
@@ -466,7 +467,7 @@ fn literal_output_refusals_preserve_prior_artifacts_and_never_return_false_avail
             let mut entered = false;
             let illegal = OutputTactics {
                 literals: LiteralOutput::Observed,
-                ..off
+                ..off.clone()
             };
             let result = compiler.with_javascript_output_choices_in(
                 candidate,
@@ -553,7 +554,7 @@ fn public_search_skips_inactive_modes_and_keeps_actual_mode_qualified_winners() 
                     assert!(rows.iter().any(|row| row.style==plan.style&&row.output==view.output&&row.javascript==view.javascript&&row.sizes==sizes));
                     assert_eq!(sizes[index],rows.iter().map(|row|row.sizes[index]).min().unwrap());
                     let observed=execute(case,view.javascript);
-                    json!({"objective":format!("{objective:?}"),"style":format!("{:?}",plan.style),"output":output_json(view.output),"javascript_sha256":digest(view.javascript),"sizes":sizes,"observed":observed})
+                    json!({"objective":format!("{objective:?}"),"style":format!("{:?}",plan.style),"output":output_json(&view.output),"javascript_sha256":digest(view.javascript),"sizes":sizes,"observed":observed})
                 }).unwrap());
             }
             let counters = search.counters();
@@ -622,7 +623,7 @@ fn one_naming_seed_uses_optional_literal_work_only_when_allowed() {
                     assert_eq!(sizes[index], rows.iter().map(|row| row.sizes[index]).min().unwrap());
                     assert!(rows.iter().any(|row| row.javascript == view.javascript && row.output == view.output && row.style == plan.style));
                     json!({"objective":format!("{codec:?}"),"style":format!("{:?}",plan.style),
-                        "output":output_json(view.output),"javascript_sha256":digest(view.javascript),
+                        "output":output_json(&view.output),"javascript_sha256":digest(view.javascript),
                         "sizes":sizes,"observed":execute(WEAK,view.javascript)})
                 }).unwrap()
             }).collect::<Vec<_>>();

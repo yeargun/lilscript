@@ -360,7 +360,7 @@ fn expected(edited: bool) -> Json {
     }
     expected
 }
-fn output_metadata(output: OutputTactics) -> Json {
+fn output_metadata(output: &OutputTactics) -> Json {
     json!({
         "dead_code_elimination": output.dead_code_elimination,
         "target_compaction": output.target_compaction,
@@ -394,7 +394,7 @@ fn artifact(
         let brotli11=output.measure(artifact,Objective::Brotli)?;
         let javascript=output.take_artifact(artifact)?;
         assert_eq!(javascript.len(),raw);
-        Ok::<_,CandidateError>(json!({"representation":representation,"descriptor":descriptor,"compact":compact,"output":output_metadata(actual_output),"style":format!("{style:?}"),"sources":metadata,"setup":SETUP,"host":HOST,"expected":expected(edited),"observed":observed,"javascript_sha256":digest(&javascript),"javascript":javascript,"raw":raw,"gzip9":gzip9,"brotli11":brotli11,"edited":edited,"source_edit":if edited {json!({"file":"editable.lil","from":"return 11","to":"return 12"})} else {Json::Null}}))
+        Ok::<_,CandidateError>(json!({"representation":representation,"descriptor":descriptor,"compact":compact,"output":output_metadata(&actual_output),"style":format!("{style:?}"),"sources":metadata,"setup":SETUP,"host":HOST,"expected":expected(edited),"observed":observed,"javascript_sha256":digest(&javascript),"javascript":javascript,"raw":raw,"gzip9":gzip9,"brotli11":brotli11,"edited":edited,"source_edit":if edited {json!({"file":"editable.lil","from":"return 11","to":"return 12"})} else {Json::Null}}))
     }).unwrap().unwrap();
     assert_eq!(compiler.ledger().retained_bytes(), retained);
     row
@@ -797,7 +797,7 @@ fn public_factory_qualifies_combined_recipes_with_exact_scores_and_original_obse
                     for tactic in required_tactics {
                         assert!(provenance.tactics().iter().any(|usage| usage.tactic == tactic), "missing {tactic:?} provenance");
                     }
-                    output_metadata(view.output)
+                    output_metadata(&view.output)
                 }).unwrap();
                 if style == Style::Global {
                     for (tactic, prohibited) in &forbidden {
@@ -907,8 +907,8 @@ fn integrated_search_winners_belong_to_the_exact_executed_measured_union() {
         };
         let search=c.search_javascript_observed(source,&p,request,|observation| {
             let observed=execute(observation.javascript,false);let score=sizes(observation.sizes);measured.push((digest(observation.javascript),score));
-            measured_recipes.push((observation.recipe_descriptor.whole_words().expect("Whole cohort").to_vec(),observation.naming.style,observation.output,observation.candidate));
-            eprintln!("integrated-search-artifact {}",json!({"sources":metadata,"descriptor":observation.recipe_descriptor.whole_words().expect("Whole cohort"),"style":format!("{:?}",observation.naming.style),"output":output_metadata(observation.output),"baseline":observation.baseline,"javascript":observation.javascript,"javascript_sha256":digest(observation.javascript),"raw":score[0],"gzip9":score[1],"brotli11":score[2],"expected":expected(false),"observed":observed}));
+            measured_recipes.push((observation.recipe_descriptor.whole_words().expect("Whole cohort").to_vec(),observation.naming.style,observation.output.clone(),observation.candidate));
+            eprintln!("integrated-search-artifact {}",json!({"sources":metadata,"descriptor":observation.recipe_descriptor.whole_words().expect("Whole cohort"),"style":format!("{:?}",observation.naming.style),"output":output_metadata(&observation.output),"baseline":observation.baseline,"javascript":observation.javascript,"javascript_sha256":digest(observation.javascript),"raw":score[0],"gzip9":score[1],"brotli11":score[2],"expected":expected(false),"observed":observed}));
         }).unwrap();
         assert!(!measured.is_empty());
         let mut winners = Vec::new();
@@ -934,7 +934,7 @@ fn integrated_search_winners_belong_to_the_exact_executed_measured_union() {
                         measured.iter().map(|row| row.1[index]).min().unwrap()
                     );
                     json!({"objective":format!("{objective:?}"),"descriptor":descriptor,"style":format!("{:?}",plan.style),
-                        "output":output_metadata(view.output),"javascript_sha256":hash,"sizes":score,"observed":observed})
+                        "output":output_metadata(&view.output),"javascript_sha256":hash,"sizes":score,"observed":observed})
                 })
                 .unwrap();
             winners.push(winner);
@@ -952,16 +952,16 @@ fn integrated_search_winners_belong_to_the_exact_executed_measured_union() {
         let supplied_comparison: Vec<_> = supplied.iter().map(|row| {
             let descriptor: Vec<u32> = serde_json::from_value(row["descriptor"].clone()).unwrap();
             let style = row["style"].as_str().unwrap();
-            let matches = |words: &[u32], naming: Style, output: OutputTactics| {
+            let matches = |words: &[u32], naming: Style, output: &OutputTactics| {
                 words == descriptor.as_slice()
                     && format!("{naming:?}") == style
                     && output_metadata(output) == row["output"]
             };
             let reached = measured_recipes.iter().any(|(words, naming, output, _)| {
-                matches(words, *naming, *output)
+                matches(words, *naming, output)
             });
             for ((words, naming, output, _), (hash, score)) in measured_recipes.iter().zip(&measured) {
-                if matches(words, *naming, *output) {
+                if matches(words, *naming, output) {
                     assert_eq!(hash, row["javascript_sha256"].as_str().unwrap(),
                         "same recipe, naming and actual output must reproduce the supplied complete bytes");
                     assert_eq!(json!(score), row["sizes"]);
@@ -1130,7 +1130,7 @@ fn integrated_value_reference_module_executes_unchanged_through_native_and_javas
                 let gzip9 = output.measure(artifact, Objective::Gzip)?;
                 let brotli11 = output.measure(artifact, Objective::Brotli)?;
                 let text = output.take_artifact(artifact)?;
-                rows.push(json!({"style":format!("{style:?}"),"output":output_metadata(actual_output),"javascript_sha256":digest(&text),
+                rows.push(json!({"style":format!("{style:?}"),"output":output_metadata(&actual_output),"javascript_sha256":digest(&text),
                     "javascript":text,"observed":observed,"raw":raw,"gzip9":gzip9,"brotli11":brotli11}));
             }
             Ok::<_, CandidateError>(rows)

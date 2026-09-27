@@ -561,6 +561,7 @@ impl ProjectConfig {
                     retained_candidate_bytes: self.javascript.effective_candidate_byte_budget(),
                     beam_width: self.javascript.effective_candidate_beam_width(),
                     terminal_challengers: self.javascript.effective_terminal_challenger_limit(),
+                    terminal_choices: self.javascript.effective_terminal_choice_limit(),
                     search: policy.search,
                 };
                 (
@@ -1353,6 +1354,15 @@ impl JavaScriptConfig {
             CandidateSearch::Always if level_limit == 0 => 0,
             CandidateSearch::Always => usize::MAX,
         }
+    }
+
+    /// How many choice alternatives (M9.1) the terminal stage judges per
+    /// objective: the challengers' ladder, counted apart. A site offers one
+    /// to three alternatives the estimator ranks, and most programs have no
+    /// site, so the ladder bounds the codec work a program with many tables
+    /// can ask for rather than what one table needs.
+    pub fn effective_terminal_choice_limit(&self) -> usize {
+        self.effective_terminal_challenger_limit()
     }
 
     pub fn effective_terminal_codec_probe_limit(&self) -> usize {

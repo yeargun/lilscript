@@ -86,7 +86,7 @@ impl QualifiedArtifact {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ArtifactView<'a> {
     /// The entry file.
     pub javascript: &'a str,
@@ -246,7 +246,7 @@ impl Record {
             candidate: self.candidate,
             implementation: self.identity.description(),
             recipe_fingerprint: self.identity.fingerprint(),
-            output: self.output,
+            output: self.output.clone(),
             sizes: self.sizes.get(),
             retained_capacity: self.text.capacity(),
         }
@@ -922,12 +922,12 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         };
         let actual_output = OutputTactics {
             literals,
-            ..self.choices
+            ..self.choices.clone()
         };
         let retained = match self.output.with_allocation_budget(|budget| {
             let provenance = ArtifactProvenance::build(
                 self.structural.iter().chain(self.identity.tactics()),
-                actual_output,
+                actual_output.clone(),
                 plan,
                 self.policy,
                 self.staging.owner,

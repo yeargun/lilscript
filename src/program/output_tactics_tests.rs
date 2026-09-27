@@ -16,6 +16,7 @@ const ALL: OutputTactics = OutputTactics {
     dead_code_elimination: true,
     target_compaction: true,
     families: crate::js::OutputFamilies::NONE,
+    choices: crate::js::ChoiceMap::SEEDS,
 };
 const SOURCE: &str = r#"
     string unused="DROP_ONLY_MARKER"+"unused";
@@ -129,8 +130,9 @@ fn four_output_choices_preserve_closure_exception_and_public_observations() {
                     dead_code_elimination,
                     target_compaction,
                     families: crate::js::OutputFamilies::NONE,
+                    choices: crate::js::ChoiceMap::SEEDS,
                 };
-                let javascript = emit(compiler, candidate, &resolved, choices);
+                let javascript = emit(compiler, candidate, &resolved, choices.clone());
                 assert_eq!(
                     execute(
                         &javascript,
@@ -201,6 +203,7 @@ fn output_choices_preserve_host_lookup_arguments_and_integer_result_coercion() {
                         dead_code_elimination,
                         target_compaction,
                         families: crate::js::OutputFamilies::NONE,
+                        choices: crate::js::ChoiceMap::SEEDS,
                     },
                 );
                 assert_eq!(
@@ -293,6 +296,7 @@ fn output_permission_checks_do_not_fabricate_runtime_evidence_for_rank_policy() 
                     dead_code_elimination: false,
                     target_compaction: false,
                     families: crate::js::OutputFamilies::NONE,
+                    choices: crate::js::ChoiceMap::SEEDS,
                 },
             ] {
                 assert_eq!(

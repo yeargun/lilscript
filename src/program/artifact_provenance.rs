@@ -21,7 +21,7 @@ use std::mem::size_of;
 
 /// The passes actually selected for output formation. Enabled permissions are
 /// defaults, not obligations: an admitted candidate may choose a proper subset.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OutputTactics {
     pub dead_code_elimination: bool,
     pub target_compaction: bool,
@@ -30,6 +30,10 @@ pub struct OutputTactics {
     /// only their seed; the terminal stage keeps another assignment when the
     /// exact codec says the whole artifact shrank.
     pub families: crate::js::OutputFamilies,
+    /// The alternative each choice site takes where it is not its seed
+    /// (M9.1): an immutable map the terminal stage extends when the exact
+    /// codec says the whole artifact shrank.
+    pub choices: crate::js::ChoiceMap,
 }
 
 impl OutputTactics {
@@ -50,13 +54,15 @@ impl OutputTactics {
                 }
                 _ => crate::js::OutputFamilies::NONE,
             },
+            choices: crate::js::ChoiceMap::SEEDS,
         }
     }
 
     /// Permission only; artifact admission separately checks cost evidence.
-    pub fn check_policy(self, policy: &ResolvedPolicy) -> Result<(), AdmissionError> {
+    pub fn check_policy(&self, policy: &ResolvedPolicy) -> Result<(), AdmissionError> {
         if (self.literals == LiteralOutput::Observed
-            || self.families != crate::js::OutputFamilies::NONE)
+            || self.families != crate::js::OutputFamilies::NONE
+            || !self.choices.is_empty())
             && !self.target_compaction
         {
             return Err(AdmissionError::ForbiddenTactic(TacticId::TargetCompaction));
@@ -106,7 +112,7 @@ pub(super) struct ArtifactProvenance {
 #[derive(Debug, Clone, Copy)]
 pub struct ArtifactProvenanceDescription<'a> {
     naming: &'a Plan,
-    output: OutputTactics,
+    output: &'a OutputTactics,
     naming_tactics: &'a [TacticUse],
     tactics: &'a [TacticUse],
 }
@@ -114,7 +120,7 @@ impl<'a> ArtifactProvenanceDescription<'a> {
     pub fn naming(self) -> &'a Plan {
         self.naming
     }
-    pub fn output(self) -> OutputTactics {
+    pub fn output(self) -> &'a OutputTactics {
         self.output
     }
     pub fn naming_tactics(self) -> &'a [TacticUse] {
@@ -129,7 +135,7 @@ impl ArtifactProvenance {
     pub(super) fn description(&self) -> ArtifactProvenanceDescription<'_> {
         ArtifactProvenanceDescription {
             naming: &self.naming,
-            output: self.output,
+            output: &self.output,
             naming_tactics: self.naming_origin.tactics(),
             tactics: self.tactics(),
         }
@@ -193,9 +199,15 @@ impl ArtifactProvenance {
         source_names.sort_unstable();
         phase.work(WorkKind::Analysis, count)?;
         source_names.dedup();
+        // The choice map is shared with the artifacts holding the same
+        // one; each holder is charged for it, as if it were its own.
+        let choices = u64::try_from(output.choices.retained_bytes())
+            .map_err(|_| AllocationError::Capacity)?;
+        phase.retain(Retained, choices)?;
         let bytes = source_names
             .capacity()
             .checked_mul(size_of::<BindingId>())
+            .and_then(|n| n.checked_add(output.choices.retained_bytes()))
             .and_then(|n| u64::try_from(n).ok())
             .ok_or(AllocationError::Capacity)?;
         let charge = phase.detach_retained(owner, bytes)?;
@@ -221,7 +233,7 @@ impl ArtifactProvenance {
     }
     #[cfg(test)]
     pub(super) fn output(&self) -> OutputTactics {
-        self.output
+        self.output.clone()
     }
 
     /// Compare complete output choices, not bytes, handles or a hash. The
@@ -334,6 +346,7 @@ mod tests {
         dead_code_elimination: false,
         target_compaction: false,
         families: crate::js::OutputFamilies::NONE,
+        choices: crate::js::ChoiceMap::SEEDS,
     };
     const WORK: u64 = 100_000;
     const MEMORY: u64 = 100_000;

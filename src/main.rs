@@ -410,6 +410,31 @@ fn explain_human(report: &Value) -> String {
                         format!("{} {}", text(&trial["challenger"]), text(&trial["delta"]))
                     })
                     .collect::<Vec<_>>();
+                let choices = stage["choices"]
+                    .as_array()
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|site| {
+                        format!(
+                            "{} {} (seed {})",
+                            text(&site["site"]),
+                            text(&site["delivered"]),
+                            text(&site["seed"])
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                if !choices.is_empty() {
+                    line(
+                        &format!("choices {}", text(&stage["codec"])),
+                        format!(
+                            "{} of {} alternative(s) judged; {}",
+                            text(&stage["choices_scored"]),
+                            stage["choice_trials"].as_array().map_or(0, Vec::len),
+                            choices.join(", ")
+                        ),
+                    );
+                }
                 line(
                     &format!("terminal {}", text(&stage["codec"])),
                     format!(

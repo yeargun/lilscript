@@ -249,7 +249,7 @@ struct Artifact {
     javascript: String,
 }
 
-fn output_metadata(output: OutputTactics) -> Json {
+fn output_metadata(output: &OutputTactics) -> Json {
     json!({
         "dead_code_elimination": output.dead_code_elimination,
         "target_compaction": output.target_compaction,
@@ -270,7 +270,7 @@ fn emit(run: &str, kind: &str, baseline: bool, row: &Artifact, observed: &Json) 
         "reference-search-artifact {}",
         json!({"schema":1,"run":run,"case":"opaque-int-field","kind":kind,
         "fields":row.fields,"helper_mask":row.helper_mask,"helpers":helpers,"baseline":baseline,
-        "compact":true,"dead_code_elimination":true,"style":format!("{:?}",row.style),"output":output_metadata(row.output),"descriptor":row.descriptor,
+        "compact":true,"dead_code_elimination":true,"style":format!("{:?}",row.style),"output":output_metadata(&row.output),"descriptor":row.descriptor,
         "source_sha256":digest(SOURCE),"javascript":row.javascript,"javascript_sha256":digest(&row.javascript),
         "sizes":row.sizes,"expected":serde_json::from_str::<Json>(EXPECTED).unwrap(),"observed":observed})
     );
@@ -400,7 +400,7 @@ fn check(run: &str, cap: usize, require_mixed: bool) {
         let row = oracle.iter().min_by_key(|row| row.sizes[index]).unwrap();
         let observed = execute(&row.javascript);
         json!({"objective":format!("{objective:?}"),"fields":row.fields,"helper_mask":row.helper_mask,
-            "descriptor":row.descriptor,"style":format!("{:?}",row.style),"output":output_metadata(row.output),"javascript_sha256":digest(&row.javascript),"sizes":row.sizes,"observed":observed})
+            "descriptor":row.descriptor,"style":format!("{:?}",row.style),"output":output_metadata(&row.output),"javascript_sha256":digest(&row.javascript),"sizes":row.sizes,"observed":observed})
     }).collect();
     eprintln!(
         "reference-search-source {}",
@@ -454,7 +454,7 @@ fn check(run: &str, cap: usize, require_mixed: bool) {
                 assert!(sizes[index] <= baseline.sizes[index], "retained mandatory baseline");
                 let observed = execute(view.javascript);
                 json!({"objective":format!("{objective:?}"),"fields":row.fields,"helper_mask":row.helper_mask,
-                    "descriptor":row.descriptor,"style":format!("{:?}",plan.style),"output":output_metadata(view.output),"javascript_sha256":digest(view.javascript),"sizes":sizes,"observed":observed})
+                    "descriptor":row.descriptor,"style":format!("{:?}",plan.style),"output":output_metadata(&view.output),"javascript_sha256":digest(view.javascript),"sizes":sizes,"observed":observed})
             }).unwrap());
         }
         let counters = search.counters();
@@ -475,7 +475,7 @@ fn check(run: &str, cap: usize, require_mixed: bool) {
             );
         }
         let comparison: Vec<_> = oracle.iter().map(|row| json!({"fields":row.fields,"helper_mask":row.helper_mask,
-            "descriptor":row.descriptor,"style":format!("{:?}",row.style),"output":output_metadata(row.output),"sizes":row.sizes,
+            "descriptor":row.descriptor,"style":format!("{:?}",row.style),"output":output_metadata(&row.output),"sizes":row.sizes,
             "reached":measured.iter().any(|seen| seen.descriptor==row.descriptor && seen.style==row.style && seen.output==row.output)})).collect();
         let gaps: [i64; 3] =
             std::array::from_fn(|index| minima[index] as i64 - oracle_minima[index] as i64);

@@ -1,0 +1,881 @@
+// Constant data tables (plan M9.8): each root table may be encoded as
+// columns, a value dictionary or front-coded strings, whichever the lane's
+// codec keeps, or stay its literal. Every encoding must build the same
+// graph: the same keys in the same order (index keys enumerate first either
+// way), the same values under Object.is (-0), the same prototypes and plain
+// data properties. The .out file is Node's own run of these literals.
+extern void inspect(string name, JsValue value);
+extern void keep(JsValue value);
+JsValue metrics = object {
+  "Main-Regular": object {
+    "32": [0.19655, 0.63048, 0.0, 0.06325, 0.84753],
+    "40": [0.0, 0.66795, 0.0, 0.0, 0.65387],
+    "41": [0.0, 0.61727, 0.0, 0.0, 0.7799],
+    "43": [0.0, 0.67073, 0.0, 0.08275, 0.69365],
+    "45": [0.0, 0.63377, 0.0, 0.0, 0.72634],
+    "47": [0.05766, 0.65799, 0.0, 0.0, 0.39026],
+    "48": [0.0, 0.62089, 0.0, 0.07876, 0.77278],
+    "49": [0.0, 0.6844, -0.0, 0.0, 0.3168],
+    "50": [0.0, 0.64704, 0.0, 0.0, 0.6888],
+    "51": [0.0, 0.6366, 0.0, 0.02793, 0.47095],
+    "52": [0.27562, 0.68708, 0.0, 0.0, 0.50156],
+    "53": [0.0, 0.64287, 0.0, 0.0, 0.74182],
+    "54": [0.0, 0.61727, 0.0, 0.01583, 0.44072],
+    "55": [0.0, 0.6377, 0.0, 0.0, 0.5527],
+    "56": [0.0, 0.6973, 0.0, 0.0, 0.53052],
+    "57": [0.22605, 0.62253, 0.0, 0.0436, 0.77406],
+    "61": [0.0, 0.68189, 0.0, 0.0, 0.43472],
+    "65": [0.0, 0.65358, 0.0, 0.0, 0.75794],
+    "66": [0.0, 0.67002, 0.0, 0.01111, 0.60355],
+    "67": [0.0, 0.60921, 0.0, 0.0, 0.66457],
+    "68": [0.11988, 0.66997, 0.0, 0.0, 0.40248],
+    "69": [0.0, 0.63823, 0.0, 0.04004, 0.50091],
+    "70": [0.0, 0.69441, 0.0, 0.0, 0.50832],
+    "71": [0.0, 0.60228, 0.0, 0.0, 0.40112],
+    "72": [0.0, 0.61329, 0.0, 0.06669, 0.2533],
+    "73": [0.08588, 0.62806, 0.0, 0.0, 0.50068],
+    "74": [0.0, 0.6218, 0.0, 0.0, 0.73198],
+    "75": [0.0, 0.64794, 0.0, 0.05382, 0.75883],
+    "91": [0.0, 0.66133, 0.0, 0.0, 0.66963],
+    "93": [0.0, 0.60208, 0.0, 0.0, 0.58244],
+    "8211": [0.1346, 0.65109, 0.0, 0.06637, 0.42511],
+    "8212": [0.0, 0.6488, 0.0, 0.0, 0.82253]
+  },
+  "Main-Bold": object {
+    "32": [0.06046, 0.65192, 0.0, 0.09063, 0.61573],
+    "40": [0.0, 0.60142, 0.0, 0.0, 0.63389],
+    "41": [0.0, 0.66489, 0.0, 0.0, 0.48941],
+    "43": [0.0, 0.68047, 0.0, 0.06856, 0.41961],
+    "45": [0.0, 0.67927, 0.0, 0.0, 0.84724],
+    "47": [0.14785, 0.61903, 0.0, 0.0, 0.59137],
+    "48": [0.0, 0.6673, 0.0, 0.08624, 0.59334],
+    "49": [0.0, 0.6693, -0.0, 0.0, 0.30174],
+    "50": [0.0, 0.69342, 0.0, 0.0, 0.30247],
+    "51": [0.0, 0.62432, 0.0, 0.04532, 0.73261],
+    "52": [0.09293, 0.68608, 0.0, 0.0, 0.39083],
+    "53": [0.0, 0.68047, 0.0, 0.0, 0.49538],
+    "54": [0.0, 0.64302, 0.0, 0.00089, 0.4435],
+    "55": [0.0, 0.67084, 0.0, 0.0, 0.74575],
+    "56": [0.0, 0.67943, 0.0, 0.0, 0.84838],
+    "57": [0.17746, 0.68599, 0.0, 0.03073, 0.25342],
+    "61": [0.0, 0.62542, 0.0, 0.0, 0.56707],
+    "65": [0.0, 0.6647, 0.0, 0.0, 0.66139],
+    "66": [0.0, 0.6672, 0.0, 0.04881, 0.64344],
+    "67": [0.0, 0.69183, 0.0, 0.0, 0.65931],
+    "68": [0.03912, 0.65697, 0.0, 0.0, 0.37779],
+    "69": [0.0, 0.66764, 0.0, 0.04425, 0.44245],
+    "70": [0.0, 0.66851, 0.0, 0.0, 0.46333],
+    "71": [0.0, 0.63764, 0.0, 0.0, 0.39736],
+    "72": [0.0, 0.63312, 0.0, 0.01187, 0.5759],
+    "73": [0.29087, 0.67006, 0.0, 0.0, 0.56087],
+    "74": [0.0, 0.68261, 0.0, 0.0, 0.73001],
+    "75": [0.0, 0.63198, 0.0, 0.04777, 0.5372],
+    "91": [0.0, 0.61359, 0.0, 0.0, 0.78232],
+    "93": [0.0, 0.63448, 0.0, 0.0, 0.25477],
+    "8211": [0.18262, 0.63901, 0.0, 0.00968, 0.32852],
+    "8212": [0.0, 0.61217, 0.0, 0.0, 0.32411]
+  },
+  "Math-Italic": object {
+    "32": [0.23099, 0.67104, 0.0, 0.07026, 0.46267],
+    "40": [0.0, 0.62187, 0.0, 0.0, 0.53261],
+    "41": [0.0, 0.69249, 0.0, 0.0, 0.43811],
+    "43": [0.0, 0.60953, 0.0, 0.0886, 0.46351],
+    "45": [0.0, 0.69834, 0.0, 0.0, 0.38504],
+    "47": [0.07486, 0.65819, 0.0, 0.0, 0.83442],
+    "48": [0.0, 0.62535, 0.0, 0.07321, 0.43303],
+    "49": [0.0, 0.6819, -0.0, 0.0, 0.42244],
+    "50": [0.0, 0.65244, 0.0, 0.0, 0.68647],
+    "51": [0.0, 0.65256, 0.0, 0.0695, 0.66012],
+    "52": [0.08151, 0.61363, 0.0, 0.0, 0.71165],
+    "53": [0.0, 0.60306, 0.0, 0.0, 0.32784],
+    "54": [0.0, 0.64937, 0.0, 0.0463, 0.46925],
+    "55": [0.0, 0.66985, 0.0, 0.0, 0.62625],
+    "56": [0.0, 0.6577, 0.0, 0.0, 0.45741],
+    "57": [0.13015, 0.64336, 0.0, 0.05905, 0.43773],
+    "61": [0.0, 0.6933, 0.0, 0.0, 0.80867],
+    "65": [0.0, 0.66149, 0.0, 0.0, 0.49107],
+    "66": [0.0, 0.68854, 0.0, 0.02701, 0.27559],
+    "67": [0.0, 0.64034, 0.0, 0.0, 0.48943],
+    "68": [0.28121, 0.69757, 0.0, 0.0, 0.26928],
+    "69": [0.0, 0.64156, 0.0, 0.03781, 0.35292],
+    "70": [0.0, 0.68981, 0.0, 0.0, 0.4269],
+    "71": [0.0, 0.69542, 0.0, 0.0, 0.68059],
+    "72": [0.0, 0.69909, 0.0, 0.07838, 0.53023],
+    "73": [0.20079, 0.68953, 0.0, 0.0, 0.43437],
+    "74": [0.0, 0.67832, 0.0, 0.0, 0.60906],
+    "75": [0.0, 0.6626, 0.0, 0.05598, 0.30128],
+    "91": [0.0, 0.69103, 0.0, 0.0, 0.69711],
+    "93": [0.0, 0.60251, 0.0, 0.0, 0.64373],
+    "8211": [0.08644, 0.68224, 0.0, 0.07295, 0.82073],
+    "8212": [0.0, 0.65256, 0.0, 0.0, 0.78232]
+  },
+  "Size1-Regular": object {
+    "32": [0.06057, 0.61233, 0.0, 0.02245, 0.79521],
+    "40": [0.0, 0.67988, 0.0, 0.0, 0.41161],
+    "41": [0.0, 0.63232, 0.0, 0.0, 0.76495],
+    "43": [0.0, 0.67756, 0.0, 0.06972, 0.67204],
+    "45": [0.0, 0.61988, 0.0, 0.0, 0.74785],
+    "47": [0.24696, 0.67651, 0.0, 0.0, 0.38529],
+    "48": [0.0, 0.61542, 0.0, 0.00851, 0.39685],
+    "49": [0.0, 0.63449, -0.0, 0.0, 0.53693],
+    "50": [0.0, 0.64946, 0.0, 0.0, 0.28756],
+    "51": [0.0, 0.63257, 0.0, 0.06252, 0.79335],
+    "52": [0.05601, 0.60419, 0.0, 0.0, 0.40133],
+    "53": [0.0, 0.67811, 0.0, 0.0, 0.54917],
+    "54": [0.0, 0.66367, 0.0, 0.05702, 0.31912],
+    "55": [0.0, 0.68093, 0.0, 0.0, 0.51229],
+    "56": [0.0, 0.66395, 0.0, 0.0, 0.62413],
+    "57": [0.09577, 0.61173, 0.0, 0.05872, 0.5814],
+    "61": [0.0, 0.67756, 0.0, 0.0, 0.50385],
+    "65": [0.0, 0.60437, 0.0, 0.0, 0.8448],
+    "66": [0.0, 0.67962, 0.0, 0.07995, 0.39077],
+    "67": [0.0, 0.61968, 0.0, 0.0, 0.65197],
+    "68": [0.27865, 0.64066, 0.0, 0.0, 0.53363],
+    "69": [0.0, 0.69713, 0.0, 0.06743, 0.5361],
+    "70": [0.0, 0.6686, 0.0, 0.0, 0.56726],
+    "71": [0.0, 0.65038, 0.0, 0.0, 0.67079],
+    "72": [0.0, 0.67176, 0.0, 0.02874, 0.40659],
+    "73": [0.01466, 0.61613, 0.0, 0.0, 0.76201],
+    "74": [0.0, 0.64946, 0.0, 0.0, 0.44559],
+    "75": [0.0, 0.60043, 0.0, 0.01021, 0.83844],
+    "91": [0.0, 0.68037, 0.0, 0.0, 0.60186],
+    "93": [0.0, 0.69768, 0.0, 0.0, 0.72566],
+    "8211": [0.21638, 0.68331, 0.0, 0.09828, 0.63887],
+    "8212": [0.0, 0.66697, 0.0, 0.0, 0.33015]
+  }
+};
+JsValue people = [object {
+  "name": "ada|0",
+  "height": 1.81764,
+  "tags": ["x"],
+  "home": record { city: "Paris", floor: 0.0 }
+}, object {
+  "name": "grace|1",
+  "height": 1.6423,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Oslo", floor: 1.0 }
+}, object {
+  "name": "edsger|2",
+  "height": 1.7669,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Lima", floor: 2.0 }
+}, object {
+  "name": "barbara|3",
+  "height": 1.69839,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Paris", floor: 3.0 }
+}, object {
+  "name": "donald|4",
+  "height": 1.86254,
+  "tags": ["x"],
+  "home": record { city: "Oslo", floor: 4.0 }
+}, object {
+  "name": "leslie|5",
+  "height": 1.6857,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Lima", floor: 5.0 }
+}, object {
+  "name": "tony|6",
+  "height": 1.51299,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Paris", floor: 6.0 }
+}, object {
+  "name": "niklaus|7",
+  "height": 1.76856,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Oslo", floor: 0.0 }
+}, object {
+  "name": "ada|8",
+  "height": 1.54778,
+  "tags": ["x"],
+  "home": record { city: "Lima", floor: 1.0 }
+}, object {
+  "name": "grace|9",
+  "height": 1.56134,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Paris", floor: 2.0 }
+}, object {
+  "name": "edsger|10",
+  "height": 1.89717,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Oslo", floor: 3.0 }
+}, object {
+  "name": "barbara|11",
+  "height": 1.66141,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Lima", floor: 4.0 }
+}, object {
+  "name": "donald|12",
+  "height": 1.67779,
+  "tags": ["x"],
+  "home": record { city: "Paris", floor: 5.0 }
+}, object {
+  "name": "leslie|13",
+  "height": 1.52186,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Oslo", floor: 6.0 }
+}, object {
+  "name": "tony|14",
+  "height": 1.86993,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Lima", floor: 0.0 }
+}, object {
+  "name": "niklaus|15",
+  "height": 1.67554,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Paris", floor: 1.0 }
+}, object {
+  "name": "ada|16",
+  "height": 1.75192,
+  "tags": ["x"],
+  "home": record { city: "Oslo", floor: 2.0 }
+}, object {
+  "name": "grace|17",
+  "height": 1.89263,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Lima", floor: 3.0 }
+}, object {
+  "name": "edsger|18",
+  "height": 1.81514,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Paris", floor: 4.0 }
+}, object {
+  "name": "barbara|19",
+  "height": 1.81074,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Oslo", floor: 5.0 }
+}, object {
+  "name": "donald|20",
+  "height": 1.65197,
+  "tags": ["x"],
+  "home": record { city: "Lima", floor: 6.0 }
+}, object {
+  "name": "leslie|21",
+  "height": 1.58817,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Paris", floor: 0.0 }
+}, object {
+  "name": "tony|22",
+  "height": 1.78991,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Oslo", floor: 1.0 }
+}, object {
+  "name": "niklaus|23",
+  "height": 1.52286,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Lima", floor: 2.0 }
+}, object {
+  "name": "ada|24",
+  "height": 1.51034,
+  "tags": ["x"],
+  "home": record { city: "Paris", floor: 3.0 }
+}, object {
+  "name": "grace|25",
+  "height": 1.83739,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Oslo", floor: 4.0 }
+}, object {
+  "name": "edsger|26",
+  "height": 1.66551,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Lima", floor: 5.0 }
+}, object {
+  "name": "barbara|27",
+  "height": 1.84457,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Paris", floor: 6.0 }
+}, object {
+  "name": "donald|28",
+  "height": 1.76066,
+  "tags": ["x"],
+  "home": record { city: "Oslo", floor: 0.0 }
+}, object {
+  "name": "leslie|29",
+  "height": 1.60524,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Lima", floor: 1.0 }
+}, object {
+  "name": "tony|30",
+  "height": 1.56064,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Paris", floor: 2.0 }
+}, object {
+  "name": "niklaus|31",
+  "height": 1.53401,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Oslo", floor: 3.0 }
+}, object {
+  "name": "ada|32",
+  "height": 1.73622,
+  "tags": ["x"],
+  "home": record { city: "Lima", floor: 4.0 }
+}, object {
+  "name": "grace|33",
+  "height": 1.72741,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Paris", floor: 5.0 }
+}, object {
+  "name": "edsger|34",
+  "height": 1.76422,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Oslo", floor: 6.0 }
+}, object {
+  "name": "barbara|35",
+  "height": 1.53169,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Lima", floor: 0.0 }
+}, object {
+  "name": "donald|36",
+  "height": 1.61091,
+  "tags": ["x"],
+  "home": record { city: "Paris", floor: 1.0 }
+}, object {
+  "name": "leslie|37",
+  "height": 1.60446,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Oslo", floor: 2.0 }
+}, object {
+  "name": "tony|38",
+  "height": 1.53676,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Lima", floor: 3.0 }
+}, object {
+  "name": "niklaus|39",
+  "height": 1.57261,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Paris", floor: 4.0 }
+}, object {
+  "name": "ada|40",
+  "height": 1.54224,
+  "tags": ["x"],
+  "home": record { city: "Oslo", floor: 5.0 }
+}, object {
+  "name": "grace|41",
+  "height": 1.6134,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Lima", floor: 6.0 }
+}, object {
+  "name": "edsger|42",
+  "height": 1.83778,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Paris", floor: 0.0 }
+}, object {
+  "name": "barbara|43",
+  "height": 1.54191,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Oslo", floor: 1.0 }
+}, object {
+  "name": "donald|44",
+  "height": 1.69359,
+  "tags": ["x"],
+  "home": record { city: "Lima", floor: 2.0 }
+}, object {
+  "name": "leslie|45",
+  "height": 1.86646,
+  "tags": ["x", "y~z"],
+  "home": record { city: "Paris", floor: 3.0 }
+}, object {
+  "name": "tony|46",
+  "height": 1.52144,
+  "tags": ["x", "y~z", "𝔄"],
+  "home": record { city: "Oslo", floor: 4.0 }
+}, object {
+  "name": "niklaus|47",
+  "height": 1.78187,
+  "tags": ["x", "y~z", "𝔄", ""],
+  "home": record { city: "Lima", floor: 5.0 }
+}];
+JsValue entities = object {
+  "entity00": "ü value",
+  "entity01": "𝔄 v|w",
+  "entity02": "plain",
+  "entity03": "ü value",
+  "entity04": "𝔄 v|w",
+  "entity05": "plain",
+  "entity06": "ü value",
+  "entity07": "𝔄 v|w",
+  "entity08": "plain",
+  "entity09": "ü value",
+  "entity10": "𝔄 v|w",
+  "entity11": "plain",
+  "entity12": "ü value",
+  "entity13": "𝔄 v|w",
+  "entity14": "plain",
+  "entity15": "ü value",
+  "entity16": "𝔄 v|w",
+  "entity17": "plain",
+  "entity18": "ü value",
+  "entity19": "𝔄 v|w",
+  "entity20": "plain",
+  "entity21": "ü value",
+  "entity22": "𝔄 v|w",
+  "entity23": "plain",
+  "entity24": "ü value",
+  "entity25": "𝔄 v|w",
+  "entity26": "plain",
+  "entity27": "ü value",
+  "entity28": "𝔄 v|w",
+  "entity29": "plain",
+  "entity30": "ü value",
+  "entity31": "𝔄 v|w",
+  "entity32": "plain",
+  "entity33": "ü value",
+  "entity34": "𝔄 v|w",
+  "entity35": "plain",
+  "entity36": "ü value",
+  "entity37": "𝔄 v|w",
+  "entity38": "plain",
+  "entity39": "ü value",
+  "entity40": "𝔄 v|w",
+  "entity41": "plain",
+  "entity42": "ü value",
+  "entity43": "𝔄 v|w",
+  "entity44": "plain",
+  "entity45": "ü value",
+  "entity46": "𝔄 v|w",
+  "entity47": "plain",
+  "entity48": "ü value",
+  "entity49": "𝔄 v|w",
+  "entity50": "plain",
+  "entity51": "ü value",
+  "entity52": "𝔄 v|w",
+  "entity53": "plain",
+  "entity54": "ü value",
+  "entity55": "𝔄 v|w",
+  "entity56": "plain",
+  "entity57": "ü value",
+  "entity58": "𝔄 v|w",
+  "entity59": "plain",
+  "entity60": "ü value",
+  "entity61": "𝔄 v|w",
+  "entity62": "plain",
+  "entity63": "ü value",
+  "entity64": "𝔄 v|w",
+  "entity65": "plain",
+  "entity66": "ü value",
+  "entity67": "𝔄 v|w",
+  "entity68": "plain",
+  "entity69": "ü value",
+  "entity70": "𝔄 v|w",
+  "entity71": "plain",
+  "entity72": "ü value",
+  "entity73": "𝔄 v|w",
+  "entity74": "plain",
+  "entity75": "ü value",
+  "entity76": "𝔄 v|w",
+  "entity77": "plain",
+  "entity78": "ü value",
+  "entity79": "𝔄 v|w",
+  "entity80": "plain",
+  "entity81": "ü value",
+  "entity82": "𝔄 v|w",
+  "entity83": "plain",
+  "entity84": "ü value",
+  "entity85": "𝔄 v|w",
+  "entity86": "plain",
+  "entity87": "ü value",
+  "entity88": "𝔄 v|w",
+  "entity89": "plain",
+  "𝔄lpha": "first",
+  "𝔄lpine": "second"
+};
+JsValue odd = object {
+  "zeta": object {
+    "weight": 0.0,
+    "label": "item 0",
+    "flag": true,
+    "extra": object {
+      "deep": [0.0, "x", null, true]
+    }
+  },
+  "7": object {
+    "weight": 0.25,
+    "label": "item 1",
+    "flag": false,
+    "extra": [0.5, -0.0]
+  },
+  "01": object {
+    "weight": 0.5,
+    "label": "item 2",
+    "flag": true,
+    "extra": "text 2"
+  },
+  "-1": object {
+    "weight": 0.75,
+    "label": "item 3",
+    "flag": false,
+    "extra": null
+  },
+  "4294967295": object {
+    "weight": 1.0,
+    "label": "item 4",
+    "flag": true,
+    "extra": object {
+      "deep": [4.0, "x", null, true]
+    }
+  },
+  "alpha": object {
+    "weight": 1.25,
+    "label": "item 5",
+    "flag": false,
+    "extra": [2.5, -0.0]
+  },
+  "3": object {
+    "weight": 1.5,
+    "label": "item 6",
+    "flag": true,
+    "extra": "text 6"
+  },
+  "1.5": object {
+    "weight": 1.75,
+    "label": "item 7",
+    "flag": false,
+    "extra": null
+  },
+  "4294967294": object {
+    "weight": 2.0,
+    "label": "item 8",
+    "flag": true,
+    "extra": object {
+      "deep": [8.0, "x", null, true]
+    }
+  },
+  "beta": object {
+    "weight": 2.25,
+    "label": "item 0",
+    "flag": false,
+    "extra": [4.5, -0.0]
+  },
+  "key-10": object {
+    "weight": 2.5,
+    "label": "item 1",
+    "flag": true,
+    "extra": "text 10"
+  },
+  "key-11": object {
+    "weight": 2.75,
+    "label": "item 2",
+    "flag": false,
+    "extra": null
+  },
+  "key-12": object {
+    "weight": 3.0,
+    "label": "item 3",
+    "flag": true,
+    "extra": object {
+      "deep": [12.0, "x", null, true]
+    }
+  },
+  "key-13": object {
+    "weight": 3.25,
+    "label": "item 4",
+    "flag": false,
+    "extra": [6.5, -0.0]
+  },
+  "key-14": object {
+    "weight": 3.5,
+    "label": "item 5",
+    "flag": true,
+    "extra": "text 14"
+  },
+  "key-15": object {
+    "weight": 3.75,
+    "label": "item 6",
+    "flag": false,
+    "extra": null
+  },
+  "key-16": object {
+    "weight": 4.0,
+    "label": "item 7",
+    "flag": true,
+    "extra": object {
+      "deep": [16.0, "x", null, true]
+    }
+  },
+  "key-17": object {
+    "weight": 4.25,
+    "label": "item 8",
+    "flag": false,
+    "extra": [8.5, -0.0]
+  },
+  "key-18": object {
+    "weight": 4.5,
+    "label": "item 0",
+    "flag": true,
+    "extra": "text 18"
+  },
+  "key-19": object {
+    "weight": 4.75,
+    "label": "item 1",
+    "flag": false,
+    "extra": null
+  },
+  "key-20": object {
+    "weight": 5.0,
+    "label": "item 2",
+    "flag": true,
+    "extra": object {
+      "deep": [20.0, "x", null, true]
+    }
+  },
+  "key-21": object {
+    "weight": 5.25,
+    "label": "item 3",
+    "flag": false,
+    "extra": [10.5, -0.0]
+  },
+  "key-22": object {
+    "weight": 5.5,
+    "label": "item 4",
+    "flag": true,
+    "extra": "text 22"
+  },
+  "key-23": object {
+    "weight": 5.75,
+    "label": "item 5",
+    "flag": false,
+    "extra": null
+  },
+  "key-24": object {
+    "weight": 6.0,
+    "label": "item 6",
+    "flag": true,
+    "extra": object {
+      "deep": [24.0, "x", null, true]
+    }
+  },
+  "key-25": object {
+    "weight": 6.25,
+    "label": "item 7",
+    "flag": false,
+    "extra": [12.5, -0.0]
+  },
+  "key-26": object {
+    "weight": 6.5,
+    "label": "item 8",
+    "flag": true,
+    "extra": "text 26"
+  },
+  "key-27": object {
+    "weight": 6.75,
+    "label": "item 0",
+    "flag": false,
+    "extra": null
+  },
+  "key-28": object {
+    "weight": 7.0,
+    "label": "item 1",
+    "flag": true,
+    "extra": object {
+      "deep": [28.0, "x", null, true]
+    }
+  },
+  "key-29": object {
+    "weight": 7.25,
+    "label": "item 2",
+    "flag": false,
+    "extra": [14.5, -0.0]
+  },
+  "key-30": object {
+    "weight": 7.5,
+    "label": "item 3",
+    "flag": true,
+    "extra": "text 30"
+  },
+  "key-31": object {
+    "weight": 7.75,
+    "label": "item 4",
+    "flag": false,
+    "extra": null
+  },
+  "key-32": object {
+    "weight": 8.0,
+    "label": "item 5",
+    "flag": true,
+    "extra": object {
+      "deep": [32.0, "x", null, true]
+    }
+  },
+  "key-33": object {
+    "weight": 8.25,
+    "label": "item 6",
+    "flag": false,
+    "extra": [16.5, -0.0]
+  },
+  "key-34": object {
+    "weight": 8.5,
+    "label": "item 7",
+    "flag": true,
+    "extra": "text 34"
+  },
+  "key-35": object {
+    "weight": 8.75,
+    "label": "item 8",
+    "flag": false,
+    "extra": null
+  },
+  "key-36": object {
+    "weight": 9.0,
+    "label": "item 0",
+    "flag": true,
+    "extra": object {
+      "deep": [36.0, "x", null, true]
+    }
+  },
+  "key-37": object {
+    "weight": 9.25,
+    "label": "item 1",
+    "flag": false,
+    "extra": [18.5, -0.0]
+  },
+  "key-38": object {
+    "weight": 9.5,
+    "label": "item 2",
+    "flag": true,
+    "extra": "text 38"
+  },
+  "key-39": object {
+    "weight": 9.75,
+    "label": "item 3",
+    "flag": false,
+    "extra": null
+  },
+  "key-40": object {
+    "weight": 10.0,
+    "label": "item 4",
+    "flag": true,
+    "extra": object {
+      "deep": [40.0, "x", null, true]
+    }
+  },
+  "key-41": object {
+    "weight": 10.25,
+    "label": "item 5",
+    "flag": false,
+    "extra": [20.5, -0.0]
+  },
+  "key-42": object {
+    "weight": 10.5,
+    "label": "item 6",
+    "flag": true,
+    "extra": "text 42"
+  },
+  "key-43": object {
+    "weight": 10.75,
+    "label": "item 7",
+    "flag": false,
+    "extra": null
+  },
+  "key-44": object {
+    "weight": 11.0,
+    "label": "item 8",
+    "flag": true,
+    "extra": object {
+      "deep": [44.0, "x", null, true]
+    }
+  },
+  "key-45": object {
+    "weight": 11.25,
+    "label": "item 0",
+    "flag": false,
+    "extra": [22.5, -0.0]
+  },
+  "key-46": object {
+    "weight": 11.5,
+    "label": "item 1",
+    "flag": true,
+    "extra": "text 46"
+  },
+  "key-47": object {
+    "weight": 11.75,
+    "label": "item 2",
+    "flag": false,
+    "extra": null
+  },
+  "key-48": object {
+    "weight": 12.0,
+    "label": "item 3",
+    "flag": true,
+    "extra": object {
+      "deep": [48.0, "x", null, true]
+    }
+  },
+  "key-49": object {
+    "weight": 12.25,
+    "label": "item 4",
+    "flag": false,
+    "extra": [24.5, -0.0]
+  },
+  "key-50": object {
+    "weight": 12.5,
+    "label": "item 5",
+    "flag": true,
+    "extra": "text 50"
+  },
+  "key-51": object {
+    "weight": 12.75,
+    "label": "item 6",
+    "flag": false,
+    "extra": null
+  },
+  "key-52": object {
+    "weight": 13.0,
+    "label": "item 7",
+    "flag": true,
+    "extra": object {
+      "deep": [52.0, "x", null, true]
+    }
+  },
+  "key-53": object {
+    "weight": 13.25,
+    "label": "item 8",
+    "flag": false,
+    "extra": [26.5, -0.0]
+  },
+  "key-54": object {
+    "weight": 13.5,
+    "label": "item 0",
+    "flag": true,
+    "extra": "text 54"
+  },
+  "key-55": object {
+    "weight": 13.75,
+    "label": "item 1",
+    "flag": false,
+    "extra": null
+  },
+  "key-56": object {
+    "weight": 14.0,
+    "label": "item 2",
+    "flag": true,
+    "extra": object {
+      "deep": [56.0, "x", null, true]
+    }
+  },
+  "key-57": object {
+    "weight": 14.25,
+    "label": "item 3",
+    "flag": false,
+    "extra": [28.5, -0.0]
+  },
+  "key-58": object {
+    "weight": 14.5,
+    "label": "item 4",
+    "flag": true,
+    "extra": "text 58"
+  },
+  "key-59": object {
+    "weight": 14.75,
+    "label": "item 5",
+    "flag": false,
+    "extra": null
+  }
+};
+inspect("metrics", metrics);
+keep(metrics);
+inspect("people", people);
+keep(people);
+inspect("entities", entities);
+keep(entities);
+inspect("odd", odd);
+keep(odd);

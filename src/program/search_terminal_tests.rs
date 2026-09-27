@@ -246,7 +246,7 @@ fn a_terminal_formation_of_the_winners_own_assignment_is_the_winner() {
             let provenance = search.compilation.artifacts.provenance(artifact).unwrap();
             let (plan, output) = (
                 provenance.naming().clone(),
-                provenance.description().output(),
+                provenance.description().output().clone(),
             );
             let winner = search
                 .compilation
@@ -261,7 +261,7 @@ fn a_terminal_formation_of_the_winners_own_assignment_is_the_winner() {
                     output.target_compaction,
                     WorkDomain::Optional,
                     |formations| {
-                        formations.form(output, |target| {
+                        formations.form(output.clone(), |target| {
                             let staged = target.render_bounded_with_literals(
                                 &plan,
                                 output.literals,

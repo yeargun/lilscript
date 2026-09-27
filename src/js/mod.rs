@@ -17,6 +17,8 @@ use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::primitive::{IntBinary, Intrinsic};
 
 mod calls;
+pub mod choices;
+pub use choices::{AltId, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite};
 mod declarations;
 pub(crate) mod delivery;
 mod families;
@@ -26,7 +28,7 @@ mod literal_output;
 pub mod manifest;
 mod root_constants;
 mod scalar_objects;
-mod tables;
+pub mod tables;
 mod typed;
 pub use literal_output::LiteralOutput;
 pub(crate) use literal_output::{LiteralAlternative, WeakLiteralObservation};
@@ -1041,6 +1043,10 @@ pub struct Module {
     /// but measured +34 Brotli on zodlil and +38 on katexlil (−4 on
     /// markedlil), so the codec judges it per artifact as well.
     pub logical_statements: bool,
+    /// The choice sites formation found on this tree (plan M9.1): what each
+    /// offers, seeds and applied under the artifact's `ChoiceMap`. The
+    /// terminal stage reads them to offer the other alternatives.
+    pub choice_sites: Vec<ChoiceSite>,
 }
 
 impl Default for Module {
@@ -3169,6 +3175,7 @@ impl Module {
             carried: vec![],
             loop_head_declarations: false,
             logical_statements: false,
+            choice_sites: Vec::new(),
         })
     }
 
@@ -3200,6 +3207,7 @@ impl Module {
             bytes(&self.root_modules)?,
             bytes(&self.reserved)?,
             bytes(&self.carried)?,
+            bytes(&self.choice_sites)?,
         ];
         let mut total = 0u64;
         for arena in arenas {

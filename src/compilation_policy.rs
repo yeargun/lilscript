@@ -30,7 +30,7 @@ pub const POLICY_ALGORITHM_VERSION: u32 = 1;
 // Version12 added parse-once discovery with admitted stable source storage.
 // Resource identity retains version8's complete checked rewrite descriptions.
 // Structural cursor/beam scheduling remains the qualified version3 algorithm.
-pub const SEARCH_SCHEDULE_VERSION: u32 = 24;
+pub const SEARCH_SCHEDULE_VERSION: u32 = 25;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilationRequest {
@@ -486,6 +486,12 @@ pub struct OptimizationObjective {
     /// terminal stage tries on each objective's final candidate, in their
     /// declared order (M5.4). From the effort level, never a constant.
     pub terminal_challengers: usize,
+    /// How many choice alternatives (`js::ChoiceSite`, M9.1) the terminal
+    /// stage judges on each objective's final candidate, in its estimator's
+    /// order. Counted apart from the challengers, whose budget was
+    /// calibrated on their own schedule, so a data table's alternatives never
+    /// displace a family challenger. From the effort level.
+    pub terminal_choices: usize,
     pub search: SearchSchedule,
 }
 
@@ -800,7 +806,7 @@ impl ResolvedPolicy {
                 "preload":format!("{preload:?}")
             }),
         };
-        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "terminal_challengers":o.terminal_challengers, "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
+        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "terminal_challengers":o.terminal_challengers, "terminal_choices":o.terminal_choices, "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
         json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| json!({"id":id, "state":self.tactic(id)})), "resources":self.resources, "constraints":self.constraints})
     }
     pub fn fingerprint(&self) -> [u8; 32] {

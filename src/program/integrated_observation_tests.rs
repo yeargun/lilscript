@@ -161,7 +161,7 @@ fn emit(
         json!({"schema":1,"case":"document-consumer",
         "kind":kind,"representation":representation,"baseline":baseline,"sources":sources,
         "descriptor":row.descriptor,"style":format!("{:?}",row.style),
-        "requested_literals":row.requested.map(|mode|format!("{mode:?}")),"output":output_metadata(row.output),
+        "requested_literals":row.requested.map(|mode|format!("{mode:?}")),"output":output_metadata(&row.output),
         "javascript":row.javascript,"javascript_sha256":digest(&row.javascript),
         "raw":row.sizes[0],"gzip9":row.sizes[1],"brotli11":row.sizes[2],"observed":observed})
     );
@@ -364,7 +364,7 @@ fn document_consumer_literal_modes_compose_with_the_existing_portfolio_and_fixed
                             .to_vec(),
                         style: view.naming.style,
                         requested: None,
-                        output: view.output,
+                        output: view.output.clone(),
                         javascript: view.javascript.to_owned(),
                         sizes: super::sizes(view.sizes),
                     };
@@ -405,12 +405,12 @@ fn document_consumer_literal_modes_compose_with_the_existing_portfolio_and_fixed
                 assert_eq!(sizes[index], minima[index]);
                 let observed = execute_document(view.javascript);
                 json!({"objective":format!("{codec:?}"),"descriptor":row.descriptor,"style":format!("{:?}",row.style),
-                    "output":output_metadata(view.output),"javascript_sha256":digest(view.javascript),"sizes":sizes,"observed":observed})
+                    "output":output_metadata(&view.output),"javascript_sha256":digest(view.javascript),"sizes":sizes,"observed":observed})
             }).unwrap());
         }
         let comparison: Vec<_> = manual.iter().map(|(name, row)| json!({"representation":name,
             "descriptor":row.descriptor,"style":format!("{:?}",row.style),"requested_literals":row.requested.map(|mode|format!("{mode:?}")),
-            "output":output_metadata(row.output),"javascript_sha256":digest(&row.javascript),"sizes":row.sizes,
+            "output":output_metadata(&row.output),"javascript_sha256":digest(&row.javascript),"sizes":row.sizes,
             "reached":measured.iter().any(|(_, seen)| same_recipe(row, seen))})).collect();
         let gaps: [i64; 3] =
             std::array::from_fn(|index| minima[index] as i64 - manual_minima[index] as i64);

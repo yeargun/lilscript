@@ -357,6 +357,7 @@ pub(super) fn lower_admitted(
         compact,
         // The canonical families: what a codec objective seeds.
         js::OutputFamilies::seed(js::selection::Objective::Brotli),
+        &js::ChoiceMap::SEEDS,
         None,
         budget,
     )
@@ -372,6 +373,7 @@ pub(super) fn lower_output_admitted(
     mode: DemandMode,
     compact: bool,
     families: js::OutputFamilies,
+    choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
@@ -393,6 +395,7 @@ pub(super) fn lower_output_admitted(
         &demand,
         compact,
         families,
+        choices,
         hosts,
         &mut phase,
     );
@@ -437,6 +440,7 @@ fn form(
         &demand,
         false,
         js::OutputFamilies::NONE,
+        &js::ChoiceMap::SEEDS,
         None,
         &mut AllocationBudget::new(None),
     );
@@ -460,12 +464,13 @@ fn form_with_demand(
     demand: &DemandPlan<'_, '_>,
     compact: bool,
     families: js::OutputFamilies,
+    choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
     let head = form_head(program, uses, contract, demand, compact, hosts, budget)?;
-    form_tail(head, families, budget)
+    form_tail(head, families, choices, budget)
 }
 
 /// A formed tree before its output families: everything formation does that
@@ -529,14 +534,15 @@ pub(super) fn form_head_admitted(
     )
 }
 
-/// Apply the output families to a formed head.
+/// Apply the output families and choices to a formed head.
 pub(super) fn form_tail_admitted(
     head: FormedHead,
     families: js::OutputFamilies,
+    choices: &js::ChoiceMap,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
-    form_tail(head, families, budget)
+    form_tail(head, families, choices, budget)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -997,6 +1003,7 @@ fn form_head(
 fn form_tail(
     head: FormedHead,
     families: js::OutputFamilies,
+    choices: &js::ChoiceMap,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
     let FormedHead {
@@ -1025,7 +1032,15 @@ fn form_tail(
         literal_alternatives: &mut literals,
         budget,
     };
-    let result = formation.run(families, strict, pristine, prunes, numeric_lengths, year);
+    let result = formation.run(
+        families,
+        choices,
+        strict,
+        pristine,
+        prunes,
+        numeric_lengths,
+        year,
+    );
     drop(formation);
     match result {
         Ok(()) => Ok((module, literals)),
@@ -1049,6 +1064,7 @@ impl Tail<'_, '_> {
     fn run(
         &mut self,
         families: js::OutputFamilies,
+        choices: &js::ChoiceMap,
         strict: bool,
         pristine: bool,
         prunes: bool,
@@ -1138,8 +1154,9 @@ impl Tail<'_, '_> {
             if let (_, Some(map)) = formation.module.array_receiver_calls(formation.budget)? {
                 remap_alternatives(formation.literal_alternatives, &map);
             }
-            // Large constant string tables as data: front-coded keys and
-            // joined values, decoded once where the literal stood.
+            // Constant data tables: the literal, or an encoding decoded
+            // once where the literal stood, as the artifact's choice map
+            // names (M9.8; its seed when the map names none).
             let protected: Vec<js::ExprId> = formation
                 .literal_alternatives
                 .iter()
@@ -1147,7 +1164,7 @@ impl Tail<'_, '_> {
                 .collect();
             formation
                 .module
-                .encode_string_tables(&protected, formation.budget)?;
+                .encode_tables(&protected, choices, formation.budget)?;
             formation.module.drop_default_arguments(formation.budget)?;
             formation.module.native_default_lengths(formation.budget)?;
             Ok(0)

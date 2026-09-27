@@ -888,7 +888,7 @@ impl JavaScriptTarget<'_, '_> {
                 map.tactics(),
                 policy,
                 policy.javascript_contract().unwrap().execution,
-                *choices,
+                choices.clone(),
             )
             .with_bundle(bundle.as_ref());
             Ok(inspect(&mut facade))
@@ -953,9 +953,13 @@ impl Formations<'_, '_> {
         }
         let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
         let head = self.head.clone_in(&mut budget)?;
-        let (module, literals) =
-            super::javascript::form_tail_admitted(head, choices.families, &mut budget)
-                .map_err(formation_error)?;
+        let (module, literals) = super::javascript::form_tail_admitted(
+            head,
+            choices.families,
+            &choices.choices,
+            &mut budget,
+        )
+        .map_err(formation_error)?;
         let mut target = JavaScriptTarget {
             module_names: self.module_names,
             chunk_extension: self.chunk_extension,
@@ -975,6 +979,35 @@ impl Formations<'_, '_> {
             budget,
         };
         target.with_output_in(self.domain, inspect)
+    }
+
+    /// The choice sites the candidate's tree offers under `choices`: formed
+    /// as `form` forms it, read off the tree, and released unrendered.
+    pub(super) fn survey(
+        &mut self,
+        choices: &OutputTactics,
+    ) -> Result<Vec<crate::js::ChoiceSite>, CandidateError> {
+        self.ledger.charge(self.domain, WorkKind::Analysis, 2)?;
+        if choices.dead_code_elimination != self.dead_code_elimination
+            || choices.target_compaction != self.target_compaction
+        {
+            return Err(CandidateError::Artifact(
+                "a formation's head belongs to other dead-code or compaction choices",
+            ));
+        }
+        let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
+        let head = self.head.clone_in(&mut budget)?;
+        let (module, literals) = super::javascript::form_tail_admitted(
+            head,
+            choices.families,
+            &choices.choices,
+            &mut budget,
+        )
+        .map_err(formation_error)?;
+        let sites = module.choice_sites.clone();
+        drop(literals);
+        drop(module);
+        Ok(sites)
     }
 
     /// The retained artifact arena and the formation contract its artifacts
@@ -2201,6 +2234,7 @@ impl<'src> Compilation<'src> {
             demand,
             choices.target_compaction,
             choices.families,
+            &choices.choices,
             self.host_modules.as_ref().map(|(delivery, _)| delivery),
             &mut budget,
         )

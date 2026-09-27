@@ -31,7 +31,7 @@
 //! * everything here is sequential and deterministic: no thread count, time
 //!   or allocation address enters a decision.
 use super::*;
-use crate::js::{Challenger, Spelling};
+use crate::js::{Challenger, ChoiceKey, ChoiceMap, ChoiceSite, Spelling};
 
 /// What became of one declared challenger on one objective's final candidate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -67,6 +67,32 @@ pub struct ChallengerTrial {
     pub delta: Option<i64>,
 }
 
+/// One choice alternative's trial (M9.1): a site of a choice family, by its
+/// source name, taking one of its other alternatives.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ChoiceTrial {
+    pub family: crate::js::ChoiceFamily,
+    pub site: String,
+    pub alternative: &'static str,
+    /// The estimator's raw bytes saved against the site's canonical form:
+    /// the order of the schedule, never the verdict.
+    pub estimate: i64,
+    pub outcome: ChallengerOutcome,
+    pub size: Option<usize>,
+    pub delta: Option<i64>,
+}
+
+/// A choice site of the delivered artifact and the alternative it took.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ChoiceOutcome {
+    pub family: crate::js::ChoiceFamily,
+    pub site: String,
+    pub seed: &'static str,
+    pub delivered: &'static str,
+    /// Every alternative the site offers and its estimated saving.
+    pub offered: Vec<(&'static str, i64)>,
+}
+
 /// The stage on one objective: its budget, what it tried and what it kept.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TerminalObjective {
@@ -79,7 +105,7 @@ pub struct TerminalObjective {
     pub tried: usize,
     /// Challengers the codec judged (kept or rejected), at most `budget`.
     pub scored: usize,
-    /// Exact codec scores the stage spent.
+    /// Exact codec scores the stage spent, on challengers and choices.
     pub codec_probes: usize,
     /// The search winner's size under the codec, and the delivered one's.
     pub before: usize,
@@ -88,10 +114,27 @@ pub struct TerminalObjective {
     pub spelling: Vec<&'static str>,
     /// Every declared challenger, in schedule order.
     pub trials: Vec<ChallengerTrial>,
+    /// Choice alternatives the effort allows the codec to judge
+    /// (`OptimizationObjective::terminal_choices`), counted apart from the
+    /// challengers.
+    pub choice_budget: usize,
+    /// Choice alternatives formed: every judged one, and those that
+    /// rendered the incumbent's bytes or were refused.
+    pub choices_tried: usize,
+    /// Choice alternatives the codec judged, at most `choice_budget`.
+    pub choices_scored: usize,
+    /// Formations made only to read the incumbent's choice sites (0 or 1).
+    pub surveys: usize,
+    /// Every choice alternative offered, in schedule order: sites by the
+    /// largest estimated saving, then each site's alternatives by theirs.
+    pub choice_trials: Vec<ChoiceTrial>,
+    /// Every choice site of the delivered artifact.
+    pub choices: Vec<ChoiceOutcome>,
 }
 
-/// Bounded by the declared schedule: at most `Challenger::ORDER.len()` trials
-/// per requested objective.
+/// Bounded by the declared schedule: at most `Challenger::ORDER.len()`
+/// challenger trials per requested objective, and one choice trial per
+/// alternative of each site the delivered candidate offers.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct TerminalReport {
     pub objectives: Vec<TerminalObjective>,
@@ -147,7 +190,183 @@ fn resource(error: &SearchError) -> bool {
 struct Incumbent {
     artifact: ArtifactId,
     spelling: Spelling,
+    choices: ChoiceMap,
     size: usize,
+}
+
+/// One trial's verdict against the incumbent.
+enum Judgement {
+    Kept { artifact: ArtifactId, size: usize },
+    Rejected { size: usize },
+    Identical,
+    Refused,
+    Stopped,
+}
+
+/// What the stage holds fixed while it judges one objective's challengers.
+struct Judge<'a> {
+    policy: &'a ResolvedPolicy,
+    codec: Objective,
+    output: &'a OutputTactics,
+    plan: &'a Plan,
+    available: usize,
+}
+
+impl Judge<'_> {
+    /// Form the candidate under `families` and `choices`, render it with the
+    /// incumbent's naming and `raw_spelling`, admit it and score it under the
+    /// objective's codec; it replaces the incumbent only when the complete
+    /// artifact is strictly smaller. Returns the verdict and whether an
+    /// exact codec score was spent.
+    fn judge(
+        &self,
+        formations: &mut Formations<'_, '_>,
+        portfolio: &mut Portfolio,
+        spelling: Spelling,
+        choices: &ChoiceMap,
+        incumbent: &Incumbent,
+    ) -> Result<(Judgement, bool), SearchError> {
+        let Self {
+            policy,
+            codec,
+            output,
+            plan,
+            available,
+        } = *self;
+        let tactics = OutputTactics {
+            families: spelling.families,
+            choices: choices.clone(),
+            ..output.clone()
+        };
+        let named = Plan {
+            style: plan.style,
+            source_names: plan.source_names.clone(),
+            raw_spelling: spelling.raw_spelling,
+        };
+        let rendered = formations
+            .form(tactics, |target| {
+                let staged =
+                    target.render_bounded_with_literals(&named, output.literals, available)?;
+                target.retain_artifact(staged)
+            })
+            .and_then(|retained| retained);
+        let challenged = match rendered {
+            Ok(challenged) => challenged,
+            Err(error) if exhausted(&error) => return Ok((Judgement::Stopped, false)),
+            Err(_) => return Ok((Judgement::Refused, false)),
+        };
+        let baseline = portfolio.baseline_qualification(codec).copied();
+        let scored = formations.with_arena(|arena, contract, budget| {
+            let result = (|| -> Result<Option<(usize, QualifiedArtifact)>, CandidateError> {
+                if arena.same_output(challenged, incumbent.artifact, budget)? {
+                    return Ok(None);
+                }
+                let size = arena.measure(challenged, codec, budget)?;
+                let qualified = arena.qualify(
+                    challenged,
+                    contract,
+                    policy,
+                    codec,
+                    ArtifactRuntimeEvidence::default(),
+                    baseline.as_ref(),
+                    budget,
+                )?;
+                Ok(Some((size, qualified)))
+            })();
+            if !matches!(result, Ok(Some(_))) {
+                arena
+                    .discard(challenged, budget)
+                    .expect("the stage owns its challenger");
+            }
+            result
+        });
+        let probed = codec != Objective::Raw && !matches!(scored, Ok(None));
+        let (size, qualified) = match scored {
+            Ok(Some(scored)) => scored,
+            Ok(None) => return Ok((Judgement::Identical, probed)),
+            Err(error) if exhausted(&error) => return Ok((Judgement::Stopped, probed)),
+            Err(_) => return Ok((Judgement::Refused, probed)),
+        };
+        let base = baseline.map_or(qualified.cost(), |baseline| baseline.cost());
+        let smaller = policy
+            .compare_evidence(
+                qualified.cost(),
+                CandidateCostEvidence::size_only(incumbent.size as u64),
+                base,
+            )
+            .map_err(SearchError::from)
+            .and_then(|order| Ok(order.ok_or(CandidateError::NotJavaScript)?))
+            .map(|order| order == Ordering::Less);
+        // Promotion admits a portfolio entry before it changes anything; a
+        // refusal leaves the incumbent in place. The challenger goes unless
+        // it became the incumbent.
+        let kept = formations.with_arena(|arena, _, budget| {
+            let kept = smaller.and_then(|smaller| {
+                if !smaller {
+                    return Ok(false);
+                }
+                portfolio
+                    .promote_terminal(arena, budget, codec, challenged, qualified)
+                    .map(|_| true)
+            });
+            if !matches!(kept, Ok(true)) {
+                arena
+                    .discard(challenged, budget)
+                    .expect("the stage owns its challenger");
+            }
+            kept
+        });
+        match kept {
+            Ok(true) => Ok((
+                Judgement::Kept {
+                    artifact: challenged,
+                    size,
+                },
+                probed,
+            )),
+            Ok(false) => Ok((Judgement::Rejected { size }, probed)),
+            Err(error) if error.optional_memory_refusal() || resource(&error) => {
+                Ok((Judgement::Stopped, probed))
+            }
+            Err(error) => Err(error),
+        }
+    }
+}
+
+/// The choice schedule of one surveyed artifact: every site, largest stake
+/// first, and each site's alternatives other than the one it applies, best
+/// estimate first. An alternative the estimator says saves nothing is
+/// offered only when it is the canonical form (the undo of a seed).
+fn choice_schedule(sites: &[ChoiceSite]) -> Vec<(usize, crate::js::AltId)> {
+    let mut order: Vec<usize> = (0..sites.len()).collect();
+    order.sort_by(|&a, &b| {
+        sites[b]
+            .stake()
+            .cmp(&sites[a].stake())
+            .then(sites[a].key.cmp(&sites[b].key))
+    });
+    let mut schedule = Vec::new();
+    for site in order {
+        let mut alternatives: Vec<_> = sites[site]
+            .alternatives
+            .iter()
+            .filter(|offered| {
+                offered.alternative != sites[site].applied
+                    && (offered.saving > 0 || offered.alternative == crate::js::AltId(0))
+            })
+            .collect();
+        alternatives.sort_by(|a, b| {
+            b.saving
+                .cmp(&a.saving)
+                .then(a.alternative.cmp(&b.alternative))
+        });
+        schedule.extend(
+            alternatives
+                .into_iter()
+                .map(|offered| (site, offered.alternative)),
+        );
+    }
+    schedule
 }
 
 impl JavaScriptSearch<'_, '_> {
@@ -198,7 +417,7 @@ impl JavaScriptSearch<'_, '_> {
         let arena = &self.compilation.artifacts;
         let provenance = arena.provenance(artifact)?;
         let plan = provenance.naming().clone();
-        let output = provenance.description().output();
+        let output = provenance.description().output().clone();
         let before = arena
             .with_artifact(artifact, |view| view.sizes.get(codec))?
             .expect("a selected winner is measured under its codec");
@@ -207,6 +426,11 @@ impl JavaScriptSearch<'_, '_> {
             raw_spelling: plan.raw_spelling,
         };
         let budget = objective.terminal_challengers;
+        let choice_budget = if output.target_compaction {
+            objective.terminal_choices
+        } else {
+            0
+        };
         let available = objective
             .retained_candidate_bytes
             .max(self.portfolio.baseline_capacity);
@@ -220,6 +444,12 @@ impl JavaScriptSearch<'_, '_> {
             after: before,
             spelling: spelling_names(seed),
             trials: Vec::with_capacity(Challenger::ORDER.len()),
+            choice_budget,
+            choices_tried: 0,
+            choices_scored: 0,
+            surveys: 0,
+            choice_trials: Vec::new(),
+            choices: Vec::new(),
         };
         let trial = |challenger: Challenger, outcome| ChallengerTrial {
             challenger: challenger.name(),
@@ -227,7 +457,7 @@ impl JavaScriptSearch<'_, '_> {
             size: None,
             delta: None,
         };
-        if budget == 0 {
+        if budget == 0 && choice_budget == 0 {
             report.trials.extend(
                 Challenger::ORDER
                     .into_iter()
@@ -236,19 +466,21 @@ impl JavaScriptSearch<'_, '_> {
             return Ok(Some(report));
         }
         // When no challenger passes the duplicate and permission filters
-        // from the seed, nothing is ever formed (the incumbent can only
-        // change through a formed one): record that without building the
-        // candidate's demand and head.
+        // from the seed and no choice may be judged, nothing is ever formed
+        // (the incumbent can only change through a formed one): record that
+        // without building the candidate's demand and head.
         let mut seen = vec![seed.effective()];
         let mut dry = Vec::with_capacity(Challenger::ORDER.len());
         let mut formable = false;
         for challenger in Challenger::ORDER {
             let next = challenger.apply(codec, seed);
-            let outcome = if seen.contains(&next.effective()) {
+            let outcome = if budget == 0 {
+                ChallengerOutcome::Budget
+            } else if seen.contains(&next.effective()) {
                 ChallengerOutcome::Duplicate
             } else if (OutputTactics {
                 families: next.families,
-                ..output
+                ..output.clone()
             })
             .check_policy(policy)
             .is_err()
@@ -261,7 +493,7 @@ impl JavaScriptSearch<'_, '_> {
             };
             dry.push(trial(challenger, outcome));
         }
-        if !formable {
+        if !formable && choice_budget == 0 {
             report.trials = dry;
             return Ok(Some(report));
         }
@@ -273,7 +505,15 @@ impl JavaScriptSearch<'_, '_> {
         let mut incumbent = Incumbent {
             artifact,
             spelling: seed,
+            choices: output.choices.clone(),
             size: before,
+        };
+        let judge = Judge {
+            policy,
+            codec,
+            output: &output,
+            plan: &plan,
+            available,
         };
         let mut stopped = false;
         let formed = compilation.with_javascript_formations_in(
@@ -305,154 +545,151 @@ impl JavaScriptSearch<'_, '_> {
                         continue;
                     }
                     seen.push(next.effective());
-                    let choices = OutputTactics {
+                    if (OutputTactics {
                         families: next.families,
-                        ..output
-                    };
-                    if choices.check_policy(policy).is_err() {
+                        ..output.clone()
+                    })
+                    .check_policy(policy)
+                    .is_err()
+                    {
                         report
                             .trials
                             .push(trial(challenger, ChallengerOutcome::Vetoed));
                         continue;
                     }
                     report.tried += 1;
-                    let named = Plan {
-                        style: plan.style,
-                        source_names: plan.source_names.clone(),
-                        raw_spelling: next.raw_spelling,
-                    };
-                    let rendered = formations
-                        .form(choices, |target| {
-                            let staged = target.render_bounded_with_literals(
-                                &named,
-                                output.literals,
-                                available,
-                            )?;
-                            target.retain_artifact(staged)
-                        })
-                        .and_then(|retained| retained);
-                    let challenged = match rendered {
-                        Ok(challenged) => challenged,
-                        Err(error) => {
-                            stopped = exhausted(&error);
-                            report.trials.push(trial(
-                                challenger,
-                                if stopped {
-                                    ChallengerOutcome::Stopped
-                                } else {
-                                    ChallengerOutcome::Refused
-                                },
-                            ));
-                            continue;
-                        }
-                    };
-                    let baseline = portfolio.baseline_qualification(codec).copied();
-                    let scored = formations.with_arena(|arena, contract, budget| {
-                        let result =
-                            (|| -> Result<Option<(usize, QualifiedArtifact)>, CandidateError> {
-                                if arena.same_output(challenged, incumbent.artifact, budget)? {
-                                    return Ok(None);
-                                }
-                                let size = arena.measure(challenged, codec, budget)?;
-                                let qualified = arena.qualify(
-                                    challenged,
-                                    contract,
-                                    policy,
-                                    codec,
-                                    ArtifactRuntimeEvidence::default(),
-                                    baseline.as_ref(),
-                                    budget,
-                                )?;
-                                Ok(Some((size, qualified)))
-                            })();
-                        if !matches!(result, Ok(Some(_))) {
-                            arena
-                                .discard(challenged, budget)
-                                .expect("the stage owns its challenger");
-                        }
-                        result
-                    });
-                    if codec != Objective::Raw && !matches!(scored, Ok(None)) {
-                        report.codec_probes += 1;
-                    }
-                    let (size, qualified) = match scored {
-                        Ok(Some(scored)) => scored,
-                        Ok(None) => {
-                            report
-                                .trials
-                                .push(trial(challenger, ChallengerOutcome::Identical));
-                            continue;
-                        }
-                        Err(error) => {
-                            stopped = exhausted(&error);
-                            report.trials.push(trial(
-                                challenger,
-                                if stopped {
-                                    ChallengerOutcome::Stopped
-                                } else {
-                                    ChallengerOutcome::Refused
-                                },
-                            ));
-                            continue;
-                        }
-                    };
-                    report.scored += 1;
-                    let delta = size as i64 - incumbent.size as i64;
-                    let base = baseline.map_or(qualified.cost(), |baseline| baseline.cost());
-                    let smaller = policy
-                        .compare_evidence(
-                            qualified.cost(),
-                            CandidateCostEvidence::size_only(incumbent.size as u64),
-                            base,
-                        )
-                        .map_err(SearchError::from)
-                        .and_then(|order| Ok(order.ok_or(CandidateError::NotJavaScript)?))
-                        .map(|order| order == Ordering::Less);
-                    // Promotion admits a portfolio entry before it changes
-                    // anything; a refusal leaves the incumbent in place. The
-                    // challenger goes unless it became the incumbent.
-                    let kept = formations.with_arena(|arena, _, budget| {
-                        let kept = smaller.and_then(|smaller| {
-                            if !smaller {
-                                return Ok(false);
-                            }
-                            portfolio
-                                .promote_terminal(arena, budget, codec, challenged, qualified)
-                                .map(|_| true)
-                        });
-                        if !matches!(kept, Ok(true)) {
-                            arena
-                                .discard(challenged, budget)
-                                .expect("the stage owns its challenger");
-                        }
-                        kept
-                    });
-                    let outcome = match kept {
-                        Ok(true) => {
+                    let (judgement, probed) =
+                        judge.judge(formations, portfolio, next, &incumbent.choices, &incumbent)?;
+                    report.codec_probes += usize::from(probed);
+                    let (outcome, size, delta) = match judgement {
+                        Judgement::Kept { artifact, size } => {
+                            report.scored += 1;
+                            let delta = size as i64 - incumbent.size as i64;
                             incumbent = Incumbent {
-                                artifact: challenged,
+                                artifact,
                                 spelling: next,
+                                choices: incumbent.choices.clone(),
                                 size,
                             };
-                            ChallengerOutcome::Kept
+                            (ChallengerOutcome::Kept, Some(size), Some(delta))
                         }
-                        Ok(false) => ChallengerOutcome::Rejected,
-                        Err(error) if error.optional_memory_refusal() || resource(&error) => {
+                        Judgement::Rejected { size } => {
+                            report.scored += 1;
+                            let delta = size as i64 - incumbent.size as i64;
+                            (ChallengerOutcome::Rejected, Some(size), Some(delta))
+                        }
+                        Judgement::Identical => (ChallengerOutcome::Identical, None, None),
+                        Judgement::Refused => (ChallengerOutcome::Refused, None, None),
+                        Judgement::Stopped => {
                             stopped = true;
-                            report
-                                .trials
-                                .push(trial(challenger, ChallengerOutcome::Stopped));
-                            continue;
+                            report.tried -= 1;
+                            (ChallengerOutcome::Stopped, None, None)
                         }
-                        Err(error) => return Err(error),
                     };
                     report.trials.push(ChallengerTrial {
                         challenger: challenger.name(),
                         outcome,
-                        size: Some(size),
-                        delta: Some(delta),
+                        size,
+                        delta,
                     });
                 }
+                if stopped || choice_budget == 0 {
+                    return Ok(());
+                }
+                // The choice phase (M9.1): the sites the incumbent's tree
+                // offers, each other alternative judged on the whole
+                // artifact within the effort's choice budget.
+                report.surveys += 1;
+                let surveyed = formations.survey(&OutputTactics {
+                    families: incumbent.spelling.families,
+                    choices: incumbent.choices.clone(),
+                    ..output.clone()
+                });
+                let mut sites = match surveyed {
+                    Ok(sites) => sites,
+                    Err(error) if exhausted(&error) => {
+                        stopped = true;
+                        return Ok(());
+                    }
+                    Err(_) => return Ok(()),
+                };
+                for (site, alternative) in choice_schedule(&sites) {
+                    let key: ChoiceKey = sites[site].key;
+                    let estimate = sites[site]
+                        .alternatives
+                        .iter()
+                        .find(|offered| offered.alternative == alternative)
+                        .map_or(0, |offered| offered.saving);
+                    let mut record = ChoiceTrial {
+                        family: key.family,
+                        site: sites[site].name.clone(),
+                        alternative: sites[site].name_of(alternative),
+                        estimate,
+                        outcome: ChallengerOutcome::Budget,
+                        size: None,
+                        delta: None,
+                    };
+                    if stopped {
+                        record.outcome = ChallengerOutcome::Stopped;
+                    } else if sites[site].applied == alternative {
+                        // An earlier trial of this site kept it already.
+                        record.outcome = ChallengerOutcome::Duplicate;
+                    } else if report.choices_scored < choice_budget {
+                        report.choices_tried += 1;
+                        let choices = incumbent.choices.with(key, alternative);
+                        let (judgement, probed) = judge.judge(
+                            formations,
+                            portfolio,
+                            incumbent.spelling,
+                            &choices,
+                            &incumbent,
+                        )?;
+                        report.codec_probes += usize::from(probed);
+                        match judgement {
+                            Judgement::Kept { artifact, size } => {
+                                report.choices_scored += 1;
+                                record.outcome = ChallengerOutcome::Kept;
+                                record.size = Some(size);
+                                record.delta = Some(size as i64 - incumbent.size as i64);
+                                incumbent = Incumbent {
+                                    artifact,
+                                    spelling: incumbent.spelling,
+                                    choices,
+                                    size,
+                                };
+                                sites[site].applied = alternative;
+                            }
+                            Judgement::Rejected { size } => {
+                                report.choices_scored += 1;
+                                record.outcome = ChallengerOutcome::Rejected;
+                                record.size = Some(size);
+                                record.delta = Some(size as i64 - incumbent.size as i64);
+                            }
+                            Judgement::Identical => record.outcome = ChallengerOutcome::Identical,
+                            Judgement::Refused => record.outcome = ChallengerOutcome::Refused,
+                            Judgement::Stopped => {
+                                stopped = true;
+                                report.choices_tried -= 1;
+                                record.outcome = ChallengerOutcome::Stopped;
+                            }
+                        }
+                    }
+                    report.choice_trials.push(record);
+                }
+                report.choices = sites
+                    .iter()
+                    .map(|site| ChoiceOutcome {
+                        family: site.key.family,
+                        site: site.name.clone(),
+                        seed: site.name_of(site.seed),
+                        delivered: site.name_of(site.applied),
+                        offered: site
+                            .alternatives
+                            .iter()
+                            .map(|offered| (offered.name, offered.saving))
+                            .collect(),
+                    })
+                    .collect();
                 Ok(())
             },
         );

@@ -76,7 +76,7 @@ fn execute(javascript: &str, exact_value: &str) -> Json {
     assert_eq!(observed, json!(["effect", exact_value]));
     observed
 }
-fn output_metadata(output: OutputTactics) -> Json {
+fn output_metadata(output: &OutputTactics) -> Json {
     json!({"dead_code_elimination":output.dead_code_elimination,
         "target_compaction":output.target_compaction,"literals":format!("{:?}",output.literals)})
 }
@@ -118,7 +118,7 @@ fn matrix(
                     "before":BEFORE,"after":AFTER,"before_sha256":digest(BEFORE),"after_sha256":digest(AFTER),
                     "setup":SETUP,"observations":"library.run();","expected":["effect",exact_value],"observed":observed,
                     "has_literal_alternative":has_alternative,"style":format!("{style:?}"),"requested_literals":format!("{requested:?}"),
-                    "output":output_metadata(actual),"javascript":javascript,"javascript_sha256":digest(&javascript),
+                    "output":output_metadata(&actual),"javascript":javascript,"javascript_sha256":digest(&javascript),
                     "raw":sizes[0],"gzip9":sizes[1],"brotli11":sizes[2]}));
                 rows.push(Row { style, requested, output: actual, javascript, sizes });
                 if retain_observed && style == Style::Scoped && requested == LiteralOutput::Observed {
