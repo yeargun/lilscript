@@ -5,11 +5,23 @@
     <meta name="description" content="Lilastro implementation details: static .lilastro pages, Lilscript application code, Lilpack delivery, and Vite 8 HMR.">
     <title>Lilastro | LilScript</title><link rel="stylesheet" href="/src/styles.css">
   </head>
-  <body class="content-page project-page">
+  <body data-evidence="previous-compiler" class="content-page project-page">
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header"><a class="wordmark" href="/" aria-label="LilScript home"><span class="wordmark-mark" aria-hidden="true">L</span><span>LilScript</span></a><button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false"><i data-lucide="menu" aria-hidden="true"></i></button><nav class="site-nav" aria-label="Primary navigation"></nav></header>
     <main id="main-content" class="project-main content-width">
-      <nav class="project-switcher" aria-label="Project pages"><a class="active" aria-current="page" href="/lilastro.html">Lilastro</a><a href="/lastro.html">Lastro</a><a href="/solidlil.html">SolidLil</a><a href="/delivery.html">Lilpack</a></nav>
+      <aside class="evidence-notice" role="note">
+        <strong>Measured with the previous compiler, August 2026.</strong>
+        The numbers on this page come from the compiler route that was deleted on 23 September 2026. Today’s compiler has not rebuilt these labs yet, and on small
+        closed programs it is currently larger than the route it replaced:
+        <code>comparison/apps</code> is 945 B against that route’s 558 B and
+        Closure ADVANCED’s 834 B, <code>comparison/algorithms</code> 3,250 B
+        against 2,305 B and 2,756 B, and on the 54 canonical cases it wins 9,
+        ties 6, loses 37 and refuses 2 against the smallest competitor
+        (27 September 2026, compiler 24968659). Current library results are on
+        the <a href="/">overview</a> and <a href="/compare.html">compare</a>
+        pages.
+      </aside>
+            <nav class="project-switcher" aria-label="Project pages"><a class="active" aria-current="page" href="/lilastro.html">Lilastro</a><a href="/lastro.html">Lastro</a><a href="/solidlil.html">SolidLil</a><a href="/delivery.html">Lilpack</a></nav>
       <section class="project-hero">
         <div><span class="status-tag implemented">Implemented POC</span><p class="eyebrow">Static page layer</p><h1>Lilastro</h1><p class="lead">A small <code>.lilastro</code> page compiler that keeps Lilscript in charge of application behavior and hands web delivery to Lilpack.</p><div class="hero-actions"><a class="primary-link" href="/demos.html#lastro">Compare with Astro<i data-lucide="arrow-right" aria-hidden="true"></i></a><a class="secondary-link" href="/delivery.html">Inspect Lilpack</a></div></div>
         <aside class="project-fact"><strong>What exists today</strong><p>A project-local CLI in <code>project1-marketplace/lilastro</code>. It supports one page POC, not a published general Astro replacement.</p></aside>

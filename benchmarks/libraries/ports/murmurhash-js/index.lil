@@ -1,8 +1,8 @@
-pure int multiply32(int value, int multiplier) {
+int multiply32(int value, int multiplier) {
   return Math.imul(value, multiplier);
 }
 
-pure float unsigned32(int value) {
+float unsigned32(int value) {
   float result = value;
   if (value < 0) {
     result += 4294967296.0;
@@ -10,7 +10,7 @@ pure float unsigned32(int value) {
   return result;
 }
 
-export pure float murmur2(string value, int seed) {
+export float murmur2(string value, int seed) {
   int remaining = value.length;
   int hash = seed ^ remaining;
   int index = 0;
@@ -42,7 +42,7 @@ export pure float murmur2(string value, int seed) {
   return unsigned32(hash);
 }
 
-export pure float murmur3(string key, int seed) {
+export float murmur3(string key, int seed) {
   int remainder = key.length & 3;
   int bytes = key.length - remainder;
   int hash = seed;
@@ -88,6 +88,6 @@ export pure float murmur3(string key, int seed) {
   return unsigned32(hash);
 }
 
-export pure float murmur(string key, int seed) {
+export float murmur(string key, int seed) {
   return murmur3(key, seed);
 }

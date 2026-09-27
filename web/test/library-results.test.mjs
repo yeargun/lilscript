@@ -49,29 +49,23 @@ test("library page is a Vite entry backed by generated results", () => {
     data.results.map((result) => result.id),
     [
       "micro-math",
-      "js-levenshtein",
-      "emotion-hash",
+      "string-hash",
       "murmurhash-js",
-      "robust-predicates",
     ],
   );
   const motion = data.diagnostics.find(
     (result) => result.id === "motion-easing",
   );
   assert.equal(motion.eligible, false);
-  assert.ok(
-    motion.workload.performance.ratio > data.metadata.materialRegressionLimit,
-  );
-  assert.equal(motion.blockers.length, 1);
-  assert.match(motion.blockers[0], /^throughput ratio .* exceeds 1\.05$/);
+  assert.ok(motion.blockers.some((blocker) => /^brotli .* exceeds closure/.test(blocker)));
+  const emotion = data.diagnostics.find((result) => result.id === "emotion-hash");
+  assert.equal(emotion.eligible, false);
+  assert.match(emotion.blockers[0], /^brotli .* exceeds closure/);
   const stringHash = data.diagnostics.find(
     (result) => result.id === "string-hash",
   );
-  assert.equal(stringHash.eligible, false);
-  assert.ok(
-    stringHash.workload.performance.ratio > data.metadata.materialRegressionLimit,
-  );
-  assert.match(stringHash.blockers[0], /^throughput ratio .* exceeds 1\.05$/);
+  assert.equal(stringHash.eligible, true);
+  assert.deepEqual(stringHash.blockers, []);
 });
 
 test("library comparisons are Brotli-first, filterable, and selectable", () => {

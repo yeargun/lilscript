@@ -36,7 +36,19 @@
     </header>
 
     <main class="comparison-main content-width">
-      <section class="comparison-intro">
+      <aside class="evidence-notice" role="note">
+        <strong>Two generations of evidence.</strong>
+        The library-lab rows (clamp + lerp, string-hash, murmurhash-js and the
+        diagnostics beside them) were re-measured on 27 September 2026 with
+        compiler 24968659; three of seven packages pass every gate today,
+        against five in August. The popular-library matrix, the Motion
+        fixtures and the SolidLil runtime below are from the previous
+        compiler, August 2026: their ports need source migrations before
+        today’s compiler can rebuild them. Current results for the published
+        ports are on the <a href="/">overview</a> and
+        <a href="/compare.html">compare</a> pages.
+      </aside>
+            <section class="comparison-intro">
         <p class="eyebrow">Ecosystem evidence</p>
         <h1>Real client code, checked end to end</h1>
         <p class="lead">

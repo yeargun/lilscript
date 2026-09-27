@@ -827,3 +827,42 @@
     height: 40px;
   }
 }
+
+/* All-ports table (section 05), rendered by scripts/landing-cards.mjs. */
+.landing-ports {
+  margin-top: 28px;
+}
+
+.landing-ports th small,
+.landing-ports td small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.landing-ports td {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.landing-ports td:last-child {
+  white-space: normal;
+}
+
+.landing-ports td.win {
+  color: var(--good);
+  font-weight: 600;
+}
+
+.landing-ports td.loss {
+  color: var(--loss);
+  font-weight: 600;
+}
+
+.landing-ports td.hold {
+  color: var(--hold);
+  font-weight: 600;
+}

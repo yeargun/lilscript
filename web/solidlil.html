@@ -10,7 +10,7 @@
     <title>SolidLil | LilScript</title>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
-  <body class="content-page project-page">
+  <body data-evidence="previous-compiler" class="content-page project-page">
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
       <a class="wordmark" href="/" aria-label="LilScript home"
@@ -27,7 +27,19 @@
       <nav class="site-nav" aria-label="Primary navigation"></nav>
     </header>
     <main id="main-content" class="project-main content-width">
-      <nav class="project-switcher" aria-label="Project pages">
+      <aside class="evidence-notice" role="note">
+        <strong>Measured with the previous compiler, August 2026.</strong>
+        The numbers on this page come from the compiler route that was deleted on 23 September 2026. Today’s compiler has not rebuilt these labs yet, and on small
+        closed programs it is currently larger than the route it replaced:
+        <code>comparison/apps</code> is 945 B against that route’s 558 B and
+        Closure ADVANCED’s 834 B, <code>comparison/algorithms</code> 3,250 B
+        against 2,305 B and 2,756 B, and on the 54 canonical cases it wins 9,
+        ties 6, loses 37 and refuses 2 against the smallest competitor
+        (27 September 2026, compiler 24968659). Current library results are on
+        the <a href="/">overview</a> and <a href="/compare.html">compare</a>
+        pages.
+      </aside>
+            <nav class="project-switcher" aria-label="Project pages">
         <a href="/lilastro.html">Lilastro</a><a href="/lastro.html">Lastro</a
         ><a class="active" aria-current="page" href="/solidlil.html">SolidLil</a
         ><a href="/delivery.html">Lilpack</a>

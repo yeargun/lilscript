@@ -1,0 +1,604 @@
+{
+  "about": "Landing-page library cards. scripts/landing-cards.mjs renders them into index.html between the landing-cards markers and recomputes the medians. Every byte pair must be traceable to the linked page or the in-repo lab (web/src/library-results.json). A card with `vote: false` shows metrics but no rate and is excluded from the medians.",
+  "measuredAt": "2026-09-27",
+  "compiler": "24968659",
+  "cards": [
+    {
+      "id": "katex",
+      "href": "https://yeargun.github.io/katexlil/",
+      "external": true,
+      "kicker": "Full library · font metrics in LilScript",
+      "title": "KaTeX 0.16",
+      "text": "The whole <code>katex.mjs</code> surface, 1,258 checks. The bar is upstream’s own <code>katex.min.js</code>. Against SWC over KaTeX’s Flow sources (60,740 B) it is a tie, −459 B.",
+      "baselineLabel": "katex.min.js",
+      "gzip": [
+        75840,
+        72187
+      ],
+      "brotli": [
+        62686,
+        60281
+      ]
+    },
+    {
+      "id": "react-markdown",
+      "href": "https://yeargun.github.io/react-markdownlil/",
+      "external": true,
+      "kicker": "Browser build · 123 checks",
+      "title": "react-markdown 10",
+      "text": "The whole remark → rehype → React pipeline, with micromark and unified inside. The bar is Terser over upstream’s Git source, browser graph, React external.",
+      "baselineLabel": "Terser",
+      "gzip": [
+        34789,
+        30919
+      ],
+      "brotli": [
+        30950,
+        27250
+      ]
+    },
+    {
+      "id": "jquery",
+      "href": "https://yeargun.github.io/jquerylil/",
+      "external": true,
+      "kicker": "Drop-in public API",
+      "title": "jQuery 3.7.1",
+      "text": "The bar is the official <code>jquery.min.js</code>, the strongest one measured. Every delivered file is compiler-written; no minifier runs after the compiler.",
+      "baselineLabel": "jquery.min.js",
+      "gzip": [
+        30336,
+        28317
+      ],
+      "brotli": [
+        27445,
+        25452
+      ]
+    },
+    {
+      "id": "marked",
+      "href": "https://yeargun.github.io/markedlil/",
+      "external": true,
+      "kicker": "Parse API · 29 checks",
+      "title": "marked 18",
+      "text": "Lexer, Parser, Tokenizer and Renderer of marked 18.0.10, not the extension system. The bar is Oxc over the same parse-only sources; SWC (10,031 B) is 61 B stronger and still loses by 742 B.",
+      "baselineLabel": "Oxc",
+      "gzip": [
+        10930,
+        10310
+      ],
+      "brotli": [
+        10092,
+        9289
+      ]
+    },
+    {
+      "id": "zod",
+      "href": "https://yeargun.github.io/zodlil/",
+      "external": true,
+      "kicker": "Classic API · 1,353 tests",
+      "title": "Zod 4",
+      "text": "Package ESM against zod 4.4.3 cut to the 181 <code>z</code> members both sides share, English locale. The bar is Oxc; SWC gives 29,387 B. About 1.2K of upstream core surface the port lacks is still in the bar.",
+      "baselineLabel": "Oxc",
+      "gzip": [
+        34134,
+        31724
+      ],
+      "brotli": [
+        29437,
+        28132
+      ]
+    },
+    {
+      "id": "posthog",
+      "href": "https://yeargun.github.io/posthoglil/",
+      "external": true,
+      "kicker": "Capture kernel + 5 packs",
+      "title": "posthog-js",
+      "text": "The capture kernel of posthog-js 1.418.10. The bar is Oxc; SWC with kept names gives 5,482 B, a 114 B win. The error-tracking pack still loses.",
+      "baselineLabel": "Oxc",
+      "gzip": [
+        6194,
+        5988
+      ],
+      "brotli": [
+        5622,
+        5368
+      ]
+    },
+    {
+      "id": "rehype",
+      "href": "https://yeargun.github.io/rehypelil/",
+      "external": true,
+      "kicker": "HTML parser + serializer",
+      "title": "rehype 13",
+      "text": "parse5-based <code>rehype</code> with its full processor. The bar is Terser over the official graph.",
+      "baselineLabel": "Terser",
+      "gzip": [
+        67626,
+        58524
+      ],
+      "brotli": [
+        54982,
+        49345
+      ]
+    },
+    {
+      "id": "micromark",
+      "href": "https://yeargun.github.io/micromarklil/",
+      "external": true,
+      "kicker": "CommonMark tokenizer · 1,963 checks",
+      "title": "micromark 4",
+      "text": "The root of the Markdown family. The bar is Terser over the Node graph, which ships the entity table as the port does; upstream’s browser graph decodes entities through the DOM (12,945 B) and this port has no such build yet.",
+      "baselineLabel": "Terser",
+      "gzip": [
+        26278,
+        26047
+      ],
+      "brotli": [
+        22696,
+        22033
+      ]
+    },
+    {
+      "id": "unified",
+      "href": "https://yeargun.github.io/unifiedlil/",
+      "external": true,
+      "kicker": "Processor · 224 checks",
+      "title": "unified 11",
+      "text": "The processor every remark and rehype plugin runs in. The bar is Terser over the official graph.",
+      "baselineLabel": "Terser",
+      "gzip": [
+        4790,
+        4639
+      ],
+      "brotli": [
+        4339,
+        4199
+      ]
+    },
+    {
+      "id": "to-hast",
+      "href": "https://yeargun.github.io/mdast-util-to-hastlil/",
+      "external": true,
+      "kicker": "mdast → hast · 154 checks",
+      "title": "mdast-util-to-hast 13",
+      "text": "The Markdown-to-HTML tree bridge behind remark-rehype. The bar is Terser over the official graph.",
+      "baselineLabel": "Terser",
+      "gzip": [
+        5388,
+        5072
+      ],
+      "brotli": [
+        4860,
+        4520
+      ]
+    },
+    {
+      "id": "monaco",
+      "href": "https://yeargun.github.io/monacolil/",
+      "external": true,
+      "kicker": "Editor · VS Code",
+      "title": "Monaco",
+      "text": "Compiled Lil editor + catalog versus npm monaco-editor. TypeScript <code>ts.worker</code> is still Microsoft’s.",
+      "baselineLabel": "npm",
+      "gzip": [
+        1148595,
+        526268
+      ],
+      "brotli": [
+        887420,
+        413607
+      ]
+    },
+    {
+      "id": "motion",
+      "href": "https://yeargun.github.io/motionlil/",
+      "external": true,
+      "kicker": "312 exports · not compiler-written",
+      "title": "Motion 13",
+      "text": "Matched public ESM: both sides go through esbuild + Terser with property mangling, 34,540 B against Motion’s 39,934 B. The delivered files are not written by the compiler alone, so this card has no vote.",
+      "vote": false,
+      "metrics": [
+        [
+          "Motion · Brotli",
+          "39,934"
+        ],
+        [
+          "Motionlil · Brotli",
+          "34,540"
+        ],
+        [
+          "Vote",
+          "none"
+        ]
+      ]
+    },
+    {
+      "id": "solidlil",
+      "href": "https://yeargun.github.io/solidlil/",
+      "external": true,
+      "kicker": "Framework · Solid 2.0",
+      "title": "SolidLil",
+      "text": "Exact file-for-file typed port in progress. The earlier compact compatibility runtime is no longer ranked against Solid.",
+      "vote": false,
+      "metrics": [
+        [
+          "Upstream modules",
+          "47",
+          "pinned locally"
+        ],
+        [
+          "Verified ports",
+          "0",
+          "comparison withheld"
+        ]
+      ]
+    },
+    {
+      "id": "mobx",
+      "href": "https://yeargun.github.io/mobxlil/",
+      "external": true,
+      "kicker": "Previous compiler · not rebuilt",
+      "title": "MobX 7",
+      "text": "769 official tests. Its published build is from the previous compiler (10 Sep): 15,057 B against Terser’s 13,646 B over the complete production ESM, a loss. Today’s compiler gives 18,206 B, so it has not been rebuilt, and it has no vote.",
+      "vote": false,
+      "metrics": [
+        [
+          "Terser · Brotli",
+          "13,646"
+        ],
+        [
+          "Published · Brotli",
+          "15,057"
+        ],
+        [
+          "Vote",
+          "none"
+        ]
+      ]
+    },
+    {
+      "id": "murmurhash-js",
+      "href": "/libraries.html#murmurhash-js",
+      "kicker": "In-repo lab · complete package",
+      "title": "murmurhash-js",
+      "text": "MurmurHash 2 and 3, same checksums. The bar is Closure ADVANCED, the smaller of Vite and Closure.",
+      "baselineLabel": "Closure",
+      "gzip": [
+        951,
+        506
+      ],
+      "brotli": [
+        833,
+        457
+      ]
+    },
+    {
+      "id": "micro-math",
+      "href": "/libraries.html#micro-math",
+      "kicker": "In-repo lab · complete package",
+      "title": "clamp + lerp",
+      "text": "Both published roots. The bar is Closure ADVANCED.",
+      "baselineLabel": "Closure",
+      "gzip": [
+        482,
+        166
+      ],
+      "brotli": [
+        414,
+        141
+      ]
+    },
+    {
+      "id": "string-hash",
+      "href": "/libraries.html#string-hash",
+      "kicker": "In-repo lab · complete package",
+      "title": "string-hash",
+      "text": "The djb2 string hash, same values. The bar is Closure ADVANCED.",
+      "baselineLabel": "Closure",
+      "gzip": [
+        473,
+        154
+      ],
+      "brotli": [
+        403,
+        129
+      ]
+    },
+    {
+      "id": "js-levenshtein",
+      "href": "/libraries.html",
+      "kicker": "In-repo lab · size only",
+      "title": "js-levenshtein",
+      "text": "Smaller than Closure ADVANCED, but 1.11× slower in the lab’s throughput workload today (gate: 1.05×), so the lab does not publish it.",
+      "baselineLabel": "Closure",
+      "gzip": [
+        788,
+        456
+      ],
+      "brotli": [
+        714,
+        413
+      ]
+    },
+    {
+      "id": "emotion-hash",
+      "href": "/libraries.html",
+      "kicker": "In-repo lab · loses to Closure",
+      "title": "@emotion/hash",
+      "text": "Smaller than Vite (330 B) but 9 B larger than Closure ADVANCED under Brotli, so the lab does not publish it.",
+      "baselineLabel": "Closure",
+      "gzip": [
+        287,
+        281
+      ],
+      "brotli": [
+        240,
+        249
+      ]
+    },
+    {
+      "id": "robust-predicates",
+      "href": "/libraries.html",
+      "kicker": "In-repo lab · raw loses",
+      "title": "robust-predicates",
+      "text": "Geometric predicates. Smaller under both codecs, but the raw file (26,191 B) is larger than Closure’s (25,208 B), which fails the lab’s gate.",
+      "baselineLabel": "Closure",
+      "gzip": [
+        7872,
+        7632
+      ],
+      "brotli": [
+        6228,
+        6015
+      ]
+    }
+  ],
+  "ports": [
+    {
+      "name": "katexlil",
+      "package": "@itslil/katex",
+      "file": "katex.esm.js",
+      "now": 60281,
+      "bar": 62686,
+      "barLabel": "katex.min.js",
+      "builtBy": "a430d5df · 27 Sep",
+      "note": "Same bytes from 24968659."
+    },
+    {
+      "name": "react-markdownlil",
+      "package": "@itslil/react-markdown",
+      "file": "react-markdown.browser.js",
+      "now": 27250,
+      "bar": 30950,
+      "barLabel": "Terser",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "jquerylil",
+      "package": "@itslil/jquery",
+      "file": "jquery.esm.js",
+      "now": 25452,
+      "bar": 27445,
+      "barLabel": "jquery.min.js",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "markedlil",
+      "package": "@itslil/marked",
+      "file": "marked.esm.js",
+      "now": 9289,
+      "bar": 10092,
+      "barLabel": "Oxc",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "zodlil",
+      "package": "@itslil/zod",
+      "file": "package ESM",
+      "now": 28132,
+      "bar": 29437,
+      "barLabel": "Oxc",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "posthoglil",
+      "package": "@itslil/posthog-js",
+      "file": "posthog.esm.js",
+      "now": 5368,
+      "bar": 5622,
+      "barLabel": "Oxc",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "rehypelil",
+      "package": "@itslil/rehype",
+      "file": "rehype.esm.js",
+      "now": 49345,
+      "bar": 54982,
+      "barLabel": "Terser",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "remarklil",
+      "package": "@itslil/remark",
+      "file": "remark.esm.js",
+      "now": 36607,
+      "bar": 22486,
+      "barLabel": "Terser",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "micromarklil",
+      "package": "@itslil/micromark",
+      "file": "micromark.esm.js",
+      "now": 22033,
+      "bar": 22696,
+      "barLabel": "Terser, Node graph",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "mdast-util-from-markdownlil",
+      "package": "@itslil/mdast-util-from-markdown",
+      "file": "from-markdown.esm.js",
+      "now": 22323,
+      "bar": 23151,
+      "barLabel": "Terser, Node graph",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "remark-parselil",
+      "package": "@itslil/remark-parse",
+      "file": "remark-parse.esm.js",
+      "now": 22404,
+      "bar": 23171,
+      "barLabel": "Terser, Node graph",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "unifiedlil",
+      "package": "@itslil/unified",
+      "file": "unified.esm.js",
+      "now": 4199,
+      "bar": 4339,
+      "barLabel": "Terser",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "mdast-util-to-hastlil",
+      "package": "@itslil/mdast-util-to-hast",
+      "file": "to-hast.esm.js",
+      "now": 4520,
+      "bar": 4860,
+      "barLabel": "Terser",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "remark-rehypelil",
+      "package": "@itslil/remark-rehype",
+      "file": "remark-rehype.esm.js",
+      "now": 4610,
+      "bar": 4908,
+      "barLabel": "Terser",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "rehype-katexlil",
+      "package": "@itslil/rehype-katex",
+      "file": "rehype-katex.esm.js",
+      "now": 892,
+      "bar": null,
+      "barLabel": "see page",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "monacolil",
+      "package": "@itslil/monaco-editor",
+      "file": "ide.js",
+      "now": 413607,
+      "bar": 887420,
+      "barLabel": "npm",
+      "builtBy": "24968659 · 27 Sep"
+    },
+    {
+      "name": "motionlil",
+      "package": "motionlil",
+      "file": "matched ESM",
+      "now": 34540,
+      "bar": 39934,
+      "barLabel": "Motion, same recipe",
+      "builtBy": "aa2052f0 · 24 Sep",
+      "note": "Not compiler-written; no vote."
+    },
+    {
+      "name": "mobxlil",
+      "package": "@itslil/mobx",
+      "file": "mobx.esm.js",
+      "now": 15057,
+      "bar": 13646,
+      "barLabel": "Terser",
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Today’s compiler: 18,206 B."
+    },
+    {
+      "name": "cnlil",
+      "package": "@itslil/cn",
+      "file": "index.js",
+      "now": 9304,
+      "bar": 9394,
+      "barLabel": "Terser",
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Today’s compiler: 9,406 B."
+    },
+    {
+      "name": "hast-util-to-htmllil",
+      "package": "@itslil/hast-util-to-html",
+      "file": "to-html.esm.js",
+      "now": 8459,
+      "bar": 9840,
+      "barLabel": "Terser",
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Today’s compiler: 9,379 B."
+    },
+    {
+      "name": "rehype-stringifylil",
+      "package": "@itslil/rehype-stringify",
+      "file": "rehype-stringify.esm.js",
+      "now": 8716,
+      "bar": 9873,
+      "barLabel": "Terser",
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Today’s compiler: 9,538 B."
+    },
+    {
+      "name": "remark-gfmlil",
+      "package": "@itslil/remark-gfm",
+      "file": "remark-gfm.esm.js",
+      "now": 10263,
+      "bar": 11161,
+      "barLabel": "Terser",
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Today’s compiler: 10,333 B."
+    },
+    {
+      "name": "remark-breakslil",
+      "package": "@itslil/remark-breaks",
+      "file": "remark-breaks.esm.js",
+      "now": 1125,
+      "bar": 1175,
+      "barLabel": "Terser",
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Today’s compiler: 1,219 B."
+    },
+    {
+      "name": "remark-mathlil",
+      "package": "@itslil/remark-math",
+      "file": "remark-math.esm.js",
+      "now": 2248,
+      "bar": 2100,
+      "barLabel": "Terser",
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Today’s compiler: 2,361 B."
+    },
+    {
+      "name": "playcanvaslil",
+      "package": "playcanvaslil",
+      "file": "shader-processing.js",
+      "now": 14632,
+      "bar": 14614,
+      "barLabel": "release build",
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Today’s compiler: 14,681 B."
+    },
+    {
+      "name": "solidlil",
+      "package": "@itslil/solidjs",
+      "file": "—",
+      "now": null,
+      "bar": null,
+      "barLabel": "withheld",
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Exact port in progress."
+    }
+  ]
+}
