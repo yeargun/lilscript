@@ -256,3 +256,37 @@ fn arity_resolution_order_and_key_diagnostics_keep_exact_spans() {
         );
     }
 }
+
+#[test]
+fn javascript_numeric_spellings_check_as_floats_and_hex_as_int() {
+    // Architecture §12, L2: leading-dot and exponent literals are floats
+    // with JavaScript's value; hexadecimal literals are ints under the same
+    // signed 32-bit rule as decimal ones.
+    let source = "float half = .5; float thousand = 1e3; float tiny = .25e-2; \
+                  float scaled = 15e-5; int mask = 0xFF; int wide = 0x7fffffff;";
+    let arena = bumpalo::Bump::new();
+    let program = crate::parse_source(&arena, source).unwrap();
+    let model = analyze(&program).unwrap();
+    for name in ["half", "thousand", "tiny", "scaled"] {
+        assert_eq!(binding(&model, name), &Type::Float, "{name}");
+    }
+    for name in ["mask", "wide"] {
+        assert_eq!(binding(&model, name), &Type::Int, "{name}");
+    }
+    // An exponent makes a float, so it does not narrow into an int.
+    for refused in ["int a = 1e3;", "int b = .5;", "int c = 0x80000000;"] {
+        let arena = bumpalo::Bump::new();
+        let program = crate::parse_source(&arena, refused).unwrap();
+        assert!(analyze(&program).is_err(), "{refused}");
+    }
+    // A member access is never a leading-dot literal; one after an
+    // operator, a sign or a bracket is.
+    let arena = bumpalo::Bump::new();
+    let program = crate::parse_source(
+        &arena,
+        "int[] xs = [1]; int n = xs.length; float[] ys = [.5, -.25]; float f = ys[0] + .5;",
+    )
+    .unwrap();
+    let model = analyze(&program).unwrap();
+    assert_eq!(binding(&model, "f"), &Type::Float);
+}

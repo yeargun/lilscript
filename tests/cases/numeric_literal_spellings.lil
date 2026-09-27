@@ -1,0 +1,26 @@
+// JavaScript's numeric spellings (architecture §12, L2): a leading dot, an
+// exponent and a hexadecimal integer read as the same values JavaScript
+// reads, on every target. The `.out` file is JavaScript's own reading.
+float half = .5;
+float quarter = .25e-2;
+float thousand = 1e3;
+float scaled = 15e-5;
+float big = 12E+2;
+int mask = 0xFF;
+int wide = 0x7fffffff;
+int small = 0X0a;
+print(half);
+print(quarter);
+print(thousand);
+print(scaled);
+print(big);
+print(mask);
+print(wide);
+print(small);
+print(half + thousand);
+print(mask & small);
+float picked = -.75 + half;
+print(picked);
+float[] row = [.5, 1e-7, 2.5e1];
+print(row[0] + row[2]);
+print(row[1] * 1e7);

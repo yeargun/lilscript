@@ -3401,3 +3401,25 @@ pub(crate) fn identifier(name: &str) -> bool {
                 | "yield"
         )
 }
+
+/// A property key whose numeric literal names the same key: a canonical
+/// integer (no sign unless `signed`, no leading zero, not `-0`) of at most
+/// 2^53 − 1, whose value prints back as exactly these digits, so `{32:v}` and
+/// `o[32]` are `{"32":v}` and `o["32"]` (architecture §12, L2). Closure's
+/// `CodeGenerator.isSimpleNumber`/`getSimpleNumber` (`closure-compiler@0da58e1
+/// CodeGenerator.java:1596-1622`) is the same test; Terser prints any
+/// `""+ +key==key && key>=0` key as a number (`terser@8fa44c8
+/// lib/output.js:2245`), esbuild and Oxc only int32 ones.
+pub(crate) fn simple_number_key(key: &str, signed: bool) -> bool {
+    let digits = match key.strip_prefix('-') {
+        Some(rest) if signed => rest,
+        Some(_) => return false,
+        None => key,
+    };
+    let canonical = match digits.as_bytes() {
+        [] => false,
+        [b'0'] => digits.len() == key.len(),
+        [first, ..] => *first != b'0' && digits.bytes().all(|b| b.is_ascii_digit()),
+    };
+    canonical && digits.len() <= 16 && digits.parse::<u64>().is_ok_and(|value| value < 1 << 53)
+}

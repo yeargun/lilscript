@@ -861,6 +861,13 @@ impl<'a> Printer<'a, '_, '_> {
                     self.text(name);
                     return;
                 }
+                // `o["32"]` and `o[32]` read the same property too.
+                if let Some(number) = self.number_key(*key, true) {
+                    self.text("[");
+                    self.text(number);
+                    self.text("]");
+                    return;
+                }
                 self.text("[");
                 self.expression(*key, 0);
                 self.text("]");
@@ -880,6 +887,23 @@ impl<'a> Printer<'a, '_, '_> {
             return None;
         }
         Some(name)
+    }
+
+    /// A literal string key without an observed alternative that a numeric
+    /// literal spells (`simple_number_key`): `{32:v}`, `o[32]`, and `o[-1]`
+    /// where `signed`.
+    fn number_key(&mut self, key: ExprId, signed: bool) -> Option<&'a str> {
+        let module = self.module;
+        let Expr::Literal(Literal::String(value)) = &module.expressions[key.index()] else {
+            return None;
+        };
+        let number = value
+            .as_unicode()
+            .filter(|text| simple_number_key(text, signed))?;
+        if self.observed_literal(key).is_some() || !self.output.work(number.len()) {
+            return None;
+        }
+        Some(number)
     }
 
     /// A literal string key without an observed alternative, other than
@@ -1286,7 +1310,7 @@ impl<'a> Printer<'a, '_, '_> {
                         if index != 0 {
                             self.text(",");
                         }
-                        if identifier_name(name) {
+                        if identifier_name(name) || simple_number_key(name, false) {
                             self.text(name);
                         } else {
                             self.string(&StringValue::from(name.as_str()));
@@ -1319,10 +1343,18 @@ impl<'a> Printer<'a, '_, '_> {
                             .filter(|name| *name != "__proto__"),
                         Property::Named(_) => None,
                     };
+                    // A canonical integer key is `32:`, the same own data
+                    // property as `"32":` (L2 spelling; Closure's printer,
+                    // Terser's `print_property_name`, esbuild and Oxc all
+                    // print it so).
+                    let numeric = match (key, literal) {
+                        (Property::Computed(key), None) => self.number_key(*key, false),
+                        _ => None,
+                    };
                     // Any other literal string key is `"s":`, the same own
                     // data property as `["s"]:`.
-                    let quoted = match (key, literal) {
-                        (Property::Computed(key), None) => self.string_key(*key),
+                    let quoted = match (key, literal, numeric) {
+                        (Property::Computed(key), None, None) => self.string_key(*key),
                         _ => None,
                     };
                     // `{k}` is `{k:k}`: the value is a reference printed with
@@ -1345,6 +1377,9 @@ impl<'a> Printer<'a, '_, '_> {
                     }
                     match (key, literal) {
                         (_, Some(name)) => self.text(name),
+                        (Property::Computed(_), None) if numeric.is_some() => {
+                            self.text(numeric.unwrap())
+                        }
                         (Property::Computed(_), None) if quoted.is_some() => {
                             self.string(quoted.unwrap().0)
                         }
@@ -1360,6 +1395,9 @@ impl<'a> Printer<'a, '_, '_> {
                     self.text(":");
                     let inferred = match (key, literal) {
                         (_, Some(name)) => InferredName::Known(name),
+                        (Property::Computed(_), None) if numeric.is_some() => {
+                            InferredName::Known(numeric.unwrap())
+                        }
                         (Property::Computed(_), None) if quoted.is_some() => {
                             InferredName::Known(quoted.unwrap().1)
                         }

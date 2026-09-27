@@ -39,7 +39,11 @@ compiler does meanwhile.
   as `async`, `generator`, or `catch` without aliases.
 - `//` line comments and `/* ... */` block comments are ignored.
 - Statements end with `;`, except blocks and declarations ending in `}`.
-- Decimal integer and IEEE-754 decimal float literals are supported.
+- Decimal and hexadecimal (`0x1F`) integer literals and IEEE-754 decimal
+  float literals are supported. A float literal has a decimal point or an
+  exponent and may start with its point: `1.5`, `.5`, `1e3`, `.25e-2`, `15e-5`,
+  each read as JavaScript reads it (the nearest double). An integer literal,
+  decimal or hexadecimal, must fit the signed 32-bit range.
 - Strings use double quotes. Template strings use backticks and `${expr}`.
 
 ## Types

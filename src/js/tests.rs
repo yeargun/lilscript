@@ -377,6 +377,74 @@ fn expression_grammar_preserves_association_signs_negative_zero_and_object_keys(
 }
 
 #[test]
+fn canonical_integer_keys_print_as_numbers_and_name_the_same_properties() {
+    // Architecture §12, L2: `{32:v}` is `{"32":v}` and `o[32]` is `o["32"]`
+    // for canonical integers up to 2^53 − 1 (Closure's `isSimpleNumber`);
+    // every other numeric-looking key keeps its quotes.
+    let mut module = Module::default();
+    let keys = [
+        "32",
+        "0",
+        "01",
+        "-1",
+        "-0",
+        "1.5",
+        "4294967295",
+        "9007199254740991",
+        "9007199254740992",
+    ];
+    let mut entries = Vec::new();
+    for (index, key) in keys.iter().enumerate() {
+        let name = expr(&mut module, Expr::Literal(Literal::String((*key).into())));
+        let value = number(&mut module, index as f64);
+        entries.push((Property::Computed(name), value));
+    }
+    let object = expr(&mut module, Expr::Object(entries));
+    let object_binding = binding(&mut module, RegionId::new(0), 1, "table");
+    module.regions[0].statements.push(Statement::Let {
+        binding: object_binding,
+        value: Some(object),
+    });
+    let keys_host = host(&mut module, "Object");
+    let keys_member = expr(
+        &mut module,
+        Expr::Member {
+            object: keys_host,
+            property: Property::Named("keys".into()),
+        },
+    );
+    let table = expr(&mut module, Expr::Binding(object_binding));
+    let listed = call(&mut module, keys_member, vec![table], Invocation::Reference);
+    capture(&mut module, listed);
+    for key in ["32", "-1", "-0", "01"] {
+        let table = expr(&mut module, Expr::Binding(object_binding));
+        let name = expr(&mut module, Expr::Literal(Literal::String(key.into())));
+        let read = expr(
+            &mut module,
+            Expr::Member {
+                object: table,
+                property: Property::Computed(name),
+            },
+        );
+        capture(&mut module, read);
+    }
+    let javascript = module.render(PrintPolicy::default()).unwrap();
+    for spelled in [
+        "{32:0,0:1,\"01\":2,\"-1\":3,\"-0\":4,\"1.5\":5,4294967295:6,9007199254740991:7,\"9007199254740992\":8}",
+        "[32])",
+        "[-1])",
+        "[\"-0\"])",
+        "[\"01\"])",
+    ] {
+        assert!(javascript.contains(spelled), "{spelled} in {javascript}");
+    }
+    assert_eq!(
+        execute(&module, "", PrintPolicy::default()),
+        "[[\"0\",\"32\",\"01\",\"-1\",\"-0\",\"1.5\",\"4294967295\",\"9007199254740991\",\"9007199254740992\"],0,3,4,2]"
+    );
+}
+
+#[test]
 fn nested_closures_keep_binding_identity_after_renaming() {
     let mut module = Module::default();
     let outer_body = module.region(ScopeId::new(0));

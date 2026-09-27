@@ -294,6 +294,13 @@ fn public_logos_and_admitted_driver_preserve_every_fixed_token() {
         ("name_$", TokenKind::Ident("name_$")),
         ("123", TokenKind::IntLiteral(123)),
         ("1.25e2", TokenKind::FloatLiteral(125.0)),
+        (".5", TokenKind::FloatLiteral(0.5)),
+        (".25e-2", TokenKind::FloatLiteral(0.0025)),
+        ("1e3", TokenKind::FloatLiteral(1000.0)),
+        ("0E+2", TokenKind::FloatLiteral(0.0)),
+        ("15e-5", TokenKind::FloatLiteral(0.00015)),
+        ("0x1F", TokenKind::IntLiteral(31)),
+        ("0Xff", TokenKind::IntLiteral(255)),
         ("\"text\\n\"", TokenKind::StringLiteral("\"text\\n\"")),
     ];
     for (spelling, expected) in cases {

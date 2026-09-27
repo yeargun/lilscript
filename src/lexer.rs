@@ -164,8 +164,15 @@ enum RawToken<'src> {
     #[token("try", |_| TokenKind::Try)]
     #[token("catch", |_| TokenKind::Catch)]
     #[token("finally", |_| TokenKind::Finally)]
+    // JavaScript's numeric spellings (architecture §12, L2): `1.5`, `.5`,
+    // `1e3`, `.5e-3` and `1.5e3` are float literals, correctly rounded as
+    // JavaScript's StringToNumber reads them; `0x1F` is an int literal. A
+    // literal with a decimal point or an exponent is a float, as in Rust and C.
     #[regex(r"[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", |lex| lex.slice().parse::<f64>().ok().map(TokenKind::FloatLiteral))]
+    #[regex(r"\.[0-9]+([eE][+-]?[0-9]+)?", |lex| format!("0{}", lex.slice()).parse::<f64>().ok().map(TokenKind::FloatLiteral))]
+    #[regex(r"(0|[1-9][0-9]*)[eE][+-]?[0-9]+", |lex| lex.slice().parse::<f64>().ok().map(TokenKind::FloatLiteral))]
     #[regex(r"0|[1-9][0-9]*", |lex| lex.slice().parse::<i64>().ok().map(TokenKind::IntLiteral))]
+    #[regex(r"0[xX][0-9a-fA-F]+", |lex| i64::from_str_radix(&lex.slice()[2..], 16).ok().map(TokenKind::IntLiteral))]
     #[regex(r#""([^"\\\n\r]|\\.)*""#, |lex| TokenKind::StringLiteral(lex.slice()))]
     #[regex(r"[A-Za-z_$][A-Za-z0-9_$]*", |lex| TokenKind::Ident(lex.slice()))]
     #[token("=>", |_| TokenKind::FatArrow)]
