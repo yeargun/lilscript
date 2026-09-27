@@ -67,6 +67,70 @@ History and records:
 - Monotone selection holds within a search and within the stage (tests in `search_terminal_tests.rs`), and every level is at most the search-off result. Between two search-enabled levels whose search winners differ, it is not guaranteed. Beam width, retained capacity and the effort-gated tactics shape the trajectory. Replaying the lower level's schedule as the higher one's first phase closes this, with M9.10's recalibrated ladder.
 - `pool_strings` and `pack_string_arrays` still ignore the `string-pooling` and `string-array-packing` permissions, and packing's startup risk, as before this batch.
 
+### M4.1 nominal identity (branch `m4-nominal`, 2026-09-27)
+
+**What landed.**
+- **Identities.** `NominalId` names every nominal kind: struct, class (with extern classes and objects) and enum, tagged by kind. `Type::Class`, `Type::ClassInstance` and `Type::Enum` carry a `NominalType { identity, name }` that compares by identity; the name is display data. The checker's class and enum registries are vectors indexed by id.
+- **Per-module scopes.** Each module has one type scope, `type_bindings` (name → id), filled by its declarations and its type imports, aliases included. Two modules' private classes, extern classes or enums of one name are two identities. One scope still refuses a second declaration. A mismatch names both declarations ("distinct class declarations"). `language-v0.1.md`'s Modules section states the rule.
+- **One checker entry.** `check::analyze` checks a single source as a module graph of one module, through `analyze_modules_in`. The phases hand typed products to each other: graph → declarations (ids, type imports, published classes) → schemas (enums, structs, classes, hierarchies, observed classes) → signatures (functions, typed bindings, value interfaces, `import()`) → bodies, in initialization order. An `auto` export is published after its module's bodies and is refused only when another module imports it.
+- **The Program IR.**
+  - `ClassDefinition` holds `identity`, `module`, `base: Option<NominalId>`, `observed`, `value`, `published` and `prototype`. `Program::class(id)` looks classes up by identity, and `EnumDefinition` has an `identity`.
+  - Class field accesses are `Place::ClassField { receiver, field: FieldRef { nominal, slot } }`: the declaring class and its flattened slot. Instances are `AllocationKind::Instance { class, keys }`.
+  - Formation, native, effects, demand, verify and lint read these. Formation prints the field's name, which is display and ABI data.
+  - `src/program/nominal_identity_tests.rs` fails if a name-keyed class or enum lookup returns. It checks 22 spellings, ignoring whitespace and comments. Run against the base commit, it finds 40 such lookups.
+- **`export constructor`.** Some classes stay JavaScript classes (the checker fact `ClassInfo::observed`, which generalizes host-derived classes): a published class, its internal bases, and every class that extends an observed class. For these:
+  - the class's value binding holds its constructor unit (`UnitData::constructor_of`);
+  - `new` is `ConstructClass`, and `super(...)` is `SuperConstruct`;
+  - a class without `init` gets JavaScript's implicit constructor;
+  - a published chain gets prototype methods that call the static bodies.
+
+  Published constructors and prototype methods are interface escapes in the call graph. Their parameters are not typed-defined, so they keep their defaults. Natively, these classes allocate and run their constructor units. One name may export both a class's type and its constructor. A generic kept class is refused.
+- **Prior art** (rule 7):
+  - Closure `0da58e1`: `JSTypeRegistry.java:218,1133-1136,1508-1526` keys named types by (scope root, name), so each module body is its own row. `EqualityChecker.java:229-245` compares resolved nominal types by reference.
+  - esbuild `f6058f8`: `internal/ast/ast.go:374-388` defines `Ref{SourceIndex, InnerIndex}`. `internal/renamer/renamer.go:580-628` names the second `Node` only when printing.
+  - Oxc `591966d`: `crates/oxc_semantic/src/scoping.rs:20,281-298` has per-scope name → `SymbolId` maps over flat arrays.
+  - Rolldown `5c676e5`: `crates/rolldown_common/src/types/symbol_ref.rs:8-13` defines `SymbolRef{owner, symbol}`.
+  - Old-route prior art: `d362338f:src/lower.rs:413-470`, the constructor-export rules.
+
+**Evidence (binary `~/lilscript-work/bin/nominal-2`).**
+- **Unit tests:** 1,510 lib tests pass (9 ignored, as on the base) and 21 binary tests pass. `cargo fmt --check` and `check-doc-links` pass.
+- **Case runner:** 382 cases × 18 lanes, with no failure outside the ledger.
+  - The ledger drops from 10 entries to 9. The M4.1 entry's 6 cases now pass: 42 case-lanes went from refused to pass.
+  - Six new cases in `tests/cases/nominal` cover same-named private classes and enums in three modules (JS and C), an extern class shadowed by a private class, class fields across modules through an imported and a renamed class, a published chain across modules (JS and C), and the `export constructor` ES boundary (a module probe).
+  - Against the merge binary `merge-i`, one artifact per JavaScript lane changed, `irjs-an_internal_class_extending_a_host_class_is_a_real_subclass`. Its constructor's binding is now the class's own (`Problem`, previously a synthetic `init`). In production that is −1 Brotli and −1 gzip in both the script and module lanes. The unmangled formation-only lanes spell the name, so they grow +6 raw and +1 Brotli. C lanes are byte-identical.
+- **Reference ports** (`scripts/ports.mjs --patches none`): all seven are green, and every delivered file is byte-identical to `merge-i`:
+
+  | Port | Files | Brotli |
+  |---|---|---|
+  | markedlil | 7 | 65,061 |
+  | zodlil | 7 | 61,698 |
+  | katexlil | 26 | 596,424 |
+  | jquerylil | 5 | 127,208 |
+  | posthoglil | 6 | 33,786 |
+  | micromarklil | 9 | 187,217 |
+  | motionlil (built from `portwork/motionlil-reint`) | 629 | 237,216 |
+
+  - motionlil `main` needs `finer/port-migrations/motionlil.patch`. With the patch, its 22 files are also byte-identical (280,587 Brotli). `main` alone fails on both binaries: on `merge-i` with the duplicate-type refusal, and after it with an unimported `Math`.
+  - katexlil's browser-performance guard failed once on `merge-i` while two runs shared the host. It passed when `merge-i` was rerun alone.
+- **Port renames reverted** (patches in `~/lilscript-work/portwork/nominal/`; no port repository was changed):
+  - The "16 port class renames" are 16 class renames in one port, motionlil, made by the 013 batch-4 patch. Reverting all 16 on `main` with the patch builds green (9/9 suites), and the 22 files are byte-identical. `merge-i` refuses the reverted source with duplicate type declaration `GroupAnimationWithThen`.
+  - On the integrated rewrite (`motionlil-reint`), 7 renames remain revertible and are reverted: 629/629 files identical, 22/22 suites green. `JSAnimationFull` keeps its name, because its file imports the extern `JSAnimation`.
+  - micromarklil renamed the extern views `Point`/`Token` to `TokenizerPoint`/`TokenizerToken` and `AttentionPoint`/`AttentionToken`. The revert builds green (1,963 tests) and its 9 files are identical. `merge-i` refuses it with duplicate type declaration `Point`.
+  - mdast-util-from-markdownlil, remark-parselil and react-markdownlil carry copies of the same micromark sources, with the same renamed views; the same patch applies to each copy. unifiedlil's `UnifiedPresetView` and `UnifiedFileView` are new names, not renames.
+  - katexlil and zodlil renamed nothing.
+
+**Open.**
+- M4.2: the `$js` type parameter; interned types without source lifetimes. `NominalType` carries a `&'src str` display name, so `Type` grew to at most 56 bytes.
+- M4.3: checker facts transported.
+- M4.4: node ids. Type scopes are still name maps per module, and spans still key checker facts.
+- M4.5: contracts at check time.
+- M4.6: the operation catalog.
+- Gaps left by this batch:
+  - kept generic classes;
+  - D2 adapters for a published constructor's struct parameters;
+  - importing a name that exports both a type and a constructor binds only the type;
+  - field facts (M6.7), property renaming (M9.6) and layout choice (M9.7) now have `FieldRef` and `Instance { class }` to key on.
+
 ### Where we started (2026-09-23)
 
 **Two compilers share one binary.** `[compiler] backend` or `--backend` selects between them.
@@ -159,7 +223,7 @@ History and records:
 | M1 | One compiler: the old route leaves the product | M0 | done 2026-09-24 |
 | M2 | Verification ladder, baseline and interim release | M1.3 (runs alongside M1) | active: M2.1, M2.2 and M2.6 done; M2.8 and M2.9 done for 12 of the 13 goal ports (motionlil re-integrating onto its newer origin) |
 | M3 | Honest configuration, one public API, delivery contract | M1 | waiting |
-| M4 | Checker identities and checker-owned facts | M1 | waiting |
+| M4 | Checker identities and checker-owned facts | M1 | active: M4.1 landed |
 | M5 | The machinery: edit kernel, annotations, scheduler, monotone selection | M1, M4.1 | active: M5.4 landed (monotone across levels open) |
 | M6 | The fact spine | M4, M5 | active: M6.1–M6.3 landed |
 | M7 | Program rules | M6 | active: M7.2 landed |
@@ -203,7 +267,7 @@ History and records:
 | Native `Record<T>`/JSON, and the user-facing C extern ABI | Refused; the `scripts/verify.sh` extern-ABI step and the differential's native `Record` lane become ledgered expected failures | M11.3, M11.4 |
 | Native stack and region storage | Absent | M11.5 |
 | Name-keyed host helpers: extern names given built-in JS bodies, such as jQuery's `isWindowValue`, lil-solidjs's `DOM_RECONCILE`, `objectHasOwn` and `mathMax` | **Dropped by design.** Ports declare host modules or use `JS.*` and the catalog (M10.2); jquerylil, motionlil, monacolil and lil-solidjs are checked in M1.8 | — |
-| Same-named private classes in two modules; `export constructor` | Refused | M4.1 |
+| Same-named private classes in two modules; `export constructor` | Landed in M4.1 (2026-09-27): per-module nominal scopes; published classes stay JavaScript classes | M4.1 |
 | Unrolling of `inline for`; `@pool` | Ignored | M10.11 |
 | Record spread construction | Refused | M10 decision (M10.8) |
 | `public_aggregate_abi = "positional"`, `function_scope`, `idiom_directed_naming`, `[mangle] properties`, profile-guided optimization | Refused or no effect (warned) | Positional: refused (D2). Module wrapper: M3.1 `format`. Naming: M9.5. Typed property renaming: M9.6 |
@@ -260,7 +324,7 @@ These are prerequisites for field identity, shapes and every fact the checker al
 
 | Task | Content |
 |---|---|
-| M4.1 Nominal identity | <ul><li>`NominalId` for classes, enums and extern classes, with per-module scopes; the 16 port class renames are reverted.</li><li>One module-graph checker entry with explicit phase products; `export constructor` in module mode.</li><li>Class fields become `FieldRef{nominal, slot}` places in the IR, and allocations carry their nominal.</li><li>`ClassDefinition`, native and formation look classes up by id, not by name</li></ul> |
+| M4.1 Nominal identity | <ul><li>`NominalId` for classes, enums and extern classes, with per-module scopes; the 16 port class renames are reverted.</li><li>One module-graph checker entry with explicit phase products; `export constructor` in module mode.</li><li>Class fields become `FieldRef{nominal, slot}` places in the IR, and allocations carry their nominal.</li><li>`ClassDefinition`, native and formation look classes up by id, not by name</li></ul>**Landed 2026-09-27** (branch `m4-nominal`; see "M4.1 nominal identity" above). The rename reverts are patches in `~/lilscript-work/portwork/nominal/`, to land with each port's next release |
 | M4.2 The dynamic type | `Type::Dynamic` replaces `TypeParameter("$js")` at every site; type parameters by id; interned types without source lifetimes |
 | M4.3 Checker facts transported | <ul><li>`ResolvedOperator` recorded by the checker; elaboration stops re-deriving `IntBinary` from result types.</li><li>`assigned` split into `reassigned` and `observable_before_initialization`, plus a per-occurrence `ReadInitialization`, which seeds M6.5.</li><li>Parameter defaults on declarations, not in function types.</li><li>Declaration attributes (`pure`, `debug`); ambient `this`/`arguments` as checker-resolved bindings</li></ul> |
 | M4.4 Node ids | Ids on identifiers, declarations and statements; the span-keyed fact maps are deleted |
@@ -497,5 +561,5 @@ M1 is closed; M2.1 is green; the interim release shipped on 2026-09-24 (`docs/re
 1. **motionlil's release.** Its finished release (local commit `0eeca0c`) is being redone on top of the 19 owner commits its origin gained on 2026-09-10/11, then pushed as a fast-forward.
 2. **M6.5.** The initialization-order fact and its demand consumers (branch `m6-init`).
 3. **M9.1's first slice and M9.8.** Data layout as a codec-judged choice: string tables lose their 64 / 0.85 thresholds, numeric and columnar tables join them, canonical index keys print unquoted (branch `m9-data`). katexlil's font metrics move into LilScript with it; that is the lever that turns its tie with `katex.min.js` into a win.
-4. **Then M4.1, M5.1–M5.3, M3.5.** Nominal identity (it also clears motionlil's duplicate-type refusal), the edit kernel and annotations, then budgets in policy.
+4. **M4.1 landed** (branch `m4-nominal`); **then M5.1–M5.3, M3.5.** The edit kernel and annotations, then budgets in policy.
 5. **M12.2 for the goal ports.** Compiler-written files for every export condition: motionlil's `full.js` behind its hand-written facade, zodlil's `index.cjs`, posthoglil's and katexlil's CJS/UMD re-bundles.
