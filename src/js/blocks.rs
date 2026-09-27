@@ -477,7 +477,7 @@ impl Module {
                         }
                     }
                     // A created function's body is a region of its own.
-                    if expression.created_function().is_none() {
+                    if !expression.creates_function() {
                         let _ = expression.visit_children(|child| {
                             pending.push(child);
                             Ok::<_, ()>(())
@@ -693,7 +693,7 @@ impl Module {
                 statement.visit_expressions(|root| expressions.push(root));
                 while let Some(id) = expressions.pop() {
                     let expression = &self.expressions[id.index()];
-                    if let Some(function) = expression.created_function() {
+                    for function in expression.created_functions() {
                         children.push(self.functions[function.index()].body);
                     }
                     let _ = expression.visit_children(|child| {
@@ -719,7 +719,7 @@ impl Module {
             if let Some((id, at)) = expressions.pop() {
                 deepest = deepest.max(at);
                 let expression = &self.expressions[id.index()];
-                if let Some(function) = expression.created_function() {
+                for function in expression.created_functions() {
                     regions.push((self.functions[function.index()].body, at + 2));
                 }
                 let _ = expression.visit_children(|child| {
@@ -938,7 +938,7 @@ impl Module {
                 statement.visit_expressions(|root| expressions.push(root));
                 while let Some(id) = expressions.pop() {
                     let expression = &self.expressions[id.index()];
-                    if let Some(function) = expression.created_function() {
+                    for function in expression.created_functions() {
                         children.push(self.functions[function.index()].body);
                     }
                     let _ = expression.visit_children(|child| {

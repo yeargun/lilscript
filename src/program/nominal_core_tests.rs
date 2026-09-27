@@ -94,7 +94,7 @@ fn diamond_type_aliases_keep_one_schema_original_owner_and_no_runtime_cell() {
             assert_eq!(program.fields().len(), 1);
             assert_eq!(program.exports().len(), 2);
             assert_eq!(program.value_exports().count(), 1);
-            let nominal = InterfaceTarget::Struct(definition.identity);
+            let nominal = InterfaceTarget::Type(definition.identity);
             for module in program.modules() {
                 for import in &module.imports {
                     assert_eq!(import.target, nominal);
@@ -295,7 +295,7 @@ fn single_source_export_occurrences_distinguish_type_declarations_from_same_name
     checked("export struct Item { int x; } int Item=7;", |program| {
         assert_eq!(
             program.exports()[0].target,
-            InterfaceTarget::Struct(program.structs()[0].identity)
+            InterfaceTarget::Type(program.structs()[0].identity)
         );
         assert_eq!(program.value_exports().count(), 0);
     });

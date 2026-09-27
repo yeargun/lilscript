@@ -1,6 +1,7 @@
 use super::*;
 use crate::check::type_admission::TypeQueryAdmission;
 use crate::check::type_relation::type_equal_with;
+use crate::check::NominalKind;
 use crate::check::{normalize_union, NominalId, StructType};
 use crate::compilation_policy::{
     BudgetError, BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain,
@@ -43,7 +44,7 @@ fn ledger(memory: u64, work: u64) -> BudgetLedger {
 fn forward_substitution_matches_previous_checker_with_nested_types_and_union_collapse() {
     let parameter = Type::TypeParameter("T");
     let declaration = StructType {
-        identity: NominalId::new(0, false),
+        identity: NominalId::new(0, NominalKind::Struct),
         name: "Point",
     };
     let mut corpus = vec![
@@ -248,8 +249,8 @@ fn old_substitute_type<'src>(
                 .map(|argument| old_substitute_type(argument, substitutions))
                 .collect(),
         },
-        Type::ClassInstance { name, args } => Type::ClassInstance {
-            name,
+        Type::ClassInstance { declaration, args } => Type::ClassInstance {
+            declaration: *declaration,
             args: args
                 .iter()
                 .map(|argument| old_substitute_type(argument, substitutions))

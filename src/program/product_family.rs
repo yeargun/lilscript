@@ -705,7 +705,7 @@ impl<'p, 'src> Proof<'p, 'src> {
             .get(id.index())
             .filter(|schema| schema.identity == id)
             .ok_or_else(|| invalid("product schema"))?;
-        if id.is_class() || !schema.type_parameters.is_empty() {
+        if !id.is_struct() || !schema.type_parameters.is_empty() {
             return Err(unknown(UnknownReason::UnsupportedSchema));
         }
         Ok(schema)

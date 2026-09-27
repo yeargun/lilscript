@@ -1,0 +1,14 @@
+// Three modules each name an enum `Mode`, with different variants: two are
+// private, and the entry imports a third under an alias. A variant resolves
+// through its own module's scope.
+import { lightLabel } from "./private_enums_same_name/light";
+import { soundLabel } from "./private_enums_same_name/sound";
+import { Mode as SharedMode, sharedLabel } from "./private_enums_same_name/shared";
+
+enum Mode { Idle, Busy }
+
+Mode mode = Mode.Busy;
+print(lightLabel(1));
+print(soundLabel(2));
+print(sharedLabel(SharedMode.Last));
+print(match (mode) { Mode.Idle => "idle", Mode.Busy => "busy" });

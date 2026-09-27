@@ -1,4 +1,5 @@
 use super::*;
+use crate::check::declared_class;
 
 fn assert_binding_type<'src>(model: &CheckedModule<'_, 'src>, name: &str, expected: Type<'src>) {
     let matches = model
@@ -54,20 +55,20 @@ fn repeated_construction_preserves_generic_inference_and_unrelated_member_types(
     .unwrap();
     let model = analyze(&program).unwrap();
     for name in ["firstPlain", "secondPlain"] {
-        assert_binding_type(&model, name, Type::Class("Plain"));
+        assert_binding_type(&model, name, Type::Class(declared_class(&model, "Plain")));
     }
     for (name, argument) in [
         ("inferredBox", Type::Int),
         ("explicitBox", Type::String),
         ("contextualBox", Type::Bool),
-        ("nestedBox", Type::Class("Plain")),
+        ("nestedBox", Type::Class(declared_class(&model, "Plain"))),
         ("anotherBox", Type::Int),
     ] {
         assert_binding_type(
             &model,
             name,
             Type::ClassInstance {
-                name: "Box",
+                declaration: declared_class(&model, "Box"),
                 args: vec![argument],
             },
         );
@@ -167,14 +168,18 @@ fn three_level_super_calls_preserve_substitution_and_constructor_defaults() {
         );
         assert!(!signature_has_pending_bindings(signature));
     }
-    let (base_name, base_signature) = model.base_constructor("Mid").unwrap();
-    assert_eq!(base_name, "Base");
+    let (base, base_signature) = model
+        .base_constructor(model.type_binding("Mid").unwrap())
+        .unwrap();
+    assert_eq!(model.nominal_name(base), Some("Base"));
     assert_eq!(
         base_signature.params[0].ty,
         Type::Array(Box::new(Type::Array(Box::new(Type::TypeParameter("U")))))
     );
-    let (middle_name, middle_signature) = model.base_constructor("Leaf").unwrap();
-    assert_eq!(middle_name, "Mid");
+    let (middle, middle_signature) = model
+        .base_constructor(model.type_binding("Leaf").unwrap())
+        .unwrap();
+    assert_eq!(model.nominal_name(middle), Some("Mid"));
     assert_eq!(
         middle_signature.params[0].ty,
         Type::Array(Box::new(Type::Array(Box::new(Type::Int))))
@@ -183,13 +188,21 @@ fn three_level_super_calls_preserve_substitution_and_constructor_defaults() {
         middle_signature.params[1].default,
         Some(DefaultValue::Symbol(seed))
     );
-    assert_binding_type(&model, "firstLeaf", Type::Class("Leaf"));
-    assert_binding_type(&model, "secondLeaf", Type::Class("Leaf"));
+    assert_binding_type(
+        &model,
+        "firstLeaf",
+        Type::Class(declared_class(&model, "Leaf")),
+    );
+    assert_binding_type(
+        &model,
+        "secondLeaf",
+        Type::Class(declared_class(&model, "Leaf")),
+    );
     assert_binding_type(
         &model,
         "middle",
         Type::ClassInstance {
-            name: "Mid",
+            declaration: declared_class(&model, "Mid"),
             args: vec![Type::String],
         },
     );
@@ -230,14 +243,14 @@ fn implicit_and_no_base_constructors_keep_contextual_generic_types() {
         ("ownDefault", "Own"),
         ("ownValue", "Own"),
     ] {
-        assert_binding_type(&model, binding, Type::Class(class));
+        assert_binding_type(&model, binding, Type::Class(declared_class(&model, class)));
     }
     for (binding, argument) in [("contextual", Type::Int), ("explicitGeneric", Type::String)] {
         assert_binding_type(
             &model,
             binding,
             Type::ClassInstance {
-                name: "Empty",
+                declaration: declared_class(&model, "Empty"),
                 args: vec![argument],
             },
         );
@@ -245,7 +258,9 @@ fn implicit_and_no_base_constructors_keep_contextual_generic_types() {
     for name in ["Plain", "Child", "Empty"] {
         assert!(model.class_info(name).unwrap().constructor.is_none());
     }
-    assert!(model.base_constructor("Explicit").is_none());
+    assert!(model
+        .base_constructor(model.type_binding("Explicit").unwrap())
+        .is_none());
     assert_eq!(
         model
             .class_info("Own")

@@ -284,7 +284,7 @@ impl UseIndex {
                 .enumerate()
                 .filter_map(|(index, export)| match export.target {
                     InterfaceTarget::Value(cell) => Some((index as u32, cell)),
-                    InterfaceTarget::Struct(_) => None,
+                    InterfaceTarget::Type(_) => None,
                 })
         };
         if exports().any(|(_, cell)| cell.index() >= program.cells.len()) {
@@ -519,7 +519,7 @@ impl UseIndex {
                     .enumerate()
                     .filter_map(|(index, export)| match export.target {
                         InterfaceTarget::Value(cell) => Some((index as u32, cell)),
-                        InterfaceTarget::Struct(_) => None,
+                        InterfaceTarget::Type(_) => None,
                     });
                 if !exports.eq(self.exports.iter().copied()) {
                     return Err(UseError::UnstampedTables);
@@ -702,7 +702,7 @@ fn prepare_cells(
             .enumerate()
             .filter_map(|(index, export)| match export.target {
                 InterfaceTarget::Value(cell) => Some((index as u32, cell)),
-                InterfaceTarget::Struct(_) => None,
+                InterfaceTarget::Type(_) => None,
             })
     };
     let mut endpoints = 0usize;

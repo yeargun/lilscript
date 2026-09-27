@@ -3,18 +3,6 @@
   "about": "Expected case-runner failures on the one compiler (scripts/cases.mjs). Each entry names cases (an id relative to tests/, a glob, or a list), the lanes it covers (the --lanes syntax; omitted means all), why they fail, and the plan task that owns the fix (docs/migration/index.md). A failure not covered here fails the run; an entry that covers no failure any more is reported for removal. Recorded from the pre-M1 binary ~/lilscript-work/bin/pre-m1/lilscript (sha256 01c5e298...) on 2026-09-24: 29 failing cases, all harvested regressions; the 72 tests/cases programs and tests/modules pass on every lane.",
   "entries": [
     {
-      "case": [
-        "cases/regressions/compiler-constructor_export_preserves_explicit_inheritance",
-        "cases/regressions/compiler-constructor_export_synthesizes_only_the_published_default_constructor",
-        "cases/regressions/compiler-explicit_constructor_export_preserves_named_class_identity",
-        "cases/regressions/compiler-uses_imported_constructor_value_inside_exported_function_in_cycle",
-        "cases/regressions/irjs-public_class_defaults_preserve_omitted_calls_and_method_arity",
-        "cases/regressions/irjs-public_class_members_do_not_strand_private_helper_bindings"
-      ],
-      "reason": "`export constructor` is refused: \"direct module checking does not yet support nominal constructor exports\".",
-      "owner": "M4.1"
-    },
-    {
       "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
       "reason": "Name-keyed host helper: the old route lowered the extern `objectHasOwn` to Object.hasOwn by its name; the one compiler gives extern names no meaning (dropped by design), so the program throws \"objectHasOwn is not defined\". The case's prelude must declare the binding (`globalThis.objectHasOwn = Object.hasOwn`).",
       "owner": "M1.5 (the harvested case gets a declared binding; M10.2 owns the host catalog)"

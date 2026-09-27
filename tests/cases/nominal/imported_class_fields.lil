@@ -1,0 +1,26 @@
+// A class imported from another module: construction, field reads and
+// writes, a method call and an inherited field, all by the class's identity.
+// The entry also imports it under a second, renamed local name.
+import { Box, area } from "./imported_class_fields/shapes";
+import { Box as Crate } from "./imported_class_fields/shapes";
+
+class Tagged extends Box {
+  string tag;
+  init(int width, int height, string tag) {
+    super(width, height);
+    this.tag = tag;
+  }
+  string describe() { return this.tag + ":" + this.width + "x" + this.height; }
+}
+
+Box box = new Box(2, 3);
+print(box.width * box.height);
+box.width = 5;
+print(area(box));
+print(box.grow(2));
+Crate crate = box;
+crate.height = 1;
+print(box.height);
+Tagged tagged = new Tagged(4, 6, "t");
+print(tagged.describe());
+print(area(tagged));

@@ -148,7 +148,7 @@ impl Formation<'_, '_, '_, '_, '_> {
         Ok(binding)
     }
 
-    fn fresh_binding(
+    pub(super) fn fresh_binding(
         &mut self,
         scope: js::ScopeId,
         spelling: &str,

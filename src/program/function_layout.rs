@@ -151,7 +151,7 @@ fn discover(
             .get(declaration.identity.index())
             .filter(|schema| schema.identity == declaration.identity)
             .ok_or_else(|| invalid("function layout schema"))?;
-        if declaration.identity.is_class() || !schema.type_parameters.is_empty() {
+        if !declaration.identity.is_struct() || !schema.type_parameters.is_empty() {
             return Err(unknown(UnknownReason::UnsupportedSchema));
         }
         budget.push(

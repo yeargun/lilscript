@@ -1,0 +1,16 @@
+export class Box {
+  int width;
+  int height;
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+  int grow(int by) {
+    this.width = this.width + by;
+    return this.width * this.height;
+  }
+}
+
+export int area(Box box) {
+  return box.width * box.height;
+}

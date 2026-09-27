@@ -148,7 +148,10 @@ pub(super) fn unit_allocation_bytes(data: &UnitData) -> Option<u64> {
     }
     for operation in &data.operations {
         if let super::OperationKind::Allocate {
-            kind: super::AllocationKind::Record(keys) | super::AllocationKind::Object(keys),
+            kind:
+                super::AllocationKind::Record(keys)
+                | super::AllocationKind::Object(keys)
+                | super::AllocationKind::Instance { keys, .. },
             ..
         } = &operation.kind
         {

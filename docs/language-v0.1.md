@@ -575,22 +575,45 @@ export constructor InternalWidget as Widget;
 ```
 
 Only explicitly exported top-level functions, variables, structs, classes, objects, and
-externs can be imported. Imported names may be aliased with `as`. Module-private
-functions, variables and structs with equal names in different files do not
-collide. **Until M4.1**, two modules' private classes or enums with the same
-name are refused ("duplicate type declaration"), because the checker still
-identifies classes and enums by name.
+externs can be imported. Imported names may be aliased with `as`, types
+included (`import { Node as TreeNode } from "./tree";`). Every top-level name
+belongs to its module's scope: module-private functions, variables, structs,
+classes, extern classes and enums with equal names in different files do not
+collide, and each is its own declaration. A type is in scope only where its
+module declares or imports it; a value of another module's class may still
+flow in through a function's type, and its members are that class's. One scope
+still refuses two declarations of one name ("duplicate type declaration").
+Two declarations of one spelling are different types: a value of one is not a
+value of the other, and the diagnostic names both declarations.
+
+An `extern` function or global is one host binding, whichever modules declare
+it, so its declarations must state one contract. A contract that mentions an
+extern class names one declaration of it: import the class rather than
+redeclaring it in a second module.
 
 `export constructor Name [as PublicName];` is the runtime constructor-value
-form. **Until M4.1** the compiler refuses it ("direct module checking does not
-yet support nominal constructor exports"); the rest of this paragraph is the
-contract it restores. It preserves a named ES class, constructor
-arity/name/constructibility,
-prototype methods, and the public export alias. It requires a non-`object`,
-non-extern class. A zero-arity constructor is synthesized when a published base
-class omits `init`; inherited exports require explicit `init` with `super(...)`.
-Internal inheritance is preserved as named base classes plus `extends`/`super`. Ordinary `export class`
+form. It publishes a named ES class: the constructor's name (the class's own,
+not the alias), arity (parameters before the first default) and
+constructibility, the prototype methods and their arity, and the public export
+alias. It requires a non-`object`, non-extern class in the module's scope. A
+zero-arity constructor is synthesized when a published class omits `init`;
+a published class that inherits must state `init` with `super(...)`. One
+external name may export both a class's type and its constructor
+(`export class Box …` with `export constructor Box;`). Ordinary `export class`
 continues to export only the instance type and may dissolve completely.
+
+A published class's identity is observed, so it stays a JavaScript class, and
+so does every class sharing its internal inheritance chain: its bases, which
+stay named classes linked by `extends`/`super`, and every class that extends
+it. Each such construction is `new`, and each instance is a real instance, so
+`instanceof` holds for instances LilScript creates as well. A JavaScript caller
+reaches the prototype methods of a published class and of the classes it
+extends; they call the same statically dispatched bodies LilScript code calls,
+and apply the source's parameter defaults to omitted arguments. A class's name
+read as a value is its constructor, which only such a class has; reading a
+dissolved class's name as a value, or calling any class without `new`, is
+refused. A generic class cannot be kept as a JavaScript class yet. Native
+targets construct these classes like any other class.
 
 An internal class may extend a host (`extern`) class. That is how a typed class
 becomes a real `Error` subclass — native prototype chain, `instanceof`, `stack`
@@ -612,8 +635,7 @@ class VFileMessage extends Error {
 export constructor VFileMessage;
 ```
 
-This emits `class VFileMessage extends Error{…constructor(e){super(e);…}}`
-(**until M4.1**, without the `export constructor` line, which is refused). A
+This emits `class VFileMessage extends Error{…constructor(e){super(e);…}}`. A
 class with a host ancestor always stays a real named class, exported or not,
 because its instances are host objects; it is never dissolved into flat data.
 An extern class may declare its host constructor with `init(params);` at most
@@ -750,10 +772,11 @@ print(priced.total(2));
 
 A closed `object` is a singleton with ABI keys. Method bodies are ordinary
 private functions: they nest, mangle, and fold like other helpers. Keys are ABI
-and stay stable. Multiple files may contribute methods to the same exported
-object; the compiler owns one identity. **Until M10.10** the compiler does not
-compile `object` singletons: the checker accepts the declaration, but a use of it
-fails ("unknown identifier"). The architecture recommends deleting the feature
+and stay stable. Several `object` declarations of one name in one module
+contribute methods to one object; like every nominal, an object's name is
+scoped to its module. **Until M10.10** the compiler does not
+compile `object` singletons: the checker accepts the declaration and its uses,
+but conversion refuses a use ("a class or object name used as a value"). The architecture recommends deleting the feature
 in favour of module namespaces and const records; the owner decides.
 
 ```lilscript

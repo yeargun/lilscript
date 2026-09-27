@@ -1,0 +1,26 @@
+// Private to this module: another module declares its own `Node` and `Kind`.
+enum Kind { Word, Number }
+
+class Node {
+  int value;
+  Kind kind;
+  init(int value) { this.value = value; this.kind = Kind.Number; }
+  int twice() { return this.value * 2; }
+}
+
+export int lexTotal(int[] values) {
+  int total = 0;
+  for (int value of values) {
+    Node node = new Node(value);
+    if (node.kind == Kind.Number) {
+      total = total + node.value;
+    }
+  }
+  return total;
+}
+
+export string lexLabel(int value) {
+  Node node = new Node(value);
+  node.value = node.twice() - value;
+  return "token:" + node.value;
+}

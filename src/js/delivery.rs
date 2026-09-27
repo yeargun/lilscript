@@ -115,7 +115,7 @@ fn visit_references<'m>(
                 }
                 _ => {}
             }
-            if let Some(function) = node.created_function() {
+            for function in node.created_functions() {
                 region(module.functions[function.index()].body, statements);
             }
             node.visit_children(|child| {

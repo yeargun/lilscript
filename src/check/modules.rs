@@ -32,10 +32,12 @@ impl From<ModuleCheckError> for AdmittedModuleCheckError {
     }
 }
 
+/// What an import or export names: a value's symbol, or a nominal type
+/// (struct, class, extern class or enum) by its identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InterfaceTarget {
     Value(SymbolId),
-    Struct(NominalId),
+    Type(NominalId),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -91,11 +93,13 @@ impl<'ast, 'src> CheckedModules<'ast, 'src> {
             .copied()
             .flatten()
     }
+    /// The module whose scope declares a nominal.
     pub fn nominal_module(&self, nominal: NominalId) -> Option<ModuleId> {
-        if nominal.is_class() {
-            return None;
+        match nominal.kind() {
+            NominalKind::Struct => self.declarations.structs.get(nominal.index())?.module,
+            NominalKind::Class => self.declarations.classes.get(nominal.index())?.module,
+            NominalKind::Enum => self.declarations.enums.get(nominal.index())?.module,
         }
-        self.declarations.structs.get(nominal.index())?.module
     }
     pub fn source(&self, module: ModuleId) -> Option<&crate::ast::SourceIdentity> {
         self.facts.get(module).map(|facts| &facts.source)
@@ -161,6 +165,46 @@ pub(crate) fn with_analyzed_modules<'ast, 'src, S, R>(
     Ok(output)
 }
 
+/// One source as a module graph of one module: no imports, and its
+/// `import extern` edges as unresolved specifiers.
+pub(super) fn analyze_source_in<'ast, 'src>(
+    program: &Program<'ast, 'src>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<CheckedModules<'ast, 'src>, AdmittedModuleCheckError> {
+    let modules = ModuleSet {
+        modules: vec![crate::module::ModuleSource {
+            path: std::path::PathBuf::from("<source>"),
+            source: (),
+            dependencies: Vec::new(),
+            foreign_dependencies: program
+                .foreign_imports
+                .iter()
+                .map(|import| crate::module::ForeignModuleSource {
+                    specifier: import.source.to_string(),
+                    path: None,
+                })
+                .collect(),
+            dynamic_dependencies: Vec::new(),
+            offset: 0,
+        }],
+        dependency_order: vec![0],
+        root: 0,
+        eager: vec![true],
+    };
+    analyze_modules_in(std::slice::from_ref(program), &modules, budget)
+}
+
+impl<'ast, 'src> CheckedModules<'ast, 'src> {
+    /// The checked module of a one-module graph.
+    pub(super) fn into_single(self) -> CheckedModule<'ast, 'src> {
+        debug_assert_eq!(self.facts.len(), 1);
+        CheckedModule {
+            declarations: self.declarations,
+            facts: self.facts.into_iter().next().expect("one checked source"),
+        }
+    }
+}
+
 fn resource(module: ModuleId, error: AllocationError) -> AdmittedModuleCheckError {
     AdmittedModuleCheckError {
         module,
@@ -168,11 +212,67 @@ fn resource(module: ModuleId, error: AllocationError) -> AdmittedModuleCheckErro
     }
 }
 
+/// The module-graph checker: the one checking entry. A single source is a
+/// graph of one module (`check::analyze`). Each phase consumes the previous
+/// phase's product, so the order is fixed by construction:
+///
+/// 1. graph: sources match discovery; the initialization order;
+/// 2. declarations: every nominal gets its identity in its module's type
+///    scope, and type imports bind the exporter's identities;
+/// 3. schemas: enums, structs, classes and extern classes, then class
+///    hierarchies over every module's classes;
+/// 4. signatures: functions and typed module bindings, then every value
+///    import and export, and `import()` namespaces;
+/// 5. bodies, in initialization order.
 fn analyze_modules_in<'ast, 'src, S>(
     programs: &[Program<'ast, 'src>],
     modules: &ModuleSet<S>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<CheckedModules<'ast, 'src>, AdmittedModuleCheckError> {
+    let graph = graph_phase(programs, modules, budget)?;
+    let declared = declaration_phase(programs, graph, budget)?;
+    let schemas = schema_phase(programs, declared, budget)?;
+    let signatures = signature_phase(programs, modules, schemas, budget)?;
+    body_phase(programs, signatures, budget)
+}
+
+/// Phase 1's product: the checked graph's interfaces (dependencies only) and
+/// its initialization order, with empty per-source facts.
+struct GraphPhase<'ast, 'src> {
+    checked: CheckedModules<'ast, 'src>,
+}
+
+/// Phase 2's product: every nominal declared and every type import bound.
+struct DeclarationPhase<'ast, 'src> {
+    checked: CheckedModules<'ast, 'src>,
+    initialization: ModuleInitialization,
+    aliases: InterfaceGraph<'src>,
+    locals: Vec<AHashMap<&'src str, (Span, bool)>>,
+}
+
+/// Phase 3's product: every nominal's schema and class hierarchy, and each
+/// module's value scope so far: its classes' constructor values and objects.
+struct SchemaPhase<'ast, 'src> {
+    declared: DeclarationPhase<'ast, 'src>,
+    scopes: Vec<AHashMap<&'src str, SymbolId>>,
+}
+
+/// Phase 4's product: each module's top-level value scope, with its
+/// imports, and the resolved interfaces.
+struct SignaturePhase<'ast, 'src> {
+    checked: CheckedModules<'ast, 'src>,
+    initialization: ModuleInitialization,
+    scopes: Vec<AHashMap<&'src str, SymbolId>>,
+    /// Exports of `auto` bindings, `(module, export index)`: published once
+    /// their module's bodies are checked.
+    inferred: Vec<(usize, usize)>,
+}
+
+fn graph_phase<'ast, 'src, S>(
+    programs: &[Program<'ast, 'src>],
+    modules: &ModuleSet<S>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<GraphPhase<'ast, 'src>, AdmittedModuleCheckError> {
     let initialization_order = validate_graph(programs, modules, budget)?;
     let mut facts = budget
         .vector(AllocationClass::Scratch, programs.len())
@@ -247,13 +347,23 @@ fn analyze_modules_in<'ast, 'src, S>(
             )
             .map_err(|error| resource(module, error))?;
     }
-    let mut checked = CheckedModules {
-        declarations: DeclarationTables::default(),
-        facts,
-        interfaces,
-        initialization_order,
-        root: modules.root,
-    };
+    Ok(GraphPhase {
+        checked: CheckedModules {
+            declarations: DeclarationTables::default(),
+            facts,
+            interfaces,
+            initialization_order,
+            root: modules.root,
+        },
+    })
+}
+
+fn declaration_phase<'ast, 'src>(
+    programs: &[Program<'ast, 'src>],
+    graph: GraphPhase<'ast, 'src>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<DeclarationPhase<'ast, 'src>, AdmittedModuleCheckError> {
+    let GraphPhase { mut checked } = graph;
     let mut initialization = ModuleInitialization::default();
     let mut locals = Vec::with_capacity(programs.len());
     // Canonical declaration order is original module order, then source order.
@@ -274,11 +384,40 @@ fn analyze_modules_in<'ast, 'src, S>(
     let mut aliases = InterfaceGraph::new(programs, &checked, &locals)?;
     aliases.propagate();
     aliases.install_types(programs, &mut checked)?;
+    // `export constructor C` publishes the class its module's scope names.
+    for (module, program) in programs.iter().enumerate() {
+        for export in program.exports {
+            if export.kind != crate::ast::ExportKind::ConstructorValue {
+                continue;
+            }
+            let class = checked.facts[module].type_bindings[export.local.name];
+            checked.declarations.classes[class.index()].published = true;
+        }
+    }
+    Ok(DeclarationPhase {
+        checked,
+        initialization,
+        aliases,
+        locals,
+    })
+}
+
+fn schema_phase<'ast, 'src>(
+    programs: &[Program<'ast, 'src>],
+    declared: DeclarationPhase<'ast, 'src>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<SchemaPhase<'ast, 'src>, AdmittedModuleCheckError> {
+    let mut declared = declared;
+    let DeclarationPhase {
+        checked,
+        initialization,
+        ..
+    } = &mut declared;
     for (module, program) in programs.iter().enumerate() {
         let mut analyzer = Analyzer::new(
             &mut checked.facts[module],
             &mut checked.declarations,
-            &mut initialization,
+            initialization,
             Some(module),
             budget,
         )
@@ -306,6 +445,7 @@ fn analyze_modules_in<'ast, 'src, S>(
     let last_with_classes = programs
         .iter()
         .rposition(|program| declares_classes(program));
+    let mut scopes = vec![AHashMap::default(); programs.len()];
     for (module, program) in programs.iter().enumerate() {
         let Some(last) = last_with_classes else {
             break;
@@ -316,7 +456,7 @@ fn analyze_modules_in<'ast, 'src, S>(
         let mut analyzer = Analyzer::new(
             &mut checked.facts[module],
             &mut checked.declarations,
-            &mut initialization,
+            initialization,
             Some(module),
             budget,
         )
@@ -330,7 +470,31 @@ fn analyze_modules_in<'ast, 'src, S>(
                 .resolve_class_hierarchies()
                 .map_err(|error| AdmittedModuleCheckError { module, error })?;
         }
+        scopes[module] = analyzer.scopes.pop().expect("one module declaration scope");
     }
+    checked
+        .declarations
+        .mark_observed_classes()
+        .map_err(|(module, error)| ModuleCheckError {
+            module: module.expect("class declaration owner"),
+            error,
+        })?;
+    Ok(SchemaPhase { declared, scopes })
+}
+
+fn signature_phase<'ast, 'src, S>(
+    programs: &[Program<'ast, 'src>],
+    modules: &ModuleSet<S>,
+    schemas: SchemaPhase<'ast, 'src>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<SignaturePhase<'ast, 'src>, AdmittedModuleCheckError> {
+    let DeclarationPhase {
+        mut checked,
+        mut initialization,
+        mut aliases,
+        locals,
+    } = schemas.declared;
+    let mut schema_scopes = schemas.scopes;
     let mut scopes = Vec::with_capacity(programs.len());
     // Value contracts are seeded into the same alias graph after canonical type
     // aliases and schemas exist. No source AST or schema table is copied.
@@ -343,6 +507,7 @@ fn analyze_modules_in<'ast, 'src, S>(
             budget,
         )
         .map_err(|error| resource(module, error))?;
+        analyzer.scopes[0] = std::mem::take(&mut schema_scopes[module]);
         let registration = (|| {
             analyzer.declare_functions(program)?;
             for item in program.items {
@@ -369,6 +534,11 @@ fn analyze_modules_in<'ast, 'src, S>(
         scopes.push(analyzer.scopes.pop().expect("one module declaration scope"));
     }
     aliases.finish(programs, &mut checked, &mut scopes, &locals, budget)?;
+    let inferred = aliases
+        .inferred
+        .iter()
+        .map(|&(_, module, index)| (module, index))
+        .collect();
     drop(aliases);
     drop(locals);
     // Each `import()` names its module; the namespace's members are that
@@ -408,8 +578,27 @@ fn analyze_modules_in<'ast, 'src, S>(
             }
         }
     }
+    Ok(SignaturePhase {
+        checked,
+        initialization,
+        scopes,
+        inferred,
+    })
+}
 
-    for &module in &checked.initialization_order {
+fn body_phase<'ast, 'src>(
+    programs: &[Program<'ast, 'src>],
+    signatures: SignaturePhase<'ast, 'src>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<CheckedModules<'ast, 'src>, AdmittedModuleCheckError> {
+    let SignaturePhase {
+        mut checked,
+        mut initialization,
+        mut scopes,
+        inferred,
+    } = signatures;
+    for index in 0..checked.initialization_order.len() {
+        let module = checked.initialization_order[index];
         let program = &programs[module];
         let mut analyzer = Analyzer::new(
             &mut checked.facts[module],
@@ -434,9 +623,38 @@ fn analyze_modules_in<'ast, 'src, S>(
             .analyze_items(program)
             .and_then(|()| analyzer.finalize_module_parameter_defaults(module, program))
             .map_err(|error| AdmittedModuleCheckError { module, error })?;
+        let mut inferred_exports = Vec::new();
+        for &(owner, index) in &inferred {
+            if owner != module {
+                continue;
+            }
+            let export = &program.exports[index];
+            let symbol = analyzer.scopes[0]
+                .get(export.local.name)
+                .copied()
+                .ok_or_else(|| {
+                    error(module, export.local.span, "inferred export has no binding")
+                })?;
+            analyzer.record_identifier(export.local.span, symbol);
+            inferred_exports.push(ModuleExport {
+                external: export.exported.name,
+                target: InterfaceTarget::Value(symbol),
+                span: export.span,
+            });
+        }
         // Later modules own their own resolved namespace. Keep only their
         // pending scopes, not this completed analyzer's maps.
         drop(analyzer);
+        if !inferred_exports.is_empty() {
+            let exports = &mut checked.interfaces[module].exports;
+            for export in inferred_exports {
+                budget
+                    .push(AllocationClass::Scratch, exports, export)
+                    .map_err(|error| resource(module, error))?;
+            }
+            // Source order, as every other export is published.
+            exports.sort_by_key(|export| export.span.start);
+        }
     }
     for export in &checked.interfaces[checked.root].exports {
         let InterfaceTarget::Value(symbol) = export.target else {
@@ -602,17 +820,6 @@ fn preflight_source<'ast, 'src>(
 ) -> Result<AHashMap<&'src str, (Span, bool)>, ModuleCheckError> {
     // Foreign imports are admitted by the graph check; each local is an
     // extern value declared in this module.
-    if program
-        .exports
-        .iter()
-        .any(|export| export.kind != crate::ast::ExportKind::Binding)
-    {
-        return Err(error(
-            module,
-            program.span,
-            "direct module checking does not yet support nominal constructor exports",
-        ));
-    }
     let mut reserved = AHashMap::default();
     for item in program.items {
         let mut declare = |name: Ident<'src>, auto: bool| {
@@ -663,9 +870,12 @@ fn preflight_source<'ast, 'src>(
             }
         }
     }
+    // A class's constructor may share its external name with the export of
+    // the class's type: one name, a type and its runtime value.
     let mut exports = AHashSet::default();
     for export in program.exports {
-        if !exports.insert(export.exported.name) {
+        let constructor = export.kind == crate::ast::ExportKind::ConstructorValue;
+        if !exports.insert((export.exported.name, constructor)) {
             return Err(error(
                 module,
                 export.exported.span,
@@ -681,18 +891,23 @@ struct AliasNode {
     consumers: Vec<usize>,
 }
 
-/// One producer/consumer graph, with canonical types seeded before value
-/// contracts. Every node becomes ready once, across both phases.
+/// One producer/consumer graph, with nominal types seeded before value
+/// contracts. Every node becomes ready once, across both phases. Imports and
+/// exports of every nominal kind are nodes like values: a type import binds
+/// the exporter's identity in the importer's scope, under the local alias.
 struct InterfaceGraph<'src> {
     nodes: Vec<AliasNode>,
     exports: Vec<AHashMap<&'src str, usize>>,
+    /// `export constructor` nodes, by external name: a name may also export
+    /// the class's type.
+    constructors: Vec<AHashMap<&'src str, usize>>,
     imports: Vec<AHashMap<&'src str, usize>>,
     values: Vec<(usize, usize, &'src str)>,
+    /// Exports of `auto` bindings: `(node, module, export index)`. Their
+    /// type is known only once the module's bodies are checked, so no other
+    /// module may import them; they are published after the bodies.
+    inferred: Vec<(usize, usize, usize)>,
     ready: VecDeque<usize>,
-    /// Class, extern class and enum names each module declares or imports.
-    /// They resolve by name in the shared declaration tables and have no
-    /// runtime export, so their exports and imports carry no node.
-    type_names: Vec<AHashSet<&'src str>>,
 }
 impl<'src> InterfaceGraph<'src> {
     fn new<'ast>(
@@ -703,19 +918,20 @@ impl<'src> InterfaceGraph<'src> {
         let mut graph = Self {
             nodes: Vec::new(),
             exports: vec![AHashMap::default(); programs.len()],
+            constructors: vec![AHashMap::default(); programs.len()],
             imports: vec![AHashMap::default(); programs.len()],
             values: Vec::new(),
+            inferred: Vec::new(),
             ready: VecDeque::new(),
-            type_names: vec![AHashSet::default(); programs.len()],
         };
-        let type_exports = graph.type_names(programs, checked)?;
         for (module, program) in programs.iter().enumerate() {
             for export in program.exports {
-                if type_exports[module].contains(export.exported.name) {
-                    continue;
-                }
                 let node = graph.nodes.len();
-                graph.exports[module].insert(export.exported.name, node);
+                if export.kind == crate::ast::ExportKind::ConstructorValue {
+                    graph.constructors[module].insert(export.exported.name, node);
+                } else {
+                    graph.exports[module].insert(export.exported.name, node);
+                }
                 graph.nodes.push(AliasNode {
                     target: None,
                     consumers: Vec::new(),
@@ -723,9 +939,6 @@ impl<'src> InterfaceGraph<'src> {
             }
             for import in program.imports {
                 for specifier in import.specifiers {
-                    if graph.type_names[module].contains(specifier.local.name) {
-                        continue;
-                    }
                     graph.imports[module].insert(specifier.local.name, graph.nodes.len());
                     graph.nodes.push(AliasNode {
                         target: None,
@@ -738,10 +951,9 @@ impl<'src> InterfaceGraph<'src> {
             for (index, import) in program.imports.iter().enumerate() {
                 let dependency = checked.interfaces[module].dependencies[index];
                 for specifier in import.specifiers {
-                    if graph.type_names[module].contains(specifier.local.name) {
-                        continue;
-                    }
-                    let Some(&producer) = graph.exports[dependency].get(specifier.imported.name)
+                    let Some(&producer) = graph.exports[dependency]
+                        .get(specifier.imported.name)
+                        .or_else(|| graph.constructors[dependency].get(specifier.imported.name))
                     else {
                         return Err(error(
                             module,
@@ -757,14 +969,41 @@ impl<'src> InterfaceGraph<'src> {
                         .push(graph.imports[module][specifier.local.name]);
                 }
             }
-            for export in program.exports {
-                if type_exports[module].contains(export.exported.name) {
+            for (index, export) in program.exports.iter().enumerate() {
+                if export.kind == crate::ast::ExportKind::ConstructorValue {
+                    let node = graph.constructors[module][export.exported.name];
+                    // The class's constructor value, a runtime export seeded
+                    // with the class's value binding once schemas exist.
+                    let class = checked.facts[module]
+                        .type_bindings
+                        .get(export.local.name)
+                        .copied()
+                        .filter(|identity| identity.is_class())
+                        .ok_or_else(|| {
+                            error(
+                                module,
+                                export.local.span,
+                                format!(
+                                    "constructor export `{}` is not a class",
+                                    export.local.name
+                                ),
+                            )
+                        })?;
+                    let info = &checked.declarations.classes[class.index()];
+                    if info.external || info.object {
+                        return Err(error(
+                            module,
+                            export.local.span,
+                            "constructor exports require a non-object, non-extern class",
+                        ));
+                    }
+                    graph.values.push((node, module, export.local.name));
                     continue;
                 }
                 let node = graph.exports[module][export.exported.name];
                 let local_value = locals[module].get(export.local.name);
                 let local_type = checked.facts[module]
-                    .struct_bindings
+                    .type_bindings
                     .get(export.local.name)
                     .copied();
                 let declared_type = checked
@@ -780,22 +1019,19 @@ impl<'src> InterfaceGraph<'src> {
                     return Err(error(
                         module,
                         export.local.span,
-                        "ambiguous export names both a value and a struct type; export the declaration directly",
+                        "ambiguous export names both a value and a type; export the declaration directly",
                     ));
                 } else {
-                    local_type.map(InterfaceTarget::Struct)
+                    local_type.map(InterfaceTarget::Type)
                 };
                 if let Some(target) = target {
                     graph.seed(node, target);
                 } else if let Some((_, inferred)) = local_value {
                     if *inferred {
-                        return Err(error(
-                            module,
-                            export.local.span,
-                            "direct module checking does not yet support inferred export interfaces; add an explicit type",
-                        ));
+                        graph.inferred.push((node, module, index));
+                    } else {
+                        graph.values.push((node, module, export.local.name));
                     }
-                    graph.values.push((node, module, export.local.name));
                 } else {
                     let Some(&producer) = graph.imports[module].get(export.local.name) else {
                         return Err(error(
@@ -808,66 +1044,16 @@ impl<'src> InterfaceGraph<'src> {
                 }
             }
         }
+        for &(node, module, index) in &graph.inferred {
+            if !graph.nodes[node].consumers.is_empty() {
+                return Err(error(
+                    module,
+                    programs[module].exports[index].local.span,
+                    "direct module checking does not yet support inferred export interfaces; add an explicit type",
+                ));
+            }
+        }
         Ok(graph)
-    }
-    /// Finds every type-only name: declared classes, extern classes and
-    /// enums, their exports, and imports and re-exports of those, to a fixed
-    /// point. Returns each module's type-only export names. A renamed one is
-    /// refused: the importer would resolve the declaration's own name.
-    fn type_names<'ast>(
-        &mut self,
-        programs: &[Program<'ast, 'src>],
-        checked: &CheckedModules<'ast, 'src>,
-    ) -> Result<Vec<AHashSet<&'src str>>, ModuleCheckError> {
-        let mut exports = vec![AHashSet::default(); programs.len()];
-        for (module, program) in programs.iter().enumerate() {
-            for item in program.items {
-                let name = match item {
-                    Item::Class(declaration) => declaration.name.name,
-                    Item::ExternClass(declaration) => declaration.name.name,
-                    Item::Enum(declaration) => declaration.name.name,
-                    _ => continue,
-                };
-                self.type_names[module].insert(name);
-            }
-        }
-        loop {
-            let mut changed = false;
-            for (module, program) in programs.iter().enumerate() {
-                for (index, import) in program.imports.iter().enumerate() {
-                    let dependency = checked.interfaces[module].dependencies[index];
-                    for specifier in import.specifiers {
-                        if !exports[dependency].contains(specifier.imported.name) {
-                            continue;
-                        }
-                        if specifier.local.name != specifier.imported.name {
-                            return Err(error(
-                                module,
-                                specifier.local.span,
-                                "a class or enum type import cannot be renamed yet",
-                            ));
-                        }
-                        changed |= self.type_names[module].insert(specifier.local.name);
-                    }
-                }
-                for export in program.exports {
-                    if !self.type_names[module].contains(export.local.name) {
-                        continue;
-                    }
-                    if export.local.name != export.exported.name {
-                        return Err(error(
-                            module,
-                            export.exported.span,
-                            "a class or enum type export cannot be renamed yet",
-                        ));
-                    }
-                    changed |= exports[module].insert(export.exported.name);
-                }
-            }
-            if !changed {
-                return Ok(exports);
-            }
-        }
     }
     fn seed(&mut self, node: usize, target: InterfaceTarget) {
         assert!(self.nodes[node].target.is_none());
@@ -887,6 +1073,8 @@ impl<'src> InterfaceGraph<'src> {
             }
         }
     }
+    /// Binds every imported nominal in its importer's type scope, under the
+    /// local name. Types resolve before any schema or signature is read.
     fn install_types<'ast>(
         &self,
         programs: &[Program<'ast, 'src>],
@@ -898,12 +1086,16 @@ impl<'src> InterfaceGraph<'src> {
                     let Some(&node) = self.imports[module].get(specifier.local.name) else {
                         continue;
                     };
-                    let Some(InterfaceTarget::Struct(identity)) = self.nodes[node].target else {
+                    let Some(InterfaceTarget::Type(identity)) = self.nodes[node].target else {
                         continue;
                     };
+                    let ty = checked
+                        .view(module)
+                        .and_then(|view| view.nominal_type(identity))
+                        .expect("an interface names a declared nominal");
                     let facts = &mut checked.facts[module];
                     if facts
-                        .struct_bindings
+                        .type_bindings
                         .insert(specifier.local.name, identity)
                         .is_some()
                     {
@@ -913,11 +1105,9 @@ impl<'src> InterfaceGraph<'src> {
                             format!("duplicate module type binding `{}`", specifier.local.name),
                         ));
                     }
-                    let declaration = checked.declarations.structs[identity.index()].declaration;
-                    facts.binding_types.insert(
-                        specifier.local.span,
-                        BindingType::Inline(Type::Struct(declaration)),
-                    );
+                    facts
+                        .binding_types
+                        .insert(specifier.local.span, BindingType::Inline(ty));
                 }
             }
         }
@@ -940,9 +1130,6 @@ impl<'src> InterfaceGraph<'src> {
             for (index, import) in program.imports.iter().enumerate() {
                 let dependency = checked.interfaces[module].dependencies[index];
                 for specifier in import.specifiers {
-                    if self.type_names[module].contains(specifier.local.name) {
-                        continue;
-                    }
                     let target = self.nodes[self.imports[module][specifier.local.name]]
                         .target
                         .ok_or_else(|| {
@@ -955,8 +1142,13 @@ impl<'src> InterfaceGraph<'src> {
                                 ),
                             )
                         })?;
+                    if is_object_type(checked, target) {
+                        continue;
+                    }
                     if let InterfaceTarget::Value(symbol) = target {
-                        if locals[module].contains_key(specifier.local.name) {
+                        if locals[module].contains_key(specifier.local.name)
+                            || scopes[module].contains_key(specifier.local.name)
+                        {
                             return Err(error(
                                 module,
                                 specifier.local.span,
@@ -991,12 +1183,23 @@ impl<'src> InterfaceGraph<'src> {
                 }
             }
             for export in program.exports {
-                let Some(&node) = self.exports[module].get(export.exported.name) else {
+                let nodes = if export.kind == crate::ast::ExportKind::ConstructorValue {
+                    &self.constructors[module]
+                } else {
+                    &self.exports[module]
+                };
+                let Some(&node) = nodes.get(export.exported.name) else {
                     continue;
                 };
+                if self.inferred.iter().any(|&(inferred, ..)| inferred == node) {
+                    continue;
+                }
                 let target = self.nodes[node].target.ok_or_else(|| {
                     error(module, export.span, "cyclic export cannot be resolved")
                 })?;
+                if is_object_type(checked, target) {
+                    continue;
+                }
                 let direct_value = locals[module]
                     .get(export.local.name)
                     .is_some_and(|(span, _)| *span == export.local.span);
@@ -1005,19 +1208,20 @@ impl<'src> InterfaceGraph<'src> {
                         .view(module)
                         .unwrap()
                         .export_target(export.local.span),
-                    Some(InterfaceTarget::Struct(_))
+                    Some(InterfaceTarget::Type(_))
                 );
                 if !direct_value
                     && !direct_type
                     && scopes[module].contains_key(export.local.name)
                     && checked.facts[module]
-                        .struct_bindings
-                        .contains_key(export.local.name)
+                        .type_bindings
+                        .get(export.local.name)
+                        .is_some_and(|identity| identity.is_struct())
                 {
                     return Err(error(
                         module,
                         export.local.span,
-                        "ambiguous export names both a value and a struct type; export the declaration directly",
+                        "ambiguous export names both a value and a type; export the declaration directly",
                     ).into());
                 }
                 let facts = &mut checked.facts[module];
@@ -1027,13 +1231,19 @@ impl<'src> InterfaceGraph<'src> {
                         export.local.span,
                         symbol,
                     ),
-                    InterfaceTarget::Struct(identity) => {
-                        facts.binding_types.insert(
-                            export.local.span,
-                            BindingType::Inline(Type::Struct(
-                                checked.declarations.structs[identity.index()].declaration,
-                            )),
-                        );
+                    InterfaceTarget::Type(identity) => {
+                        let ty = CheckedView {
+                            declarations: &checked.declarations,
+                            facts: &checked.facts[module],
+                        }
+                        .nominal_type(identity)
+                        .expect("an interface names a declared nominal");
+                        // A class declaration's own name keeps its
+                        // constructor binding.
+                        checked.facts[module]
+                            .binding_types
+                            .entry(export.local.span)
+                            .or_insert(BindingType::Inline(ty));
                     }
                 }
                 budget
@@ -1051,6 +1261,14 @@ impl<'src> InterfaceGraph<'src> {
         }
         Ok(())
     }
+}
+
+/// An `object` singleton's name is not an interface type: its identity is
+/// scoped like every nominal's, but it is never published in a module
+/// interface (the program has no `object` definitions; plan M10.10).
+fn is_object_type(checked: &CheckedModules<'_, '_>, target: InterfaceTarget) -> bool {
+    matches!(target, InterfaceTarget::Type(identity)
+        if identity.is_class() && checked.declarations.classes[identity.index()].object)
 }
 
 #[cfg(test)]

@@ -1,0 +1,33 @@
+// MODULE LANE ONLY: `export constructor` publishes a class to JavaScript
+// callers (docs/language-v0.1.md, Modules). The probe checks the class's
+// identity at the ES module boundary: name, arity with defaults, prototype
+// methods and their arity, `instanceof` for instances LilScript creates,
+// inheritance, and that the constructor throws without `new`.
+export class Counter {
+  int value;
+  init(int start, int step = 1) {
+    this.value = start;
+    this.step = step;
+  }
+  int step;
+  int next(int times = 1) {
+    this.value = this.value + this.step * times;
+    return this.value;
+  }
+  int peek() { return this.value; }
+}
+
+class Labelled extends Counter {
+  string label;
+  init(string label, int start) {
+    super(start, 2);
+    this.label = label;
+  }
+  string show() { return this.label + "=" + this.value; }
+}
+
+export constructor Counter;
+export constructor Labelled as Tagged;
+
+export Counter make(int start) { return new Counter(start, 10); }
+export Labelled tag(string label) { return new Labelled(label, 5); }

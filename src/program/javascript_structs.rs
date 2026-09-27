@@ -296,7 +296,9 @@ impl Formation<'_, '_, '_, '_, '_> {
         let (context, root, path) = self.resolved_field_path(context, place)?;
         let cell = match self.data(context).places[root.index()] {
             Place::Cell(cell) => cell,
-            Place::Member { .. } | Place::Index { .. } if !path.is_empty() => {
+            Place::Member { .. } | Place::ClassField { .. } | Place::Index { .. }
+                if !path.is_empty() =>
+            {
                 return self.store_aggregate_field(context, root, path, replacement);
             }
             _ => {

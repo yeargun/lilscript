@@ -178,7 +178,7 @@ fn nominal_only_binding_spans_preserve_inline_types_without_value_symbols() {
     );
     assert_eq!(
         model.view().export_target(program.exports[0].local.span),
-        Some(InterfaceTarget::Struct(nominal.identity))
+        Some(InterfaceTarget::Type(nominal.identity))
     );
 }
 

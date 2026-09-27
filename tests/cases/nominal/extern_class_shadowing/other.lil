@@ -1,0 +1,10 @@
+// A second, private host view named `Node`, over its own host factory.
+extern class Node {
+  string nodeName;
+}
+extern Node makeOtherNode(string name);
+
+export string otherName(string name) {
+  Node node = makeOtherNode(name);
+  return node.nodeName;
+}

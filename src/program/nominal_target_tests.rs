@@ -127,7 +127,7 @@ fn struct_export(program: &Program<'_>, module: ModuleId, name: &str) -> Nominal
     program.exports[program.modules()[module.index()].exports.clone()]
         .iter()
         .find_map(|export| match export.target {
-            InterfaceTarget::Struct(id) if export.name == name => Some(id),
+            InterfaceTarget::Type(id) if export.name == name => Some(id),
             _ => None,
         })
         .unwrap()
@@ -171,7 +171,7 @@ fn qualify(
     assert!(program
         .exports()
         .iter()
-        .all(|export| matches!(export.target, InterfaceTarget::Struct(_))));
+        .all(|export| matches!(export.target, InterfaceTarget::Type(_))));
     let schemas = schema_evidence(&program, modules);
     let initialization: Vec<_> = program
         .initialization()

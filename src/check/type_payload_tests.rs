@@ -1,4 +1,5 @@
 use super::*;
+use crate::check::{test_class, test_enum};
 use crate::check::{FunctionType, ParameterPassing};
 use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
 use std::convert::Infallible;
@@ -19,7 +20,7 @@ fn new_ledger(memory: u64, work: u64) -> BudgetLedger {
 #[test]
 fn leaf_and_single_child_payloads_need_no_heap_workspace() {
     let mut ledger = new_ledger(0, 100_000);
-    let mut nested = Type::Enum("BorrowedName");
+    let mut nested = Type::Enum(test_enum("BorrowedName"));
     for _ in 0..64 {
         nested = Type::Array(Box::new(nested));
     }
@@ -56,14 +57,14 @@ fn signature_defaults_names_and_actual_vector_capacities_share_one_walk() {
     defaults.extend([
         DefaultValue::String("default-text"),
         DefaultValue::NewClass {
-            name: "Created",
+            declaration: test_class("Created"),
             args: vec![DefaultValue::String("argument")],
         },
     ]);
     let default_capacity = defaults.capacity();
     let mut parameters = Vec::with_capacity(7);
     parameters.push(FunctionParameter {
-        ty: Type::Record(Box::new(Type::Class("Stored"))),
+        ty: Type::Record(Box::new(Type::Class(test_class("Stored")))),
         passing: ParameterPassing::Value,
         default: Some(DefaultValue::Array(defaults)),
     });

@@ -1,0 +1,11 @@
+enum Mode { Off, Dim, Bright }
+
+Mode modeOf(int level) {
+  if (level == 0) { return Mode.Off; }
+  if (level == 1) { return Mode.Dim; }
+  return Mode.Bright;
+}
+
+export string lightLabel(int level) {
+  return match (modeOf(level)) { Mode.Off => "off", Mode.Dim => "dim", Mode.Bright => "bright" };
+}

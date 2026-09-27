@@ -44,7 +44,7 @@ pub(super) fn validate(
                 _ => continue,
             };
             let next = declaration.identity.index();
-            if declaration.identity.is_class()
+            if !declaration.identity.is_struct()
                 || structs
                     .get(next)
                     .is_none_or(|schema| schema.declaration.identity != declaration.identity)

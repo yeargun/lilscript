@@ -1,4 +1,5 @@
 use super::*;
+use crate::check::{test_class, test_enum, NominalKind};
 use crate::check::{
     DefaultValue, FunctionParameter, FunctionSignature, FunctionType, GenericFunctionType,
     NominalId, StructType,
@@ -21,7 +22,7 @@ fn function(passing: ParameterPassing, default: Option<DefaultValue<'static>>) -
 
 fn corpus() -> Vec<Type<'static>> {
     let named = StructType {
-        identity: NominalId::new(0, false),
+        identity: NominalId::new(0, NominalKind::Struct),
         name: "First",
     };
     let alias = StructType {
@@ -29,7 +30,7 @@ fn corpus() -> Vec<Type<'static>> {
         name: "Alias",
     };
     let other = StructType {
-        identity: NominalId::new(1, false),
+        identity: NominalId::new(1, NominalKind::Struct),
         name: "First",
     };
     let mut types = vec![
@@ -41,9 +42,9 @@ fn corpus() -> Vec<Type<'static>> {
         Type::Void,
         Type::TypeParameter("$js"),
         Type::TypeParameter("T"),
-        Type::Class("Object"),
-        Type::Class("Other"),
-        Type::Enum("Choice"),
+        Type::Class(test_class("Object")),
+        Type::Class(test_class("Other")),
+        Type::Enum(test_enum("Choice")),
         Type::Symbol,
         Type::Regex,
         Type::Struct(named),
@@ -54,7 +55,7 @@ fn corpus() -> Vec<Type<'static>> {
             args: vec![Type::Int],
         },
         Type::ClassInstance {
-            name: "Container",
+            declaration: test_class("Container"),
             args: vec![Type::String],
         },
         Type::Array(Box::new(Type::Int)),
@@ -178,7 +179,7 @@ fn normalization_keeps_source_order_nullability_and_nominal_identity() {
         }
     }
     let first = StructType {
-        identity: NominalId::new(0, false),
+        identity: NominalId::new(0, NominalKind::Struct),
         name: "Original",
     };
     let alias = StructType {
@@ -278,7 +279,7 @@ fn nullish_operands() -> (Type<'static>, Type<'static>) {
         Type::Array(Box::new(Type::Union(vec![
             Type::String,
             Type::Null,
-            Type::Class("Object"),
+            Type::Class(test_class("Object")),
             Type::Int,
         ]))),
     )
@@ -334,7 +335,7 @@ fn scalar_checks_and_lazy_rejections_need_no_type_construction() {
     );
     assert_eq!(probe.constructed, 0);
     let long_name = "long-diagnostic-name-".repeat(4096);
-    let named = Type::Class(&long_name);
+    let named = Type::Class(test_class(&long_name));
     assert_eq!(
         checked_binary_type_with(BinaryOp::Mul, &named, &Type::String, &mut probe),
         Err(BinaryTypeError::Semantic(BinaryTypeReason::InvalidOperands))
@@ -363,8 +364,16 @@ fn scalar_checks_and_lazy_rejections_need_no_type_construction() {
 
 #[test]
 fn union_candidates_and_repeated_common_queries_are_paid_each_time() {
-    let left = Type::Union(vec![Type::Class("A"), Type::Class("B"), Type::Class("C")]);
-    let right = Type::Union(vec![Type::Class("X"), Type::Class("Y"), Type::Class("Z")]);
+    let left = Type::Union(vec![
+        Type::Class(test_class("A")),
+        Type::Class(test_class("B")),
+        Type::Class(test_class("C")),
+    ]);
+    let right = Type::Union(vec![
+        Type::Class(test_class("X")),
+        Type::Class(test_class("Y")),
+        Type::Class(test_class("Z")),
+    ]);
     let mut probe = Probe::default();
     assert!(!equality_comparable_with(&left, &right, &mut probe).unwrap());
     assert_eq!(

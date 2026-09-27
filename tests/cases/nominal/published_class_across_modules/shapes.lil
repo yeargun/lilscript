@@ -1,0 +1,27 @@
+export class Shape {
+  string name;
+  string label() {
+    if (this.name == "") { return "shape"; }
+    return this.name;
+  }
+}
+
+export class Circle extends Shape {
+  int radius;
+  int scale;
+  init(int radius, int scale = 2) {
+    super();
+    this.name = "circle";
+    this.radius = radius;
+    this.scale = scale;
+  }
+  int area() { return 3 * this.radius * this.radius; }
+  int scaled() { return this.radius * this.scale; }
+}
+
+export constructor Circle;
+export constructor Shape as BaseShape;
+
+export string describe(Circle circle) {
+  return circle.label() + " r=" + circle.radius + " area~" + circle.area();
+}

@@ -385,7 +385,10 @@ impl<'a, 'src> Transaction<'a, 'src> {
             old_payload = sum(&[old_payload, kind_bytes(&old.kind, can_reuse)?])?;
             let bytes = kind_bytes(edit.kind, false)?;
             if let OperationKind::Allocate {
-                kind: AllocationKind::Object(keys) | AllocationKind::Record(keys),
+                kind:
+                    AllocationKind::Object(keys)
+                    | AllocationKind::Record(keys)
+                    | AllocationKind::Instance { keys, .. },
                 ..
             } = edit.kind
             {
@@ -770,7 +773,10 @@ impl Drop for Transaction<'_, '_> {
 fn kind_bytes(kind: &OperationKind, retained: bool) -> Result<u64, PublicationError> {
     match kind {
         OperationKind::Allocate {
-            kind: AllocationKind::Record(keys) | AllocationKind::Object(keys),
+            kind:
+                AllocationKind::Record(keys)
+                | AllocationKind::Object(keys)
+                | AllocationKind::Instance { keys, .. },
             ..
         } => {
             if retained {
@@ -818,6 +824,16 @@ fn copy_kind(kind: &OperationKind) -> Result<OperationKind, PublicationError> {
         },
         OperationKind::Allocate {
             identity,
+            kind: AllocationKind::Instance { class, keys },
+        } => OperationKind::Allocate {
+            identity: *identity,
+            kind: AllocationKind::Instance {
+                class: *class,
+                keys: copy_vector(keys)?,
+            },
+        },
+        OperationKind::Allocate {
+            identity,
             kind: AllocationKind::SpreadArray(spread),
         } => OperationKind::Allocate {
             identity: *identity,
@@ -858,7 +874,7 @@ fn copy_unit(unit: &UnitData) -> Result<UnitData, PublicationError> {
     Ok(UnitData {
         kind: unit.kind,
         suspension: unit.suspension,
-        host_class: unit.host_class,
+        constructor_of: unit.constructor_of,
         module: unit.module,
         instantiation_prefix: unit.instantiation_prefix,
         function_name: unit.function_name,

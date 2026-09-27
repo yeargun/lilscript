@@ -542,18 +542,41 @@ fn unsupported_interfaces_reject_before_publishing_unqualified_types() {
         let program = parse_source(&arena, source).unwrap();
         analyze_modules(&[program], &graph(&[source], &[&[]], &[0])).unwrap();
     }
-    for (source, expected) in [
-        (
-            "Record<Box[]> values=record{};",
-            "nominal or unknown type `Box`",
-        ),
-        ("export auto value=1;", "inferred export interfaces"),
-    ] {
-        let program = parse_source(&arena, source).unwrap();
-        let error = analyze_modules(&[program], &graph(&[source], &[&[]], &[0])).unwrap_err();
-        assert_eq!(error.module, 0);
-        assert!(error.error.message.contains(expected), "{source}: {error}");
-    }
+    let source = "Record<Box[]> values=record{};";
+    let program = parse_source(&arena, source).unwrap();
+    let error = analyze_modules(&[program], &graph(&[source], &[&[]], &[0])).unwrap_err();
+    assert_eq!(error.module, 0);
+    assert!(
+        error.error.message.contains("unknown type `Box`"),
+        "{error}"
+    );
+    // An `auto` export's type is known once its module's bodies are checked:
+    // it is published then, and only no other module may import it.
+    let source = "export auto value=1;";
+    let program = parse_source(&arena, source).unwrap();
+    let checked = analyze_modules(&[program], &graph(&[source], &[&[]], &[0])).unwrap();
+    assert!(matches!(
+        checked.interfaces()[0].exports.as_slice(),
+        [ModuleExport {
+            external: "value",
+            target: InterfaceTarget::Value(_),
+            ..
+        }]
+    ));
+    let sources = [
+        r#"import {value} from "./b";print(value);"#,
+        "export auto value=1;",
+    ];
+    let programs: Vec<_> = sources
+        .iter()
+        .map(|source| parse_source(&arena, source).unwrap())
+        .collect();
+    let error = analyze_modules(&programs, &graph(&sources, &[&[1], &[]], &[1, 0])).unwrap_err();
+    assert_eq!(error.module, 1);
+    assert!(
+        error.error.message.contains("inferred export interfaces"),
+        "{error}"
+    );
     // Existing single-source nominal/default support still uses this same checker.
     analyze(
         &parse_source(
@@ -663,11 +686,11 @@ fn nominal_module_diamond_keeps_original_identity_and_type_only_occurrences() {
     assert_eq!(checked.declarations.structs.len(), 1);
     assert_eq!(
         checked.interfaces()[0].exports[0].target,
-        InterfaceTarget::Struct(declaration.identity)
+        InterfaceTarget::Type(declaration.identity)
     );
     assert_eq!(
         view.export_target(programs[0].exports[0].local.span),
-        Some(InterfaceTarget::Struct(declaration.identity))
+        Some(InterfaceTarget::Type(declaration.identity))
     );
     for specifier in programs[0]
         .imports
@@ -803,7 +826,7 @@ fn nominal_export_occurrences_distinguish_value_type_and_ambiguous_bare_names() 
         let single = analyze(&program).unwrap();
         let expected = single.export_target(program.exports[0].local.span).unwrap();
         assert_eq!(
-            matches!(expected, InterfaceTarget::Struct(_)),
+            matches!(expected, InterfaceTarget::Type(_)),
             expected_type,
             "{source}"
         );
@@ -811,7 +834,7 @@ fn nominal_export_occurrences_distinguish_value_type_and_ambiguous_bare_names() 
         assert_eq!(
             matches!(
                 checked.interfaces()[0].exports[0].target,
-                InterfaceTarget::Struct(_)
+                InterfaceTarget::Type(_)
             ),
             expected_type,
             "{source}"
@@ -863,4 +886,187 @@ fn nominal_module_reference_forwarding_uses_canonical_field_storage() {
     assert!(
         matches!(signature.params[0].ty,Type::Struct(declaration) if declaration.identity==identity)
     );
+}
+
+/// Plan M4.1: classes, extern classes and enums have per-module scopes like
+/// structs. Two private declarations of one name are two identities.
+#[test]
+fn private_classes_and_enums_of_one_name_are_distinct_identities() {
+    let sources = [
+        r#"import {lexed} from "./lexer";import {parsed} from "./parser";class Node{string text;init(string text){this.text=text;}}Node node=new Node("x");print(lexed(2)+parsed(3));print(node.text);"#,
+        "enum Kind{Word,Number}class Node{int value;Kind kind;init(int value){this.value=value;this.kind=Kind.Number;}}export int lexed(int value){Node node=new Node(value);return node.value;}",
+        "enum Kind{Leaf,Root}class Node{Node? parent;Kind kind;init(){this.parent=null;this.kind=Kind.Root;}}export int parsed(int depth){Node node=new Node();if(node.kind==Kind.Root){return depth;}return 0;}",
+    ];
+    let arena = Bump::new();
+    let programs: Vec<_> = sources
+        .iter()
+        .map(|source| parse_source(&arena, source).unwrap())
+        .collect();
+    let checked = analyze_modules(
+        &programs,
+        &graph(&sources, &[&[1, 2], &[], &[]], &[1, 2, 0]),
+    )
+    .unwrap();
+    let nodes = [0, 1, 2].map(|module| checked.view(module).unwrap().type_binding("Node").unwrap());
+    assert!(nodes.iter().all(|node| node.is_class()));
+    assert_ne!(nodes[0], nodes[1]);
+    assert_ne!(nodes[1], nodes[2]);
+    assert_ne!(nodes[0], nodes[2]);
+    for (module, node) in nodes.iter().enumerate() {
+        assert_eq!(checked.nominal_module(*node), Some(module));
+    }
+    let kinds = [1, 2].map(|module| checked.view(module).unwrap().type_binding("Kind").unwrap());
+    assert!(kinds.iter().all(|kind| kind.is_enum()));
+    assert_ne!(kinds[0], kinds[1]);
+    assert!(checked.view(0).unwrap().type_binding("Kind").is_none());
+    let view = checked.view(1).unwrap();
+    let lexer = view.nominal_class(nodes[1]).unwrap();
+    assert_eq!(
+        lexer.fields.keys().copied().collect::<Vec<_>>(),
+        ["value", "kind"]
+    );
+    assert_eq!(
+        view.nominal_enum(kinds[0])
+            .unwrap()
+            .variants
+            .keys()
+            .copied()
+            .collect::<Vec<_>>(),
+        ["Word", "Number"]
+    );
+    // One scope still refuses a second declaration of a name.
+    for source in [
+        "class Node{}class Node{}",
+        "enum Kind{A}class Kind{}",
+        "struct Node{int x;}enum Node{A}",
+    ] {
+        let program = parse_source(&arena, source).unwrap();
+        let failure = analyze_modules(&[program], &graph(&[source], &[&[]], &[0])).unwrap_err();
+        assert!(
+            failure.error.message.contains("duplicate type declaration"),
+            "{source}: {}",
+            failure.error
+        );
+    }
+}
+
+/// A type import binds the exporter's identity under its local alias; an
+/// unimported name is not in scope, and two same-named private classes do
+/// not mix.
+#[test]
+fn class_and_enum_imports_bind_identities_under_their_aliases() {
+    let sources = [
+        r#"import {Box as Crate,Mode as Setting,make} from "./box";Crate crate=make();Setting setting=Setting.On;crate.width=2;print(crate.width);"#,
+        "export class Box{int width;init(){this.width=1;}}export enum Mode{Off,On}export Box make(){return new Box();}",
+    ];
+    let arena = Bump::new();
+    let programs: Vec<_> = sources
+        .iter()
+        .map(|source| parse_source(&arena, source).unwrap())
+        .collect();
+    let checked = analyze_modules(&programs, &graph(&sources, &[&[1], &[]], &[1, 0])).unwrap();
+    let entry = checked.view(0).unwrap();
+    let declaring = checked.view(1).unwrap();
+    assert_eq!(entry.type_binding("Crate"), declaring.type_binding("Box"));
+    assert_eq!(
+        entry.type_binding("Setting"),
+        declaring.type_binding("Mode")
+    );
+    assert!(entry.type_binding("Box").is_none());
+    let exports = &checked.interfaces()[1].exports;
+    assert!(exports.iter().any(|export| export.external == "Box"
+        && export.target == InterfaceTarget::Type(declaring.type_binding("Box").unwrap())));
+
+    // A class name another module declares is not in scope unimported.
+    let unimported = [r#"import {make} from "./box";Box box=make();"#, sources[1]];
+    let programs: Vec<_> = unimported
+        .iter()
+        .map(|source| parse_source(&arena, source).unwrap())
+        .collect();
+    let failure =
+        analyze_modules(&programs, &graph(&unimported, &[&[1], &[]], &[1, 0])).unwrap_err();
+    assert_eq!(failure.module, 0);
+    assert!(
+        failure.error.message.contains("unknown type `Box`"),
+        "{}",
+        failure.error
+    );
+
+    // Two private classes of one spelling are distinct types.
+    let mixed = [
+        r#"import {make} from "./box";class Box{int width;}Box box=make();"#,
+        sources[1],
+    ];
+    let programs: Vec<_> = mixed
+        .iter()
+        .map(|source| parse_source(&arena, source).unwrap())
+        .collect();
+    let failure = analyze_modules(&programs, &graph(&mixed, &[&[1], &[]], &[1, 0])).unwrap_err();
+    assert!(
+        failure
+            .error
+            .message
+            .contains("distinct class declarations"),
+        "{}",
+        failure.error
+    );
+}
+
+/// `export constructor` publishes a class's constructor as a runtime value:
+/// the class and its internal chain are observed; refusals name the rule.
+#[test]
+fn constructor_exports_publish_classes_and_refuse_what_cannot_be_one() {
+    let arena = Bump::new();
+    let sources = [
+        r#"import {Child as Kid,make} from "./b";Kid kid=make();print(kid.total());"#,
+        "export class Child extends Base{int extra;init(int value){super(value);this.extra=1;}int total(){return this.value+this.extra;}}class Base{int value;init(int value){this.value=value;}}class Lone{int x;}class Leaf extends Child{init(){super(2);}}export constructor Child;export Child make(){return new Child(3);}",
+    ];
+    let programs: Vec<_> = sources
+        .iter()
+        .map(|source| parse_source(&arena, source).unwrap())
+        .collect();
+    let checked = analyze_modules(&programs, &graph(&sources, &[&[1], &[]], &[1, 0])).unwrap();
+    let view = checked.view(1).unwrap();
+    let class = |name| {
+        view.nominal_class(view.type_binding(name).unwrap())
+            .unwrap()
+    };
+    assert!(class("Child").published && class("Child").observed);
+    assert!(!class("Base").published && class("Base").observed);
+    assert!(class("Leaf").observed);
+    assert!(!class("Lone").observed);
+    // One external name carries the class's type and its constructor.
+    let exports = &checked.interfaces()[1].exports;
+    let child = exports
+        .iter()
+        .filter(|export| export.external == "Child")
+        .map(|export| export.target)
+        .collect::<Vec<_>>();
+    assert_eq!(child.len(), 2);
+    assert!(child
+        .iter()
+        .any(|target| matches!(target, InterfaceTarget::Value(symbol)
+            if Some(*symbol) == class("Child").value)));
+    for (source, expected) in [
+        (
+            "extern class Host{}export constructor Host;",
+            "non-object, non-extern class",
+        ),
+        (
+            "export int value=1;export constructor value;",
+            "is not a class",
+        ),
+        (
+            "class Base{}class Child extends Base{}export constructor Child;",
+            "inherited constructor export requires an explicit `init`",
+        ),
+        (
+            "class Box{}export constructor Box;export constructor Box as Box;",
+            "duplicate export `Box`",
+        ),
+    ] {
+        let program = parse_source(&arena, source).unwrap();
+        let error = analyze_modules(&[program], &graph(&[source], &[&[]], &[0])).unwrap_err();
+        assert!(error.error.message.contains(expected), "{source}: {error}");
+    }
 }

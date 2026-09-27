@@ -100,7 +100,10 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                         field_depth,
                     }));
                 }
-                Place::Value(_) | Place::Member { .. } | Place::Index { .. } => return Ok(None),
+                Place::Value(_)
+                | Place::Member { .. }
+                | Place::ClassField { .. }
+                | Place::Index { .. } => return Ok(None),
             }
         }
     }

@@ -1,0 +1,5 @@
+export enum Mode { First, Last }
+
+export string sharedLabel(Mode mode) {
+  return match (mode) { Mode.First => "first", Mode.Last => "last" };
+}

@@ -1,4 +1,5 @@
 use super::*;
+use crate::check::declared_class;
 
 fn binding<'model, 'src>(model: &'model CheckedModule<'_, 'src>, name: &str) -> &'model Type<'src> {
     let mut symbols = model.symbols().iter().filter(|symbol| symbol.name == name);
@@ -124,14 +125,14 @@ fn nominal_parameter_metadata_stays_canonical_and_task_generator_shadowing_stays
     assert_eq!(
         binding(&model, "second"),
         &Type::ClassInstance {
-            name: "Generator",
+            declaration: declared_class(&model, "Generator"),
             args: vec![Type::Set(Box::new(Type::String))],
         }
     );
     assert_eq!(
         binding(&model, "sixth"),
         &Type::ClassInstance {
-            name: "Generator",
+            declaration: declared_class(&model, "Generator"),
             args: vec![Type::Array(Box::new(Type::Int))],
         }
     );
@@ -139,7 +140,10 @@ fn nominal_parameter_metadata_stays_canonical_and_task_generator_shadowing_stays
         binding(&model, "third"),
         &Type::Struct(model.struct_info("Plain").unwrap().declaration)
     );
-    assert_eq!(binding(&model, "fourth"), &Type::Class("Empty"));
+    assert_eq!(
+        binding(&model, "fourth"),
+        &Type::Class(declared_class(&model, "Empty"))
+    );
 }
 
 #[test]

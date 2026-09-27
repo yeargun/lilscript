@@ -109,8 +109,8 @@ pub(crate) fn substitute_type_with<'types, 'src: 'types, A: SubstitutionAdmissio
             declaration: *declaration,
             args: substitute_members(args, lookup, admission)?,
         }),
-        Type::ClassInstance { name, args } => Ok(Type::ClassInstance {
-            name,
+        Type::ClassInstance { declaration, args } => Ok(Type::ClassInstance {
+            declaration: *declaration,
             args: substitute_members(args, lookup, admission)?,
         }),
         Type::Function(signature) => Ok(Type::Function(substitute_signature_with(

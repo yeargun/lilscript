@@ -164,14 +164,18 @@ fn admitted_source_tables_match_the_original_model_and_release_after_callback() 
     let source = "int value=4;int next(){value+=1;return value;}print(next());";
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, source).unwrap();
-    let expected = analyze(&syntax).unwrap();
-    let expected_debug = format!("{expected:?}");
-    drop(expected);
+    // The same one-Analyzer driver, unadmitted: the accounting under test is
+    // the checker's own, without the module graph around it.
+    let expected_debug =
+        with_single_analyzer(&syntax, &mut AllocationBudget::new(None), |model, _| {
+            format!("{model:?}")
+        })
+        .unwrap();
     let live_facts = live_facts_for_test();
     let bytes = fact_bytes(syntax.source_identity()) + small_declaration_bytes();
     let mut ledger = ledger(WORK, SENTINEL + bytes + simple_function_frame_peak());
     let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
-    with_analyzed_source(&syntax, &mut budget, |model, budget| {
+    with_single_analyzer(&syntax, &mut budget, |model, budget| {
         assert_eq!(format!("{model:?}"), expected_debug);
         assert!(model.belongs_to(syntax.source_identity()));
         assert_small_declarations(&model.declarations, 2);
@@ -285,7 +289,7 @@ fn source_refusals_cover_both_fixed_arrays_without_releasing_parent_storage() {
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
         let called = Cell::new(false);
         let error =
-            with_analyzed_source(&syntax, &mut budget, |_, _| called.set(true)).unwrap_err();
+            with_single_analyzer(&syntax, &mut budget, |_, _| called.set(true)).unwrap_err();
         assert_eq!(
             error,
             AdmittedCheckError::Resources(AllocationError::Budget(expected))
@@ -396,7 +400,7 @@ fn parser_checker_and_lower_use_one_ledger_through_detached_prepared_output() {
     let backing = arena.allocated_bytes() as u64;
     let prepared = arena.with_ledger(|ledger, domain| {
         let mut budget = AllocationBudget::new(Some((ledger, domain)));
-        with_analyzed_source(&syntax, &mut budget, |model, budget| {
+        with_single_analyzer(&syntax, &mut budget, |model, budget| {
             budget.with_ledger(|owner| {
                 assert_eq!(
                     owner.unwrap().0.retained_bytes(),
