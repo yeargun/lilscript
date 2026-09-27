@@ -157,14 +157,14 @@ History and records:
 |---|---|---|---|
 | M0 | Record and freeze | — | done 2026-09-23 |
 | M1 | One compiler: the old route leaves the product | M0 | done 2026-09-24 |
-| M2 | Verification ladder, baseline and interim release | M1.3 (runs alongside M1) | active: M2.2 and M2.6 done |
+| M2 | Verification ladder, baseline and interim release | M1.3 (runs alongside M1) | active: M2.1, M2.2 and M2.6 done; M2.8 and M2.9 done for 12 of the 13 goal ports (motionlil re-integrating onto its newer origin) |
 | M3 | Honest configuration, one public API, delivery contract | M1 | waiting |
 | M4 | Checker identities and checker-owned facts | M1 | waiting |
-| M5 | The machinery: edit kernel, annotations, scheduler, monotone selection | M1, M4.1 | waiting |
-| M6 | The fact spine | M4, M5 | waiting |
-| M7 | Program rules | M6 | waiting |
+| M5 | The machinery: edit kernel, annotations, scheduler, monotone selection | M1, M4.1 | active: M5.4 landed (monotone across levels open) |
+| M6 | The fact spine | M4, M5 | active: M6.1–M6.3 landed |
+| M7 | Program rules | M6 | active: M7.2 landed |
 | M8 | Canonical formation and the pure printer | M5, M6 | waiting |
-| M9 | Choices, naming, layouts and data | M5, M7, M8 | waiting |
+| M9 | Choices, naming, layouts and data | M5, M7, M8 | active: M9.2 and M9.3's first family landed |
 | M10 | Language for size | M4 (runs alongside M6–M9) | waiting |
 | M11 | Native and cross-target | M6, M7 | waiting |
 | M12 | Qualification and publication | continuous; closes last | waiting |
@@ -493,7 +493,9 @@ Every pass of the old optimizer chain (`optimizer.rs:243-430`, `compress_passes.
 
 ## Next action
 
-M1 is closed. Next:
-1. **M2.8 and M2.9.** Each goal port's rewrite is committed to its own repository: the patches, plus the integrated motion and zod rewrites from `~/lilscript-work/portwork/`. Every port is rebuilt with the pinned post-M1 compiler and no post-minifier. The Pages sites get sizes and compile times. The report goes out.
-2. **M2.1.** A green CI job.
-3. **Then M3.5, M4 and M5.** Budgets in policy, checker identities, then the machinery that facts need.
+M1 is closed; M2.1 is green; the interim release shipped on 2026-09-24 (`docs/reports/2026-09-24-release.md`). In flight or next:
+1. **motionlil's release.** Its finished release (local commit `0eeca0c`) is being redone on top of the 19 owner commits its origin gained on 2026-09-10/11, then pushed as a fast-forward.
+2. **M6.5.** The initialization-order fact and its demand consumers (branch `m6-init`).
+3. **M9.1's first slice and M9.8.** Data layout as a codec-judged choice: string tables lose their 64 / 0.85 thresholds, numeric and columnar tables join them, canonical index keys print unquoted (branch `m9-data`). katexlil's font metrics move into LilScript with it; that is the lever that turns its tie with `katex.min.js` into a win.
+4. **Then M4.1, M5.1–M5.3, M3.5.** Nominal identity (it also clears motionlil's duplicate-type refusal), the edit kernel and annotations, then budgets in policy.
+5. **M12.2 for the goal ports.** Compiler-written files for every export condition: motionlil's `full.js` behind its hand-written facade, zodlil's `index.cjs`, posthoglil's and katexlil's CJS/UMD re-bundles.

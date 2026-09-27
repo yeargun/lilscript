@@ -1,8 +1,10 @@
-//! Structured initialization order shared by semantic family analyses.
+//! Structured dominance within one unit: the view the initialization owner
+//! (`initialization.rs`) answers unit-local definite initialization with,
+//! and that the representation families still consult directly.
 //! Buffers are admitted and allocated by the requesting analysis before entry;
 //! each traversal charges that analysis through its existing bounded work owner.
 
-use super::{OpId, UnitData};
+use super::{OpId, RegionId, UnitData};
 
 #[derive(Debug)]
 pub(super) struct StructuredDominance {
@@ -33,6 +35,11 @@ impl StructuredDominance {
             parent_operation,
             position,
         })
+    }
+
+    /// The operation whose child `region` is; `None` for the entry region.
+    pub(super) fn parent(&self, region: RegionId) -> Option<OpId> {
+        self.parent_operation.get(region.index()).copied().flatten()
     }
 
     /// Strictly after initialization in its region or in a later operation's

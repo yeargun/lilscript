@@ -1,8 +1,9 @@
 // motionlil's development-only diagnostics: empty bodies reached through
 // exported function-typed bindings. A direct call of an empty body is
-// dropped. A call through the binding stays until initialization order
-// (M6.5) proves the binding initialized where it is read; dropping the call
-// would leave the read. Either way the arguments' own effects (`noted`) run.
+// dropped. A call through the binding is dropped once initialization order
+// (M6.5) proves the binding initialized where it is read: `clamp` runs only
+// after the bindings settle. Either way the arguments' own effects (`noted`)
+// run.
 void warningImpl(bool check,string message,string? code){}
 void invariantImpl(bool check,string message,string? code){}
 export func(bool,string,string?)->void warning=warningImpl;

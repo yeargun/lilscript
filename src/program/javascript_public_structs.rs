@@ -112,7 +112,7 @@ pub(super) fn adaptable_export(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<bool, FormationError> {
     let declared = &program.cells[cell.index()];
-    if !matches!(declared.binding, CellBinding::Function(_)) || declared.assigned {
+    if !matches!(declared.binding, CellBinding::Function(_)) || declared.reassigned {
         return Ok(false);
     }
     let Type::Function(signature) = &program.types[declared.ty.index()] else {
@@ -191,7 +191,7 @@ fn read_only_array(
     };
     for &cell in &cells {
         let reassigned = if cell == parameter {
-            program.cells[cell.index()].assigned
+            program.cells[cell.index()].reassigned
         } else {
             stored(cell)
         };

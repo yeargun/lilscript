@@ -709,6 +709,15 @@ impl AdmittedCheckError {
     }
 }
 
+/// Whether one occurrence of a binding runs after the binding is initialized
+/// (plan M4.3). `Definite` is the checker's proof; `NeedsCallGraph` is left
+/// to the initialization owner (`program/initialization.rs`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadInitialization {
+    Definite,
+    NeedsCallGraph,
+}
+
 /// Resolution belongs to the checked source occurrence, independently of its
 /// diagnostic location or the target operation that eventually represents it.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -753,7 +762,14 @@ impl fmt::Debug for SourceInfo<'_, '_> {
 /// Canonical declarations are owned once, including all local symbols.
 #[derive(Debug, Clone, Default)]
 struct DeclarationTables<'src> {
+    /// Written after initialization: an assignment or a mutable reference.
     assigned_symbols: AHashSet<SymbolId>,
+    /// Bindings some occurrence of which may run before the binding is
+    /// initialized (`ReadInitialization::NeedsCallGraph`).
+    observable_before_initialization: AHashSet<SymbolId>,
+    /// Value bindings a module's top level declares (not its named
+    /// functions, which exist from instantiation).
+    module_bindings: AHashSet<SymbolId>,
     symbols: Vec<Symbol<'src>>,
     structs: Vec<StructInfo<'src>>,
     classes: IndexMap<&'src str, ClassInfo<'src>>,
@@ -781,6 +797,9 @@ struct ModuleFacts<'ast, 'src> {
     /// exports, resolved through its interface rather than a merged scope.
     dynamic_export_symbols: AHashMap<(u32, &'src str), SymbolId>,
     used_dynamic_exports: AHashSet<(u32, &'src str)>,
+    /// Occurrences (reads and writes) the checker cannot prove run after
+    /// their binding's initialization.
+    deferred_initialization: AHashSet<SourceNodeId>,
 }
 
 // Value declarations and import aliases share the canonical symbol's payload.
@@ -896,6 +915,7 @@ impl<'ast, 'src> ModuleFacts<'ast, 'src> {
             dynamic_import_modules: AHashMap::default(),
             dynamic_export_symbols: AHashMap::default(),
             used_dynamic_exports: AHashSet::default(),
+            deferred_initialization: AHashSet::default(),
         }
     }
 
@@ -1070,8 +1090,17 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().identifier_symbol(span)
     }
 
-    pub(crate) fn symbol_is_assigned(&self, symbol: SymbolId) -> bool {
-        self.view().symbol_is_assigned(symbol)
+    pub(crate) fn symbol_is_reassigned(&self, symbol: SymbolId) -> bool {
+        self.view().symbol_is_reassigned(symbol)
+    }
+
+    pub(crate) fn symbol_is_observable_before_initialization(&self, symbol: SymbolId) -> bool {
+        self.view()
+            .symbol_is_observable_before_initialization(symbol)
+    }
+
+    pub fn read_initialization(&self, node: SourceNodeId) -> ReadInitialization {
+        self.view().read_initialization(node)
     }
 
     pub(crate) fn type_check_type(&self, span: Span) -> Option<&Type<'src>> {
@@ -1229,8 +1258,26 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
         self.facts.identifier_symbols.get(&span).copied()
     }
 
-    pub(crate) fn symbol_is_assigned(&self, symbol: SymbolId) -> bool {
+    pub(crate) fn symbol_is_reassigned(&self, symbol: SymbolId) -> bool {
         self.declarations.assigned_symbols.contains(&symbol)
+    }
+
+    /// Some occurrence of the binding may run before it is initialized: the
+    /// checker's proof does not cover it (M4.3).
+    pub(crate) fn symbol_is_observable_before_initialization(&self, symbol: SymbolId) -> bool {
+        self.declarations
+            .observable_before_initialization
+            .contains(&symbol)
+    }
+
+    /// Whether the occurrence at `node` (a read or a write of a binding)
+    /// provably runs after the binding's initialization.
+    pub fn read_initialization(&self, node: SourceNodeId) -> ReadInitialization {
+        if self.facts.deferred_initialization.contains(&node) {
+            ReadInitialization::NeedsCallGraph
+        } else {
+            ReadInitialization::Definite
+        }
     }
 
     pub(crate) fn type_check_type(&self, span: Span) -> Option<&'view Type<'src>> {
@@ -1544,6 +1591,11 @@ struct Analyzer<'check, 'budget, 'ast, 'src> {
     pending_references: bool,
     current_reference_formals: bool,
     initializing: Option<(SymbolId, usize)>,
+    /// Bindings whose initializers are being analyzed, innermost last: an
+    /// occurrence inside one (in a nested function) may run before it ends.
+    initializing_symbols: Vec<SymbolId>,
+    /// Inside a parameter default: its reads run at each call site.
+    parameter_defaults: usize,
     module_binding_declarations: AHashMap<Span, SymbolId>,
     constructor_classes: Vec<Option<&'src str>>,
     generator_contexts: Vec<Option<Type<'src>>>,
@@ -1747,6 +1799,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             pending_references: false,
             current_reference_formals: false,
             initializing: None,
+            initializing_symbols: Vec::new(),
+            parameter_defaults: 0,
             module_binding_declarations: AHashMap::default(),
             constructor_classes: Vec::new(),
             generator_contexts: Vec::new(),
@@ -1849,6 +1903,40 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     fn record_identifier(&mut self, span: Span, symbol: SymbolId) {
         self.facts
             .record_identifier(self.declarations, span, symbol);
+    }
+
+    /// Classify one occurrence (a read or a write) of a binding: whether the
+    /// checker proves it runs after the binding's initialization. What it
+    /// cannot prove, the initialization owner decides from the call graph
+    /// and module order (M4.3, M6.5):
+    /// * an occurrence inside the binding's own initializer: only a nested
+    ///   function reaches it there, and it may be called before the
+    ///   initializer ends;
+    /// * a parameter default: it is read at every call site;
+    /// * a module binding read in a function, which may be called before the
+    ///   declaration runs, or from another module, whose order the checker
+    ///   verifies only for typed bindings read at its top level.
+    ///
+    /// Every other occurrence follows its declaration in the same function,
+    /// or in a closure created after it: definite.
+    fn record_read_initialization(&mut self, node: SourceNodeId, symbol: SymbolId) {
+        let module_binding = self.declarations.module_bindings.contains(&symbol);
+        let foreign_module = self
+            .declarations
+            .symbol_modules
+            .get(symbol.0 as usize)
+            .copied()
+            .flatten()
+            != self.module;
+        if self.initializing_symbols.contains(&symbol)
+            || self.parameter_defaults > 0
+            || (module_binding && (self.callable_depth > 0 || foreign_module))
+        {
+            self.declarations
+                .observable_before_initialization
+                .insert(symbol);
+            self.facts.deferred_initialization.insert(node);
+        }
     }
 
     fn declare_nominal_types(
@@ -2564,7 +2652,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             signature,
                         })
                     };
-                    self.declare(function.name, ty)?;
+                    let id = self.declare(function.name, ty)?;
+                    // A named function exists from instantiation.
+                    self.declarations.module_bindings.remove(&id);
                 }
                 Item::Extern(extern_decl) => {
                     let signature = self.extern_type(extern_decl)?;
@@ -3070,6 +3160,17 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         params: &'ast [crate::ast::Param<'ast, 'src>],
         parameters: &[FunctionParameter<'src>],
     ) -> Result<(), AdmittedCheckError> {
+        self.parameter_defaults += 1;
+        let analyzed = self.analyze_parameter_default_expressions(params, parameters);
+        self.parameter_defaults -= 1;
+        analyzed
+    }
+
+    fn analyze_parameter_default_expressions(
+        &mut self,
+        params: &'ast [crate::ast::Param<'ast, 'src>],
+        parameters: &[FunctionParameter<'src>],
+    ) -> Result<(), AdmittedCheckError> {
         for (param, parameter) in params.iter().zip(parameters) {
             let expected = &parameter.ty;
             let Some(expression) = &param.default else {
@@ -3554,6 +3655,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         };
         let previous = self.initializing;
         self.initializing = Some((id, self.callable_depth));
+        self.initializing_symbols.push(id);
         let analyzed = if let Some(initializer) = &decl.initializer {
             let actual = self.analyze_expr(initializer, Some(&declared));
             self.initializing = previous;
@@ -3563,11 +3665,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             self.initializing = previous;
             Ok(())
         };
+        self.initializing_symbols.pop();
         analyzed?;
-        let referenced = self.declarations.symbols[id.0 as usize].identifier_occurrences > 1;
-        if referenced {
-            self.declarations.assigned_symbols.insert(id);
-        }
         self.initialization.initialized.insert(id);
         Ok(())
     }
@@ -3721,6 +3820,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     }
                 }
                 self.record_identifier(ident.span, id);
+                self.record_read_initialization(expr.id, id);
                 self.facts.source_info[expr.id.index()].resolution =
                     ExpressionResolution::Binding(id);
                 self.narrowed_type(id).cloned().unwrap_or(declared)
@@ -4711,6 +4811,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ));
                 }
                 self.declarations.assigned_symbols.insert(id);
+                self.record_read_initialization(expression.id, id);
                 if intent == PlaceIntent::MutableArgument {
                     for narrowing in &mut self.narrowings {
                         narrowing.remove(&id);
@@ -7789,6 +7890,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.declarations
             .add_symbol(symbol, self.module, self.budget)?;
         scope.insert(ident.name, id);
+        if self.scopes.len() == 1 && self.callable_depth == 0 {
+            self.declarations.module_bindings.insert(id);
+        }
         self.facts
             .binding_types
             .insert(ident.span, BindingType::Symbol(id));
@@ -9417,7 +9521,7 @@ mod tests {
             model.expression_resolution(object.id),
             ExpressionResolution::Binding(_)
         ));
-        assert!(model.symbol_is_assigned(
+        assert!(model.symbol_is_reassigned(
             model
                 .identifier_symbol(forward.params[0].name.span)
                 .unwrap()
@@ -9977,8 +10081,12 @@ mod tests {
             .find(|symbol| symbol.name == "recurse")
             .unwrap();
         assert!(
-            model.symbol_is_assigned(recursion.id),
-            "the recursive initializer needs a stable cell"
+            model.symbol_is_observable_before_initialization(recursion.id),
+            "the recursive initializer reads its binding from a nested function"
+        );
+        assert!(
+            !model.symbol_is_reassigned(recursion.id),
+            "a read in its own initializer is not an assignment"
         );
         let outers: Vec<_> = model
             .declarations
@@ -9991,7 +10099,7 @@ mod tests {
         for symbol in outers {
             assert!(symbol.identifier_occurrences >= 2);
             assert!(
-                !model.symbol_is_assigned(symbol.id),
+                !model.symbol_is_reassigned(symbol.id),
                 "later reads are not assignments"
             );
         }
@@ -11156,7 +11264,7 @@ mod tests {
         assert!(semantics
             .symbols()
             .iter()
-            .any(|symbol| { symbol.name == "seed" && semantics.symbol_is_assigned(symbol.id) }));
+            .any(|symbol| { symbol.name == "seed" && semantics.symbol_is_reassigned(symbol.id) }));
     }
 
     #[test]

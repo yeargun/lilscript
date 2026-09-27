@@ -1,0 +1,7 @@
+import {warning, invariant} from "./errors";
+export bool noted(bool value) { print("noted"); return value; }
+export int mix(int from, int to) {
+  warning(to > 10, "large target", null);
+  invariant(noted(from >= 0), "negative start", null);
+  return from + to;
+}

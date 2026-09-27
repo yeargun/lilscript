@@ -1,0 +1,5 @@
+import {readA} from "../init-an_import_cycle_calling_back_during_initialization_still_throws";
+int probe() {
+  try { return readA(); } catch (JsValue e) { return -1; }
+}
+export int fromB = probe();

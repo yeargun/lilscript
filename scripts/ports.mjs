@@ -23,10 +23,12 @@
 //      test script; a port without a package is its own differential build);
 //   5. records the failing-test SET and diffs it against the ledger: a failure
 //      the ledger does not list is a regression (exit 1); a listed failure
-//      that passes is reported for removal.
-// The port is never built in place: its checkout under ~ is only read.
+//      that passes is reported for removal, unless its entry is intermittent.
+// The port is never built in place: its checkout under ~ is only read; the
+// workspace gets a clone sharing its objects, for builds that ask git.
 // See docs/testing.md.
-import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -136,7 +138,7 @@ export function testTotals(text) {
 
 // The names of failing tests, as a set. node:test TAP (`not ok N - name`,
 // TODO/SKIP directives excluded) and spec (`✖ name (1.2ms)`), jest (`● a › b`,
-// `✕ name`), vitest (`× name`, ` FAIL  file > name`) and mocha (`1) name`).
+// `✕ name`), vitest (`× name 812ms`, ` FAIL  file > name`) and mocha (`1) name`).
 export function failingTests(text) {
   const names = new Set();
   const add = (name) => {
@@ -150,7 +152,8 @@ export function failingTests(text) {
       if (!/#\s*(?:TODO|SKIP)\b/i.test(match[1])) add(match[1].replace(/\s+#.*$/, ""));
     } else if ((match = /^\s*✖ (.*)$/.exec(line))) add(match[1]);
     else if ((match = /^\s+● (.*)$/.exec(line))) add(match[1]);
-    else if ((match = /^\s*[✕×] (.*)$/.exec(line))) add(match[1]);
+    // vitest ends a failed test's line with its duration, unparenthesized.
+    else if ((match = /^\s*[✕×] (.*)$/.exec(line))) add(match[1].replace(/\s+\d+(?:\.\d+)?ms$/, ""));
     else if ((match = /^\s*FAIL\s+(\S.*? > .*)$/.exec(line))) add(match[1]);
     else if (mocha && (match = /^\s{2,}\d+\) (.*)$/.exec(line))) add(match[1].replace(/:$/, ""));
   }
@@ -167,9 +170,41 @@ export function loadLedger(path) {
       if (typeof entry[field] !== "string" || !entry[field].trim()) throw new Error(`${path}: entry ${index} needs a non-empty "${field}"`);
     }
     if (!Array.isArray(entry.tests) || !entry.tests.length) throw new Error(`${path}: entry ${index} needs a non-empty "tests" list`);
+    if (entry.intermittent !== undefined && typeof entry.intermittent !== "boolean") throw new Error(`${path}: entry ${index}: "intermittent" is a boolean`);
     return { ...entry, index };
   });
   return { path, sha256: sha256File(path), entries };
+}
+
+// A port's failing-test set against its ledger entries. A listed test that
+// passes is reported for removal, unless its entry is `intermittent`: a test
+// whose outcome depends on the host (an upstream wall-clock timeout on a
+// loaded machine) may fail or pass, and neither is news.
+export function diffAgainstLedger(failing, entries, suiteRan) {
+  const expected = new Set(entries.flatMap((entry) => entry.tests));
+  const intermittent = new Set(entries.filter((entry) => entry.intermittent).flatMap((entry) => entry.tests));
+  return {
+    ledgered: failing.filter((name) => expected.has(name)),
+    regressions: failing.filter((name) => !expected.has(name)),
+    nowPassing: suiteRan ? [...expected].filter((name) => !failing.includes(name) && !intermittent.has(name)) : [],
+  };
+}
+
+// The workspace is a copy of the port's files, without its `.git`. Builds
+// that ask git what the port tracks (`git ls-files`) get a clone that shares
+// the port's objects and has HEAD's index; the copied working tree is left as
+// it is, so patches and uncommitted files stay what the run tests.
+function attachGit(source, workspace) {
+  const head = spawnSync("git", ["-C", source, "rev-parse", "--verify", "-q", "HEAD"], { encoding: "utf8" });
+  if (head.status !== 0) return;
+  const clone = `${workspace}.git-clone`;
+  rmSync(clone, { recursive: true, force: true });
+  const cloned = spawnSync("git", ["clone", "-q", "--no-checkout", "--shared", source, clone], { encoding: "utf8" });
+  if (cloned.status !== 0) throw new Error(`git clone --shared ${source}: ${cloned.stderr}`);
+  renameSync(join(clone, ".git"), join(workspace, ".git"));
+  rmSync(clone, { recursive: true, force: true });
+  const reset = spawnSync("git", ["-C", workspace, "reset", "-q"], { encoding: "utf8" });
+  if (reset.status !== 0) throw new Error(`git reset in ${workspace}: ${reset.stderr}`);
 }
 
 // ---------------------------------------------------------------- one port
@@ -195,6 +230,7 @@ async function runPort(port, context) {
   symlinkSync(repository, join(parent, "lilscript"));
   const workspace = join(parent, port);
   copyPort(source, workspace);
+  attachGit(source, workspace);
 
   const failing = [];
   const logs = join(work, "logs");
@@ -203,11 +239,8 @@ async function runPort(port, context) {
     const result = { ...row, ...extra };
     result.failing = [...new Set([...failing, ...(result.test?.failing ?? [])])].sort();
     const listed = ledger.entries.filter((entry) => entry.port === port);
-    const expected = new Set(listed.flatMap((entry) => entry.tests));
-    result.ledgered = result.failing.filter((name) => expected.has(name));
-    result.regressions = result.failing.filter((name) => !expected.has(name));
     // A listed failure can be seen passing only when the suite ran.
-    result.nowPassing = result.test ? [...expected].filter((name) => !result.failing.includes(name)) : [];
+    Object.assign(result, diffAgainstLedger(result.failing, listed, Boolean(result.test)));
     result.ledgerEntries = listed.map((entry) => ({ index: entry.index, owner: entry.owner }));
     result.state = result.regressions.length ? "regressed" : result.failing.length ? "ledgered" : "green";
     if (!keep) rmSync(parent, { recursive: true, force: true });

@@ -22,6 +22,7 @@ mod helper_family;
 pub mod ids;
 mod implementation_identity;
 mod implementations;
+pub mod initialization;
 mod javascript;
 mod module_contract;
 mod native;
@@ -86,6 +87,9 @@ mod call_graph_tests;
 
 #[cfg(test)]
 mod effects_tests;
+
+#[cfg(test)]
+mod initialization_tests;
 
 #[cfg(test)]
 mod raw_domains_call_tests;
@@ -474,7 +478,14 @@ pub struct Cell {
     pub owner: UnitId,
     pub region: RegionId,
     pub declaration: Span,
-    pub assigned: bool,
+    /// Written after its initialization: by an assignment, a mutable
+    /// reference, or a parameter default.
+    pub reassigned: bool,
+    /// The checker's definite-initialization proof (M4.3) does not cover every
+    /// occurrence: a read or write may run before the binding is initialized
+    /// (in its own initializer, in a function, from another module, in a
+    /// parameter default). The initialization owner decides those.
+    pub observable_before_initialization: bool,
     pub binding: CellBinding,
     /// Conversion-owned storage with no checked symbol of its own (a
     /// `for...of` array and counter). Synthetic cells follow every checked one.

@@ -935,11 +935,11 @@ fn compute(program: &Program<'_>, unit: &UnitData, key: Key) -> (UnitFacts, Anal
             } else {
                 AHashMap::default()
             };
-            let initialized_loads = if work.charge(unit.operations.len() as u64) {
-                initialized_local_loads(program, unit)
-            } else {
-                vec![false; unit.operations.len()]
-            };
+            // The initialization owner's unit-local answer: an `Initialize`
+            // that dominates the read, or the checker's proof.
+            let initialization = work
+                .charge(unit.operations.len() as u64)
+                .then(|| super::initialization::UnitInitialization::build(unit));
             for (index, operation) in unit.operations.iter().enumerate() {
                 if !work.charge(1) {
                     break;
@@ -947,8 +947,30 @@ fn compute(program: &Program<'_>, unit: &UnitData, key: Key) -> (UnitFacts, Anal
                 facts.effects[index] =
                     behavior(program, key.dependencies.unit, unit, operation, &facts);
                 // A plain local read's only failure is the temporal dead zone,
-                // which an earlier `Initialize` in the same region excludes.
-                if initialized_loads[index] {
+                // which initialization excludes.
+                let initialized = match (&initialization, &operation.kind) {
+                    (Some(local), &OperationKind::Load(place)) => {
+                        match unit.places.get(place.index()) {
+                            Some(&Place::Cell(cell)) => {
+                                program
+                                    .cells
+                                    .get(cell.index())
+                                    .is_some_and(|entry| entry.binding == CellBinding::Local)
+                                    && super::initialization::local_access_initialized(
+                                        program,
+                                        key.dependencies.unit,
+                                        unit,
+                                        local,
+                                        OpId::from_index(index).unwrap(),
+                                        cell,
+                                    )
+                            }
+                            _ => false,
+                        }
+                    }
+                    _ => false,
+                };
+                if initialized {
                     if let EvaluationBehavior {
                         reads: MemoryAccess::Cell(_),
                         may_throw: true,
@@ -1167,7 +1189,7 @@ pub(super) fn unassigned_local_initializers(
         let Some(entry) = program.cells.get(cell.index()) else {
             continue;
         };
-        if entry.binding != CellBinding::Local || entry.assigned {
+        if entry.binding != CellBinding::Local || entry.reassigned {
             continue;
         }
         if let Some(&operand) = unit
@@ -1178,41 +1200,6 @@ pub(super) fn unassigned_local_initializers(
         }
     }
     initializers
-}
-
-/// Loads of a local cell that the same region already initialized. Within one
-/// region operations run in list order, and control only moves forward or
-/// leaves the region, so such a load cannot run before its `Initialize` and
-/// cannot observe the temporal dead zone. Loads in nested regions are not
-/// marked; that needs a dominance proof this pass does not make.
-pub(super) fn initialized_local_loads(program: &Program<'_>, unit: &UnitData) -> Vec<bool> {
-    let mut marks = vec![false; unit.operations.len()];
-    let mut initialized = Vec::<CellId>::new();
-    for region in &unit.regions {
-        initialized.clear();
-        for &operation in &region.operations {
-            let Some(entry) = unit.operations.get(operation.index()) else {
-                continue;
-            };
-            match entry.kind {
-                OperationKind::Initialize(cell) => initialized.push(cell),
-                OperationKind::Load(place) => {
-                    if let Some(Place::Cell(cell)) = unit.places.get(place.index()) {
-                        if initialized.contains(cell)
-                            && program
-                                .cells
-                                .get(cell.index())
-                                .is_some_and(|entry| entry.binding == CellBinding::Local)
-                        {
-                            marks[operation.index()] = true;
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-    marks
 }
 
 /// `primitive_result_domain`, plus loads of never-reassigned locals whose

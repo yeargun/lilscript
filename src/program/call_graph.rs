@@ -77,6 +77,22 @@ pub struct CallEdge {
     pub kind: EdgeKind,
 }
 
+/// Where a body's closure value escapes the calls the graph resolves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EscapeAt {
+    /// An operation of the using unit consumes the value.
+    Operation(OpId),
+    /// The value is the result of a region of the using unit.
+    Region(RegionId),
+}
+
+/// One escape of a body, recorded in the unit where it happens.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Escape {
+    pub body: UnitId,
+    pub at: EscapeAt,
+}
+
 /// Structural facts about one cell, over every unit of the program.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CellStorage {
@@ -108,6 +124,8 @@ pub struct CallGraph {
     deps: Deps,
     seal: Seal,
     storage: Vec<CellStorage>,
+    /// (unit, operation) of each cell's first initialization.
+    first_initializer: Vec<Option<(UnitId, OpId)>>,
     targets: Vec<Option<Target>>,
     /// Per unit, per call id.
     callees: Vec<Vec<Callee>>,
@@ -116,6 +134,11 @@ pub struct CallGraph {
     outgoing: Vec<Vec<CallEdge>>,
     incoming: Vec<Vec<CallEdge>>,
     address_taken: Vec<bool>,
+    /// Per using unit, the escapes of bodies its operations make.
+    escapes: Vec<Vec<Escape>>,
+    /// Per body: handed to the host through an export or an `import()`
+    /// namespace.
+    interface: Vec<bool>,
     components: Vec<Vec<UnitId>>,
     component: Vec<u32>,
     recursive: Vec<bool>,
@@ -171,12 +194,15 @@ impl CallGraph {
             deps: Deps::of_program(program),
             seal,
             storage: scan.storage,
+            first_initializer: scan.first_initializer,
             targets,
             callees: Vec::with_capacity(units),
             call_operations: scan.call_operations,
             outgoing: vec![Vec::new(); units],
             incoming: vec![Vec::new(); units],
             address_taken: vec![false; units],
+            escapes: vec![Vec::new(); units],
+            interface: vec![false; units],
             components: Vec::new(),
             component: vec![0; units],
             recursive: Vec::new(),
@@ -311,6 +337,16 @@ impl CallGraph {
                 };
                 if !direct {
                     self.address_taken[body.index()] = true;
+                    let at = match usage {
+                        ValueUse::Operand { operation, .. }
+                        | ValueUse::CallArgument { operation, .. }
+                        | ValueUse::PlaceReceiver { operation, .. }
+                        | ValueUse::PlaceKey { operation, .. } => EscapeAt::Operation(operation),
+                        ValueUse::CallCallee { prepare, .. }
+                        | ValueUse::CallReceiver { prepare, .. } => EscapeAt::Operation(prepare),
+                        ValueUse::RegionResult(region) => EscapeAt::Region(region),
+                    };
+                    self.escapes[index].push(Escape { body, at });
                 }
             }
         }
@@ -331,6 +367,7 @@ impl CallGraph {
         for cell in exported {
             if let Some(Target::Unit(body)) = self.targets.get(cell.index()).copied().flatten() {
                 self.address_taken[body.index()] = true;
+                self.interface[body.index()] = true;
             }
         }
     }
@@ -467,6 +504,22 @@ impl CallGraph {
             .get(unit.index())
             .copied()
             .unwrap_or(true)
+    }
+    /// The escapes the operations of `unit` make: where a body's value
+    /// leaves the calls this graph resolves.
+    pub fn escapes_in(&self, unit: UnitId) -> &[Escape] {
+        self.escapes.get(unit.index()).map_or(&[], Vec::as_slice)
+    }
+    /// Whether the body is handed to the host through the program's
+    /// interface (an export or an `import()` namespace), with no operation.
+    pub fn escapes_through_interface(&self, unit: UnitId) -> bool {
+        self.interface.get(unit.index()).copied().unwrap_or(true)
+    }
+    /// The one `Initialize` of a cell initialized exactly once, anywhere.
+    pub fn initializer(&self, cell: CellId) -> Option<(UnitId, OpId)> {
+        (self.storage(cell).initializers == 1)
+            .then(|| self.first_initializer.get(cell.index()).copied().flatten())
+            .flatten()
     }
     /// Every call that can run this body, when that set is complete: the
     /// body does not escape, and every call of it is a direct call.

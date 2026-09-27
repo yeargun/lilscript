@@ -11,6 +11,16 @@
       ],
       "reason": "Upstream tests require ../../dist/mobx.cjs.production.min.js relative to tests/upstream/base, a path the port's layout does not have (its dist is at the repository root). Independent of the compiler.",
       "owner": "M2.8 (fix the port's upstream-test path mapping when its rewrite is committed)"
+    },
+    {
+      "port": "zodlil",
+      "tests": [
+        "no built-in pattern is ReDoS-vulnerable",
+        "vendor/zod/packages/zod/src/v4/classic/tests/redos.test.ts > no built-in pattern is ReDoS-vulnerable"
+      ],
+      "intermittent": true,
+      "reason": "Upstream's test runs recheck's static ReDoS analysis over every zod regex under a fixed 60 s timeout. On this 8-core host at load 13-18 it takes 80-86 s and times out, on every binary; unloaded it passes (the 2026-09-24 release ran 1353/1353). It checks upstream's regex sources, not the compiler's output.",
+      "owner": "M2.6 (the runner: host-dependent timing)"
     }
   ]
 }

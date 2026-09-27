@@ -317,7 +317,7 @@ fn cyclic_live_import_and_reexport_are_the_original_mutable_symbol() {
             .target,
         InterfaceTarget::Value(count.id)
     );
-    assert!(checked.view(2).unwrap().symbol_is_assigned(count.id));
+    assert!(checked.view(2).unwrap().symbol_is_reassigned(count.id));
     assert_eq!(
         checked
             .symbols()
