@@ -279,6 +279,39 @@ pub fn cycle_entries(
         .collect()
 }
 
+/// The modules some root can load with `import()` without reaching them
+/// statically (plan M3.3, design §5.2): the dynamic entries, ascending.
+/// With one root, every `import()` target outside its static closure.
+pub fn lazy_roots(
+    roots: &[usize],
+    dependencies: &[Vec<usize>],
+    dynamic: &[Vec<usize>],
+) -> Vec<usize> {
+    let count = dependencies.len();
+    let mut lazy = vec![false; count];
+    for (order, &root) in fresh_orders(roots, dependencies).iter().zip(roots) {
+        let mut own = vec![false; count];
+        for &module in order {
+            own[module] = true;
+        }
+        let mut seen = vec![false; count];
+        let mut pending = vec![root];
+        while let Some(module) = pending.pop() {
+            if std::mem::replace(&mut seen[module], true) {
+                continue;
+            }
+            pending.extend(dependencies[module].iter().copied());
+            for &target in dynamic.get(module).map_or(&[][..], Vec::as_slice) {
+                if !own[target] {
+                    lazy[target] = true;
+                }
+                pending.push(target);
+            }
+        }
+    }
+    (0..count).filter(|&module| lazy[module]).collect()
+}
+
 #[derive(Debug, Clone)]
 pub struct ModuleSource<S = String> {
     pub path: PathBuf,
@@ -611,16 +644,71 @@ fn discover_with_storage<S: DiscoveryStorage>(
 }
 
 impl EntrySource {
-    /// A single input, named by its file stem.
+    /// A single input, named by its file stem. The name becomes a file name
+    /// and a label, so a character an entry name may not hold becomes `_`
+    /// (a declared name is refused instead); any source file stays a valid
+    /// input.
     pub fn of(path: &Path) -> Self {
+        let stem = path
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let mut name = stem
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-') {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>();
+        if !crate::config::valid_entry_name(&name) {
+            name = "main".to_string();
+        }
         Self {
-            name: path
-                .file_stem()
-                .and_then(|stem| stem.to_str())
-                .unwrap_or("main")
-                .to_string(),
+            name,
             path: path.to_path_buf(),
         }
+    }
+}
+
+#[cfg(test)]
+mod entry_tests {
+    use super::*;
+
+    /// An input's stem names its entry; any source file stays a valid input
+    /// (plan M3.3: a declared name is refused instead).
+    #[test]
+    fn an_input_names_its_entry_by_a_valid_stem() {
+        let name = |path: &str| EntrySource::of(Path::new(path)).name;
+        assert_eq!(name("src/main.lil"), "main");
+        assert_eq!(name("dir/my app.lil"), "my_app");
+        assert_eq!(name("café.lil"), "caf_");
+        assert_eq!(name("[id].lil"), "_id_");
+        assert_eq!(name("a+b.lil"), "a_b");
+        assert_eq!(name(".lil"), ".lil");
+        assert_eq!(name(""), "main");
+        assert!(crate::config::valid_entry_name(&name("main (1).lil")));
+    }
+
+    /// A module is a dynamic entry when some root can `import()` it without
+    /// reaching it statically (design §5.2); one root: only `import()` reaches it.
+    #[test]
+    fn lazy_roots_are_lazy_for_some_root() {
+        // 0 and 1 are roots; 0 imports 2; 1 imports 2 with `import()` and
+        // 3 with `import()`; 3 imports 2.
+        let dependencies = vec![vec![2], vec![], vec![], vec![2]];
+        let dynamic = vec![vec![], vec![2, 3], vec![], vec![]];
+        assert_eq!(lazy_roots(&[0, 1], &dependencies, &dynamic), vec![2, 3]);
+        // Root 0 alone reaches 2 statically: only 3 would be lazy, and 0
+        // imports nothing lazily.
+        assert_eq!(
+            lazy_roots(&[0], &dependencies, &dynamic),
+            Vec::<usize>::new()
+        );
+        // Root 1 alone: 2 and 3 are both outside its static closure.
+        assert_eq!(lazy_roots(&[1], &dependencies, &dynamic), vec![2, 3]);
     }
 }
 

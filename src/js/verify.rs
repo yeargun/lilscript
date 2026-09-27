@@ -97,6 +97,11 @@ pub(super) fn verify_in(
     if module.origins.len() != module.expressions.len() {
         return Err("missing expression provenance slots".into());
     }
+    // Placement reads one row per root statement (plan M3.3, design §6):
+    // every rule edits the root through the row helpers, so they align.
+    if !module.root_rows_align() {
+        return Err("root statements and their rows disagree".into());
+    }
     if module.scopes.first() != Some(&None) {
         return Err("missing root scope".into());
     }

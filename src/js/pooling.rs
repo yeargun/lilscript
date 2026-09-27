@@ -176,14 +176,15 @@ impl Module {
             &mut self.regions[root].statements,
             count,
         )?;
-        self.regions[root].statements.splice(0..0, statements);
-        if let Some(&first) = self.root_rows.first() {
+        // A pool is a rule's definition, beside the first module (design §6).
+        let first = self.root_rows.first().map_or(0, |row| row.module);
+        if !self.root_rows.is_empty() {
             budget.reserve_vec(AllocationClass::Retained, &mut self.root_rows, count)?;
-            self.root_rows.splice(
-                0..0,
-                std::iter::repeat_n(RootRow::synthetic(first.module), count),
-            );
         }
+        self.prepend_roots(
+            statements,
+            std::iter::repeat_n(RootRow::synthetic(first), count),
+        );
         Ok(count)
     }
 }

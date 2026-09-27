@@ -457,10 +457,10 @@ pub(crate) struct RenderedFile<Owner> {
 }
 
 /// Each file's hex SHA-256 over its text printed with provisional names and
-/// over the hashes of the files it imports statically, bottom-up (the file
-/// graph is acyclic, P6). A file loaded by `import()` contributes the hash of
-/// its own text only, so a lazy file importing its importer's shared file
-/// closes no cycle.
+/// over the texts of every file it can load, statically, with `import()`
+/// or by preloading, in plan order (esbuild's content hash). Any change to a
+/// byte a file's name stands for renames it, however far away the change
+/// is, and cycles through `import()` need no special case.
 fn content_hashes(
     plan: &delivery::DeliveryPlan,
     texts: &[String],
@@ -469,35 +469,41 @@ fn content_hashes(
     use sha2::{Digest, Sha256};
     let own = texts
         .iter()
-        .map(|text| format!("{:x}", Sha256::digest(text.as_bytes())))
+        .map(|text| Sha256::digest(text.as_bytes()))
         .collect::<Vec<_>>();
     budget.work(
         WorkKind::Render,
         texts.iter().map(|text| text.len() as u64).sum::<u64>(),
     )?;
-    let mut hashes: Vec<Option<String>> = vec![None; texts.len()];
-    fn visit(
-        file: usize,
-        plan: &delivery::DeliveryPlan,
-        own: &[String],
-        hashes: &mut Vec<Option<String>>,
-    ) -> String {
-        if let Some(hash) = &hashes[file] {
-            return hash.clone();
+    let count = texts.len();
+    budget.work(
+        WorkKind::Render,
+        (count as u64).saturating_mul(count as u64),
+    )?;
+    let mut hashes = Vec::with_capacity(count);
+    for file in 0..count {
+        let mut reached = vec![false; count];
+        let mut pending = vec![file];
+        while let Some(current) = pending.pop() {
+            if std::mem::replace(&mut reached[current], true) {
+                continue;
+            }
+            let links = &plan.files[current].links;
+            pending.extend(links.imports.iter().map(|&(source, _)| source as usize));
+            pending.extend(links.dynamic.iter().map(|&target| target as usize));
+            // The preload prelude spells the files it preloads too.
+            pending.extend(plan.preloads(current));
         }
         let mut digest = Sha256::new();
-        digest.update(own[file].as_bytes());
-        for &(source, _) in &plan.files[file].links.imports {
-            digest.update(visit(source as usize, plan, own, hashes).as_bytes());
+        digest.update(own[file]);
+        for (other, _) in reached
+            .iter()
+            .enumerate()
+            .filter(|&(other, &seen)| seen && other != file)
+        {
+            digest.update(own[other]);
         }
-        for &target in &plan.files[file].links.dynamic {
-            digest.update(own[target as usize].as_bytes());
-        }
-        let hash = format!("{:x}", digest.finalize());
-        hashes[file] = Some(hash.clone());
-        hash
+        hashes.push(format!("{:x}", digest.finalize()));
     }
-    Ok((0..texts.len())
-        .map(|file| visit(file, plan, &own, &mut hashes))
-        .collect())
+    Ok(hashes)
 }

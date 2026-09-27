@@ -238,7 +238,13 @@ impl Record {
             recipe_fingerprint: self.identity.fingerprint(),
             output: self.output.clone(),
             sizes: self.sizes.get(),
-            retained_capacity: self.text.capacity(),
+            // A plan's bytes live in its files: the search's byte floor
+            // counts them as it counts one file's text.
+            retained_capacity: self.files.iter().fold(self.text.capacity(), |total, file| {
+                total
+                    .saturating_add(file.code.capacity())
+                    .saturating_add(file.name.capacity())
+            }),
         }
     }
     /// Each file's size under `codec`, measuring each at most once.
@@ -1043,7 +1049,11 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
             None => text.len(),
             Some(layout) => {
                 let sizes = files.iter().map(|file| file.code.len()).collect::<Vec<_>>();
-                layout.rows(&sizes).iter().sum::<u64>() as usize
+                let total = layout
+                    .rows(&sizes)
+                    .iter()
+                    .fold(0u64, |total, row| total.saturating_add(*row));
+                usize::try_from(total).unwrap_or(usize::MAX)
             }
         };
         let sizes = CachedSizes::new(raw);

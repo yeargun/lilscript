@@ -223,18 +223,19 @@ impl Module {
             &mut self.regions[root].statements,
             count,
         )?;
-        self.regions[root].statements.splice(0..0, statements);
-        if let Some(&first) = self.root_rows.first() {
+        // Host code: rows of their own origin (design §7.9).
+        let first = self.root_rows.first().map_or(0, |row| row.module);
+        if !self.root_rows.is_empty() {
             budget.reserve_vec(AllocationClass::Retained, &mut self.root_rows, count)?;
-            self.root_rows.splice(
-                0..0,
-                anchors.into_iter().map(|anchor| RootRow {
-                    module: first.module,
-                    anchor,
-                    origin: RowOrigin::Host,
-                }),
-            );
         }
+        self.prepend_roots(
+            statements,
+            anchors.into_iter().map(|anchor| RootRow {
+                module: first,
+                anchor,
+                origin: RowOrigin::Host,
+            }),
+        );
         Ok(true)
     }
 }

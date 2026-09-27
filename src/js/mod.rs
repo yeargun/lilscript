@@ -1190,6 +1190,153 @@ impl Module {
         self.root_rows.drain(from);
     }
 
+    // The root-row helpers (plan M3.3, design §6; architecture §10.6): every
+    // rule that inserts, removes, moves or fuses a statement of a region
+    // that may be the root edits through these, so the rows placement reads
+    // stay aligned with the root statements. A tree without rows (a test
+    // tree, a producer that records none) keeps none.
+
+    /// Whether `region` is the root and the tree records its rows.
+    fn rows_of(&self, region: usize) -> bool {
+        region == self.root.index() && !self.root_rows.is_empty()
+    }
+
+    /// Remove statement `index` of `region`, with its row at the root.
+    pub(crate) fn remove_statement(&mut self, region: usize, index: usize) -> Statement {
+        let statement = self.regions[region].statements.remove(index);
+        if self.rows_of(region) && index < self.root_rows.len() {
+            self.root_rows.remove(index);
+        }
+        statement
+    }
+
+    /// Statement `from` of `region`'s code now also runs in statement `into`:
+    /// at the root, `into`'s row joins `from`'s (Anchored wins).
+    pub(crate) fn fuse_row(&mut self, region: usize, from: usize, into: usize) {
+        if self.rows_of(region) && from < self.root_rows.len() && into < self.root_rows.len() {
+            self.root_rows[into] = self.root_rows[into].fuse(self.root_rows[from]);
+        }
+    }
+
+    /// Remove statement `index` of `region`, whose code now runs in
+    /// statement `into` of the same region (`into` counted before the
+    /// removal): at the root its row joins `into`'s.
+    pub(crate) fn remove_statement_into(
+        &mut self,
+        region: usize,
+        index: usize,
+        into: usize,
+    ) -> Statement {
+        self.fuse_row(region, index, into);
+        self.remove_statement(region, index)
+    }
+
+    /// Statements `from` of `region` were folded into statement `into`,
+    /// which stands before them: they leave, and at the root their rows
+    /// join `into`'s.
+    pub(crate) fn drain_into(&mut self, region: usize, into: usize, from: std::ops::Range<usize>) {
+        self.regions[region].statements.drain(from.clone());
+        if self.rows_of(region) {
+            let end = from.end.min(self.root_rows.len());
+            if from.start < end && into < from.start {
+                self.fuse_roots(into, from.start..end);
+            }
+        }
+    }
+
+    /// Move statement `from` of `region` to `to` (a position after the
+    /// removal), with its row at the root.
+    pub(crate) fn move_statement(&mut self, region: usize, from: usize, to: usize) {
+        let moved = self.regions[region].statements.remove(from);
+        self.regions[region].statements.insert(to, moved);
+        if self.rows_of(region) && from < self.root_rows.len() {
+            let row = self.root_rows.remove(from);
+            let to = to.min(self.root_rows.len());
+            self.root_rows.insert(to, row);
+        }
+    }
+
+    /// Insert `statement` at `at` of `region`; at the root, with `row`.
+    pub(crate) fn insert_statement(
+        &mut self,
+        region: usize,
+        at: usize,
+        statement: Statement,
+        row: RootRow,
+    ) {
+        self.regions[region].statements.insert(at, statement);
+        if self.rows_of(region) && at <= self.root_rows.len() {
+            self.root_rows.insert(at, row);
+        }
+    }
+
+    /// Append `statement` to the root with `row`, both charged to `budget`.
+    pub(crate) fn push_root_admitted(
+        &mut self,
+        statement: Statement,
+        row: RootRow,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        let root = self.root.index();
+        let recorded = !self.root_rows.is_empty();
+        budget.push(
+            AllocationClass::Retained,
+            &mut self.regions[root].statements,
+            statement,
+        )?;
+        if recorded {
+            budget.push(AllocationClass::Retained, &mut self.root_rows, row)?;
+        }
+        Ok(())
+    }
+
+    /// Put `statements` at the start of the root, each with its row.
+    pub(crate) fn prepend_roots(
+        &mut self,
+        statements: Vec<Statement>,
+        rows: impl IntoIterator<Item = RootRow>,
+    ) {
+        let root = self.root.index();
+        let recorded = !self.root_rows.is_empty();
+        self.regions[root].statements.splice(0..0, statements);
+        if recorded {
+            self.root_rows.splice(0..0, rows);
+        }
+    }
+
+    /// Replace statements `range` of `region` by `statements`; at the root
+    /// their rows become `rows` of the replaced rows.
+    pub(crate) fn splice_statements(
+        &mut self,
+        region: usize,
+        range: std::ops::Range<usize>,
+        statements: Vec<Statement>,
+        rows: impl FnOnce(&[RootRow]) -> Vec<RootRow>,
+    ) {
+        self.regions[region]
+            .statements
+            .splice(range.clone(), statements);
+        if self.rows_of(region) && range.end <= self.root_rows.len() {
+            let replaced = rows(&self.root_rows[range.clone()]);
+            self.root_rows.splice(range, replaced);
+        }
+    }
+
+    /// Drop every statement of `region` from `from` on, with their rows.
+    pub(crate) fn truncate_statements(&mut self, region: usize, from: usize) {
+        self.regions[region].statements.truncate(from);
+        if self.rows_of(region) && from < self.root_rows.len() {
+            self.root_rows.truncate(from);
+        }
+    }
+
+    /// Whether the root's rows align with its statements (design §6): no
+    /// rows at all, or one per root statement.
+    pub(crate) fn root_rows_align(&self) -> bool {
+        self.root_rows.is_empty()
+            || self.root_rows.len() == self.regions[self.root.index()].statements.len()
+    }
+
     /// `let x=void 0` is `let x` and `return void 0` is `return`: a `let`
     /// without a value still initializes to undefined each time it runs. A
     /// bare `return` ending a function body is where the body ends anyway.
@@ -1263,7 +1410,6 @@ impl Module {
             else {
                 continue;
             };
-            let root = region == self.root.index();
             let mut index = exit + 1;
             while index < self.regions[region].statements.len() {
                 if matches!(
@@ -1273,10 +1419,7 @@ impl Module {
                     index += 1;
                     continue;
                 }
-                self.regions[region].statements.remove(index);
-                if root && index < self.root_rows.len() {
-                    self.root_rows.remove(index);
-                }
+                self.remove_statement(region, index);
                 dropped += 1;
             }
         }
@@ -1310,10 +1453,7 @@ impl Module {
                     if self.inert_value(value, budget)?
                         || self.pristine_builtins && self.standard_member(value)
                     {
-                        self.regions[region].statements.remove(index);
-                        if root && index < self.root_rows.len() {
-                            self.root_rows.remove(index);
-                        }
+                        self.remove_statement(region, index);
                         edits += 1;
                         continue;
                     }
@@ -1374,18 +1514,11 @@ impl Module {
                     value: Some(value),
                 };
             }
-            if root {
-                for &(index, target, ..) in &merges {
-                    if target < self.root_rows.len() {
-                        self.root_rows[target] = self.root_rows[target].fuse(self.root_rows[index]);
-                    }
-                }
+            for &(index, target, ..) in &merges {
+                self.fuse_row(region, index, target);
             }
             for &(index, ..) in merges.iter().rev() {
-                self.regions[region].statements.remove(index);
-                if root && index < self.root_rows.len() {
-                    self.root_rows.remove(index);
-                }
+                self.remove_statement(region, index);
             }
             edits += merges.len();
         }
@@ -1668,7 +1801,6 @@ impl Module {
             referenced[export.binding.index()] = true;
         }
         for region in 0..self.regions.len() {
-            let root = region == self.root.index();
             let mut index = 0;
             while index < self.regions[region].statements.len() {
                 budget.work(Analysis, 1)?;
@@ -1688,10 +1820,7 @@ impl Module {
                     _ => false,
                 };
                 if drop {
-                    self.regions[region].statements.remove(index);
-                    if root && index < self.root_rows.len() {
-                        self.root_rows.remove(index);
-                    }
+                    self.remove_statement(region, index);
                     *dropped += 1;
                 } else {
                     index += 1;
@@ -1812,13 +1941,7 @@ impl Module {
                 }
                 self.regions[region].statements[index].replace_root(id);
                 folded += end - index - 1;
-                self.regions[region].statements.drain(index + 1..end);
-                if root {
-                    let rows = end.min(self.root_rows.len());
-                    if index + 1 < rows {
-                        self.fuse_roots(index, index + 1..rows);
-                    }
-                }
+                self.drain_into(region, index, index + 1..end);
                 index += 1;
             }
         }
@@ -2729,12 +2852,8 @@ impl Module {
                         self.rescope(body, scope, budget)?;
                     }
                 }
-                self.regions[region].statements.remove(index);
-                if root && receiver < self.root_rows.len() {
-                    // The receiver now evaluates the moved value.
-                    self.root_rows[receiver] = self.root_rows[receiver].fuse(self.root_rows[index]);
-                    self.root_rows.remove(index);
-                }
+                // The receiver now evaluates the moved value.
+                self.remove_statement_into(region, index, receiver);
                 references[binding.index()] = 0;
                 forwarded += 1;
                 if nested.is_some() {

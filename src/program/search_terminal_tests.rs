@@ -323,3 +323,18 @@ fn the_choice_schedule_resets_every_site_at_once_then_orders_by_stake() {
     // One encoded site needs no joint move: its literal is its own trial.
     assert_eq!(choice_schedule(&sites[..1])[0], [(0, AltId(2))]);
 }
+
+/// Dominance (design §10, §14.2): a challenger that shrinks the sum of rows
+/// but grows one entry's row is refused; one row is the old scalar rule.
+#[test]
+fn dominance_refuses_a_smaller_sum_that_grows_one_row() {
+    // One entry: strictly smaller wins, as before M3.3.
+    assert!(dominates(&[90], &[100]));
+    assert!(!dominates(&[110], &[100]));
+    // Two entries: the sum shrinks (190 < 200), but entry 1 grows.
+    assert!(!dominates(&[60, 130], &[100, 100]));
+    // No row grows: kept when the sum is smaller as well.
+    assert!(dominates(&[100, 90], &[100, 100]));
+    // Plans of other entries never compare.
+    assert!(!dominates(&[50], &[100, 100]));
+}

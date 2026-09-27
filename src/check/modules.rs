@@ -807,12 +807,18 @@ fn validate_graph<S>(
     })?;
     // Two entries entering one static cycle at different modules evaluate
     // it in different orders; one schedule cannot serve both (plan M3.3a
-    // refusal, lifted by M3.3d).
+    // refusal, lifted by M3.3d). A module one entry loads with `import()`
+    // and does not reach statically is an entry of its own here.
     if modules.roots.len() > 1 {
         let graph = modules
             .modules
             .iter()
             .map(|module| module.dependencies.clone())
+            .collect::<Vec<_>>();
+        let dynamic = modules
+            .modules
+            .iter()
+            .map(|module| module.dynamic_dependencies.clone())
             .collect::<Vec<_>>();
         budget
             .work(
@@ -821,7 +827,20 @@ fn validate_graph<S>(
             )
             .map_err(|error| resource(root, error))?;
         let cycles = crate::module::static_cycles(&graph);
-        let entered = crate::module::cycle_entries(&modules.roots, &graph, &cycles);
+        let mut roots = modules.roots.clone();
+        let mut names = modules
+            .root_names
+            .iter()
+            .map(|name| format!("entries `{name}`"))
+            .collect::<Vec<_>>();
+        for module in crate::module::lazy_roots(&modules.roots, &graph, &dynamic) {
+            roots.push(module);
+            names.push(format!(
+                "`import(\"{}\")`",
+                modules.modules[module].path.display()
+            ));
+        }
+        let entered = crate::module::cycle_entries(&roots, &graph, &cycles);
         for (first, first_entries) in entered.iter().enumerate() {
             for (second, second_entries) in entered.iter().enumerate().skip(first + 1) {
                 for &(cycle, at) in first_entries {
@@ -838,12 +857,15 @@ fn validate_graph<S>(
                         .map(|module| modules.modules[module].path.display().to_string())
                         .collect::<Vec<_>>()
                         .join(", ");
+                    let (first_name, second_name) = (
+                        names[first].trim_start_matches("entries "),
+                        names[second].trim_start_matches("entries "),
+                    );
                     return Err(error(
-                        modules.roots[second],
-                        programs[modules.roots[second]].span,
+                        roots[second],
+                        programs[roots[second]].span,
                         format!(
-                            "entries `{}` and `{}` enter the import cycle of {members} at different modules, so they evaluate it in different orders; one entry must import the cycle through the same module as the other",
-                            modules.root_names[first], modules.root_names[second]
+                            "entries {first_name} and {second_name} enter the import cycle of {members} at different modules, so they evaluate it in different orders; one entry must import the cycle through the same module as the other"
                         ),
                     )
                     .into());

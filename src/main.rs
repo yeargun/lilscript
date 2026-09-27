@@ -105,10 +105,10 @@ struct Args {
     #[arg(short = 'j', long, value_name = "N")]
     jobs: Option<NonZeroUsize>,
 
-    /// Removed: `-j` is the one parallelism flag (plan M3.5). Present only
-    /// to refuse with a clear message.
+    /// Removed: `-j` is the one parallelism flag (plan M3.5). Accepted with
+    /// a warning for one release (architecture §14.2), with no effect.
     #[arg(long, hide = true, value_name = "N")]
-    codec_jobs: Option<String>,
+    codec_jobs: Option<NonZeroUsize>,
 
     /// Development skips the candidate search; production uses project policy.
     #[arg(long, value_enum, default_value_t = BuildMode::Production)]
@@ -157,18 +157,32 @@ fn run() -> Result<(), String> {
         );
     }
     if args.codec_jobs.is_some() {
+        eprintln!(
+            "warning: --codec-jobs was removed: -j is the one parallelism flag; it has no effect and will be refused after this release"
+        );
+    }
+    if args.output.is_some() && args.out_dir.is_some() {
         return Err(
-            "error: --codec-jobs was removed: -j is the one parallelism flag; remove it"
+            "-o FILE and --out-dir DIR both name where the delivery goes: give one".to_string(),
+        );
+    }
+    if matches!(args.target, Target::All) && args.out_dir.is_some() {
+        return Err(
+            "--target all writes FILE.js, FILE.c and the executable beside -o FILE, not a directory"
                 .to_string(),
         );
     }
+    // The configuration is found from INPUT, else from the entry whose name
+    // sorts first: never from the order of the flags (DL10).
     let discovery = args
         .input
         .clone()
         .or_else(|| {
             args.entries
-                .first()
-                .and_then(|entry| entry.split_once('=').map(|(_, path)| PathBuf::from(path)))
+                .iter()
+                .filter_map(|entry| entry.split_once('='))
+                .min_by(|left, right| left.0.cmp(right.0))
+                .map(|(_, path)| PathBuf::from(path))
         })
         .unwrap_or_else(|| PathBuf::from("."));
     let mut loaded = load_project_config(&discovery, args.config.as_deref())
@@ -208,9 +222,50 @@ fn run() -> Result<(), String> {
     if matches!(args.mode, BuildMode::Development) {
         loaded.config.javascript.candidate_search = CandidateSearch::Off;
     }
-    let entries = entries(&args, &loaded)?;
-    if args.delegate_bundling && entries.len() > 1 {
-        return Err("--delegate-bundling builds one entry".to_string());
+    let entries = if args.delegate_bundling {
+        // The external bundler owns the other entries: build INPUT alone.
+        match (&args.input, args.entries.is_empty()) {
+            (Some(input), true) => vec![EntrySource::of(input)],
+            _ => return Err("--delegate-bundling builds one entry: name it as INPUT".to_string()),
+        }
+    } else {
+        entries(&args, &loaded)?
+    };
+    // Refusals that do not need a compile, before any `--print-*` answer
+    // (design §4 "Validity, checked at load").
+    if entries.len() > 1 {
+        match args.target {
+            Target::Js => {
+                return Err(format!(
+                    "a script build (`--target js`) has one entry, and this build has {}: build the entries as modules with `--target js-module`",
+                    entries.len()
+                ))
+            }
+            Target::C | Target::Native | Target::All => {
+                return Err(format!(
+                    "a native build has one library ABI (plan M11.8), and this build has {} entries",
+                    entries.len()
+                ))
+            }
+            Target::JsModule => {}
+        }
+    }
+    // `-o FILE` writes the one entry at FILE: a delivery of several files
+    // names that entry's file so, and its other files beside it.
+    if args.out_dir.is_none() && loaded.config.delivery.mode != DeliveryMode::Single {
+        if let Some(name) = args
+            .output
+            .as_deref()
+            .and_then(Path::file_name)
+            .and_then(|name| name.to_str())
+        {
+            lilscript::js::names::check_template("entry_names", name).map_err(|_| {
+                format!(
+                    "-o names a file `{name}` a delivered file cannot be called: use --out-dir DIR"
+                )
+            })?;
+            loaded.config.delivery.entry_names = Some(name.to_string());
+        }
     }
     let options = service_options(&args);
     if args.print_dependencies {
@@ -338,7 +393,7 @@ fn build(
             if selected.layout().is_none() && args.out_dir.is_none() {
                 write_or_print(args.output.as_deref(), selected.javascript())
             } else {
-                write_delivery(args, config, &result, selected)
+                write_delivery(args, entries, config, &result, selected)
             }
         }
         Target::C => write_or_print(args.output.as_deref(), native_c()?),
@@ -372,6 +427,7 @@ fn build(
 /// `<stem>.manifest.json` beside FILE.
 fn write_delivery(
     args: &Args,
+    entries: &[EntrySource],
     config: &ProjectConfig,
     result: &ServiceCompilation,
     selected: &ServiceJavaScript,
@@ -400,18 +456,56 @@ fn write_delivery(
             )
         }
     };
+    let modules = result.report()["inputs"]["modules"]
+        .as_array()
+        .map(|modules| {
+            modules
+                .iter()
+                .map(|module| module["path"].as_str().unwrap_or("").to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     // (name, code) of every file this build writes.
     let mut written: Vec<(PathBuf, &str)> = Vec::new();
     let mut outputs = Vec::new();
+    // One entry in one file: a delivery of one file, named and listed like
+    // any entry file (design §4, §10).
+    let single_name;
+    let single_layout;
     match selected.layout() {
         None => {
-            let name = args
-                .input
+            let name = entries.first().map_or("main", |entry| entry.name.as_str());
+            let template = config
+                .delivery
+                .entry_names
                 .as_deref()
-                .and_then(Path::file_stem)
-                .and_then(|stem| stem.to_str())
-                .unwrap_or("index");
-            written.push((directory.join(format!("{name}.js")), selected.javascript()));
+                .unwrap_or("[name].[ext]");
+            let hash = if lilscript::js::names::needs_hash(template) {
+                use sha2::{Digest, Sha256};
+                format!("{:x}", Sha256::digest(selected.javascript().as_bytes()))
+            } else {
+                String::new()
+            };
+            single_name = lilscript::js::names::expand(
+                template,
+                &lilscript::js::names::Fields {
+                    name,
+                    index: 0,
+                    path: name,
+                    ext: "js",
+                    hash: &hash,
+                },
+            );
+            single_layout = lilscript::js::manifest::one_file_layout(name, modules.len());
+            written.push((directory.join(&single_name), selected.javascript()));
+            outputs.push(lilscript::ManifestOutput {
+                files: vec![lilscript::ManifestFile {
+                    name: &single_name,
+                    code: selected.javascript(),
+                    sizes: selected.sizes(),
+                }],
+                layout: &single_layout,
+            });
         }
         Some(layout) => {
             let statics = layout.entries.iter().filter(|entry| !entry.dynamic).count();
@@ -448,6 +542,7 @@ fn write_delivery(
     let mut sorted = written
         .iter()
         .map(|(path, _)| path.clone())
+        .chain(std::iter::once(manifest_path.clone()))
         .collect::<Vec<_>>();
     sorted.sort();
     if let Some(pair) = sorted.windows(2).find(|pair| pair[0] == pair[1]) {
@@ -456,15 +551,6 @@ fn write_delivery(
             pair[0].display()
         ));
     }
-    let modules = result.report()["inputs"]["modules"]
-        .as_array()
-        .map(|modules| {
-            modules
-                .iter()
-                .map(|module| module["path"].as_str().unwrap_or("").to_string())
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
     let base = common_directory(&modules);
     let modules = modules
         .iter()
@@ -532,6 +618,9 @@ fn remove_stale_files(
     let Some(outputs) = previous.get("outputs").and_then(Value::as_array) else {
         return Ok(());
     };
+    let Ok(root) = fs::canonicalize(directory) else {
+        return Ok(());
+    };
     for file in outputs
         .iter()
         .filter_map(|output| output.get("files")?.as_array())
@@ -548,6 +637,16 @@ fn remove_stale_files(
         }
         let path = directory.join(relative);
         if written.iter().any(|(known, _)| *known == path) {
+            continue;
+        }
+        // Only a regular file inside the output directory: never one a
+        // symbolic link leads to, wherever it points.
+        let inside = path
+            .parent()
+            .and_then(|parent| fs::canonicalize(parent).ok())
+            .is_some_and(|parent| parent.starts_with(&root));
+        let regular = fs::symlink_metadata(&path).is_ok_and(|meta| meta.file_type().is_file());
+        if !inside || !regular {
             continue;
         }
         match fs::remove_file(&path) {
@@ -774,6 +873,9 @@ fn print_policy(args: &Args, loaded: &LoadedConfig, options: ServiceOptions) -> 
         // outside the fingerprint: thread counts must never change the output.
         "execution": {
             "threads": args.jobs.map(NonZeroUsize::get),
+            // Removed (architecture §14.2): reported, with no effect, for
+            // one release.
+            "codec_workers": args.codec_jobs.map(NonZeroUsize::get),
             "mode": format!("{:?}", args.mode),
             "target": format!("{:?}", args.target),
         },
@@ -907,13 +1009,15 @@ mod tests {
         let args = Args::try_parse_from(["lilscript", "input.lil", "--jobs", "12"]).unwrap();
         assert_eq!(args.jobs.unwrap().get(), 12);
         assert!(Args::try_parse_from(["lilscript", "input.lil", "--jobs", "0"]).is_err());
-        // Parsed only to be refused: -j is the one parallelism flag.
-        assert!(
+        // Removed: accepted with a warning for one release, never zero.
+        assert_eq!(
             Args::try_parse_from(["lilscript", "input.lil", "--codec-jobs", "8"])
                 .unwrap()
                 .codec_jobs
-                .is_some()
+                .map(NonZeroUsize::get),
+            Some(8)
         );
+        assert!(Args::try_parse_from(["lilscript", "input.lil", "--codec-jobs", "0"]).is_err());
     }
 
     #[test]

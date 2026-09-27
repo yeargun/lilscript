@@ -152,7 +152,7 @@ fn esm(
             printer.text(";");
         }
     }
-    foreign_imports(printer, &file.links.foreign, hosts);
+    foreign_imports(printer, &file.links.foreign, hosts, own_name(planned));
     if let Some(hosts) = hosts {
         if !file.links.hosted.is_empty() {
             printer.host_bindings(hosts, file.links.hosted.iter().copied());
@@ -212,12 +212,31 @@ fn esm(
     }
 }
 
+/// The file's own delivered name.
+fn own_name<'a>(planned: &PlannedPrint<'a>) -> &'a str {
+    planned.names[planned.file].as_str()
+}
+
+/// A relative foreign specifier is spelled from the output directory, which
+/// stands for the first entry's source directory (as a one-file output
+/// does); a file delivered `depth` directories below it climbs back first.
+fn rebased(source: &str, file: &str) -> Option<String> {
+    let depth = file.matches('/').count();
+    if depth == 0 || !(source.starts_with("./") || source.starts_with("../")) {
+        return None;
+    }
+    let mut rebased = "../".repeat(depth);
+    rebased.push_str(source.strip_prefix("./").unwrap_or(source));
+    Some(rebased)
+}
+
 /// `import{imported as local}from"source";` for each foreign import this
 /// file uses; carried host modules print as host bindings instead.
 fn foreign_imports(
     printer: &mut Printer<'_, '_, '_>,
     foreign: &[usize],
     hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
+    file: &str,
 ) {
     for &index in foreign {
         if !printer.output.work(1) {
@@ -235,7 +254,38 @@ fn foreign_imports(
             printer.text(local);
         }
         printer.text("}from");
-        printer.string(&import.source);
+        match import
+            .source
+            .as_unicode()
+            .and_then(|source| rebased(source, file))
+        {
+            Some(source) => printer.string(&StringValue::from(source.as_str())),
+            None => printer.string(&import.source),
+        }
         printer.text(";");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rebased;
+
+    #[test]
+    fn relative_foreign_specifiers_climb_to_the_output_directory() {
+        assert_eq!(rebased("./util.js", "a.js"), None);
+        assert_eq!(
+            rebased("./util.js", "internal/0.js").as_deref(),
+            Some("../util.js")
+        );
+        assert_eq!(
+            rebased("../x.js", "a/b/c.js").as_deref(),
+            Some("../../../x.js")
+        );
+        assert_eq!(
+            rebased("./lib/h.js", "lib/x.js").as_deref(),
+            Some("../lib/h.js")
+        );
+        assert_eq!(rebased("react", "internal/0.js"), None);
+        assert_eq!(rebased("node:fs", "internal/0.js"), None);
     }
 }

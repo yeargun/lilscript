@@ -84,6 +84,16 @@ pub fn check_template(key: &str, template: &str) -> Result<(), String> {
             "`delivery.{key}` = `{template}` must stay inside the output directory"
         ));
     }
+    // An importer spells the path segment by segment: `.` or an empty
+    // segment would count as a directory it is not.
+    if template
+        .split('/')
+        .any(|segment| segment.is_empty() || segment == ".")
+    {
+        return Err(format!(
+            "`delivery.{key}` = `{template}` has an empty or `.` path segment"
+        ));
+    }
     Ok(())
 }
 
@@ -167,6 +177,9 @@ mod tests {
         assert!(check_template("chunk_names", "a b.js").is_err());
         assert!(check_template("chunk_names", "[hash:0].js").is_err());
         assert!(check_template("chunk_names", "internal/[index].[ext]").is_ok());
+        assert!(check_template("entry_names", "./[name].[ext]").is_err());
+        assert!(check_template("entry_names", "a//[name].[ext]").is_err());
+        assert!(check_template("chunk_names", "internal/").is_err());
     }
 
     #[test]

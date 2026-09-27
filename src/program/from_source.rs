@@ -516,6 +516,16 @@ fn convert_modules<'ast, 'src>(
                     InterfaceTarget::Type(_) => None,
                 })
                 .ok_or_else(|| fail(module, "dynamic export has no runtime cell"))?;
+            // Two modules reading one member share it. The name is retained
+            // only when it joins the namespace: a copy allocated and dropped
+            // would be charged to a program that does not hold it.
+            if building_table(&mut lower.program.modules)[target]
+                .namespace
+                .iter()
+                .any(|(known, _)| known.as_str() == name)
+            {
+                continue;
+            }
             let name =
                 lower
                     .budget
@@ -525,15 +535,13 @@ fn convert_modules<'ast, 'src>(
                         error: error.into(),
                     })?;
             let namespace = &mut building_table(&mut lower.program.modules)[target].namespace;
-            if !namespace.iter().any(|(known, _)| *known == name) {
-                lower
-                    .budget
-                    .push(Retained, namespace, (name, cell))
-                    .map_err(|error| ModuleConversionError {
-                        module,
-                        error: error.into(),
-                    })?;
-            }
+            lower
+                .budget
+                .push(Retained, namespace, (name, cell))
+                .map_err(|error| ModuleConversionError {
+                    module,
+                    error: error.into(),
+                })?;
         }
     }
     for module in building_table(&mut lower.program.modules) {

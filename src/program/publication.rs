@@ -770,6 +770,18 @@ impl JavaScriptTarget<'_, '_> {
             hosts,
             ..
         } = self;
+        // Every host module the output delivers, lowered into the tree or
+        // not: its code runs for the entries reaching a module importing it
+        // (design §7.9). Once lowered, the tree no longer imports it.
+        let delivered_hosts = hosts
+            .map(|hosts| {
+                hosts
+                    .modules
+                    .iter()
+                    .map(|host| host.specifier.clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
         // Delivered host code runs inside this module's scope; its globals
         // must stay visible there. A script output runs it strict, as the
         // module it was written as.
@@ -802,7 +814,7 @@ impl JavaScriptTarget<'_, '_> {
                 && (entries > 1 || contract.mode != crate::config::DeliveryMode::Single)
             {
                 let graph =
-                    super::entries::entry_graph(&semantic.program, &module.carried, module_names);
+                    super::entries::entry_graph(&semantic.program, &delivered_hosts, module_names);
                 let dynamic_import = policy.javascript_contract().is_some_and(|language| {
                     language
                         .ecmascript

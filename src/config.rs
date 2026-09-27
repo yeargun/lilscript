@@ -688,6 +688,14 @@ impl ProjectConfig {
         library: bool,
     ) -> Result<crate::compilation_policy::DeliveryContract, String> {
         let delivery = &self.delivery;
+        // M3.3a delivers ES modules; the other containers arrive with their
+        // printers in M3.3b (design §9), never as ESM text in another file.
+        if self.target.javascript.format != JavaScriptFormat::Esm {
+            return Err(format!(
+                "`format = \"{}\"` arrives with plan M3.3b; this compiler delivers ES modules (`format = \"esm\"`)",
+                self.target.javascript.format.name()
+            ));
+        }
         if delivery.mode != DeliveryMode::Single && !library {
             return Err(format!(
                 "`delivery.mode = \"{}\"` needs module execution, whose files import each other: build with `--target js-module`",
@@ -708,6 +716,7 @@ impl ProjectConfig {
             library,
             request_bytes: delivery.request_bytes,
             depth_bytes: delivery.depth_bytes,
+            host_modules: delivery.host_modules,
         })
     }
 
@@ -841,6 +850,19 @@ impl ProjectConfig {
         ] {
             if let Some(template) = template {
                 crate::js::names::check_template(key, template)?;
+            }
+        }
+        // A declared deployment cost is bytes per request or import level;
+        // a row adds one per file and level, so bound it where rows cannot
+        // overflow (design §10).
+        for (key, bytes) in [
+            ("request_bytes", self.delivery.request_bytes),
+            ("depth_bytes", self.delivery.depth_bytes),
+        ] {
+            if bytes > MAX_DECLARED_COST_BYTES {
+                return Err(format!(
+                    "`delivery.{key} = {bytes}` exceeds {MAX_DECLARED_COST_BYTES} bytes"
+                ));
             }
         }
         if let Some(decisions) = &self.javascript.compression {
@@ -1607,27 +1629,57 @@ pub enum PreloadPolicy {
     All,
 }
 
+impl PreloadPolicy {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Entry => "entry",
+            Self::All => "all",
+        }
+    }
+}
+
+impl HostModules {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::External => "external",
+            Self::Auto => "auto",
+            Self::Embed => "embed",
+        }
+    }
+}
+
 /// `[delivery]` (architecture §14): how the one program is placed in files
 /// and named. Entries are the program's roots; every other key is contract.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DeliveryConfig {
+    /// How the program is placed in files: `single` (one file per entry),
+    /// `split` (files shared by the entries that load them) or
+    /// `preserve-modules` (a file per source module).
     pub mode: DeliveryMode,
     /// Entry name to source path, relative to this file. Sorted by name:
     /// entry `i` is bit `i` of every reachability label.
     pub entries: BTreeMap<String, PathBuf>,
-    /// File name templates: `[name]` (entry), `[index]` (plan position),
-    /// `[hash:N]` (content hash), `[path]` (source module path) and `[ext]`.
+    /// Entry file names, a template over `[name]` (entry), `[index]` (plan
+    /// position), `[hash:N]` (content hash), `[path]` (source module path)
+    /// and `[ext]`; `[name].[ext]` when unset.
     pub entry_names: Option<String>,
+    /// Names of the other files (shared, lazily loaded, internal):
+    /// `[index].[ext]` for a library, `[hash:8].[ext]` for an application.
     pub chunk_names: Option<String>,
+    /// Names of `preserve-modules` module files: `[path].[ext]`, the source
+    /// path relative to the common source directory.
     pub module_names: Option<String>,
     /// Which lazily loaded files an entry preloads.
     pub preload: PreloadPolicy,
     /// Whether relative host modules travel with the output.
     pub host_modules: HostModules,
-    /// Declared deployment costs (L12): bytes per file a row loads beyond its
-    /// first, and per static import level beyond the first.
+    /// Declared deployment cost (L12): bytes per file an entry's row loads
+    /// beyond its first.
     pub request_bytes: u64,
+    /// Declared deployment cost (L12): bytes per static import level of an
+    /// entry beyond the first.
     pub depth_bytes: u64,
 }
 
@@ -1647,6 +1699,9 @@ impl Default for DeliveryConfig {
     }
 }
 
+/// The largest declared deployment cost, per request or import level (1 GiB).
+pub const MAX_DECLARED_COST_BYTES: u64 = 1 << 30;
+
 /// Whether `name` may name an entry: it becomes a file name and an entry
 /// label, so it is a plain path segment.
 pub fn valid_entry_name(name: &str) -> bool {
@@ -1662,6 +1717,7 @@ pub fn valid_entry_name(name: &str) -> bool {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct TargetConfig {
+    /// `[target.javascript]`: the JavaScript contract's axes.
     pub javascript: TargetJavaScriptConfig,
 }
 
@@ -1670,6 +1726,8 @@ pub struct TargetConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct TargetJavaScriptConfig {
+    /// The container delivered files are written in: `esm` (plan M3.3b
+    /// brings the others).
     pub format: JavaScriptFormat,
 }
 

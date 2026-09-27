@@ -120,6 +120,18 @@ impl ServiceError {
         }
     }
 
+    /// A refusal the output makes on purpose (a delivery plan it cannot
+    /// deliver, a construct the edition lacks) reads as its reason; any
+    /// other failure keeps its debug form.
+    fn output(phase: &'static str, error: impl fmt::Debug + OutputReason) -> Self {
+        Self {
+            phase,
+            message: error.reason().unwrap_or_else(|| format!("{error:?}")),
+            diagnostic: None,
+            resource: None,
+        }
+    }
+
     fn module(phase: &'static str, error: ModuleError) -> Self {
         Self {
             phase,
@@ -135,6 +147,30 @@ impl ServiceError {
             message: format!("{error:?}"),
             diagnostic: None,
             resource: Some(error),
+        }
+    }
+}
+
+/// The reason an output refused, when it refused on purpose.
+trait OutputReason {
+    fn reason(&self) -> Option<String>;
+}
+impl OutputReason for CandidateError {
+    fn reason(&self) -> Option<String> {
+        match self {
+            Self::Output(
+                error @ (crate::js::extract::OutputError::Invalid(_)
+                | crate::js::extract::OutputError::Syntax { .. }),
+            ) => Some(error.to_string()),
+            _ => None,
+        }
+    }
+}
+impl OutputReason for SearchError {
+    fn reason(&self) -> Option<String> {
+        match self {
+            Self::Candidate(error) => error.reason(),
+            _ => None,
         }
     }
 }
@@ -462,8 +498,8 @@ impl<'src> CheckedSourceSession<'src> {
                 }
                 output.retain_artifact(artifact)
             })
-            .map_err(|error| ServiceError::new("javascript", error))?
-            .map_err(|error| ServiceError::new("javascript", error))?;
+            .map_err(|error| ServiceError::output("javascript", error))?
+            .map_err(|error| ServiceError::output("javascript", error))?;
         let mut qualified = None;
         for codec in objectives.iter() {
             match self.compilation.qualify_artifact(
@@ -507,13 +543,13 @@ impl<'src> CheckedSourceSession<'src> {
         let mut search = self
             .compilation
             .search_javascript_observed(source, policy, request, observe)
-            .map_err(|error| ServiceError::new("javascript", error))?;
+            .map_err(|error| ServiceError::output("javascript", error))?;
         // The terminal challenger stage (M5.4): every requested objective's
         // winner is offered the declared challengers before any handoff.
         let terminal = search
             .challenge(policy, objectives)
             .map(|report| serde_json::to_value(report).unwrap_or(Value::Null))
-            .map_err(|error| ServiceError::new("javascript", error))?;
+            .map_err(|error| ServiceError::output("javascript", error))?;
         let counters = search.counters();
         let report = json!({
             "request": resolved_request,
@@ -861,12 +897,25 @@ fn delivery_report(
         let per_file = sizes.iter().map(pick).collect::<Option<Vec<_>>>()?;
         Some(layout.rows(&per_file))
     };
+    // Every file once, per codec: the sum of rows counts a file once per
+    // entry loading it, the total once (design §10).
+    let total = |pick: fn(&Sizes) -> Option<usize>| -> Option<usize> {
+        sizes
+            .iter()
+            .try_fold(0usize, |total, sizes| total.checked_add(pick(sizes)?))
+    };
     json!({
         "mode": layout.mode.name(),
         "format": layout.format.name(),
+        "setters": layout.setters,
+        "total": [
+            total(|sizes| Some(sizes.raw)),
+            total(|sizes| sizes.gzip9),
+            total(|sizes| sizes.brotli11),
+        ],
         "files": layout.files.iter().enumerate().map(|(index, file)| json!({
             "file": name(index as u32),
-            "role": format!("{:?}", file.role),
+            "role": file.role.name(),
             "label": layout.label_names(&file.label),
             "modules": file.modules,
             "anchored": file.anchored,
@@ -1220,6 +1269,14 @@ pub fn with_checked_entries<R>(
         return Err(ServiceError::new(
             "entries",
             "a native build has one library ABI (plan M11.8); build several entries with a JavaScript target",
+        ));
+    }
+    // A script (`bare`, design §4) is one entry: several entries share state
+    // only as modules.
+    if entries.len() > 1 && !options.preserve_root_exports {
+        return Err(ServiceError::new(
+            "entries",
+            "a script build (`--target js`) has one entry; build several entries as modules (`--target js-module`)",
         ));
     }
     let mut frontend = Frontend::new(config, options)?;

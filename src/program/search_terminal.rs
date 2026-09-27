@@ -203,6 +203,14 @@ enum Judgement {
     Stopped,
 }
 
+/// Dominance (design §10, L7): a challenger may replace the incumbent only
+/// when no entry's row grows, so a smaller sum never buys one entry's bytes
+/// with another's. Rows compare entry by entry; plans of other entries do
+/// not compare.
+pub(super) fn dominates(rows: &[u64], held: &[u64]) -> bool {
+    rows.len() == held.len() && rows.iter().zip(held).all(|(row, held)| row <= held)
+}
+
 /// What the stage holds fixed while it judges one objective's challengers.
 struct Judge<'a> {
     policy: &'a ResolvedPolicy,
@@ -216,8 +224,8 @@ impl Judge<'_> {
     /// Form the candidate under `families` and `choices`, render it with the
     /// incumbent's naming and `raw_spelling`, admit it and score it under the
     /// objective's codec; it replaces the incumbent only when the complete
-    /// artifact is strictly smaller. Returns the verdict and whether an
-    /// exact codec score was spent.
+    /// artifact is strictly smaller and no entry's row grows. Returns the
+    /// verdict and whether an exact codec score was spent.
     fn judge(
         &self,
         formations: &mut Formations<'_, '_>,
@@ -257,22 +265,28 @@ impl Judge<'_> {
         };
         let baseline = portfolio.baseline_qualification(codec).copied();
         let scored = formations.with_arena(|arena, contract, budget| {
-            let result = (|| -> Result<Option<(usize, QualifiedArtifact)>, CandidateError> {
-                if arena.same_output(challenged, incumbent.artifact, budget)? {
-                    return Ok(None);
-                }
-                let size = arena.measure(challenged, codec, budget)?;
-                let qualified = arena.qualify(
-                    challenged,
-                    contract,
-                    policy,
-                    codec,
-                    ArtifactRuntimeEvidence::default(),
-                    baseline.as_ref(),
-                    budget,
-                )?;
-                Ok(Some((size, qualified)))
-            })();
+            let result =
+                (|| -> Result<Option<(usize, QualifiedArtifact, bool)>, CandidateError> {
+                    if arena.same_output(challenged, incumbent.artifact, budget)? {
+                        return Ok(None);
+                    }
+                    let size = arena.measure(challenged, codec, budget)?;
+                    let qualified = arena.qualify(
+                        challenged,
+                        contract,
+                        policy,
+                        codec,
+                        ArtifactRuntimeEvidence::default(),
+                        baseline.as_ref(),
+                        budget,
+                    )?;
+                    // Dominance (design §10): no entry's row may grow, so a
+                    // smaller sum never trades one entry's bytes for
+                    // another's. One file is one row: strictly smaller.
+                    let rows = arena.rows(challenged, codec, budget)?;
+                    let held = arena.rows(incumbent.artifact, codec, budget)?;
+                    Ok(Some((size, qualified, dominates(&rows, &held))))
+                })();
             if !matches!(result, Ok(Some(_))) {
                 arena
                     .discard(challenged, budget)
@@ -281,7 +295,7 @@ impl Judge<'_> {
             result
         });
         let probed = codec != Objective::Raw && !matches!(scored, Ok(None));
-        let (size, qualified) = match scored {
+        let (size, qualified, dominates) = match scored {
             Ok(Some(scored)) => scored,
             Ok(None) => return Ok((Judgement::Identical, probed)),
             Err(error) if exhausted(&error) => return Ok((Judgement::Stopped, probed)),
@@ -296,7 +310,7 @@ impl Judge<'_> {
             )
             .map_err(SearchError::from)
             .and_then(|order| Ok(order.ok_or(CandidateError::NotJavaScript)?))
-            .map(|order| order == Ordering::Less);
+            .map(|order| order == Ordering::Less && dominates);
         // Promotion admits a portfolio entry before it changes anything; a
         // refusal leaves the incumbent in place. The challenger goes unless
         // it became the incumbent.

@@ -398,11 +398,7 @@ impl Module {
                     *invocation = Invocation::Value;
                 }
                 disordered |= placement.value.index() > placement.call.index();
-                let declaring = placement.declaring.index();
-                self.regions[declaring].statements.remove(placement.at);
-                if placement.declaring == self.root && placement.at < self.root_rows.len() {
-                    self.root_rows.remove(placement.at);
-                }
+                self.remove_statement(placement.declaring.index(), placement.at);
                 let scope = self.regions[placement.region.index()].scope;
                 let body = self.functions[placement.function.index()].body;
                 self.rescope(body, scope, budget)?;
@@ -780,7 +776,6 @@ impl Module {
         // functions included, under the call's scope, parents first.
         self.rescope(body, self.regions[region.index()].scope, budget)?;
         let block = Statement::Block(body);
-        let root = region == self.root;
         let replacement = match site {
             Site::Declare(declared) => vec![
                 Statement::Let {
@@ -792,25 +787,17 @@ impl Module {
             _ => vec![block],
         };
         let added = replacement.len() - 1;
-        self.regions[region.index()]
-            .statements
-            .splice(index..=index, replacement);
-        if root && index < self.root_rows.len() {
-            let module = self.root_rows[index];
-            for _ in 0..added {
-                self.root_rows.insert(index, module);
-            }
-        }
+        // The block runs where the call did: its row.
+        self.splice_statements(region.index(), index..index + 1, replacement, |rows| {
+            vec![rows[0]; added + 1]
+        });
         // The declaration goes: nothing else reads the function.
         let at = if declaring == region && index < at {
             at + added
         } else {
             at
         };
-        self.regions[declaring.index()].statements.remove(at);
-        if declaring == self.root && at < self.root_rows.len() {
-            self.root_rows.remove(at);
-        }
+        self.remove_statement(declaring.index(), at);
         Ok(())
     }
 

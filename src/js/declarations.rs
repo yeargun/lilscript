@@ -49,12 +49,7 @@ impl Module {
                                 .iter()
                                 .any(|statement| self.statement_mentions(statement, binding));
                             if !named {
-                                let moved = self.regions[region].statements.remove(index);
-                                self.regions[region].statements.insert(at + 1, moved);
-                                if root && index < self.root_rows.len() {
-                                    let row = self.root_rows.remove(index);
-                                    self.root_rows.insert(at + 1, row);
-                                }
+                                self.move_statement(region, index, at + 1);
                                 previous = Some(at + 1);
                                 joined += 1;
                                 index += 1;
@@ -245,13 +240,9 @@ impl Module {
                     })
                     .collect::<Vec<_>>();
                 declarations.push(Statement::Evaluate(call));
-                self.regions[region]
-                    .statements
-                    .splice(index..end, declarations);
-                if root && end <= self.root_rows.len() {
-                    // The hoisted declarations keep their rows; the one call
-                    // holds every store.
-                    let original = self.root_rows[index..end].to_vec();
+                // The hoisted declarations keep their rows; the one call
+                // holds every store.
+                self.splice_statements(region, index..end, declarations, |original| {
                     let mut stores = None::<RootRow>;
                     let mut declared = Vec::with_capacity(replaced);
                     for (offset, row) in original.iter().enumerate() {
@@ -262,8 +253,8 @@ impl Module {
                         }
                     }
                     declared.push(stores.unwrap_or(original[0]));
-                    self.root_rows.splice(index..end, declared);
-                }
+                    declared
+                });
                 grouped += count;
                 index += replaced;
             }

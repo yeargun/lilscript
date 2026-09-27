@@ -72,6 +72,9 @@ pub struct DeliveryContract {
     /// Declared deployment costs (L12), added to an entry's row.
     pub request_bytes: u64,
     pub depth_bytes: u64,
+    /// Whether relative host modules travel with the output: they change
+    /// the delivered files, so the contract and its fingerprint hold it.
+    pub host_modules: crate::config::HostModules,
 }
 
 impl DeliveryContract {
@@ -87,6 +90,7 @@ impl DeliveryContract {
             library: true,
             request_bytes: 0,
             depth_bytes: 0,
+            host_modules: crate::config::HostModules::External,
         }
     }
     pub fn entry_names(&self) -> &str {
@@ -849,7 +853,7 @@ impl ResolvedPolicy {
                 "strip_console":language.effects.strip_console,
                 "preserved_properties":preserved_properties,
                 "delivery":{"mode":delivery.mode.name(), "format":delivery.format.name(),
-                    "preload":format!("{:?}", delivery.preload), "entry_names":delivery.entry_names(),
+                    "preload":delivery.preload.name(), "host_modules":delivery.host_modules.name(), "entry_names":delivery.entry_names(),
                     "chunk_names":delivery.chunk_names(), "module_names":delivery.module_names(),
                     "request_bytes":delivery.request_bytes, "depth_bytes":delivery.depth_bytes},
             }),

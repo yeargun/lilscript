@@ -49,20 +49,32 @@ pub(super) fn entry_graph(
         .map(|&(_, module)| module as usize)
         .collect::<Vec<_>>();
     let mut orders = crate::module::fresh_orders(&roots, &graph);
-    let mut eager = vec![false; count];
-    for order in &orders {
-        for &module in order {
-            eager[module] = true;
-        }
+    // A module an entry can load with `import()` without reaching it
+    // statically is a dynamic entry (design §5.2): loading it evaluates what
+    // that entry has not, so it gets its own file. With one entry this is
+    // every module only `import()` reaches; with several, a module another
+    // entry imports statically can still be lazy for this one.
+    let dynamic_graph = modules
+        .iter()
+        .map(|module| {
+            module
+                .dynamic_dependencies
+                .iter()
+                .map(|id| id.index())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let mut lazy = vec![false; count];
+    for module in crate::module::lazy_roots(&roots, &graph, &dynamic_graph) {
+        lazy[module] = true;
     }
-    // Modules only `import()` reaches, by first load in the schedule.
+    // By first load in the schedule.
     let mut by_position = (0..count).collect::<Vec<_>>();
     by_position.sort_unstable_by_key(|&module| position[module]);
     let mut dynamic: Vec<u32> = Vec::new();
     for &module in &by_position {
-        for target in &modules[module].dynamic_dependencies {
-            let target = target.index();
-            if !eager[target] && !dynamic.contains(&(target as u32)) {
+        for &target in &dynamic_graph[module] {
+            if lazy[target] && !dynamic.contains(&(target as u32)) {
                 dynamic.push(target as u32);
             }
         }

@@ -5,8 +5,7 @@
 //! for `package.json`.
 //!
 //! It reads the sizes the search measured on the delivered bytes and never
-//! encodes again: a file the objective never scored (level 0 records
-//! estimates only) reports `null`.
+//! encodes again: a file the objective never scored reports `null`.
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -14,6 +13,35 @@ use sha2::{Digest, Sha256};
 use crate::config::CompressionCostModel;
 use crate::js::delivery::DeliveredLayout;
 use crate::js::selection::Sizes;
+
+/// The layout of one entry delivered in one file (no plan: `single` with
+/// one entry), so the manifest lists it like any delivery.
+pub fn one_file_layout(entry: &str, modules: usize) -> DeliveredLayout {
+    use crate::js::delivery::{EntryDelivery, FileRole, LayoutFile};
+    DeliveredLayout {
+        mode: crate::config::DeliveryMode::Single,
+        format: crate::config::JavaScriptFormat::Esm,
+        entries: vec![EntryDelivery {
+            name: entry.to_string(),
+            file: 0,
+            dynamic: false,
+            closure: vec![0],
+        }],
+        entry_names: vec![entry.to_string()],
+        files: vec![LayoutFile {
+            role: FileRole::Entry(0),
+            label: vec![0],
+            modules: (0..modules as u32).collect(),
+            // Loading the one file runs its program.
+            anchored: true,
+            imports: Vec::new(),
+            dynamic: Vec::new(),
+        }],
+        request_bytes: 0,
+        depth_bytes: 0,
+        setters: 0,
+    }
+}
 
 /// One delivered file as the manifest reads it.
 pub struct ManifestFile<'a> {
@@ -87,7 +115,7 @@ pub fn manifest_v3(
                 .map(|(file, delivered)| {
                     json!({
                         "file": delivered.name,
-                        "role": format!("{:?}", file.role),
+                        "role": file.role.name(),
                         "label": layout.label_names(&file.label),
                         "modules": file.modules.iter().map(|&module| module_name(module)).collect::<Vec<_>>(),
                         "anchored": file.anchored,
@@ -127,8 +155,13 @@ pub fn manifest_v3(
                 "entries": entries,
                 "files": files,
                 "side_effects": side_effects,
-                "codec_total": per_file.as_ref().map(|sizes| sizes.iter().sum::<usize>()),
-                "rows_total": rows.as_ref().map(|rows| rows.iter().sum::<u64>()),
+                "codec_total": per_file.as_ref().and_then(|sizes| {
+                    sizes.iter().try_fold(0usize, |total, &size| total.checked_add(size))
+                }),
+                "rows_total": rows.as_ref().and_then(|rows| {
+                    rows.iter().try_fold(0u64, |total, &row| total.checked_add(row))
+                }),
+                "setters": layout.setters,
             })
         })
         .collect::<Vec<_>>();

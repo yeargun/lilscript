@@ -2,6 +2,7 @@
 //! files, each parses on its own, and loading an entry observes what the
 //! single-file program observes (design §3, DL1-DL10).
 use super::*;
+use crate::diagnostics::render_service_error;
 use crate::module::EntrySource;
 use std::fs;
 use std::process::Command;
@@ -772,4 +773,567 @@ fn js_call_with_an_undefined_receiver_is_a_plain_call() {
         "true,1\nreceiver\ntrue,2\n",
         "{text}"
     );
+}
+
+// ---------------------------------------------------------------- M3.3a review
+
+fn entries_in(directory: &Path, pairs: &[(&str, &str)]) -> Vec<EntrySource> {
+    pairs
+        .iter()
+        .map(|(name, file)| EntrySource {
+            name: name.to_string(),
+            path: directory.join(file),
+        })
+        .collect()
+}
+
+fn compile_several(
+    directory: &Path,
+    pairs: &[(&str, &str)],
+    delivery: &str,
+) -> Result<ServiceCompilation, ServiceError> {
+    compile_entries(&entries_in(directory, pairs), &config(delivery), options())
+}
+
+/// Lets every `import()` a load started settle before the script goes on.
+const SETTLE: &str = "await new Promise(r=>setTimeout(r,20));";
+
+/// DL3 and DL5 (design §7.6, §7.8): a lazy load evaluates what its target
+/// reaches and its importer has not, in the target's own order, even when
+/// another entry imports those modules statically in another order.
+#[test]
+fn a_lazy_load_runs_what_its_importer_has_not_in_the_target_order() {
+    let directory = workspace(
+        "lazy-order",
+        &[
+            ("y.lil", "print(\"y\");export int yv(){return 1;}"),
+            ("z.lil", "print(\"z\");export int zv(){return 2;}"),
+            (
+                "a.lil",
+                "import {zv} from \"./z\";import {yv} from \"./y\";export int a(){return zv()+yv();}",
+            ),
+            (
+                "d.lil",
+                "import {yv} from \"./y\";import {zv} from \"./z\";export int dv(){return yv()*10+zv();}",
+            ),
+            (
+                "b.lil",
+                "print(\"b\");import(\"./d\").then((auto m)=>print(m.dv()));export int bb(){return 7;}",
+            ),
+        ],
+    );
+    let pairs = [("a", "a.lil"), ("b", "b.lil")];
+    for mode in ["split", "preserve-modules"] {
+        let compiled = compile_several(&directory, &pairs, &format!("mode='{mode}'")).unwrap();
+        each_file_loads(&directory, &compiled);
+        // The sources' ES modules: `a` runs z then y; `import("./d")` runs
+        // y then z, and only what is not evaluated yet.
+        let script = |steps: &str| run_script(&directory, &compiled, &format!("{steps}{SETTLE}"));
+        assert_eq!(script("await import('./a.js');"), "z\ny\n", "{mode}");
+        assert_eq!(script("await import('./b.js');"), "b\ny\nz\n12\n", "{mode}");
+        assert_eq!(
+            script(&format!(
+                "await import('./b.js');{SETTLE}await import('./a.js');"
+            )),
+            "b\ny\nz\n12\n",
+            "{mode}"
+        );
+        assert_eq!(
+            script("await import('./a.js');await import('./b.js');"),
+            "z\ny\nb\n12\n",
+            "{mode}"
+        );
+    }
+    // `single` builds `import()` in place: it cannot run y and z lazily.
+    let error = compile_several(&directory, &pairs, "mode='single'")
+        .map(|_| ())
+        .unwrap_err();
+    assert!(render_service_error(&error).contains("M3.3d"), "{error}");
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// `import()` of a module another entry imports statically is a dynamic
+/// entry for the entry that does not (design §5.2): it evaluates the module
+/// when it loads, once, and an entry's module loaded so is its module file,
+/// never its entry file (P7).
+#[test]
+fn import_of_a_module_another_entry_imports_statically_evaluates_it() {
+    let directory = workspace(
+        "eager-lazy",
+        &[
+            ("y.lil", "print(\"y\");export int yv(){return 1;}"),
+            (
+                "a.lil",
+                "import {yv} from \"./y\";print(\"a\");export int a(){return yv();}",
+            ),
+            (
+                "b.lil",
+                "import(\"./y\").then((auto m)=>print(m.yv()));export int b(){return 2;}",
+            ),
+            (
+                "c.lil",
+                "import(\"./a\").then((auto m)=>print(m.a()));export int c(){return 3;}",
+            ),
+        ],
+    );
+    let pairs = [("a", "a.lil"), ("b", "b.lil"), ("c", "c.lil")];
+    for mode in ["split", "preserve-modules"] {
+        let compiled = compile_several(&directory, &pairs, &format!("mode='{mode}'")).unwrap();
+        each_file_loads(&directory, &compiled);
+        let script = |steps: &str| run_script(&directory, &compiled, &format!("{steps}{SETTLE}"));
+        assert_eq!(script("await import('./b.js');"), "y\n1\n", "{mode}");
+        assert_eq!(script("await import('./c.js');"), "y\na\n1\n", "{mode}");
+        assert_eq!(
+            script("await import('./a.js');await import('./b.js');"),
+            "y\na\n1\n",
+            "{mode}"
+        );
+        assert_eq!(
+            script(&format!(
+                "await import('./b.js');{SETTLE}await import('./a.js');"
+            )),
+            "y\n1\na\n",
+            "{mode}"
+        );
+        for (name, code) in delivered(&compiled) {
+            assert!(
+                !code.contains("\"./a.js\""),
+                "{mode}: {name} loads the entry file: {code}"
+            );
+        }
+    }
+    let error = compile_several(&directory, &pairs, "mode='single'")
+        .map(|_| ())
+        .unwrap_err();
+    assert!(render_service_error(&error).contains("M3.3d"), "{error}");
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// Two entries, and two modules of one entry, reading one lazily loaded
+/// module's member share it (the namespace names it once).
+#[test]
+fn two_importers_of_one_lazy_module_share_its_namespace() {
+    let directory = workspace(
+        "lazy-shared",
+        &[
+            ("feature.lil", "export int answer(int value){return value+2;}"),
+            (
+                "a.lil",
+                "import(\"./feature\").then((auto m)=>print(m.answer(1)));export int a(){return 1;}",
+            ),
+            (
+                "b.lil",
+                "import(\"./feature\").then((auto m)=>print(m.answer(2)));export int b(){return 2;}",
+            ),
+            (
+                "x.lil",
+                "export void go(){import(\"./feature\").then((auto m)=>print(m.answer(1)));}",
+            ),
+            (
+                "main.lil",
+                "import {go} from \"./x\";import(\"./feature\").then((auto m)=>print(m.answer(2)));go();",
+            ),
+        ],
+    );
+    let pairs = [("a", "a.lil"), ("b", "b.lil")];
+    for mode in ["split", "preserve-modules", "single"] {
+        let compiled = compile_several(&directory, &pairs, &format!("mode='{mode}'")).unwrap();
+        assert_eq!(
+            run_script(
+                &directory,
+                &compiled,
+                &format!("await import('./a.js');{SETTLE}await import('./b.js');{SETTLE}")
+            ),
+            "3\n4\n",
+            "{mode}"
+        );
+    }
+    let single = compile(&directory, "single");
+    assert_eq!(run(&directory, &single), "4\n3\n");
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// Carried host code (design §7.9) runs once for every entry reaching a
+/// module that imports it, lowered into the program or not; `single`
+/// gives each entry file its own instance.
+#[test]
+fn carried_host_code_runs_for_every_entry_reaching_it() {
+    let directory = workspace(
+        "host-two",
+        &[
+            (
+                "host.js",
+                "console.log(\"host loaded\");export function add(left, right) { return left + right; }",
+            ),
+            (
+                "a.lil",
+                "import extern { add } from \"./host.js\";extern int add(int left, int right);export int a(){return add(20, 22);}",
+            ),
+            (
+                "b.lil",
+                "import extern { add } from \"./host.js\";extern int add(int left, int right);export int b(){return add(1, 2);}",
+            ),
+        ],
+    );
+    let pairs = [("a", "a.lil"), ("b", "b.lil")];
+    for mode in ["split", "preserve-modules"] {
+        let compiled = compile_several(
+            &directory,
+            &pairs,
+            &format!("mode='{mode}'\nhost_modules='embed'"),
+        )
+        .unwrap();
+        let script = |steps: &str| run_script(&directory, &compiled, steps);
+        assert_eq!(
+            script("const m=await import('./a.js');console.log(m.a());"),
+            "host loaded\n42\n",
+            "{mode}"
+        );
+        assert_eq!(
+            script("const m=await import('./b.js');console.log(m.b());"),
+            "host loaded\n3\n",
+            "{mode}"
+        );
+        assert_eq!(
+            script("const a=await import('./a.js');const b=await import('./b.js');console.log(a.a(),b.b());"),
+            "host loaded\n42 3\n",
+            "{mode}"
+        );
+    }
+    let isolated =
+        compile_several(&directory, &pairs, "mode='single'\nhost_modules='embed'").unwrap();
+    assert_eq!(
+        run_script(
+            &directory,
+            &isolated,
+            "const a=await import('./a.js');const b=await import('./b.js');console.log(a.a(),b.b());"
+        ),
+        "host loaded\nhost loaded\n42 3\n"
+    );
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// preserve-modules with the default templates (design §7.4, P7): an entry
+/// module another module imports keeps an internal file named as a chunk,
+/// so it never takes its entry file's name; one instance either way.
+#[test]
+fn preserve_modules_names_an_imported_entry_module_as_a_chunk() {
+    let directory = workspace(
+        "entry-imports-entry",
+        &[
+            (
+                "a.lil",
+                "print(\"a loaded\");export int f(int x){return x+1;}\
+                 export class Point{int x;int y;init(int x,int y){this.x=x;this.y=y;}int sum(){return this.x+this.y;}}\
+                 export constructor Point;export Point make(int x,int y){return new Point(x,y);}",
+            ),
+            (
+                "b.lil",
+                "import {f, make} from \"./a\";export {f as go, make as mk};export int both(){return f(1);}",
+            ),
+        ],
+    );
+    let pairs = [("a", "a.lil"), ("b", "b.lil")];
+    for mode in ["split", "preserve-modules"] {
+        let compiled = compile_several(&directory, &pairs, &format!("mode='{mode}'")).unwrap();
+        each_file_loads(&directory, &compiled);
+        assert_eq!(
+            run_script(
+                &directory,
+                &compiled,
+                "const b=await import('./b.js');const a=await import('./a.js');\
+                 console.log(a.f===b.go,a.make===b.mk,b.mk(1,2) instanceof a.Point,b.both());"
+            ),
+            "a loaded\ntrue true true 2\n",
+            "{mode}"
+        );
+    }
+    let preserve = compile_several(&directory, &pairs, "mode='preserve-modules'").unwrap();
+    let mut names = delivered(&preserve)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect::<Vec<_>>();
+    names.sort();
+    // `a.js` is the entry file, `0.js` its module's internal file.
+    assert_eq!(names, ["0.js", "a.js", "b.js"], "{names:?}");
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// A relative foreign import is spelled from the output directory, which
+/// stands for the first entry's source directory: a file delivered in a
+/// subdirectory climbs back to it first.
+#[test]
+fn relative_foreign_imports_resolve_from_nested_files() {
+    let directory = workspace(
+        "nested-foreign",
+        &[("main.lil", "import {x} from \"./sub/x\";print(x());")],
+    );
+    fs::create_dir_all(directory.join("sub")).unwrap();
+    fs::write(
+        directory.join("sub/x.lil"),
+        "import extern { h } from \"./helper.js\";extern int h();int base=h();export int x(){return base+1;}",
+    )
+    .unwrap();
+    let helper = "export function h() { return 41; }";
+    fs::write(directory.join("sub/helper.js"), helper).unwrap();
+    let compiled = compile(&directory, "preserve-modules");
+    let files = delivered(&compiled);
+    let (_, nested) = files
+        .iter()
+        .find(|(name, _)| name == "sub/x.js")
+        .unwrap_or_else(|| panic!("{files:?}"));
+    assert!(nested.contains("from\"../sub/helper.js\""), "{nested}");
+    let out = directory.join("out");
+    let _ = fs::remove_dir_all(&out);
+    for (name, code) in &files {
+        let path = out.join(name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, code).unwrap();
+    }
+    fs::write(out.join("sub/helper.js"), helper).unwrap();
+    fs::write(out.join("package.json"), "{\"type\":\"module\"}").unwrap();
+    let output = Command::new("node")
+        .arg("main.js")
+        .current_dir(&out)
+        .output()
+        .unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "42\n",
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// `[hash:N]` names (design §8) cover every byte a file can load: a change
+/// in a module a lazy file imports renames each hashed file that spells the
+/// lazy file's name, never keeping a name for other bytes.
+#[test]
+fn hashed_names_cover_every_file_a_file_can_load() {
+    let build = |constant: i32| {
+        let directory = workspace(
+            &format!("hashed-{constant}"),
+            &[
+                (
+                    "u.lil",
+                    &format!("export int k(int n){{if(n<=0){{return {constant};}}return k(n-1);}}"),
+                ),
+                (
+                    "l1.lil",
+                    "import {k} from \"./u\";export int one(){return k(3)+1;}",
+                ),
+                (
+                    "l2.lil",
+                    "import {k} from \"./u\";export int two(){return k(4)+2;}",
+                ),
+                (
+                    "s.lil",
+                    "export void go(){import(\"./l1\").then((auto m)=>print(m.one()));\
+                     import(\"./l2\").then((auto m)=>print(m.two()));}",
+                ),
+                ("a.lil", "import {go} from \"./s\";export void a(){go();}"),
+                ("b.lil", "import {go} from \"./s\";export void b(){go();}"),
+            ],
+        );
+        let compiled = compile_several(
+            &directory,
+            &[("a", "a.lil"), ("b", "b.lil")],
+            "mode='split'\nchunk_names='[hash:8].[ext]'",
+        )
+        .unwrap();
+        let files = delivered(&compiled);
+        let _ = fs::remove_dir_all(directory);
+        files
+    };
+    let (first, second) = (build(5), build(6));
+    assert!(first.len() >= 5, "{first:?}");
+    let mut changed = 0;
+    for (name, code) in &second {
+        if name == "a.js" || name == "b.js" {
+            continue;
+        }
+        match first.iter().find(|(known, _)| known == name) {
+            Some((_, old)) => assert_eq!(old, code, "{name} kept its name for other bytes"),
+            None => changed += 1,
+        }
+    }
+    assert!(changed >= 3, "{first:?}\n{second:?}");
+}
+
+/// A dynamic entry entering a static cycle at another module than a static
+/// entry would evaluate it in another order (§5.5): refused, naming both.
+#[test]
+fn a_lazy_load_entering_a_cycle_elsewhere_is_refused() {
+    let directory = workspace(
+        "lazy-cycle-entry",
+        &[
+            (
+                "p.lil",
+                "import {qv} from \"./q\";print(\"p\");export int pv(){return 1;}",
+            ),
+            (
+                "q.lil",
+                "import {pv} from \"./p\";export int qv(){return 2;}",
+            ),
+            (
+                "a.lil",
+                "import {pv} from \"./p\";export int a(){return pv();}",
+            ),
+            (
+                "b.lil",
+                "import(\"./q\").then((auto m)=>print(m.qv()));export int b(){return 0;}",
+            ),
+        ],
+    );
+    let error = compile_several(
+        &directory,
+        &[("a", "a.lil"), ("b", "b.lil")],
+        "mode='split'",
+    )
+    .map(|_| ())
+    .unwrap_err();
+    let message = render_service_error(&error);
+    assert!(
+        message.contains("import(") && message.contains("cycle"),
+        "{message}"
+    );
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// Design §14.1's order and closure cases (DL2, DL3, P4, P5), per load
+/// sequence, in `split` and `preserve-modules`; `single` gives each entry
+/// its own instance, so each file runs everything it reaches.
+#[test]
+fn entries_run_their_modules_in_their_own_order_and_nothing_else() {
+    let directory = workspace(
+        "orders",
+        &[
+            ("m1.lil", "print(\"m1\");export int v1(){return 1;}"),
+            ("m2.lil", "print(\"m2\");export int v2(){return 2;}"),
+            ("m3.lil", "print(\"m3\");export int v3(){return 3;}"),
+            // anchored_interleave: e imports m1, m2, m3; f imports m1, m3.
+            (
+                "e.lil",
+                "import \"./m1\";import \"./m2\";import \"./m3\";export int e(){return 1;}",
+            ),
+            ("f.lil", "import \"./m1\";import \"./m3\";export int f(){return 2;}"),
+            // entries_disagree: g imports m2 then m3, h imports m3 then m2.
+            ("g.lil", "import {v2} from \"./m2\";import {v3} from \"./m3\";export int g(){return v2()+v3();}"),
+            ("h.lil", "import {v3} from \"./m3\";import {v2} from \"./m2\";export int h(){return v2()*v3();}"),
+            // throwing_initializer: only t reaches core, which throws.
+            (
+                "core.lil",
+                "extern int boom();print(\"core start\");int value=boom();export int cv(){return value;}",
+            ),
+            ("t.lil", "import {cv} from \"./core\";export int t(){return cv()+1;}"),
+            ("u.lil", "print(\"u ok\");export int u(){return 7;}"),
+        ],
+    );
+    let cases: [(&[(&str, &str)], &[(&str, &str)]); 3] = [
+        (
+            &[("e", "e.lil"), ("f", "f.lil")],
+            &[
+                ("await import('./e.js');", "m1\nm2\nm3\n"),
+                ("await import('./f.js');", "m1\nm3\n"),
+                ("await import('./f.js');await import('./e.js');", "m1\nm3\nm2\n"),
+                ("await import('./e.js');await import('./f.js');", "m1\nm2\nm3\n"),
+            ],
+        ),
+        (
+            &[("g", "g.lil"), ("h", "h.lil")],
+            &[
+                ("await import('./g.js');", "m2\nm3\n"),
+                ("await import('./h.js');", "m3\nm2\n"),
+                ("await import('./h.js');await import('./g.js');", "m3\nm2\n"),
+            ],
+        ),
+        (
+            &[("t", "t.lil"), ("u", "u.lil")],
+            &[
+                (
+                    "globalThis.boom=()=>{throw 'boom'};try{await import('./t.js')}catch(e){console.log('threw='+e)}",
+                    "core start\nthrew=boom\n",
+                ),
+                ("globalThis.boom=()=>{throw 'boom'};await import('./u.js');", "u ok\n"),
+                (
+                    "globalThis.boom=()=>{throw 'boom'};await import('./u.js');try{await import('./t.js')}catch(e){console.log('threw='+e)}",
+                    "u ok\ncore start\nthrew=boom\n",
+                ),
+            ],
+        ),
+    ];
+    for (pairs, scenarios) in cases {
+        for mode in ["split", "preserve-modules"] {
+            let compiled = compile_several(&directory, pairs, &format!("mode='{mode}'")).unwrap();
+            for (steps, expected) in scenarios {
+                assert_eq!(
+                    run_script(&directory, &compiled, steps),
+                    *expected,
+                    "{mode} {pairs:?}: {steps}"
+                );
+            }
+        }
+    }
+    let isolated = compile_several(
+        &directory,
+        &[("e", "e.lil"), ("f", "f.lil")],
+        "mode='single'",
+    )
+    .unwrap();
+    assert_eq!(
+        run_script(
+            &directory,
+            &isolated,
+            "await import('./f.js');await import('./e.js');"
+        ),
+        "m1\nm3\nm1\nm2\nm3\n"
+    );
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// Design §14.1 `interface_hazard` (§5.4 R2): entry `b` can arm `r`'s flag
+/// before `a` loads `x`, whose initializer reads it; no fact may fold the
+/// read to the value `r` starts with. The guard of R2, which M3.3a leaves
+/// open because no fact consumer reads across entries yet.
+#[test]
+fn an_interface_called_before_another_entry_loads_is_observed() {
+    let directory = workspace(
+        "interface-hazard",
+        &[
+            (
+                "r.lil",
+                "int flag=0;export void arm(){flag=1;}export int flagValue(){return flag;}",
+            ),
+            (
+                "x.lil",
+                "import {flagValue} from \"./r\";int seen=flagValue();export int read(){return seen;}",
+            ),
+            ("a.lil", "import {read} from \"./x\";export {read};"),
+            ("b.lil", "import {arm} from \"./r\";export {arm};"),
+        ],
+    );
+    let pairs = [("a", "a.lil"), ("b", "b.lil")];
+    for mode in ["split", "preserve-modules"] {
+        let compiled = compile_several(&directory, &pairs, &format!("mode='{mode}'")).unwrap();
+        assert_eq!(
+            run_script(
+                &directory,
+                &compiled,
+                "const a=await import('./a.js');console.log(a.read());"
+            ),
+            "0\n",
+            "{mode}"
+        );
+        assert_eq!(
+            run_script(
+                &directory,
+                &compiled,
+                "const b=await import('./b.js');b.arm();const a=await import('./a.js');console.log(a.read());"
+            ),
+            "1\n",
+            "{mode}"
+        );
+    }
+    let _ = fs::remove_dir_all(directory);
 }
