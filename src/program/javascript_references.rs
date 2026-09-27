@@ -1286,8 +1286,9 @@ impl<'demand, 'program, 'src, 'budget, 'ledger>
                 .reserve_vec(AllocationClass::Retained, statements, count)?;
             statements.extend(prefix.drain(..));
             statements.rotate_right(count);
+            // Generated reference helpers and constant paths: definitions.
             let module = self.current_module;
-            self.prepend_root_owners(root, count, module)?;
+            self.prepend_root_owners(root, count, js::RootRow::synthetic(module))?;
         }
         self.drop_scratch(prefix)
     }

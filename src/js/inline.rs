@@ -1073,15 +1073,15 @@ impl Module {
             }
             let root = region == self.root;
             let module = root
-                .then(|| self.root_modules.get(index).copied())
+                .then(|| self.root_rows.get(index).copied())
                 .flatten();
             let count = statements.len();
             self.regions[region.index()]
                 .statements
                 .splice(index..=index, statements);
             if let Some(module) = module {
-                if index < self.root_modules.len() {
-                    self.root_modules
+                if index < self.root_rows.len() {
+                    self.root_rows
                         .splice(index..=index, std::iter::repeat_n(module, count));
                 }
             }
@@ -1263,8 +1263,8 @@ impl Module {
             let root = region == self.root;
             for &index in remove.iter().rev() {
                 self.regions[region.index()].statements.remove(index);
-                if root && index < self.root_modules.len() {
-                    self.root_modules.remove(index);
+                if root && index < self.root_rows.len() {
+                    self.root_rows.remove(index);
                 }
                 removed += 1;
             }
@@ -1652,8 +1652,8 @@ impl Module {
         removals.sort_unstable_by(|a, b| (a.0.index(), a.1).cmp(&(b.0.index(), b.1)).reverse());
         for (region, index) in removals {
             self.regions[region.index()].statements.remove(index);
-            if region == self.root && index < self.root_modules.len() {
-                self.root_modules.remove(index);
+            if region == self.root && index < self.root_rows.len() {
+                self.root_rows.remove(index);
             }
         }
         Ok(replaced)

@@ -609,6 +609,8 @@ fn form_head(
         arguments_read: None,
         int32_cells: Vec::new(),
         current_module: 0,
+        anchor: js::Anchor::Anchored,
+        classify_roots: false,
         budget: &mut phase,
     };
     let result = (|| {
@@ -624,6 +626,9 @@ fn form_head(
         // Prefixes contain only complete named callable creation/initialization
         // pairs. Ordinary lexical cells are declared at their original suffix
         // operation, preserving cross-module TDZ and once-only side effects.
+        // Instantiation creates named functions and runs nothing: every
+        // statement it forms is a definition.
+        formation.anchor = js::Anchor::Definition;
         for &context in demand.roots() {
             formation.work(1)?;
             let data = formation.data(context);
@@ -635,16 +640,20 @@ fn form_head(
                 &data.regions[data.entry.index()].operations[..prefix],
             )?;
         }
+        formation.anchor = js::Anchor::Anchored;
         for &context in demand.roots() {
             formation.work(1)?;
             let data = formation.data(context);
             formation.current_module = data.module.index() as u32;
             let prefix = data.instantiation_prefix as usize;
+            formation.classify_roots = true;
             formation.statement_operations(
                 context,
                 data.entry,
                 &data.regions[data.entry.index()].operations[prefix..],
             )?;
+            formation.classify_roots = false;
+            formation.anchor = js::Anchor::Anchored;
         }
         for &context in demand.roots() {
             formation.work(1)?;
@@ -652,10 +661,48 @@ fn form_head(
         }
         formation.finish_reference_prefix()?;
         let context = demand.root();
+        // D2 adapters and wrappers for exports only define (design §6).
+        formation.anchor = js::Anchor::Definition;
         if contract.abi.preserve_root_exports {
             formation.work(program.exports().len())?;
-            for (export_name, cell) in program.value_exports() {
+            // Several entries (plan M3.3): one cell exported by two entries,
+            // or under two names, is one identity with one adapter (DL6).
+            let several = program.entries().len() > 1;
+            let mut identities: Vec<(CellId, js::BindingId)> = Vec::new();
+            let mut positions: Vec<u32> = Vec::new();
+            for export in program.exports() {
+                let InterfaceTarget::Value(cell) = export.target else {
+                    positions.push(u32::MAX);
+                    continue;
+                };
+                let export_name = export.name.as_str();
                 formation.work(1)?;
+                if several {
+                    formation.work(identities.len() + formation.module.exports.len())?;
+                    if let Some(&(_, binding)) =
+                        identities.iter().find(|&&(known, _)| known == cell)
+                    {
+                        let position = match formation
+                            .module
+                            .exports
+                            .iter()
+                            .position(|known| known.binding == binding && known.name == export_name)
+                        {
+                            Some(position) => position,
+                            None => {
+                                let name = formation.text(export_name)?;
+                                formation.budget.push(
+                                    AllocationClass::Retained,
+                                    &mut formation.module.exports,
+                                    js::Export { binding, name },
+                                )?;
+                                formation.module.exports.len() - 1
+                            }
+                        };
+                        positions.push(position as u32);
+                        continue;
+                    }
+                }
                 if formation.addressed_cell(context, cell)? {
                     return Err(formation.error(
                         program.cells[cell.index()].declaration,
@@ -721,6 +768,29 @@ fn form_head(
                     &mut formation.module.exports,
                     js::Export { binding, name },
                 )?;
+                if several {
+                    identities.push((cell, binding));
+                    positions.push(formation.module.exports.len() as u32 - 1);
+                }
+            }
+            // Each entry's exports, as positions in the one export list.
+            if several {
+                let mut start = 0;
+                for (entry, program_entry) in program.entries().iter().enumerate() {
+                    let count = program.entry_exports(entry).len();
+                    let exports = positions[start..start + count]
+                        .iter()
+                        .copied()
+                        .filter(|&position| position != u32::MAX)
+                        .collect::<Vec<_>>();
+                    start += count;
+                    let name = formation.text(&program_entry.name)?;
+                    formation.budget.push(
+                        AllocationClass::Retained,
+                        &mut formation.module.entries,
+                        js::EntryPublic { name, exports },
+                    )?;
+                }
             }
         }
         Ok::<_, FormationError>(())
@@ -729,7 +799,7 @@ fn form_head(
         drop(formation);
         return Err(error);
     }
-    if formation.module.root_modules.len()
+    if formation.module.root_rows.len()
         != formation.module.regions[formation.module.root.index()]
             .statements
             .len()
@@ -1342,6 +1412,11 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     int32_cells: Vec<u8>,
     /// The source module whose root statements are being formed.
     current_module: u32,
+    /// The anchor of the root statements being formed (plan M3.3).
+    anchor: js::Anchor,
+    /// Forming a module's evaluation: each root statement's anchor comes
+    /// from the operations it is formed from.
+    classify_roots: bool,
 }
 
 impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
@@ -1805,12 +1880,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             statement,
         )?;
         if region == self.module.root {
-            let module = self.current_module;
-            self.budget.push(
-                AllocationClass::Retained,
-                &mut self.module.root_modules,
-                module,
-            )?;
+            let row = js::RootRow::new(self.current_module, self.anchor);
+            self.budget
+                .push(AllocationClass::Retained, &mut self.module.root_rows, row)?;
         }
         Ok(())
     }
@@ -2539,29 +2611,29 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             statements.extend(reference_prefix.drain(..));
             statements.rotate_right(count);
             let module = self.data(unit).module.index() as u32;
-            self.prepend_root_owners(body, count, module)?;
+            self.prepend_root_owners(body, count, js::RootRow::new(module, js::Anchor::Anchored))?;
         }
         self.drop_scratch(reference_prefix)?;
         Ok(())
     }
 
-    /// Keep `root_modules` aligned when statements are prepended to a region
+    /// Keep the root rows aligned when statements are prepended to a region
     /// that is the artifact root.
     pub(super) fn prepend_root_owners(
         &mut self,
         region: js::RegionId,
         count: usize,
-        module: u32,
+        row: js::RootRow,
     ) -> Result<(), FormationError> {
         if region != self.module.root {
             return Ok(());
         }
-        self.work(self.module.root_modules.len())?;
-        let owners = &mut self.module.root_modules;
+        self.work(self.module.root_rows.len())?;
+        let rows = &mut self.module.root_rows;
         self.budget
-            .reserve_vec(AllocationClass::Retained, owners, count)?;
-        owners.extend(std::iter::repeat(module).take(count));
-        owners.rotate_right(count);
+            .reserve_vec(AllocationClass::Retained, rows, count)?;
+        rows.extend(std::iter::repeat_n(row, count));
+        rows.rotate_right(count);
         Ok(())
     }
 
@@ -4820,6 +4892,64 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     /// A borrowed slice of the checked schedule. Module instantiation and
     /// evaluation use this same statement owner, with no copied operation list
     /// or second lowering path.
+    /// The anchor of root statements formed from `operations` (plan M3.3,
+    /// design §6), from the demand plan's per-operation effects: a
+    /// definition when no operation formed can throw, diverge, re-enter,
+    /// suspend or leave, writes anything but the cell it initializes, reads
+    /// a cell written after its initialization or state the program does
+    /// not own, or loads a module. Anything else is anchored.
+    fn root_anchor(
+        &mut self,
+        unit: ContextId,
+        operations: &[OpId],
+    ) -> Result<js::Anchor, FormationError> {
+        let semantic = self.semantic(unit);
+        let data = self.data(unit);
+        for &operation in operations {
+            self.work(1)?;
+            let kind = data.operations[operation.index()].kind;
+            if !matches!(kind, OperationKind::PrepareCall(_))
+                && !self.demand.needs_operation(unit, operation)
+            {
+                continue;
+            }
+            if matches!(kind, OperationKind::LoadModule { .. }) {
+                return Ok(js::Anchor::Anchored);
+            }
+            let Some(behavior) = self.demand.operation_behavior(semantic, operation) else {
+                return Ok(js::Anchor::Anchored);
+            };
+            if behavior.may_throw
+                || behavior.may_diverge
+                || behavior.may_reenter
+                || behavior.may_suspend
+                || behavior.transfers_control
+            {
+                return Ok(js::Anchor::Anchored);
+            }
+            let writes = match behavior.writes {
+                super::facts::MemoryAccess::None => true,
+                super::facts::MemoryAccess::Cell(cell) => {
+                    matches!(kind, OperationKind::Initialize(initialized) if initialized == cell)
+                }
+                super::facts::MemoryAccess::Unknown => false,
+            };
+            let reads = match behavior.reads {
+                super::facts::MemoryAccess::None => true,
+                super::facts::MemoryAccess::Cell(cell) => self
+                    .program
+                    .cells
+                    .get(cell.index())
+                    .is_some_and(|read| !read.reassigned),
+                super::facts::MemoryAccess::Unknown => false,
+            };
+            if !writes || !reads {
+                return Ok(js::Anchor::Anchored);
+            }
+        }
+        Ok(js::Anchor::Definition)
+    }
+
     fn statement_operations(
         &mut self,
         unit: ContextId,
@@ -4827,9 +4957,21 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         operations: &'program [OpId],
     ) -> Result<(), FormationError> {
         let target_region = self.plan(unit).regions[region.index()];
+        // A root statement is formed from the operations since the previous
+        // one: its anchor is theirs (plan M3.3, design §6).
+        let classify = self.classify_roots && target_region == self.module.root;
+        let mut window = 0;
+        let mut formed = self.module.root_rows.len();
         let mut cursor = 0;
         while cursor < operations.len() {
             self.work(1)?;
+            if classify {
+                if self.module.root_rows.len() != formed {
+                    formed = self.module.root_rows.len();
+                    window = cursor;
+                }
+                self.anchor = self.root_anchor(unit, &operations[window..=cursor])?;
+            }
             let operation_id = operations[cursor];
             let is_prepare = matches!(
                 self.data(unit).operations[operation_id.index()].kind,

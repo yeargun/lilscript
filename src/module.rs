@@ -64,9 +64,22 @@ pub(crate) fn static_evaluation_order_admitted<I: IntoIterator<Item = usize>>(
     dependencies: impl Fn(usize) -> I,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<usize>, StaticOrderError> {
+    static_evaluation_order_from_admitted(&[root], module_count, dependencies, budget)
+}
+
+/// The canonical schedule of several roots (plan M3.3): one post-order walk
+/// that visits the roots in their given order, each module once. With one
+/// root it is that root's order; with several it is what ES modules evaluate
+/// when every root is loaded in turn.
+pub(crate) fn static_evaluation_order_from_admitted<I: IntoIterator<Item = usize>>(
+    roots: &[usize],
+    module_count: usize,
+    dependencies: impl Fn(usize) -> I,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<usize>, StaticOrderError> {
     use crate::output_budget::AllocationClass::Scratch;
     budget.work(WorkKind::Analysis, 1)?;
-    if root >= module_count {
+    if roots.is_empty() || roots.iter().any(|&root| root >= module_count) {
         return Err(StaticOrderError::Invalid(
             "static module root is out of bounds",
         ));
@@ -75,41 +88,47 @@ pub(crate) fn static_evaluation_order_admitted<I: IntoIterator<Item = usize>>(
     let mut scope = budget.scope();
     let mut states = scope.filled(Scratch, module_count, 0u8)?;
     let mut stack = scope.vector(Scratch, module_count)?;
-    states[root] = 1;
-    stack.push((root, dependencies(root).into_iter()));
-    while let Some((module, neighbors)) = stack.last_mut() {
-        scope.work(WorkKind::Analysis, 1)?;
-        if let Some(child) = neighbors.next() {
-            if child >= module_count {
-                return Err(StaticOrderError::Invalid(
-                    "static module dependency is out of bounds",
-                ));
+    for &root in roots {
+        if states[root] != 0 {
+            continue;
+        }
+        states[root] = 1;
+        stack.push((root, dependencies(root).into_iter()));
+        while let Some((module, neighbors)) = stack.last_mut() {
+            scope.work(WorkKind::Analysis, 1)?;
+            if let Some(child) = neighbors.next() {
+                if child >= module_count {
+                    return Err(StaticOrderError::Invalid(
+                        "static module dependency is out of bounds",
+                    ));
+                }
+                if states[child] == 0 {
+                    states[child] = 1;
+                    stack.push((child, dependencies(child).into_iter()));
+                }
+            } else {
+                let module = *module;
+                stack.pop();
+                states[module] = 2;
+                order.push(module);
             }
-            if states[child] == 0 {
-                states[child] = 1;
-                stack.push((child, dependencies(child).into_iter()));
-            }
-        } else {
-            let module = *module;
-            stack.pop();
-            states[module] = 2;
-            order.push(module);
         }
     }
     Ok(order)
 }
 
-/// Static evaluation order from `root`, then every module only `import()`
-/// reaches, in module order. Such a module is initialization-free, so its
-/// place is unobservable; last, it runs after everything it may read.
+/// Static evaluation order from the roots, in their order, then every module
+/// only `import()` reaches, in module order. Such a module is
+/// initialization-free, so its place is unobservable; last, it runs after
+/// everything it may read.
 pub(crate) fn initialization_order_admitted<I: IntoIterator<Item = usize>>(
-    root: usize,
+    roots: &[usize],
     module_count: usize,
     dependencies: impl Fn(usize) -> I,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<usize>, StaticOrderError> {
     use crate::output_budget::AllocationClass::Scratch;
-    let mut order = static_evaluation_order_admitted(root, module_count, dependencies, budget)?;
+    let mut order = static_evaluation_order_from_admitted(roots, module_count, dependencies, budget)?;
     if order.len() == module_count {
         return Ok(order);
     }
@@ -124,6 +143,139 @@ pub(crate) fn initialization_order_admitted<I: IntoIterator<Item = usize>>(
         }
     }
     Ok(order)
+}
+
+/// Each root's fresh evaluation order: the post-order ES modules run when
+/// that root alone is loaded first (plan M3.3, "per-entry orders").
+pub fn fresh_orders(roots: &[usize], dependencies: &[Vec<usize>]) -> Vec<Vec<usize>> {
+    roots
+        .iter()
+        .map(|&root| {
+            let mut order = Vec::new();
+            let mut states = vec![0u8; dependencies.len()];
+            let mut stack = vec![(root, 0usize)];
+            states[root] = 1;
+            while let Some((module, next)) = stack.last_mut() {
+                let module = *module;
+                if let Some(&child) = dependencies[module].get(*next) {
+                    *next += 1;
+                    if states[child] == 0 {
+                        states[child] = 1;
+                        stack.push((child, 0));
+                    }
+                } else {
+                    stack.pop();
+                    states[module] = 2;
+                    order.push(module);
+                }
+            }
+            order
+        })
+        .collect()
+}
+
+/// The static import cycles of a module graph: per module, the index of its
+/// strongly connected component when that component is a cycle (several
+/// modules, or one that imports itself). Tarjan's algorithm, iterative.
+pub fn static_cycles(dependencies: &[Vec<usize>]) -> Vec<Option<u32>> {
+    let count = dependencies.len();
+    let mut index = vec![usize::MAX; count];
+    let mut low = vec![0usize; count];
+    let mut on_stack = vec![false; count];
+    let mut stack = Vec::new();
+    let mut cycles = vec![None; count];
+    let mut next_index = 0;
+    let mut next_cycle = 0u32;
+    for start in 0..count {
+        if index[start] != usize::MAX {
+            continue;
+        }
+        let mut frames = vec![(start, 0usize)];
+        index[start] = next_index;
+        low[start] = next_index;
+        next_index += 1;
+        stack.push(start);
+        on_stack[start] = true;
+        while let Some(&mut (module, ref mut edge)) = frames.last_mut() {
+            if let Some(&child) = dependencies[module].get(*edge) {
+                *edge += 1;
+                if index[child] == usize::MAX {
+                    index[child] = next_index;
+                    low[child] = next_index;
+                    next_index += 1;
+                    stack.push(child);
+                    on_stack[child] = true;
+                    frames.push((child, 0));
+                } else if on_stack[child] {
+                    low[module] = low[module].min(index[child]);
+                }
+                continue;
+            }
+            frames.pop();
+            if let Some(&(parent, _)) = frames.last() {
+                low[parent] = low[parent].min(low[module]);
+            }
+            if low[module] == index[module] {
+                let mut members = Vec::new();
+                loop {
+                    let member = stack.pop().expect("the component's root is on the stack");
+                    on_stack[member] = false;
+                    members.push(member);
+                    if member == module {
+                        break;
+                    }
+                }
+                let cyclic = members.len() > 1 || dependencies[module].contains(&module);
+                if cyclic {
+                    for member in members {
+                        cycles[member] = Some(next_cycle);
+                    }
+                    next_cycle += 1;
+                }
+            }
+        }
+    }
+    cycles
+}
+
+/// Where each root's walk enters each static cycle: the first module of the
+/// cycle its depth-first walk reaches. Two roots that enter one cycle at
+/// different modules evaluate it in different orders.
+pub fn cycle_entries(
+    roots: &[usize],
+    dependencies: &[Vec<usize>],
+    cycles: &[Option<u32>],
+) -> Vec<Vec<(u32, usize)>> {
+    roots
+        .iter()
+        .map(|&root| {
+            let mut entered: Vec<(u32, usize)> = Vec::new();
+            let mut seen = vec![false; dependencies.len()];
+            let mut stack = vec![(root, 0usize)];
+            seen[root] = true;
+            if let Some(cycle) = cycles[root] {
+                entered.push((cycle, root));
+            }
+            while let Some((module, next)) = stack.last_mut() {
+                let module = *module;
+                if let Some(&child) = dependencies[module].get(*next) {
+                    *next += 1;
+                    if !seen[child] {
+                        seen[child] = true;
+                        if let Some(cycle) = cycles[child] {
+                            if !entered.iter().any(|&(known, _)| known == cycle) {
+                                entered.push((cycle, child));
+                            }
+                        }
+                        stack.push((child, 0));
+                    }
+                } else {
+                    stack.pop();
+                }
+            }
+            entered
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone)]
@@ -146,8 +298,27 @@ pub struct ForeignModuleSource {
 pub struct ModuleSet<S = String> {
     pub modules: Vec<ModuleSource<S>>,
     pub dependency_order: Vec<ModuleId>,
-    pub root: ModuleId,
+    /// The program's entries, sorted by name (plan M3.3): each is a root of
+    /// the one module graph. Diagnostics that cite "the root" cite the first.
+    pub roots: Vec<ModuleId>,
+    /// Each root's entry name, in the same order.
+    pub root_names: Vec<String>,
+    /// Reachable through static imports from some root.
     pub eager: Vec<bool>,
+}
+
+impl<S> ModuleSet<S> {
+    /// The first entry's module.
+    pub fn root(&self) -> ModuleId {
+        self.roots[0]
+    }
+}
+
+/// One entry of a build: its name and its source file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntrySource {
+    pub name: String,
+    pub path: PathBuf,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -282,8 +453,13 @@ fn discover_modules_configured_inner(
     config: &ProjectConfig,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<ModuleSet, ModuleDiscoveryError> {
-    discover_configured_with_storage(root, root_source, config, OwnedSources { budget })
-        .map(|(modules, ())| modules)
+    discover_configured_with_storage(
+        &[EntrySource::of(root)],
+        root_source,
+        config,
+        OwnedSources { budget },
+    )
+    .map(|(modules, ())| modules)
 }
 
 /// The factory owns both arenas. Original discovery ASTs are retained in
@@ -291,14 +467,14 @@ fn discover_modules_configured_inner(
 /// `root_source`, when given, replaces the entry file's text (an editor's
 /// unsaved buffer); every other module is read from disk.
 pub(crate) fn discover_parsed_modules_admitted<'ast, 'src>(
-    root: &Path,
+    entries: &[EntrySource],
     root_source: Option<&str>,
     config: &ProjectConfig,
     sources: &'src StableSourceArena,
     syntax: &'ast AdmittedArena<'_>,
 ) -> Result<(ModuleSet<&'src str>, ParsedSources<'ast, 'src>), ModuleDiscoveryError> {
     discover_configured_with_storage(
-        root,
+        entries,
         root_source,
         config,
         RetainedSources {
@@ -310,7 +486,7 @@ pub(crate) fn discover_parsed_modules_admitted<'ast, 'src>(
 }
 
 fn discover_configured_with_storage<S: DiscoveryStorage>(
-    root: &Path,
+    entries: &[EntrySource],
     root_source: Option<&str>,
     config: &ProjectConfig,
     mut storage: S,
@@ -324,7 +500,7 @@ fn discover_configured_with_storage<S: DiscoveryStorage>(
             error.message,
         )
     })?;
-    discover_with_storage(root, root_source, resolver, storage)
+    discover_with_storage(entries, root_source, resolver, storage)
 }
 
 fn discover_modules_inner(
@@ -333,23 +509,49 @@ fn discover_modules_inner(
     package_resolver: Option<PackageResolver>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<ModuleSet, ModuleDiscoveryError> {
-    discover_with_storage(root, root_source, package_resolver, OwnedSources { budget })
-        .map(|(modules, ())| modules)
+    discover_with_storage(
+        &[EntrySource::of(root)],
+        root_source,
+        package_resolver,
+        OwnedSources { budget },
+    )
+    .map(|(modules, ())| modules)
 }
 
 fn discover_with_storage<S: DiscoveryStorage>(
-    root: &Path,
+    entries: &[EntrySource],
     root_source: Option<&str>,
     package_resolver: Option<PackageResolver>,
     mut storage: S,
 ) -> Result<(ModuleSet<S::Source>, S::Parsed), ModuleDiscoveryError> {
     storage.work(1)?;
-    let root_path = canonical_module_path(root).map_err(|message| {
-        ModuleError::new(root, root_source.unwrap_or(""), Span::empty(0), message)
+    let first = entries.first().ok_or_else(|| {
+        ModuleError::new(
+            "<entries>",
+            "",
+            Span::empty(0),
+            "a build needs at least one entry".to_string(),
+        )
     })?;
+    let mut paths = Vec::with_capacity(entries.len());
+    for entry in entries {
+        storage.work(1)?;
+        paths.push(canonical_module_path(&entry.path).map_err(|message| {
+            ModuleError::new(
+                &entry.path,
+                if std::ptr::eq(entry, first) {
+                    root_source.unwrap_or("")
+                } else {
+                    ""
+                },
+                Span::empty(0),
+                message,
+            )
+        })?);
+    }
     let mut overrides = AHashMap::default();
     if let Some(source) = root_source {
-        overrides.insert(root_path.clone(), storage.copy_override(source)?);
+        overrides.insert(paths[0].clone(), storage.copy_override(source)?);
     }
     let mut loader = ModuleLoader {
         modules: Vec::new(),
@@ -360,7 +562,24 @@ fn discover_with_storage<S: DiscoveryStorage>(
         package_resolver,
         storage,
     };
-    let root = loader.visit(&root_path, None)?;
+    // Entries in name order: the canonical schedule visits them so.
+    let mut roots: Vec<ModuleId> = Vec::with_capacity(entries.len());
+    for (entry, path) in entries.iter().zip(&paths) {
+        let root = loader.visit(path, None)?;
+        if let Some(position) = roots.iter().position(|&other| other == root) {
+            return Err(ModuleError::new(
+                &entry.path,
+                "",
+                Span::empty(0),
+                format!(
+                    "entries `{}` and `{}` name one module; an entry is a module's public surface once",
+                    entries[position].name, entry.name
+                ),
+            )
+            .into());
+        }
+        roots.push(root);
+    }
     let mut offset = 0usize;
     for module in &mut loader.modules {
         loader.storage.work(1)?;
@@ -370,7 +589,7 @@ fn discover_with_storage<S: DiscoveryStorage>(
             .saturating_add(1);
     }
     let mut eager = vec![false; loader.modules.len()];
-    let mut pending = vec![root];
+    let mut pending = roots.clone();
     while let Some(module) = pending.pop() {
         loader.storage.work(1)?;
         if std::mem::replace(&mut eager[module], true) {
@@ -382,11 +601,26 @@ fn discover_with_storage<S: DiscoveryStorage>(
         ModuleSet {
             modules: loader.modules,
             dependency_order: loader.dependency_order,
-            root,
+            roots,
+            root_names: entries.iter().map(|entry| entry.name.clone()).collect(),
             eager,
         },
         loader.storage.into_parsed(),
     ))
+}
+
+impl EntrySource {
+    /// A single input, named by its file stem.
+    pub fn of(path: &Path) -> Self {
+        Self {
+            name: path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .unwrap_or("main")
+                .to_string(),
+            path: path.to_path_buf(),
+        }
+    }
 }
 
 #[cfg(test)]

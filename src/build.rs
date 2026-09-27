@@ -16,7 +16,7 @@ use crate::compilation_policy::{
 use crate::config::ProjectConfig;
 use crate::js::selection::{Objective, Objectives, Plan, Sizes};
 use crate::module::{
-    discover_parsed_modules_admitted, ModuleDiscoveryError, ModuleError, ModuleSet,
+    discover_parsed_modules_admitted, EntrySource, ModuleDiscoveryError, ModuleError, ModuleSet,
     StableSourceArena,
 };
 use crate::output_budget::AllocationBudget;
@@ -1010,7 +1010,7 @@ pub fn with_checked_source<R>(
 /// carries; a check does not deliver.
 fn check_path_frontend<'src, T>(
     frontend: &mut Frontend,
-    path: &Path,
+    entries: &[EntrySource],
     root_source: Option<&str>,
     config: &ProjectConfig,
     sources: &'src StableSourceArena,
@@ -1020,7 +1020,7 @@ fn check_path_frontend<'src, T>(
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
     let (modules, syntax) =
-        discover_parsed_modules_admitted(path, root_source, config, sources, &arena).map_err(
+        discover_parsed_modules_admitted(entries, root_source, config, sources, &arena).map_err(
             |error| match error {
                 ModuleDiscoveryError::Module(error) => ServiceError::module("discovery", error),
                 ModuleDiscoveryError::Resources(error) => {
@@ -1056,13 +1056,13 @@ fn check_path_frontend<'src, T>(
                     .map_err(|error| ServiceError::resources("frontend resources", error.into()))?;
                 frontend.hosts = delivery;
             }
-            Err(reason) if config.bundle.host_modules == crate::config::HostModules::Embed => {
+            Err(reason) if config.delivery.host_modules == crate::config::HostModules::Embed => {
                 return Err(ServiceError::new("host modules", reason));
             }
             Err(reason) => frontend.phases["host_modules_external"] = json!(reason),
         }
     }
-    let inputs = json!({"root": modules.root, "modules": modules.modules.iter().map(|module| json!({
+    let inputs = json!({"root": modules.root(), "entries": modules.roots.iter().zip(&modules.root_names).map(|(module, name)| json!({"name": name, "module": module})).collect::<Vec<_>>(), "modules": modules.modules.iter().map(|module| json!({
         "path": module.path, "bytes": module.source.len(), "sha256": digest(module.source.as_bytes()),
         "dependencies": module.dependencies, "dynamic_dependencies": module.dynamic_dependencies,
     })).collect::<Vec<_>>(), "host_modules": frontend.hosts.modules.iter().map(|module| json!({
@@ -1157,9 +1157,28 @@ pub fn with_checked_path<R>(
     options: ServiceOptions,
     client: impl for<'src> FnOnce(&mut CheckedSourceSession<'src>) -> R,
 ) -> Result<(R, FinishedSourceSession), ServiceError> {
+    with_checked_entries(&[EntrySource::of(path)], config, options, client)
+}
+
+/// Several entries of one program (plan M3.3), in any order: they are
+/// checked as one module graph whose roots are the entries in name order.
+pub fn with_checked_entries<R>(
+    entries: &[EntrySource],
+    config: &ProjectConfig,
+    options: ServiceOptions,
+    client: impl for<'src> FnOnce(&mut CheckedSourceSession<'src>) -> R,
+) -> Result<(R, FinishedSourceSession), ServiceError> {
+    let entries = sorted_entries(entries)?;
+    if entries.len() > 1 && options.target != ServiceTarget::JavaScript {
+        return Err(ServiceError::new(
+            "entries",
+            "a native build has one library ABI (plan M11.8); build several entries with a JavaScript target",
+        ));
+    }
     let mut frontend = Frontend::new(config, options)?;
     let sources = StableSourceArena::new(WorkDomain::Baseline);
-    let prepared = check_path_frontend(&mut frontend, path, None, config, &sources, true, |_| ());
+    let prepared =
+        check_path_frontend(&mut frontend, &entries, None, config, &sources, true, |_| ());
     let (program, inputs, ()) = match prepared {
         Ok(prepared) => prepared,
         Err(error) => {
@@ -1180,6 +1199,35 @@ pub fn with_checked_path<R>(
     Ok(finish_factory(outcome, finished, started, Some(release_ns)))
 }
 
+/// Entries sorted by name, each name valid and unique (plan M3.3: bit `i`
+/// of every label is the `i`-th name, so the TOML's table order never
+/// matters).
+fn sorted_entries(entries: &[EntrySource]) -> Result<Vec<EntrySource>, ServiceError> {
+    if entries.is_empty() {
+        return Err(ServiceError::new("entries", "a build needs at least one entry"));
+    }
+    let mut sorted = entries.to_vec();
+    sorted.sort_by(|left, right| left.name.cmp(&right.name));
+    for entry in &sorted {
+        if !crate::config::valid_entry_name(&entry.name) {
+            return Err(ServiceError::new(
+                "entries",
+                format!(
+                    "entry name `{}` must be letters, digits, `_`, `.` or `-`",
+                    entry.name
+                ),
+            ));
+        }
+    }
+    if let Some(pair) = sorted.windows(2).find(|pair| pair[0].name == pair[1].name) {
+        return Err(ServiceError::new(
+            "entries",
+            format!("two entries are named `{}`", pair[0].name),
+        ));
+    }
+    Ok(sorted)
+}
+
 /// The relative host modules a JavaScript build carries: the root module's
 /// directory, the foreign files the source imports, and the syntax target
 /// they must fit. `None` when the output imports them instead.
@@ -1193,10 +1241,10 @@ fn host_requests<'m, S>(
     crate::js_syntax_target::EcmaScriptEdition,
 )> {
     let javascript = javascript?;
-    if config.bundle.host_modules == crate::config::HostModules::External {
+    if config.delivery.host_modules == crate::config::HostModules::External {
         return None;
     }
-    let root_directory = modules.modules[modules.root]
+    let root_directory = modules.modules[modules.root()]
         .path
         .parent()
         .unwrap_or_else(|| Path::new("."));
@@ -1225,7 +1273,10 @@ fn host_requests<'m, S>(
 /// output carries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuildInputs {
+    /// The first entry's module.
     pub entry: std::path::PathBuf,
+    /// Every entry's module, in entry name order.
+    pub entries: Vec<(String, std::path::PathBuf)>,
     pub files: Vec<std::path::PathBuf>,
 }
 
@@ -1233,16 +1284,17 @@ pub struct BuildInputs {
 /// compiling it: the same module discovery and host-module delivery as the
 /// build.
 pub fn build_inputs(
-    path: &Path,
+    entries: &[EntrySource],
     config: &ProjectConfig,
     options: ServiceOptions,
 ) -> Result<BuildInputs, ServiceError> {
+    let entries = sorted_entries(entries)?;
     let mut frontend = Frontend::new(config, options)?;
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let inputs = (|| {
         let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
         let (modules, syntax) = discover_parsed_modules_admitted(
-            path, None, config, &sources, &arena,
+            &entries, None, config, &sources, &arena,
         )
         .map_err(|error| match error {
             ModuleDiscoveryError::Module(error) => ServiceError::module("discovery", error),
@@ -1251,7 +1303,13 @@ pub fn build_inputs(
             }
         })?;
         let mut inputs = BuildInputs {
-            entry: modules.modules[modules.root].path.clone(),
+            entry: modules.modules[modules.root()].path.clone(),
+            entries: modules
+                .root_names
+                .iter()
+                .zip(&modules.roots)
+                .map(|(name, &root)| (name.clone(), modules.modules[root].path.clone()))
+                .collect(),
             files: modules
                 .modules
                 .iter()
@@ -1263,7 +1321,7 @@ pub fn build_inputs(
         {
             match crate::host_modules::delivered_files(root_directory, &requests, edition) {
                 Ok(files) => inputs.files.extend(files),
-                Err(reason) if config.bundle.host_modules == crate::config::HostModules::Embed => {
+                Err(reason) if config.delivery.host_modules == crate::config::HostModules::Embed => {
                     return Err(ServiceError::new("host modules", reason));
                 }
                 // Not carried: the output imports them from their specifiers.
@@ -1300,7 +1358,15 @@ pub fn with_checked_program<R>(
 ) -> Result<R, ServiceError> {
     let mut frontend = Frontend::new(config, check_options())?;
     let sources = StableSourceArena::new(WorkDomain::Baseline);
-    let checked = check_path_frontend(&mut frontend, path, source, config, &sources, false, client)
+    let checked = check_path_frontend(
+        &mut frontend,
+        &[EntrySource::of(path)],
+        source,
+        config,
+        &sources,
+        false,
+        client,
+    )
         .map(|(program, _inputs, inspected)| {
             program.discard(&mut frontend.ledger);
             inspected
@@ -1351,8 +1417,18 @@ pub fn compile_path(
     config: &ProjectConfig,
     options: ServiceOptions,
 ) -> Result<ServiceCompilation, ServiceError> {
+    compile_entries(&[EntrySource::of(path)], config, options)
+}
+
+/// One program with several entries (plan M3.3): one compilation, one
+/// delivery with a facade per entry.
+pub fn compile_entries(
+    entries: &[EntrySource],
+    config: &ProjectConfig,
+    options: ServiceOptions,
+) -> Result<ServiceCompilation, ServiceError> {
     let (output, finished) =
-        with_checked_path(path, config, options, |session| session.compile_targets())?;
+        with_checked_entries(entries, config, options, |session| session.compile_targets())?;
     finish_output(output, finished)
 }
 

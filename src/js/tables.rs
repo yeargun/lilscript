@@ -1486,18 +1486,18 @@ impl Module {
             &mut self.regions[root].statements,
             functions.len(),
         )?;
-        let first = self.root_modules.first().copied();
+        let first = self.root_rows.first().copied();
         if first.is_some() {
             budget.reserve_vec(
                 AllocationClass::Retained,
-                &mut self.root_modules,
+                &mut self.root_rows,
                 functions.len(),
             )?;
         }
         for (offset, function) in functions.into_iter().enumerate() {
             self.regions[root].statements.insert(offset, function);
             if let Some(first) = first {
-                self.root_modules.insert(0, first);
+                self.root_rows.insert(0, RootRow::synthetic(first.module));
             }
         }
         Ok(count)

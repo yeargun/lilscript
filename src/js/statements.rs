@@ -261,8 +261,8 @@ impl Module {
                     self.regions[region.index()]
                         .statements
                         .splice(index..=end, [Statement::Return(Some(value))]);
-                    if root && end < self.root_modules.len() {
-                        self.root_modules.drain(index + 1..=end);
+                    if root && end < self.root_rows.len() {
+                        self.fuse_roots(index, index + 1..end + 1);
                     }
                     changed += 1;
                     index += 1;
@@ -406,8 +406,8 @@ impl Module {
                     if index + 1 == statements.len() && end.as_ref() == Some(&exit) =>
                 {
                     self.regions[region.index()].statements.pop();
-                    if region == self.root && index < self.root_modules.len() {
-                        self.root_modules.truncate(index);
+                    if region == self.root && index < self.root_rows.len() {
+                        self.root_rows.truncate(index);
                     }
                     changed += 1;
                     continue;
@@ -567,9 +567,9 @@ impl Module {
         let count = moved.len();
         moved.reverse();
         let at = index + 1;
-        if region == self.root && index < self.root_modules.len() {
-            let module = self.root_modules[index];
-            self.root_modules
+        if region == self.root && index < self.root_rows.len() {
+            let module = self.root_rows[index];
+            self.root_rows
                 .splice(at..at, std::iter::repeat_n(module, count));
         }
         self.regions[region.index()]
@@ -1345,8 +1345,7 @@ impl Module {
                     },
                     _ => None,
                 };
-                let same_module =
-                    !root || self.root_modules.get(index) == self.root_modules.get(index + 1);
+                let same_module = !root || self.root_module(index) == self.root_module(index + 1);
                 let Some((op, second_value)) = second.filter(|_| same_module) else {
                     index += 1;
                     continue;
@@ -1389,8 +1388,8 @@ impl Module {
                     }
                 }
                 self.regions[region].statements.remove(index + 1);
-                if root && index + 1 < self.root_modules.len() {
-                    self.root_modules.remove(index + 1);
+                if root && index + 1 < self.root_rows.len() {
+                    self.fuse_roots(index, index + 1..index + 2);
                 }
                 folded += 1;
                 // The folded statement may meet another test.

@@ -1298,7 +1298,15 @@ fn verify_modules(
     let mut scope = budget.scope();
     let budget = &mut scope;
     work(budget, 1)?;
-    if program.modules.is_empty() || program.entry.index() >= program.modules.len() {
+    if program.modules.is_empty()
+        || program.entries.is_empty()
+        || program
+            .entries
+            .iter()
+            .any(|entry| entry.module.index() >= program.modules.len())
+        || program.public.end > program.exports.len()
+        || program.public.start > program.public.end
+    {
         return Err("invalid semantic entry module".into());
     }
     let mut initializer_owners = budget.filled(Scratch, program.units.len(), None)?;
@@ -1370,7 +1378,39 @@ fn verify_modules(
     }
     scratch::sort(&mut dependencies, budget, 2, Ord::cmp)?;
     work(budget, export_owners.len())?;
-    if export_owners.iter().any(Option::is_none) {
+    // The public surface: one entry's is its module's range; several
+    // entries' is their exports appended once, in entry order (plan M3.3).
+    if let [entry] = program.entries.as_slice() {
+        if program.public != program.modules[entry.module.index()].exports {
+            return Err("the public surface is not the entry's exports".into());
+        }
+    } else {
+        let mut position = program.public.start;
+        for entry in program.entries.iter() {
+            let range = program.modules[entry.module.index()].exports.clone();
+            work(budget, range.len())?;
+            for index in range {
+                let (Some(public), Some(own)) =
+                    (program.exports.get(position), program.exports.get(index))
+                else {
+                    return Err("the public surface is not the entries' exports".into());
+                };
+                if public.name != own.name || public.target != own.target {
+                    return Err("the public surface is not the entries' exports".into());
+                }
+                position += 1;
+            }
+        }
+        if position != program.public.end {
+            return Err("the public surface is not the entries' exports".into());
+        }
+    }
+    let appended = |index: usize| program.entries.len() > 1 && program.public.contains(&index);
+    if export_owners
+        .iter()
+        .enumerate()
+        .any(|(index, owner)| owner.is_none() != appended(index))
+    {
         return Err("export table entry has no module owner".into());
     }
     work(budget, program.units.len())?;
@@ -1386,9 +1426,14 @@ fn verify_modules(
             return Err("noninitializer unit has a module instantiation prefix".into());
         }
     }
+    let roots = program
+        .entries
+        .iter()
+        .map(|entry| entry.module)
+        .collect::<Vec<_>>();
     let expected = super::module_contract::initialization_order_admitted(
         &program.modules,
-        program.entry,
+        &roots,
         budget,
     )
     .map_err(|error| match error {

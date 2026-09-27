@@ -177,10 +177,12 @@ impl Module {
             count,
         )?;
         self.regions[root].statements.splice(0..0, statements);
-        if let Some(&first) = self.root_modules.first() {
-            budget.reserve_vec(AllocationClass::Retained, &mut self.root_modules, count)?;
-            self.root_modules
-                .splice(0..0, std::iter::repeat_n(first, count));
+        if let Some(&first) = self.root_rows.first() {
+            budget.reserve_vec(AllocationClass::Retained, &mut self.root_rows, count)?;
+            self.root_rows.splice(
+                0..0,
+                std::iter::repeat_n(RootRow::synthetic(first.module), count),
+            );
         }
         Ok(count)
     }

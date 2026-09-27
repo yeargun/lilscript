@@ -180,10 +180,10 @@ impl Module {
             self.regions[region.index()]
                 .statements
                 .splice(index..=index, replacement);
-            if region == self.root && index < self.root_modules.len() {
-                let module = self.root_modules[index];
+            if region == self.root && index < self.root_rows.len() {
+                let module = self.root_rows[index];
                 for _ in 0..added {
-                    self.root_modules.insert(index, module);
+                    self.root_rows.insert(index, module);
                 }
             }
         }
@@ -412,8 +412,8 @@ impl Module {
                         continue;
                     };
                     self.regions[region.index()].statements.remove(index);
-                    if region == self.root && index < self.root_modules.len() {
-                        self.root_modules.remove(index);
+                    if region == self.root && index < self.root_rows.len() {
+                        self.root_rows.remove(index);
                     }
                 }
                 Site::Item(sequence, _, call) => {

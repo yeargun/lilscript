@@ -74,7 +74,10 @@ pub struct CheckedModules<'ast, 'src> {
     facts: Vec<ModuleFacts<'ast, 'src>>,
     interfaces: Vec<ModuleInterface<'src>>,
     initialization_order: Vec<ModuleId>,
-    root: ModuleId,
+    /// The entries' modules, sorted by entry name (plan M3.3).
+    roots: Vec<ModuleId>,
+    /// Each root's entry name.
+    root_names: Vec<String>,
 }
 impl<'ast, 'src> CheckedModules<'ast, 'src> {
     pub fn view(&self, module: ModuleId) -> Option<CheckedView<'_, 'ast, 'src>> {
@@ -110,8 +113,17 @@ impl<'ast, 'src> CheckedModules<'ast, 'src> {
     pub fn initialization_order(&self) -> &[ModuleId] {
         &self.initialization_order
     }
+    /// The first entry's module: the one diagnostics cite as the root.
     pub fn root(&self) -> ModuleId {
-        self.root
+        self.roots[0]
+    }
+    /// Every entry's module, in entry name order.
+    pub fn roots(&self) -> &[ModuleId] {
+        &self.roots
+    }
+    /// Each entry's name, in the order of `roots`.
+    pub fn root_names(&self) -> &[String] {
+        &self.root_names
     }
 }
 
@@ -188,7 +200,8 @@ pub(super) fn analyze_source_in<'ast, 'src>(
             offset: 0,
         }],
         dependency_order: vec![0],
-        root: 0,
+        roots: vec![0],
+        root_names: vec!["main".to_string()],
         eager: vec![true],
     };
     analyze_modules_in(std::slice::from_ref(program), &modules, budget)
@@ -276,7 +289,7 @@ fn graph_phase<'ast, 'src, S>(
     let initialization_order = validate_graph(programs, modules, budget)?;
     let mut facts = budget
         .vector(AllocationClass::Scratch, programs.len())
-        .map_err(|error| resource(modules.root, error))?;
+        .map_err(|error| resource(modules.root(), error))?;
     for (module, program) in programs.iter().enumerate() {
         let source = ModuleFacts::new_admitted(program.source_identity(), budget)
             .map_err(|error| resource(module, error))?;
@@ -286,7 +299,7 @@ fn graph_phase<'ast, 'src, S>(
     }
     let mut interfaces = budget
         .vector(AllocationClass::Scratch, programs.len())
-        .map_err(|error| resource(modules.root, error))?;
+        .map_err(|error| resource(modules.root(), error))?;
     for (module, (program, source)) in programs.iter().zip(&modules.modules).enumerate() {
         let dependencies = budget
             .copy_slice(AllocationClass::Scratch, &source.dependencies)
@@ -310,7 +323,7 @@ fn graph_phase<'ast, 'src, S>(
         let exports = budget
             .vector(AllocationClass::Scratch, program.exports.len())
             .map_err(|error| resource(module, error))?;
-        let root_directory = modules.modules[modules.root]
+        let root_directory = modules.modules[modules.root()]
             .path
             .parent()
             .unwrap_or_else(|| std::path::Path::new("."));
@@ -353,7 +366,8 @@ fn graph_phase<'ast, 'src, S>(
             facts,
             interfaces,
             initialization_order,
-            root: modules.root,
+            roots: modules.roots.clone(),
+            root_names: modules.root_names.clone(),
         },
     })
 }
@@ -656,20 +670,22 @@ fn body_phase<'ast, 'src>(
             exports.sort_by_key(|export| export.span.start);
         }
     }
-    for export in &checked.interfaces[checked.root].exports {
-        let InterfaceTarget::Value(symbol) = export.target else {
-            continue;
-        };
-        if checked.declarations.symbols[symbol.0 as usize]
-            .ty
-            .contains_mutable_reference_parameters()
-        {
-            return Err(error(
-                checked.root,
-                export.span,
-                "public exports do not yet support mutable-reference callable contracts",
-            )
-            .into());
+    for &root in &checked.roots {
+        for export in &checked.interfaces[root].exports {
+            let InterfaceTarget::Value(symbol) = export.target else {
+                continue;
+            };
+            if checked.declarations.symbols[symbol.0 as usize]
+                .ty
+                .contains_mutable_reference_parameters()
+            {
+                return Err(error(
+                    root,
+                    export.span,
+                    "public exports do not yet support mutable-reference callable contracts",
+                )
+                .into());
+            }
         }
     }
     #[cfg(debug_assertions)]
@@ -686,11 +702,13 @@ fn validate_graph<S>(
 ) -> Result<Vec<ModuleId>, AdmittedModuleCheckError> {
     if programs.len() != modules.modules.len()
         || programs.is_empty()
-        || modules.root >= programs.len()
+        || modules.roots.is_empty()
+        || modules.roots.len() != modules.root_names.len()
+        || modules.roots.iter().any(|&root| root >= programs.len())
         || modules.eager.len() != programs.len()
     {
         return Err(error(
-            modules.root,
+            0,
             Span::empty(0),
             "direct module source/graph ownership mismatch",
         )
@@ -771,20 +789,66 @@ fn validate_graph<S>(
             }
         }
     }
-    // Shared graph owner defines the source and core initialization order;
-    // modules only `import()` reaches follow, in module order.
+    // Shared graph owner defines the source and core initialization order:
+    // the post-order over the entries in name order (the canonical
+    // schedule); modules only `import()` reaches follow, in module order.
+    let root = modules.root();
     let order = crate::module::initialization_order_admitted(
-        modules.root,
+        &modules.roots,
         programs.len(),
         |module| modules.modules[module].dependencies.iter().copied(),
         budget,
     )
     .map_err(|failure| match failure {
         crate::module::StaticOrderError::Invalid(message) => {
-            error(modules.root, programs[modules.root].span, message).into()
+            error(root, programs[root].span, message).into()
         }
-        crate::module::StaticOrderError::Resources(reason) => resource(modules.root, reason),
+        crate::module::StaticOrderError::Resources(reason) => resource(root, reason),
     })?;
+    // Two entries entering one static cycle at different modules evaluate
+    // it in different orders; one schedule cannot serve both (plan M3.3a
+    // refusal, lifted by M3.3d).
+    if modules.roots.len() > 1 {
+        let graph = modules
+            .modules
+            .iter()
+            .map(|module| module.dependencies.clone())
+            .collect::<Vec<_>>();
+        budget
+            .work(WorkKind::Analysis, graph.len() as u64 * modules.roots.len() as u64)
+            .map_err(|error| resource(root, error))?;
+        let cycles = crate::module::static_cycles(&graph);
+        let entered = crate::module::cycle_entries(&modules.roots, &graph, &cycles);
+        for (first, first_entries) in entered.iter().enumerate() {
+            for (second, second_entries) in entered.iter().enumerate().skip(first + 1) {
+                for &(cycle, at) in first_entries {
+                    let Some(&(_, other)) = second_entries
+                        .iter()
+                        .find(|&&(known, _)| known == cycle)
+                    else {
+                        continue;
+                    };
+                    if other == at {
+                        continue;
+                    }
+                    let members = (0..graph.len())
+                        .filter(|&module| cycles[module] == Some(cycle))
+                        .map(|module| modules.modules[module].path.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    return Err(error(
+                        modules.roots[second],
+                        programs[modules.roots[second]].span,
+                        format!(
+                            "entries `{}` and `{}` enter the import cycle of {members} at different modules, so they evaluate it in different orders; one entry must import the cycle through the same module as the other",
+                            modules.root_names[first], modules.root_names[second]
+                        ),
+                    )
+                    .into());
+                }
+            }
+        }
+    }
     // Discovery's post-order interleaves dynamic edges, so it matches the
     // static order only in a graph without them.
     let dynamic = modules
@@ -796,7 +860,7 @@ fn validate_graph<S>(
         for (actual, expected) in order.iter().zip(&modules.dependency_order) {
             budget
                 .work(WorkKind::Analysis, 1)
-                .map_err(|error| resource(modules.root, error))?;
+                .map_err(|error| resource(modules.root(), error))?;
             if actual != expected {
                 same = false;
                 break;
@@ -805,8 +869,8 @@ fn validate_graph<S>(
     }
     if !same {
         return Err(error(
-            modules.root,
-            programs[modules.root].span,
+            root,
+            programs[root].span,
             "direct module initialization order does not match ordered dependencies",
         )
         .into());

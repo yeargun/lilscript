@@ -794,71 +794,32 @@ impl JavaScriptTarget<'_, '_> {
         let strict = policy.javascript_contract().is_some_and(|contract| {
             contract.execution != crate::compilation_contract::JavaScriptExecution::Module
         });
-        // Multi-file delivery: every source module but the entry may carry a
-        // chunk of its self-contained functions; split mode then selects.
-        let bundle = match policy.contract() {
-            crate::compilation_policy::CompilationContract::JavaScript {
-                language,
-                bundle_mode,
-                split,
-                preload,
-                ..
-            } if *bundle_mode != crate::config::BundleMode::Single => {
-                let program = &semantic.program;
-                let modules = program.modules();
-                let entry = program.entry_module().index();
-                // Importing modules per module, counted once per importer.
-                let mut importers = vec![0usize; modules.len()];
-                for module in modules {
-                    let mut unique = module.dependencies.clone();
-                    unique.sort_unstable();
-                    unique.dedup();
-                    for dependency in unique {
-                        importers[dependency.index()] += 1;
-                    }
-                }
-                // Modules static imports reach from the entry.
-                let mut eager = vec![false; modules.len()];
-                let mut pending = vec![entry];
-                while let Some(module) = pending.pop() {
-                    if !std::mem::replace(&mut eager[module], true) {
-                        pending.extend(modules[module].dependencies.iter().map(|id| id.index()));
-                    }
-                }
-                Some(super::artifacts::BundleSpec {
-                    hosted: module
-                        .imports
-                        .iter()
-                        .map(|import| {
-                            hosts.is_some_and(|hosts| {
-                                import
-                                    .source
-                                    .as_unicode()
-                                    .is_some_and(|source| hosts.position(source).is_some())
-                            })
-                        })
-                        .collect(),
-                    extension: chunk_extension,
-                    eager,
-                    dynamic_import: language
+        // Placement (plan M3.3): once per formed tree, after the target
+        // rules and before naming; the plan is stored on the tree.
+        if let Some(contract) = policy.delivery() {
+            let entries = semantic.program.entries().len();
+            if module.delivery.is_none()
+                && (entries > 1 || contract.mode != crate::config::DeliveryMode::Single)
+            {
+                let graph = super::entries::entry_graph(&semantic.program, &module.carried);
+                let dynamic_import = policy.javascript_contract().is_some_and(|language| {
+                    language
                         .ecmascript
-                        .allows(crate::js_syntax_target::JsSyntaxFeature::DynamicImport),
-                    preload: *preload,
-                    allowed: (0..modules.len()).map(|index| index != entry).collect(),
-                    stems: (0..modules.len())
-                        .map(|index| {
-                            module_names
-                                .get(index)
-                                .cloned()
-                                .unwrap_or_else(|| format!("m{index}"))
-                        })
-                        .collect(),
-                    importers,
-                    split: *split,
-                })
+                        .allows(crate::js_syntax_target::JsSyntaxFeature::DynamicImport)
+                });
+                module.delivery =
+                    crate::js::delivery::plan(module, &graph, contract, dynamic_import, budget)
+                        .map_err(|error| {
+                            CandidateError::Formation(FormationError::Unsupported(Unsupported {
+                                span: Span::default(),
+                                feature: match error {
+                                    crate::js::extract::OutputError::Invalid(reason) => reason,
+                                    _ => "delivery placement",
+                                },
+                            }))
+                        })?;
             }
-            _ => None,
-        };
+        }
         budget.with_ledger(|ledger| {
             let mut phase = AllocationBudget::new(ledger.map(|(ledger, _)| (ledger, domain)));
             let mut output =
@@ -890,7 +851,7 @@ impl JavaScriptTarget<'_, '_> {
                 policy.javascript_contract().unwrap().execution,
                 choices.clone(),
             )
-            .with_bundle(bundle.as_ref());
+            ;
             Ok(inspect(&mut facade))
         })
     }
@@ -2827,6 +2788,7 @@ fn admitted_contract_payload(
 ) -> Result<u64, CandidateError> {
     let CompilationContract::JavaScript {
         preserved_properties,
+        delivery,
         ..
     } = contract
     else {
@@ -2839,11 +2801,19 @@ fn admitted_contract_payload(
             .checked_add(16)
             .ok_or(CandidateError::Capacity)?,
     )?;
-    let strings = preserved_properties.iter().try_fold(0u64, |bytes, name| {
-        bytes
-            .checked_add(name.len() as u64)
-            .ok_or(CandidateError::Capacity)
-    })?;
+    let templates = [
+        &delivery.entry_names,
+        &delivery.chunk_names,
+        &delivery.module_names,
+    ];
+    let strings = preserved_properties
+        .iter()
+        .chain(templates)
+        .try_fold(0u64, |bytes, name| {
+            bytes
+                .checked_add(name.len() as u64)
+                .ok_or(CandidateError::Capacity)
+        })?;
     ledger.charge(domain, WorkKind::Edit, strings)?;
     Ok(bytes::<String>(preserved_properties.len())?
         .checked_add(strings)
@@ -2856,9 +2826,7 @@ fn copy_javascript_contract(
     let CompilationContract::JavaScript {
         language,
         preserved_properties,
-        bundle_mode,
-        split,
-        preload,
+        delivery,
     } = contract
     else {
         return Err(CandidateError::NotJavaScript);
@@ -2875,12 +2843,23 @@ fn copy_javascript_contract(
         copied.push_str(name);
         names.push(copied);
     }
+    let copy = |text: &String| -> Result<String, CandidateError> {
+        let mut copied = String::new();
+        copied
+            .try_reserve_exact(text.len())
+            .map_err(|_| CandidateError::AllocationFailed)?;
+        copied.push_str(text);
+        Ok(copied)
+    };
     Ok(CompilationContract::JavaScript {
         language: *language,
         preserved_properties: names,
-        bundle_mode: *bundle_mode,
-        split: *split,
-        preload: *preload,
+        delivery: crate::compilation_policy::DeliveryContract {
+            entry_names: copy(&delivery.entry_names)?,
+            chunk_names: copy(&delivery.chunk_names)?,
+            module_names: copy(&delivery.module_names)?,
+            ..*delivery
+        },
     })
 }
 fn check_candidate_policy(
@@ -3062,7 +3041,8 @@ fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
         exports: program.exports.clone(),
         initialization: program.initialization.clone(),
         modules: program.modules.clone(),
-        entry: program.entry,
+        entries: program.entries.clone(),
+        public: program.public.clone(),
         views: Default::default(),
     }
 }

@@ -906,7 +906,8 @@ fn share_program_without_units<'src>(program: &Program<'src>) -> Program<'src> {
         exports: program.exports.clone(),
         initialization: program.initialization.clone(),
         modules: program.modules.clone(),
-        entry: program.entry,
+        entries: program.entries.clone(),
+        public: program.public.clone(),
         views: Default::default(),
     }
 }

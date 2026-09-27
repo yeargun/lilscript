@@ -400,8 +400,8 @@ impl Module {
                 disordered |= placement.value.index() > placement.call.index();
                 let declaring = placement.declaring.index();
                 self.regions[declaring].statements.remove(placement.at);
-                if placement.declaring == self.root && placement.at < self.root_modules.len() {
-                    self.root_modules.remove(placement.at);
+                if placement.declaring == self.root && placement.at < self.root_rows.len() {
+                    self.root_rows.remove(placement.at);
                 }
                 let scope = self.regions[placement.region.index()].scope;
                 let body = self.functions[placement.function.index()].body;
@@ -546,7 +546,7 @@ impl Module {
                                 Statement::Function { .. }
                             )
                             && (declaring != self.root
-                                || self.root_modules.get(at) == self.root_modules.get(path.1));
+                                || self.root_module(at) == self.root_module(path.1));
                         break;
                     }
                     let Some(parent) = parents[path.0.index()] else {
@@ -795,10 +795,10 @@ impl Module {
         self.regions[region.index()]
             .statements
             .splice(index..=index, replacement);
-        if root && index < self.root_modules.len() {
-            let module = self.root_modules[index];
+        if root && index < self.root_rows.len() {
+            let module = self.root_rows[index];
             for _ in 0..added {
-                self.root_modules.insert(index, module);
+                self.root_rows.insert(index, module);
             }
         }
         // The declaration goes: nothing else reads the function.
@@ -808,8 +808,8 @@ impl Module {
             at
         };
         self.regions[declaring.index()].statements.remove(at);
-        if declaring == self.root && at < self.root_modules.len() {
-            self.root_modules.remove(at);
+        if declaring == self.root && at < self.root_rows.len() {
+            self.root_rows.remove(at);
         }
         Ok(())
     }

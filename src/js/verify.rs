@@ -323,15 +323,45 @@ pub(super) fn verify_in(
         .and_then(|work| work.checked_mul(longest_export.max(1) as u64))
         .ok_or(crate::output_budget::AllocationError::Capacity)?;
     walk.budget.work(WorkKind::Analysis, sorting)?;
-    export_names.sort_unstable();
     walk.budget.work(
         WorkKind::Analysis,
         (module.exports.len() as u64)
             .checked_mul(longest_export.max(1) as u64)
             .ok_or(crate::output_budget::AllocationError::Capacity)?,
     )?;
-    if export_names.windows(2).any(|names| names[0] == names[1]) {
-        return Err("invalid or duplicate export name".into());
+    if module.entries.is_empty() {
+        export_names.sort_unstable();
+        if export_names.windows(2).any(|names| names[0] == names[1]) {
+            return Err("invalid or duplicate export name".into());
+        }
+    } else {
+        // Several entries (plan M3.3): each publishes unique names; two
+        // entries may give one name to different bindings, and the one
+        // export list holds each (binding, name) once.
+        for entry in &module.entries {
+            walk.budget.work(WorkKind::Analysis, entry.exports.len() as u64)?;
+            let mut names = Vec::with_capacity(entry.exports.len());
+            for &position in &entry.exports {
+                let export = module
+                    .exports
+                    .get(position as usize)
+                    .ok_or("an entry names an export the module lacks")?;
+                names.push(export.name.as_str());
+            }
+            names.sort_unstable();
+            if names.windows(2).any(|names| names[0] == names[1]) {
+                return Err("invalid or duplicate export name".into());
+            }
+        }
+        let mut pairs = module
+            .exports
+            .iter()
+            .map(|export| (export.name.as_str(), export.binding))
+            .collect::<Vec<_>>();
+        pairs.sort_unstable_by(|left, right| left.0.cmp(right.0).then(left.1.cmp(&right.1)));
+        if pairs.windows(2).any(|pairs| pairs[0] == pairs[1]) {
+            return Err("invalid or duplicate export name".into());
+        }
     }
     walk.budget
         .work(WorkKind::Analysis, module.bindings.len() as u64)?;

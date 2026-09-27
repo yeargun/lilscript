@@ -392,6 +392,84 @@ fn remove(table: &mut toml::Table, path: &[&str]) {
     current.remove(*last);
 }
 
+const PLACEMENT_FOLLOWS_REACHABILITY: &str = "placement follows entry reachability and the objective's codec judges every merge (L8)";
+const ONE_CODEC_PRICES_FILES: &str = "the objective's codec prices every delivered file (A6)";
+
+/// What became of each `[bundle]` key when the table became `[delivery]`
+/// (plan M3.3): a new key, or no effect.
+const BUNDLE_KEYS: &[(&str, Option<&str>, &str)] = &[
+    ("mode", Some("mode"), ""),
+    ("preload", Some("preload"), ""),
+    ("host_modules", Some("host_modules"), ""),
+    ("min_chunk_bytes", None, PLACEMENT_FOLLOWS_REACHABILITY),
+    ("shared_min_imports", None, PLACEMENT_FOLLOWS_REACHABILITY),
+    ("max_chunks", None, PLACEMENT_FOLLOWS_REACHABILITY),
+    ("cost.raw_weight", None, ONE_CODEC_PRICES_FILES),
+    ("cost.gzip_weight", None, ONE_CODEC_PRICES_FILES),
+    ("cost.brotli_weight", None, ONE_CODEC_PRICES_FILES),
+    ("cost.preload_request_discount_percent", None, ONE_CODEC_PRICES_FILES),
+    ("cost.cache_reuse_discount_percent", None, ONE_CODEC_PRICES_FILES),
+    ("cost.request_overhead_bytes", Some("request_bytes"), ""),
+    ("cost.dependency_depth_penalty_bytes", Some("depth_bytes"), ""),
+];
+
+/// Translate `[bundle]` into `[delivery]`, one warning per key. A key set in
+/// both tables, or a `[bundle]` key the table never had, is refused.
+pub fn translate_bundle_table(table: &mut toml::Table) -> Result<Vec<String>, String> {
+    let Some(bundle) = table.remove("bundle") else {
+        return Ok(Vec::new());
+    };
+    let toml::Value::Table(mut bundle) = bundle else {
+        return Err("`bundle` must be a table".to_string());
+    };
+    let mut warnings = Vec::new();
+    let mut moved = toml::Table::new();
+    for &(key, target, reason) in BUNDLE_KEYS {
+        let path = key.split('.').collect::<Vec<_>>();
+        let Some(value) = lookup(&bundle, &path).cloned() else {
+            continue;
+        };
+        remove(&mut bundle, &path);
+        match target {
+            Some(target) => {
+                moved.insert(target.to_string(), value);
+                warnings.push(format!(
+                    "`bundle.{key}` is now `delivery.{target}`; rename it"
+                ));
+            }
+            None => warnings.push(format!(
+                "`bundle.{key}` has no effect in this compiler: {reason}; remove it"
+            )),
+        }
+    }
+    if let Some(toml::Value::Table(cost)) = bundle.get("cost") {
+        if cost.is_empty() {
+            bundle.remove("cost");
+        }
+    }
+    if let Some(key) = bundle.keys().next() {
+        return Err(format!("invalid config: unknown key `bundle.{key}`"));
+    }
+    if moved.is_empty() {
+        return Ok(warnings);
+    }
+    let delivery = table
+        .entry("delivery")
+        .or_insert_with(|| toml::Value::Table(toml::Table::new()));
+    let toml::Value::Table(delivery) = delivery else {
+        return Err("`delivery` must be a table".to_string());
+    };
+    for (key, value) in moved {
+        if delivery.contains_key(&key) {
+            return Err(format!(
+                "`delivery.{key}` is set, and so is its old spelling in `[bundle]`; keep `delivery.{key}`"
+            ));
+        }
+        delivery.insert(key, value);
+    }
+    Ok(warnings)
+}
+
 /// A configuration read from TOML, with a warning for every retired key it set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedConfig {
@@ -405,7 +483,8 @@ pub fn parse_project_config(source: &str) -> Result<ParsedConfig, String> {
     let mut table = source
         .parse::<toml::Table>()
         .map_err(|error| format!("invalid config: {error}"))?;
-    let warnings = apply_retired_keys(&mut table)?;
+    let mut warnings = apply_retired_keys(&mut table)?;
+    warnings.extend(translate_bundle_table(&mut table)?);
     let config =
         ProjectConfig::deserialize(table).map_err(|error| format!("invalid config: {error}"))?;
     config.validate()?;
@@ -422,7 +501,8 @@ pub struct ProjectConfig {
     pub optimization: OptimizationConfig,
     pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
-    pub bundle: BundleConfig,
+    pub target: TargetConfig,
+    pub delivery: DeliveryConfig,
     pub lint: LintConfig,
     pub format: FormatConfig,
     #[serde(skip)]
@@ -564,24 +644,12 @@ impl ProjectConfig {
                     terminal_choices: self.javascript.effective_terminal_choice_limit(),
                     search: policy.search,
                 };
+                let delivery = self.delivery_contract(preserve_root_exports)?;
                 (
                     CompilationContract::JavaScript {
                         language,
                         preserved_properties,
-                        bundle_mode: self.bundle.mode,
-                        split: (self.bundle.mode == BundleMode::Split).then_some(
-                            crate::compilation_policy::SplitRule {
-                                min_chunk_bytes: self.bundle.min_chunk_bytes,
-                                max_chunks: self.bundle.max_chunks,
-                                shared_min_imports: self.bundle.shared_min_imports,
-                                cost: self.bundle.cost,
-                            },
-                        ),
-                        preload: if self.bundle.mode == BundleMode::Single {
-                            PreloadPolicy::None
-                        } else {
-                            self.bundle.preload
-                        },
+                        delivery,
                     },
                     Some(objective),
                 )
@@ -596,6 +664,47 @@ impl ProjectConfig {
             policy.constraints,
             diagnostics,
         ))
+    }
+
+    /// The delivery part of the contract (plan M3.3). `library` is the
+    /// world: a library's chunk names default to their plan position, the
+    /// shortest delivered bytes; an application's to a content hash, which
+    /// caches safely across releases.
+    pub fn delivery_contract(
+        &self,
+        library: bool,
+    ) -> Result<crate::compilation_policy::DeliveryContract, String> {
+        let delivery = &self.delivery;
+        if delivery.mode != DeliveryMode::Single && !library {
+            return Err(format!(
+                "`delivery.mode = \"{}\"` needs module execution, whose files import each other: build with `--target js-module`",
+                delivery.mode.name()
+            ));
+        }
+        let template = |value: &Option<String>, default: &str| {
+            value.clone().unwrap_or_else(|| default.to_string())
+        };
+        Ok(crate::compilation_policy::DeliveryContract {
+            mode: delivery.mode,
+            format: self.target.javascript.format,
+            preload: if delivery.mode == DeliveryMode::Single {
+                PreloadPolicy::None
+            } else {
+                delivery.preload
+            },
+            entry_names: template(&delivery.entry_names, "[name].[ext]"),
+            chunk_names: template(
+                &delivery.chunk_names,
+                if library {
+                    "[index].[ext]"
+                } else {
+                    "[hash:8].[ext]"
+                },
+            ),
+            module_names: template(&delivery.module_names, "[path].[ext]"),
+            request_bytes: delivery.request_bytes,
+            depth_bytes: delivery.depth_bytes,
+        })
     }
 
     /// The sole bridge from the older per-tactic keys and allowlists into the
@@ -683,9 +792,6 @@ impl ProjectConfig {
         if let Some(policy) = &self.policy {
             policy.validate()?;
         }
-        if self.bundle.min_chunk_bytes == 0 {
-            return Err("`bundle.min_chunk_bytes` must be greater than zero".to_string());
-        }
         if let Some(package) = &self.package {
             validate_package_name(&package.name)?;
             semver::Version::parse(&package.version)
@@ -717,27 +823,21 @@ impl ProjectConfig {
                 ));
             }
         }
-        if self.bundle.max_chunks == 0 {
-            return Err("`bundle.max_chunks` must be greater than zero".to_string());
+        for name in self.delivery.entries.keys() {
+            if !valid_entry_name(name) {
+                return Err(format!(
+                    "`delivery.entries` name `{name}` must be letters, digits, `_`, `.` or `-`"
+                ));
+            }
         }
-        if self.bundle.shared_min_imports < 2 {
-            return Err("`bundle.shared_min_imports` must be at least 2".to_string());
-        }
-        if self.bundle.cost.raw_weight == 0
-            && self.bundle.cost.gzip_weight == 0
-            && self.bundle.cost.brotli_weight == 0
-        {
-            return Err("`bundle.cost` must enable at least one byte-cost weight".to_string());
-        }
-        if self.bundle.cost.preload_request_discount_percent > 100 {
-            return Err(
-                "`bundle.cost.preload_request_discount_percent` must be at most 100".to_string(),
-            );
-        }
-        if self.bundle.cost.cache_reuse_discount_percent > 100 {
-            return Err(
-                "`bundle.cost.cache_reuse_discount_percent` must be at most 100".to_string(),
-            );
+        for (key, template) in [
+            ("entry_names", &self.delivery.entry_names),
+            ("chunk_names", &self.delivery.chunk_names),
+            ("module_names", &self.delivery.module_names),
+        ] {
+            if let Some(template) = template {
+                crate::js::names::check_template(key, template)?;
+            }
         }
         if let Some(decisions) = &self.javascript.compression {
             let mut unique = HashSet::with_capacity(decisions.len());
@@ -1428,16 +1528,21 @@ pub struct MangleConfig {
     pub pool_strings: Option<bool>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+/// How the program's root statements are placed in files (plan M3.3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub enum BundleMode {
+pub enum DeliveryMode {
+    /// One file per entry: every statement an entry reaches, in its
+    /// evaluation order.
     #[default]
     Single,
+    /// Files by entry reachability: code several entries share lives once.
     Split,
+    /// Every source module is a file, as ES modules evaluate the source.
     PreserveModules,
 }
 
-impl BundleMode {
+impl DeliveryMode {
     /// The configuration spelling.
     pub const fn name(self) -> &'static str {
         match self {
@@ -1448,8 +1553,35 @@ impl BundleMode {
     }
 }
 
-/// Whether the output carries the relative JavaScript or TypeScript modules
-/// its `import extern` declarations name.
+/// The container a delivered file is written in (architecture §14
+/// `[target.javascript] format`). Placement never depends on it; only the
+/// link spellings and the frame around program code do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum JavaScriptFormat {
+    /// ES modules: `import`/`export`, `import()`.
+    #[default]
+    Esm,
+    /// CommonJS: `require`, `exports`.
+    Cjs,
+}
+
+impl JavaScriptFormat {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Esm => "esm",
+            Self::Cjs => "cjs",
+        }
+    }
+    /// The `[ext]` of a delivered file in this container.
+    pub const fn extension(self) -> &'static str {
+        match self {
+            Self::Esm => "js",
+            Self::Cjs => "cjs",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum HostModules {
@@ -1471,102 +1603,70 @@ pub enum PreloadPolicy {
     All,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct ChunkCostConfig {
-    pub raw_weight: u32,
-    pub gzip_weight: u32,
-    pub brotli_weight: u32,
-    pub request_overhead_bytes: usize,
-    pub dependency_depth_penalty_bytes: usize,
-    pub preload_request_discount_percent: u32,
-    pub cache_reuse_discount_percent: u32,
-}
-
-impl ChunkCostConfig {
-    /// One delivered file's cost: weighted codec bytes, plus a request for
-    /// every file but the entry (discounted when preloaded) and a penalty per
-    /// level below the first, minus a discount for files several importers
-    /// share from cache.
-    pub fn deploy_cost(
-        &self,
-        raw: usize,
-        gzip: usize,
-        brotli: usize,
-        depth: usize,
-        preloaded: bool,
-        reachability: usize,
-    ) -> u64 {
-        let byte_cost = (raw as u64)
-            .saturating_mul(u64::from(self.raw_weight))
-            .saturating_add((gzip as u64).saturating_mul(u64::from(self.gzip_weight)))
-            .saturating_add((brotli as u64).saturating_mul(u64::from(self.brotli_weight)));
-        let request = if depth == 0 {
-            0
-        } else {
-            let request = self.request_overhead_bytes as u64;
-            if preloaded {
-                request.saturating_mul(u64::from(
-                    100u32.saturating_sub(self.preload_request_discount_percent),
-                )) / 100
-            } else {
-                request
-            }
-        };
-        let depth_cost = (self.dependency_depth_penalty_bytes as u64)
-            .saturating_mul(depth.saturating_sub(1) as u64);
-        let cache_reuse = reachability.saturating_sub(1).min(4) as u64;
-        let cache_discount = byte_cost
-            .saturating_mul(u64::from(self.cache_reuse_discount_percent))
-            .saturating_mul(cache_reuse)
-            / 100;
-        byte_cost
-            .saturating_add(request)
-            .saturating_add(depth_cost)
-            .saturating_sub(cache_discount)
-    }
-}
-
-impl Default for ChunkCostConfig {
-    fn default() -> Self {
-        Self {
-            raw_weight: 0,
-            gzip_weight: 1,
-            brotli_weight: 2,
-            request_overhead_bytes: 1_000,
-            dependency_depth_penalty_bytes: 160,
-            preload_request_discount_percent: 70,
-            cache_reuse_discount_percent: 20,
-        }
-    }
-}
-
+/// `[delivery]` (architecture §14): how the one program is placed in files
+/// and named. Entries are the program's roots; every other key is contract.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct BundleConfig {
-    pub mode: BundleMode,
-    pub min_chunk_bytes: usize,
-    pub max_chunks: usize,
-    pub shared_min_imports: usize,
+pub struct DeliveryConfig {
+    pub mode: DeliveryMode,
+    /// Entry name to source path, relative to this file. Sorted by name:
+    /// entry `i` is bit `i` of every reachability label.
+    pub entries: BTreeMap<String, PathBuf>,
+    /// File name templates: `[name]` (entry), `[index]` (plan position),
+    /// `[hash:N]` (content hash), `[path]` (source module path) and `[ext]`.
+    pub entry_names: Option<String>,
+    pub chunk_names: Option<String>,
+    pub module_names: Option<String>,
+    /// Which lazily loaded files an entry preloads.
     pub preload: PreloadPolicy,
     /// Whether relative host modules travel with the output.
     pub host_modules: HostModules,
-    /// Weights that turn delivered bytes, requests and dependency depth into one bundle cost for chunking decisions.
-    pub cost: ChunkCostConfig,
+    /// Declared deployment costs (L12): bytes per file a row loads beyond its
+    /// first, and per static import level beyond the first.
+    pub request_bytes: u64,
+    pub depth_bytes: u64,
 }
 
-impl Default for BundleConfig {
+impl Default for DeliveryConfig {
     fn default() -> Self {
         Self {
-            mode: BundleMode::Single,
-            min_chunk_bytes: 16 * 1024,
-            max_chunks: 32,
-            shared_min_imports: 2,
+            mode: DeliveryMode::Single,
+            entries: BTreeMap::new(),
+            entry_names: None,
+            chunk_names: None,
+            module_names: None,
             preload: PreloadPolicy::None,
             host_modules: HostModules::External,
-            cost: ChunkCostConfig::default(),
+            request_bytes: 0,
+            depth_bytes: 0,
         }
     }
+}
+
+/// Whether `name` may name an entry: it becomes a file name and an entry
+/// label, so it is a plain path segment.
+pub fn valid_entry_name(name: &str) -> bool {
+    !name.is_empty()
+        && name != "."
+        && name != ".."
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b'-'))
+}
+
+/// `[target]`: the contract axes of schema v3 this compiler reads so far.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct TargetConfig {
+    pub javascript: TargetJavaScriptConfig,
+}
+
+/// `[target.javascript]`: only `format` so far (plan M3.1 brings the
+/// other axes here).
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct TargetJavaScriptConfig {
+    pub format: JavaScriptFormat,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1883,9 +1983,12 @@ mod tests {
     fn rejects_unknown_and_invalid_settings() {
         assert!(parse_project_config("[mangle]\nmagic=true").is_err());
         assert!(parse_project_config("[javascript]\nno_such_knob = true\n").is_err());
-        assert!(parse_project_config("[bundle]\nmax_chunks=0")
+        assert!(parse_project_config("[bundle]\nmagic=0")
             .unwrap_err()
-            .contains("max_chunks"));
+            .contains("bundle.magic"));
+        assert!(parse_project_config("[delivery]\nentries={\"a/b\"=\"x.lil\"}")
+            .unwrap_err()
+            .contains("delivery.entries"));
         assert!(parse_project_config(
             "[javascript]\ncompression=['string-pooling','string-pooling']\n"
         )

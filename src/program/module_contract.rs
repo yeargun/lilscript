@@ -8,7 +8,7 @@ pub(super) fn initialization_order(
     modules: &[ModuleInterface],
     entry: ModuleId,
 ) -> Result<Vec<UnitId>, String> {
-    initialization_order_admitted(modules, entry, &mut AllocationBudget::new(None)).map_err(
+    initialization_order_admitted(modules, &[entry], &mut AllocationBudget::new(None)).map_err(
         |error| match error {
             StaticOrderError::Invalid(reason) => reason.to_owned(),
             StaticOrderError::Resources(error) => error.to_string(),
@@ -18,20 +18,21 @@ pub(super) fn initialization_order(
 
 pub(super) fn initialization_order_admitted(
     modules: &[ModuleInterface],
-    entry: ModuleId,
+    entries: &[ModuleId],
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<UnitId>, StaticOrderError> {
     let mut initializers = budget.vector(Scratch, modules.len())?;
     let mut scope = budget.scope();
+    let roots = entries.iter().map(|entry| entry.index()).collect::<Vec<_>>();
     let order = crate::module::initialization_order_admitted(
-        entry.index(),
+        &roots,
         modules.len(),
         |module| modules[module].dependencies.iter().map(|id| id.index()),
         &mut scope,
     )?;
     // A module the static order leaves out must be one `import()` loads.
-    let reachable = crate::module::static_evaluation_order_admitted(
-        entry.index(),
+    let reachable = crate::module::static_evaluation_order_from_admitted(
+        &roots,
         modules.len(),
         |module| {
             modules[module]
