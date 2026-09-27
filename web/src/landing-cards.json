@@ -272,8 +272,8 @@
       "now": 60056,
       "bar": 60778,
       "barLabel": "SWC, Flow sources",
-      "builtBy": "24968659 · 27 Sep",
-      "note": "Port source rewrite; same compiler."
+      "builtBy": "d1d48c4c · 27 Sep",
+      "note": "Port source rewrite; same compiler source as 24968659."
     },
     {
       "name": "react-markdownlil",

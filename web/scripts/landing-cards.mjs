@@ -107,7 +107,7 @@ export function render(html, { describe = false } = {}) {
   next = next.replace(/data-landing-count>[^<]*</g, `data-landing-count>${voting.length}<`);
   if (describe) next = next.replace(
     /(<meta\s+name="description"\s+content=")[^"]*(")/,
-    `$1LilScript is a typed language that compiles to smaller JavaScript. Across ${voting.length} library rows measured with today’s compiler, the median result is ${gzip}% smaller with gzip and ${brotli}% smaller with Brotli than the bar named on each card.$2`,
+    `$1LilScript is a typed language that compiles to smaller JavaScript. Across ${voting.length} published library ports, the median result is ${gzip}% smaller with gzip and ${brotli}% smaller with Brotli than the bar named on each card.$2`,
   );
   return next;
 }
