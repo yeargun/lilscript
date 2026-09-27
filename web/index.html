@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LilScript is a typed language that compiles to smaller JavaScript. Across 11 library rows measured with today’s compiler, the median result is 5.9% smaller with gzip and 7.0% smaller with Brotli than the bar named on each card."
+      content="LilScript is a typed language that compiles to smaller JavaScript. Across 10 library rows measured with today’s compiler, the median result is 5.8% smaller with gzip and 5.7% smaller with Brotli than the bar named on each card."
     />
     <title>LilScript — compiles to smaller JavaScript</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -81,10 +81,10 @@
             <div>
               <dt>Measured median</dt>
               <dd>
-                Across the <span data-landing-count>11</span> published
+                Across the <span data-landing-count>10</span> published
                 library ports that vote, one vote each:
-                <strong data-landing-median="gzip">5.9%</strong> smaller under
-                gzip-9 and <strong data-landing-median="brotli">7.0%</strong>
+                <strong data-landing-median="gzip">5.8%</strong> smaller under
+                gzip-9 and <strong data-landing-median="brotli">5.7%</strong>
                 smaller under Brotli-11 than the bar named on each card.
               </dd>
             </div>
@@ -179,7 +179,7 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
         <div class="landing-section landing-wrap">
           <div class="monaco-feature">
             <div class="landing-heading">
-              <p class="landing-kicker">02 · Monaco · the VS Code editor</p>
+              <p class="landing-kicker">02 · Monaco · the VS Code editor · August 2026</p>
               <h2 id="monaco-title">
                 The editor that ships in VS Code, rewritten and compiled.
               </h2>
@@ -188,7 +188,8 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
                 The other is the LilScript editor compiled from
                 <code>entry.lil</code> plus the monaco-editor-core catalog — not
                 monaco with a few files swapped. Microsoft’s TypeScript language
-                service is still on both sides.
+                service is still on both sides. These sizes are from the
+                previous compiler’s August lab and have not been re-measured.
               </p>
               <div class="landing-actions">
                 <a
@@ -428,16 +429,13 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Editor · VS Code</span>
+            <span class="lib-card-kicker">Editor · VS Code · August lab</span>
             <h3>Monaco</h3>
-            <p>Compiled Lil editor + catalog versus npm monaco-editor. TypeScript <code>ts.worker</code> is still Microsoft’s.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="1148595" data-candidate="526268">
-                <small>gzip-9 · vs npm</small><b>−54.2%</b><span>1,148,595 → 526,268 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="887420" data-candidate="413607">
-                <small>Brotli-11 · vs npm</small><b>−53.4%</b><span>887,420 → 413,607 B</span>
-              </div>
+            <p>Compiled Lil editor + catalog versus npm monaco-editor, measured in August 2026 by the previous compiler’s in-repo lab and not yet re-run. TypeScript <code>ts.worker</code> is still Microsoft’s. No vote.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm ide.js · Brotli</small><b>887,420</b></div>
+              <div><small>Lil ide.js · Brotli</small><b>413,607</b></div>
+              <div><small>Vote</small><b>none</b></div>
             </div>
           </a>
           <a
@@ -490,7 +488,7 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
           <strong>How to read this.</strong> Each percentage is recalculated as
           <code>(candidate / bar − 1) × 100</code> from the byte pair beside
           it. A port ships one Brotli-objective file, so its gzip figure is
-          that same file under gzip-9. The headline median is over the <span data-landing-count>11</span>
+          that same file under gzip-9. The headline median is over the <span data-landing-count>10</span>
           cards with a vote, one per library, not a byte-weighted blend.
           Motion, SolidLil and MobX stay visible without a vote: Motion’s
           delivered files are not written by the compiler alone, SolidLil’s
@@ -642,10 +640,10 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
               <tr>
                 <th scope="row"><a href="https://yeargun.github.io/remarklil/" target="_blank" rel="noopener">remarklil</a><small>@itslil/remark</small></th>
                 <td><code>remark.esm.js</code></td>
-                <td>36,607 B</td>
+                <td>37,239 B</td>
                 <td>22,486 B<small>Terser</small></td>
-                <td class="loss">+62.8%</td>
-                <td>24968659 · 27 Sep</td>
+                <td class="loss">+65.6%</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 36,607 B. The page’s table shows 36,150 B, from a build that did not ship.</small></td>
               </tr>
               <tr>
                 <th scope="row"><a href="https://yeargun.github.io/micromarklil/" target="_blank" rel="noopener">micromarklil</a><small>@itslil/micromark</small></th>
@@ -705,11 +703,11 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
               </tr>
               <tr>
                 <th scope="row"><a href="https://yeargun.github.io/monacolil/" target="_blank" rel="noopener">monacolil</a><small>@itslil/monaco-editor</small></th>
-                <td><code>ide.js</code></td>
-                <td>413,607 B</td>
-                <td>887,420 B<small>npm</small></td>
-                <td class="win">−53.4%</td>
-                <td>24968659 · 27 Sep</td>
+                <td><code>monaco.esm.js</code></td>
+                <td>47,442 B</td>
+                <td>—<small>not comparable</small></td>
+                <td>—</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 47,513 B. The editor pair is from the August lab.</small></td>
               </tr>
               <tr>
                 <th scope="row"><a href="https://yeargun.github.io/motionlil/" target="_blank" rel="noopener">motionlil</a><small>motionlil</small></th>
@@ -854,9 +852,9 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
             That was not the plan; it is just what we keep seeing. A library
             rewrite is often close to one-shot, and the compiled file is usually
             smaller once gzip or Brotli is applied. Across the
-            <span data-landing-count>11</span> published library ports that
-            vote, the median is <span data-landing-median="gzip">5.9%</span> smaller under
-            gzip-9 and <span data-landing-median="brotli">7.0%</span> smaller
+            <span data-landing-count>10</span> published library ports that
+            vote, the median is <span data-landing-median="gzip">5.8%</span> smaller under
+            gzip-9 and <span data-landing-median="brotli">5.7%</span> smaller
             under Brotli-11, one vote per library. It is a snapshot, not a promise that every file will move that far.
           </p>
         </div>

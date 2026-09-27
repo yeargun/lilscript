@@ -177,17 +177,23 @@
       "id": "monaco",
       "href": "https://yeargun.github.io/monacolil/",
       "external": true,
-      "kicker": "Editor · VS Code",
+      "kicker": "Editor · VS Code · August lab",
       "title": "Monaco",
-      "text": "Compiled Lil editor + catalog versus npm monaco-editor. TypeScript <code>ts.worker</code> is still Microsoft’s.",
-      "baselineLabel": "npm",
-      "gzip": [
-        1148595,
-        526268
-      ],
-      "brotli": [
-        887420,
-        413607
+      "text": "Compiled Lil editor + catalog versus npm monaco-editor, measured in August 2026 by the previous compiler’s in-repo lab and not yet re-run. TypeScript <code>ts.worker</code> is still Microsoft’s. No vote.",
+      "vote": false,
+      "metrics": [
+        [
+          "npm ide.js · Brotli",
+          "887,420"
+        ],
+        [
+          "Lil ide.js · Brotli",
+          "413,607"
+        ],
+        [
+          "Vote",
+          "none"
+        ]
       ]
     },
     {
@@ -329,10 +335,11 @@
       "name": "remarklil",
       "package": "@itslil/remark",
       "file": "remark.esm.js",
-      "now": 36607,
+      "now": 37239,
       "bar": 22486,
       "barLabel": "Terser",
-      "builtBy": "24968659 · 27 Sep"
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Today’s compiler: 36,607 B. The page’s table shows 36,150 B, from a build that did not ship."
     },
     {
       "name": "micromarklil",
@@ -403,11 +410,12 @@
     {
       "name": "monacolil",
       "package": "@itslil/monaco-editor",
-      "file": "ide.js",
-      "now": 413607,
-      "bar": 887420,
-      "barLabel": "npm",
-      "builtBy": "24968659 · 27 Sep"
+      "file": "monaco.esm.js",
+      "now": 47442,
+      "bar": null,
+      "barLabel": "not comparable",
+      "builtBy": "previous compiler · 10 Sep",
+      "note": "Today’s compiler: 47,513 B. The editor pair is from the August lab."
     },
     {
       "name": "motionlil",

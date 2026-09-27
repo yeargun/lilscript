@@ -44,10 +44,10 @@
           compiler actually does. Numbers are independently measured gzip-9 and
           Brotli-11 bytes of the selected JavaScript, scored with the same stock
           zlib and official Brotli encoders. Across the
-          <span data-landing-count>11</span> published library ports that
+          <span data-landing-count>10</span> published library ports that
           vote, the median is
-          <span data-landing-median="gzip">5.9%</span> smaller under gzip-9 and
-          <span data-landing-median="brotli">7.0%</span> smaller under Brotli-11
+          <span data-landing-median="gzip">5.8%</span> smaller under gzip-9 and
+          <span data-landing-median="brotli">5.7%</span> smaller under Brotli-11
           than the bar named on each card.
         </p>
         <nav class="compare-jumps" aria-label="Compare sections">
@@ -276,16 +276,13 @@
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Editor · VS Code</span>
+            <span class="lib-card-kicker">Editor · VS Code · August lab</span>
             <h3>Monaco</h3>
-            <p>Compiled Lil editor + catalog versus npm monaco-editor. TypeScript <code>ts.worker</code> is still Microsoft’s.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="1148595" data-candidate="526268">
-                <small>gzip-9 · vs npm</small><b>−54.2%</b><span>1,148,595 → 526,268 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="887420" data-candidate="413607">
-                <small>Brotli-11 · vs npm</small><b>−53.4%</b><span>887,420 → 413,607 B</span>
-              </div>
+            <p>Compiled Lil editor + catalog versus npm monaco-editor, measured in August 2026 by the previous compiler’s in-repo lab and not yet re-run. TypeScript <code>ts.worker</code> is still Microsoft’s. No vote.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm ide.js · Brotli</small><b>887,420</b></div>
+              <div><small>Lil ide.js · Brotli</small><b>413,607</b></div>
+              <div><small>Vote</small><b>none</b></div>
             </div>
           </a>
           <a
@@ -340,7 +337,7 @@
         <div class="landing-section landing-wrap">
           <div class="monaco-feature">
             <div class="landing-heading">
-              <p class="landing-kicker">Monaco · VS Code’s editor</p>
+              <p class="landing-kicker">Monaco · VS Code’s editor · August 2026</p>
               <h2>monaco-editor 0.56, JavaScript versus LilScript.</h2>
               <p>
                 The JS page is npm <code>monaco-editor</code>. The Lil page is
@@ -349,7 +346,8 @@
                 pages still load Microsoft <code>ts.worker</code> so diagnostics
                 match. The view is a functioning editor — create, type, undo,
                 find, fold, hover, suggest — not a claim that every VS Code
-                workbench feature is present.
+                workbench feature is present. These sizes are from the previous
+                compiler’s August lab and have not been re-measured.
               </p>
               <div class="landing-actions">
                 <a
