@@ -87,9 +87,10 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
     assert_eq!(names, declared, "every declared challenger, in order");
     let before = stage["before"].as_i64().unwrap();
     let mut incumbent = before;
-    // The choice trials (M9.1) continue from the challengers' incumbent.
+    // The choice trials (M9.1) run first; the challengers continue from
+    // their incumbent.
     let choice_trials = stage["choice_trials"].as_array().unwrap();
-    for trial in trials(stage).iter().chain(choice_trials) {
+    for trial in choice_trials.iter().chain(trials(stage)) {
         match outcome(trial) {
             "kept" => {
                 let delta = trial["delta"].as_i64().unwrap();

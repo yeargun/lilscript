@@ -31,7 +31,7 @@
 //! * everything here is sequential and deterministic: no thread count, time
 //!   or allocation address enters a decision.
 use super::*;
-use crate::js::{Challenger, ChoiceKey, ChoiceMap, ChoiceSite, Spelling};
+use crate::js::{Challenger, ChoiceMap, ChoiceSite, Spelling};
 
 /// What became of one declared challenger on one objective's final candidate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -333,11 +333,18 @@ impl Judge<'_> {
     }
 }
 
-/// The choice schedule of one surveyed artifact: every site, largest stake
-/// first, and each site's alternatives other than the one it applies, best
-/// estimate first. An alternative the estimator says saves nothing is
-/// offered only when it is the canonical form (the undo of a seed).
-fn choice_schedule(sites: &[ChoiceSite]) -> Vec<(usize, crate::js::AltId)> {
+/// The choice schedule of one surveyed artifact, as moves (each a set of
+/// site assignments judged together). First, when two or more sites apply a
+/// non-canonical alternative, every site back to its canonical form at once:
+/// encodings share decoder text a codec matches across tables, so one site
+/// at a time cannot leave a state where several pay together (the families'
+/// `other-objective-seed` challenger is the same whole move). Then every
+/// site, largest stake first, and each site's alternatives other than the one
+/// it applies, best estimate first. An alternative the estimator says saves
+/// nothing is offered only when it is the canonical form (the undo of a
+/// seed).
+fn choice_schedule(sites: &[ChoiceSite]) -> Vec<Vec<(usize, crate::js::AltId)>> {
+    let canonical = crate::js::AltId(0);
     let mut order: Vec<usize> = (0..sites.len()).collect();
     order.sort_by(|&a, &b| {
         sites[b]
@@ -346,13 +353,22 @@ fn choice_schedule(sites: &[ChoiceSite]) -> Vec<(usize, crate::js::AltId)> {
             .then(sites[a].key.cmp(&sites[b].key))
     });
     let mut schedule = Vec::new();
+    let encoded: Vec<(usize, crate::js::AltId)> = order
+        .iter()
+        .copied()
+        .filter(|&site| sites[site].applied != canonical)
+        .map(|site| (site, canonical))
+        .collect();
+    if encoded.len() > 1 {
+        schedule.push(encoded);
+    }
     for site in order {
         let mut alternatives: Vec<_> = sites[site]
             .alternatives
             .iter()
             .filter(|offered| {
                 offered.alternative != sites[site].applied
-                    && (offered.saving > 0 || offered.alternative == crate::js::AltId(0))
+                    && (offered.saving > 0 || offered.alternative == canonical)
             })
             .collect();
         alternatives.sort_by(|a, b| {
@@ -363,7 +379,7 @@ fn choice_schedule(sites: &[ChoiceSite]) -> Vec<(usize, crate::js::AltId)> {
         schedule.extend(
             alternatives
                 .into_iter()
-                .map(|offered| (site, offered.alternative)),
+                .map(|offered| vec![(site, offered.alternative)]),
         );
     }
     schedule
@@ -523,6 +539,135 @@ impl JavaScriptSearch<'_, '_> {
             output.target_compaction,
             WorkDomain::Optional,
             |formations| -> Result<(), SearchError> {
+                'choices: {
+                    if choice_budget == 0 {
+                        break 'choices;
+                    }
+                    // The choice phase (M9.1), first: the sites the search
+                    // winner's tree offers, each other alternative judged on the
+                    // whole artifact within the effort's choice budget. Data
+                    // layout is the larger stake; the spellings are then judged
+                    // on the layout the artifact keeps.
+                    report.surveys += 1;
+                    let surveyed = formations.survey(&OutputTactics {
+                        families: incumbent.spelling.families,
+                        choices: incumbent.choices.clone(),
+                        ..output.clone()
+                    });
+                    let mut sites = match surveyed {
+                        Ok(sites) => sites,
+                        Err(error) if exhausted(&error) => {
+                            stopped = true;
+                            break 'choices;
+                        }
+                        Err(_) => break 'choices,
+                    };
+                    for moves in choice_schedule(&sites) {
+                        let (site, alternative) = moves[0];
+                        let estimate = moves
+                            .iter()
+                            .map(|&(site, alternative)| {
+                                sites[site]
+                                    .alternatives
+                                    .iter()
+                                    .find(|offered| offered.alternative == alternative)
+                                    .map_or(0, |offered| offered.saving)
+                            })
+                            .sum();
+                        let joint = moves.len() > 1;
+                        let mut record = ChoiceTrial {
+                            family: sites[site].key.family,
+                            site: if joint {
+                                format!("{} sites", moves.len())
+                            } else {
+                                sites[site].name.clone()
+                            },
+                            alternative: if joint {
+                                "canonical"
+                            } else {
+                                sites[site].name_of(alternative)
+                            },
+                            estimate,
+                            outcome: ChallengerOutcome::Budget,
+                            size: None,
+                            delta: None,
+                        };
+                        let moved: Vec<(usize, crate::js::AltId)> = moves
+                            .iter()
+                            .copied()
+                            .filter(|&(site, alternative)| sites[site].applied != alternative)
+                            .collect();
+                        if stopped {
+                            record.outcome = ChallengerOutcome::Stopped;
+                        } else if moved.is_empty() {
+                            // An earlier trial kept this assignment already.
+                            record.outcome = ChallengerOutcome::Duplicate;
+                        } else if report.choices_scored < choice_budget {
+                            report.choices_tried += 1;
+                            let choices = moved.iter().fold(
+                                incumbent.choices.clone(),
+                                |choices, &(site, alternative)| {
+                                    choices.with(sites[site].key, alternative)
+                                },
+                            );
+                            let (judgement, probed) = judge.judge(
+                                formations,
+                                portfolio,
+                                incumbent.spelling,
+                                &choices,
+                                &incumbent,
+                            )?;
+                            report.codec_probes += usize::from(probed);
+                            match judgement {
+                                Judgement::Kept { artifact, size } => {
+                                    report.choices_scored += 1;
+                                    record.outcome = ChallengerOutcome::Kept;
+                                    record.size = Some(size);
+                                    record.delta = Some(size as i64 - incumbent.size as i64);
+                                    incumbent = Incumbent {
+                                        artifact,
+                                        spelling: incumbent.spelling,
+                                        choices,
+                                        size,
+                                    };
+                                    for &(site, alternative) in &moved {
+                                        sites[site].applied = alternative;
+                                    }
+                                }
+                                Judgement::Rejected { size } => {
+                                    report.choices_scored += 1;
+                                    record.outcome = ChallengerOutcome::Rejected;
+                                    record.size = Some(size);
+                                    record.delta = Some(size as i64 - incumbent.size as i64);
+                                }
+                                Judgement::Identical => {
+                                    record.outcome = ChallengerOutcome::Identical
+                                }
+                                Judgement::Refused => record.outcome = ChallengerOutcome::Refused,
+                                Judgement::Stopped => {
+                                    stopped = true;
+                                    report.choices_tried -= 1;
+                                    record.outcome = ChallengerOutcome::Stopped;
+                                }
+                            }
+                        }
+                        report.choice_trials.push(record);
+                    }
+                    report.choices = sites
+                        .iter()
+                        .map(|site| ChoiceOutcome {
+                            family: site.key.family,
+                            site: site.name.clone(),
+                            seed: site.name_of(site.seed),
+                            delivered: site.name_of(site.applied),
+                            offered: site
+                                .alternatives
+                                .iter()
+                                .map(|offered| (offered.name, offered.saving))
+                                .collect(),
+                        })
+                        .collect();
+                }
                 let mut seen = vec![seed.effective()];
                 for challenger in Challenger::ORDER {
                     if stopped {
@@ -593,103 +738,6 @@ impl JavaScriptSearch<'_, '_> {
                         delta,
                     });
                 }
-                if stopped || choice_budget == 0 {
-                    return Ok(());
-                }
-                // The choice phase (M9.1): the sites the incumbent's tree
-                // offers, each other alternative judged on the whole
-                // artifact within the effort's choice budget.
-                report.surveys += 1;
-                let surveyed = formations.survey(&OutputTactics {
-                    families: incumbent.spelling.families,
-                    choices: incumbent.choices.clone(),
-                    ..output.clone()
-                });
-                let mut sites = match surveyed {
-                    Ok(sites) => sites,
-                    Err(error) if exhausted(&error) => {
-                        stopped = true;
-                        return Ok(());
-                    }
-                    Err(_) => return Ok(()),
-                };
-                for (site, alternative) in choice_schedule(&sites) {
-                    let key: ChoiceKey = sites[site].key;
-                    let estimate = sites[site]
-                        .alternatives
-                        .iter()
-                        .find(|offered| offered.alternative == alternative)
-                        .map_or(0, |offered| offered.saving);
-                    let mut record = ChoiceTrial {
-                        family: key.family,
-                        site: sites[site].name.clone(),
-                        alternative: sites[site].name_of(alternative),
-                        estimate,
-                        outcome: ChallengerOutcome::Budget,
-                        size: None,
-                        delta: None,
-                    };
-                    if stopped {
-                        record.outcome = ChallengerOutcome::Stopped;
-                    } else if sites[site].applied == alternative {
-                        // An earlier trial of this site kept it already.
-                        record.outcome = ChallengerOutcome::Duplicate;
-                    } else if report.choices_scored < choice_budget {
-                        report.choices_tried += 1;
-                        let choices = incumbent.choices.with(key, alternative);
-                        let (judgement, probed) = judge.judge(
-                            formations,
-                            portfolio,
-                            incumbent.spelling,
-                            &choices,
-                            &incumbent,
-                        )?;
-                        report.codec_probes += usize::from(probed);
-                        match judgement {
-                            Judgement::Kept { artifact, size } => {
-                                report.choices_scored += 1;
-                                record.outcome = ChallengerOutcome::Kept;
-                                record.size = Some(size);
-                                record.delta = Some(size as i64 - incumbent.size as i64);
-                                incumbent = Incumbent {
-                                    artifact,
-                                    spelling: incumbent.spelling,
-                                    choices,
-                                    size,
-                                };
-                                sites[site].applied = alternative;
-                            }
-                            Judgement::Rejected { size } => {
-                                report.choices_scored += 1;
-                                record.outcome = ChallengerOutcome::Rejected;
-                                record.size = Some(size);
-                                record.delta = Some(size as i64 - incumbent.size as i64);
-                            }
-                            Judgement::Identical => record.outcome = ChallengerOutcome::Identical,
-                            Judgement::Refused => record.outcome = ChallengerOutcome::Refused,
-                            Judgement::Stopped => {
-                                stopped = true;
-                                report.choices_tried -= 1;
-                                record.outcome = ChallengerOutcome::Stopped;
-                            }
-                        }
-                    }
-                    report.choice_trials.push(record);
-                }
-                report.choices = sites
-                    .iter()
-                    .map(|site| ChoiceOutcome {
-                        family: site.key.family,
-                        site: site.name.clone(),
-                        seed: site.name_of(site.seed),
-                        delivered: site.name_of(site.applied),
-                        offered: site
-                            .alternatives
-                            .iter()
-                            .map(|offered| (offered.name, offered.saving))
-                            .collect(),
-                    })
-                    .collect();
                 Ok(())
             },
         );

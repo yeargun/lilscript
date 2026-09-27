@@ -279,3 +279,47 @@ fn a_terminal_formation_of_the_winners_own_assignment_is_the_winner() {
         assert_eq!(compilation.finish().retained_bytes(), 0);
     }
 }
+
+#[test]
+fn the_choice_schedule_resets_every_site_at_once_then_orders_by_stake() {
+    use crate::js::choices::ChoiceAlternative;
+    use crate::js::{AltId, ChoiceFamily, ChoiceKey, ChoiceSite};
+    let site = |site: u32, savings: &[(u8, i64)], applied: u8| ChoiceSite {
+        key: ChoiceKey {
+            family: ChoiceFamily::DataEncoding,
+            site,
+        },
+        name: format!("t{site}"),
+        alternatives: savings
+            .iter()
+            .map(|&(alternative, saving)| ChoiceAlternative {
+                alternative: AltId(alternative),
+                name: "",
+                saving,
+            })
+            .collect(),
+        seed: AltId(applied),
+        applied: AltId(applied),
+    };
+    let small = site(4, &[(0, 0), (1, 120), (2, 90)], 1);
+    let large = site(9, &[(0, 0), (2, 11_000), (3, 19_000)], 3);
+    let plain = site(2, &[(0, 0), (2, -40)], 0);
+    let sites = [small, large, plain];
+    let schedule = choice_schedule(&sites);
+    // Both encoded sites back to their literal at once, largest stake first.
+    assert_eq!(schedule[0], [(1, AltId(0)), (0, AltId(0))]);
+    // Then the large site's other alternatives, best estimate first, the
+    // literal (its undo) last; then the small one's; the plain site offers
+    // nothing that saves.
+    assert_eq!(
+        schedule[1..],
+        [
+            vec![(1, AltId(2))],
+            vec![(1, AltId(0))],
+            vec![(0, AltId(2))],
+            vec![(0, AltId(0))],
+        ]
+    );
+    // One encoded site needs no joint move: its literal is its own trial.
+    assert_eq!(choice_schedule(&sites[..1])[0], [(0, AltId(2))]);
+}
