@@ -9,15 +9,15 @@
       "external": true,
       "kicker": "Full library · font metrics in LilScript",
       "title": "KaTeX 0.16",
-      "text": "The whole <code>katex.mjs</code> surface, 1,258 checks. The bar is upstream’s own <code>katex.min.js</code>. Against SWC over KaTeX’s Flow sources (60,740 B) it is a tie, −459 B.",
-      "baselineLabel": "katex.min.js",
+      "text": "The whole <code>katex.mjs</code> surface. The bar is the strongest its page records: SWC over KaTeX’s own Flow sources. Upstream’s <code>katex.min.js</code> is 62,686 B.",
+      "baselineLabel": "SWC",
       "gzip": [
-        75840,
-        72187
+        73168,
+        72094
       ],
       "brotli": [
-        62686,
-        60281
+        60778,
+        60056
       ]
     },
     {
@@ -269,11 +269,11 @@
       "name": "katexlil",
       "package": "@itslil/katex",
       "file": "katex.esm.js",
-      "now": 60281,
-      "bar": 62686,
-      "barLabel": "katex.min.js",
-      "builtBy": "a430d5df · 27 Sep",
-      "note": "Same bytes from 24968659."
+      "now": 60056,
+      "bar": 60778,
+      "barLabel": "SWC, Flow sources",
+      "builtBy": "24968659 · 27 Sep",
+      "note": "Port source rewrite; same compiler."
     },
     {
       "name": "react-markdownlil",

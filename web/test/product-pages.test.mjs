@@ -182,7 +182,7 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(home, /comparison withheld/);
   assert.match(home, /25,452/);
   assert.match(home, /9,287/);
-  assert.match(home, /60,281/);
+  assert.match(home, /60,056/);
   assert.match(home, /5,419/);
   assert.match(compare, /href="\/demos.html#solidlil-keyed"/);
   assert.match(compare, /href="\/demos.html#motion-showcase-carousel"/);
