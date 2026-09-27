@@ -4988,9 +4988,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     ) -> Result<(), FormationError> {
         let target_region = self.plan(unit).regions[region.index()];
         // A root statement is formed from the operations since the previous
-        // one: its anchor is theirs (plan M3.3, design §6).
+        // one: its anchor is theirs (plan M3.3, design §6). One operation
+        // that is no definition anchors the whole window, so the anchor is a
+        // running fold, each operation judged once (not the window again at
+        // every operation, which is quadratic in a long window).
         let classify = self.classify_roots && target_region == self.module.root;
-        let mut window = 0;
+        let mut anchored = false;
         let mut formed = self.module.root_rows.len();
         let mut cursor = 0;
         while cursor < operations.len() {
@@ -4998,9 +5001,16 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             if classify {
                 if self.module.root_rows.len() != formed {
                     formed = self.module.root_rows.len();
-                    window = cursor;
+                    anchored = false;
                 }
-                self.anchor = self.root_anchor(unit, &operations[window..=cursor])?;
+                anchored = anchored
+                    || self.root_anchor(unit, &operations[cursor..=cursor])?
+                        == js::Anchor::Anchored;
+                self.anchor = if anchored {
+                    js::Anchor::Anchored
+                } else {
+                    js::Anchor::Definition
+                };
             }
             let operation_id = operations[cursor];
             let is_prepare = matches!(
