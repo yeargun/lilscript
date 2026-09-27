@@ -26,7 +26,7 @@
 // lanes now pass are reported for removal.
 //
 // See docs/testing.md.
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -56,6 +56,7 @@ export const FEATURES = [
   { id: "host-prelude", targets: JAVASCRIPT, why: "a .host.js prelude defines externs in a JavaScript realm" },
   { id: "module-probe", targets: ["module"], why: "a .module-probe.mjs imports the ES module's exports" },
   { id: "JsValue", targets: JAVASCRIPT, pattern: /\bJsValue\b/, why: "language-v0.1: JsValue is JavaScript-only" },
+  { id: "import extern", targets: ["module"], pattern: /\bimport\s+extern\b/, why: "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports" },
   { id: "extern", targets: JAVASCRIPT, pattern: /\bextern\b/, why: "language-v0.1: C rejects host declarations", lifts: "M11.3 (externs per target)" },
   { id: "export", targets: JAVASCRIPT, pattern: /\bexport\b/, entryOnly: true, why: "the entry's exports are a module ABI; C has none yet", lifts: "M11.8 (a C library ABI)" },
   { id: "JS namespace", targets: JAVASCRIPT, pattern: /\bJS\./, why: "language-v0.1: C rejects the JS.* operations" },
@@ -413,6 +414,12 @@ export async function runCases(options) {
     const directory = join(work, "lanes", lane.id.replaceAll("/", "_"), dirname(item.id));
     mkdirSync(directory, { recursive: true });
     const base = join(directory, basename(item.id));
+    // The case's own folder beside its artifact, so the foreign modules the
+    // output imports (`import extern`) resolve as they do beside the source.
+    const own = join(dirname(item.source), basename(item.id));
+    if (target.javascript && existsSync(own) && statSync(own).isDirectory() && !existsSync(base)) {
+      try { symlinkSync(own, base, "dir"); } catch (error) { if (error.code !== "EEXIST") throw error; }
+    }
     const config = `${base}.toml`;
     try {
       writeFileSync(config, composeConfig(lane, tactics, item.toml ? readFileSync(item.toml, "utf8") : null));

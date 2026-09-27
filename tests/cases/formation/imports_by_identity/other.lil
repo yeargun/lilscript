@@ -1,0 +1,5 @@
+// A second module importing the same exports under other local names.
+import extern { default as settings, twice as double } from "./host.mjs";
+extern JsValue settings;
+extern int double(int value);
+export int answerTwice() { return double(JS.number(JS.get(settings, "answer")).toInt()); }

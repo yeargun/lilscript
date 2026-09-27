@@ -1,0 +1,5 @@
+# The decided rule (architecture 10.2, plan M8.2 A1): a method formed from an
+# adapter callback keeps the adapter result's anonymous name where the contract
+# observes names; without this key its name is unobservable (R6).
+[javascript]
+keep_function_names = true

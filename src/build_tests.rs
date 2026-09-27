@@ -1631,10 +1631,13 @@ fn foreign_imports_become_es_imports_of_their_extern_values() {
     .unwrap();
     let javascript = result.javascript(Objective::Brotli).unwrap().javascript();
     assert!(javascript.contains("from\"./host.mjs\""), "{javascript}");
-    // Both modules import `twice`: its pinned local name is declared once.
-    assert_eq!(
-        javascript.matches("import{twice}").count(),
-        1,
+    // An import's identity is `(source, imported)`: both modules' `twice`
+    // is one binding, the default is the default binding, and the one
+    // specifier has one declaration (C18).
+    assert_eq!(javascript.matches("import").count(), 1, "{javascript}");
+    assert_eq!(javascript.matches("twice").count(), 1, "{javascript}");
+    assert!(
+        javascript.starts_with("import ") && !javascript.contains("default as"),
         "{javascript}"
     );
     std::fs::write(scratch.0.join("out.mjs"), javascript).unwrap();
@@ -1707,4 +1710,95 @@ fn searched_output_keeps_async_calls_construction_order_and_dynamic_equality() {
             result.javascript(codec).unwrap().javascript()
         );
     }
+}
+
+/// A method is its own function (plan M8.2 A1, law P1): no private callback
+/// shares an adapter factory's body, and where the contract does not keep
+/// names, a method may carry the name JavaScript infers (R6). This pins the
+/// gained name: the object key names the method, where the adapter's result
+/// was anonymous.
+#[test]
+fn adapter_callbacks_are_their_own_methods_and_may_gain_an_inferred_name() {
+    let source = "JsValue holder = JS.object(\"greet\", JS.method1((JsValue self, JsValue who) => JS.add(self[\"p\"], who)));\n\
+                  JsValue other = JS.object(\"echo\", JS.method1((JsValue self, JsValue who) => JS.add(who, self[\"p\"])));\n\
+                  export JsValue make() { return JS.object(\"a\", holder, \"b\", other); }";
+    for keep in [false, true] {
+        let result = compile_source(
+            source,
+            &config(&format!("keep_function_names={keep}")),
+            ServiceOptions {
+                objectives: Some(Objectives::All),
+                ..ServiceOptions::default()
+            },
+        )
+        .unwrap();
+        for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+            let javascript = result.javascript(codec).unwrap().javascript();
+            // No shared factory: each callback reads its receiver as `this`.
+            assert!(!javascript.contains("(this,"), "{javascript}");
+            assert_eq!(javascript.matches("this.p").count(), 2, "{javascript}");
+            let names = if keep {
+                "[\"\",\"\"]"
+            } else {
+                "[\"greet\",\"echo\"]"
+            };
+            assert_eq!(
+                execute_javascript(
+                    javascript,
+                    "",
+                    "const m=library.make();const o={p:'!',greet:m.a.greet,echo:m.b.echo};console.log(JSON.stringify([m.a.greet.name,m.b.echo.name]),o.greet('x'),o.echo('y'),m.a.greet.length);"
+                ),
+                format!("{names} !x y! 1\n"),
+                "keep_function_names={keep}\n{javascript}"
+            );
+        }
+    }
+}
+
+/// A class body is strict. Under `--target js` a static body moves into its
+/// prototype method only when strictness cannot change what it does (plan
+/// M8.2 A1, architecture §10.2): a failed host write that a sloppy frame
+/// ignores stays in a sloppy function; a body without one becomes the
+/// method.
+#[test]
+fn class_bodies_in_a_classic_script_keep_sloppy_host_writes_out_of_the_class() {
+    let source = "extern JsValue Object;\n\
+                  export class Writer {\n\
+                    string label() { return \"w\"; }\n\
+                    bool poke(JsValue target) { target[\"x\"] = 1; return true; }\n\
+                  }\n\
+                  export constructor Writer;\n\
+                  JsValue writer = new Writer();\n\
+                  print(JS.invoke(writer, \"label\"));\n\
+                  print(JS.invoke(writer, \"poke\", JS.invoke(Object, \"freeze\", JS.object())));";
+    // A path build, as the CLI's `--target js` makes it.
+    let scratch = Scratch::new();
+    std::fs::write(scratch.0.join("writer.lil"), source).unwrap();
+    let result = compile_path(
+        &scratch.0.join("writer.lil"),
+        &config(""),
+        ServiceOptions {
+            target: ServiceTarget::JavaScript,
+            preserve_root_exports: false,
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    let javascript = result.javascript(Objective::Brotli).unwrap().javascript();
+    // `label` is its body; `poke` forwards to a sloppy static body.
+    assert!(javascript.contains("label(){return\"w\"}"), "{javascript}");
+    assert!(
+        javascript.contains("poke(") && javascript.contains("(this,"),
+        "{javascript}"
+    );
+    let output = Command::new("node")
+        .args(["-e", javascript])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{javascript}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "w\ntrue\n");
 }

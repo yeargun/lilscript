@@ -1,0 +1,26 @@
+// A callback that ignores its own receiver and reads its enclosing method's
+// receiver or rest list (plan M8.2 A1, law P1): where nothing can construct
+// the adapter's result, it is an arrow, which sees the method's `this` and
+// `arguments` as the lambda did, and it shares no adapter factory.
+JsValue proto = JS.object("base", 10);
+// The inner callback reads the outer receiver and the outer list at a
+// constant index (formals); it is only ever called.
+proto["sum"] = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue inner = JS.method1((JsValue _ignored, JsValue x) => JS.add(self["base"], JS.add(x, args[0])));
+  return JS.call(inner, JS.undefined(), 5);
+});
+// The outer list is read through its `length`: `arguments`, which the arrow
+// sees as its enclosing method's.
+proto["count"] = JS.methodRest((JsValue self, JsValue args) => {
+  JsValue inner = JS.method0((JsValue _ignored) => JS.add(self["base"], args["length"]));
+  return JS.call(inner, JS.undefined());
+});
+// Called with several receivers: each call's `this` is its own.
+JsValue first = JS.object("base", 1);
+JsValue second = JS.object("base", 100);
+print(JS.call(proto["sum"], first, 2));
+print(JS.call(proto["sum"], second, 3));
+print(JS.call(proto["count"], first, "a", "b", "c"));
+print(JS.call(proto["count"], second));
+print(JS.get(proto["sum"], "length"));
+print(JS.get(proto["count"], "length"));

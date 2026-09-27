@@ -90,6 +90,7 @@ The mask is declared once, in `FEATURES` in `scripts/cases.mjs`. Detection is le
 | `.module-probe.mjs` | module | imports the ES module's exports | — |
 | `JsValue` | script, module | JavaScript-only (language-v0.1) | — |
 | `extern` | script, module | C rejects host declarations | M11.3 |
+| `import extern` | module | a foreign ES module edge needs module syntax; a classic script carries only embedded host modules, which cannot have default exports. The case's folder `X/` is linked beside the artifact, so the output's imports resolve | — |
 | `export` in the entry | script, module | the exports are a module ABI; C has none yet | M11.8 |
 | `JS.` operations | script, module | JavaScript-only | — |
 | `async`, `await`, `Task` | script, module | native rejects them (language-v0.1) | M11.6 |

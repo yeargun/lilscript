@@ -608,7 +608,11 @@ fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
         .unwrap()
         .javascript()
         .to_string();
-    assert!(text.contains("import{add}from\"./host.ts\""), "{text}");
+    // Its local name is the naming allocator's (C18).
+    assert!(
+        text.contains("import{add as ") && text.contains("}from\"./host.ts\""),
+        "{text}"
+    );
     let _ = fs::remove_dir_all(directory);
 }
 

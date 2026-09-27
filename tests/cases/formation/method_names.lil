@@ -1,0 +1,21 @@
+// Where the contract keeps function names (`keep_function_names`), a method
+// formed from an adapter's callback keeps the adapter result's anonymous
+// name wherever JavaScript would infer one (plan M8.2 A1). Without it, the
+// name is unobservable (R6) and a method may carry the inferred one:
+// cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-*
+// pin that side.
+struct Holder {
+  JsValue handle;
+}
+JsValue local = JS.method0((JsValue self) => self["v"]);
+JsValue object = JS.object("m", JS.method1((JsValue self, JsValue x) => JS.add(self["v"], x)));
+Holder holder = Holder{JS.methodRest((JsValue self, JsValue args) => args[0])};
+JsValue unread = JS.method1((JsValue _self, JsValue x) => x);
+print("[" + JS.string(JS.get(local, "name")) + "]");
+print("[" + JS.string(JS.get(object["m"], "name")) + "]");
+print("[" + JS.string(JS.get(holder.handle, "name")) + "]");
+print("[" + JS.string(JS.get(unread, "name")) + "]");
+print(JS.call(local, JS.object("v", 1)));
+print(JS.call(object["m"], JS.object("v", 2), 3));
+print(JS.call(holder.handle, JS.undefined(), 4));
+print(JS.call(unread, JS.undefined(), 5));

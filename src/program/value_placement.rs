@@ -58,6 +58,9 @@ struct CallFrame {
     /// Bound every original producer as a possible captured prefix; later
     /// retroactive capture cannot add an unseen subtree to this envelope.
     prefix_height: usize,
+    /// The closure tree the callee carries (an immediately invoked closure),
+    /// or `NO_TREE`.
+    callee_tree: usize,
 }
 
 // A call can add Call + ToInt32/Void + its argument Sequence. One more Assign
@@ -66,9 +69,16 @@ struct CallFrame {
 const CALL_LAYERS: usize = 3;
 const CONSUMER_LAYERS: usize = CALL_LAYERS + 1;
 const ENCLOSING_CALL_LAYERS: usize = CALL_LAYERS + 1;
-/// A deferred closure's whole consumer tree stays at most this tall. Its body
-/// is planned before that tree exists, so the bound is fixed in advance.
+/// A deferred closure's consumer tree may always be this tall. A taller one
+/// is admitted while the closure's body still starts in the first half of
+/// the nesting limit; otherwise its operands are captured. Each closure's
+/// body is then planned at the depth its actual tree needs
+/// (`plan_with_closures`), so a tall object literal holding a closure keeps
+/// its operands in place: property and element values evaluate left to
+/// right, exactly the operand order (C3).
 const CLOSURE_TREE_HEIGHT: usize = 16;
+/// No tree node, and no closure body depth.
+const NO_TREE: usize = usize::MAX;
 /// Target layers between a closure's creation site and its body statements:
 /// Assign→Function→function→region→statement when captured, and the consumer
 /// shells plus the bounded tree when deferred.
@@ -167,7 +177,27 @@ pub(super) fn plan(
     depth: PlacementDepth,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), AllocationError> {
-    if storage.len() != data.values.len() {
+    plan_with_closures(data, demand, context, storage, None, depth, budget)
+}
+
+/// `plan`, also writing into `closure_entries` (one slot per value) the
+/// depth at which each closure that stays deferred must start its body:
+/// the deepest tree that holds it, from its own operation up to the
+/// statement or capture that ends it. Other slots are left alone.
+pub(super) fn plan_with_closures(
+    data: &UnitData,
+    demand: &DemandPlan<'_, '_>,
+    context: ContextId,
+    storage: &mut [ValueStorage],
+    mut closure_entries: Option<&mut [usize]>,
+    depth: PlacementDepth,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
+    if storage.len() != data.values.len()
+        || closure_entries
+            .as_ref()
+            .is_some_and(|entries| entries.len() != data.values.len())
+    {
         return Err(AllocationError::Capacity);
     }
     let mut phase = budget.scope();
@@ -319,8 +349,12 @@ pub(super) fn plan(
     let mut pending = phase.vector(Scratch, data.values.len())?;
     let mut frames = phase.vector(Scratch, data.calls.len())?;
     let mut heights = phase.filled(Scratch, data.values.len(), 1usize)?;
-    // Pending roots whose tree contains a deferred closure.
-    let mut closures = phase.filled(Scratch, data.values.len(), false)?;
+    // Pending roots whose tree contains a deferred closure: the tree node of
+    // each, `NO_TREE` for the rest. A node is one operation's tree, with the
+    // body depth a closure under it needs and the node that took it in.
+    let mut trees = phase.filled(Scratch, data.values.len(), NO_TREE)?;
+    let mut nodes: Vec<(usize, usize)> = phase.vector(Scratch, data.operations.len())?;
+    let mut carried: Vec<usize> = phase.vector(Scratch, maximum_inputs.saturating_add(1))?;
     let mut region_heights = phase.filled(Scratch, data.regions.len(), 1usize)?;
     let mut order = phase.vector(Scratch, data.regions.len())?;
     let stack_capacity = data
@@ -415,15 +449,33 @@ pub(super) fn plan(
                 input_extra,
             );
             if let OperationKind::PrepareCall(call) = op.kind {
+                // An invoked closure is one leaf of the call's tree.
+                carried.clear();
+                for &value in &inputs {
+                    if storage[value.index()].deferred() && trees[value.index()] != NO_TREE {
+                        carried.push(trees[value.index()]);
+                    }
+                }
+                let callee_tree = if carried.is_empty() {
+                    NO_TREE
+                } else {
+                    let enclosing = bounded_add(
+                        depth.enclosing,
+                        frames.len().saturating_mul(ENCLOSING_CALL_LAYERS),
+                    );
+                    tree_node(&mut nodes, &carried, closure_entry(enclosing, input_height))
+                };
                 frames.push(CallFrame {
                     call,
                     floor: pending.len(),
                     callee_height: input_height,
                     prefix_height: 0,
+                    callee_tree,
                 });
                 continue;
             }
             let mut frame_prefix = 0;
+            let mut callee_tree = NO_TREE;
             let mut enclosing = bounded_add(
                 depth.enclosing,
                 frames.len().saturating_mul(ENCLOSING_CALL_LAYERS),
@@ -432,6 +484,7 @@ pub(super) fn plan(
                 let frame = frames.pop().expect("checked balanced call schedule");
                 assert_eq!(frame.call, call, "checked prepared-call identity");
                 frame_prefix = frame.prefix_height;
+                callee_tree = frame.callee_tree;
                 // Remaining argument work executes inside the call's prefix.
                 frame_prefix =
                     frame_prefix.max(flush(&mut pending, frame.floor, storage, &mut phase)?);
@@ -452,19 +505,14 @@ pub(super) fn plan(
             let opaque_child = demand
                 .child(context, operation)
                 .is_some_and(|child| demand.context(child).kind.is_inline());
-            // A closure-bearing tree has the fixed closure height bound; any
-            // taller consumer captures its operands instead.
-            let mut carries_closure = matches!(op.kind, OperationKind::Closure(_))
-                || inputs
-                    .iter()
-                    .any(|value| storage[value.index()].deferred() && closures[value.index()]);
-            let mut limit = depth.limit;
-            if carries_closure {
-                limit = limit.min(bounded_add(
-                    bounded_add(enclosing, CLOSURE_TREE_HEIGHT),
-                    CONSUMER_LAYERS,
-                ));
-            }
+            // A closure-bearing tree must leave its closures' bodies room
+            // (`closure_fits`); a consumer that would not captures its
+            // operands instead.
+            let carries_closure = matches!(op.kind, OperationKind::Closure(_))
+                || callee_tree != NO_TREE
+                || inputs.iter().any(|value| {
+                    storage[value.index()].deferred() && trees[value.index()] != NO_TREE
+                });
             let mut height = if needed && product_recipe {
                 bounded_add(input_height, 2)
             } else if needed {
@@ -484,13 +532,14 @@ pub(super) fn plan(
             };
             // Inserting an expression into a parent must fit its real recipe
             // path. Capturing operands severs only those extra nested paths.
-            if bounded_add(bounded_add(enclosing, height), CONSUMER_LAYERS) > limit {
+            if bounded_add(bounded_add(enclosing, height), CONSUMER_LAYERS) > depth.limit
+                || carries_closure && !closure_fits(enclosing, height, depth.limit)
+            {
                 for &value in &inputs {
                     work(&mut phase, 1)?;
                     capture_value(value, &mut pending, storage, &mut phase)?;
                 }
-                carries_closure = matches!(op.kind, OperationKind::Closure(_));
-                limit = depth.limit;
+                let limit = depth.limit;
                 input_height = bounded_add(1, input_extra).max(bounded_add(frame_prefix, 1));
                 height = if needed && product_recipe {
                     bounded_add(input_height, 2)
@@ -528,10 +577,27 @@ pub(super) fn plan(
             let deferred = op
                 .result
                 .is_some_and(|value| storage[value.index()].deferred());
+            // This operation's tree holds the deferred closures its kept
+            // operands (and an invoked callee) hold, and itself if it is one.
+            carried.clear();
+            if callee_tree != NO_TREE {
+                carried.push(callee_tree);
+            }
+            for &value in &inputs {
+                if storage[value.index()].deferred() && trees[value.index()] != NO_TREE {
+                    carried.push(trees[value.index()]);
+                }
+            }
+            let own = matches!(op.kind, OperationKind::Closure(_)) && deferred;
+            let tree = if own || !carried.is_empty() {
+                tree_node(&mut nodes, &carried, closure_entry(enclosing, height))
+            } else {
+                NO_TREE
+            };
             if deferred {
                 let value = op.result.unwrap();
                 heights[value.index()] = height;
-                closures[value.index()] = carries_closure;
+                trees[value.index()] = tree;
                 pending.push(Root { value, height });
             } else {
                 let floor = frames.last().map_or(0, |frame| frame.floor);
@@ -577,6 +643,27 @@ pub(super) fn plan(
     debug_assert!(storage
         .iter()
         .all(|value| !matches!(value, ValueStorage::Candidate)));
+    if let Some(entries) = closure_entries.as_deref_mut() {
+        // A closure's body starts below the deepest tree that held it.
+        for operation in &data.operations {
+            work(&mut phase, 1)?;
+            let (OperationKind::Closure(_), Some(value)) = (&operation.kind, operation.result)
+            else {
+                continue;
+            };
+            if !storage[value.index()].deferred() || trees[value.index()] == NO_TREE {
+                continue;
+            }
+            let mut node = trees[value.index()];
+            let mut entry = 0usize;
+            while node != NO_TREE {
+                work(&mut phase, 1)?;
+                entry = entry.max(nodes[node].1);
+                node = nodes[node].0;
+            }
+            entries[value.index()] = entry;
+        }
+    }
     drop((
         counts,
         expression_regions,
@@ -584,12 +671,44 @@ pub(super) fn plan(
         pending,
         frames,
         heights,
-        closures,
+        trees,
+        nodes,
+        carried,
         region_heights,
         order,
         regions,
     ));
     Ok(())
+}
+
+/// The depth a closure's body starts at when it lies in a tree of this
+/// height at this insertion depth: the consumer shells, the tree, then
+/// Function→function→region→statement.
+fn closure_entry(enclosing: usize, height: usize) -> usize {
+    bounded_add(
+        bounded_add(bounded_add(enclosing, CONSUMER_LAYERS), height),
+        CAPTURED_CLOSURE_ENTRY,
+    )
+}
+
+/// Whether a tree holding a deferred closure may be this tall: always up to
+/// `CLOSURE_TREE_HEIGHT`, and beyond it while the closure's body still
+/// starts in the first half of the nesting limit, so nested closures keep
+/// room for their own trees.
+fn closure_fits(enclosing: usize, height: usize, limit: usize) -> bool {
+    height <= CLOSURE_TREE_HEIGHT || closure_entry(enclosing, height) <= limit / 2
+}
+
+/// A new tree node taking in `carried`, with this body depth.
+fn tree_node(nodes: &mut Vec<(usize, usize)>, carried: &[usize], entry: usize) -> usize {
+    let node = nodes.len();
+    // Capacity was admitted for one node per operation.
+    debug_assert!(nodes.len() < nodes.capacity());
+    nodes.push((NO_TREE, entry));
+    for &child in carried {
+        nodes[child].0 = node;
+    }
+    node
 }
 
 fn capture_value(
