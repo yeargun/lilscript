@@ -866,3 +866,11 @@
   color: var(--hold);
   font-weight: 600;
 }
+
+.landing-ports table {
+  min-width: 1040px;
+}
+
+.landing-ports td:last-child {
+  min-width: 280px;
+}
