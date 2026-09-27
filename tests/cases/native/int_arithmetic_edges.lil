@@ -1,0 +1,58 @@
+// `int * int` is JavaScript's `(a*b)|0`: exact while the product is at most
+// 2^53 in magnitude, and ToInt32 of the rounded double product beyond it
+// (plan M11.2: an int64 multiply plus a range check natively). Shifts: left
+// shifts wrap on 32 bits, right shifts are arithmetic.
+int multiply(int a, int b) {
+  return a * b;
+}
+
+int shiftLeft(int a, int b) {
+  return a << b;
+}
+
+int shiftRight(int a, int b) {
+  return a >> b;
+}
+
+int unsignedShiftRight(int a, int b) {
+  return a >>> b;
+}
+
+int max = 2147483647;
+int min = -2147483647 - 1;
+print(multiply(max, max));
+print(multiply(min, min));
+print(multiply(min, -1));
+print(multiply(max, -1));
+print(multiply(65536, 65536));
+print(multiply(65535, 65537));
+print(multiply(46341, 46341));
+print(multiply(-46341, 46341));
+// Around 2^53: 134217728 * 67108864 is exactly 2^53.
+print(multiply(134217728, 67108864));
+print(multiply(134217727, 67108865));
+print(multiply(94906267, 94906267));
+print(multiply(-94906267, 94906267));
+print(multiply(123456789, 987654321));
+print(multiply(-123456789, 987654321));
+print(multiply(0, min));
+int acc = 1;
+int i = 0;
+while (i < 40) {
+  acc = multiply(acc, 3) + i;
+  i = i + 1;
+}
+print(acc);
+print(shiftLeft(1, 31));
+print(shiftLeft(-1, 31));
+print(shiftLeft(min, 1));
+print(shiftLeft(3, 33));
+print(shiftLeft(-5, 0));
+print(shiftRight(min, 31));
+print(shiftRight(-1, 5));
+print(shiftRight(-9, 2));
+print(shiftRight(max, 30));
+print(shiftRight(-7, 32));
+print(shiftRight(-7, -1));
+print(unsignedShiftRight(-1, 28));
+print(unsignedShiftRight(min, 31));

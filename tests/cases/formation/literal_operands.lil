@@ -1,0 +1,27 @@
+// Object and array literal operands are not spilled (plan M8.2 A1, diagnosis
+// C3): they evaluate in argument order inside the literal, with no
+// temporaries threaded through a computed key, at the module's top level and
+// inside functions, closures and nested literals among them.
+extern JsValue host;
+extern JsValue step(string label);
+
+JsValue parser = JS.object(
+  "go", (JsValue a) => JS.invoke(host, "h", a),
+  "re", JS.array(step("re"), JS.invoke(host, "f")),
+  "after", step("after"),
+  "nested", JS.object("inner", step("inner"), "fn", (JsValue b) => JS.add(b, 1)),
+  "last", step("last"));
+print(JS.invoke(JS.get(parser, "nested"), "fn", 41));
+print(JS.call(JS.get(parser, "go"), JS.undefined(), "x"));
+
+JsValue build(JsValue seed) {
+  return JS.array(
+    step("first"),
+    (JsValue c) => JS.add(c, seed),
+    JS.object("k", step("second"), "v", JS.array(step("third"))),
+    step("fourth"));
+}
+JsValue built = build(10);
+print(JS.call(built[1], JS.undefined(), 5));
+print(JS.get(built[2], "k"));
+print(built["length"]);

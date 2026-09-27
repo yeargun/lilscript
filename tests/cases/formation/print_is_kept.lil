@@ -1,0 +1,10 @@
+// `print` is a program effect and is never stripped (plan M2.3, M8.2 A1):
+// under `strip_debug`, calls of the host `debugLog` go and their arguments'
+// effects stay; `print` stays whatever the logging keys say.
+extern void debugLog(string message);
+extern string note(string label);
+print("start");
+debugLog(note("dropped"));
+print(note("kept"));
+debugLog("constant");
+print("end");
