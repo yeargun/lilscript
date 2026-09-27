@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { codeOnly, composeConfig, LANES, parseTomlTables, selectLanes } from "./cases.mjs";
-import { diffAgainstLedger, failingTests, rewriteObjective, testTotals } from "./ports.mjs";
+import { diffAgainstLedger, failingTests, rewriteObjective, suiteRan, testTotals } from "./ports.mjs";
 
 test("feature detection ignores comments and string text but not template expressions", () => {
   const code = codeOnly('// export JsValue\nprint("extern try");\n/* Regex */ int a = 1;\nprint(`x ${JS.string(a)} throw`);');
@@ -72,4 +72,13 @@ test("the port ledger: regressions, removals, and intermittent entries", () => {
   assert.deepEqual(diffAgainstLedger(["slow"], entries, true).regressions, []);
   assert.deepEqual(diffAgainstLedger([], entries, true).nowPassing, ["a", "b"]);
   assert.deepEqual(diffAgainstLedger([], entries, false).nowPassing, []);
+});
+
+test("a suite that ran no test reports no ledgered test as passing", () => {
+  // Every jest suite failed to load (mobxlil, 2026-09-27): no test ran.
+  const crashed = "FAIL tests/a.test.js\n  ● Test suite failed to run\n\nTest Suites: 37 failed, 37 total\nTests:       0 total\n";
+  assert.equal(suiteRan({ ...testTotals(crashed), failing: failingTests(crashed) }), false);
+  assert.equal(suiteRan(undefined), false);
+  const ran = "Tests:       1 failed, 2 passed, 3 total\n";
+  assert.equal(suiteRan({ ...testTotals(ran) }), true);
 });

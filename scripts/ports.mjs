@@ -176,6 +176,13 @@ export function loadLedger(path) {
   return { path, sha256: sha256File(path), entries };
 }
 
+// Whether the suite ran any test. A test command that exits before running
+// one (a build that failed, every jest suite failing to load: `Tests: 0
+// total`) says nothing about the tests a ledger entry lists.
+export function suiteRan(test) {
+  return Boolean(test) && (test.tests ?? 0) > 0;
+}
+
 // A port's failing-test set against its ledger entries. A listed test that
 // passes is reported for removal, unless its entry is `intermittent`: a test
 // whose outcome depends on the host (an upstream wall-clock timeout on a
@@ -240,7 +247,7 @@ async function runPort(port, context) {
     result.failing = [...new Set([...failing, ...(result.test?.failing ?? [])])].sort();
     const listed = ledger.entries.filter((entry) => entry.port === port);
     // A listed failure can be seen passing only when the suite ran.
-    Object.assign(result, diffAgainstLedger(result.failing, listed, Boolean(result.test)));
+    Object.assign(result, diffAgainstLedger(result.failing, listed, suiteRan(result.test)));
     result.ledgerEntries = listed.map((entry) => ({ index: entry.index, owner: entry.owner }));
     result.state = result.regressions.length ? "regressed" : result.failing.length ? "ledgered" : "green";
     if (!keep) rmSync(parent, { recursive: true, force: true });
