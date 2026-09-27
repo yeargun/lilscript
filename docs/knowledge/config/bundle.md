@@ -1,10 +1,10 @@
 # `[bundle]`
 
-Parent: [Config](README.md). Language: [modules](../language/modules-lazy.md). Contract: [configuration.md](../../configuration.md#delivery-bundle). The old route's chunk planner: [history](../history/compilation/chunk-planning.md).
+Parent: [Config](README.md). Language: [modules](../language/modules-lazy.md). Contract: [configuration.md](../../configuration.md#delivery-delivery). The old route's chunk planner: [history](../history/compilation/chunk-planning.md).
 
 Separate from optimizer policy. Every mode checks and compiles the **complete** static graph first.
 
-**Today:** `preserve-modules` chunks and lazy `import()` chunks are broken on this compiler (`chunks: []`); plan M3.3 restores them.
+**Superseded (M3.3a):** `[bundle]` is retired and translates to `[delivery]`; placement, names, scoring and manifest v3 are in [modules-and-delivery](../../modules-and-delivery.md#delivery). This page records the deleted planner.
 
 ## Keys
 

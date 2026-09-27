@@ -71,10 +71,14 @@ fn binding(module: &Module, name: &str) -> BindingId {
 }
 fn replace_declaration(module: &mut Module, name: &str, source: &str, imported: &str) {
     let id = binding(module, name);
-    module.regions[module.root.index()].statements.retain(|s| {
-        !matches!(s,
+    // Through the root-row helpers: the rows stay aligned (plan M3.3).
+    let root = module.root.index();
+    while let Some(index) = module.regions[root].statements.iter().position(|s| {
+        matches!(s,
         Statement::Let { binding, .. } | Statement::Function { binding, .. } if *binding == id)
-    });
+    }) {
+        module.remove_statement(root, index);
+    }
     module.import(source, imported, id);
 }
 /// The target tree production formation builds for `source`, before any

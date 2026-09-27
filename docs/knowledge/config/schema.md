@@ -53,29 +53,37 @@ error, not a silently ignored setting.
 | `preserve_properties` | `Option<Vec<String>>` | `unset` | Property names this port's public API exchanges with its callers, which the compiler cannot see because they are read in code it never compiles: options a caller sets on an object it authors, fields a callback reads off a context the program hands it, members of a value the program returns. |
 | `pool_strings` | `Option<bool>` | `unset` | The `string-pooling` tactic, when set. |
 
-## `[bundle]` — closed
+## `[target]` — closed
+
+`[target]`: the contract axes of schema v3 this compiler reads so far.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `mode` | `BundleMode` | `BundleMode::Single` | See [configuration.md](../../configuration.md). |
-| `min_chunk_bytes` | `usize` | `16 * 1024` | See [configuration.md](../../configuration.md). |
-| `max_chunks` | `usize` | `32` | See [configuration.md](../../configuration.md). |
-| `shared_min_imports` | `usize` | `2` | See [configuration.md](../../configuration.md). |
-| `preload` | `PreloadPolicy` | `PreloadPolicy::None` | See [configuration.md](../../configuration.md). |
+| `javascript` | `TargetJavaScriptConfig` |  | `[target.javascript]`: the JavaScript contract's axes. |
+
+### `[target.javascript]` — closed
+
+`[target.javascript]`: only `format` so far (plan M3.1 brings the other axes here).
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `format` | `JavaScriptFormat` |  | The container delivered files are written in: `esm` (plan M3.3b brings the others). |
+
+## `[delivery]` — closed
+
+`[delivery]` (architecture §14): how the one program is placed in files and named.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `mode` | `DeliveryMode` | `DeliveryMode::Single` | How the program is placed in files: `single` (one file per entry), `split` (files shared by the entries that load them) or `preserve-modules` (a file per source module). |
+| `entries` | `BTreeMap<String, PathBuf>` | `BTreeMap::new()` | Entry name to source path, relative to this file. |
+| `entry_names` | `Option<String>` | `None` | Entry file names, a template over `[name]` (entry), `[index]` (plan position), `[hash:N]` (content hash), `[path]` (source module path) and `[ext]`; `[name].[ext]` when unset. |
+| `chunk_names` | `Option<String>` | `None` | Names of the other files (shared, lazily loaded, internal): `[index].[ext]` for a library, `[hash:8].[ext]` for an application. |
+| `module_names` | `Option<String>` | `None` | Names of `preserve-modules` module files: `[path].[ext]`, the source path relative to the common source directory. |
+| `preload` | `PreloadPolicy` | `PreloadPolicy::None` | Which lazily loaded files an entry preloads. |
 | `host_modules` | `HostModules` | `HostModules::External` | Whether relative host modules travel with the output. |
-| `cost` | `ChunkCostConfig` | `ChunkCostConfig::default()` | Weights that turn delivered bytes, requests and dependency depth into one bundle cost for chunking decisions. |
-
-### `[bundle.cost]` — closed
-
-| Key | Type | Default | Meaning |
-|---|---|---|---|
-| `raw_weight` | `u32` | `0` | See [configuration.md](../../configuration.md). |
-| `gzip_weight` | `u32` | `1` | See [configuration.md](../../configuration.md). |
-| `brotli_weight` | `u32` | `2` | See [configuration.md](../../configuration.md). |
-| `request_overhead_bytes` | `usize` | `1_000` | See [configuration.md](../../configuration.md). |
-| `dependency_depth_penalty_bytes` | `usize` | `160` | See [configuration.md](../../configuration.md). |
-| `preload_request_discount_percent` | `u32` | `70` | See [configuration.md](../../configuration.md). |
-| `cache_reuse_discount_percent` | `u32` | `20` | See [configuration.md](../../configuration.md). |
+| `request_bytes` | `u64` | `0` | Declared deployment cost (L12): bytes per file an entry's row loads beyond its first. |
+| `depth_bytes` | `u64` | `0` | Declared deployment cost (L12): bytes per static import level of an entry beyond the first. |
 
 ## `[lint]` — closed
 

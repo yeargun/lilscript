@@ -109,7 +109,8 @@ fn module_graph(
             })
             .collect(),
         dependency_order: order.to_vec(),
-        root: 0,
+        roots: vec![0],
+        root_names: vec!["main".to_string()],
         eager: vec![true; sources.len()],
     }
 }

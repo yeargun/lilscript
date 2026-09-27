@@ -269,13 +269,14 @@ fn convert_source<'ast, 'src>(
     let mut lower = Lower::new(
         semantics.view(),
         std::slice::from_ref(source),
-        module,
+        &[(module, "main")],
         budget,
     )?;
     lower.add_cells(|_| Some(0))?;
     lower.register_source(source)?;
     lower.emit_source(root, source)?;
     lower.source_exports(module, source)?;
+    lower.publish_entries()?;
     lower.finish()
 }
 
@@ -352,10 +353,14 @@ fn convert_modules<'ast, 'src>(
             return Err(fail(module, "checker/source ownership mismatch"));
         }
     }
-    let entry = ModuleId::from_index(semantics.root())
-        .ok_or_else(|| fail(semantics.root(), "semantic module capacity"))?;
+    let mut entries = Vec::with_capacity(semantics.roots().len());
+    for (&root, name) in semantics.roots().iter().zip(semantics.root_names()) {
+        let module =
+            ModuleId::from_index(root).ok_or_else(|| fail(root, "semantic module capacity"))?;
+        entries.push((module, name.as_str()));
+    }
     let mut lower =
-        Lower::new(semantics.view(0).unwrap(), sources, entry, budget).map_err(|error| {
+        Lower::new(semantics.view(0).unwrap(), sources, &entries, budget).map_err(|error| {
             ModuleConversionError {
                 module: semantics.root(),
                 error,
@@ -434,18 +439,25 @@ fn convert_modules<'ast, 'src>(
             Ok(())
         };
     convert_interfaces(&mut lower)?;
-    let order =
-        module_contract::initialization_order_admitted(&lower.program.modules, entry, lower.budget)
-            .map_err(|error| match error {
-                crate::module::StaticOrderError::Invalid(_) => fail(
-                    semantics.root(),
-                    "invalid checked module initialization graph",
-                ),
-                crate::module::StaticOrderError::Resources(error) => ModuleConversionError {
-                    module: semantics.root(),
-                    error: error.into(),
-                },
-            })?;
+    let roots = entries
+        .iter()
+        .map(|&(module, _)| module)
+        .collect::<Vec<_>>();
+    let order = module_contract::initialization_order_admitted(
+        &lower.program.modules,
+        &roots,
+        lower.budget,
+    )
+    .map_err(|error| match error {
+        crate::module::StaticOrderError::Invalid(_) => fail(
+            semantics.root(),
+            "invalid checked module initialization graph",
+        ),
+        crate::module::StaticOrderError::Resources(error) => ModuleConversionError {
+            module: semantics.root(),
+            error: error.into(),
+        },
+    })?;
     lower
         .work(order.len())
         .map_err(|error| ModuleConversionError {
@@ -504,6 +516,16 @@ fn convert_modules<'ast, 'src>(
                     InterfaceTarget::Type(_) => None,
                 })
                 .ok_or_else(|| fail(module, "dynamic export has no runtime cell"))?;
+            // Two modules reading one member share it. The name is retained
+            // only when it joins the namespace: a copy allocated and dropped
+            // would be charged to a program that does not hold it.
+            if building_table(&mut lower.program.modules)[target]
+                .namespace
+                .iter()
+                .any(|(known, _)| known.as_str() == name)
+            {
+                continue;
+            }
             let name =
                 lower
                     .budget
@@ -513,15 +535,13 @@ fn convert_modules<'ast, 'src>(
                         error: error.into(),
                     })?;
             let namespace = &mut building_table(&mut lower.program.modules)[target].namespace;
-            if !namespace.iter().any(|(known, _)| *known == name) {
-                lower
-                    .budget
-                    .push(Retained, namespace, (name, cell))
-                    .map_err(|error| ModuleConversionError {
-                        module,
-                        error: error.into(),
-                    })?;
-            }
+            lower
+                .budget
+                .push(Retained, namespace, (name, cell))
+                .map_err(|error| ModuleConversionError {
+                    module,
+                    error: error.into(),
+                })?;
         }
     }
     for module in building_table(&mut lower.program.modules) {
@@ -561,6 +581,12 @@ fn convert_modules<'ast, 'src>(
         building_table(&mut lower.program.modules)[module].exports =
             start..lower.program.exports.len();
     }
+    lower
+        .publish_entries()
+        .map_err(|error| ModuleConversionError {
+            module: semantics.root(),
+            error,
+        })?;
     lower.finish().map_err(|error| ModuleConversionError {
         module: semantics.root(),
         error,
@@ -620,9 +646,18 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
     fn new(
         semantics: CheckedView<'sem, 'ast, 'src>,
         sources: &[ast::Program<'ast, 'src>],
-        entry: ModuleId,
+        entries: &[(ModuleId, &str)],
         budget: &'budget mut AllocationBudget<'ledger>,
     ) -> Result<Self, ConversionError> {
+        let mut program_entries = budget.vector(Retained, entries.len())?;
+        for &(module, name) in entries {
+            let name = budget.string(Retained, name)?;
+            budget.push(
+                Retained,
+                &mut program_entries,
+                ProgramEntry { name, module },
+            )?;
+        }
         let mut units = budget.vector(Scratch, sources.len())?;
         let mut modules = budget.vector(Retained, sources.len())?;
         let mut initialization = budget.vector(Retained, sources.len())?;
@@ -667,7 +702,8 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 exports: table(Vec::new(), budget)?,
                 initialization: table(initialization, budget)?,
                 modules: table(modules, budget)?,
-                entry,
+                entries: table(program_entries, budget)?,
+                public: 0..0,
                 views: Default::default(),
             },
             units,
@@ -941,6 +977,27 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         }
         building_table(&mut self.program.modules)[module.index()].exports =
             start..self.program.exports.len();
+        Ok(())
+    }
+    /// The public surface (plan M3.3): one entry publishes its module's
+    /// exports in place; several entries' exports are appended once, entry
+    /// by entry, as one range.
+    fn publish_entries(&mut self) -> Result<(), ConversionError> {
+        let entries = self.program.entries.clone();
+        if let [entry] = entries.as_slice() {
+            self.program.public = self.program.modules[entry.module.index()].exports.clone();
+            return Ok(());
+        }
+        let start = self.program.exports.len();
+        for entry in entries.iter() {
+            let range = self.program.modules[entry.module.index()].exports.clone();
+            for index in range {
+                self.work(1)?;
+                let export = self.program.exports[index].clone();
+                self.add_export(&export.name, export.target)?;
+            }
+        }
+        self.program.public = start..self.program.exports.len();
         Ok(())
     }
     fn finish(mut self) -> Result<Program<'src>, ConversionError> {

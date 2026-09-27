@@ -76,7 +76,8 @@ fn graph(sources: &[&str], dependencies: &[&[usize]], order: &[usize]) -> Module
             })
             .collect(),
         dependency_order: order.to_vec(),
-        root: 0,
+        roots: vec![0],
+        root_names: vec!["main".to_string()],
         eager: vec![true; sources.len()],
     }
 }
@@ -89,7 +90,7 @@ const INTERFACE_SOURCES: [&str; 3] = [
 
 fn interface_graph() -> ModuleSet {
     let mut modules = graph(&INTERFACE_SOURCES, &[&[], &[0, 0, 2], &[]], &[0, 2, 1]);
-    modules.root = 1;
+    modules.roots = vec![1];
     modules
 }
 
@@ -547,7 +548,7 @@ fn module_resource_refusal_reports_the_actual_source_and_releases_partial_facts(
     let storage = ModuleStorage::new(&programs, &modules);
     let partial = storage.order + outer + first;
     for (memory, module, peak) in [
-        (SENTINEL, modules.root, SENTINEL),
+        (SENTINEL, modules.root(), SENTINEL),
         (
             SENTINEL + partial,
             1,
@@ -681,22 +682,22 @@ fn module_schedule_and_each_interface_buffer_refuse_before_growth_and_release_sc
         .collect();
     let storage = ModuleStorage::new(&programs, &modules);
     let mut cases = vec![
-        ("schedule order", modules.root, storage.order, 0),
+        ("schedule order", modules.root(), storage.order, 0),
         (
             "schedule states",
-            modules.root,
+            modules.root(),
             storage.order + storage.states,
             storage.order,
         ),
         (
             "schedule stack",
-            modules.root,
+            modules.root(),
             storage.schedule_peak(),
             storage.order + storage.states,
         ),
         (
             "interface outer",
-            modules.root,
+            modules.root(),
             storage.order + storage.facts + storage.interfaces,
             storage.schedule_peak().max(storage.order + storage.facts),
         ),
@@ -802,11 +803,11 @@ fn module_graph_schedule_and_late_interface_work_refusals_keep_actual_attributio
         ("first graph row", 0, 0, 0),
         ("later graph row", 1, 1, 0),
         ("graph edge", 2, 1, 0),
-        ("scheduler entry", graph_work, modules.root, 0),
+        ("scheduler entry", graph_work, modules.root(), 0),
         (
             "scheduler states work",
             graph_work + 2,
-            modules.root,
+            modules.root(),
             storage.order,
         ),
         (
@@ -940,7 +941,7 @@ fn module_graph_and_semantic_diagnostics_are_unchanged() {
         .collect();
     let empty = graph(&[], &[], &[]);
     let mut invalid_root = valid_graph.clone();
-    invalid_root.root = programs.len();
+    invalid_root.roots = vec![programs.len()];
     let mut invalid_target = valid_graph.clone();
     invalid_target.modules[0].dependencies[0] = programs.len();
     let mut invalid_count = valid_graph.clone();
@@ -1053,7 +1054,8 @@ fn borrowed_source_payloads_reuse_the_original_module_checker() {
             })
             .collect(),
         dependency_order: owned.dependency_order.clone(),
-        root: owned.root,
+        roots: vec![owned.root()],
+        root_names: vec!["main".to_string()],
         eager: owned.eager.clone(),
     };
     let arena = bumpalo::Bump::new();

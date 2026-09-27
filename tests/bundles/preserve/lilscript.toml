@@ -4,6 +4,9 @@ inlining = false
 [mangle]
 identifiers = false
 
-[bundle]
-mode = "preserve-modules"
+[javascript]
+# The fixture observes through `print`.
+strip_console = false
 
+[delivery]
+mode = "preserve-modules"

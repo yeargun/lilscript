@@ -1486,20 +1486,21 @@ impl Module {
             &mut self.regions[root].statements,
             functions.len(),
         )?;
-        let first = self.root_modules.first().copied();
-        if first.is_some() {
+        // Decoders are a rule's definitions, beside the first module
+        // (design §6).
+        let first = self.root_rows.first().map_or(0, |row| row.module);
+        if !self.root_rows.is_empty() {
             budget.reserve_vec(
                 AllocationClass::Retained,
-                &mut self.root_modules,
+                &mut self.root_rows,
                 functions.len(),
             )?;
         }
-        for (offset, function) in functions.into_iter().enumerate() {
-            self.regions[root].statements.insert(offset, function);
-            if let Some(first) = first {
-                self.root_modules.insert(0, first);
-            }
-        }
+        let rows = functions.len();
+        self.prepend_roots(
+            functions,
+            std::iter::repeat_n(RootRow::synthetic(first), rows),
+        );
         Ok(count)
     }
 

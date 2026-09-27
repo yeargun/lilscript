@@ -2,8 +2,7 @@
 
 Parent: [delivery](README.md). Algorithm: the delivery plan in `src/js/delivery.rs`
 (the deleted route's planner is in [history](../history/compilation/chunk-planning.md)).
-Config: [`[bundle]`](../config/bundle.md). **Until plan M3.3**, `preserve-modules`
-chunks and lazy `import()` chunks are broken on this compiler.
+Config: [`[bundle]`](../config/bundle.md). **Superseded (M3.3a):** `[bundle]` is retired and translates to `[delivery]`; placement, names, scoring and manifest v3 are in [modules-and-delivery](../../modules-and-delivery.md#delivery). This page records the deleted planner.
 
 LilScript does not require one automatic partition policy. Authors choose semantic
 boundaries in source and deployment policy in TOML:

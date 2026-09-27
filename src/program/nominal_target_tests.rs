@@ -380,7 +380,7 @@ fn reject_same_name(entry: &str) {
     let syntax = crate::module::parse_modules(&arena, &modules).unwrap();
     let errors = crate::check::analyze_modules(&syntax, &modules)
         .expect_err("same diagnostic name does not make private declarations compatible");
-    assert_eq!(errors.module, modules.root);
+    assert_eq!(errors.module, modules.root());
     assert!(errors.error.message.contains("Private"), "{errors}");
 }
 #[test]

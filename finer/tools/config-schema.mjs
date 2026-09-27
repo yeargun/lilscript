@@ -55,7 +55,8 @@ export function parseDefaults(text, name) {
 
 const SECTIONS = [
   ["optimization", "OptimizationConfig"], ["javascript", "JavaScriptConfig"], ["mangle", "MangleConfig"],
-  ["bundle", "BundleConfig"], ["lint", "LintConfig"], ["format", "FormatConfig"], ["policy", "PolicyConfig"],
+  ["target", "TargetConfig"], ["delivery", "DeliveryConfig"], ["lint", "LintConfig"], ["format", "FormatConfig"],
+  ["policy", "PolicyConfig"],
 ]
 
 /** String constants (`const NAME: &str = "…";`), with Rust's `\` line continuations joined. */

@@ -226,7 +226,7 @@ Twelve cases fail in every lane, both ledgered: eleven are refused on record spr
 
 ## The admission parse (A5)
 
-Every artifact is parsed again before admission accepts it (`ArtifactArena::qualify`, `src/program/artifacts.rs`; plan task M2.5). Oxc, an independent standards parser, reads each delivered file as a module or a script, as the artifact executes (regular expression literals validated; `import`/`export` refused in a script). For a file printed whole, the structure Oxc reads must be the structure the printer printed: both sides reduce to one canonical form and compare digests (`src/admission_parse.rs` states the form and its closed list of spelling equivalences; `src/js/admission.rs` reduces the printed tree). A file that does not parse, or parses to another structure, is refused with a diagnostic that names where: the parser's message and byte offset, or the first group of top-level statements that differs, with an excerpt. The direct path and the search baseline then fail the build with it; a refused search candidate stops the search with the best admitted artifact (the report's `stop`); a refused terminal challenger is `Refused`. A bundle's files are parsed but not yet compared by structure, because the multi-file printer is M3.3's to replace (its plan verifier owns that check).
+Every artifact is parsed again before admission accepts it (`ArtifactArena::qualify`, `src/program/artifacts.rs`; plan task M2.5). Oxc, an independent standards parser, reads each delivered file as a module or a script, as the artifact executes (regular expression literals validated; `import`/`export` refused in a script). For a file printed whole, the structure Oxc reads must be the structure the printer printed: both sides reduce to one canonical form and compare digests (`src/admission_parse.rs` states the form and its closed list of spelling equivalences; `src/js/admission.rs` reduces the printed tree). A file that does not parse, or parses to another structure, is refused with a diagnostic that names where: the parser's message and byte offset, or the first group of top-level statements that differs, with an excerpt. The direct path and the search baseline then fail the build with it; a refused search candidate stops the search with the best admitted artifact (the report's `stop`); a refused terminal challenger is `Refused`. A delivery plan's files (M3.3a) are each parsed, as ES modules or, under `format = "cjs"`, as scripts, but not yet compared by structure: they print through `src/js/print_files.rs`, and comparing each file with its part of the tree is owned by M3.3b, next to the plan verifier.
 
 The verdict is computed once per artifact and costs linear work in its bytes. `LILSCRIPT_TIMING=1` reports it as two buckets, `admission_structure` (the tree's digest, once per render) and `admission_parse` (once per qualified artifact). On 2026-09-27, level 13 at the shipped configurations: katexlil 525 ms of 23.9 s (2.2%; 32 renders and 32 parses of 261 KB), markedlil 62 ms of 1.56 s (4.0%).
 
@@ -235,6 +235,22 @@ The verdict is computed once per artifact and costs linear work in its bytes. `L
 `src/no_library_knowledge_tests.rs` runs with `cargo test --lib`. It reads every non-test file under `src/` (test files, fixtures and inline `#[cfg(test)] mod … {}` bodies excluded) and counts mentions of ports and upstream libraries (case-insensitive names such as `katex`, `jquery`, `zod`; library spellings only for English words such as `markedlil` or `motionlil`). Each (file, library) count must equal its entry in `tests/no3-allowlist.json`, which gives the reason and the owner task: a new mention fails, and a removed mention must lower its entry in the same change, so the ledger only shrinks. On 2026-09-27 it holds 30 mentions in 22 entries, every one a comment that justifies a rule, a default or a schedule constant by one port's measurement; M8.7 empties it.
 
 `tests/idiom-debt.json` is the idiom debt ledger (schema `tests/idiom-debt.schema.json`, checked by `node --test scripts/verify-runners.test.mjs`). An entry records a port rewrite needed only because the compiler handles the idiomatic form badly: both forms, the idiomatic form's regression case in this repository, their sizes under one codec and binary, and the owner task; the compiler owes size(idiomatic) ≤ size(workaround). It starts empty; the pairing tasks of M12.6 and the language slices file into it.
+
+## Delivery checks
+
+Multi-file delivery (plan M3.3: several entries, `split`, `preserve-modules`, lazy files, manifest v3) is checked in three places; each expected output comes from the sources' ES module semantics, never from the compiler under test.
+
+| Check | What it asserts |
+|---|---|
+| `src/build_delivery_tests.rs` (unit tests) | Scenarios per load sequence in Node: shared instances and identities across entries, per-entry order, a throwing initializer, setters, lazy loads that evaluate what the importer has not (in the target's order), `import()` of a module another entry imports statically, carried host code per entry, names under the default templates, foreign specifiers from nested files, content-safe `[hash]` names, the M3.3a refusals |
+| `scripts/delivery-contract.mjs` | Each `tests/bundles` fixture's behaviour and its manifest v3: bytes and SHA-256 equal the files, `side_effects` equals the anchored files, no file imports an entry or lazy file, every file with effects in an entry's closure carries its label, rows equal the closure's codec bytes; then the command line: identical names and bytes under `-j 1` and `-j 4`, from another working directory, a copy at another absolute path and reordered `--entry` flags; `-o FILE` naming; stale-file removal; the refusals before a compile |
+| `scripts/delivery-plan.mjs` | The exact files, roles and labels of each fixture; a change is legal only with an explanation in its commit |
+
+`scripts/verify-bundles.mjs` runs both scripts, then the `--target all` and package-lock checks; `scripts/verify.sh` runs it. The case runner does not build several entries yet: the design's delivery cases (a `[delivery]` table in a case's `.toml`) are an open item of M3.3.
+
+```sh
+node scripts/verify-bundles.mjs target/release/lilscript
+```
 
 ## The expected-failure ledgers
 

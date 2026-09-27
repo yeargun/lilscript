@@ -150,7 +150,7 @@ pub(super) fn render_with_literals_admitted(
             error: None,
         },
         discarded_root: None,
-        files: None,
+        lazy: &[],
     };
     for import in &module.imports {
         if !printer.output.work(1) {
@@ -217,164 +217,9 @@ fn hosted(hosts: Option<(&crate::host_modules::HostDelivery, bool)>, import: &Im
     })
 }
 
-/// A delivered file prints in two parts: its body (statements and exports),
-/// whose digest names a chunk, then the imports that name other files.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum FilePart {
-    Header,
-    Body,
-}
-
-/// One delivered file of a module: imports from the other files, the
-/// foreign imports it uses, its root statements, then its exports (and the
-/// public exports, for the entry).
-#[allow(clippy::too_many_arguments)]
-pub(super) fn render_file_admitted(
-    module: &Module,
-    names: &Names,
-    literal_alternatives: &[LiteralAlternative],
-    literals: LiteralOutput,
-    limit: usize,
-    budget: &mut AllocationBudget<'_>,
-    files: &[delivery::DeliveryFile],
-    file: usize,
-    links: &delivery::FileLinks,
-    entry: bool,
-    preload: &[String],
-    hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
-    part: FilePart,
-) -> Result<String, PrintError> {
-    let _timing = crate::timing::TARGET_PRINT.scope(0);
-    let mut phase = budget.scope();
-    let mut printer = Printer {
-        module,
-        names,
-        literal_alternatives,
-        literals,
-        numeric: numeric_bindings(module),
-        output: Buffer {
-            text: String::new(),
-            budget: &mut phase,
-            limit,
-            error: None,
-        },
-        discarded_root: None,
-        files: Some(files),
-    };
-    let header = part == FilePart::Header;
-    if header && entry && !preload.is_empty() {
-        // The old route's preload prelude, verbatim.
-        printer.text("typeof document!=\"undefined\"&&[");
-        for (index, file) in preload.iter().enumerate() {
-            if index != 0 {
-                printer.text(",");
-            }
-            let path = format!("./{file}");
-            printer.string(&crate::literal::StringValue::from(path.as_str()));
-        }
-        printer.text("].forEach(a=>{let b=document.createElement(\"link\");b.rel=\"modulepreload\",b.href=a,document.head.append(b)});");
-    }
-    for (source, bindings) in links.imports.iter().filter(|_| header) {
-        printer.text("import{");
-        for (index, binding) in bindings.iter().enumerate() {
-            if !printer.output.work(1) {
-                break;
-            }
-            if index != 0 {
-                printer.text(",");
-            }
-            printer.text(names.get(*binding));
-        }
-        printer.text("}from");
-        let path = format!("./{}", files[*source].name);
-        printer.string(&crate::literal::StringValue::from(path.as_str()));
-        printer.text(";");
-    }
-    for &index in links.foreign.iter().filter(|_| header) {
-        let import = &module.imports[index];
-        if hosted(hosts, import) {
-            continue;
-        }
-        printer.text("import{");
-        printer.text(&import.imported);
-        let local = names.get(import.binding);
-        if local != import.imported {
-            printer.text(" as ");
-            printer.text(local);
-        }
-        printer.text("}from");
-        printer.string(&import.source);
-        printer.text(";");
-    }
-    if let Some(hosts) = hosts.filter(|_| header && entry) {
-        printer.host_bindings(hosts, links.foreign.iter().copied());
-    }
-    let root = &module.regions[module.root.index()].statements;
-    if !header {
-        printer.statement_list(root, &files[file].statements);
-    }
-    if !header && (!links.exports.is_empty() || !links.namespace.is_empty()) {
-        printer.text("export{");
-        let mut first = true;
-        for binding in &links.exports {
-            if !printer.output.work(1) {
-                break;
-            }
-            if !std::mem::take(&mut first) {
-                printer.text(",");
-            }
-            printer.text(names.get(*binding));
-        }
-        // A lazy chunk's namespace members, under their export names.
-        for (name, binding) in &links.namespace {
-            if !printer.output.work(1) {
-                break;
-            }
-            if links.exports.contains(binding) && names.get(*binding) == name {
-                continue;
-            }
-            if !std::mem::take(&mut first) {
-                printer.text(",");
-            }
-            let local = names.get(*binding);
-            printer.text(local);
-            if local != name {
-                printer.text(" as ");
-                if identifier_name(name) {
-                    printer.text(name);
-                } else {
-                    printer.string(&crate::literal::StringValue::from(name.as_str()));
-                }
-            }
-        }
-        printer.text("};");
-    }
-    if !header && entry && !module.exports.is_empty() {
-        printer.text("export{");
-        for (index, export) in module.exports.iter().enumerate() {
-            if !printer.output.work(1) {
-                break;
-            }
-            if index != 0 {
-                printer.text(",");
-            }
-            let local = names.get(export.binding);
-            printer.text(local);
-            if local != export.name {
-                printer.text(" as ");
-                printer.text(&export.name);
-            }
-        }
-        printer.text("};");
-    }
-    let Buffer { text, error, .. } = printer.output;
-    if let Some(error) = error {
-        drop(text);
-        return Err(error);
-    }
-    phase.finish_retained().map_err(PrintError::Admission)?;
-    Ok(text)
-}
+#[path = "print_files.rs"]
+mod files;
+pub(super) use files::{render_planned_file_admitted, PlannedPrint};
 
 struct Buffer<'a, 'ledger> {
     text: String,
@@ -501,8 +346,9 @@ struct Printer<'a, 'budget, 'ledger> {
     output: Buffer<'budget, 'ledger>,
     /// The statement value being printed without its normalization.
     discarded_root: Option<ExprId>,
-    /// The delivered files, when this prints one of several.
-    files: Option<&'a [delivery::DeliveryFile]>,
+    /// The specifier of each lazily delivered module's file (module,
+    /// specifier), when this prints one file of several.
+    lazy: &'a [(u32, String)],
     /// Bindings that always hold a number (`Module::binding_classes`).
     numeric: Vec<bool>,
 }
@@ -1278,17 +1124,16 @@ impl<'a> Printer<'a, '_, '_> {
                 promise,
                 string,
             } => {
-                let chunk = self.files.and_then(|files| {
-                    files
-                        .iter()
-                        .find(|file| file.lazy && file.modules.first() == Some(module))
-                });
+                let chunk = self
+                    .lazy
+                    .iter()
+                    .find(|(loaded, _)| loaded == module)
+                    .map(|(_, specifier)| specifier);
                 if let Some(chunk) = chunk {
-                    // The chunk's own namespace; a failed load reports the
+                    // The file's own namespace; a failed load reports the
                     // source specifier, as the old route did.
                     self.text("import(");
-                    let path = format!("./{}", chunk.name);
-                    self.string(&StringValue::from(path.as_str()));
+                    self.string(&StringValue::from(chunk.as_str()));
                     self.text(").catch(e=>");
                     self.expression(*promise, 18);
                     self.text(".reject({specifier:");

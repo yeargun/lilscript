@@ -878,18 +878,18 @@ fn contract_changes_reject_candidate_and_output_reuse_without_changing_sources()
         // Delivery is part of the contract: a candidate formed for one file
         // is not another mode's candidate.
         for mode in [
-            crate::config::BundleMode::Split,
-            crate::config::BundleMode::PreserveModules,
+            crate::config::DeliveryMode::Split,
+            crate::config::DeliveryMode::PreserveModules,
         ] {
             let mut changed = config.clone();
-            changed.bundle.mode = mode;
+            changed.delivery.mode = mode;
             variants.push(resolve(&changed, true));
         }
         let mut changed = config.clone();
-        changed.bundle.mode = crate::config::BundleMode::Split;
-        changed.bundle.min_chunk_bytes = 1;
+        changed.delivery.mode = crate::config::DeliveryMode::Split;
+        changed.delivery.chunk_names = Some("[index].[ext]".into());
         let split = resolve(&changed, true);
-        changed.bundle.min_chunk_bytes = 2;
+        changed.delivery.chunk_names = Some("c[index].[ext]".into());
         assert_ne!(split.fingerprint(), resolve(&changed, true).fingerprint());
         for variant in variants {
             assert!(matches!(

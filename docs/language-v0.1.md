@@ -692,23 +692,27 @@ initializers remain eligible for whole-program elimination, and static module
 syntax does not appear in the generated bundle.
 
 The `js-module` target instead creates a reusable ESM boundary. Runtime exports
-from the root module are retention roots, their internal bindings remain
+from each entry module are retention roots, their internal bindings remain
 mangleable, and a compact named export clause maps them back to stable public
 names. Struct and class names are compile-time type exports and therefore do not
-produce JavaScript bindings. The default bundle policy emits one optimized
-application artifact. A project can opt into static ESM chunks with
-`bundle.mode = "preserve-modules"` or `"split"`; partitioning occurs after
-whole-program optimization and produces a manifest. These imports are eager.
+produce JavaScript bindings. A program may have several entries
+(`[delivery.entries]`, `--entry NAME=PATH`), checked as one module graph; one
+cell exported by several entries is one identity. The default delivery writes
+one optimized file per entry. A project can opt into static ESM files with
+`delivery.mode = "preserve-modules"` or `"split"`; placement occurs after
+whole-program optimization and writes a manifest. These imports are eager.
 The dynamic expression `import("./feature")` returns a typed `Task<module>`.
 `then`, `catch`, and `finally` are statically checked; contextual `auto` arrow
 parameters receive the module namespace or a general `JsValue` rejection.
 Split builds normalize loader-created failures to objects with stable
 `specifier` and `message` fields, while user-created task rejections may carry
-any non-void JavaScript value. Lazy chunks tree-shake unreferenced namespace
-exports. Lazy-only modules must be initialization-free. Dynamic module tasks are
-JavaScript-only. **Until M3.3**, `preserve-modules` chunks and lazy `import()`
-chunks are not produced: the build writes no chunks. The complete delivery and
-package contract is in [modules-and-delivery.md](modules-and-delivery.md).
+any non-void JavaScript value. Lazily loaded files tree-shake unreferenced
+namespace exports. Lazy-only modules must be initialization-free. Dynamic module
+tasks are JavaScript-only. Two entries that enter one static import cycle at
+different modules, `preserve-modules` over a static cycle, and a module an entry
+loads only with `import()` that runs code where `import()` is built in place are
+refused until plan M3.3d. The complete delivery and package contract is in
+[modules-and-delivery.md](modules-and-delivery.md).
 
 ## Aggregates and classes
 

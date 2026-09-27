@@ -92,6 +92,10 @@ impl Module {
         // Each lowered module's exports: exported name and binding.
         let mut exports: Vec<Vec<(String, BindingId)>> = Vec::new();
         let mut statements = Vec::new();
+        // Per lowered statement: a host function declaration creates its
+        // function and runs nothing (a definition); every other statement is
+        // host code the program cannot see into (anchored).
+        let mut anchors = Vec::new();
         for host in &delivery.modules {
             budget.work(Analysis, host.body().len() as u64)?;
             let Ok(tree) = crate::host_modules::parse_program(host.body()) else {
@@ -126,12 +130,29 @@ impl Module {
                     });
                 }
             }
+            let declared = tree
+                .get("body")
+                .and_then(Value::as_array)
+                .map_or(0, |body| {
+                    body.iter()
+                        .filter(|statement| kind(statement) == "FunctionDeclaration")
+                        .count()
+                });
             let lowered = match tree.get("body").and_then(Value::as_array) {
                 Some(body) => lowering.block_statements(body),
                 None => Err(Stop::Refused),
             };
             match lowered {
-                Ok(lowered) => statements.extend(lowered),
+                Ok(lowered) => {
+                    anchors.extend((0..lowered.len()).map(|position| {
+                        if position < declared {
+                            Anchor::Definition
+                        } else {
+                            Anchor::Anchored
+                        }
+                    }));
+                    statements.extend(lowered)
+                }
                 Err(Stop::Refused) => return Ok(false),
                 Err(Stop::Budget(error)) => return Err(error),
             }
@@ -202,12 +223,19 @@ impl Module {
             &mut self.regions[root].statements,
             count,
         )?;
-        self.regions[root].statements.splice(0..0, statements);
-        if let Some(&first) = self.root_modules.first() {
-            budget.reserve_vec(AllocationClass::Retained, &mut self.root_modules, count)?;
-            self.root_modules
-                .splice(0..0, std::iter::repeat_n(first, count));
+        // Host code: rows of their own origin (design §7.9).
+        let first = self.root_rows.first().map_or(0, |row| row.module);
+        if !self.root_rows.is_empty() {
+            budget.reserve_vec(AllocationClass::Retained, &mut self.root_rows, count)?;
         }
+        self.prepend_roots(
+            statements,
+            anchors.into_iter().map(|anchor| RootRow {
+                module: first,
+                anchor,
+                origin: RowOrigin::Host,
+            }),
+        );
         Ok(true)
     }
 }

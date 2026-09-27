@@ -39,7 +39,8 @@ fn modules(sources: &[&str], dependencies: &[&[usize]], inspect: impl FnOnce(Pro
             })
             .collect(),
         dependency_order: static_order(dependencies),
-        root: 0,
+        roots: vec![0],
+        root_names: vec!["main".to_string()],
         eager: vec![true; sources.len()],
     };
     let arena = bumpalo::Bump::new();
@@ -312,7 +313,7 @@ fn exported_bodies_run_after_initialization_unless_host_code_can_call_them_early
     // A host module may import the program back and call its exports
     // before any root statement runs.
     let mut hosted = program.clone();
-    let module = hosted.entry.index();
+    let module = hosted.entry_module().index();
     let foreign = cell(&hosted, "K");
     Arc::make_mut(&mut hosted.modules)[module]
         .foreign_imports

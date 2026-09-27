@@ -1,9 +1,15 @@
 [optimization]
 inlining = false
 
-[bundle]
-mode = "split"
-min_chunk_bytes = 1
-max_chunks = 1
-shared_min_imports = 2
+[javascript]
+# The fixture observes through `print`.
+strip_console = false
 
+# Two entries over one shared module (plan M3.3): `shared` is one file both
+# load, and each entry file is a facade.
+[delivery]
+mode = "split"
+
+[delivery.entries]
+main = "main.lil"
+left = "left.lil"

@@ -633,9 +633,9 @@ fn appended_unit_and_new_public_reference_refresh_negative_use_knowledge() {
             name: "state".into(),
             target: InterfaceTarget::Value(state),
         });
-        Arc::make_mut(&mut changed.modules)[changed.entry.index()]
-            .exports
-            .end += 1;
+        let entry = changed.entry_module().index();
+        Arc::make_mut(&mut changed.modules)[entry].exports.end += 1;
+        changed.public.end += 1;
         changed.tables_revision = RevisionId::fresh();
         changed.verify().unwrap();
         let exported = appended
@@ -685,9 +685,9 @@ fn incomplete_change_lists_and_unstamped_exports_are_rejected_without_leaks() {
             name: "state".into(),
             target: InterfaceTarget::Value(cell(program, "state")),
         });
-        Arc::make_mut(&mut stale_tables.modules)[stale_tables.entry.index()]
-            .exports
-            .end += 1;
+        let entry = stale_tables.entry_module().index();
+        Arc::make_mut(&mut stale_tables.modules)[entry].exports.end += 1;
+        stale_tables.public.end += 1;
         assert_eq!(
             base.updated(&stale_tables, &[], &mut budget, WorkDomain::Optional)
                 .unwrap_err(),

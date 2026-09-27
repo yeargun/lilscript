@@ -9,7 +9,7 @@ use serde::Serialize;
 use crate::ast::{self, ArrowBody, ClassMember, Expr, ExprKind, ExternClassMember, Item, Stmt};
 use crate::build::{with_checked_program, CheckedProgram, ServiceError};
 use crate::check::{CheckedModules, SymbolId};
-use crate::config::{BundleMode, LintConfig, LintPreset, LintSeverity, ProjectConfig};
+use crate::config::{DeliveryMode, LintConfig, LintPreset, LintSeverity, ProjectConfig};
 use crate::lexer::{lex, TokenKind};
 use crate::module::{ModuleError, ModuleId, ModuleSet};
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
@@ -124,18 +124,18 @@ impl LintRuleProvider for WebRuleProvider {
         diagnostics: &mut Vec<LintProviderDiagnostic>,
     ) {
         let program = context.program;
-        let Some(data) = program
-            .modules()
-            .get(program.entry_module().index())
-            .and_then(|module| program.unit(module.initializer))
-        else {
-            return;
-        };
-        let Some(operation) = data
-            .operations
-            .iter()
-            .find(|operation| host_access(program, data, operation))
-        else {
+        // Every entry's module (plan M3.3): each is a program root.
+        let Some((data, operation)) = program.entries().iter().find_map(|entry| {
+            let data = program
+                .modules()
+                .get(entry.module.index())
+                .and_then(|module| program.unit(module.initializer))?;
+            let operation = data
+                .operations
+                .iter()
+                .find(|operation| host_access(program, data, operation))?;
+            Some((data, operation))
+        }) else {
             return;
         };
         diagnostics.push(LintProviderDiagnostic {
@@ -279,7 +279,7 @@ pub fn lint_checked_with_providers(
     config: &ProjectConfig,
     providers: &[&dyn LintRuleProvider],
 ) -> Result<Vec<LintDiagnostic>, LintError> {
-    let root = &checked.modules.modules[checked.modules.root];
+    let root = &checked.modules.modules[checked.modules.root()];
     if !config.lint.enabled || path_is_excluded(&root.path, &config.lint.exclude) {
         return Ok(Vec::new());
     }
@@ -364,7 +364,7 @@ fn lint_bundle_policy(
     config: &ProjectConfig,
     pending: &mut Vec<PendingDiagnostic>,
 ) {
-    if matches!(config.bundle.mode, BundleMode::Single) {
+    if matches!(config.delivery.mode, DeliveryMode::Single) {
         return;
     }
     for import in syntax.imports {
@@ -374,8 +374,8 @@ fn lint_bundle_policy(
             rule: "size/eager-chunk-overhead",
             message: "configured chunk boundary is loaded eagerly".to_string(),
             evidence: Some(format!(
-                "bundle mode `{:?}` emits static ESM imports",
-                config.bundle.mode
+                "delivery mode `{}` emits static ESM imports",
+                config.delivery.mode.name()
             )),
             help: Some(
                 "use a single bundle when request and wrapper overhead outweigh cache reuse"
@@ -1738,7 +1738,7 @@ mod tests {
             let data = program.unit(initializer).unwrap();
             diagnostics.push(LintProviderDiagnostic {
                 module: data.module.index(),
-                span: context.syntax[context.modules.root].span,
+                span: context.syntax[context.modules.root()].span,
                 rule: "agent/entry-budget",
                 message: "agent policy checked the entry initializer".to_string(),
                 evidence: Some(format!("{} operations", data.operations.len())),
@@ -1861,7 +1861,7 @@ mod tests {
             "main.lil",
             "import {value} from \"./dependency\";print(value);",
         );
-        config.bundle.mode = BundleMode::PreserveModules;
+        config.delivery.mode = DeliveryMode::PreserveModules;
 
         let diagnostics = lint_path(&main, &config).unwrap();
         assert!(diagnostics

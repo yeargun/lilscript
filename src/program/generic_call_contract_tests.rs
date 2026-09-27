@@ -47,7 +47,8 @@ fn imported_generic_calls_keep_original_arguments_and_one_body_for_point_and_int
             })
             .collect(),
         dependency_order: vec![2, 1, 0],
-        root: 0,
+        roots: vec![0],
+        root_names: vec!["main".to_string()],
         eager: vec![true; 3],
     };
     let arena = bumpalo::Bump::new();

@@ -133,7 +133,6 @@ impl Module {
                 index += 1;
                 continue;
             };
-            let root = region == self.root;
             // `if(c){A;return}R` ending a function body is `if(c){A}else{R}`,
             // as is `if(c){A;continue}R` ending a loop body: both branches end
             // where the body does.
@@ -258,12 +257,17 @@ impl Module {
                         None,
                         budget,
                     )?;
-                    self.regions[region.index()]
-                        .statements
-                        .splice(index..=end, [Statement::Return(Some(value))]);
-                    if root && end < self.root_modules.len() {
-                        self.root_modules.drain(index + 1..=end);
-                    }
+                    // One statement now holds all of theirs.
+                    self.splice_statements(
+                        region.index(),
+                        index..end + 1,
+                        vec![Statement::Return(Some(value))],
+                        |rows| {
+                            vec![rows[1..]
+                                .iter()
+                                .fold(rows[0], |row, other| row.fuse(*other))]
+                        },
+                    );
                     changed += 1;
                     index += 1;
                     continue;
@@ -405,10 +409,7 @@ impl Module {
                 exit @ (Statement::Return(None) | Statement::Continue)
                     if index + 1 == statements.len() && end.as_ref() == Some(&exit) =>
                 {
-                    self.regions[region.index()].statements.pop();
-                    if region == self.root && index < self.root_modules.len() {
-                        self.root_modules.truncate(index);
-                    }
+                    self.truncate_statements(region.index(), index);
                     changed += 1;
                     continue;
                 }
@@ -514,7 +515,8 @@ impl Module {
                 continue;
             };
             if self.same_statement(&last, exit, budget)? {
-                self.regions[region.index()].statements.pop();
+                let at = self.regions[region.index()].statements.len() - 1;
+                self.truncate_statements(region.index(), at);
                 stripped += 1;
                 continue;
             }
@@ -567,14 +569,11 @@ impl Module {
         let count = moved.len();
         moved.reverse();
         let at = index + 1;
-        if region == self.root && index < self.root_modules.len() {
-            let module = self.root_modules[index];
-            self.root_modules
-                .splice(at..at, std::iter::repeat_n(module, count));
-        }
-        self.regions[region.index()]
-            .statements
-            .splice(at..at, moved);
+        // Each hoisted statement ran under the `if`: it keeps the `if`'s row.
+        let row = self.root_rows.get(index).copied();
+        self.splice_statements(region.index(), at..at, moved, |_| {
+            row.map_or_else(Vec::new, |row| vec![row; count])
+        });
         self.settle_if(region, index, budget)?;
         Ok(count)
     }
@@ -1345,8 +1344,7 @@ impl Module {
                     },
                     _ => None,
                 };
-                let same_module =
-                    !root || self.root_modules.get(index) == self.root_modules.get(index + 1);
+                let same_module = !root || self.root_module(index) == self.root_module(index + 1);
                 let Some((op, second_value)) = second.filter(|_| same_module) else {
                     index += 1;
                     continue;
@@ -1388,10 +1386,7 @@ impl Module {
                         self.regions[region].statements[index] = Statement::Evaluate(assigned);
                     }
                 }
-                self.regions[region].statements.remove(index + 1);
-                if root && index + 1 < self.root_modules.len() {
-                    self.root_modules.remove(index + 1);
-                }
+                self.remove_statement_into(region, index + 1, index);
                 folded += 1;
                 // The folded statement may meet another test.
             }
@@ -1484,7 +1479,7 @@ impl Module {
                 }
                 self.regions[region].statements[index] = Statement::Return(Some(combined));
                 if next {
-                    self.regions[region].statements.remove(index + 1);
+                    self.remove_statement_into(region, index + 1, index);
                 }
                 folded += 1;
                 index += 1;

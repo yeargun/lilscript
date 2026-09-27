@@ -176,16 +176,11 @@ impl Module {
                 let assign = self.expression_in(Expr::Assign { target, value }, None, budget)?;
                 replacement.push(Statement::Evaluate(assign));
             }
-            let added = replacement.len() - 1;
-            self.regions[region.index()]
-                .statements
-                .splice(index..=index, replacement);
-            if region == self.root && index < self.root_modules.len() {
-                let module = self.root_modules[index];
-                for _ in 0..added {
-                    self.root_modules.insert(index, module);
-                }
-            }
+            let count = replacement.len();
+            // Each store the initializer became keeps its statement's row.
+            self.splice_statements(region.index(), index..index + 1, replacement, |rows| {
+                vec![rows[0]; count]
+            });
         }
         Ok(count)
     }
@@ -411,10 +406,7 @@ impl Module {
                     else {
                         continue;
                     };
-                    self.regions[region.index()].statements.remove(index);
-                    if region == self.root && index < self.root_modules.len() {
-                        self.root_modules.remove(index);
-                    }
+                    self.remove_statement(region.index(), index);
                 }
                 Site::Item(sequence, _, call) => {
                     if let Expr::Sequence(items) = &mut self.expressions[sequence.index()] {

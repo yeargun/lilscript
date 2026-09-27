@@ -31,11 +31,8 @@ compression = [
   "string-array-packing",
 ]
 
-[bundle]
+[delivery]
 mode = "single"
-min_chunk_bytes = 16384
-max_chunks = 32
-shared_min_imports = 2
 
 [lint]
 enabled = true

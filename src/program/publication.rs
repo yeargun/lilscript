@@ -9,11 +9,11 @@
 
 pub use super::artifact_provenance::{ArtifactProvenanceDescription, LiteralOutput, OutputTactics};
 use super::artifacts::ArtifactArena;
+pub use super::artifacts::{ArtifactFile, DeliveredFile, DeliveredFiles};
 pub use super::artifacts::{
     ArtifactId, ArtifactRuntimeEvidence, ArtifactView, BudgetedJavaScriptOutput,
     NativeArtifactView, QualifiedArtifact, QualifiedNativeArtifact, ScopedArtifactId,
 };
-pub use super::artifacts::{DeliveredBundle, DeliveredChunk, EntryLinks};
 use super::facts::{
     CacheLimits, FactRequest, FactsError, FactsSession, FactsSessionWork, RetainedFactsCache,
     UnitFacts, LOCAL_FACTS_PLAN, LOCAL_FACTS_VERSION,
@@ -576,7 +576,7 @@ impl Charge {
 struct SemanticCharges {
     shell: Charge,
     units: Vec<Charge>,
-    tables: [Charge; 10],
+    tables: [Charge; 11],
     // Borrowed source names are not owned table payload, but a rejected typed
     // edit may format them into a transient diagnostic String.
     diagnostic_text_bytes: u64,
@@ -621,7 +621,7 @@ impl<'src> PreparedProgram<'src> {
                 Charge { domain, bytes },
             )?;
         }
-        let mut tables = [Charge::empty(domain); 10];
+        let mut tables = [Charge::empty(domain); 11];
         let mut diagnostic_text_bytes = 0;
         for (index, charge) in tables.iter_mut().enumerate() {
             let (bytes, text) = budget.with_ledger(|ledger| {
@@ -773,6 +773,18 @@ impl JavaScriptTarget<'_, '_> {
             hosts,
             ..
         } = self;
+        // Every host module the output delivers, lowered into the tree or
+        // not: its code runs for the entries reaching a module importing it
+        // (design §7.9). Once lowered, the tree no longer imports it.
+        let delivered_hosts = hosts
+            .map(|hosts| {
+                hosts
+                    .modules
+                    .iter()
+                    .map(|host| host.specifier.clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
         // Delivered host code runs inside this module's scope; its globals
         // must stay visible there. A script output runs it strict, as the
         // module it was written as.
@@ -797,71 +809,35 @@ impl JavaScriptTarget<'_, '_> {
         let strict = policy.javascript_contract().is_some_and(|contract| {
             contract.execution != crate::compilation_contract::JavaScriptExecution::Module
         });
-        // Multi-file delivery: every source module but the entry may carry a
-        // chunk of its self-contained functions; split mode then selects.
-        let bundle = match policy.contract() {
-            crate::compilation_policy::CompilationContract::JavaScript {
-                language,
-                bundle_mode,
-                split,
-                preload,
-                ..
-            } if *bundle_mode != crate::config::BundleMode::Single => {
-                let program = &semantic.program;
-                let modules = program.modules();
-                let entry = program.entry_module().index();
-                // Importing modules per module, counted once per importer.
-                let mut importers = vec![0usize; modules.len()];
-                for module in modules {
-                    let mut unique = module.dependencies.clone();
-                    unique.sort_unstable();
-                    unique.dedup();
-                    for dependency in unique {
-                        importers[dependency.index()] += 1;
-                    }
-                }
-                // Modules static imports reach from the entry.
-                let mut eager = vec![false; modules.len()];
-                let mut pending = vec![entry];
-                while let Some(module) = pending.pop() {
-                    if !std::mem::replace(&mut eager[module], true) {
-                        pending.extend(modules[module].dependencies.iter().map(|id| id.index()));
-                    }
-                }
-                Some(super::artifacts::BundleSpec {
-                    hosted: module
-                        .imports
-                        .iter()
-                        .map(|import| {
-                            hosts.is_some_and(|hosts| {
-                                import
-                                    .source
-                                    .as_unicode()
-                                    .is_some_and(|source| hosts.position(source).is_some())
-                            })
-                        })
-                        .collect(),
-                    extension: chunk_extension,
-                    eager,
-                    dynamic_import: language
+        // Placement (plan M3.3): once per formed tree, after the target
+        // rules and before naming; the plan is stored on the tree.
+        if let Some(contract) = policy.delivery() {
+            let entries = semantic.program.entries().len();
+            if module.delivery.is_none()
+                && (entries > 1 || contract.mode != crate::config::DeliveryMode::Single)
+            {
+                let graph =
+                    super::entries::entry_graph(&semantic.program, &delivered_hosts, module_names);
+                let dynamic_import = policy.javascript_contract().is_some_and(|language| {
+                    language
                         .ecmascript
-                        .allows(crate::js_syntax_target::JsSyntaxFeature::DynamicImport),
-                    preload: *preload,
-                    allowed: (0..modules.len()).map(|index| index != entry).collect(),
-                    stems: (0..modules.len())
-                        .map(|index| {
-                            module_names
-                                .get(index)
-                                .cloned()
-                                .unwrap_or_else(|| format!("m{index}"))
-                        })
-                        .collect(),
-                    importers,
-                    split: *split,
-                })
+                        .allows(crate::js_syntax_target::JsSyntaxFeature::DynamicImport)
+                });
+                // `[ext]`: the format's, unless one output file names its own.
+                let ext = match contract.format {
+                    crate::config::JavaScriptFormat::Esm => *chunk_extension,
+                    format => format.extension(),
+                };
+                module.delivery = crate::js::delivery::plan(
+                    module,
+                    &graph,
+                    contract,
+                    dynamic_import,
+                    ext,
+                    budget,
+                )?;
             }
-            _ => None,
-        };
+        }
         budget.with_ledger(|ledger| {
             let mut phase = AllocationBudget::new(ledger.map(|(ledger, _)| (ledger, domain)));
             let mut output =
@@ -892,8 +868,7 @@ impl JavaScriptTarget<'_, '_> {
                 policy,
                 policy.javascript_contract().unwrap().execution,
                 choices.clone(),
-            )
-            .with_bundle(bundle.as_ref());
+            );
             Ok(inspect(&mut facade))
         })
     }
@@ -1346,7 +1321,7 @@ impl<'src> Compilation<'src> {
             charges: SemanticCharges {
                 shell,
                 units: Vec::with_capacity(unit_count),
-                tables: [Charge::empty(domain); 10],
+                tables: [Charge::empty(domain); 11],
                 diagnostic_text_bytes: 0,
             },
             changes: Vec::new(),
@@ -1368,7 +1343,7 @@ impl<'src> Compilation<'src> {
                     .units
                     .push(Charge::reserve(&mut self.ledger, domain, bytes)?);
             }
-            for index in 0..10 {
+            for index in 0..11 {
                 let (bytes, diagnostics) =
                     table_bytes(&pending.program, index, &mut self.ledger, domain)?;
                 pending.charges.tables[index] = Charge::reserve(&mut self.ledger, domain, bytes)?;
@@ -2459,14 +2434,14 @@ impl<'src> Compilation<'src> {
         })
     }
 
-    /// Deliver the exact multi-file artifact admitted by this receipt: its
-    /// entry text and every chunk file scored with it.
-    pub fn take_qualified_bundle(
+    /// Deliver the exact multi-file artifact admitted by this receipt:
+    /// every file of its delivery plan, with the plan's layout.
+    pub fn take_qualified_files(
         &mut self,
         artifact: QualifiedArtifact,
-    ) -> Result<DeliveredBundle, CandidateError> {
+    ) -> Result<DeliveredFiles, CandidateError> {
         self.artifacts.check_qualified(&artifact)?;
-        self.artifacts.take_bundle(
+        self.artifacts.take_files(
             artifact.artifact(),
             &mut AllocationBudget::new(Some((&mut self.ledger, WorkDomain::Baseline))),
         )
@@ -2836,6 +2811,7 @@ fn admitted_contract_payload(
 ) -> Result<u64, CandidateError> {
     let CompilationContract::JavaScript {
         preserved_properties,
+        delivery,
         ..
     } = contract
     else {
@@ -2848,15 +2824,20 @@ fn admitted_contract_payload(
             .checked_add(16)
             .ok_or(CandidateError::Capacity)?,
     )?;
-    let strings = preserved_properties.iter().try_fold(0u64, |bytes, name| {
-        bytes
-            .checked_add(name.len() as u64)
-            .ok_or(CandidateError::Capacity)
-    })?;
+    let strings = preserved_properties
+        .iter()
+        .chain(delivery.templates())
+        .try_fold(0u64, |bytes, name| {
+            bytes
+                .checked_add(name.len() as u64)
+                .ok_or(CandidateError::Capacity)
+        })?;
     ledger.charge(domain, WorkKind::Edit, strings)?;
-    Ok(bytes::<String>(preserved_properties.len())?
-        .checked_add(strings)
-        .ok_or(CandidateError::Capacity)?)
+    Ok(
+        bytes::<String>(preserved_properties.len() + delivery.templates().count())?
+            .checked_add(strings)
+            .ok_or(CandidateError::Capacity)?,
+    )
 }
 
 fn copy_javascript_contract(
@@ -2865,9 +2846,7 @@ fn copy_javascript_contract(
     let CompilationContract::JavaScript {
         language,
         preserved_properties,
-        bundle_mode,
-        split,
-        preload,
+        delivery,
     } = contract
     else {
         return Err(CandidateError::NotJavaScript);
@@ -2884,12 +2863,27 @@ fn copy_javascript_contract(
         copied.push_str(name);
         names.push(copied);
     }
+    let copy = |text: &Option<String>| -> Result<Option<String>, CandidateError> {
+        text.as_ref()
+            .map(|text| {
+                let mut copied = String::new();
+                copied
+                    .try_reserve_exact(text.len())
+                    .map_err(|_| CandidateError::AllocationFailed)?;
+                copied.push_str(text);
+                Ok(copied)
+            })
+            .transpose()
+    };
     Ok(CompilationContract::JavaScript {
         language: *language,
         preserved_properties: names,
-        bundle_mode: *bundle_mode,
-        split: *split,
-        preload: *preload,
+        delivery: crate::compilation_policy::DeliveryContract {
+            entry_names: copy(&delivery.entry_names)?,
+            chunk_names: copy(&delivery.chunk_names)?,
+            module_names: copy(&delivery.module_names)?,
+            ..*delivery
+        },
     })
 }
 fn check_candidate_policy(
@@ -3009,6 +3003,7 @@ fn release_program(
         exports,
         initialization,
         modules,
+        entries,
         ..
     } = program;
     let mut unit_charges = charges.units.into_iter();
@@ -3031,6 +3026,7 @@ fn release_program(
     release_table(initialization, charges.tables[7], ledger)?;
     release_table(modules, charges.tables[8], ledger)?;
     release_table(classes, charges.tables[9], ledger)?;
+    release_table(entries, charges.tables[10], ledger)?;
     charges.shell.release(ledger)
 }
 fn release_table<T>(
@@ -3056,6 +3052,7 @@ fn unique_input(program: &Program<'_>) -> bool {
         && Arc::strong_count(&program.exports) == 1
         && Arc::strong_count(&program.initialization) == 1
         && Arc::strong_count(&program.modules) == 1
+        && Arc::strong_count(&program.entries) == 1
 }
 fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
     Program {
@@ -3071,7 +3068,8 @@ fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
         exports: program.exports.clone(),
         initialization: program.initialization.clone(),
         modules: program.modules.clone(),
-        entry: program.entry,
+        entries: program.entries.clone(),
+        public: program.public.clone(),
         views: Default::default(),
     }
 }
@@ -3422,6 +3420,18 @@ fn table_bytes(
                 for parameter in &class.type_params {
                     total = sum(&[total, parameter.capacity() as u64])?;
                 }
+            }
+        }
+        10 => {
+            workspace.work(program.entries.len())?;
+            total = sum(&[total, capacity(&program.entries)?])?;
+            for entry in program.entries.iter() {
+                if entry.module.index() >= program.modules.len() {
+                    return Err(PublicationError::InvalidNominalContract(
+                        "an entry names no module",
+                    ));
+                }
+                total = sum(&[total, entry.name.capacity() as u64])?;
             }
         }
         _ => unreachable!(),

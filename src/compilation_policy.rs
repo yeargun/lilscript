@@ -43,28 +43,75 @@ pub enum CompilationContract {
     JavaScript {
         language: JavaScriptCompilationContract,
         preserved_properties: Vec<String>,
-        bundle_mode: crate::config::BundleMode,
-        /// Split delivery's chunk rule; absent in the other modes, whose
-        /// output these settings cannot change.
-        split: Option<SplitRule>,
-        /// Which lazy chunks the entry preloads; `None` for one file.
-        preload: crate::config::PreloadPolicy,
+        /// How the program is placed in files, and their container.
+        delivery: DeliveryContract,
     },
     Native {
         abi_version: u32,
     },
 }
 
-/// The old route's split rule: a module keeps its chunk when at least
-/// `shared_min_imports` modules import it and the chunk has at least
-/// `min_chunk_bytes`; up to `max_chunks` such chunks are then added while
-/// each lowers the bundle's deploy cost.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SplitRule {
-    pub min_chunk_bytes: usize,
-    pub max_chunks: usize,
-    pub shared_min_imports: usize,
-    pub cost: crate::config::ChunkCostConfig,
+/// The delivery part of the contract (plan M3.3, architecture §14
+/// `[delivery]`): what the delivered files must be. Placement itself is the
+/// compiler's; it never depends on the format.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeliveryContract {
+    pub mode: crate::config::DeliveryMode,
+    pub format: crate::config::JavaScriptFormat,
+    /// Which lazily loaded files an entry preloads; `None` for one file.
+    pub preload: crate::config::PreloadPolicy,
+    /// File name templates (`js::names`); `None` is the default, which
+    /// costs the contract no storage.
+    pub entry_names: Option<String>,
+    pub chunk_names: Option<String>,
+    pub module_names: Option<String>,
+    /// The world is a library: chunk names default to their plan position,
+    /// the shortest delivered bytes; an application's to a content hash,
+    /// which caches safely across releases (design §8).
+    pub library: bool,
+    /// Declared deployment costs (L12), added to an entry's row.
+    pub request_bytes: u64,
+    pub depth_bytes: u64,
+    /// Whether relative host modules travel with the output: they change
+    /// the delivered files, so the contract and its fingerprint hold it.
+    pub host_modules: crate::config::HostModules,
+}
+
+impl DeliveryContract {
+    /// Today's single-file output: one entry file, no plan.
+    pub fn single() -> Self {
+        Self {
+            mode: crate::config::DeliveryMode::Single,
+            format: crate::config::JavaScriptFormat::Esm,
+            preload: crate::config::PreloadPolicy::None,
+            entry_names: None,
+            chunk_names: None,
+            module_names: None,
+            library: true,
+            request_bytes: 0,
+            depth_bytes: 0,
+            host_modules: crate::config::HostModules::External,
+        }
+    }
+    pub fn entry_names(&self) -> &str {
+        self.entry_names.as_deref().unwrap_or("[name].[ext]")
+    }
+    pub fn chunk_names(&self) -> &str {
+        self.chunk_names.as_deref().unwrap_or(if self.library {
+            "[index].[ext]"
+        } else {
+            "[hash:8].[ext]"
+        })
+    }
+    pub fn module_names(&self) -> &str {
+        self.module_names.as_deref().unwrap_or("[path].[ext]")
+    }
+    /// The templates this contract stores, for its payload.
+    pub fn templates(&self) -> impl Iterator<Item = &String> {
+        [&self.entry_names, &self.chunk_names, &self.module_names]
+            .into_iter()
+            .flatten()
+    }
 }
 
 /// This is a permission to compete, never a forced representation.
@@ -539,6 +586,13 @@ impl ResolvedPolicy {
             CompilationContract::Native { .. } => None,
         }
     }
+    /// The delivery contract of a JavaScript policy.
+    pub fn delivery(&self) -> Option<&DeliveryContract> {
+        match &self.contract {
+            CompilationContract::JavaScript { delivery, .. } => Some(delivery),
+            CompilationContract::Native { .. } => None,
+        }
+    }
     pub fn objective(&self) -> Option<OptimizationObjective> {
         self.objective
     }
@@ -786,9 +840,7 @@ impl ResolvedPolicy {
             CompilationContract::JavaScript {
                 language,
                 preserved_properties,
-                bundle_mode,
-                split,
-                preload,
+                delivery,
             } => json!({
                 "target":"javascript", "world":format!("{:?}",language.world), "execution":format!("{:?}",language.execution), "ecmascript":language.ecmascript.name(),
                 "preserve_root_exports":language.abi.preserve_root_exports,
@@ -800,10 +852,10 @@ impl ResolvedPolicy {
                 "numeric_lengths":language.assumptions.numeric_lengths,
                 "strip_console":language.effects.strip_console,
                 "preserved_properties":preserved_properties,
-                "bundle_mode":format!("{bundle_mode:?}"),
-                "split":split.map(|rule| json!({"min_chunk_bytes":rule.min_chunk_bytes, "max_chunks":rule.max_chunks,
-                    "shared_min_imports":rule.shared_min_imports, "cost":format!("{:?}", rule.cost)})),
-                "preload":format!("{preload:?}")
+                "delivery":{"mode":delivery.mode.name(), "format":delivery.format.name(),
+                    "preload":delivery.preload.name(), "host_modules":delivery.host_modules.name(), "entry_names":delivery.entry_names(),
+                    "chunk_names":delivery.chunk_names(), "module_names":delivery.module_names(),
+                    "request_bytes":delivery.request_bytes, "depth_bytes":delivery.depth_bytes},
             }),
         };
         let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "terminal_challengers":o.terminal_challengers, "terminal_choices":o.terminal_choices, "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));

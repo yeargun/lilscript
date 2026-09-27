@@ -15,6 +15,7 @@ pub mod call_graph;
 mod callable_inputs;
 mod demand;
 pub mod effects;
+mod entries;
 pub mod facts;
 mod from_source;
 mod function_layout;
@@ -340,7 +341,14 @@ pub struct Program<'src> {
     exports: Arc<Vec<Export>>,
     initialization: Arc<Vec<UnitId>>,
     modules: Arc<Vec<ModuleInterface>>,
-    entry: ModuleId,
+    /// The program's entries, in name order (plan M3.3): each is a root of
+    /// the module graph and publishes its module's exports.
+    entries: Arc<Vec<ProgramEntry>>,
+    /// The public surface: every entry's exports, a range of the export
+    /// table. One entry's is its module's range; several entries' is their
+    /// concatenation, appended once, so one cell exported by two entries
+    /// appears twice and is still one cell.
+    public: std::ops::Range<usize>,
     /// Derived views (call graph, effect summaries), filled on demand.
     views: views::ProgramViews,
 }
@@ -460,9 +468,19 @@ impl<'src> Program<'src> {
             .get(field.slot as usize)
             .copied()
     }
+    /// Every entry's public exports (see `public`).
     pub fn exports(&self) -> &[Export] {
-        self.modules
-            .get(self.entry.index())
+        self.exports.get(self.public.clone()).unwrap_or(&[])
+    }
+    /// The program's entries, in name order.
+    pub fn entries(&self) -> &[ProgramEntry] {
+        &self.entries
+    }
+    /// One entry's public exports: its module's.
+    pub fn entry_exports(&self, entry: usize) -> &[Export] {
+        self.entries
+            .get(entry)
+            .and_then(|entry| self.modules.get(entry.module.index()))
             .and_then(|module| self.exports.get(module.exports.clone()))
             .unwrap_or(&[])
     }
@@ -479,8 +497,9 @@ impl<'src> Program<'src> {
     pub fn modules(&self) -> &[ModuleInterface] {
         &self.modules
     }
+    /// The first entry's module: the root diagnostics cite.
     pub fn entry_module(&self) -> ModuleId {
-        self.entry
+        self.entries[0].module
     }
     pub fn initialization(&self) -> &[UnitId] {
         &self.initialization
@@ -630,6 +649,14 @@ pub enum InterfaceTarget {
 pub struct Export {
     pub name: String,
     pub target: InterfaceTarget,
+}
+
+/// One entry of a program: a named root of its module graph whose module's
+/// exports are a public surface (plan M3.3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProgramEntry {
+    pub name: String,
+    pub module: ModuleId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

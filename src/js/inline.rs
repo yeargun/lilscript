@@ -1071,20 +1071,11 @@ impl Module {
                 let id = self.expression_in(copy, origin, budget)?;
                 statements.push(Statement::Evaluate(id));
             }
-            let root = region == self.root;
-            let module = root
-                .then(|| self.root_modules.get(index).copied())
-                .flatten();
+            // The inlined body runs where the call did: its row.
             let count = statements.len();
-            self.regions[region.index()]
-                .statements
-                .splice(index..=index, statements);
-            if let Some(module) = module {
-                if index < self.root_modules.len() {
-                    self.root_modules
-                        .splice(index..=index, std::iter::repeat_n(module, count));
-                }
-            }
+            self.splice_statements(region.index(), index..index + 1, statements, |rows| {
+                vec![rows[0]; count]
+            });
         }
         let map = self.renumber(budget)?;
         Ok((sites.len(), Some(map)))
@@ -1260,12 +1251,8 @@ impl Module {
                     remove.push(index);
                 }
             }
-            let root = region == self.root;
             for &index in remove.iter().rev() {
-                self.regions[region.index()].statements.remove(index);
-                if root && index < self.root_modules.len() {
-                    self.root_modules.remove(index);
-                }
+                self.remove_statement(region.index(), index);
                 removed += 1;
             }
         }
@@ -1651,10 +1638,7 @@ impl Module {
         }
         removals.sort_unstable_by(|a, b| (a.0.index(), a.1).cmp(&(b.0.index(), b.1)).reverse());
         for (region, index) in removals {
-            self.regions[region.index()].statements.remove(index);
-            if region == self.root && index < self.root_modules.len() {
-                self.root_modules.remove(index);
-            }
+            self.remove_statement(region.index(), index);
         }
         Ok(replaced)
     }

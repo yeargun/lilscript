@@ -39,8 +39,8 @@ impl Module {
                             at + 1 < index
                                 && index - at <= JOIN_WINDOW
                                 && (!root
-                                    || self.root_modules.get(at..=index).is_some_and(|modules| {
-                                        modules.iter().all(|&module| module == modules[0])
+                                    || self.root_rows.get(at..=index).is_some_and(|rows| {
+                                        rows.iter().all(|row| row.module == rows[0].module)
                                     }))
                         });
                         if let Some(at) = target {
@@ -49,12 +49,7 @@ impl Module {
                                 .iter()
                                 .any(|statement| self.statement_mentions(statement, binding));
                             if !named {
-                                let moved = self.regions[region].statements.remove(index);
-                                self.regions[region].statements.insert(at + 1, moved);
-                                if root && index < self.root_modules.len() {
-                                    let module = self.root_modules.remove(index);
-                                    self.root_modules.insert(at + 1, module);
-                                }
+                                self.move_statement(region, index, at + 1);
                                 previous = Some(at + 1);
                                 joined += 1;
                                 index += 1;
@@ -183,8 +178,7 @@ impl Module {
                 let mut last_store = index;
                 while let Some(statement) = self.regions[region].statements.get(end) {
                     budget.work(Analysis, 1)?;
-                    let same_module =
-                        !root || self.root_modules.get(end) == self.root_modules.get(index);
+                    let same_module = !root || self.root_module(end) == self.root_module(index);
                     if !same_module {
                         break;
                     }
@@ -235,17 +229,42 @@ impl Module {
                     budget,
                 )?;
                 let replaced = declarations.len() + 1;
+                let removed_kinds = self.regions[region].statements[index..end]
+                    .iter()
+                    .map(|statement| {
+                        if matches!(statement, Statement::Function { .. }) {
+                            StatementKind::Declaration
+                        } else {
+                            StatementKind::Store
+                        }
+                    })
+                    .collect::<Vec<_>>();
                 declarations.push(Statement::Evaluate(call));
-                self.regions[region]
-                    .statements
-                    .splice(index..end, declarations);
-                if root && end <= self.root_modules.len() {
-                    self.root_modules.drain(index + replaced..end);
-                }
+                // The hoisted declarations keep their rows; the one call
+                // holds every store.
+                self.splice_statements(region, index..end, declarations, |original| {
+                    let mut stores = None::<RootRow>;
+                    let mut declared = Vec::with_capacity(replaced);
+                    for (offset, row) in original.iter().enumerate() {
+                        if matches!(removed_kinds[offset], StatementKind::Declaration) {
+                            declared.push(*row);
+                        } else {
+                            stores = Some(stores.map_or(*row, |held| held.fuse(*row)));
+                        }
+                    }
+                    declared.push(stores.unwrap_or(original[0]));
+                    declared
+                });
                 grouped += count;
                 index += replaced;
             }
         }
         Ok(grouped)
     }
+}
+
+/// What a statement a prototype-store group replaces was.
+enum StatementKind {
+    Declaration,
+    Store,
 }

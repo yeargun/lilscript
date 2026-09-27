@@ -16,7 +16,7 @@ use crate::compilation_policy::{
 use crate::config::ProjectConfig;
 use crate::js::selection::{Objective, Objectives, Plan, Sizes};
 use crate::module::{
-    discover_parsed_modules_admitted, ModuleDiscoveryError, ModuleError, ModuleSet,
+    discover_parsed_modules_admitted, EntrySource, ModuleDiscoveryError, ModuleError, ModuleSet,
     StableSourceArena,
 };
 use crate::output_budget::AllocationBudget;
@@ -120,6 +120,18 @@ impl ServiceError {
         }
     }
 
+    /// A refusal the output makes on purpose (a delivery plan it cannot
+    /// deliver, a construct the edition lacks) reads as its reason; any
+    /// other failure keeps its debug form.
+    fn output(phase: &'static str, error: impl fmt::Debug + OutputReason) -> Self {
+        Self {
+            phase,
+            message: error.reason().unwrap_or_else(|| format!("{error:?}")),
+            diagnostic: None,
+            resource: None,
+        }
+    }
+
     fn module(phase: &'static str, error: ModuleError) -> Self {
         Self {
             phase,
@@ -135,6 +147,30 @@ impl ServiceError {
             message: format!("{error:?}"),
             diagnostic: None,
             resource: Some(error),
+        }
+    }
+}
+
+/// The reason an output refused, when it refused on purpose.
+trait OutputReason {
+    fn reason(&self) -> Option<String>;
+}
+impl OutputReason for CandidateError {
+    fn reason(&self) -> Option<String> {
+        match self {
+            Self::Output(
+                error @ (crate::js::extract::OutputError::Invalid(_)
+                | crate::js::extract::OutputError::Syntax { .. }),
+            ) => Some(error.to_string()),
+            _ => None,
+        }
+    }
+}
+impl OutputReason for SearchError {
+    fn reason(&self) -> Option<String> {
+        match self {
+            Self::Candidate(error) => error.reason(),
+            _ => None,
         }
     }
 }
@@ -159,11 +195,14 @@ impl std::error::Error for ServiceError {
 /// The service returns immutable delivered bytes with their exact scores.
 #[derive(Debug)]
 pub struct ServiceJavaScript {
+    /// The one delivered file; empty when a delivery plan places the output
+    /// in several files.
     javascript: String,
-    /// Chunk files the entry loads; empty for single-file delivery.
-    chunks: Vec<crate::program::publication::DeliveredChunk>,
-    /// What the entry imports, loads and preloads.
-    entry_links: crate::program::publication::EntryLinks,
+    /// Every file of a delivery plan, with its measured sizes; empty for one
+    /// file.
+    files: Vec<crate::program::publication::DeliveredFile>,
+    /// The plan's files, entries and links (manifest v3).
+    layout: Option<crate::js::delivery::DeliveredLayout>,
     sha256: String,
     sizes: Sizes,
     details: Value,
@@ -173,14 +212,13 @@ impl ServiceJavaScript {
     pub fn javascript(&self) -> &str {
         &self.javascript
     }
-    pub fn chunks(&self) -> &[crate::program::publication::DeliveredChunk] {
-        &self.chunks
+    /// Every file of a multi-file delivery, in plan order.
+    pub fn files(&self) -> &[crate::program::publication::DeliveredFile] {
+        &self.files
     }
-    pub fn entry_dependencies(&self) -> &[String] {
-        &self.entry_links.dependencies
-    }
-    pub fn entry_links(&self) -> &crate::program::publication::EntryLinks {
-        &self.entry_links
+    /// The delivery plan's layout, when the output is several files.
+    pub fn layout(&self) -> Option<&crate::js::delivery::DeliveredLayout> {
+        self.layout.as_ref()
     }
     pub fn sha256(&self) -> &str {
         &self.sha256
@@ -312,31 +350,21 @@ impl Frontend {
                 return Err((ServiceError::new("adoption", error), compilation.finish()));
             }
         };
-        // File stems name delivered chunks; they never affect a program.
-        let names = inputs["modules"]
+        // Module paths name delivered files (`[path]`, `[name]`); they
+        // never affect a program: each relative to the common source
+        // directory, without extension.
+        let paths = inputs["modules"]
             .as_array()
             .map(|modules| {
                 modules
                     .iter()
                     .map(|module| {
-                        let stem = module["path"]
-                            .as_str()
-                            .and_then(|path| std::path::Path::new(path).file_stem())
-                            .and_then(|stem| stem.to_str())
-                            .unwrap_or("module");
-                        stem.chars()
-                            .map(|c| {
-                                if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                                    c
-                                } else {
-                                    '_'
-                                }
-                            })
-                            .collect::<String>()
+                        std::path::PathBuf::from(module["path"].as_str().unwrap_or("module"))
                     })
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
+        let names = module_paths(&paths);
         if let Err(error) = compilation.set_module_names(names) {
             return Err((ServiceError::new("adoption", error), compilation.finish()));
         }
@@ -470,8 +498,8 @@ impl<'src> CheckedSourceSession<'src> {
                 }
                 output.retain_artifact(artifact)
             })
-            .map_err(|error| ServiceError::new("javascript", error))?
-            .map_err(|error| ServiceError::new("javascript", error))?;
+            .map_err(|error| ServiceError::output("javascript", error))?
+            .map_err(|error| ServiceError::output("javascript", error))?;
         let mut qualified = None;
         for codec in objectives.iter() {
             match self.compilation.qualify_artifact(
@@ -515,13 +543,13 @@ impl<'src> CheckedSourceSession<'src> {
         let mut search = self
             .compilation
             .search_javascript_observed(source, policy, request, observe)
-            .map_err(|error| ServiceError::new("javascript", error))?;
+            .map_err(|error| ServiceError::output("javascript", error))?;
         // The terminal challenger stage (M5.4): every requested objective's
         // winner is offered the declared challengers before any handoff.
         let terminal = search
             .challenge(policy, objectives)
             .map(|report| serde_json::to_value(report).unwrap_or(Value::Null))
-            .map_err(|error| ServiceError::new("javascript", error))?;
+            .map_err(|error| ServiceError::output("javascript", error))?;
         let counters = search.counters();
         let report = json!({
             "request": resolved_request,
@@ -791,9 +819,9 @@ fn deliver_javascript(
     receipt: QualifiedArtifact,
 ) -> Result<ServiceJavaScript, ServiceError> {
     let delivered = (|| {
-        let (sizes, bundle, details) = compilation.with_qualified_artifact(&receipt, |view, provenance| {
+        let (sizes, several, details) = compilation.with_qualified_artifact(&receipt, |view, provenance| {
         let plan = provenance.naming();
-        (view.sizes, !view.chunks.is_empty(), json!({
+        (view.sizes, view.layout.is_some(), json!({
             "recipe_words":view.implementation.recipe_words(),
             "recipe_fingerprint":view.recipe_fingerprint,
             "semantic":semantic_report(view.implementation.snapshot_identity(),
@@ -806,29 +834,41 @@ fn deliver_javascript(
                 "families":format!("{:?}",view.output.families),"raw_spelling":plan.raw_spelling,
                 "choices":view.output.choices.iter().map(|(key,alternative)| json!({"family":key.family,"site":key.site,"alternative":alternative.0})).collect::<Vec<_>>()},
             "sizes":[Some(view.sizes.raw),view.sizes.gzip9,view.sizes.brotli11],
-            "chunks":view.chunks.iter().map(|chunk| json!({"file":chunk.name,"modules":chunk.modules,"bytes":chunk.code.len(),"lazy":chunk.lazy})).collect::<Vec<_>>(),
+            "delivery":view.layout.map(|layout| delivery_report(layout, view.files)),
             "policy_fingerprint":receipt.policy_fingerprint(),
         }))
     }).map_err(|error| ServiceError::new("handoff",error))?;
-        let (javascript, entry_links, chunks) = if bundle {
+        let (javascript, files, layout) = if several {
             let delivered = compilation
-                .take_qualified_bundle(receipt)
+                .take_qualified_files(receipt)
                 .map_err(|error| ServiceError::new("handoff", error))?;
-            (delivered.entry, delivered.entry_links, delivered.chunks)
+            (String::new(), delivered.files, Some(delivered.layout))
         } else {
             (
                 compilation
                     .take_qualified_artifact(receipt)
                     .map_err(|error| ServiceError::new("handoff", error))?,
-                Default::default(),
                 Vec::new(),
+                None,
             )
         };
+        let sha256 = if files.is_empty() {
+            digest(javascript.as_bytes())
+        } else {
+            let mut all = String::new();
+            for file in &files {
+                all.push_str(&file.name);
+                all.push('\0');
+                all.push_str(&digest(file.code.as_bytes()));
+                all.push('\n');
+            }
+            digest(all.as_bytes())
+        };
         Ok(ServiceJavaScript {
-            sha256: digest(javascript.as_bytes()),
+            sha256,
             javascript,
-            chunks,
-            entry_links,
+            files,
+            layout,
             sizes,
             details,
         })
@@ -839,6 +879,62 @@ fn deliver_javascript(
             .map_err(|error| ServiceError::new("handoff cleanup", error))?;
     }
     delivered
+}
+
+/// The build report's `delivery` (design §10): files with their roles,
+/// labels, links and measured sizes, and each entry's closure and rows.
+fn delivery_report(
+    layout: &crate::js::delivery::DeliveredLayout,
+    files: &[crate::program::publication::ArtifactFile],
+) -> Value {
+    let name = |index: u32| {
+        files
+            .get(index as usize)
+            .map_or("", |file| file.name.as_str())
+    };
+    let sizes = files.iter().map(|file| file.sizes()).collect::<Vec<_>>();
+    let rows = |pick: fn(&Sizes) -> Option<usize>| -> Option<Vec<u64>> {
+        let per_file = sizes.iter().map(pick).collect::<Option<Vec<_>>>()?;
+        Some(layout.rows(&per_file))
+    };
+    // Every file once, per codec: the sum of rows counts a file once per
+    // entry loading it, the total once (design §10).
+    let total = |pick: fn(&Sizes) -> Option<usize>| -> Option<usize> {
+        sizes
+            .iter()
+            .try_fold(0usize, |total, sizes| total.checked_add(pick(sizes)?))
+    };
+    json!({
+        "mode": layout.mode.name(),
+        "format": layout.format.name(),
+        "setters": layout.setters,
+        "total": [
+            total(|sizes| Some(sizes.raw)),
+            total(|sizes| sizes.gzip9),
+            total(|sizes| sizes.brotli11),
+        ],
+        "files": layout.files.iter().enumerate().map(|(index, file)| json!({
+            "file": name(index as u32),
+            "role": file.role.name(),
+            "label": layout.label_names(&file.label),
+            "modules": file.modules,
+            "anchored": file.anchored,
+            "imports": file.imports.iter().map(|&target| name(target)).collect::<Vec<_>>(),
+            "dynamic_imports": file.dynamic.iter().map(|&target| name(target)).collect::<Vec<_>>(),
+            "sizes": [Some(sizes[index].raw), sizes[index].gzip9, sizes[index].brotli11],
+        })).collect::<Vec<_>>(),
+        "entries": layout.entries.iter().enumerate().map(|(index, entry)| json!({
+            "name": entry.name,
+            "file": name(entry.file),
+            "dynamic": entry.dynamic,
+            "closure": entry.closure.iter().map(|&file| name(file)).collect::<Vec<_>>(),
+            "rows": [
+                rows(|sizes| Some(sizes.raw)).map(|rows| rows[index]),
+                rows(|sizes| sizes.gzip9).map(|rows| rows[index]),
+                rows(|sizes| sizes.brotli11).map(|rows| rows[index]),
+            ],
+        })).collect::<Vec<_>>(),
+    })
 }
 
 fn semantic_report(
@@ -1010,7 +1106,7 @@ pub fn with_checked_source<R>(
 /// carries; a check does not deliver.
 fn check_path_frontend<'src, T>(
     frontend: &mut Frontend,
-    path: &Path,
+    entries: &[EntrySource],
     root_source: Option<&str>,
     config: &ProjectConfig,
     sources: &'src StableSourceArena,
@@ -1020,7 +1116,7 @@ fn check_path_frontend<'src, T>(
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
     let (modules, syntax) =
-        discover_parsed_modules_admitted(path, root_source, config, sources, &arena).map_err(
+        discover_parsed_modules_admitted(entries, root_source, config, sources, &arena).map_err(
             |error| match error {
                 ModuleDiscoveryError::Module(error) => ServiceError::module("discovery", error),
                 ModuleDiscoveryError::Resources(error) => {
@@ -1056,13 +1152,13 @@ fn check_path_frontend<'src, T>(
                     .map_err(|error| ServiceError::resources("frontend resources", error.into()))?;
                 frontend.hosts = delivery;
             }
-            Err(reason) if config.bundle.host_modules == crate::config::HostModules::Embed => {
+            Err(reason) if config.delivery.host_modules == crate::config::HostModules::Embed => {
                 return Err(ServiceError::new("host modules", reason));
             }
             Err(reason) => frontend.phases["host_modules_external"] = json!(reason),
         }
     }
-    let inputs = json!({"root": modules.root, "modules": modules.modules.iter().map(|module| json!({
+    let inputs = json!({"root": modules.root(), "entries": modules.roots.iter().zip(&modules.root_names).map(|(module, name)| json!({"name": name, "module": module})).collect::<Vec<_>>(), "modules": modules.modules.iter().map(|module| json!({
         "path": module.path, "bytes": module.source.len(), "sha256": digest(module.source.as_bytes()),
         "dependencies": module.dependencies, "dynamic_dependencies": module.dynamic_dependencies,
     })).collect::<Vec<_>>(), "host_modules": frontend.hosts.modules.iter().map(|module| json!({
@@ -1157,9 +1253,43 @@ pub fn with_checked_path<R>(
     options: ServiceOptions,
     client: impl for<'src> FnOnce(&mut CheckedSourceSession<'src>) -> R,
 ) -> Result<(R, FinishedSourceSession), ServiceError> {
+    with_checked_entries(&[EntrySource::of(path)], config, options, client)
+}
+
+/// Several entries of one program (plan M3.3), in any order: they are
+/// checked as one module graph whose roots are the entries in name order.
+pub fn with_checked_entries<R>(
+    entries: &[EntrySource],
+    config: &ProjectConfig,
+    options: ServiceOptions,
+    client: impl for<'src> FnOnce(&mut CheckedSourceSession<'src>) -> R,
+) -> Result<(R, FinishedSourceSession), ServiceError> {
+    let entries = sorted_entries(entries)?;
+    if entries.len() > 1 && options.target != ServiceTarget::JavaScript {
+        return Err(ServiceError::new(
+            "entries",
+            "a native build has one library ABI (plan M11.8); build several entries with a JavaScript target",
+        ));
+    }
+    // A script (`bare`, design §4) is one entry: several entries share state
+    // only as modules.
+    if entries.len() > 1 && !options.preserve_root_exports {
+        return Err(ServiceError::new(
+            "entries",
+            "a script build (`--target js`) has one entry; build several entries as modules (`--target js-module`)",
+        ));
+    }
     let mut frontend = Frontend::new(config, options)?;
     let sources = StableSourceArena::new(WorkDomain::Baseline);
-    let prepared = check_path_frontend(&mut frontend, path, None, config, &sources, true, |_| ());
+    let prepared = check_path_frontend(
+        &mut frontend,
+        &entries,
+        None,
+        config,
+        &sources,
+        true,
+        |_| (),
+    );
     let (program, inputs, ()) = match prepared {
         Ok(prepared) => prepared,
         Err(error) => {
@@ -1180,6 +1310,87 @@ pub fn with_checked_path<R>(
     Ok(finish_factory(outcome, finished, started, Some(release_ns)))
 }
 
+/// Each module's path relative to the directory every module shares,
+/// without extension, each segment spelled for a file name.
+fn module_paths(paths: &[std::path::PathBuf]) -> Vec<String> {
+    let directories = paths
+        .iter()
+        .map(|path| path.parent().map(Path::to_path_buf).unwrap_or_default())
+        .collect::<Vec<_>>();
+    let mut common: Vec<std::ffi::OsString> = directories
+        .first()
+        .map(|first| first.iter().map(|part| part.to_os_string()).collect())
+        .unwrap_or_default();
+    for directory in &directories[directories.len().min(1)..] {
+        let parts = directory.iter().collect::<Vec<_>>();
+        let shared = common
+            .iter()
+            .zip(&parts)
+            .take_while(|(left, right)| left.as_os_str() == **right)
+            .count();
+        common.truncate(shared);
+    }
+    let prefix = common.iter().collect::<std::path::PathBuf>();
+    paths
+        .iter()
+        .map(|path| {
+            let relative = path
+                .strip_prefix(&prefix)
+                .unwrap_or(path)
+                .with_extension("");
+            relative
+                .iter()
+                .map(|segment| {
+                    segment
+                        .to_string_lossy()
+                        .chars()
+                        .map(|c| {
+                            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') {
+                                c
+                            } else {
+                                '_'
+                            }
+                        })
+                        .collect::<String>()
+                })
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .collect()
+}
+
+/// Entries sorted by name, each name valid and unique (plan M3.3: bit `i`
+/// of every label is the `i`-th name, so the TOML's table order never
+/// matters).
+fn sorted_entries(entries: &[EntrySource]) -> Result<Vec<EntrySource>, ServiceError> {
+    if entries.is_empty() {
+        return Err(ServiceError::new(
+            "entries",
+            "a build needs at least one entry",
+        ));
+    }
+    let mut sorted = entries.to_vec();
+    sorted.sort_by(|left, right| left.name.cmp(&right.name));
+    for entry in &sorted {
+        if !crate::config::valid_entry_name(&entry.name) {
+            return Err(ServiceError::new(
+                "entries",
+                format!(
+                    "entry name `{}` must be letters, digits, `_`, `.` or `-`",
+                    entry.name
+                ),
+            ));
+        }
+    }
+    if let Some(pair) = sorted.windows(2).find(|pair| pair[0].name == pair[1].name) {
+        return Err(ServiceError::new(
+            "entries",
+            format!("two entries are named `{}`", pair[0].name),
+        ));
+    }
+    Ok(sorted)
+}
+
 /// The relative host modules a JavaScript build carries: the root module's
 /// directory, the foreign files the source imports, and the syntax target
 /// they must fit. `None` when the output imports them instead.
@@ -1193,10 +1404,10 @@ fn host_requests<'m, S>(
     crate::js_syntax_target::EcmaScriptEdition,
 )> {
     let javascript = javascript?;
-    if config.bundle.host_modules == crate::config::HostModules::External {
+    if config.delivery.host_modules == crate::config::HostModules::External {
         return None;
     }
-    let root_directory = modules.modules[modules.root]
+    let root_directory = modules.modules[modules.root()]
         .path
         .parent()
         .unwrap_or_else(|| Path::new("."));
@@ -1225,7 +1436,10 @@ fn host_requests<'m, S>(
 /// output carries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuildInputs {
+    /// The first entry's module.
     pub entry: std::path::PathBuf,
+    /// Every entry's module, in entry name order.
+    pub entries: Vec<(String, std::path::PathBuf)>,
     pub files: Vec<std::path::PathBuf>,
 }
 
@@ -1233,16 +1447,17 @@ pub struct BuildInputs {
 /// compiling it: the same module discovery and host-module delivery as the
 /// build.
 pub fn build_inputs(
-    path: &Path,
+    entries: &[EntrySource],
     config: &ProjectConfig,
     options: ServiceOptions,
 ) -> Result<BuildInputs, ServiceError> {
+    let entries = sorted_entries(entries)?;
     let mut frontend = Frontend::new(config, options)?;
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let inputs = (|| {
         let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
         let (modules, syntax) = discover_parsed_modules_admitted(
-            path, None, config, &sources, &arena,
+            &entries, None, config, &sources, &arena,
         )
         .map_err(|error| match error {
             ModuleDiscoveryError::Module(error) => ServiceError::module("discovery", error),
@@ -1251,7 +1466,13 @@ pub fn build_inputs(
             }
         })?;
         let mut inputs = BuildInputs {
-            entry: modules.modules[modules.root].path.clone(),
+            entry: modules.modules[modules.root()].path.clone(),
+            entries: modules
+                .root_names
+                .iter()
+                .zip(&modules.roots)
+                .map(|(name, &root)| (name.clone(), modules.modules[root].path.clone()))
+                .collect(),
             files: modules
                 .modules
                 .iter()
@@ -1263,7 +1484,9 @@ pub fn build_inputs(
         {
             match crate::host_modules::delivered_files(root_directory, &requests, edition) {
                 Ok(files) => inputs.files.extend(files),
-                Err(reason) if config.bundle.host_modules == crate::config::HostModules::Embed => {
+                Err(reason)
+                    if config.delivery.host_modules == crate::config::HostModules::Embed =>
+                {
                     return Err(ServiceError::new("host modules", reason));
                 }
                 // Not carried: the output imports them from their specifiers.
@@ -1300,11 +1523,19 @@ pub fn with_checked_program<R>(
 ) -> Result<R, ServiceError> {
     let mut frontend = Frontend::new(config, check_options())?;
     let sources = StableSourceArena::new(WorkDomain::Baseline);
-    let checked = check_path_frontend(&mut frontend, path, source, config, &sources, false, client)
-        .map(|(program, _inputs, inspected)| {
-            program.discard(&mut frontend.ledger);
-            inspected
-        });
+    let checked = check_path_frontend(
+        &mut frontend,
+        &[EntrySource::of(path)],
+        source,
+        config,
+        &sources,
+        false,
+        client,
+    )
+    .map(|(program, _inputs, inspected)| {
+        program.discard(&mut frontend.ledger);
+        inspected
+    });
     release_source_buffers(sources, &mut frontend.ledger);
     checked
 }
@@ -1351,8 +1582,19 @@ pub fn compile_path(
     config: &ProjectConfig,
     options: ServiceOptions,
 ) -> Result<ServiceCompilation, ServiceError> {
-    let (output, finished) =
-        with_checked_path(path, config, options, |session| session.compile_targets())?;
+    compile_entries(&[EntrySource::of(path)], config, options)
+}
+
+/// One program with several entries (plan M3.3): one compilation, one
+/// delivery with a facade per entry.
+pub fn compile_entries(
+    entries: &[EntrySource],
+    config: &ProjectConfig,
+    options: ServiceOptions,
+) -> Result<ServiceCompilation, ServiceError> {
+    let (output, finished) = with_checked_entries(entries, config, options, |session| {
+        session.compile_targets()
+    })?;
     finish_output(output, finished)
 }
 

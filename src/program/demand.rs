@@ -477,7 +477,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         Ok(())
     }
     pub(super) fn root(&self) -> ContextId {
-        self.module_context(self.program.modules[self.program.entry.index()].initializer)
+        self.module_context(self.program.modules[self.program.entry_module().index()].initializer)
             .expect("verified entry has an initializer context")
     }
     pub(super) fn roots(&self) -> &[ContextId] {
@@ -513,6 +513,20 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
     /// Whether dead code may go: the dead-code-elimination permission.
     pub(super) fn prunes(&self) -> bool {
         self.mode == DemandMode::Prune
+    }
+    /// One operation's effects in its named unit, as the unit's summary
+    /// joined them: the per-operation answer root anchors read (plan M3.3).
+    pub(super) fn operation_behavior(
+        &self,
+        unit: UnitId,
+        op: OpId,
+    ) -> Option<super::facts::EvaluationBehavior> {
+        self.summaries
+            .get(unit.index())?
+            .as_ref()?
+            .effects
+            .get(op.index())
+            .copied()
     }
     pub(super) fn needs_operation(&self, id: ContextId, op: OpId) -> bool {
         self.context(id).operations[op.index()]
