@@ -4,7 +4,7 @@ use crate::program::facts::{FactsCache, FactsError, RetainedFactsCache};
 
 fn config(resources: &str, search: &str) -> ProjectConfig {
     toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='raw'\ncandidate_search='{search}'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{resources}"
+        "[javascript]\ncost_model='raw'\ncandidate_search='{search}'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{resources}"
     ))
     .unwrap()
 }

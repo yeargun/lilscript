@@ -1,0 +1,4 @@
+# The family needs unpatched builtins: the decoders call String and Array
+# methods (tables.rs).
+[javascript]
+assume_pristine_builtins = true

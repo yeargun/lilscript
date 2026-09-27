@@ -90,7 +90,7 @@ fn config(
     schedule: &str,
 ) -> crate::config::ProjectConfig {
     toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=128\n[policy.search]\ncodec_schedule='{schedule}'\n[policy.tactics]\ntarget-compaction='on'\nidentifier-mangling='on'\nnaming-search='{}'\nscalar-replacement='{}'\ninlining='off'\nconstant-folding='off'\nstring-pooling='off'",
+        "[javascript]\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=128\n[policy.search]\ncodec_schedule='{schedule}'\n[policy.tactics]\ntarget-compaction='on'\nidentifier-mangling='on'\nnaming-search='{}'\nscalar-replacement='{}'\ninlining='off'\nconstant-folding='off'\nstring-pooling='off'",
         if naming { "on" } else { "off" }, if scalar { "on" } else { "off" },
     )).unwrap()
 }
@@ -246,15 +246,15 @@ fn one_target_two_bases_preserve_three_styles_and_exact_old_artifacts() {
                 .unwrap();
             assert!(search.stopped().is_none(), "{:?}", search.stopped());
             // All three styles print the same bytes, so equal trials keep each
-            // schedule's own fixed order.
+            // schedule's own fixed order after the allocator's seed.
             let (second, third) = if schedule == "immediate" {
-                (Style::Scoped, Style::Source)
+                (Style::Global, Style::Source)
             } else {
-                (Style::Source, Style::Scoped)
+                (Style::Source, Style::Global)
             };
             assert_eq!(
                 rows,
-                [(Style::Global, true), (second, false), (third, false)]
+                [(Style::Scoped, true), (second, false), (third, false)]
             );
             assert_eq!(search.counters().structures, 1);
             assert_eq!(search.counters().renders, 3);
@@ -324,7 +324,7 @@ fn literal_only_continuation_reuses_target_with_naming_search_disabled() {
         let mut modes = Vec::new();
         let search = compiler.search_javascript_observed(source, &policy, request(), |entry| {
             observe_lifetimes();
-            assert_eq!(entry.naming.style, Style::Global);
+            assert_eq!(entry.naming.style, Style::Scoped);
             exact_sizes(entry.javascript, entry.sizes);
             execute(entry.javascript, "const events=[];globalThis.event=label=>{events.push(label);return 0;};", "library.run();library.run();console.log(JSON.stringify([library.run.name,library.run.length,events]));", "[\"run\",0,[\"hit\",\"hit\"]]\n");
             modes.push(entry.output.literals);

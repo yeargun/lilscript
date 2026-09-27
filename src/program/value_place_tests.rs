@@ -96,7 +96,6 @@ fn nested_place_update_indexes_the_current_root_read_and_write_once() {
             1
         );
         let mut config = crate::config::ProjectConfig::default();
-        config.javascript.strip_console = false;
         let policy = config
             .resolve_policy(CompilationRequest::JavaScript {
                 preserve_root_exports: true,

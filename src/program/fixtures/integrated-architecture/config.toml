@@ -3,7 +3,6 @@
 optimization_level = 13
 priority = "size-first"
 cost_model = "brotli"
-strip_console = false
 # Module execution is selected by CompilationRequest's preserved public exports.
 ecmascript = "es2022"
 assume_pristine_builtins = false

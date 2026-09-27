@@ -29,7 +29,7 @@ macro_rules! case {
 }
 fn policy(compact: bool) -> ResolvedPolicy {
     let configuration = format!(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\ntarget-compaction='{}'\n",
+        "[javascript]\n[policy.tactics]\ntarget-compaction='{}'\n",
         if compact { "on" } else { "off" }
     );
     let config: crate::config::ProjectConfig = toml::from_str(&configuration).unwrap();

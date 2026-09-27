@@ -103,7 +103,7 @@ fn assert_complete_output_work(before: &BudgetLedger, after: &BudgetLedger, doma
 
 #[test]
 fn explicit_optional_output_charges_analysis_and_render_and_releases_all_temporary_storage() {
-    let resolved = policy("[javascript]\nstrip_console=false\n");
+    let resolved = policy("[javascript]\n");
     with_candidate(
         SOURCE,
         &resolved,
@@ -148,7 +148,7 @@ fn explicit_optional_output_charges_analysis_and_render_and_releases_all_tempora
 
 #[test]
 fn compatibility_output_spends_baseline_and_preserves_optional_budget() {
-    let resolved = policy("[javascript]\nstrip_console=false\n");
+    let resolved = policy("[javascript]\n");
     with_candidate(SOURCE, &resolved, plan(), |compilation, _, candidate| {
         compilation
             .with_implementation_description(candidate, WorkDomain::Baseline, |_| ())
@@ -173,7 +173,7 @@ fn compatibility_output_spends_baseline_and_preserves_optional_budget() {
 
 #[test]
 fn interrupted_optional_preparation_never_calls_output_and_leaves_baseline_usable() {
-    let resolved = policy("[javascript]\nstrip_console=false\n");
+    let resolved = policy("[javascript]\n");
     with_candidate(
         SOURCE,
         &resolved,
@@ -238,7 +238,7 @@ fn interrupted_optional_preparation_never_calls_output_and_leaves_baseline_usabl
 
 #[test]
 fn optional_output_cannot_spend_reserved_baseline_memory() {
-    let resolved = policy("[javascript]\nstrip_console=false\n");
+    let resolved = policy("[javascript]\n");
     let mut reserved = plan();
     reserved.baseline_retained_bytes = MEMORY;
     with_candidate(SOURCE, &resolved, reserved, |compilation, _, candidate| {
@@ -281,7 +281,7 @@ fn unsupported_formation_releases_completed_demand_without_calling_output() {
     // `codePointLength`, exported defaults, exported class instances and the
     // exported closure over module `arguments` used here before are
     // supported now.)
-    let resolved = policy("[javascript]\nstrip_console=false\n");
+    let resolved = policy("[javascript]\n");
     let source = "struct P{int x;}export void add(P[] items){items.push(P{1});}";
     with_candidate(source, &resolved, plan(), |compilation, _, candidate| {
         let before = compilation.ledger().clone();
@@ -311,11 +311,8 @@ fn unsupported_formation_releases_completed_demand_without_calling_output() {
 
 #[test]
 fn output_respects_dead_code_permission_on_the_same_semantic_candidate() {
-    let enabled =
-        policy("[javascript]\nstrip_console=false\n[policy.tactics]\ndead-code-elimination='on'\n");
-    let forbidden = policy(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\ndead-code-elimination='off'\n",
-    );
+    let enabled = policy("[javascript]\n[policy.tactics]\ndead-code-elimination='on'\n");
+    let forbidden = policy("[javascript]\n[policy.tactics]\ndead-code-elimination='off'\n");
     // The discarded expression has actual primitive producers. A public
     // parameter alone cannot justify removing an observable JS coercion.
     let source = "export int compute(int input){int discardedProduct=17*7919;return input+1;}";
@@ -371,11 +368,8 @@ fn output_respects_dead_code_permission_on_the_same_semantic_candidate() {
 
 #[test]
 fn public_scalar_annotations_do_not_remove_conversion_hooks_or_exceptions() {
-    let enabled =
-        policy("[javascript]\nstrip_console=false\n[policy.tactics]\ndead-code-elimination='on'\n");
-    let forbidden = policy(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\ndead-code-elimination='off'\n",
-    );
+    let enabled = policy("[javascript]\n[policy.tactics]\ndead-code-elimination='on'\n");
+    let forbidden = policy("[javascript]\n[policy.tactics]\ndead-code-elimination='off'\n");
     let source = "export int compute(int input){int discardedProduct=input*7919;return input+1;}";
     with_candidate(source, &enabled, plan(), |compilation, _, candidate| {
         for policy in [&enabled, &forbidden] {

@@ -37,7 +37,8 @@ candidate_beam_width = 12
 # terminal_codec_probe_limit = 384 # optional terminal codec probes; 0 disables
 # ecmascript = "es2022"       # es2015 … es2022 | esnext
 # browsers = ["chrome80", "firefox78"] # intersected with ecmascript; the lower floor wins
-strip_console = true          # drop print()/debugLog; tests and oracles set false
+strip_debug = false           # drop debugLog calls (print is never stripped)
+strip_console_calls = false   # drop host console.* method calls
 assume_pristine_builtins = false
 assume_pure_property_reads = false
 assume_unconstructed_callbacks = false
@@ -126,10 +127,16 @@ Per-library configuration is contract, objective, effort and permission
   `firefox78`, `safari14`, `edge80`) intersect with it, and the most
   conservative floor wins. Unknown tokens are errors. There is no ES5 mode and
   no polyfill; a construct with no spelling at the floor fails the build.
-- `javascript.strip_console` (default `true`) drops `print()` and `debugLog`
-  from JavaScript; argument side effects stay, and `console.warn` is never
-  stripped. Language tests and the repository's `lilscript.toml` set `false`,
-  because `print` is their observation channel.
+- `print` is a program effect: the compiler never strips it, so a program
+  with no configuration prints what it prints. Two keys strip host logging,
+  both off by default because a library's logging is its behavior, and both
+  keep their calls' argument evaluations and throws:
+  `javascript.strip_debug` drops calls of the host `debugLog` extern (plan
+  M10.11 generalizes it to the declared `debug` effect class), and
+  `javascript.strip_console_calls` drops method calls of the host `console`
+  (`console.warn(x)` through an extern `console`), a declared relaxation of
+  console output. The retired `strip_console` stripped `print` and `debugLog`;
+  its value now moves to `strip_debug`, with a warning.
 - `javascript.keep_published_function_names` (default `true`) keeps each
   exported function's source `name` (D2). `keep_function_names` extends that to
   every function whose name some code could read.

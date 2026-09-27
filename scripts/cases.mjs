@@ -9,8 +9,8 @@
 // A case is a `.lil` entry with an expected-stdout `.out` beside it, found under
 // tests/cases (recursively, skipping multi-module folders) and tests/modules.
 // Lanes are {formation-only, production} x {brotli, gzip, raw} x {script,
-// module, c}. Every lane compiles with `[javascript] strip_console = false`:
-// print is the observation channel and the `.out` file is the oracle.
+// module, c}. `print` is the observation channel (a program effect the
+// compiler never strips) and the `.out` file is the oracle.
 //
 // Each (case, lane) ends in exactly one state:
 //   pass          compiled, ran, exit 0, stdout identical to the `.out` file
@@ -26,7 +26,7 @@
 // lanes now pass are reported for removal.
 //
 // See docs/testing.md.
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -56,6 +56,7 @@ export const FEATURES = [
   { id: "host-prelude", targets: JAVASCRIPT, why: "a .host.js prelude defines externs in a JavaScript realm" },
   { id: "module-probe", targets: ["module"], why: "a .module-probe.mjs imports the ES module's exports" },
   { id: "JsValue", targets: JAVASCRIPT, pattern: /\bJsValue\b/, why: "language-v0.1: JsValue is JavaScript-only" },
+  { id: "import extern", targets: ["module"], pattern: /\bimport\s+extern\b/, why: "a foreign ES module edge needs module syntax: a classic script carries only embedded host modules, and they cannot have default exports" },
   { id: "extern", targets: JAVASCRIPT, pattern: /\bextern\b/, why: "language-v0.1: C rejects host declarations", lifts: "M11.3 (externs per target)" },
   { id: "export", targets: JAVASCRIPT, pattern: /\bexport\b/, entryOnly: true, why: "the entry's exports are a module ABI; C has none yet", lifts: "M11.8 (a C library ABI)" },
   { id: "JS namespace", targets: JAVASCRIPT, pattern: /\bJS\./, why: "language-v0.1: C rejects the JS.* operations" },
@@ -74,6 +75,11 @@ const FALLBACK_TACTICS = [
   "string-array-packing", "startup-reconstruction", "recurring-reconstruction", "naming-search",
 ];
 const CC_FLAGS = ["-std=c11", "-O2", "-fno-fast-math", "-ffp-contract=off"];
+// A case marked `// harness: cc default flags` builds with the C compiler's
+// own language and floating-point defaults (GCC's gnu17 contracts floating
+// point by default): the emitted C must keep binary64 semantics by itself
+// (plan M11.2).
+const CC_DEFAULT_FLAGS = ["-O2"];
 const FAILURES = ["refused", "compiler-crash", "cc-rejected", "crashed", "wrong-output"];
 
 // ---------------------------------------------------------------- sources
@@ -173,6 +179,7 @@ function describeCase(base) {
     probe: optional(".module-probe.mjs"),
     // The test ran its script with "use strict"; prepended.
     strict: text.split("\n").slice(0, 8).some((line) => /^\s*\/\/\s*harness:\s*"use strict"/.test(line)),
+    ccDefault: text.split("\n").slice(0, 8).some((line) => /^\s*\/\/\s*harness:\s*cc default flags/.test(line)),
   };
   item.features = FEATURES.filter((feature) => {
     if (feature.id === "host-prelude") return item.host !== null;
@@ -259,7 +266,7 @@ export function renderToml(tables) {
 }
 
 function laneTables(lane, tactics) {
-  const javascript = new Map([["strip_console", "false"], ["cost_model", JSON.stringify(lane.codec)]]);
+  const javascript = new Map([["cost_model", JSON.stringify(lane.codec)]]);
   const tables = new Map([["", new Map()], ["javascript", javascript]]);
   if (lane.mode === "formation-only") {
     javascript.set("candidate_search", '"off"');
@@ -269,15 +276,15 @@ function laneTables(lane, tactics) {
 }
 
 // Case keys are merged into the lane's tables (one `[javascript]` table,
-// never a second); a case key overrides the lane's value for that key, except
-// that no case may strip print, the observation channel.
+// never a second); a case key overrides the lane's value for that key. The
+// retired `strip_console` is refused: the compiler never strips `print`.
 export function composeConfig(lane, tactics, caseToml) {
   const tables = laneTables(lane, tactics);
   if (caseToml) {
     for (const [name, entries] of parseTomlTables(caseToml)) {
       if (!tables.has(name)) tables.set(name, new Map());
       for (const [key, value] of entries) {
-        if (name === "javascript" && key === "strip_console" && value !== "false") throw new Error("a case may not set strip_console");
+        if (name === "javascript" && key === "strip_console") throw new Error("a case may not set the retired strip_console");
         tables.get(name).set(key, value);
       }
     }
@@ -413,6 +420,12 @@ export async function runCases(options) {
     const directory = join(work, "lanes", lane.id.replaceAll("/", "_"), dirname(item.id));
     mkdirSync(directory, { recursive: true });
     const base = join(directory, basename(item.id));
+    // The case's own folder beside its artifact, so the foreign modules the
+    // output imports (`import extern`) resolve as they do beside the source.
+    const own = join(dirname(item.source), basename(item.id));
+    if (target.javascript && existsSync(own) && statSync(own).isDirectory() && !existsSync(base)) {
+      try { symlinkSync(own, base, "dir"); } catch (error) { if (error.code !== "EEXIST") throw error; }
+    }
     const config = `${base}.toml`;
     try {
       writeFileSync(config, composeConfig(lane, tactics, item.toml ? readFileSync(item.toml, "utf8") : null));
@@ -437,12 +450,13 @@ export async function runCases(options) {
     const expected = readFileSync(item.expected, "utf8");
     let execution;
     if (lane.target === "c") {
-      const key = sha256(["c", cc, ...CC_FLAGS, row.artifact.sha256].join("\0"));
+      const flags = item.ccDefault ? CC_DEFAULT_FLAGS : CC_FLAGS;
+      const key = sha256(["c", cc, ...flags, row.artifact.sha256].join("\0"));
       if (!executions.has(key)) {
         executions.set(key, (async () => {
           const executable = `${base}.exe`;
           rmSync(executable, { force: true });
-          const build = await run(cc, [...CC_FLAGS, artifact, "-lm", "-o", executable], { timeoutMs: 300_000 });
+          const build = await run(cc, [...flags, artifact, "-lm", "-o", executable], { timeoutMs: 300_000 });
           if (build.status !== 0) return { cc: build };
           return { cc: build, run: await run(executable, [], { env: runEnv, cwd: directory, timeoutMs: options.timeoutMs }) };
         })());
@@ -534,7 +548,7 @@ export async function runCases(options) {
     compiler,
     codec,
     node: { path: node, version: (await run(node, ["--version"])).stdout.trim() },
-    cc: { path: cc, flags: CC_FLAGS, version: headLines((await run(cc, ["--version"])).stdout, 1) },
+    cc: { path: cc, flags: CC_FLAGS, defaultFlags: CC_DEFAULT_FLAGS, version: headLines((await run(cc, ["--version"])).stdout, 1) },
     scrubbedEnvironment: scrubbed,
     tactics: { source: tacticSource, ids: tactics },
     ledger: { path: ledger.path ? relative(repository, ledger.path) : null, sha256: ledger.sha256, entries: ledger.entries.length },

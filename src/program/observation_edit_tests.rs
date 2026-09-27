@@ -27,7 +27,7 @@ fn digest(value: &str) -> String {
 }
 fn policy() -> ResolvedPolicy {
     let config: crate::config::ProjectConfig = toml::from_str(
-        "[javascript]\noptimization_level=15\nstrip_console=false\n[policy.tactics]\ndead-code-elimination='on'\ntarget-compaction='on'\nidentifier-mangling='on'\nnaming-search='on'\ninlining='off'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
+        "[javascript]\noptimization_level=15\n[policy.tactics]\ndead-code-elimination='on'\ntarget-compaction='on'\nidentifier-mangling='on'\nnaming-search='on'\ninlining='off'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
     ).unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {

@@ -25,7 +25,7 @@ const BYTE: &str =
 fn policy(schedule: &str, probes: usize, proposals: usize, structural: bool) -> ResolvedPolicy {
     let tactic = if structural { "on" } else { "off" };
     let configuration = format!(
-        "[javascript]\nstrip_console=false\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit={probes}\ncandidate_limit=24\ncandidate_beam_width=12\n[policy.search]\ncodec_schedule='{schedule}'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'\nscalar-replacement='{tactic}'\ninlining='{tactic}'\nconstant-folding='on'\nstring-pooling='on'"
+        "[javascript]\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit={probes}\ncandidate_limit=24\ncandidate_beam_width=12\n[policy.search]\ncodec_schedule='{schedule}'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'\nscalar-replacement='{tactic}'\ninlining='{tactic}'\nconstant-folding='on'\nstring-pooling='on'"
     );
     let config: crate::config::ProjectConfig = toml::from_str(&configuration).unwrap();
     config
@@ -328,7 +328,8 @@ fn zero_byte_and_partial_all_codec_failures_are_never_retried_or_observed() {
                     0,
                     &policy,
                     Objectives::All,
-                    &[Style::Scoped],
+                    // A plan other than the baseline's seed, so its bytes are new.
+                    &[Style::Global],
                     &mut |entry| observed.push(observation(entry)),
                 )
                 .unwrap();

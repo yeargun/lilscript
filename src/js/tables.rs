@@ -389,7 +389,7 @@ impl FrontCoded {
 // Schema columns.
 
 /// Where a value sits in the schema.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum Shape {
     /// One column entry per row of the enclosing collection.
     Leaf(usize),
@@ -405,7 +405,7 @@ enum Shape {
     Collection(usize),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct Collection {
     array: bool,
     null_proto: bool,
@@ -464,6 +464,48 @@ struct Columns<'d> {
     columns: Vec<Column<'d>>,
     numbers: Option<Dictionary<'d>>,
     strings: Option<Dictionary<'d>>,
+}
+
+/// Everything a columns decoder is a function of, and nothing else: the
+/// collections and their shapes, how each column is read (scale,
+/// dictionary, split separator) and which dictionaries exist. The data
+/// stays in the call's streams. Two tables of one schema decode through
+/// one decoder (architecture §10.2: decoders are keyed by schema at
+/// formation, so katexlil's two byte-identical decoders become one).
+#[derive(Debug, Clone, PartialEq)]
+struct Schema {
+    collections: Vec<Collection>,
+    /// Per column: `scale`, `dictionary` and `split`.
+    columns: Vec<(usize, Option<Kind>, Option<char>)>,
+    numbers: bool,
+    /// The strings dictionary's split separator, when there is one.
+    strings: Option<Option<char>>,
+}
+
+impl Schema {
+    /// The column the root loop's bound reads (`Columns::bound`).
+    fn bound(&self) -> Option<usize> {
+        bound_of(&self.collections)
+    }
+}
+
+/// The column the root loop's bound reads: the root's keys, or the first
+/// column read at its own row.
+fn bound_of(collections: &[Collection]) -> Option<usize> {
+    let root = &collections[0];
+    if let Some(keys) = root.keys {
+        return Some(keys);
+    }
+    fn first(collections: &[Collection], shape: &Shape) -> Option<usize> {
+        match shape {
+            Shape::Leaf(column) => Some(*column),
+            Shape::Tuple(fields) | Shape::Record { fields, .. } => {
+                fields.iter().find_map(|field| first(collections, field))
+            }
+            Shape::Collection(index) => collections[*index].counts,
+        }
+    }
+    first(collections, &root.item)
 }
 
 fn number_key(value: f64) -> u64 {
@@ -719,20 +761,25 @@ impl<'d> Columns<'d> {
     /// The column the root loop's bound reads: its keys, or the first
     /// column read at its own row.
     fn bound(&self) -> Option<usize> {
-        let root = &self.collections[0];
-        if let Some(keys) = root.keys {
-            return Some(keys);
+        bound_of(&self.collections)
+    }
+
+    /// The decoder's input: this plan without its data.
+    fn schema(&self) -> Schema {
+        Schema {
+            collections: self.collections.clone(),
+            columns: self
+                .columns
+                .iter()
+                .map(|column| (column.scale, column.dictionary, column.split))
+                .collect(),
+            numbers: self.numbers.is_some(),
+            strings: match &self.strings {
+                Some(Dictionary::Strings(_, separator)) => Some(*separator),
+                Some(Dictionary::Numbers(_)) => Some(None),
+                None => None,
+            },
         }
-        fn first(plan: &Columns<'_>, shape: &Shape) -> Option<usize> {
-            match shape {
-                Shape::Leaf(column) => Some(*column),
-                Shape::Tuple(fields) | Shape::Record { fields, .. } => {
-                    fields.iter().find_map(|field| first(plan, field))
-                }
-                Shape::Collection(index) => plan.collections[*index].counts,
-            }
-        }
-        first(self, &root.item)
     }
 
     /// Spell one column by the raw estimator: scaled integers for numbers
@@ -1443,6 +1490,9 @@ impl Module {
         let count = encodings.len();
         let mut functions = Vec::new();
         let mut shared = None;
+        // One decoder per schema: a table whose schema an earlier table has
+        // calls that table's decoder.
+        let mut decoders: Vec<(Schema, BindingId)> = Vec::new();
         for (index, encoding) in encodings {
             let call = match encoding {
                 Encoding::FrontCoded(front) => {
@@ -1470,9 +1520,18 @@ impl Module {
                     })?
                 }
                 Encoding::Columns(columns) => {
-                    let (function, call) = self.columns_decoder(&columns, budget)?;
-                    functions.push(function);
-                    call
+                    let schema = columns.schema();
+                    budget.work(Analysis, decoders.len() as u64 + 1)?;
+                    let decoder = match decoders.iter().find(|(known, _)| *known == schema) {
+                        Some(&(_, decoder)) => decoder,
+                        None => {
+                            let (decoder, function) = self.columns_decoder(&schema, budget)?;
+                            functions.push(function);
+                            decoders.push((schema, decoder));
+                            decoder
+                        }
+                    };
+                    self.columns_call(decoder, &columns, budget)?
                 }
             };
             if let Statement::Let { value, .. } = &mut self.regions[root].statements[index] {
@@ -1617,15 +1676,15 @@ impl Module {
         ))
     }
 
-    /// A decoder specialized to one table's columns, and its call over the
-    /// streams: `function d(K,C,I,x,…){K=K.split("|");let a=0,b=0,o={};
-    /// for(;a<K.length;a=a+1){let m={},k=0,e=b+C[a];
-    /// for(;b<e;b=b+1)m[k=k+I[b]]=[x[b]/1e5,…];o[K[a]]=m}return o}`.
+    /// The decoder specialized to one schema, a function of the schema
+    /// alone: its binding and declaration. `function d(K,C,I,x,…){
+    /// K=K.split("|");let a=0,b=0,o={};for(;a<K.length;a=a+1){let m={},k=0,
+    /// e=b+C[a];for(;b<e;b=b+1)m[k=k+I[b]]=[x[b]/1e5,…];o[K[a]]=m}return o}`.
     fn columns_decoder(
         &mut self,
-        plan: &Columns<'_>,
+        plan: &Schema,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<(Statement, ExprId), AllocationError> {
+    ) -> Result<(BindingId, Statement), AllocationError> {
         let root_scope = self.regions[self.root.index()].scope;
         let mut emit = Emit {
             module: self,
@@ -1638,8 +1697,8 @@ impl Module {
             columns.push(emit.binding(scope, "column")?);
         }
         let numbers = match plan.numbers {
-            Some(_) => Some(emit.binding(scope, "numbers")?),
-            None => None,
+            true => Some(emit.binding(scope, "numbers")?),
+            false => None,
         };
         let strings = match plan.strings {
             Some(_) => Some(emit.binding(scope, "strings")?),
@@ -1652,15 +1711,13 @@ impl Module {
             cursors.push(cursor);
         }
         let mut statements = Vec::new();
-        for (column, &binding) in plan.columns.iter().zip(&columns) {
-            if let Some(separator) = column.split {
+        for (&(_, _, split), &binding) in plan.columns.iter().zip(&columns) {
+            if let Some(separator) = split {
                 statements.push(emit.split_on(binding, separator)?);
             }
         }
-        if let (Some(Dictionary::Strings(_, Some(separator))), Some(binding)) =
-            (&plan.strings, strings)
-        {
-            statements.push(emit.split_on(binding, *separator)?);
+        if let (Some(Some(separator)), Some(binding)) = (plan.strings, strings) {
+            statements.push(emit.split_on(binding, separator)?);
         }
         for &cursor in &cursors {
             let zero = emit.number(0.0)?;
@@ -1684,7 +1741,27 @@ impl Module {
         parameters.extend(numbers);
         parameters.extend(strings);
         let function = emit.function(parameters, body)?;
-        let mut arguments = Vec::with_capacity(columns.len() + 2);
+        Ok((
+            decoder,
+            Statement::Function {
+                binding: decoder,
+                function,
+            },
+        ))
+    }
+
+    /// One table's call of its schema's decoder, over the table's streams.
+    fn columns_call(
+        &mut self,
+        decoder: BindingId,
+        plan: &Columns<'_>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<ExprId, AllocationError> {
+        let mut emit = Emit {
+            module: self,
+            budget,
+        };
+        let mut arguments = Vec::with_capacity(plan.columns.len() + 2);
         for column in &plan.columns {
             arguments.push(emit.stream(column)?);
         }
@@ -1692,24 +1769,17 @@ impl Module {
             arguments.push(emit.dictionary(dictionary)?);
         }
         let callee = emit.read(decoder)?;
-        let call = emit.node(Expr::Call {
+        emit.node(Expr::Call {
             callee,
             arguments,
             invocation: Invocation::Value,
-        })?;
-        Ok((
-            Statement::Function {
-                binding: decoder,
-                function,
-            },
-            call,
-        ))
+        })
     }
 }
 
 /// The bindings a columns decoder reads its streams through.
-struct Context<'p, 'd> {
-    plan: &'p Columns<'d>,
+struct Context<'p> {
+    plan: &'p Schema,
     columns: &'p [BindingId],
     numbers: Option<BindingId>,
     strings: Option<BindingId>,
@@ -1873,7 +1943,7 @@ impl Emit<'_, '_, '_> {
     /// One collection's loop, appended to `out`: the binding holding it.
     fn collection(
         &mut self,
-        context: &Context<'_, '_>,
+        context: &Context<'_>,
         index: usize,
         parent: Option<BindingId>,
         scope: ScopeId,
@@ -1974,7 +2044,7 @@ impl Emit<'_, '_, '_> {
     /// append their loops to `out` first.
     fn value(
         &mut self,
-        context: &Context<'_, '_>,
+        context: &Context<'_>,
         shape: &Shape,
         row: BindingId,
         scope: ScopeId,
@@ -1982,9 +2052,9 @@ impl Emit<'_, '_, '_> {
     ) -> Result<ExprId, AllocationError> {
         match shape {
             Shape::Leaf(index) => {
-                let column = &context.plan.columns[*index];
+                let (scale, dictionary, _) = context.plan.columns[*index];
                 let read = self.cell(context.columns[*index], row)?;
-                match column.dictionary {
+                match dictionary {
                     Some(kind) => {
                         let dictionary = match kind {
                             Kind::Numbers => context.numbers,
@@ -1994,8 +2064,8 @@ impl Emit<'_, '_, '_> {
                         let dictionary = self.read(dictionary)?;
                         self.at(dictionary, read)
                     }
-                    None if column.scale > 0 => {
-                        let power = self.number(POWERS[column.scale])?;
+                    None if scale > 0 => {
+                        let power = self.number(POWERS[scale])?;
                         self.binary(Binary::Divide, read, power)
                     }
                     None => Ok(read),

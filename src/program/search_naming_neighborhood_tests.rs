@@ -25,7 +25,7 @@ const RECIPES: [&str; 2] = ["computed", "literal-both"];
 
 fn policy() -> ResolvedPolicy {
     let config: crate::config::ProjectConfig = toml::from_str(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\n\
+        "[javascript]\ncost_model='brotli'\n\
          [policy.tactics]\nscalar-replacement='off'\ninlining='off'\n\
          call-specialization='off'\nconstant-folding='on'\nstring-pooling='off'\n\
          identifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'",

@@ -1,7 +1,3 @@
-[javascript]
-# The fixture observes through `print`.
-strip_console = false
-
 [delivery]
 mode = "split"
 preload = "entry"

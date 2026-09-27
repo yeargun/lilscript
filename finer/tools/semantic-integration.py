@@ -279,7 +279,9 @@ def qualify(folder, fixture, codec, mode, edits, retain_at, *, level=None,
     if mode != 'native':
         require(contract['execution'] == 'Module' and contract['preserve_root_exports'] is True, 'original module execution contract changed')
         require(contract['ecmascript'] == profile['ecmascript'], 'target edition changed')
-        require(contract['strip_console'] == profile['strip_console'], 'print effect contract changed')
+        require(contract['strip_debug'] == profile.get('strip_debug', False)
+                and contract['strip_console_calls'] == profile.get('strip_console_calls', False),
+                'logging effect contract changed')
         require(contract['pristine_builtins'] == profile['assume_pristine_builtins'], 'ambient intrinsic contract changed')
         require(report['policy']['objective']['codec'].lower() == profile['cost_model'], 'selected codec changed')
         require(report['policy']['objective']['priority'] == 'SizeFirst', 'size-first eligibility contract changed')

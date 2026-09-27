@@ -49,7 +49,12 @@ pub struct JavaScriptUnsafeAssumptions {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct JavaScriptEffectPolicy {
-    pub strip_console: bool,
+    /// Calls of the host `debugLog` extern are dropped (their arguments are
+    /// still evaluated). `print` is a program effect and is never dropped.
+    pub strip_debug: bool,
+    /// Calls of the host `console` object's methods are dropped (their
+    /// arguments are still evaluated): a declared relaxation of console output.
+    pub strip_console_calls: bool,
 }
 
 /// Immutable legality input for JavaScript compilation. This is intentionally

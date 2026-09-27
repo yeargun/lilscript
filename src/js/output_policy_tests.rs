@@ -107,26 +107,28 @@ fn identifier_mangling_off_restricts_render_to_source() {
 }
 
 #[test]
-fn naming_search_off_keeps_one_mangled_baseline_and_rejects_manual_overrides() {
+fn naming_search_off_keeps_the_allocators_seed_and_rejects_manual_overrides() {
+    // The allocator's seed (`Scoped`) is naming's rule at every level; the
+    // search only permits the alternatives after it (plan M9.5).
     let (module, state) = fixture();
     let output = module
         .prepare_output_with_policy(&policy("identifier-mangling='on'\nnaming-search='off'"))
         .unwrap();
-    let global = output.render(&Plan::new(Style::Global)).unwrap();
-    assert!(!global.contains("descriptiveState"));
-    for style in [Style::Source, Style::Scoped] {
+    let seed = output.render(&Plan::new(Style::Scoped)).unwrap();
+    assert!(!seed.contains("descriptiveState"));
+    for style in [Style::Source, Style::Global] {
         assert!(output
             .render(&Plan::new(style))
             .unwrap_err()
             .contains("naming search is disabled"));
     }
-    let mut override_plan = Plan::new(Style::Global);
+    let mut override_plan = Plan::new(Style::Scoped);
     override_plan.source_names.push(state);
     assert!(output
         .render(&override_plan)
         .unwrap_err()
         .contains("naming search is disabled"));
-    check_runtime(&global);
+    check_runtime(&seed);
 }
 
 #[test]

@@ -79,7 +79,7 @@ async function verifyAllTarget() {
   const base = path.join(directory, "app");
   await mkdir(directory, { recursive: true });
   await writeFile(path.join(directory, "package.json"), '{"type":"module"}\n');
-  await writeFile(path.join(directory, "lilscript.toml"), "[javascript]\nstrip_console = false\n");
+  await writeFile(path.join(directory, "lilscript.toml"), "");
   await writeFile(
     source,
     "int state = 40;\nvoid setState(int value) { state = value; }\nsetState(41);\nprint(state + 1);\n",

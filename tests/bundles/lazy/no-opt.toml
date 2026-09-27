@@ -3,7 +3,6 @@ preset = "none"
 
 [javascript]
 candidate_search = "off"
-strip_console = false
 
 [mangle]
 identifiers = false

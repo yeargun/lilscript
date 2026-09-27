@@ -163,7 +163,7 @@ fn run(case: &Case, mut inspect: impl FnMut(&js::Module, bool, bool)) {
     // Exercise both modern and lowered lazy-control syntax with discarded
     // results; the older target needs scratch storage solely for its recipe.
     for edition in ["es2022", "es2018"] {
-        let text = format!("[javascript]\nstrip_console=false\necmascript=\"{edition}\"\n");
+        let text = format!("[javascript]\necmascript=\"{edition}\"\n");
         let config: crate::config::ProjectConfig = toml::from_str(&text).unwrap();
         let policy = config
             .resolve_policy(CompilationRequest::JavaScript {
