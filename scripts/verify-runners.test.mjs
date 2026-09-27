@@ -1,9 +1,14 @@
-// Unit tests for the pure parts of scripts/cases.mjs and scripts/ports.mjs.
+// Unit tests for the pure parts of scripts/cases.mjs, scripts/ports.mjs and
+// scripts/ratchet.mjs.
 //   node --test scripts/verify-runners.test.mjs
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { codeOnly, composeConfig, LANES, parseTomlTables, selectLanes } from "./cases.mjs";
 import { diffAgainstLedger, failingTests, rewriteObjective, testTotals } from "./ports.mjs";
+import { applyLedger, catalogId, compareWithBaseline, countLosses, lossRows, selectItems, validateLedger } from "./ratchet.mjs";
+import { validateIdiomDebt } from "./lib/idiom-debt.mjs";
 
 test("feature detection ignores comments and string text but not template expressions", () => {
   const code = codeOnly('// export JsValue\nprint("extern try");\n/* Regex */ int a = 1;\nprint(`x ${JS.string(a)} throw`);');
@@ -72,4 +77,97 @@ test("the port ledger: regressions, removals, and intermittent entries", () => {
   assert.deepEqual(diffAgainstLedger(["slow"], entries, true).regressions, []);
   assert.deepEqual(diffAgainstLedger([], entries, true).nowPassing, ["a", "b"]);
   assert.deepEqual(diffAgainstLedger([], entries, false).nowPassing, []);
+});
+
+// The generic corpus ratchet (scripts/ratchet.mjs): verdicts, the baseline
+// comparison and the ledger, on synthetic tables.
+const pass = (size) => ({ state: "pass", size });
+const lanes = (raw, gzip9, brotli11) => ({ raw: pass(raw), gzip9: pass(gzip9), brotli11: pass(brotli11) });
+const bar = (raw, gzip9, brotli11) => ({ raw: { size: raw }, gzip9: { size: gzip9 }, brotli11: { size: brotli11 } });
+
+test("ratchet: an item loses to a bar only when strictly larger, per metric", () => {
+  const table = { "apps/a": lanes(100, 60, 50), "cases/catalog/loop/x": lanes(10, 10, 10) };
+  const bars = { "apps/a": { competitor: bar(100, 61, 40), closure: bar(90, 60, 50) }, "cases/catalog/loop/x": { old: bar(9, 10, 11) } };
+  const rows = lossRows(table, bars).map((row) => `${row.id} ${row.metric} ${row.bar} +${row.loss}`).sort();
+  assert.deepEqual(rows, ["apps/a brotli11 competitor +10", "apps/a raw closure +10", "cases/catalog/loop/x raw old +1"]);
+  const counts = countLosses(lossRows(table, bars));
+  assert.equal(counts.apps.brotli11.competitor, 1);
+  assert.equal(counts.apps.raw.closure, 1);
+  assert.equal(counts.cases.raw.old, 1);
+  assert.equal(counts.algorithms.raw.old, 0);
+});
+
+test("ratchet: growth, a new loss and a broken lane block; shrinking is an improvement", () => {
+  const bars = { "apps/a": { competitor: bar(50, 50, 50) }, "apps/b": { competitor: bar(50, 50, 50) }, "apps/c": { competitor: bar(50, 50, 50) } };
+  const baseline = { "apps/a": lanes(60, 40, 55), "apps/b": lanes(40, 40, 70), "apps/c": lanes(40, 40, 40) };
+  const now = {
+    "apps/a": lanes(61, 40, 55),
+    "apps/b": lanes(40, 40, 60),
+    "apps/c": { raw: pass(40), gzip9: { state: "wrong-output" }, brotli11: pass(51) },
+    "apps/d": lanes(99, 99, 99),
+  };
+  const result = compareWithBaseline(now, baseline, bars);
+  assert.deepEqual(result.grown.map((row) => `${row.id} ${row.metric} ${row.before}->${row.loss}`).sort(), ["apps/a raw 10->11", "apps/c brotli11 0->1"]);
+  assert.deepEqual(result.shrunk.map((row) => `${row.id} ${row.metric} ${row.before}->${row.loss}`), ["apps/b brotli11 20->10"]);
+  assert.deepEqual(result.broken.map((row) => `${row.id} ${row.metric} ${row.state}`), ["apps/c gzip9 wrong-output"]);
+  assert.deepEqual(result.added, ["apps/d"]);
+  assert.deepEqual(result.countChanges, [{ set: "apps", metric: "brotli11", bar: "competitor", before: 2, now: 3 }]);
+});
+
+test("ratchet: the ledger needs owners and reasons, covers by glob, bar and metric, and reports stale entries", () => {
+  assert.deepEqual(validateLedger({ entries: [{ kind: "loss", items: "apps/*", reason: "r" }] }), ["ledger entry 1: no owner (a plan task)"]);
+  assert.match(validateLedger({ entries: [{ kind: "failure", items: "x", bars: ["old"], reason: "r", owner: "M7" }] })[0], /names no bar/);
+  const ledger = {
+    entries: [
+      { kind: "loss", items: ["cases/catalog/loop/*"], bars: ["competitor"], reason: "r", owner: "M10.9" },
+      { kind: "loss", items: "apps/*", metrics: ["brotli11"], reason: "r", owner: "M7" },
+      { kind: "failure", items: "cases/catalog/record/*", reason: "r", owner: "M10.8" },
+      { kind: "loss", items: "algorithms/*", reason: "r", owner: "M7" },
+    ],
+  };
+  const losses = [
+    { id: "cases/catalog/loop/sum-1", metric: "raw", bar: "competitor" },
+    { id: "cases/catalog/loop/sum-1", metric: "raw", bar: "old" },
+    { id: "apps/a", metric: "brotli11", bar: "closure" },
+    { id: "apps/a", metric: "gzip9", bar: "closure" },
+  ];
+  const failures = [{ id: "cases/catalog/record/json-1", metric: "raw", state: "refused" }, { id: "apps/b", metric: "raw", state: "crashed" }];
+  const { unledgeredLosses, unledgeredFailures, stale } = applyLedger(ledger, losses, failures);
+  assert.deepEqual(unledgeredLosses.map((row) => `${row.id} ${row.metric} ${row.bar}`), ["cases/catalog/loop/sum-1 raw old", "apps/a gzip9 closure"]);
+  assert.deepEqual(unledgeredFailures.map((row) => row.id), ["apps/b"]);
+  assert.deepEqual(stale.map(({ index }) => index), [3]);
+});
+
+test("ratchet: catalog ids carry the behavior family; filters take substrings and globs", () => {
+  assert.equal(catalogId("loop/sum", "loop-sum-3"), "cases/catalog/loop/loop-sum-3");
+  const items = ["apps/a", "cases/catalog/loop/x", "cases/canonical/control/dead-branch"].map((id) => ({ id }));
+  assert.deepEqual(selectItems(items, "cases/*/loop/*,apps/").map((item) => item.id), ["apps/a", "cases/catalog/loop/x"]);
+  assert.equal(selectItems(items, null).length, 3);
+});
+
+test("the idiom debt ledger validates, and a malformed entry is refused (NO4)", () => {
+  const ledger = JSON.parse(readFileSync(new URL("../tests/idiom-debt.json", import.meta.url), "utf8"));
+  assert.deepEqual(validateIdiomDebt(ledger, fileURLToPath(new URL("..", import.meta.url))), []);
+  const entry = {
+    id: "NO4-001", port: "katexlil", recorded: "2026-09-27",
+    idiomatic: { description: "x instanceof C" }, workaround: { description: "C.prototype.isPrototypeOf(x)" },
+    case: "comparison/cases/canonical/identity/snapshot-write", codec: "brotli11",
+    sizes: { idiomatic: 120, workaround: 100, binary: "head-d1d48c4c" }, owner: "M10.7", status: "open",
+  };
+  assert.deepEqual(validateIdiomDebt({ schema: 1, about: "a", entries: [entry] }), []);
+  assert.match(validateIdiomDebt({ schema: 1, about: "a", entries: [{ ...entry, owner: "" }] }).join("\n"), /owner/);
+  assert.match(validateIdiomDebt({ schema: 1, about: "a", entries: [{ ...entry, case: "somewhere.lil" }] }).join("\n"), /regression case/);
+  assert.match(validateIdiomDebt({ schema: 1, about: "a", entries: [{ ...entry, sizes: { ...entry.sizes, idiomatic: 90 } }] }).join("\n"), /paid/);
+});
+
+test("ratchet: a lane that starts compiling may lose without growth; its losses still need the ledger", () => {
+  const bars = { "cases/catalog/record/r": { competitor: bar(10, 10, 10) } };
+  const baseline = { "cases/catalog/record/r": { raw: { state: "refused" }, gzip9: { state: "refused" }, brotli11: { state: "refused" } } };
+  const now = { "cases/catalog/record/r": lanes(12, 12, 12) };
+  const result = compareWithBaseline(now, baseline, bars);
+  assert.deepEqual(result.grown, []);
+  assert.deepEqual(result.countChanges, []);
+  assert.equal(result.fixed.length, 3);
+  const { unledgeredLosses } = applyLedger({ entries: [] }, lossRows(now, bars), []);
+  assert.equal(unledgeredLosses.length, 3);
 });

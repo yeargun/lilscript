@@ -1,0 +1,102 @@
+{
+  "schema": 1,
+  "about": "Owned losses and failures of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13). Each entry names corpus items (an id, a glob or a list; catalog ids carry their behavior family, cases/catalog/<family>/<name>), the bars it covers (competitor, closure, old; omitted means all), the metrics (raw, gzip9, brotli11; omitted means all), why they lose or fail, and the plan task that owns the fix (docs/migration/index.md). A loss or failure no entry covers fails the run; an entry that covers nothing is reported for removal. Coverage is not permission to grow: the baseline (baseline.json) still fails any count or any item's loss that grows. Recorded against head-d1d48c4c on 2026-09-27. The floor slice (plan step 5) re-verdicts each covered case and narrows its entry to the rule that wins it (rule 3: a new rule names the cases it wins).",
+  "entries": [
+    {
+      "kind": "failure",
+      "items": ["cases/canonical/collections/record-json", "cases/catalog/record/*"],
+      "reason": "Refused: spread record construction (`{...record}`) is not in the language v0.1; its semantics (CreateDataProperty over the declared key set) is the M10.8 decision. The competitor and old-route bars exist; the compiler lane has no artifact.",
+      "owner": "M10.8"
+    },
+    {
+      "kind": "failure",
+      "items": "cases/catalog/nullish/semantic-nullish-lazy-assignment",
+      "reason": "Refused: production formation refuses `??=` on a place (Unsupported: nullish place assignment), one of the four production gaps M1 carried (plan, 'Now'); the same gap keeps four tests ignored in src/program/source_legality_tests.rs. language-v0.1 promises `place ??= fallback`.",
+      "owner": "M10.9"
+    },
+    {
+      "kind": "loss",
+      "items": "cases/*",
+      "bars": ["old"],
+      "reason": "The frozen old route's program optimizer (branch and constant folding, inlining, scalar replacement, dead units, over the whole program at level 15) has no successor on the one compiler: M1 deleted it before its replacements existed (architecture 1.1, law L20). M7's exit requires that no case loses to the old route.",
+      "owner": "M7"
+    },
+    {
+      "kind": "loss",
+      "items": ["apps/*", "algorithms/*"],
+      "bars": ["old"],
+      "reason": "As for cases: the old route's program rules are gone (apps 945 against 558 Brotli, algorithms 3,250 against 2,305). The floor slice's interim exit is these totals at or below the old route, or each remaining case named with the M7 task that owns it.",
+      "owner": "M7 (floor slice: M5.1, M6.4a, M7.3, M7.5a, M7.8a)"
+    },
+    {
+      "kind": "loss",
+      "items": ["apps/*", "algorithms/*"],
+      "bars": ["closure"],
+      "reason": "Closure ADVANCED folds constant branches, inlines helpers, propagates constants, deletes dead functions after folding and renames properties; the one compiler does none at the program level (review-closure-advanced 2: optimizer-pressure keeps `!1&&console.log(c(9))`; algorithms carry 222 `|0` against Closure's 110). M7's exit requires no case to lose to Closure ADVANCED; the `|0` ceremony is R1/R11 (M10.12, M10.9) and the script frame is Y5.",
+      "owner": "M7"
+    },
+    {
+      "kind": "loss",
+      "items": ["apps/*", "algorithms/*"],
+      "bars": ["competitor"],
+      "reason": "Terser (with and without its safe property lane), Oxc and the Vite/Terser bundle lane inline small helpers, fold constants and drop dead code the one compiler keeps; the property lane's wins on aggregate-ledger, collection-geometry, shape-invoice-pipeline and large-event-analytics are M9.6's.",
+      "owner": "M7 (floor slice)"
+    },
+    {
+      "kind": "loss",
+      "items": ["cases/canonical/control/*", "cases/catalog/control/*", "cases/canonical/scalars/*", "cases/catalog/constant-fold/*", "cases/catalog/boolean/*", "cases/catalog/integer/*", "cases/catalog/number/*"],
+      "bars": ["competitor"],
+      "reason": "Constant and branch folding: `if (false)` bodies, constant conditions and literal arithmetic survive (review-competitors 1.5: control/dead-branch 58 against 19); every competitor folds them. The remaining integer and number losses are `|0` and `??` ceremony that R11 (M10.9) and R1 (M10.12) remove.",
+      "owner": "M7.8a"
+    },
+    {
+      "kind": "loss",
+      "items": ["cases/canonical/functions/*", "cases/catalog/function/*", "cases/catalog/closure/*", "cases/canonical/wins/*", "cases/catalog/winner/*"],
+      "bars": ["competitor"],
+      "reason": "Removal-only inlining and dead helpers: small helpers and uncalled constant functions stay (functions/dce-unused 37 against 19, functions/identical-helpers 56 against 36, wins/optimizer-pressure 165 against 117); identical helper folding is M9.9's choice.",
+      "owner": "M7.5a"
+    },
+    {
+      "kind": "loss",
+      "items": ["cases/canonical/aggregates/*", "cases/catalog/aggregate/*"],
+      "bars": ["competitor"],
+      "reason": "Structs and classes print as array tuples or classes with their construction ceremony (aggregates/struct-point 78 against 49); scalar replacement and store-copy elision are M7.9, layouts M9.7, and the terser-properties wins are property renaming (M9.6).",
+      "owner": "M7.9"
+    },
+    {
+      "kind": "loss",
+      "items": ["cases/canonical/collections/*", "cases/catalog/collection/*", "cases/catalog/loop/*"],
+      "bars": ["competitor"],
+      "reason": "Loop and collection code carries index-load normalization (`??\"\"`, `|0`), counter spellings and receiver adapters the competitors do not need: R11's index and length rules (M10.9) remove the normalization, R14 (M10.16) the iteration lowering, and M9.3's per-site spellings the rest.",
+      "owner": "M10.9"
+    },
+    {
+      "kind": "loss",
+      "items": ["cases/canonical/strings/*", "cases/catalog/string/*"],
+      "bars": ["competitor"],
+      "reason": "String code: constant concatenation is not folded (M7.8's string-literal sums), `charCodeAt|0` and index normalization remain (R11), and pooling is a spelling (M9.8's rest).",
+      "owner": "M7.8"
+    },
+    {
+      "kind": "loss",
+      "items": ["cases/canonical/effects/*", "cases/catalog/effect/*", "cases/canonical/identity/*"],
+      "bars": ["competitor"],
+      "reason": "Exceptions, generators, async tasks and snapshot rebinds keep temporaries and statement forms Terser forwards: reaching-definition forwarding (M7.4) and removal of dead stores and cells (M7.1).",
+      "owner": "M7.4"
+    },
+    {
+      "kind": "loss",
+      "items": ["cases/canonical/host/*", "cases/catalog/host/*"],
+      "bars": ["competitor"],
+      "reason": "Host access goes through declared bindings and `JS.*` operations (the 27 rewritten helper cases) that print wider than the competitors' direct spellings: the host catalog and `globalThis[...]` retirement are M10.17, and JsValue's ordinary syntax is M10.2.",
+      "owner": "M10.17"
+    },
+    {
+      "kind": "loss",
+      "items": ["cases/catalog/nullish/*"],
+      "bars": ["competitor"],
+      "reason": "Optional indexing prints `??null` normalization at every read (R2's absence rule removes it).",
+      "owner": "M10.9"
+    }
+  ]
+}

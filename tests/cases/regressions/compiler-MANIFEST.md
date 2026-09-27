@@ -29,8 +29,10 @@ Expected stdout comes from each test's own assertions, never from running a comp
 - `// harness: "use strict"` in a `.lil` header: the test ran the emitted script with `"use strict";` prepended.
 - Multi-module cases: the entry is `compiler-<test>.lil`; the other modules live in the directory `compiler-<test>/`
   (so a runner that globs `regressions/*.lil` sees only entries). Imports of the entry use `../compiler-<test>`.
-- `.toml`: only language/contract settings the test set (`assume_pristine_builtins`, `assume_pure_property_reads`,
-  `mangle.exports`). Optimizer knobs from the tests (candidate search, cost model, levels, inlining...) are dropped.
+- `.toml`: only language/contract settings the test set (`assume_pristine_builtins`, `assume_pure_property_reads`).
+  Optimizer knobs from the tests (candidate search, cost model, levels, inlining...) are dropped. The harvest also carried
+  `mangle.exports = false`, which has had no effect since M1.4 (export names are always kept); M2.13 removed those four
+  files so every case configuration loads without a "no effect" warning (BC12).
   The verifier prepends `[javascript] strip_console = false`.
 - `text-exact`: the test compiled but did not execute; it asserted the *complete* output (`console.log(42)`),
   which fixes the stdout. Included because M1.5 deletes these tests and the behaviour would otherwise be lost.

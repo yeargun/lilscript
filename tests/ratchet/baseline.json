@@ -1,0 +1,9165 @@
+{
+ "schema": 1,
+ "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
+ "recorded": "2026-09-27",
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/head-d1d48c4c/lilscript",
+  "sha256": "47048e41164027e92d3bf1d1840d8d83e04c60532c031ceb3346222e194b3041",
+  "version": "lilscript 0.1.0",
+  "label": "head-d1d48c4c"
+ },
+ "barsSha256": "770649437963ff5bd6955ea79195cf37c13a84d96fb6c83e7327db9a0085f45b",
+ "counts": {
+  "cases": {
+   "raw": {
+    "competitor": 399,
+    "closure": 0,
+    "old": 610
+   },
+   "gzip9": {
+    "competitor": 400,
+    "closure": 0,
+    "old": 600
+   },
+   "brotli11": {
+    "competitor": 439,
+    "closure": 0,
+    "old": 603
+   }
+  },
+  "apps": {
+   "raw": {
+    "competitor": 1,
+    "closure": 5,
+    "old": 7
+   },
+   "gzip9": {
+    "competitor": 3,
+    "closure": 6,
+    "old": 7
+   },
+   "brotli11": {
+    "competitor": 5,
+    "closure": 7,
+    "old": 7
+   }
+  },
+  "algorithms": {
+   "raw": {
+    "competitor": 5,
+    "closure": 11,
+    "old": 11
+   },
+   "gzip9": {
+    "competitor": 8,
+    "closure": 11,
+    "old": 11
+   },
+   "brotli11": {
+    "competitor": 9,
+    "closure": 11,
+    "old": 11
+   }
+  }
+ },
+ "totals": {
+  "cases": {
+   "raw": {
+    "competitor": {
+     "items": 612,
+     "ours": 65533,
+     "bar": 58285
+    },
+    "old": {
+     "items": 612,
+     "ours": 65533,
+     "bar": 44195
+    }
+   },
+   "gzip9": {
+    "competitor": {
+     "items": 612,
+     "ours": 59036,
+     "bar": 54669
+    },
+    "old": {
+     "items": 610,
+     "ours": 58848,
+     "bar": 45206
+    }
+   },
+   "brotli11": {
+    "competitor": {
+     "items": 612,
+     "ours": 49223,
+     "bar": 43541
+    },
+    "old": {
+     "items": 611,
+     "ours": 49126,
+     "bar": 33656
+    }
+   }
+  },
+  "apps": {
+   "raw": {
+    "competitor": {
+     "items": 7,
+     "ours": 1394,
+     "bar": 1527
+    },
+    "closure": {
+     "items": 7,
+     "ours": 1394,
+     "bar": 1332
+    },
+    "old": {
+     "items": 7,
+     "ours": 1394,
+     "bar": 802
+    }
+   },
+   "gzip9": {
+    "competitor": {
+     "items": 7,
+     "ours": 1095,
+     "bar": 1053
+    },
+    "closure": {
+     "items": 7,
+     "ours": 1095,
+     "bar": 982
+    },
+    "old": {
+     "items": 7,
+     "ours": 1095,
+     "bar": 711
+    }
+   },
+   "brotli11": {
+    "competitor": {
+     "items": 7,
+     "ours": 945,
+     "bar": 870
+    },
+    "closure": {
+     "items": 7,
+     "ours": 945,
+     "bar": 834
+    },
+    "old": {
+     "items": 7,
+     "ours": 945,
+     "bar": 558
+    }
+   }
+  },
+  "algorithms": {
+   "raw": {
+    "competitor": {
+     "items": 11,
+     "ours": 6081,
+     "bar": 6210
+    },
+    "closure": {
+     "items": 11,
+     "ours": 6081,
+     "bar": 4522
+    },
+    "old": {
+     "items": 11,
+     "ours": 6081,
+     "bar": 3995
+    }
+   },
+   "gzip9": {
+    "competitor": {
+     "items": 11,
+     "ours": 3560,
+     "bar": 3440
+    },
+    "closure": {
+     "items": 11,
+     "ours": 3560,
+     "bar": 3031
+    },
+    "old": {
+     "items": 11,
+     "ours": 3560,
+     "bar": 2662
+    }
+   },
+   "brotli11": {
+    "competitor": {
+     "items": 11,
+     "ours": 3250,
+     "bar": 3039
+    },
+    "closure": {
+     "items": 11,
+     "ours": 3250,
+     "bar": 2703
+    },
+    "old": {
+     "items": 11,
+     "ours": 3250,
+     "bar": 2305
+    }
+   }
+  }
+ },
+ "items": {
+  "algorithms/aggregate-ledger": {
+   "raw": {
+    "state": "pass",
+    "size": 359
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 229
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 206
+   }
+  },
+  "algorithms/collection-geometry": {
+   "raw": {
+    "state": "pass",
+    "size": 515
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 280
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 256
+   }
+  },
+  "algorithms/dictionary-template-router": {
+   "raw": {
+    "state": "pass",
+    "size": 741
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 411
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 370
+   }
+  },
+  "algorithms/helper-sharing": {
+   "raw": {
+    "state": "pass",
+    "size": 282
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 210
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 190
+   }
+  },
+  "algorithms/large-event-analytics": {
+   "raw": {
+    "state": "pass",
+    "size": 1141
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 573
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 518
+   }
+  },
+  "algorithms/policy-specialization": {
+   "raw": {
+    "state": "pass",
+    "size": 389
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 259
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 240
+   }
+  },
+  "algorithms/shape-invoice-pipeline": {
+   "raw": {
+    "state": "pass",
+    "size": 706
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 336
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 316
+   }
+  },
+  "algorithms/state-machine-parser": {
+   "raw": {
+    "state": "pass",
+    "size": 426
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 301
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 282
+   }
+  },
+  "algorithms/stateful-packet-decoder": {
+   "raw": {
+    "state": "pass",
+    "size": 676
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 423
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 388
+   }
+  },
+  "algorithms/static-rule-engine": {
+   "raw": {
+    "state": "pass",
+    "size": 359
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 237
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 216
+   }
+  },
+  "algorithms/string-dictionary": {
+   "raw": {
+    "state": "pass",
+    "size": 487
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 301
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 268
+   }
+  },
+  "apps/aggregate-model": {
+   "raw": {
+    "state": "pass",
+    "size": 252
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 171
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 164
+   }
+  },
+  "apps/control-flow-engine": {
+   "raw": {
+    "state": "pass",
+    "size": 140
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "apps/higher-order-pipeline": {
+   "raw": {
+    "state": "pass",
+    "size": 129
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 114
+   }
+  },
+  "apps/module-graph": {
+   "raw": {
+    "state": "pass",
+    "size": 148
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 148
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 125
+   }
+  },
+  "apps/numerical-kernel": {
+   "raw": {
+    "state": "pass",
+    "size": 212
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 166
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 147
+   }
+  },
+  "apps/optimizer-pressure": {
+   "raw": {
+    "state": "pass",
+    "size": 303
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 193
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 165
+   }
+  },
+  "apps/text-report": {
+   "raw": {
+    "state": "pass",
+    "size": 210
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 154
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 113
+   }
+  },
+  "cases/canonical/aggregates/class-counter": {
+   "raw": {
+    "state": "pass",
+    "size": 156
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 132
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 111
+   }
+  },
+  "cases/canonical/aggregates/class-scale": {
+   "raw": {
+    "state": "pass",
+    "size": 157
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 128
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 115
+   }
+  },
+  "cases/canonical/aggregates/enum-dispatch": {
+   "raw": {
+    "state": "pass",
+    "size": 61
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 65
+   }
+  },
+  "cases/canonical/aggregates/nested-struct": {
+   "raw": {
+    "state": "pass",
+    "size": 121
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 116
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 97
+   }
+  },
+  "cases/canonical/aggregates/struct-point": {
+   "raw": {
+    "state": "pass",
+    "size": 84
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 95
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 78
+   }
+  },
+  "cases/canonical/collections/array-pipeline": {
+   "raw": {
+    "state": "pass",
+    "size": 92
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 106
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 87
+   }
+  },
+  "cases/canonical/collections/map-set": {
+   "raw": {
+    "state": "pass",
+    "size": 243
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 132
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 123
+   }
+  },
+  "cases/canonical/collections/minmax-scan": {
+   "raw": {
+    "state": "pass",
+    "size": 154
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 112
+   }
+  },
+  "cases/canonical/collections/prefix-sum": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 103
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 90
+   }
+  },
+  "cases/canonical/collections/record-json": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/canonical/control/dead-branch": {
+   "raw": {
+    "state": "pass",
+    "size": 56
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 64
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 58
+   }
+  },
+  "cases/canonical/control/early-return": {
+   "raw": {
+    "state": "pass",
+    "size": 106
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 86
+   }
+  },
+  "cases/canonical/control/expression-if": {
+   "raw": {
+    "state": "pass",
+    "size": 57
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 63
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 50
+   }
+  },
+  "cases/canonical/control/factorial": {
+   "raw": {
+    "state": "pass",
+    "size": 79
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 94
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 76
+   }
+  },
+  "cases/canonical/control/fibonacci": {
+   "raw": {
+    "state": "pass",
+    "size": 92
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 101
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 85
+   }
+  },
+  "cases/canonical/control/gcd": {
+   "raw": {
+    "state": "pass",
+    "size": 78
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 96
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 70
+   }
+  },
+  "cases/canonical/control/if-chain": {
+   "raw": {
+    "state": "pass",
+    "size": 39
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 59
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 43
+   }
+  },
+  "cases/canonical/control/loop-control": {
+   "raw": {
+    "state": "pass",
+    "size": 135
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 114
+   }
+  },
+  "cases/canonical/control/loop-sum": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 101
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 86
+   }
+  },
+  "cases/canonical/control/mod-bucket": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 111
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/canonical/control/nested-loop-score": {
+   "raw": {
+    "state": "pass",
+    "size": 140
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/canonical/control/scalar-match": {
+   "raw": {
+    "state": "pass",
+    "size": 104
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 90
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 74
+   }
+  },
+  "cases/canonical/control/short-circuit": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 96
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 77
+   }
+  },
+  "cases/canonical/control/while-countdown": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 55
+   }
+  },
+  "cases/canonical/effects/async-task": {
+   "raw": {
+    "state": "pass",
+    "size": 83
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 100
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 80
+   }
+  },
+  "cases/canonical/effects/exception-finally": {
+   "raw": {
+    "state": "pass",
+    "size": 96
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 104
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 87
+   }
+  },
+  "cases/canonical/effects/generator-range": {
+   "raw": {
+    "state": "pass",
+    "size": 133
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 125
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/canonical/effects/nullish-optional": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 99
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 74
+   }
+  },
+  "cases/canonical/functions/closure-capture": {
+   "raw": {
+    "state": "pass",
+    "size": 62
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 67
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 52
+   }
+  },
+  "cases/canonical/functions/dce-unused": {
+   "raw": {
+    "state": "pass",
+    "size": 33
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 53
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 37
+   }
+  },
+  "cases/canonical/functions/default-args": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 65
+   }
+  },
+  "cases/canonical/functions/identical-helpers": {
+   "raw": {
+    "state": "pass",
+    "size": 74
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 69
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 56
+   }
+  },
+  "cases/canonical/functions/nested-local": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/canonical/host/math-max": {
+   "raw": {
+    "state": "pass",
+    "size": 54
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 54
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 54
+   }
+  },
+  "cases/canonical/identity/saved-loop-phi": {
+   "raw": {
+    "state": "pass",
+    "size": 68
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 86
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 71
+   }
+  },
+  "cases/canonical/identity/snapshot-captured-rebind": {
+   "raw": {
+    "state": "pass",
+    "size": 128
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 112
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 97
+   }
+  },
+  "cases/canonical/identity/snapshot-computed": {
+   "raw": {
+    "state": "pass",
+    "size": 45
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 63
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 49
+   }
+  },
+  "cases/canonical/identity/snapshot-rebind": {
+   "raw": {
+    "state": "pass",
+    "size": 116
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 100
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/canonical/identity/snapshot-write": {
+   "raw": {
+    "state": "pass",
+    "size": 45
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 63
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 49
+   }
+  },
+  "cases/canonical/scalars/bitops": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 59
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 53
+   }
+  },
+  "cases/canonical/scalars/bool-logic": {
+   "raw": {
+    "state": "pass",
+    "size": 67
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 63
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 52
+   }
+  },
+  "cases/canonical/scalars/clamp": {
+   "raw": {
+    "state": "pass",
+    "size": 100
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 81
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 68
+   }
+  },
+  "cases/canonical/scalars/fold-add": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/canonical/scalars/fold-mixed": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/canonical/scalars/fold-mul": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/canonical/scalars/fold-sub": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/canonical/scalars/i32-churn": {
+   "raw": {
+    "state": "pass",
+    "size": 174
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 140
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 130
+   }
+  },
+  "cases/canonical/strings/chars": {
+   "raw": {
+    "state": "pass",
+    "size": 156
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 129
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/canonical/strings/concat": {
+   "raw": {
+    "state": "pass",
+    "size": 50
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 57
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 52
+   }
+  },
+  "cases/canonical/strings/pool": {
+   "raw": {
+    "state": "pass",
+    "size": 82
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 67
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 50
+   }
+  },
+  "cases/canonical/strings/search": {
+   "raw": {
+    "state": "pass",
+    "size": 113
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 85
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 67
+   }
+  },
+  "cases/canonical/wins/aggregate-model": {
+   "raw": {
+    "state": "pass",
+    "size": 252
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 171
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 164
+   }
+  },
+  "cases/canonical/wins/optimizer-pressure": {
+   "raw": {
+    "state": "pass",
+    "size": 303
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 193
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 165
+   }
+  },
+  "cases/canonical/wins/point-batch": {
+   "raw": {
+    "state": "pass",
+    "size": 203
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 175
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 153
+   }
+  },
+  "cases/catalog/aggregate/class-counter-0-8": {
+   "raw": {
+    "state": "pass",
+    "size": 180
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 137
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 119
+   }
+  },
+  "cases/catalog/aggregate/class-counter-1-16": {
+   "raw": {
+    "state": "pass",
+    "size": 181
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 138
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/aggregate/class-counter-11-11": {
+   "raw": {
+    "state": "pass",
+    "size": 182
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 137
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 130
+   }
+  },
+  "cases/catalog/aggregate/class-counter-13-8": {
+   "raw": {
+    "state": "pass",
+    "size": 181
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 138
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 119
+   }
+  },
+  "cases/catalog/aggregate/class-counter-2-15": {
+   "raw": {
+    "state": "pass",
+    "size": 181
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 138
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/aggregate/class-counter-3-10": {
+   "raw": {
+    "state": "pass",
+    "size": 181
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 138
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/aggregate/class-counter-4-14": {
+   "raw": {
+    "state": "pass",
+    "size": 181
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 138
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/aggregate/class-counter-5-12": {
+   "raw": {
+    "state": "pass",
+    "size": 181
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 138
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/aggregate/class-counter-6-18": {
+   "raw": {
+    "state": "pass",
+    "size": 181
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 138
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/aggregate/class-counter-7-9": {
+   "raw": {
+    "state": "pass",
+    "size": 180
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 138
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 119
+   }
+  },
+  "cases/catalog/aggregate/class-counter-8-7": {
+   "raw": {
+    "state": "pass",
+    "size": 180
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 138
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 119
+   }
+  },
+  "cases/catalog/aggregate/class-counter-9-13": {
+   "raw": {
+    "state": "pass",
+    "size": 181
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 138
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 118
+   }
+  },
+  "cases/catalog/aggregate/frontier-default-constructor": {
+   "raw": {
+    "state": "pass",
+    "size": 182
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 132
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/aggregate/frontier-inheritance-super": {
+   "raw": {
+    "state": "pass",
+    "size": 141
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 124
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 110
+   }
+  },
+  "cases/catalog/aggregate/matrix2-0-1-0-2-0-3-0-4": {
+   "raw": {
+    "state": "pass",
+    "size": 207
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 166
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 152
+   }
+  },
+  "cases/catalog/aggregate/matrix2-1-2-3-4-5-6-7-8": {
+   "raw": {
+    "state": "pass",
+    "size": 207
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 169
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 157
+   }
+  },
+  "cases/catalog/aggregate/matrix2-10-20-30-40": {
+   "raw": {
+    "state": "pass",
+    "size": 203
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 164
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 151
+   }
+  },
+  "cases/catalog/aggregate/matrix2-2-7-1-8-2-8": {
+   "raw": {
+    "state": "pass",
+    "size": 203
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 166
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 153
+   }
+  },
+  "cases/catalog/aggregate/matrix2-3-1-4-1-5-9": {
+   "raw": {
+    "state": "pass",
+    "size": 203
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 165
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 152
+   }
+  },
+  "cases/catalog/aggregate/matrix2-9-8-7-6-5-4-3-2": {
+   "raw": {
+    "state": "pass",
+    "size": 207
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 170
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 155
+   }
+  },
+  "cases/catalog/aggregate/nested-struct-0-1-0-2-0-3-0-4": {
+   "raw": {
+    "state": "pass",
+    "size": 252
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 189
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 174
+   }
+  },
+  "cases/catalog/aggregate/nested-struct-1-1-2-3-5-8-13-21": {
+   "raw": {
+    "state": "pass",
+    "size": 254
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 193
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 174
+   }
+  },
+  "cases/catalog/aggregate/nested-struct-1-2-3-4-5-6-7-8": {
+   "raw": {
+    "state": "pass",
+    "size": 252
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 192
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 180
+   }
+  },
+  "cases/catalog/aggregate/nested-struct-10-20-30-40": {
+   "raw": {
+    "state": "pass",
+    "size": 248
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 188
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 175
+   }
+  },
+  "cases/catalog/aggregate/nested-struct-12-4-8-16-2-6": {
+   "raw": {
+    "state": "pass",
+    "size": 250
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 191
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 178
+   }
+  },
+  "cases/catalog/aggregate/nested-struct-15-3-9-27-1-81": {
+   "raw": {
+    "state": "pass",
+    "size": 251
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 192
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 179
+   }
+  },
+  "cases/catalog/aggregate/nested-struct-2-7-1-8-2-8": {
+   "raw": {
+    "state": "pass",
+    "size": 248
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 189
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 171
+   }
+  },
+  "cases/catalog/aggregate/nested-struct-3-1-4-1-5-9": {
+   "raw": {
+    "state": "pass",
+    "size": 248
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 188
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 171
+   }
+  },
+  "cases/catalog/aggregate/nested-struct-5-5-5-5-5-5": {
+   "raw": {
+    "state": "pass",
+    "size": 248
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 185
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 171
+   }
+  },
+  "cases/catalog/aggregate/nested-struct-9-8-7-6-5-4-3-2": {
+   "raw": {
+    "state": "pass",
+    "size": 252
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 193
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 180
+   }
+  },
+  "cases/catalog/aggregate/record-transform-2": {
+   "raw": {
+    "state": "pass",
+    "size": 129
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/aggregate/record-transform-3": {
+   "raw": {
+    "state": "pass",
+    "size": 129
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/aggregate/record-transform-4": {
+   "raw": {
+    "state": "pass",
+    "size": 129
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 131
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/aggregate/record-transform-5": {
+   "raw": {
+    "state": "pass",
+    "size": 129
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 131
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/aggregate/record-transform-6": {
+   "raw": {
+    "state": "pass",
+    "size": 129
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 131
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 118
+   }
+  },
+  "cases/catalog/aggregate/record-transform-7": {
+   "raw": {
+    "state": "pass",
+    "size": 129
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 132
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 118
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-0-1-0-2-0-3-0-4": {
+   "raw": {
+    "state": "pass",
+    "size": 171
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 154
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 140
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-1-1-2-3-5-8-13-21": {
+   "raw": {
+    "state": "pass",
+    "size": 173
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 158
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 141
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-1-2-3-4-5-6-7-8": {
+   "raw": {
+    "state": "pass",
+    "size": 171
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 157
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 140
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-10-20-30-40": {
+   "raw": {
+    "state": "pass",
+    "size": 167
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 153
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 137
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-11-22-33-44-55-66": {
+   "raw": {
+    "state": "pass",
+    "size": 173
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 159
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 150
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-12-4-8-16-2-6": {
+   "raw": {
+    "state": "pass",
+    "size": 169
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 155
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 138
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-15-3-9-27-1-81": {
+   "raw": {
+    "state": "pass",
+    "size": 170
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 156
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 138
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-2-3-5-7-11-13-17": {
+   "raw": {
+    "state": "pass",
+    "size": 172
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 157
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 140
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-2-7-1-8-2-8": {
+   "raw": {
+    "state": "pass",
+    "size": 167
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 154
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 136
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-3-1-4-1-5-9": {
+   "raw": {
+    "state": "pass",
+    "size": 167
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 153
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 139
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-4-9-16-25-36-49": {
+   "raw": {
+    "state": "pass",
+    "size": 171
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 157
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 140
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-5-5-5-5-5-5": {
+   "raw": {
+    "state": "pass",
+    "size": 167
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 150
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 129
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-6-1-8-2-10-3": {
+   "raw": {
+    "state": "pass",
+    "size": 168
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 154
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 137
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-7-14-21-28-35": {
+   "raw": {
+    "state": "pass",
+    "size": 169
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 156
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 138
+   }
+  },
+  "cases/catalog/aggregate/struct-pairs-9-8-7-6-5-4-3-2": {
+   "raw": {
+    "state": "pass",
+    "size": 171
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 157
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 145
+   }
+  },
+  "cases/catalog/boolean/bool-logic-0": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 68
+   }
+  },
+  "cases/catalog/boolean/bool-logic-1": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 68
+   }
+  },
+  "cases/catalog/boolean/bool-logic-2": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 69
+   }
+  },
+  "cases/catalog/boolean/bool-logic-3": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 68
+   }
+  },
+  "cases/catalog/boolean/bool-logic-4": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 69
+   }
+  },
+  "cases/catalog/boolean/bool-logic-5": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 69
+   }
+  },
+  "cases/catalog/boolean/bool-logic-6": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 69
+   }
+  },
+  "cases/catalog/boolean/bool-logic-7": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 70
+   }
+  },
+  "cases/catalog/boolean/bool-typeof-predicate": {
+   "raw": {
+    "state": "pass",
+    "size": 213
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 118
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 98
+   }
+  },
+  "cases/catalog/closure/closure-capture-2": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/closure/closure-capture-3": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/closure/closure-capture-4": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/closure/closure-capture-5": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/closure/closure-capture-6": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 101
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 82
+   }
+  },
+  "cases/catalog/closure/closure-capture-7": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/closure/closure-capture-8": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/closure/edge-closure-mutation-11n4n5": {
+   "raw": {
+    "state": "pass",
+    "size": 145
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 123
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 106
+   }
+  },
+  "cases/catalog/closure/edge-closure-mutation-1n2n4": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 122
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/closure/edge-closure-mutation-20nn3n4": {
+   "raw": {
+    "state": "pass",
+    "size": 146
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 124
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 107
+   }
+  },
+  "cases/catalog/closure/edge-closure-mutation-2n7n5": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 124
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/closure/edge-closure-mutation-3nn1n5": {
+   "raw": {
+    "state": "pass",
+    "size": 145
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 124
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 105
+   }
+  },
+  "cases/catalog/closure/edge-closure-mutation-5n3n6": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 123
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/closure/edge-closure-mutation-7nn2n7": {
+   "raw": {
+    "state": "pass",
+    "size": 145
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 124
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 105
+   }
+  },
+  "cases/catalog/closure/edge-closure-mutation-9n1n8": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 122
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/closure/edge-closure-mutation-n4n5n6": {
+   "raw": {
+    "state": "pass",
+    "size": 145
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 124
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 107
+   }
+  },
+  "cases/catalog/closure/edge-closure-mutation-n8nn2n6": {
+   "raw": {
+    "state": "pass",
+    "size": 146
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 125
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 107
+   }
+  },
+  "cases/catalog/collection/edge-array-concat": {
+   "raw": {
+    "state": "pass",
+    "size": 108
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 93
+   }
+  },
+  "cases/catalog/collection/edge-array-copy-within": {
+   "raw": {
+    "state": "pass",
+    "size": 82
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 89
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 73
+   }
+  },
+  "cases/catalog/collection/edge-array-fill": {
+   "raw": {
+    "state": "pass",
+    "size": 97
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 90
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 86
+   }
+  },
+  "cases/catalog/collection/edge-array-find-index": {
+   "raw": {
+    "state": "pass",
+    "size": 108
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 95
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 82
+   }
+  },
+  "cases/catalog/collection/edge-array-pipeline": {
+   "raw": {
+    "state": "pass",
+    "size": 119
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 119
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/collection/edge-array-push-pop": {
+   "raw": {
+    "state": "pass",
+    "size": 85
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 75
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 71
+   }
+  },
+  "cases/catalog/collection/edge-array-reverse": {
+   "raw": {
+    "state": "pass",
+    "size": 74
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 82
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 67
+   }
+  },
+  "cases/catalog/collection/edge-array-slice-negative": {
+   "raw": {
+    "state": "pass",
+    "size": 116
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/collection/edge-array-snapshot": {
+   "raw": {
+    "state": "pass",
+    "size": 127
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 123
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 105
+   }
+  },
+  "cases/catalog/collection/edge-array-some-every": {
+   "raw": {
+    "state": "pass",
+    "size": 94
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 81
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 77
+   }
+  },
+  "cases/catalog/collection/edge-map-set-1-1-2": {
+   "raw": {
+    "state": "pass",
+    "size": 251
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 142
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 125
+   }
+  },
+  "cases/catalog/collection/edge-map-set-10-8-11": {
+   "raw": {
+    "state": "pass",
+    "size": 256
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 145
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 138
+   }
+  },
+  "cases/catalog/collection/edge-map-set-2-2-3": {
+   "raw": {
+    "state": "pass",
+    "size": 251
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 142
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 126
+   }
+  },
+  "cases/catalog/collection/edge-map-set-3-1-4": {
+   "raw": {
+    "state": "pass",
+    "size": 251
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 144
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 127
+   }
+  },
+  "cases/catalog/collection/edge-map-set-4-3-5": {
+   "raw": {
+    "state": "pass",
+    "size": 251
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 144
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 128
+   }
+  },
+  "cases/catalog/collection/edge-map-set-5-5-1": {
+   "raw": {
+    "state": "pass",
+    "size": 251
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 142
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 125
+   }
+  },
+  "cases/catalog/collection/edge-map-set-6-2-7": {
+   "raw": {
+    "state": "pass",
+    "size": 251
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 144
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 128
+   }
+  },
+  "cases/catalog/collection/edge-map-set-7-4-8": {
+   "raw": {
+    "state": "pass",
+    "size": 251
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 144
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 128
+   }
+  },
+  "cases/catalog/collection/edge-map-set-8-6-9": {
+   "raw": {
+    "state": "pass",
+    "size": 251
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 144
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 128
+   }
+  },
+  "cases/catalog/collection/edge-map-set-9-3-10": {
+   "raw": {
+    "state": "pass",
+    "size": 254
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 145
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 131
+   }
+  },
+  "cases/catalog/collection/frontier-array-spread-order": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 100
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 85
+   }
+  },
+  "cases/catalog/collection/minmax-scan-0-1-0-2-0-3-0-4": {
+   "raw": {
+    "state": "pass",
+    "size": 143
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 131
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/collection/minmax-scan-1-1-2-3-5-8-13-21": {
+   "raw": {
+    "state": "pass",
+    "size": 145
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 113
+   }
+  },
+  "cases/catalog/collection/minmax-scan-1-2-3-4-5-6-7-8": {
+   "raw": {
+    "state": "pass",
+    "size": 143
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 118
+   }
+  },
+  "cases/catalog/collection/minmax-scan-10-20-30-40": {
+   "raw": {
+    "state": "pass",
+    "size": 139
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 129
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 107
+   }
+  },
+  "cases/catalog/collection/minmax-scan-2-7-1-8-2-8": {
+   "raw": {
+    "state": "pass",
+    "size": 139
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/collection/minmax-scan-3-1-4-1-5-9": {
+   "raw": {
+    "state": "pass",
+    "size": 139
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 131
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 115
+   }
+  },
+  "cases/catalog/collection/minmax-scan-5-5-5-5-5-5": {
+   "raw": {
+    "state": "pass",
+    "size": 139
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 125
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 106
+   }
+  },
+  "cases/catalog/collection/minmax-scan-9-8-7-6-5-4-3-2": {
+   "raw": {
+    "state": "pass",
+    "size": 143
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 119
+   }
+  },
+  "cases/catalog/collection/pipeline-0-1-0-2-0-3-0-4": {
+   "raw": {
+    "state": "pass",
+    "size": 126
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 124
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 108
+   }
+  },
+  "cases/catalog/collection/pipeline-1-1-2-3-5-8-13-21": {
+   "raw": {
+    "state": "pass",
+    "size": 128
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 127
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 105
+   }
+  },
+  "cases/catalog/collection/pipeline-1-2-3-4-5-6-7-8": {
+   "raw": {
+    "state": "pass",
+    "size": 126
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 127
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/collection/pipeline-10-20-30-40": {
+   "raw": {
+    "state": "pass",
+    "size": 122
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 122
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 103
+   }
+  },
+  "cases/catalog/collection/pipeline-2-7-1-8-2-8": {
+   "raw": {
+    "state": "pass",
+    "size": 122
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 123
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 107
+   }
+  },
+  "cases/catalog/collection/pipeline-3-1-4-1-5-9": {
+   "raw": {
+    "state": "pass",
+    "size": 122
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 122
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/collection/pipeline-5-5-5-5-5-5": {
+   "raw": {
+    "state": "pass",
+    "size": 122
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 116
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 97
+   }
+  },
+  "cases/catalog/collection/pipeline-9-8-7-6-5-4-3-2": {
+   "raw": {
+    "state": "pass",
+    "size": 126
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 127
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/collection/prefix-sum-0-1-0-2-0-3-0-4": {
+   "raw": {
+    "state": "pass",
+    "size": 94
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 104
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 90
+   }
+  },
+  "cases/catalog/collection/prefix-sum-1-1-2-3-5-8-13-21": {
+   "raw": {
+    "state": "pass",
+    "size": 96
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 108
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/collection/prefix-sum-1-2-3-4-5-6-7-8": {
+   "raw": {
+    "state": "pass",
+    "size": 94
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 106
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 90
+   }
+  },
+  "cases/catalog/collection/prefix-sum-10-20-30-40": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 90
+   }
+  },
+  "cases/catalog/collection/prefix-sum-2-7-1-8-2-8": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 103
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 90
+   }
+  },
+  "cases/catalog/collection/prefix-sum-3-1-4-1-5-9": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 91
+   }
+  },
+  "cases/catalog/collection/prefix-sum-5-5-5-5-5-5": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 96
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/collection/prefix-sum-9-8-7-6-5-4-3-2": {
+   "raw": {
+    "state": "pass",
+    "size": 94
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 106
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 93
+   }
+  },
+  "cases/catalog/collection/semantic-array-copy-within": {
+   "raw": {
+    "state": "pass",
+    "size": 61
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 80
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 65
+   }
+  },
+  "cases/catalog/collection/semantic-array-fill": {
+   "raw": {
+    "state": "pass",
+    "size": 51
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 71
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 52
+   }
+  },
+  "cases/catalog/collection/semantic-array-nan-membership": {
+   "raw": {
+    "state": "pass",
+    "size": 129
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 81
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 76
+   }
+  },
+  "cases/catalog/collection/semantic-array-some-short-circuit": {
+   "raw": {
+    "state": "pass",
+    "size": 81
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 89
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 76
+   }
+  },
+  "cases/catalog/collection/semantic-array-splice": {
+   "raw": {
+    "state": "pass",
+    "size": 85
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 83
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 70
+   }
+  },
+  "cases/catalog/constant-fold/fold-a-plus-twice-b-1-2": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/constant-fold/fold-a-plus-twice-b-11-17": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-a-plus-twice-b-12-19": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-a-plus-twice-b-18-4": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-a-plus-twice-b-21-6": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-a-plus-twice-b-3-5": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-a-plus-twice-b-7-9": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-a-plus-twice-b-8-13": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-1-2": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-100-25": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-11-17": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-12-19": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-127-3": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-128-4": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-18-4": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-21-6": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-25-3": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-255-5": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-256-16": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-3-5": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-32-8": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-40-2": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-41-1": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-63-7": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-64-16": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-7-9": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-8-13": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-add-99-11": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-1-2": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-100-25": {
+   "raw": {
+    "state": "pass",
+    "size": 18
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 38
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 22
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-11-17": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-12-19": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-127-3": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-128-4": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-18-4": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-21-6": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-25-3": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-255-5": {
+   "raw": {
+    "state": "pass",
+    "size": 18
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 38
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 22
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-256-16": {
+   "raw": {
+    "state": "pass",
+    "size": 18
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 38
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 22
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-3-5": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-32-8": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-40-2": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-41-1": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-63-7": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-64-16": {
+   "raw": {
+    "state": "pass",
+    "size": 18
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 38
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 22
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-7-9": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-8-13": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-mul-99-11": {
+   "raw": {
+    "state": "pass",
+    "size": 18
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 38
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 22
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-1-2": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-100-25": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-11-17": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-12-19": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-127-3": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-128-4": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-18-4": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-21-6": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-25-3": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-255-5": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-256-16": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-3-5": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-32-8": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-40-2": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-41-1": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-63-7": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-64-16": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-7-9": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-8-13": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sub-99-11": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sum-product-1-2": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/constant-fold/fold-sum-product-11-17": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-sum-product-12-19": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-sum-product-18-4": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-sum-product-21-6": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-sum-product-3-5": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-sum-product-7-9": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-sum-product-8-13": {
+   "raw": {
+    "state": "pass",
+    "size": 17
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 37
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 21
+   }
+  },
+  "cases/catalog/constant-fold/fold-twice-a-minus-b-1-2": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/constant-fold/fold-twice-a-minus-b-11-17": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/constant-fold/fold-twice-a-minus-b-12-19": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/constant-fold/fold-twice-a-minus-b-18-4": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-twice-a-minus-b-21-6": {
+   "raw": {
+    "state": "pass",
+    "size": 16
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 36
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 20
+   }
+  },
+  "cases/catalog/constant-fold/fold-twice-a-minus-b-3-5": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/constant-fold/fold-twice-a-minus-b-7-9": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/constant-fold/fold-twice-a-minus-b-8-13": {
+   "raw": {
+    "state": "pass",
+    "size": 15
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 35
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 19
+   }
+  },
+  "cases/catalog/control/dead-branch-3": {
+   "raw": {
+    "state": "pass",
+    "size": 42
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 50
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 42
+   }
+  },
+  "cases/catalog/control/dead-branch-4": {
+   "raw": {
+    "state": "pass",
+    "size": 42
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 50
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 42
+   }
+  },
+  "cases/catalog/control/dead-branch-5": {
+   "raw": {
+    "state": "pass",
+    "size": 44
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 50
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 46
+   }
+  },
+  "cases/catalog/control/dead-branch-6": {
+   "raw": {
+    "state": "pass",
+    "size": 44
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 51
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 39
+   }
+  },
+  "cases/catalog/control/dead-branch-7": {
+   "raw": {
+    "state": "pass",
+    "size": 44
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 51
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 42
+   }
+  },
+  "cases/catalog/control/early-return-0": {
+   "raw": {
+    "state": "pass",
+    "size": 107
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/control/early-return-1": {
+   "raw": {
+    "state": "pass",
+    "size": 107
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/control/early-return-2": {
+   "raw": {
+    "state": "pass",
+    "size": 107
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 114
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/control/early-return-3": {
+   "raw": {
+    "state": "pass",
+    "size": 107
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/control/early-return-4": {
+   "raw": {
+    "state": "pass",
+    "size": 107
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/control/early-return-5": {
+   "raw": {
+    "state": "pass",
+    "size": 107
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/control/early-return-6": {
+   "raw": {
+    "state": "pass",
+    "size": 107
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/control/early-return-7": {
+   "raw": {
+    "state": "pass",
+    "size": 107
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/control/early-return-8": {
+   "raw": {
+    "state": "pass",
+    "size": 107
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/control/edge-short-circuit-0-2-4": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 95
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 77
+   }
+  },
+  "cases/catalog/control/edge-short-circuit-1-2-4": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 96
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 77
+   }
+  },
+  "cases/catalog/control/edge-short-circuit-2-3-5": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 96
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 77
+   }
+  },
+  "cases/catalog/control/edge-short-circuit-3-4-6": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 96
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 78
+   }
+  },
+  "cases/catalog/control/edge-short-circuit-4-5-8": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 97
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 78
+   }
+  },
+  "cases/catalog/control/edge-short-circuit-5-7-9": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 97
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 78
+   }
+  },
+  "cases/catalog/control/edge-short-circuit-6-8-10": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 97
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 78
+   }
+  },
+  "cases/catalog/control/edge-short-circuit-7-9-12": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 97
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 78
+   }
+  },
+  "cases/catalog/control/edge-short-circuit-8-11-14": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 97
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/control/edge-short-circuit-9-12-16": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 97
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/control/enum-int-dispatch-10": {
+   "raw": {
+    "state": "pass",
+    "size": 119
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 117
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/control/enum-int-dispatch-12": {
+   "raw": {
+    "state": "pass",
+    "size": 119
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 118
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/control/enum-int-dispatch-4": {
+   "raw": {
+    "state": "pass",
+    "size": 118
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 116
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/control/enum-int-dispatch-6": {
+   "raw": {
+    "state": "pass",
+    "size": 118
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 117
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/control/enum-int-dispatch-8": {
+   "raw": {
+    "state": "pass",
+    "size": 118
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 117
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 105
+   }
+  },
+  "cases/catalog/control/frontier-enum-lazy-match": {
+   "raw": {
+    "state": "pass",
+    "size": 113
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 94
+   }
+  },
+  "cases/catalog/control/frontier-inline-for": {
+   "raw": {
+    "state": "pass",
+    "size": 192
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 142
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 127
+   }
+  },
+  "cases/catalog/control/if-chain-0": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/control/if-chain-1": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/control/if-chain-10": {
+   "raw": {
+    "state": "pass",
+    "size": 48
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 66
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 52
+   }
+  },
+  "cases/catalog/control/if-chain-11": {
+   "raw": {
+    "state": "pass",
+    "size": 48
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 66
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 52
+   }
+  },
+  "cases/catalog/control/if-chain-2": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/control/if-chain-3": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/control/if-chain-4": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/control/if-chain-5": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/control/if-chain-6": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/control/if-chain-7": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/control/if-chain-8": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/control/if-chain-9": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/effect/edge-async-task-11n4": {
+   "raw": {
+    "state": "pass",
+    "size": 84
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 101
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 85
+   }
+  },
+  "cases/catalog/effect/edge-async-task-1n2": {
+   "raw": {
+    "state": "pass",
+    "size": 83
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 99
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 73
+   }
+  },
+  "cases/catalog/effect/edge-async-task-3n5": {
+   "raw": {
+    "state": "pass",
+    "size": 83
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 100
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 80
+   }
+  },
+  "cases/catalog/effect/edge-async-task-7nn2": {
+   "raw": {
+    "state": "pass",
+    "size": 84
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 100
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 75
+   }
+  },
+  "cases/catalog/effect/edge-async-task-n5n9": {
+   "raw": {
+    "state": "pass",
+    "size": 84
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 88
+   }
+  },
+  "cases/catalog/effect/edge-exception-finally-0-1-3": {
+   "raw": {
+    "state": "pass",
+    "size": 146
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/effect/edge-exception-finally-0-10-12": {
+   "raw": {
+    "state": "pass",
+    "size": 148
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 112
+   }
+  },
+  "cases/catalog/effect/edge-exception-finally-0-4-6": {
+   "raw": {
+    "state": "pass",
+    "size": 146
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/effect/edge-exception-finally-0-7-9": {
+   "raw": {
+    "state": "pass",
+    "size": 146
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/effect/edge-exception-finally-1-2-4": {
+   "raw": {
+    "state": "pass",
+    "size": 146
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/effect/edge-exception-finally-1-5-7": {
+   "raw": {
+    "state": "pass",
+    "size": 146
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 132
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 107
+   }
+  },
+  "cases/catalog/effect/edge-exception-finally-1-8-10": {
+   "raw": {
+    "state": "pass",
+    "size": 147
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 112
+   }
+  },
+  "cases/catalog/effect/edge-exception-finally-2-3-5": {
+   "raw": {
+    "state": "pass",
+    "size": 146
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/effect/edge-exception-finally-2-6-8": {
+   "raw": {
+    "state": "pass",
+    "size": 146
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/effect/edge-exception-finally-2-9-11": {
+   "raw": {
+    "state": "pass",
+    "size": 147
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 112
+   }
+  },
+  "cases/catalog/effect/edge-generator-range-0n5n1": {
+   "raw": {
+    "state": "pass",
+    "size": 167
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 139
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/effect/edge-generator-range-1n7n2": {
+   "raw": {
+    "state": "pass",
+    "size": 167
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 140
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/effect/edge-generator-range-2n10n2": {
+   "raw": {
+    "state": "pass",
+    "size": 168
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 139
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 115
+   }
+  },
+  "cases/catalog/effect/edge-generator-range-3n12n3": {
+   "raw": {
+    "state": "pass",
+    "size": 168
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 139
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 115
+   }
+  },
+  "cases/catalog/effect/edge-generator-range-4n9n1": {
+   "raw": {
+    "state": "pass",
+    "size": 167
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 139
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/effect/edge-generator-range-5n16n3": {
+   "raw": {
+    "state": "pass",
+    "size": 168
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 140
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/effect/edge-generator-range-6n14n2": {
+   "raw": {
+    "state": "pass",
+    "size": 168
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 140
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/effect/edge-generator-range-7n11n1": {
+   "raw": {
+    "state": "pass",
+    "size": 168
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 140
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/effect/edge-generator-range-8n20n4": {
+   "raw": {
+    "state": "pass",
+    "size": 168
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 141
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/effect/edge-generator-range-n3n4n2": {
+   "raw": {
+    "state": "pass",
+    "size": 168
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 140
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/function/dce-unused-3": {
+   "raw": {
+    "state": "pass",
+    "size": 39
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 59
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 43
+   }
+  },
+  "cases/catalog/function/dce-unused-4": {
+   "raw": {
+    "state": "pass",
+    "size": 39
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 59
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 43
+   }
+  },
+  "cases/catalog/function/dce-unused-5": {
+   "raw": {
+    "state": "pass",
+    "size": 39
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 59
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 43
+   }
+  },
+  "cases/catalog/function/dce-unused-6": {
+   "raw": {
+    "state": "pass",
+    "size": 39
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 59
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 43
+   }
+  },
+  "cases/catalog/function/dce-unused-7": {
+   "raw": {
+    "state": "pass",
+    "size": 39
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 59
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 43
+   }
+  },
+  "cases/catalog/function/dce-unused-8": {
+   "raw": {
+    "state": "pass",
+    "size": 39
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 59
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 43
+   }
+  },
+  "cases/catalog/function/default-extra-args-3": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 64
+   }
+  },
+  "cases/catalog/function/default-extra-args-4": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 65
+   }
+  },
+  "cases/catalog/function/default-extra-args-5": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 65
+   }
+  },
+  "cases/catalog/function/default-extra-args-6": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 65
+   }
+  },
+  "cases/catalog/function/default-extra-args-7": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 65
+   }
+  },
+  "cases/catalog/function/default-extra-args-8": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 65
+   }
+  },
+  "cases/catalog/function/factorial-10": {
+   "raw": {
+    "state": "pass",
+    "size": 48
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 68
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 52
+   }
+  },
+  "cases/catalog/function/factorial-5": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 67
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/function/factorial-6": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 67
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/function/factorial-7": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 67
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/function/factorial-8": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 67
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 50
+   }
+  },
+  "cases/catalog/function/factorial-9": {
+   "raw": {
+    "state": "pass",
+    "size": 47
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 67
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 50
+   }
+  },
+  "cases/catalog/function/fibonacci-10": {
+   "raw": {
+    "state": "pass",
+    "size": 92
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 101
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 85
+   }
+  },
+  "cases/catalog/function/fibonacci-12": {
+   "raw": {
+    "state": "pass",
+    "size": 92
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 101
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 85
+   }
+  },
+  "cases/catalog/function/fibonacci-14": {
+   "raw": {
+    "state": "pass",
+    "size": 92
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 81
+   }
+  },
+  "cases/catalog/function/fibonacci-16": {
+   "raw": {
+    "state": "pass",
+    "size": 92
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 81
+   }
+  },
+  "cases/catalog/function/fibonacci-18": {
+   "raw": {
+    "state": "pass",
+    "size": 92
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 81
+   }
+  },
+  "cases/catalog/function/fibonacci-8": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 102
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 85
+   }
+  },
+  "cases/catalog/function/identical-helpers-2": {
+   "raw": {
+    "state": "pass",
+    "size": 62
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 62
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 53
+   }
+  },
+  "cases/catalog/function/identical-helpers-3": {
+   "raw": {
+    "state": "pass",
+    "size": 62
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 62
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 53
+   }
+  },
+  "cases/catalog/function/identical-helpers-4": {
+   "raw": {
+    "state": "pass",
+    "size": 62
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 62
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 53
+   }
+  },
+  "cases/catalog/function/identical-helpers-5": {
+   "raw": {
+    "state": "pass",
+    "size": 62
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 62
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 53
+   }
+  },
+  "cases/catalog/function/identical-helpers-6": {
+   "raw": {
+    "state": "pass",
+    "size": 62
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 62
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 53
+   }
+  },
+  "cases/catalog/function/identical-helpers-7": {
+   "raw": {
+    "state": "pass",
+    "size": 63
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 63
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 59
+   }
+  },
+  "cases/catalog/function/identical-helpers-8": {
+   "raw": {
+    "state": "pass",
+    "size": 63
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 63
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 53
+   }
+  },
+  "cases/catalog/function/identical-helpers-9": {
+   "raw": {
+    "state": "pass",
+    "size": 63
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 63
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 59
+   }
+  },
+  "cases/catalog/function/nested-fn-local-2": {
+   "raw": {
+    "state": "pass",
+    "size": 68
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 83
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 66
+   }
+  },
+  "cases/catalog/function/nested-fn-local-3": {
+   "raw": {
+    "state": "pass",
+    "size": 68
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 83
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 66
+   }
+  },
+  "cases/catalog/function/nested-fn-local-4": {
+   "raw": {
+    "state": "pass",
+    "size": 68
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 83
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 67
+   }
+  },
+  "cases/catalog/function/nested-fn-local-5": {
+   "raw": {
+    "state": "pass",
+    "size": 68
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 83
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 68
+   }
+  },
+  "cases/catalog/function/nested-fn-local-6": {
+   "raw": {
+    "state": "pass",
+    "size": 68
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 83
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 68
+   }
+  },
+  "cases/catalog/function/semantic-default-array-freshness": {
+   "raw": {
+    "state": "pass",
+    "size": 98
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 99
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 71
+   }
+  },
+  "cases/catalog/function/semantic-function-array-dispatch": {
+   "raw": {
+    "state": "pass",
+    "size": 126
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 119
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 98
+   }
+  },
+  "cases/catalog/generic/frontier-generic-equality": {
+   "raw": {
+    "state": "pass",
+    "size": 152
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 120
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 97
+   }
+  },
+  "cases/catalog/host/amd-define-guard": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 96
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 68
+   }
+  },
+  "cases/catalog/host/host-callable-as-value": {
+   "raw": {
+    "state": "pass",
+    "size": 195
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 139
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 107
+   }
+  },
+  "cases/catalog/host/host-callable-fn": {
+   "raw": {
+    "state": "pass",
+    "size": 178
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 137
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 111
+   }
+  },
+  "cases/catalog/host/host-callable-object": {
+   "raw": {
+    "state": "pass",
+    "size": 125
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 84
+   }
+  },
+  "cases/catalog/host/host-callable-undefined": {
+   "raw": {
+    "state": "pass",
+    "size": 123
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 108
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 82
+   }
+  },
+  "cases/catalog/host/host-define-configurable": {
+   "raw": {
+    "state": "pass",
+    "size": 135
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 128
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 97
+   }
+  },
+  "cases/catalog/host/host-hasown-a-b-c": {
+   "raw": {
+    "state": "pass",
+    "size": 269
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 107
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/host/host-hasown-alpha-beta-gamma-delta-epsilon-zeta-eta-theta": {
+   "raw": {
+    "state": "pass",
+    "size": 654
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 174
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 148
+   }
+  },
+  "cases/catalog/host/host-hasown-as-value": {
+   "raw": {
+    "state": "pass",
+    "size": 150
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 105
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 95
+   }
+  },
+  "cases/catalog/host/host-hasown-left-right-mid": {
+   "raw": {
+    "state": "pass",
+    "size": 287
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 120
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 96
+   }
+  },
+  "cases/catalog/host/host-hasown-name-id-ok": {
+   "raw": {
+    "state": "pass",
+    "size": 279
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 116
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/host/host-hasown-x-y": {
+   "raw": {
+    "state": "pass",
+    "size": 204
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 99
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 81
+   }
+  },
+  "cases/catalog/host/host-is-window-nullish": {
+   "raw": {
+    "state": "pass",
+    "size": 73
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 80
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 61
+   }
+  },
+  "cases/catalog/host/host-is-window-object": {
+   "raw": {
+    "state": "pass",
+    "size": 75
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 82
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 64
+   }
+  },
+  "cases/catalog/host/host-is-window-self": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 91
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 76
+   }
+  },
+  "cases/catalog/host/host-iterator-assign": {
+   "raw": {
+    "state": "pass",
+    "size": 119
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 118
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/host/host-math-max-10": {
+   "raw": {
+    "state": "pass",
+    "size": 111
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 107
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/host/host-math-max-12": {
+   "raw": {
+    "state": "pass",
+    "size": 111
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 108
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/host/host-math-max-14": {
+   "raw": {
+    "state": "pass",
+    "size": 111
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 109
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 93
+   }
+  },
+  "cases/catalog/host/host-math-max-5": {
+   "raw": {
+    "state": "pass",
+    "size": 110
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 109
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/host/host-math-max-6": {
+   "raw": {
+    "state": "pass",
+    "size": 110
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 109
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 90
+   }
+  },
+  "cases/catalog/host/host-math-max-7": {
+   "raw": {
+    "state": "pass",
+    "size": 110
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 109
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/host/host-math-max-8": {
+   "raw": {
+    "state": "pass",
+    "size": 110
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 108
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 90
+   }
+  },
+  "cases/catalog/host/host-math-max-9": {
+   "raw": {
+    "state": "pass",
+    "size": 110
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 108
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/host/host-raf-or-null-type": {
+   "raw": {
+    "state": "pass",
+    "size": 151
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 136
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/host/host-typeof-plain-object": {
+   "raw": {
+    "state": "pass",
+    "size": 73
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 58
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 54
+   }
+  },
+  "cases/catalog/host/host-window-document-type": {
+   "raw": {
+    "state": "pass",
+    "size": 71
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 65
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 50
+   }
+  },
+  "cases/catalog/host/host-window-repeat": {
+   "raw": {
+    "state": "pass",
+    "size": 119
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 77
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 48
+   }
+  },
+  "cases/catalog/host/js-and-member-missing": {
+   "raw": {
+    "state": "pass",
+    "size": 87
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 94
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 73
+   }
+  },
+  "cases/catalog/host/js-array-or-null": {
+   "raw": {
+    "state": "pass",
+    "size": 181
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 92
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 79
+   }
+  },
+  "cases/catalog/integer/bitops-1-2": {
+   "raw": {
+    "state": "pass",
+    "size": 87
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 56
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 46
+   }
+  },
+  "cases/catalog/integer/bitops-11-17": {
+   "raw": {
+    "state": "pass",
+    "size": 95
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 58
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 53
+   }
+  },
+  "cases/catalog/integer/bitops-12-19": {
+   "raw": {
+    "state": "pass",
+    "size": 95
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 58
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 54
+   }
+  },
+  "cases/catalog/integer/bitops-18-4": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 57
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 57
+   }
+  },
+  "cases/catalog/integer/bitops-21-6": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 57
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 58
+   }
+  },
+  "cases/catalog/integer/bitops-25-3": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 57
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 60
+   }
+  },
+  "cases/catalog/integer/bitops-3-5": {
+   "raw": {
+    "state": "pass",
+    "size": 87
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 56
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 46
+   }
+  },
+  "cases/catalog/integer/bitops-32-8": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 57
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 60
+   }
+  },
+  "cases/catalog/integer/bitops-40-2": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 57
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 60
+   }
+  },
+  "cases/catalog/integer/bitops-41-1": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 56
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 58
+   }
+  },
+  "cases/catalog/integer/bitops-7-9": {
+   "raw": {
+    "state": "pass",
+    "size": 87
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 56
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 46
+   }
+  },
+  "cases/catalog/integer/bitops-8-13": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 58
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 50
+   }
+  },
+  "cases/catalog/integer/edge-i32-churn-1073741824n7n13n4n11": {
+   "raw": {
+    "state": "pass",
+    "size": 159
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 131
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 110
+   }
+  },
+  "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257": {
+   "raw": {
+    "state": "pass",
+    "size": 174
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 140
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 130
+   }
+  },
+  "cases/catalog/integer/edge-i32-churn-1nn2147483647nn1n3n19": {
+   "raw": {
+    "state": "pass",
+    "size": 160
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 113
+   }
+  },
+  "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7": {
+   "raw": {
+    "state": "pass",
+    "size": 156
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 111
+   }
+  },
+  "cases/catalog/integer/edge-i32-churn-65535n65537n23n3n97": {
+   "raw": {
+    "state": "pass",
+    "size": 158
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 129
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5": {
+   "raw": {
+    "state": "pass",
+    "size": 159
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 132
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 113
+   }
+  },
+  "cases/catalog/integer/edge-i32-churn-n1n2147483647n1n3nn23": {
+   "raw": {
+    "state": "pass",
+    "size": 161
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 112
+   }
+  },
+  "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3": {
+   "raw": {
+    "state": "pass",
+    "size": 160
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 113
+   }
+  },
+  "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17": {
+   "raw": {
+    "state": "pass",
+    "size": 162
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 113
+   }
+  },
+  "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093": {
+   "raw": {
+    "state": "pass",
+    "size": 175
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 141
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 129
+   }
+  },
+  "cases/catalog/integer/mod-bucket-10": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 87
+   }
+  },
+  "cases/catalog/integer/mod-bucket-11": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 91
+   }
+  },
+  "cases/catalog/integer/mod-bucket-12": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/integer/mod-bucket-13": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/integer/mod-bucket-14": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/integer/mod-bucket-15": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 111
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/integer/mod-bucket-16": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 111
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/integer/mod-bucket-18": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 111
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/integer/mod-bucket-20": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 87
+   }
+  },
+  "cases/catalog/integer/mod-bucket-24": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/integer/mod-bucket-25": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 111
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/integer/mod-bucket-30": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 87
+   }
+  },
+  "cases/catalog/integer/mod-bucket-32": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/integer/mod-bucket-36": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 111
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/integer/mod-bucket-4": {
+   "raw": {
+    "state": "pass",
+    "size": 113
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 90
+   }
+  },
+  "cases/catalog/integer/mod-bucket-5": {
+   "raw": {
+    "state": "pass",
+    "size": 113
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 91
+   }
+  },
+  "cases/catalog/integer/mod-bucket-6": {
+   "raw": {
+    "state": "pass",
+    "size": 113
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 91
+   }
+  },
+  "cases/catalog/integer/mod-bucket-7": {
+   "raw": {
+    "state": "pass",
+    "size": 113
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 91
+   }
+  },
+  "cases/catalog/integer/mod-bucket-8": {
+   "raw": {
+    "state": "pass",
+    "size": 113
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 91
+   }
+  },
+  "cases/catalog/integer/mod-bucket-9": {
+   "raw": {
+    "state": "pass",
+    "size": 113
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 110
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 91
+   }
+  },
+  "cases/catalog/integer/semantic-integer-division-by-zero": {
+   "raw": {
+    "state": "pass",
+    "size": 62
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 64
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 59
+   }
+  },
+  "cases/catalog/integer/semantic-integer-min-div-neg-one": {
+   "raw": {
+    "state": "pass",
+    "size": 40
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 60
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 44
+   }
+  },
+  "cases/catalog/integer/semantic-integer-radix-formatting": {
+   "raw": {
+    "state": "pass",
+    "size": 102
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 74
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 70
+   }
+  },
+  "cases/catalog/integer/semantic-integer-remainder-by-zero": {
+   "raw": {
+    "state": "pass",
+    "size": 62
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 64
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 50
+   }
+  },
+  "cases/catalog/integer/semantic-integer-shift-count-masking": {
+   "raw": {
+    "state": "pass",
+    "size": 19
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 39
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 23
+   }
+  },
+  "cases/catalog/integer/semantic-integer-update-values": {
+   "raw": {
+    "state": "pass",
+    "size": 147
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 98
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/loop/edge-loop-control-10-4-9": {
+   "raw": {
+    "state": "pass",
+    "size": 135
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/loop/edge-loop-control-11-5-10": {
+   "raw": {
+    "state": "pass",
+    "size": 136
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/loop/edge-loop-control-12-2-9": {
+   "raw": {
+    "state": "pass",
+    "size": 135
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 114
+   }
+  },
+  "cases/catalog/loop/edge-loop-control-13-3-11": {
+   "raw": {
+    "state": "pass",
+    "size": 136
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 129
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 115
+   }
+  },
+  "cases/catalog/loop/edge-loop-control-14-4-12": {
+   "raw": {
+    "state": "pass",
+    "size": 136
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/loop/edge-loop-control-15-5-13": {
+   "raw": {
+    "state": "pass",
+    "size": 136
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/loop/edge-loop-control-16-6-14": {
+   "raw": {
+    "state": "pass",
+    "size": 136
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 131
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 118
+   }
+  },
+  "cases/catalog/loop/edge-loop-control-18-7-15": {
+   "raw": {
+    "state": "pass",
+    "size": 136
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 131
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 112
+   }
+  },
+  "cases/catalog/loop/edge-loop-control-8-2-7": {
+   "raw": {
+    "state": "pass",
+    "size": 134
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 130
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 115
+   }
+  },
+  "cases/catalog/loop/edge-loop-control-9-3-8": {
+   "raw": {
+    "state": "pass",
+    "size": 134
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 129
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 111
+   }
+  },
+  "cases/catalog/loop/gcd-100-35": {
+   "raw": {
+    "state": "pass",
+    "size": 79
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 98
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 76
+   }
+  },
+  "cases/catalog/loop/gcd-1071-462": {
+   "raw": {
+    "state": "pass",
+    "size": 81
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 100
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 75
+   }
+  },
+  "cases/catalog/loop/gcd-144-89": {
+   "raw": {
+    "state": "pass",
+    "size": 79
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 98
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 73
+   }
+  },
+  "cases/catalog/loop/gcd-270-192": {
+   "raw": {
+    "state": "pass",
+    "size": 80
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 99
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 78
+   }
+  },
+  "cases/catalog/loop/gcd-48-18": {
+   "raw": {
+    "state": "pass",
+    "size": 78
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 97
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 72
+   }
+  },
+  "cases/catalog/loop/gcd-512-48": {
+   "raw": {
+    "state": "pass",
+    "size": 79
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 98
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 73
+   }
+  },
+  "cases/catalog/loop/gcd-81-27": {
+   "raw": {
+    "state": "pass",
+    "size": 78
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 97
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 72
+   }
+  },
+  "cases/catalog/loop/gcd-99-27": {
+   "raw": {
+    "state": "pass",
+    "size": 78
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 97
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 72
+   }
+  },
+  "cases/catalog/loop/loop-product-0-1-0-2-0-3-0-4": {
+   "raw": {
+    "state": "pass",
+    "size": 112
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 119
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 102
+   }
+  },
+  "cases/catalog/loop/loop-product-1-1-2-3-5-8-13-21": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 123
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 105
+   }
+  },
+  "cases/catalog/loop/loop-product-1-2-3-4-5-6-7-8": {
+   "raw": {
+    "state": "pass",
+    "size": 112
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 123
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/loop/loop-product-10-20-30-40": {
+   "raw": {
+    "state": "pass",
+    "size": 108
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 118
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 98
+   }
+  },
+  "cases/catalog/loop/loop-product-11-22-33-44-55-66": {
+   "raw": {
+    "state": "pass",
+    "size": 114
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 123
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 105
+   }
+  },
+  "cases/catalog/loop/loop-product-12-4-8-16-2-6": {
+   "raw": {
+    "state": "pass",
+    "size": 110
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 120
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 102
+   }
+  },
+  "cases/catalog/loop/loop-product-15-3-9-27-1-81": {
+   "raw": {
+    "state": "pass",
+    "size": 111
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 121
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 103
+   }
+  },
+  "cases/catalog/loop/loop-product-2-3-5-7-11-13-17": {
+   "raw": {
+    "state": "pass",
+    "size": 113
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 122
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 105
+   }
+  },
+  "cases/catalog/loop/loop-product-2-7-1-8-2-8": {
+   "raw": {
+    "state": "pass",
+    "size": 108
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 119
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/loop/loop-product-3-1-4-1-5-9": {
+   "raw": {
+    "state": "pass",
+    "size": 108
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 118
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/loop/loop-product-4-9-16-25-36-49": {
+   "raw": {
+    "state": "pass",
+    "size": 112
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 122
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/loop/loop-product-5-5-5-5-5-5": {
+   "raw": {
+    "state": "pass",
+    "size": 108
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 112
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 98
+   }
+  },
+  "cases/catalog/loop/loop-product-6-1-8-2-10-3": {
+   "raw": {
+    "state": "pass",
+    "size": 109
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 119
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/loop/loop-product-7-14-21-28-35": {
+   "raw": {
+    "state": "pass",
+    "size": 110
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 121
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 102
+   }
+  },
+  "cases/catalog/loop/loop-product-9-8-7-6-5-4-3-2": {
+   "raw": {
+    "state": "pass",
+    "size": 112
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 122
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 108
+   }
+  },
+  "cases/catalog/loop/loop-sum-0-1-0-2-0-3-0-4": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 103
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/loop/loop-sum-1-1-2-3-5-8-13-21": {
+   "raw": {
+    "state": "pass",
+    "size": 95
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 105
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 88
+   }
+  },
+  "cases/catalog/loop/loop-sum-1-2-3-4-5-6-7-8": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 105
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 97
+   }
+  },
+  "cases/catalog/loop/loop-sum-10-20-30-40": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 101
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 85
+   }
+  },
+  "cases/catalog/loop/loop-sum-11-22-33-44-55-66": {
+   "raw": {
+    "state": "pass",
+    "size": 95
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 106
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/loop/loop-sum-12-4-8-16-2-6": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 103
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 86
+   }
+  },
+  "cases/catalog/loop/loop-sum-15-3-9-27-1-81": {
+   "raw": {
+    "state": "pass",
+    "size": 92
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 104
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 86
+   }
+  },
+  "cases/catalog/loop/loop-sum-2-3-5-7-11-13-17": {
+   "raw": {
+    "state": "pass",
+    "size": 94
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 105
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/loop/loop-sum-2-7-1-8-2-8": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 101
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 86
+   }
+  },
+  "cases/catalog/loop/loop-sum-3-1-4-1-5-9": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 101
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 86
+   }
+  },
+  "cases/catalog/loop/loop-sum-4-9-16-25-36-49": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 106
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 87
+   }
+  },
+  "cases/catalog/loop/loop-sum-5-5-5-5-5-5": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 95
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 83
+   }
+  },
+  "cases/catalog/loop/loop-sum-6-1-8-2-10-3": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 103
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 86
+   }
+  },
+  "cases/catalog/loop/loop-sum-7-14-21-28-35": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 104
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 86
+   }
+  },
+  "cases/catalog/loop/loop-sum-9-8-7-6-5-4-3-2": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 105
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 87
+   }
+  },
+  "cases/catalog/loop/nested-loop-score-10": {
+   "raw": {
+    "state": "pass",
+    "size": 140
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/loop/nested-loop-score-11": {
+   "raw": {
+    "state": "pass",
+    "size": 140
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/loop/nested-loop-score-12": {
+   "raw": {
+    "state": "pass",
+    "size": 140
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/loop/nested-loop-score-4": {
+   "raw": {
+    "state": "pass",
+    "size": 139
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/loop/nested-loop-score-5": {
+   "raw": {
+    "state": "pass",
+    "size": 139
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/loop/nested-loop-score-6": {
+   "raw": {
+    "state": "pass",
+    "size": 139
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/loop/nested-loop-score-7": {
+   "raw": {
+    "state": "pass",
+    "size": 139
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/loop/nested-loop-score-8": {
+   "raw": {
+    "state": "pass",
+    "size": 139
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 134
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/loop/nested-loop-score-9": {
+   "raw": {
+    "state": "pass",
+    "size": 139
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/loop/triangle-sum-10": {
+   "raw": {
+    "state": "pass",
+    "size": 89
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 93
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 82
+   }
+  },
+  "cases/catalog/loop/triangle-sum-3": {
+   "raw": {
+    "state": "pass",
+    "size": 88
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 94
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 79
+   }
+  },
+  "cases/catalog/loop/triangle-sum-4": {
+   "raw": {
+    "state": "pass",
+    "size": 88
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 94
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 81
+   }
+  },
+  "cases/catalog/loop/triangle-sum-5": {
+   "raw": {
+    "state": "pass",
+    "size": 88
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 94
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 80
+   }
+  },
+  "cases/catalog/loop/triangle-sum-6": {
+   "raw": {
+    "state": "pass",
+    "size": 88
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 94
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 80
+   }
+  },
+  "cases/catalog/loop/triangle-sum-7": {
+   "raw": {
+    "state": "pass",
+    "size": 88
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 94
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 80
+   }
+  },
+  "cases/catalog/loop/triangle-sum-8": {
+   "raw": {
+    "state": "pass",
+    "size": 88
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 94
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 81
+   }
+  },
+  "cases/catalog/loop/triangle-sum-9": {
+   "raw": {
+    "state": "pass",
+    "size": 88
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 94
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 79
+   }
+  },
+  "cases/catalog/loop/while-countdown-10": {
+   "raw": {
+    "state": "pass",
+    "size": 53
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 73
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 57
+   }
+  },
+  "cases/catalog/loop/while-countdown-4": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 55
+   }
+  },
+  "cases/catalog/loop/while-countdown-5": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 55
+   }
+  },
+  "cases/catalog/loop/while-countdown-6": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 55
+   }
+  },
+  "cases/catalog/loop/while-countdown-7": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 55
+   }
+  },
+  "cases/catalog/loop/while-countdown-8": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 55
+   }
+  },
+  "cases/catalog/loop/while-countdown-9": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 54
+   }
+  },
+  "cases/catalog/loop/win-control-flow": {
+   "raw": {
+    "state": "pass",
+    "size": 140
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 133
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 117
+   }
+  },
+  "cases/catalog/nullish/edge-nullish-optional-missing-0-8": {
+   "raw": {
+    "state": "pass",
+    "size": 171
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 120
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/nullish/edge-nullish-optional-missing-1-6": {
+   "raw": {
+    "state": "pass",
+    "size": 171
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 120
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 99
+   }
+  },
+  "cases/catalog/nullish/edge-nullish-optional-missing-2-4": {
+   "raw": {
+    "state": "pass",
+    "size": 171
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 120
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/nullish/edge-nullish-optional-missing-3-2": {
+   "raw": {
+    "state": "pass",
+    "size": 171
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 120
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/nullish/edge-nullish-optional-missing-4-0": {
+   "raw": {
+    "state": "pass",
+    "size": 171
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 120
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/nullish/edge-nullish-optional-present-0-9": {
+   "raw": {
+    "state": "pass",
+    "size": 162
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 127
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 101
+   }
+  },
+  "cases/catalog/nullish/edge-nullish-optional-present-1-7": {
+   "raw": {
+    "state": "pass",
+    "size": 162
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 127
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 101
+   }
+  },
+  "cases/catalog/nullish/edge-nullish-optional-present-2-5": {
+   "raw": {
+    "state": "pass",
+    "size": 162
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 127
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 101
+   }
+  },
+  "cases/catalog/nullish/edge-nullish-optional-present-3-3": {
+   "raw": {
+    "state": "pass",
+    "size": 162
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 125
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 99
+   }
+  },
+  "cases/catalog/nullish/edge-nullish-optional-present-4-1": {
+   "raw": {
+    "state": "pass",
+    "size": 162
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 127
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 101
+   }
+  },
+  "cases/catalog/nullish/semantic-nullish-lazy-assignment": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/number/clampn0n10n11": {
+   "raw": {
+    "state": "pass",
+    "size": 53
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 73
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 56
+   }
+  },
+  "cases/catalog/number/clampn0n10n3": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 56
+   }
+  },
+  "cases/catalog/number/clampn0n10nn2": {
+   "raw": {
+    "state": "pass",
+    "size": 53
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 73
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 57
+   }
+  },
+  "cases/catalog/number/clampn1n100n0": {
+   "raw": {
+    "state": "pass",
+    "size": 53
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 73
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 57
+   }
+  },
+  "cases/catalog/number/clampn1n100n50": {
+   "raw": {
+    "state": "pass",
+    "size": 54
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 74
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 58
+   }
+  },
+  "cases/catalog/number/clampn5n20n12": {
+   "raw": {
+    "state": "pass",
+    "size": 53
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 73
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 57
+   }
+  },
+  "cases/catalog/number/clampn5n20n25": {
+   "raw": {
+    "state": "pass",
+    "size": 53
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 73
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 57
+   }
+  },
+  "cases/catalog/number/clampn5n20n4": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 56
+   }
+  },
+  "cases/catalog/number/clampnn3n3n0": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 54
+   }
+  },
+  "cases/catalog/number/clampnn3n3n8": {
+   "raw": {
+    "state": "pass",
+    "size": 52
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 56
+   }
+  },
+  "cases/catalog/number/edge-number-flow-0p0625n0p03125n16n6": {
+   "raw": {
+    "state": "pass",
+    "size": 150
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 117
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 111
+   }
+  },
+  "cases/catalog/number/edge-number-flow-0p25n0p5n1p5n3": {
+   "raw": {
+    "state": "pass",
+    "size": 140
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 112
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 92
+   }
+  },
+  "cases/catalog/number/edge-number-flow-100p5nn10p25n0p125n4": {
+   "raw": {
+    "state": "pass",
+    "size": 154
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 121
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 116
+   }
+  },
+  "cases/catalog/number/edge-number-flow-10nn1p5n0p5n4": {
+   "raw": {
+    "state": "pass",
+    "size": 140
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 96
+   }
+  },
+  "cases/catalog/number/edge-number-flow-1p125nn0p25n3p5n5": {
+   "raw": {
+    "state": "pass",
+    "size": 148
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 117
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 113
+   }
+  },
+  "cases/catalog/number/edge-number-flow-3p75n0p125nn2n3": {
+   "raw": {
+    "state": "pass",
+    "size": 144
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 115
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 107
+   }
+  },
+  "cases/catalog/number/edge-number-flow-7p5n1p5n0p25n7": {
+   "raw": {
+    "state": "pass",
+    "size": 142
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 115
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 102
+   }
+  },
+  "cases/catalog/number/edge-number-flow-n0p5n1p25n2n4": {
+   "raw": {
+    "state": "pass",
+    "size": 140
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 111
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 98
+   }
+  },
+  "cases/catalog/number/edge-number-flow-n1nn0p75n4n3": {
+   "raw": {
+    "state": "pass",
+    "size": 138
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 112
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 97
+   }
+  },
+  "cases/catalog/number/edge-number-flow-n8p25n2p5nn0p25n5": {
+   "raw": {
+    "state": "pass",
+    "size": 148
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 116
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 109
+   }
+  },
+  "cases/catalog/number/semantic-number-math-intrinsics": {
+   "raw": {
+    "state": "pass",
+    "size": 81
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 68
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 71
+   }
+  },
+  "cases/catalog/number/semantic-number-to-int-boundaries": {
+   "raw": {
+    "state": "pass",
+    "size": 91
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 69
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 61
+   }
+  },
+  "cases/catalog/record/edge-record-json-1-left": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/record/edge-record-json-10-live": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/record/edge-record-json-2-right": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/record/edge-record-json-3-middle": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/record/edge-record-json-4-alpha": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/record/edge-record-json-5-beta": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/record/edge-record-json-6-gamma": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/record/edge-record-json-7-delta": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/record/edge-record-json-8-first": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/record/edge-record-json-9-hot": {
+   "raw": {
+    "state": "refused"
+   },
+   "gzip9": {
+    "state": "refused"
+   },
+   "brotli11": {
+    "state": "refused"
+   }
+  },
+  "cases/catalog/string/edge-string-utf16-accent": {
+   "raw": {
+    "state": "pass",
+    "size": 173
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 107
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 89
+   }
+  },
+  "cases/catalog/string/edge-string-utf16-cjk": {
+   "raw": {
+    "state": "pass",
+    "size": 184
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 114
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 95
+   }
+  },
+  "cases/catalog/string/edge-string-utf16-emoji-pair": {
+   "raw": {
+    "state": "pass",
+    "size": 172
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 107
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 97
+   }
+  },
+  "cases/catalog/string/edge-string-utf16-empty": {
+   "raw": {
+    "state": "pass",
+    "size": 165
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 107
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 87
+   }
+  },
+  "cases/catalog/string/edge-string-utf16-greek": {
+   "raw": {
+    "state": "pass",
+    "size": 173
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 108
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 95
+   }
+  },
+  "cases/catalog/string/edge-string-utf16-miss": {
+   "raw": {
+    "state": "pass",
+    "size": 176
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 112
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 80
+   }
+  },
+  "cases/catalog/string/edge-string-utf16-mixed": {
+   "raw": {
+    "state": "pass",
+    "size": 171
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 108
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/string/edge-string-utf16-music": {
+   "raw": {
+    "state": "pass",
+    "size": 173
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 109
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/string/edge-string-utf16-surrogate": {
+   "raw": {
+    "state": "pass",
+    "size": 174
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 107
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 97
+   }
+  },
+  "cases/catalog/string/edge-string-utf16-turkish": {
+   "raw": {
+    "state": "pass",
+    "size": 180
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 113
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 96
+   }
+  },
+  "cases/catalog/string/semantic-string-code-point-length": {
+   "raw": {
+    "state": "pass",
+    "size": 67
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 66
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 71
+   }
+  },
+  "cases/catalog/string/semantic-string-out-of-range-code-unit": {
+   "raw": {
+    "state": "pass",
+    "size": 66
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 63
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 50
+   }
+  },
+  "cases/catalog/string/semantic-string-repeat": {
+   "raw": {
+    "state": "pass",
+    "size": 64
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 67
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 65
+   }
+  },
+  "cases/catalog/string/semantic-string-split-empty-fields": {
+   "raw": {
+    "state": "pass",
+    "size": 74
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 80
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 76
+   }
+  },
+  "cases/catalog/string/semantic-template-interpolation": {
+   "raw": {
+    "state": "pass",
+    "size": 41
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 58
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 45
+   }
+  },
+  "cases/catalog/string/string-chars-aggregate": {
+   "raw": {
+    "state": "pass",
+    "size": 156
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 129
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 102
+   }
+  },
+  "cases/catalog/string/string-chars-brotli": {
+   "raw": {
+    "state": "pass",
+    "size": 153
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 126
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 101
+   }
+  },
+  "cases/catalog/string/string-chars-compress": {
+   "raw": {
+    "state": "pass",
+    "size": 155
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 126
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 103
+   }
+  },
+  "cases/catalog/string/string-chars-javascript": {
+   "raw": {
+    "state": "pass",
+    "size": 157
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 131
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 100
+   }
+  },
+  "cases/catalog/string/string-chars-lilscript": {
+   "raw": {
+    "state": "pass",
+    "size": 156
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 129
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 104
+   }
+  },
+  "cases/catalog/string/string-chars-mangling": {
+   "raw": {
+    "state": "pass",
+    "size": 155
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 129
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 102
+   }
+  },
+  "cases/catalog/string/string-concat-alpha-beta": {
+   "raw": {
+    "state": "pass",
+    "size": 84
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 74
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 75
+   }
+  },
+  "cases/catalog/string/string-concat-closed-world": {
+   "raw": {
+    "state": "pass",
+    "size": 88
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 69
+   }
+  },
+  "cases/catalog/string/string-concat-codec-bytes": {
+   "raw": {
+    "state": "pass",
+    "size": 86
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 75
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 70
+   }
+  },
+  "cases/catalog/string/string-concat-compress-brotli": {
+   "raw": {
+    "state": "pass",
+    "size": 93
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 79
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 64
+   }
+  },
+  "cases/catalog/string/string-concat-dead-code": {
+   "raw": {
+    "state": "pass",
+    "size": 82
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 72
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 70
+   }
+  },
+  "cases/catalog/string/string-concat-host-alias": {
+   "raw": {
+    "state": "pass",
+    "size": 84
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 74
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 74
+   }
+  },
+  "cases/catalog/string/string-concat-inline-call": {
+   "raw": {
+    "state": "pass",
+    "size": 86
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 75
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 70
+   }
+  },
+  "cases/catalog/string/string-concat-lilscript-javascript": {
+   "raw": {
+    "state": "pass",
+    "size": 95
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 79
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 66
+   }
+  },
+  "cases/catalog/string/string-concat-mangle-identifier": {
+   "raw": {
+    "state": "pass",
+    "size": 95
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 81
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 70
+   }
+  },
+  "cases/catalog/string/string-concat-scalar-replace": {
+   "raw": {
+    "state": "pass",
+    "size": 92
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 78
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 68
+   }
+  },
+  "cases/catalog/string/string-concat-struct-layout": {
+   "raw": {
+    "state": "pass",
+    "size": 90
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 77
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 71
+   }
+  },
+  "cases/catalog/string/string-concat-typed-aggregate": {
+   "raw": {
+    "state": "pass",
+    "size": 92
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 79
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 72
+   }
+  },
+  "cases/catalog/string/string-index-Ab": {
+   "raw": {
+    "state": "pass",
+    "size": 113
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 74
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 60
+   }
+  },
+  "cases/catalog/string/string-index-CdEf": {
+   "raw": {
+    "state": "pass",
+    "size": 117
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 76
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 66
+   }
+  },
+  "cases/catalog/string/string-index-Decode": {
+   "raw": {
+    "state": "pass",
+    "size": 119
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 78
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 66
+   }
+  },
+  "cases/catalog/string/string-index-Encode": {
+   "raw": {
+    "state": "pass",
+    "size": 119
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 78
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 66
+   }
+  },
+  "cases/catalog/string/string-index-HiJkLm": {
+   "raw": {
+    "state": "pass",
+    "size": 119
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 78
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 70
+   }
+  },
+  "cases/catalog/string/string-index-NoPqRsTu": {
+   "raw": {
+    "state": "pass",
+    "size": 121
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 80
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 72
+   }
+  },
+  "cases/catalog/string/string-index-Script": {
+   "raw": {
+    "state": "pass",
+    "size": 119
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 78
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 63
+   }
+  },
+  "cases/catalog/string/string-index-VwXyZ": {
+   "raw": {
+    "state": "pass",
+    "size": 118
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 77
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 68
+   }
+  },
+  "cases/catalog/string/string-pool-application-build-identifier": {
+   "raw": {
+    "state": "pass",
+    "size": 97
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 67
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 50
+   }
+  },
+  "cases/catalog/string/string-pool-closed-world-mangling-token": {
+   "raw": {
+    "state": "pass",
+    "size": 96
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 66
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 51
+   }
+  },
+  "cases/catalog/string/string-pool-compression-first-language-label": {
+   "raw": {
+    "state": "pass",
+    "size": 101
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 70
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 50
+   }
+  },
+  "cases/catalog/string/string-search-ArrayPrototype-Proto": {
+   "raw": {
+    "state": "pass",
+    "size": 191
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 98
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 81
+   }
+  },
+  "cases/catalog/string/string-search-LilScript-Lil": {
+   "raw": {
+    "state": "pass",
+    "size": 188
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 93
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 77
+   }
+  },
+  "cases/catalog/string/string-search-LilScript-Script": {
+   "raw": {
+    "state": "pass",
+    "size": 187
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 92
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 77
+   }
+  },
+  "cases/catalog/string/string-search-compression-press": {
+   "raw": {
+    "state": "pass",
+    "size": 188
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 95
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 77
+   }
+  },
+  "cases/catalog/string/string-search-functionToString-To": {
+   "raw": {
+    "state": "pass",
+    "size": 192
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 100
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 71
+   }
+  },
+  "cases/catalog/string/string-search-hasOwnProperty-Own": {
+   "raw": {
+    "state": "pass",
+    "size": 193
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 98
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 76
+   }
+  },
+  "cases/catalog/string/string-search-javascript-script": {
+   "raw": {
+    "state": "pass",
+    "size": 188
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 93
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 67
+   }
+  },
+  "cases/catalog/string/string-search-objectHasOwn-Has": {
+   "raw": {
+    "state": "pass",
+    "size": 191
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 96
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 78
+   }
+  },
+  "cases/catalog/union/semantic-union-string-int-flow": {
+   "raw": {
+    "state": "pass",
+    "size": 68
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 73
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 57
+   }
+  },
+  "cases/catalog/winner/win-aggregate-model": {
+   "raw": {
+    "state": "pass",
+    "size": 252
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 171
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 164
+   }
+  },
+  "cases/catalog/winner/win-class-scale": {
+   "raw": {
+    "state": "pass",
+    "size": 157
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 128
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 115
+   }
+  },
+  "cases/catalog/winner/win-optimizer-pressure": {
+   "raw": {
+    "state": "pass",
+    "size": 303
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 193
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 165
+   }
+  },
+  "cases/catalog/winner/win-point-batch": {
+   "raw": {
+    "state": "pass",
+    "size": 203
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 175
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 153
+   }
+  }
+ }
+}

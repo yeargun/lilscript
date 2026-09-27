@@ -18,6 +18,11 @@ import {
 } from "../../benchmarks/codec-contract.mjs";
 import { catalog } from "./catalog.mjs";
 import {
+  baselineOptions,
+  baselineToolNames,
+  javascriptTarget,
+} from "./recipes.mjs";
+import {
   assertNoBehaviorLabelSplits,
   MIN_UNIQUE_GENERATED_BEHAVIORS,
   summarizeBehaviorCoverage,
@@ -41,62 +46,6 @@ const generatedRoot = join(here, "generated");
 const buildRoot = join(here, "build");
 const oraclePath = join(here, "oracle-manifest.json");
 const metrics = ["raw", "gzip9", "brotli11"];
-const javascriptTarget = "es2022";
-const baselineToolNames = [
-  "terser",
-  "terser-properties",
-  "oxc",
-  "esbuild-script",
-  "esbuild-iife",
-];
-const baselineOptions = {
-  terser: {
-    ecma: 2022,
-    compress: {
-      ecma: 2022,
-      passes: 3,
-      drop_console: false,
-      toplevel: true,
-    },
-    mangle: { toplevel: true },
-    format: { ecma: 2022, comments: false },
-  },
-  "terser-properties": {
-    ecma: 2022,
-    compress: {
-      ecma: 2022,
-      passes: 3,
-      drop_console: false,
-      toplevel: true,
-    },
-    mangle: {
-      toplevel: true,
-      properties: {
-        builtins: false,
-        keep_quoted: true,
-        reserved: ["__proto__", "constructor", "prototype"],
-      },
-    },
-    format: { ecma: 2022, comments: false },
-  },
-  oxc: {
-    module: false,
-    compress: { target: javascriptTarget },
-    mangle: { toplevel: true },
-    codegen: { target: javascriptTarget, legalComments: "none" },
-  },
-  "esbuild-script": {
-    minify: true,
-    target: javascriptTarget,
-    legalComments: "none",
-  },
-  "esbuild-iife": {
-    minify: true,
-    target: javascriptTarget,
-    legalComments: "none",
-    format: "iife",
-  },
-};
 const lanes = [
   { name: "raw", metric: "raw", config: join(here, "configs/raw.toml") },
   { name: "gzip", metric: "gzip9", config: join(here, "configs/gzip.toml") },

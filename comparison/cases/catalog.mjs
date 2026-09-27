@@ -740,14 +740,17 @@ console.log(total);`,
 
   for (const n of [5, 6, 7, 8, 9, 10, 12, 14]) {
     add(cases, "host/math-max", `host-math-max-${n}`, {
-      lil: `extern float mathMax(float a, float b);
-extern float mathMin(float a, float b);
+      lil: `extern class MathHost {
+  float max(float a, float b);
+  float min(float a, float b);
+}
+extern MathHost Math;
 float hi = 0.0;
 float lo = 100.0;
 for (int i = 1; i <= ${n}; i++) {
   float v = i;
-  hi = mathMax(hi, v);
-  lo = mathMin(lo, v);
+  hi = Math.max(hi, v);
+  lo = Math.min(lo, v);
 }
 print(hi);
 print(lo);`,
@@ -774,7 +777,7 @@ console.log(lo);`,
       .join("\n");
     const jsObj = Object.fromEntries(keys.map((key, index) => [key, index + 1]));
     const checks = keys
-      .map((key) => `if (objectHasOwn(object, "${key}")) {
+      .map((key) => `if (Object.hasOwn(object, "${key}")) {
   print(1);
 } else {
   print(0);
@@ -788,10 +791,13 @@ console.log(lo);`,
 }`)
       .join("\n");
     add(cases, "host/object-has-own", `host-hasown-${keys.join("-")}`, {
-      lil: `extern bool objectHasOwn(JsValue obj, string key);
+      lil: `extern class ObjectHost {
+  bool hasOwn(JsValue obj, string key);
+}
+extern ObjectHost Object;
 JsValue object = JS.object();
 ${sets}
-if (objectHasOwn(object, "missing")) {
+if (Object.hasOwn(object, "missing")) {
   print(1);
 } else {
   print(0);
@@ -811,10 +817,13 @@ ${jsChecks}`,
     terserProperties: false,
     terserPropertyReason:
       "Object.hasOwn receives quoted public keys whose spelling is observable",
-    lil: `extern bool objectHasOwn(JsValue obj, string key);
+    lil: `extern class ObjectHost {
+  bool hasOwn(JsValue obj, string key);
+}
+extern ObjectHost Object;
 JsValue object = JS.object();
 JS.set(object, "keep", 1);
-func(JsValue, string)->bool has = objectHasOwn;
+func(JsValue, string)->bool has = (JsValue obj, string key) => Object.hasOwn(obj, key);
 if (has(object, "keep")) {
   print(1);
 } else {
@@ -1754,7 +1763,9 @@ resolveValue(${seed}).then(value => console.log(value));`,
   }
 
   add(cases, "host/callable-predicate", `host-callable-object`, {
-    lil: `extern bool isFunctionValue(JsValue obj);
+    lil: `bool isFunctionValue(JsValue obj) {
+  return JS.typeOf(obj) == "function" && JS.typeOf(obj["nodeType"]) != "number" && JS.typeOf(obj["item"]) != "function";
+}
 if (isFunctionValue(JS.object())) {
   print(1);
 } else {
@@ -1769,7 +1780,9 @@ if (typeof value == "function" && typeof value.nodeType != "number" && typeof va
   });
 
   add(cases, "host/callable-predicate", `host-callable-fn`, {
-    lil: `extern bool isFunctionValue(JsValue obj);
+    lil: `bool isFunctionValue(JsValue obj) {
+  return JS.typeOf(obj) == "function" && JS.typeOf(obj["nodeType"]) != "number" && JS.typeOf(obj["item"]) != "function";
+}
 JsValue value = JS.method0((JsValue self) => self);
 if (isFunctionValue(value)) {
   print(1);
@@ -1785,7 +1798,9 @@ if (typeof value == "function" && typeof value.nodeType != "number" && typeof va
   });
 
   add(cases, "host/callable-predicate", `host-callable-undefined`, {
-    lil: `extern bool isFunctionValue(JsValue obj);
+    lil: `bool isFunctionValue(JsValue obj) {
+  return JS.typeOf(obj) == "function" && JS.typeOf(obj["nodeType"]) != "number" && JS.typeOf(obj["item"]) != "function";
+}
 if (isFunctionValue(JS.undefined())) {
   print(1);
 } else {
@@ -1800,7 +1815,9 @@ if (typeof value == "function" && typeof value.nodeType != "number" && typeof va
   });
 
   add(cases, "host/callable-detached-value", `host-callable-as-value`, {
-    lil: `extern bool isFunctionValue(JsValue obj);
+    lil: `bool isFunctionValue(JsValue obj) {
+  return JS.typeOf(obj) == "function" && JS.typeOf(obj["nodeType"]) != "number" && JS.typeOf(obj["item"]) != "function";
+}
 JsValue value = JS.method0((JsValue self) => self);
 func(JsValue)->bool isFn = isFunctionValue;
 if (isFn(value)) {
@@ -1817,7 +1834,9 @@ if (isFn(function(){ return this; })) {
   });
 
   add(cases, "host/window-identity-predicate", `host-is-window-object`, {
-    lil: `extern bool isWindowValue(JsValue obj);
+    lil: `bool isWindowValue(JsValue obj) {
+  return obj != null && JS.strictEqual(obj, obj["window"]);
+}
 if (isWindowValue(JS.object())) {
   print(1);
 } else {
@@ -1832,7 +1851,9 @@ if (value != null && value === value.window) {
   });
 
   add(cases, "host/window-identity-predicate", `host-is-window-self`, {
-    lil: `extern bool isWindowValue(JsValue obj);
+    lil: `bool isWindowValue(JsValue obj) {
+  return obj != null && JS.strictEqual(obj, obj["window"]);
+}
 JsValue value = JS.object();
 JS.set(value, "window", value);
 if (isWindowValue(value)) {
@@ -1850,7 +1871,9 @@ if (value != null && value === value.window) {
   });
 
   add(cases, "host/window-identity-predicate", `host-is-window-nullish`, {
-    lil: `extern bool isWindowValue(JsValue obj);
+    lil: `bool isWindowValue(JsValue obj) {
+  return obj != null && JS.strictEqual(obj, obj["window"]);
+}
 if (isWindowValue(JS.undefined())) {
   print(1);
 } else {
@@ -1865,11 +1888,9 @@ if (value != null && value === value.window) {
   });
 
   add(cases, "host/window-document-type", `host-window-document-type`, {
-    lil: `extern JsValue windowSelf();
-extern JsValue windowDocument();
-extern string typeOf(JsValue value);
-print(typeOf(windowSelf()));
-print(typeOf(windowDocument()));`,
+    lil: `extern JsValue globalThis;
+print(JS.typeOf(globalThis));
+print(JS.typeOf(globalThis["document"]));`,
     js: `const win = typeof window < "u" ? window : globalThis;
 console.log(typeof win);
 console.log(typeof win.document);`,
@@ -1896,9 +1917,15 @@ if (typeof node == "string") {
     terserProperties: false,
     terserPropertyReason:
       "Object.defineProperty and Object.hasOwn share a quoted public key",
-    lil: `extern void defineConfigurable(JsValue obj, string key, JsValue value);
+    lil: `extern class ObjectHost {
+  JsValue defineProperty(JsValue obj, string key, JsValue descriptor);
+}
+extern ObjectHost Object;
 JsValue object = JS.object();
-defineConfigurable(object, "keep", JS.object());
+JsValue descriptor = JS.object();
+JS.set(descriptor, "value", JS.object());
+JS.set(descriptor, "configurable", true);
+Object.defineProperty(object, "keep", descriptor);
 if (JS.has(object, "keep")) {
   print(1);
 } else {
@@ -1914,10 +1941,15 @@ if (Object.hasOwn(object, "keep")) {
   });
 
   add(cases, "host/iterator-assignment", `host-iterator-assign`, {
-    lil: `extern void defineIterator(JsValue obj, JsValue iterator);
-extern JsValue getArrayIterator();
+    lil: `extern class ReflectHost {
+  bool set(JsValue target, JsValue key, JsValue value);
+  JsValue get(JsValue target, JsValue key);
+}
+extern ReflectHost Reflect;
+extern JsValue globalThis;
 JsValue object = JS.object();
-defineIterator(object, getArrayIterator());
+JsValue iterator = globalThis["Symbol"]["iterator"];
+Reflect.set(object, iterator, Reflect.get(globalThis["Array"]["prototype"], iterator));
 print(JS.typeOf(object));`,
     js: `const object = {};
 object[Symbol.iterator] = Array.prototype[Symbol.iterator];
@@ -1925,9 +1957,13 @@ console.log(typeof object);`,
   });
 
   add(cases, "host/raf-nullish-type", `host-raf-or-null-type`, {
-    lil: `extern JsValue requestAnimationFrameOrNull(JsValue fn);
-extern string typeOf(JsValue value);
-print(typeOf(requestAnimationFrameOrNull((JsValue self) => self)));`,
+    lil: `extern JsValue globalThis;
+JsValue frame = globalThis["requestAnimationFrame"];
+JsValue raf = JS.undefined();
+if (frame != null) {
+  raf = JS.call(frame, globalThis, JS.method0((JsValue self) => self));
+}
+print(JS.typeOf(raf));`,
     js: `const raf = (typeof window < "u" ? window : globalThis).requestAnimationFrame?.(function(){});
 console.log(typeof raf);`,
   });
@@ -1976,8 +2012,8 @@ if (asArray(void 0) == null) { console.log(0); } else { console.log(1); }`,
     terserProperties: false,
     terserPropertyReason:
       "amd is a public property supplied by an open-world module loader",
-    lil: `extern JsValue windowSelf();
-JsValue root = windowSelf();
+    lil: `extern JsValue globalThis;
+JsValue root = globalThis;
 JsValue define = root["define"];
 if (JS.typeOf(define) == "function" && define["amd"].truthy()) {
   print(1);
@@ -1994,10 +2030,10 @@ if (typeof define == "function" && define.amd) {
   });
 
   add(cases, "host/window-repeated-read", `host-window-repeat`, {
-    lil: `extern JsValue windowSelf();
-print(JS.typeOf(windowSelf()["document"]));
-print(JS.typeOf(windowSelf()["location"]));
-print(JS.typeOf(windowSelf()["console"]));`,
+    lil: `extern JsValue globalThis;
+print(JS.typeOf(globalThis["document"]));
+print(JS.typeOf(globalThis["location"]));
+print(JS.typeOf(globalThis["console"]));`,
     js: `const w = typeof window < "u" ? window : globalThis;
 console.log(typeof w.document);
 console.log(typeof w.location);

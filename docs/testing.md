@@ -1,11 +1,13 @@
-# Testing the compiler: the case runner and the port runner
+# Testing the compiler: the case runner, the port runner and the ratchet
 
-Two versioned runners check a compiler binary. Both pin the binary by SHA-256, both compare failures against an **expected-failure ledger**, and both exit 1 only on a failure the ledger does not list.
+Three versioned runners check a compiler binary. Each pins the binary by SHA-256, compares what fails against a ledger whose entries name an owner task, and exits 1 on anything the ledger does not cover. Two ledger tests guard the source tree itself.
 
-| Runner | Plan task | Replaces |
+| Runner or test | Plan task | Replaces |
 |---|---|---|
 | `scripts/cases.mjs` | M2.2 | `finer/tools/semantic-census.mjs` (development mode only) and the knob configs in `tests/config/` |
 | `scripts/ports.mjs` | M2.6 | `finer/tools/semantic-port-tests.mjs`, `finer/tools/portgate.mjs` and the unversioned `~/lilscript-work/tools/*.sh` |
+| `scripts/ratchet.mjs` | M2.13 | the always-failing hard gates of `comparison/cases/run.mjs` and `comparison/algorithms/run.mjs` as per-change evidence |
+| `src/no_library_knowledge_tests.rs` (NO3) and `tests/idiom-debt.json` (NO4) | M2.13 | — |
 
 Run both with Node 24 (`~/.nvm/versions/node/v24.11.1/bin/node` on the build host). There is one compiler, so neither selects a route. The generated differential batch, a third check, is described in [differential-testing.md](differential-testing.md).
 
@@ -151,6 +153,81 @@ The runner also records failures that are not tests, under pseudo-names:
 The report pins the compiler and codec digests, each port's git HEAD and dirty state, the patch digest, and every configuration rewrite. It also gives each `dist/` file's bytes, SHA-256 and codec sizes, the number of compiler calls, and the build and test times.
 
 The runners' pure parts (feature detection, lane selection, configuration merging, objective rewriting, failing-test parsing) have unit tests: `node --test scripts/verify-runners.test.mjs`.
+
+## The generic corpus ratchet
+
+```sh
+node scripts/ratchet.mjs --compiler target/release/lilscript
+node scripts/ratchet.mjs --compiler <bin> --filter 'apps/*,cases/catalog/loop/*' --json out.json --markdown out.md
+node scripts/ratchet.mjs --compiler <bin> --update-baseline
+node scripts/ratchet.mjs --refresh-bars --compiler <bin> --reference ~/lilscript-work/bin/reference-2026-09-23/lilscript
+```
+
+The architecture's NO2 (§18.3) as a blocking gate (L21, plan rule 3). Three corpora, none of them a port:
+
+| Corpus | Items | Oracle | Configuration | Bars |
+|---|---|---|---|---|
+| `comparison/cases` | 54 canonical folders and the 570 catalog variants; a catalog id carries its behavior family, `cases/catalog/<family>/<name>` | the original JavaScript's stdout; the catalog's oracle digest (`oracle-manifest.json`) must match | `comparison/cases/configs/<codec>.toml` | competitor, old |
+| `comparison/apps` | 7 programs written for Closure ADVANCED | `tests/stdout.txt` | `comparison/cases/configs/<codec>.toml` | competitor, closure, old |
+| `comparison/algorithms` | 11 host-fed programs | each vector's stdout and the reference program's ordered host accesses | `comparison/algorithms/configs/<codec>.toml` | competitor, closure, old |
+
+Each item compiles once per objective lane (raw, gzip, Brotli; `--target js --mode production`), runs against its oracle and is measured with `lilscript-codec`. Its artifact is then compared, in the lane's own metric, with the bars in `tests/ratchet/bars.json`:
+- **competitor**: the smallest valid Terser (with and without its safe property lane), Oxc or esbuild artifact, from the recipes in `comparison/cases/recipes.mjs`; the algorithms add their harness's bundler lanes;
+- **closure**: Closure ADVANCED (apps: `comparison/artifacts/*/closure-advanced.js`; algorithms: their harness);
+- **old**: the frozen old route, `reference-2026-09-23 --backend legacy`, with the configurations it read (`tests/ratchet/old-route/`).
+
+An item **loses** to a bar when it is larger. A lane with no artifact (refused, crashed, wrong output) is a **failure**.
+
+| Flag | Meaning | Default |
+|---|---|---|
+| `--compiler` | the binary under test (copied and pinned by SHA-256) | required |
+| `--codec` | `lilscript-codec` | beside the compiler |
+| `--sets` | `cases`, `apps`, `algorithms`, comma-separated | all three |
+| `--filter` | item ids: comma-separated substrings or globs | every item |
+| `--jobs` | parallel compiles and runs | min(3, CPUs − 2) |
+| `--json`, `--markdown` | reports | — |
+| `--bars`, `--baseline`, `--ledger` | the three files below | `tests/ratchet/` |
+| `--update-baseline` | write the run as the new baseline; refused while anything blocks, and from a partial run | off |
+| `--refresh-bars` | rebuild `bars.json`: runs both comparison harnesses (they need `benchmarks/popular`'s pinned competitors and Closure) and compiles every item with `--reference` | off |
+
+**What blocks (exit 1).** Against `tests/ratchet/baseline.json` (each item's sizes, or failure state, from the last accepted run):
+- any loss count grows, per corpus, metric and bar;
+- any item's loss to any bar grows, including a new loss (growth from zero), compared over the lanes that passed in both runs: a lane that starts compiling (a refusal fixed) is not growth, but its losses need ledger entries like any other;
+- an item lane that passed now fails;
+- a loss or failure that no entry of `tests/ratchet/ledger.json` covers;
+- the bars changed under the baseline: a bar refresh is a scheduled re-baseline event (BC3), recorded with `--update-baseline`.
+
+**What is reported.** Loss counts that fell, losses that shrank, lanes that now pass, new corpus items, and ledger entries that cover nothing (on full runs). `--update-baseline` tightens the baseline to them. The baseline never records a regression: that takes a hand edit the owner reviews.
+
+**The ledger.** Entries of kind `loss` (items, optional `bars` and `metrics`) or `failure` (items, optional `metrics`), each with a `reason` and an `owner` task; the runner refuses an entry without them. Coverage is not permission to grow: the baseline still blocks growth of a covered loss.
+
+**Bars and time.** The gate needs Node, the compiler and the codec only; the bars, the old route's configurations and the algorithms' reference host traces are committed. A full run is about 40 s at `--jobs 3` on the build host, and runs in CI's gate job.
+
+### Baseline: head-d1d48c4c, 2026-09-27
+
+Bars refreshed on 2026-09-27: Terser 5.50.0, Oxc through Rolldown 1.2.4, esbuild 0.28.1, Closure v20260804, and the reference binary (SHA-256 `df85958…`). The baseline is `head-d1d48c4c` (SHA-256 `47048e41…`); a build of this branch reproduces every item's sizes exactly.
+
+Brotli totals, ours against each bar over the items where both exist, and how many items lose:
+
+| Corpus | Items passing | vs smallest competitor | vs Closure ADVANCED | vs old route |
+|---|---:|---|---|---|
+| `comparison/cases` | 612 of 624 | 49,223 / 43,541 (439 lose) | — | 49,126 / 33,656 over 611 (603 lose) |
+| `comparison/apps` | 7 | 945 / 870 (5) | 945 / 834 (7) | 945 / 558 (7) |
+| `comparison/algorithms` | 11 | 3,250 / 3,039 (9) | 3,250 / 2,703 (11) | 3,250 / 2,305 (11) |
+
+| Loss counts | raw | gzip9 | brotli11 |
+|---|---|---|---|
+| cases vs competitor / old | 399 / 610 | 400 / 600 | 439 / 603 |
+| apps vs competitor / Closure / old | 1 / 5 / 7 | 3 / 6 / 7 | 5 / 7 / 7 |
+| algorithms vs competitor / Closure / old | 5 / 11 / 11 | 8 / 11 / 11 | 9 / 11 / 11 |
+
+Twelve cases fail in every lane, both ledgered: eleven are refused on record spread (M10.8) and one on `??=` on a place (M10.9). The 27 catalog variants that called name-keyed host helpers the old route gave bodies to (`mathMax`, `objectHasOwn`, `isFunctionValue`, …; dropped by design in M1), and the canonical `host/math-max`, were rewritten to declared host bindings (`extern class` views of `Math`, `Object` and `Reflect`, `globalThis`) or to the predicate the reference program spells; their JavaScript oracles are unchanged. The case configurations load with no "no effect" warning (BC12): the six retired keys they carried were removed, and each configuration's policy fingerprint is unchanged.
+
+## Library knowledge (NO3) and idiom debt (NO4)
+
+`src/no_library_knowledge_tests.rs` runs with `cargo test --lib`. It reads every non-test file under `src/` (test files, fixtures and inline `#[cfg(test)] mod … {}` bodies excluded) and counts mentions of ports and upstream libraries (case-insensitive names such as `katex`, `jquery`, `zod`; library spellings only for English words such as `markedlil` or `motionlil`). Each (file, library) count must equal its entry in `tests/no3-allowlist.json`, which gives the reason and the owner task: a new mention fails, and a removed mention must lower its entry in the same change, so the ledger only shrinks. On 2026-09-27 it holds 30 mentions in 22 entries, every one a comment that justifies a rule, a default or a schedule constant by one port's measurement; M8.7 empties it.
+
+`tests/idiom-debt.json` is the idiom debt ledger (schema `tests/idiom-debt.schema.json`, checked by `node --test scripts/verify-runners.test.mjs`). An entry records a port rewrite needed only because the compiler handles the idiomatic form badly: both forms, the idiomatic form's regression case in this repository, their sizes under one codec and binary, and the owner task; the compiler owes size(idiomatic) ≤ size(workaround). It starts empty; the pairing tasks of M12.6 and the language slices file into it.
 
 ## The expected-failure ledgers
 

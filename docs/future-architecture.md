@@ -329,7 +329,7 @@ Beating the competitors by design means doing everything they do that is legal u
 | Known-method folds (`"ab".length`, `Math` on constants where `exact`) | Closure, Oxc | M4.6 folds: rule | catalog cases |
 | Coercion elision (`\|0`, unary `+`, `x+""`) from value facts | Oxc, Terser | M9.12: coupled choice (whole set) | diagnosis C8 ("partial sets go positive") |
 
-**The gate.** The generic corpus (`comparison/cases`: 54 canonical cases and 570 catalog variants; `comparison/apps`; `comparison/algorithms`) is a per-change ratchet: its loss count against the smallest competitor and against Closure ADVANCED never rises, and each rule names the cases it wins. The floor slice's interim exit is no loss to the frozen old route on `apps` and `algorithms` (571 and 2,305 Brotli); M7's exit is no loss to Closure ADVANCED there (§18.3, NO2).
+**The gate.** The generic corpus (`comparison/cases`: 54 canonical cases and 570 catalog variants; `comparison/apps`; `comparison/algorithms`) is a per-change ratchet: its loss count against the smallest competitor and against Closure ADVANCED never rises, and each rule names the cases it wins. The floor slice's interim exit is no loss to the frozen old route on `apps` and `algorithms` (558 and 2,305 Brotli, the ratchet's bars); M7's exit is no loss to Closure ADVANCED there (§18.3, NO2).
 
 ---
 
@@ -734,7 +734,7 @@ There is no diminishing-returns stop at or above the default level: the budget b
 
 ### 13.5 Parallelism with deterministic output
 
-Speculative parallel greedy with in-order commit: workers form, proxy-judge and exact-judge the next b moves against the current incumbent; commits happen in list order; after a keep, later speculative verdicts are re-judged. The delivered bytes equal the sequential walk for every b and thread count, and WU charges the sequential walk's judgements. One flag, `-j N` (formation, render and codec workers), default min(cores, 4) (schedule data), never fingerprinted. Multi-objective builds parallelize by objective; multi-entry delivery prints chunks in parallel. Today `-j` and `--codec-jobs` are accepted no-ops (`src/main.rs:130-134`) and `rayon` is declared but unused (`Cargo.toml:14`).
+Speculative parallel greedy with in-order commit: workers form, proxy-judge and exact-judge the next b moves against the current incumbent; commits happen in list order; after a keep, later speculative verdicts are re-judged. The delivered bytes equal the sequential walk for every b and thread count, and WU charges the sequential walk's judgements. One flag, `-j N` (formation, render and codec workers), default min(cores, 4) (schedule data), never fingerprinted. Multi-objective builds parallelize by objective; multi-entry delivery prints chunks in parallel. Today `-j` and `--codec-jobs` are accepted no-ops (`src/main.rs:130-134`); `rayon`, declared but never used, was removed in M2.13.
 
 ### 13.6 Caches and incremental work
 

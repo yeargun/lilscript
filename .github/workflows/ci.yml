@@ -8,9 +8,10 @@ on:
 
 jobs:
   # The gate: one Linux job over the compiler, its unit tests, the case runner
-  # (every case and harvested regression in 18 lanes, against the ledger) and
-  # the codec contract. Publishing lives in scripts/release-check.sh and runs
-  # on demand, never in the gate (plan M2.1).
+  # (every case and harvested regression in 18 lanes, against the ledger), the
+  # generic corpus ratchet (plan M2.13: committed bars, no competitor install)
+  # and the codec contract. Publishing lives in scripts/release-check.sh and
+  # runs on demand, never in the gate (plan M2.1).
   gate:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -32,13 +33,17 @@ jobs:
       - run: node --test benchmarks/codec-contract.test.mjs
       - run: node --test scripts/verify-runners.test.mjs
       - run: node scripts/cases.mjs --compiler target/release/lilscript --json cases.json
-      - name: Upload the case report
+      - run: node scripts/ratchet.mjs --compiler target/release/lilscript --jobs 4 --json ratchet.json --markdown ratchet.md
+      - name: Upload the case and ratchet reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cases
           if-no-files-found: warn
-          path: cases.json
+          path: |
+            cases.json
+            ratchet.json
+            ratchet.md
 
   # The three-platform build runs on pull requests and on demand.
   build-matrix:

@@ -21,6 +21,8 @@ pub mod lexer;
 pub mod lint;
 pub mod literal;
 pub mod module;
+#[cfg(test)]
+mod no_library_knowledge_tests;
 mod output_budget;
 pub mod package;
 pub mod parser;

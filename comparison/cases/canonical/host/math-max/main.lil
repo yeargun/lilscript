@@ -1,4 +1,7 @@
-extern float mathMax(float a, float b);
-extern float mathMin(float a, float b);
-print(mathMax(3.0, 9.0));
-print(mathMin(3.0, 9.0));
+extern class MathHost {
+  float max(float a, float b);
+  float min(float a, float b);
+}
+extern MathHost Math;
+print(Math.max(3.0, 9.0));
+print(Math.min(3.0, 9.0));

@@ -23,7 +23,7 @@ that commit. Expected stdout comes from each test's own assertions, never from r
   `try/catch`, the prelude uses `process.on('uncaughtException')`.
 - `.toml`: only language or contract settings the test set: `javascript.public_aggregate_abi = "positional"` (the
   test's `public_aggregate_fields = false`; refused since M1.4, D2, and kept only where the host reads positional
-  slots, as ledgered refusal cases), `javascript.assume_pristine_builtins`, `mangle.extern_fields` (no effect since M1.4). Optimizer
+  slots, as ledgered refusal cases), `javascript.assume_pristine_builtins`. The harvest also carried `mangle.extern_fields`, which has had no effect since M1.4 (no property is renamed); M2.13 removed that file so every case configuration loads without a "no effect" warning (BC12). Optimizer
   and emitter knobs (spellings, inlining, mangling, pooling, fusion) are never carried over. The runner merges the
   `[javascript]` keys into its own `[javascript]` table rather than appending a second one.
 - Module tests whose harness imported an export and called it: the call moves into the program as `print(...)`, and
@@ -148,7 +148,7 @@ that commit. Expected stdout comes from each test's own assertions, never from r
 | `irjs-unrelated_owned_property_components_reuse_short_names` | `unrelated_owned_property_components_reuse_short_names` (src/codegen_ir_js.rs:32655) | pass | pass | .lil .out |  |
 | `irjs-extern_property_spelling_does_not_pin_an_unrelated_owned_slot` | `extern_property_spelling_does_not_pin_an_unrelated_owned_slot` (src/codegen_ir_js.rs:32678) | pass | pass | .lil .out .host.js |  |
 | `irjs-unowned_static_keys_only_coordinate_with_owned_slots_in_closed_mode` | `unowned_static_keys_only_coordinate_with_owned_slots_in_closed_mode` (src/codegen_ir_js.rs:32703) | pass | pass | .lil .out .host.js |  |
-| `irjs-unowned_static_keys_only_coordinate_with_owned_slots_in_closed_mode-released_extern_fields` | `unowned_static_keys_only_coordinate_with_owned_slots_in_closed_mode` (src/codegen_ir_js.rs:32703) | pass | pass | .lil .out .host.js .toml | same program under the released extern-field contract (test: mangle_extern_fields=false) |
+| `irjs-unowned_static_keys_only_coordinate_with_owned_slots_in_closed_mode-released_extern_fields` | `unowned_static_keys_only_coordinate_with_owned_slots_in_closed_mode` (src/codegen_ir_js.rs:32703) | pass | pass | .lil .out .host.js | same program under the released extern-field contract (test: mangle_extern_fields=false, a key with no effect since M1.4) |
 | `irjs-immutable_closure_captures_can_use_lifted_scalar_snapshots` | `immutable_closure_captures_can_use_lifted_scalar_snapshots` (src/codegen_ir_js.rs:32889) | pass | pass | .lil .out .host.js |  |
 | `irjs-mutable_closure_captures_remain_shared_lexical_cells` | `mutable_closure_captures_remain_shared_lexical_cells` (src/codegen_ir_js.rs:32924) | pass | pass | .lil .out .host.js |  |
 | `irjs-invoked_sibling_closures_share_their_mutable_capture_cell` | `invoked_sibling_closures_share_their_mutable_capture_cell` (src/codegen_ir_js.rs:33042) | pass | pass | .lil .out |  |

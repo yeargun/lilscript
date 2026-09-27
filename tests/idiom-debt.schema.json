@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tests/idiom-debt.schema.json",
+  "title": "Idiom debt ledger (NO4)",
+  "description": "A port rewrite needed only because the compiler handles the idiomatic form badly is compiler debt (architecture §18.3 NO4, plan rule 10). Each entry keeps the idiomatic form as a regression case in this repository and the size the workaround reaches; the compiler owes size(idiomatic) <= size(workaround) under the entry's codec. Validated by scripts/lib/idiom-debt.mjs (node --test scripts/verify-runners.test.mjs).",
+  "type": "object",
+  "required": ["schema", "about", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": 1 },
+    "about": { "type": "string", "minLength": 1 },
+    "entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+  },
+  "$defs": {
+    "form": {
+      "type": "object",
+      "required": ["description"],
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": "string", "minLength": 1, "description": "The source shape in one line." },
+        "files": { "type": "array", "items": { "type": "string" }, "description": "Port files (repository-relative) where the form appears." },
+        "commit": { "type": "string", "description": "The port commit that shows the form." }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "required": ["id", "port", "recorded", "idiomatic", "workaround", "case", "codec", "sizes", "owner", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^NO4-[0-9]{3}$" },
+        "port": { "type": "string", "minLength": 1, "description": "The port repository, e.g. katexlil." },
+        "recorded": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "idiomatic": { "$ref": "#/$defs/form", "description": "What upstream writes and the port would write if the compiler handled it." },
+        "workaround": { "$ref": "#/$defs/form", "description": "What the port writes instead." },
+        "case": { "type": "string", "pattern": "^(comparison/cases/canonical|tests/cases)/", "description": "The regression case holding the idiomatic form, in this repository." },
+        "codec": { "enum": ["brotli11", "gzip9", "raw"] },
+        "sizes": {
+          "type": "object",
+          "required": ["idiomatic", "workaround", "binary"],
+          "additionalProperties": false,
+          "properties": {
+            "idiomatic": { "type": "integer", "minimum": 0 },
+            "workaround": { "type": "integer", "minimum": 0 },
+            "binary": { "type": "string", "minLength": 1, "description": "The compiler (label or SHA-256 prefix) that measured both." }
+          }
+        },
+        "owner": { "type": "string", "minLength": 1, "description": "The plan task that pays the debt." },
+        "status": { "enum": ["open", "paid"] },
+        "paid": { "type": "string", "description": "When status is paid: the commit and sizes that paid it." },
+        "evidence": { "type": "string" }
+      }
+    }
+  }
+}

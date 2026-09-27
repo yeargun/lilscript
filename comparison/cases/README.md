@@ -13,6 +13,13 @@ node comparison/cases/run.mjs
 `--canonical-only` still verifies the catalog oracle, then runs only folder cases.
 `--only` matches catalog names and canonical paths. The full command runs both.
 
+This harness gates every case absolutely, so while the one compiler loses cases
+it fails on every run. The per-change gate is the generic corpus ratchet,
+`scripts/ratchet.mjs` (plan task M2.13, [docs/testing.md](../../docs/testing.md#the-generic-corpus-ratchet)):
+it compiles this corpus with the same configurations, keeps its bars (built by
+this harness, with the recipes in `recipes.mjs`) in `tests/ratchet/bars.json`,
+and fails when a loss count or any case's loss grows.
+
 ## Hard gate
 
 1. The original JavaScript defines the stdout oracle.
@@ -51,7 +58,7 @@ node comparison/cases/run.mjs
 ```
 
 Generated cases, emitted artifacts, and reports are ignored build products.
-`catalog.mjs`, `canonical/`, `oracle-manifest.json`, the three files under `configs/`, and this
+`catalog.mjs`, `canonical/`, `oracle-manifest.json`, the three files under `configs/`, `recipes.mjs` and this
 runner are the durable source of truth. The checked-in oracle is one digest for
 the complete generated catalog. Canonical folders are reviewed in git. Every run,
 including `--only` and `--canonical-only`, verifies the catalog oracle before selecting cases.

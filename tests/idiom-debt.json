@@ -1,0 +1,5 @@
+{
+  "schema": 1,
+  "about": "Idiom debt ledger (architecture §18.3 NO4, plan rule 10, task M2.13); schema in tests/idiom-debt.schema.json. An entry is written when a port rewrite is needed only because the compiler handles the idiomatic form badly: the idiomatic form becomes a regression case in this repository, and the compiler owes size(idiomatic) <= size(workaround) under the entry's codec. An entry is closed (status paid) by the change that pays it, never deleted. Created empty on 2026-09-27: M12.6's pairing tasks (katexlil core's transliteration residual, mhchem, posthoglil error-tracking) and every language slice file their findings here.",
+  "entries": []
+}
