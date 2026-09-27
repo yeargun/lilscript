@@ -11,6 +11,18 @@
       <button class="nav-toggle icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false"><i data-lucide="menu" aria-hidden="true"></i></button>
       <nav class="site-nav" aria-label="Primary navigation"><a href="/">Playground</a><a href="/docs.html">Docs</a><a href="/benchmarks.html">Benchmarks</a><a class="active" href="/explorer.html">Explorer</a><a href="/delivery.html">Delivery</a><a href="/roadmap.html">Roadmap</a><a href="/about.html">About</a></nav>
     </header>
+    <div class="comparison-main content-width"><aside class="evidence-notice" role="note">
+        <strong>Measured with the previous compiler, August 2026.</strong>
+        The numbers on this page come from the compiler route that was deleted on 23 September 2026. Today’s compiler has not rebuilt these labs yet, and on small
+        closed programs it is currently larger than the route it replaced:
+        <code>comparison/apps</code> is 945 B against that route’s 558 B and
+        Closure ADVANCED’s 834 B, <code>comparison/algorithms</code> 3,250 B
+        against 2,305 B and 2,756 B, and on the 54 canonical cases it wins 9,
+        ties 6, loses 37 and refuses 2 against the smallest competitor
+        (27 September 2026, compiler 24968659). Current library results are on
+        the <a href="/">overview</a> and <a href="/compare.html">compare</a>
+        pages.
+      </aside></div>
     <main class="comparison-main content-width detail-main" data-project-detail><p>Loading project evidence.</p></main>
     <footer class="site-footer content-width"><span>LilScript benchmark detail</span><a href="/explorer.html">Back to explorer</a></footer>
     <script type="module" src="/src/benchmark-detail.js"></script>

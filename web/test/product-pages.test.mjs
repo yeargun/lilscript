@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const [
@@ -28,6 +29,7 @@ const [
   read("src/solid-api-parity.json").then(JSON.parse),
   read("src/solid-lsx-parity.json").then(JSON.parse),
 ]);
+const landingCards = JSON.parse(await read("src/landing-cards.json"));
 
 test("the product site gives every major surface a production entry", () => {
   for (const entry of [
@@ -69,29 +71,30 @@ test("the product site gives every major surface a production entry", () => {
     assert.match(home, /class="repo-star-chip"/);
     assert.match(home, /class="repo-star-label"/);
     assert.match(home, /id="latest-title"/);
-    assert.match(home, /Global compression search/);
-    assert.match(home, /posthog-js adds two browser packs/);
+    assert.match(home, /The port pages, rebuilt by one compiler/);
+    assert.match(home, /What is worse than before/);
 });
 
 test("every comparable landing project publishes recalculated gzip and Brotli rates", () => {
-  const ratePattern = /<div class="(?:win|loss|hold) compression-rate" data-compression-rate data-baseline="(\d+)" data-candidate="(\d+)">\s*<small>([^<]+)<\/small><b>([^<]+)<\/b>/g;
+  const ratePattern = /<div class="(win|loss|hold) compression-rate" data-compression-rate data-baseline="(\d+)" data-candidate="(\d+)">\s*<small>([^<]+)<\/small><b>([^<]+)<\/b>/g;
   const rates = [...home.matchAll(ratePattern)].map((match) => ({
-    baseline: Number(match[1]),
-    candidate: Number(match[2]),
-    codec: match[3],
-    displayed: match[4],
+    kind: match[1],
+    baseline: Number(match[2]),
+    candidate: Number(match[3]),
+    codec: match[4],
+    displayed: match[5],
   }));
+  const voting = landingCards.cards.filter((card) => card.vote !== false);
 
-  assert.equal((home.match(/class="lib-card"/g) ?? []).length, 16);
-  assert.equal(rates.length, 28);
-  const zodCard = home.match(/<a\s+[^>]*href="https:\/\/yeargun\.github\.io\/zodlil\/"[^>]*>[\s\S]*?<\/a>/)?.[0];
-  assert.ok(zodCard);
-  assert.doesNotMatch(zodCard, /data-compression-rate/);
-  assert.match(zodCard, /Size claim<\/small><b>Withdrawn/);
-  const solidlilCard = home.match(/<a\s+[^>]*href="https:\/\/yeargun\.github\.io\/solidlil\/"[^>]*>[\s\S]*?<\/a>/)?.[0];
-  assert.ok(solidlilCard);
-  assert.doesNotMatch(solidlilCard, /data-compression-rate/);
-  assert.match(solidlilCard, /comparison withheld/);
+  assert.equal((home.match(/class="lib-card"/g) ?? []).length, landingCards.cards.length);
+  assert.equal(rates.length, voting.length * 2);
+  for (const id of ["motion", "solidlil", "mobx"]) {
+    const card = landingCards.cards.find((entry) => entry.id === id);
+    assert.equal(card.vote, false, id);
+    const html = home.match(new RegExp(`<a\\s+[^>]*href="${card.href.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}"[^>]*>[\\s\\S]*?<\\/a>`))?.[0];
+    assert.ok(html, id);
+    assert.doesNotMatch(html, /data-compression-rate/, id);
+  }
 
   for (const rate of rates) {
     const delta = ((rate.candidate - rate.baseline) / rate.baseline) * 100;
@@ -99,6 +102,7 @@ test("every comparable landing project publishes recalculated gzip and Brotli ra
       ? "0.0%"
       : `${delta < 0 ? "−" : "+"}${Math.abs(delta).toFixed(1)}%`;
     assert.equal(rate.displayed, displayed, `${rate.codec}: ${rate.baseline} → ${rate.candidate}`);
+    assert.equal(rate.kind, delta < 0 ? "win" : delta > 0 ? "loss" : "hold");
   }
 
   const medianReduction = (codec) => {
@@ -111,11 +115,20 @@ test("every comparable landing project publishes recalculated gzip and Brotli ra
       ? reductions[middle]
       : (reductions[middle - 1] + reductions[middle]) / 2;
   };
+  const gzip = medianReduction("gzip").toFixed(1);
+  const brotli = medianReduction("Brotli").toFixed(1);
+  assert.match(home, new RegExp(`data-landing-median="gzip">${gzip}%<`));
+  assert.match(home, new RegExp(`data-landing-median="brotli">${brotli}%<`));
+  assert.match(home, new RegExp(`data-landing-count>${voting.length}<`));
+  assert.match(home, new RegExp(`median result is ${gzip}% smaller with gzip and ${brotli}% smaller with Brotli`));
+});
 
-  assert.equal(medianReduction("gzip").toFixed(1), "5.3");
-  assert.equal(medianReduction("Brotli").toFixed(1), "6.6");
-  assert.match(home, /median project result is 5\.3% smaller under\s+gzip-9 and 6\.6% smaller under Brotli-11/);
-  assert.match(home, /Zod and SolidLil stay visible but have no\s+vote/);
+test("the landing and compare pages are rendered from landing-cards.json", () => {
+  const rendered = spawnSync(process.execPath, [new URL("../scripts/landing-cards.mjs", import.meta.url).pathname, "--check"], { encoding: "utf8" });
+  assert.equal(rendered.status, 0, rendered.stderr);
+  for (const port of landingCards.ports) {
+    assert.match(home, new RegExp(`https://yeargun\\.github\\.io/${port.name}/`), port.name);
+  }
 });
 
 test("Lilastro, Lastro, and SolidLil state distinct implementation boundaries", () => {
@@ -153,35 +166,24 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(compare, /413,607/);
   assert.match(compare, /Required modules<\/small><b>47/);
   assert.match(compare, /Comparison<\/small><b>withheld/);
-  assert.match(compare, /30,741/);
-  assert.match(compare, /9,515/);
+  assert.match(compare, /25,452/);
+  assert.match(compare, /9,287/);
+  assert.match(compare, /id="ports"/);
+  assert.match(compare, /id="previous"/);
   assert.match(compare, /id="jquery"/);
   assert.match(compare, /id="marked"/);
   assert.match(compare, /id="zod"/);
   assert.match(compare, /id="posthog"/);
-  assert.match(compare, /62,763/);
-  assert.match(compare, /52,583/);
-  assert.match(compare, /192 ESM names versus 240/);
-  assert.match(compare, /Size claim[\s\S]*Withdrawn/);
-  assert.match(compare, /5,622/);
-  assert.match(compare, /5,985/);
-  assert.match(compare, /4,215/);
-  assert.match(compare, /3,186/);
-  assert.match(compare, /4,258/);
-  assert.match(compare, /3,465/);
+  assert.match(compare, /181 <code>z<\/code> members/);
+  assert.match(compare, /5,131/);
+  assert.match(compare, /previous compiler, August 2026/);
   assert.match(home, /887,420/);
   assert.match(home, /Upstream modules<\/small><b>47/);
   assert.match(home, /comparison withheld/);
-  assert.match(home, /30,741/);
-  assert.match(home, /9,515/);
-  assert.match(home, /62,763/);
-  assert.match(home, /52,583/);
-  assert.match(home, /Official exports<\/small><b>240/);
-  assert.match(home, /Port exports<\/small><b>192/);
-  assert.match(home, /5,622/);
-  assert.match(home, /5,985/);
-  assert.match(home, /24\.4%/);
-  assert.match(home, /18\.6%/);
+  assert.match(home, /25,452/);
+  assert.match(home, /9,287/);
+  assert.match(home, /60,056/);
+  assert.match(home, /5,131/);
   assert.match(compare, /href="\/demos.html#solidlil-keyed"/);
   assert.match(compare, /href="\/demos.html#motion-showcase-carousel"/);
   assert.match(compare, /https:\/\/yeargun\.github\.io\/solidlil\//);
@@ -192,6 +194,7 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(compare, /href="\/delivery.html"/);
   assert.match(compare, /mangle: true<\/code> means identifier mangling only/);
   assert.match(compare, /Terser property mangling is a\s+separate option and is off here/);
+  assert.match(compare, /Today’s compiler renames no properties at all/);
   assert.doesNotMatch(compare, /Oxc closer-world/);
   assert.doesNotMatch(compare, /Oxc mangle<\/small>/);
   assert.doesNotMatch(home, /5–10%/);
