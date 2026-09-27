@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LilScript is a typed language that compiles to mangled, codec-scored JavaScript. Across the 14 currently comparable project rows, the median result is 5.3% smaller with gzip and 6.6% smaller with Brotli."
+      content="LilScript is a typed language that compiles to smaller JavaScript. Across 10 published library ports, the median result is 5.8% smaller with gzip and 5.7% smaller with Brotli than the bar named on each card."
     />
     <title>LilScript — compiles to smaller JavaScript</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -81,11 +81,11 @@
             <div>
               <dt>Measured median</dt>
               <dd>
-                Across the 14 currently comparable project rows, with one vote
-                per project: <strong>5.3%</strong> smaller under gzip-9 and
-                <strong>6.6%</strong> smaller under Brotli-11. Zod and SolidLil
-                remain visible but are excluded while their exact boundaries
-                are rebuilt.
+                Across the <span data-landing-count>10</span> published
+                library ports that vote, one vote each:
+                <strong data-landing-median="gzip">5.8%</strong> smaller under
+                gzip-9 and <strong data-landing-median="brotli">5.7%</strong>
+                smaller under Brotli-11 than the bar named on each card.
               </dd>
             </div>
           </dl>
@@ -121,14 +121,12 @@ if (vector.lengthSquared() == 25.0) {
 }</code></pre>
         </div>
         <div class="landing-code-col">
-          <header><span>Emitted JavaScript</span><span>111 B in the full sample</span></header>
-          <pre class="landing-code"><code>var b=[1,2,3,4].map(a=&gt;a*2|0);
-var a=0,c=0;
-while(a&lt;b.length){
-  c=c+b[a]|0;
-  a=a+1|0;
-}
-console.log(`sum=${c}`)</code></pre>
+          <header><span>Emitted JavaScript</span><span>143 B · the ports’ settings</span></header>
+          <pre class="landing-code"><code>let c=a=&gt;a.x*a.x+a.y*a.y,
+    b=[1,2,3,4].map(a=&gt;a*2|0),a=0;
+for(let c=0;c&lt;b.length;c=c+1|0)
+  a=a+(b[c]|0)|0;
+c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
         </div>
       </section>
 
@@ -144,33 +142,34 @@ console.log(`sum=${c}`)</code></pre>
         </div>
         <div class="idea-grid">
           <article>
-            <span>Mangling</span>
-            <h3>Properties, including methods</h3>
+            <span>Classes</span>
+            <h3>Compiled to primitives</h3>
             <p>
-              Owned fields and class methods can be renamed. Host names stay
-              exact. That includes the names that would otherwise sit on a
-              JavaScript prototype — when the type system owns them, they are
-              safe to mangle.
+              A <code>class</code> is a type, not a runtime object. It
+              dissolves into a plain literal and free functions, as
+              <code>Vector</code> did above. A JavaScript class appears
+              only at a boundary the source declares.
             </p>
           </article>
           <article>
-            <span>Layout</span>
-            <h3>Objects become arrays, or vanish</h3>
+            <span>Data</span>
+            <h3>Tables are a compile target</h3>
             <p>
-              <code>struct</code> and <code>class</code> are not glue.
-              Non-escaping values scalar-replace into <code>var</code> /
-              <code>let</code>. Values that stay become compact arrays. That
-              helps transfer size, memory, and access cost.
+              Large constant data is written in LilScript and compiled
+              too, and its layout is a codec-judged choice. Compiling KaTeX’s
+              font metrics instead of shipping upstream’s table made the file
+              2,423 B smaller under Brotli.
             </p>
           </article>
           <article>
             <span>Objective</span>
             <h3>Gzip, Brotli, or raw</h3>
             <p>
-              <code>javascript.cost_model</code> is the score the search
-              actually uses. A shorter raw spelling can lose under Brotli.
-              Performance is a separate knob: size-first is the default;
-              performance-first keeps hotter shapes.
+              <code>javascript.cost_model</code> is the score the compiler
+              optimizes, and it compiles differently for each. A shorter raw
+              spelling can lose under Brotli. Property renaming for the
+              closed world is being rebuilt; today only identifiers are
+              mangled.
             </p>
           </article>
         </div>
@@ -180,7 +179,7 @@ console.log(`sum=${c}`)</code></pre>
         <div class="landing-section landing-wrap">
           <div class="monaco-feature">
             <div class="landing-heading">
-              <p class="landing-kicker">02 · Monaco · the VS Code editor</p>
+              <p class="landing-kicker">02 · Monaco · the VS Code editor · August 2026</p>
               <h2 id="monaco-title">
                 The editor that ships in VS Code, rewritten and compiled.
               </h2>
@@ -189,7 +188,8 @@ console.log(`sum=${c}`)</code></pre>
                 The other is the LilScript editor compiled from
                 <code>entry.lil</code> plus the monaco-editor-core catalog — not
                 monaco with a few files swapped. Microsoft’s TypeScript language
-                service is still on both sides.
+                service is still on both sides. These sizes are from the
+                previous compiler’s August lab and have not been re-measured.
               </p>
               <div class="landing-actions">
                 <a
@@ -231,32 +231,211 @@ console.log(`sum=${c}`)</code></pre>
           <p class="landing-kicker">03 · Libraries we actually port</p>
           <h2 id="ports-title">A grid of measured rewrites, not a slogan.</h2>
           <p>
-            Each card is a scoped contract: same behavior and the selected
-            JavaScript measured independently with gzip-9 and Brotli-11, npm +
-            Vite 8 unless noted. The arrow is baseline → LilScript. Open a
-            card for the live pair, project page, or compare notes.
+            Each card is the file its library page publishes, measured with
+            gzip-9 and Brotli-11. Most were rebuilt on 27 September 2026 by
+            one pinned compiler
+            (<a href="https://github.com/yeargun/lilscript/commit/249686599dc3bf1b6bf70dc9a030081b755bbb24" target="_blank" rel="noopener">24968659</a>);
+            the table below says which compiler built each one. The bar is
+            the strongest lane the library page records: Terser, Oxc,
+            esbuild, or the library’s own minified file. The arrow is bar →
+            LilScript.
           </p>
         </div>
         <div class="lib-grid">
+          <!-- landing-cards:start -->
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/katexlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Full library · font metrics in LilScript</span>
+            <h3>KaTeX 0.16</h3>
+            <p>The whole <code>katex.mjs</code> surface. The bar is the strongest its page records: SWC over KaTeX’s own Flow sources. Upstream’s <code>katex.min.js</code> is 62,686 B.</p>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="73168" data-candidate="72094">
+                <small>gzip-9 · vs SWC</small><b>−1.5%</b><span>73,168 → 72,094 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="60778" data-candidate="60056">
+                <small>Brotli-11 · vs SWC</small><b>−1.2%</b><span>60,778 → 60,056 B</span>
+              </div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/react-markdownlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Browser build · 123 checks</span>
+            <h3>react-markdown 10</h3>
+            <p>The whole remark → rehype → React pipeline, with micromark and unified inside. The bar is Terser over upstream’s Git source, browser graph, React external.</p>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="34789" data-candidate="30919">
+                <small>gzip-9 · vs Terser</small><b>−11.1%</b><span>34,789 → 30,919 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="30950" data-candidate="27250">
+                <small>Brotli-11 · vs Terser</small><b>−12.0%</b><span>30,950 → 27,250 B</span>
+              </div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/jquerylil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Drop-in public API</span>
+            <h3>jQuery 3.7.1</h3>
+            <p>The bar is the official <code>jquery.min.js</code>, the strongest one measured. Every delivered file is compiler-written; no minifier runs after the compiler.</p>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="30336" data-candidate="28317">
+                <small>gzip-9 · vs jquery.min.js</small><b>−6.7%</b><span>30,336 → 28,317 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="27445" data-candidate="25452">
+                <small>Brotli-11 · vs jquery.min.js</small><b>−7.3%</b><span>27,445 → 25,452 B</span>
+              </div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/markedlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Parse API · 29 checks</span>
+            <h3>marked 18</h3>
+            <p>Lexer, Parser, Tokenizer and Renderer of marked 18.0.10, not the extension system. The bar is Oxc over the same parse-only sources; SWC (10,031 B) is 61 B stronger and still loses by 744 B.</p>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="10930" data-candidate="10314">
+                <small>gzip-9 · vs Oxc</small><b>−5.6%</b><span>10,930 → 10,314 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="10092" data-candidate="9287">
+                <small>Brotli-11 · vs Oxc</small><b>−8.0%</b><span>10,092 → 9,287 B</span>
+              </div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/zodlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Classic API · 1,353 tests</span>
+            <h3>Zod 4</h3>
+            <p>Package ESM against zod 4.4.3 cut to the 181 <code>z</code> members both sides share, English locale. The bar is Oxc; SWC gives 29,387 B. About 1.2K of upstream core surface the port lacks is still in the bar.</p>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="34134" data-candidate="31724">
+                <small>gzip-9 · vs Oxc</small><b>−7.1%</b><span>34,134 → 31,724 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="29437" data-candidate="28132">
+                <small>Brotli-11 · vs Oxc</small><b>−4.4%</b><span>29,437 → 28,132 B</span>
+              </div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/posthoglil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Capture kernel + 5 packs</span>
+            <h3>posthog-js</h3>
+            <p>The capture kernel of posthog-js 1.418.10, as published on 24 September. The bar is Oxc; SWC with kept names gives 5,482 B, 63 B more, a tie. The error-tracking pack still loses.</p>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="6194" data-candidate="6039">
+                <small>gzip-9 · vs Oxc</small><b>−2.5%</b><span>6,194 → 6,039 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="5622" data-candidate="5419">
+                <small>Brotli-11 · vs Oxc</small><b>−3.6%</b><span>5,622 → 5,419 B</span>
+              </div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/rehypelil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">HTML parser + serializer</span>
+            <h3>rehype 13</h3>
+            <p>parse5-based <code>rehype</code> with its full processor. The bar is Terser over the official graph.</p>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="67626" data-candidate="58524">
+                <small>gzip-9 · vs Terser</small><b>−13.5%</b><span>67,626 → 58,524 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="54982" data-candidate="49345">
+                <small>Brotli-11 · vs Terser</small><b>−10.3%</b><span>54,982 → 49,345 B</span>
+              </div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/micromarklil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">CommonMark tokenizer · 1,963 checks</span>
+            <h3>micromark 4</h3>
+            <p>The root of the Markdown family. The bar is Terser over the Node graph, which ships the entity table as the port does; upstream’s browser graph decodes entities through the DOM (12,945 B) and this port has no such build yet.</p>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="26278" data-candidate="26047">
+                <small>gzip-9 · vs Terser</small><b>−0.9%</b><span>26,278 → 26,047 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="22696" data-candidate="22033">
+                <small>Brotli-11 · vs Terser</small><b>−2.9%</b><span>22,696 → 22,033 B</span>
+              </div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/unifiedlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">Processor · 224 checks</span>
+            <h3>unified 11</h3>
+            <p>The processor every remark and rehype plugin runs in. The bar is Terser over the official graph.</p>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="4790" data-candidate="4639">
+                <small>gzip-9 · vs Terser</small><b>−3.2%</b><span>4,790 → 4,639 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="4339" data-candidate="4199">
+                <small>Brotli-11 · vs Terser</small><b>−3.2%</b><span>4,339 → 4,199 B</span>
+              </div>
+            </div>
+          </a>
+          <a
+            class="lib-card"
+            href="https://yeargun.github.io/mdast-util-to-hastlil/"
+            target="_blank"
+            rel="noopener"
+          >
+            <span class="lib-card-kicker">mdast → hast · 154 checks</span>
+            <h3>mdast-util-to-hast 13</h3>
+            <p>The Markdown-to-HTML tree bridge behind remark-rehype. The bar is Terser over the official graph.</p>
+            <div class="lib-card-metrics compression-rates">
+              <div class="win compression-rate" data-compression-rate data-baseline="5388" data-candidate="5072">
+                <small>gzip-9 · vs Terser</small><b>−5.9%</b><span>5,388 → 5,072 B</span>
+              </div>
+              <div class="win compression-rate" data-compression-rate data-baseline="4860" data-candidate="4520">
+                <small>Brotli-11 · vs Terser</small><b>−7.0%</b><span>4,860 → 4,520 B</span>
+              </div>
+            </div>
+          </a>
           <a
             class="lib-card"
             href="https://yeargun.github.io/monacolil/"
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Editor · VS Code</span>
+            <span class="lib-card-kicker">Editor · VS Code · August lab</span>
             <h3>Monaco</h3>
-            <p>
-              Compiled Lil editor + catalog versus npm monaco-editor. TypeScript
-              <code>ts.worker</code> is still Microsoft’s.
-            </p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="1148595" data-candidate="526268">
-                <small>gzip-9</small><b>−54.2%</b><span>1,148,595 → 526,268 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="887420" data-candidate="413607">
-                <small>Brotli-11</small><b>−53.4%</b><span>887,420 → 413,607 B</span>
-              </div>
+            <p>Compiled Lil editor + catalog versus npm monaco-editor, measured in August 2026 by the previous compiler’s in-repo lab and not yet re-run. TypeScript <code>ts.worker</code> is still Microsoft’s. No vote.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm ide.js · Brotli</small><b>887,420</b></div>
+              <div><small>Lil ide.js · Brotli</small><b>413,607</b></div>
+              <div><small>Vote</small><b>none</b></div>
             </div>
           </a>
           <a
@@ -265,19 +444,13 @@ console.log(`sum=${c}`)</code></pre>
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Full DOM runtime · 16 paired demos</span>
-            <h3>Motion</h3>
-            <p>
-              Every runtime export from Motion 13’s DOM entrypoint. All 16
-              behavior-matched browser demos ship smaller under Brotli.
-            </p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="314064" data-candidate="282059">
-                <small>gzip-9 total</small><b>−10.2%</b><span>314,064 → 282,059 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="287404" data-candidate="251703">
-                <small>Brotli-11 total</small><b>−12.4%</b><span>287,404 → 251,703 B</span>
-              </div>
+            <span class="lib-card-kicker">312 exports · not compiler-written</span>
+            <h3>Motion 13</h3>
+            <p>Matched public ESM: both sides go through esbuild + Terser with property mangling, 34,540 B against Motion’s 39,934 B. The delivered files are not written by the compiler alone, so this card has no vote.</p>
+            <div class="lib-card-metrics">
+              <div><small>Motion · Brotli</small><b>39,934</b></div>
+              <div><small>Motionlil · Brotli</small><b>34,540</b></div>
+              <div><small>Vote</small><b>none</b></div>
             </div>
           </a>
           <a
@@ -288,108 +461,10 @@ console.log(`sum=${c}`)</code></pre>
           >
             <span class="lib-card-kicker">Framework · Solid 2.0</span>
             <h3>SolidLil</h3>
-            <p>
-              Exact file-for-file typed port in progress. The earlier compact
-              compatibility runtime is no longer ranked against Solid.
-            </p>
-            <div class="lib-card-metrics compression-rates">
-              <div>
-                <small>Upstream modules</small><b>47</b><span>pinned locally</span>
-              </div>
-              <div>
-                <small>Verified ports</small><b>0</b><span>comparison withheld</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/demos.html#lib-gl-matrix">
-            <span class="lib-card-kicker">Exact entrypoint</span>
-            <h3>gl-matrix</h3>
-            <p>Complete ESM root namespace, aliases, and live array type.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="17646" data-candidate="17110">
-                <small>gzip-9</small><b>−3.0%</b><span>17,646 → 17,110 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="14330" data-candidate="14116">
-                <small>Brotli-11</small><b>−1.5%</b><span>14,330 → 14,116 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/demos.html#port-murmurhash-js">
-            <span class="lib-card-kicker">Complete package</span>
-            <h3>murmurhash-js</h3>
-            <p>MurmurHash 2 and 3, reusable root API, same checksums.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="1029" data-candidate="446">
-                <small>gzip-9</small><b>−56.7%</b><span>1,029 → 446 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="902" data-candidate="409">
-                <small>Brotli-11</small><b>−54.7%</b><span>902 → 409 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/demos.html#port-js-levenshtein">
-            <span class="lib-card-kicker">Complete package</span>
-            <h3>js-levenshtein</h3>
-            <p>Full root entrypoint. Eligible on size and the 1.05× runtime gate.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="914" data-candidate="438">
-                <small>gzip-9</small><b>−52.1%</b><span>914 → 438 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="825" data-candidate="404">
-                <small>Brotli-11</small><b>−51.0%</b><span>825 → 404 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/demos.html#port-micro-math">
-            <span class="lib-card-kicker">Complete package</span>
-            <h3>clamp + lerp</h3>
-            <p>Both published roots. Types let the wrappers disappear.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="577" data-candidate="142">
-                <small>gzip-9</small><b>−75.4%</b><span>577 → 142 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="519" data-candidate="112">
-                <small>Brotli-11</small><b>−78.4%</b><span>519 → 112 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/demos.html#port-emotion-hash">
-            <span class="lib-card-kicker">Complete package</span>
-            <h3>@emotion/hash</h3>
-            <p>Published root. Eligible against Vite and Closure ADVANCED.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="348" data-candidate="265">
-                <small>gzip-9</small><b>−23.9%</b><span>348 → 265 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="330" data-candidate="231">
-                <small>Brotli-11</small><b>−30.0%</b><span>330 → 231 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/demos.html#port-robust-predicates">
-            <span class="lib-card-kicker">Complete package</span>
-            <h3>robust-predicates</h3>
-            <p>Geometric predicates. Large typed corpus, modest transfer cut.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="8329" data-candidate="7691">
-                <small>gzip-9</small><b>−7.7%</b><span>8,329 → 7,691 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="6456" data-candidate="5972">
-                <small>Brotli-11</small><b>−7.5%</b><span>6,456 → 5,972 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/demos.html#lib-nanoid">
-            <span class="lib-card-kicker">Exact entrypoint</span>
-            <h3>Nano ID</h3>
-            <p>Published browser entrypoint. Effectively even on Brotli.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="loss compression-rate" data-compression-rate data-baseline="456" data-candidate="459">
-                <small>gzip-9</small><b>+0.7%</b><span>456 → 459 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="409" data-candidate="408">
-                <small>Brotli-11</small><b>−0.2%</b><span>409 → 408 B</span>
-              </div>
+            <p>Exact file-for-file typed port in progress. The earlier compact compatibility runtime is no longer ranked against Solid.</p>
+            <div class="lib-card-metrics">
+              <div><small>Upstream modules</small><b>47</b><span>pinned locally</span></div>
+              <div><small>Verified ports</small><b>0</b><span>comparison withheld</span></div>
             </div>
           </a>
           <a
@@ -398,195 +473,85 @@ console.log(`sum=${c}`)</code></pre>
             target="_blank"
             rel="noopener"
           >
-            <span class="lib-card-kicker">Exact package</span>
+            <span class="lib-card-kicker">Previous compiler · not rebuilt</span>
             <h3>MobX 7</h3>
-            <p>
-              Public API, 769 official tests. Compared with Vite 8 Oxc of the
-              official ESM; the smaller DEV-stripped official build is a
-              separate lane.
-            </p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="19282" data-candidate="19104">
-                <small>gzip-9</small><b>−0.9%</b><span>19,282 → 19,104 B</span>
-              </div>
-              <div class="loss compression-rate" data-compression-rate data-baseline="17159" data-candidate="17223">
-                <small>Brotli-11</small><b>+0.4%</b><span>17,159 → 17,223 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/demos.html#lastro">
-            <span class="lib-card-kicker">Application</span>
-            <h3>Lastro</h3>
-            <p>
-              Parcel Market next to the Astro control. Same CSS and behavior.
-            </p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="hold compression-rate" data-compression-rate data-baseline="3132" data-candidate="3132">
-                <small>gzip-9</small><b>0.0%</b><span>3,132 → 3,132 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="2672" data-candidate="2665">
-                <small>Brotli-11</small><b>−0.3%</b><span>2,672 → 2,665 B</span>
-              </div>
-            </div>
-          </a>
-          <a
-            class="lib-card"
-            href="https://yeargun.github.io/jquerylil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span class="lib-card-kicker">Published · not smaller</span>
-            <h3>jQuery 3.7.1</h3>
-            <p>
-              Drop-in public API. Official <code>jquery.min.js</code> is still
-              the Brotli lane to beat. Public names stay a config choice.
-            </p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="loss compression-rate" data-compression-rate data-baseline="30336" data-candidate="34392">
-                <small>gzip-9</small><b>+13.4%</b><span>30,336 → 34,392 B</span>
-              </div>
-              <div class="loss compression-rate" data-compression-rate data-baseline="27445" data-candidate="30741">
-                <small>Brotli-11</small><b>+12.0%</b><span>27,445 → 30,741 B</span>
-              </div>
-            </div>
-          </a>
-          <a
-            class="lib-card"
-            href="https://yeargun.github.io/markedlil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span class="lib-card-kicker">18.0.13 package · 18.0.10 parse API</span>
-            <h3>marked 18</h3>
-            <p>
-              GFM + CommonMark parse API with live option methods. 660/660 HTML
-              match, smaller than the same parse-only sources through Oxc, and
-              13% faster in Chromium. No extension system.
-            </p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="10930" data-candidate="10714">
-                <small>gzip-9</small><b>−2.0%</b><span>10,930 → 10,714 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="10092" data-candidate="9515">
-                <small>Brotli-11</small><b>−5.7%</b><span>10,092 → 9,515 B</span>
-              </div>
-            </div>
-          </a>
-          <a
-            class="lib-card"
-            href="https://yeargun.github.io/zodlil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span class="lib-card-kicker">Classic-compatible API · audit open</span>
-            <h3>Zod 4</h3>
-            <p>
-              The port passes 1,353 adapted official tests, but the old size
-              row counted only <code>zod.core.js</code>. The linked package is
-              62,763 B gzip / 52,583 B Brotli and exposes 192 ESM names versus
-              the official entry's 240, so the size claim is withdrawn until
-              those surfaces match.
-            </p>
+            <p>769 official tests. Its published build is from the previous compiler (10 Sep): 15,057 B against Terser’s 13,646 B over the complete production ESM, a loss. Today’s compiler gives 18,206 B, so it has not been rebuilt, and it has no vote.</p>
             <div class="lib-card-metrics">
-              <div>
-                <small>Official exports</small><b>240</b>
-              </div>
-              <div>
-                <small>Port exports</small><b>192</b>
-              </div>
-              <div class="loss"><small>Size claim</small><b>Withdrawn</b></div>
+              <div><small>Terser · Brotli</small><b>13,646</b></div>
+              <div><small>Published · Brotli</small><b>15,057</b></div>
+              <div><small>Vote</small><b>none</b></div>
             </div>
           </a>
-          <a
-            class="lib-card"
-            href="https://yeargun.github.io/posthoglil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span class="lib-card-kicker">Kernel + 5 independent packs</span>
-            <h3>posthog-js</h3>
-            <p>
-              UUID, flags, cookies, routing, rate limits, queue, bot detection,
-              and portable helpers from <code>posthog-js@1.418.10</code>, plus
-              five tabbed pack lanes: autocapture utilities, replay core,
-              surveys, error tracking, and OTLP. Autocapture is 24.4% smaller
-              and replay core is 18.6% smaller on Brotli versus Oxc. The kernel
-              is larger than Oxc on this compiler; this is not the published IIFE.
-            </p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="loss compression-rate" data-compression-rate data-baseline="6194" data-candidate="6807">
-                <small>gzip-9</small><b>+9.9%</b><span>6,194 → 6,807 B</span>
-              </div>
-              <div class="loss compression-rate" data-compression-rate data-baseline="5622" data-candidate="5985">
-                <small>Brotli-11</small><b>+6.5%</b><span>5,622 → 5,985 B</span>
-              </div>
-            </div>
-          </a>
+          <!-- landing-cards:end -->
         </div>
         <p class="note-box">
           <strong>How to read this.</strong> Each percentage is recalculated as
-          <code>(candidate / baseline − 1) × 100</code> from the byte pair
-          beside it. gzip-9 and Brotli-11 are independent codec measurements;
-          they can disagree, as Nano ID and posthog-js do. The 5.3% / 6.6%
-          headline is the median of the 14 currently comparable project rows,
-          not a byte-weighted blend. Zod and SolidLil stay visible but have no
-          vote while their parity work is open. Subset ports (Preact, the
-          in-repo Zod 3 surface, Acorn, Redux
-          Toolkit) live on the <a href="/compare.html">compare page</a> and are
-          labeled as such. The published Zod 4 port is
-          <a href="https://yeargun.github.io/zodlil/">zodlil</a>.
+          <code>(candidate / bar − 1) × 100</code> from the byte pair beside
+          it. A port ships one Brotli-objective file, so its gzip figure is
+          that same file under gzip-9. The headline median is over the <span data-landing-count>10</span>
+          cards with a vote, one per library, not a byte-weighted blend.
+          Motion, SolidLil and MobX stay visible without a vote: Motion’s
+          delivered files are not written by the compiler alone, SolidLil’s
+          comparison is withheld, and MobX’s published build is from the
+          previous compiler. On four ports SWC was measured separately and is
+          stronger than the card’s bar; the card text gives that margin. The
+          full list, including ports still on the previous compiler and their
+          losses, is below.
         </p>
       </section>
 
       <section class="landing-section landing-wrap" aria-labelledby="latest-title">
         <div class="landing-heading">
-          <p class="landing-kicker">04 · Latest · updated 24 August 2026</p>
+          <p class="landing-kicker">04 · Latest · updated 27 September 2026</p>
           <h2 id="latest-title">What changed across LilScript and its ports.</h2>
           <p>
-            A dated changelog for the work that used to disappear into the
-            comparison grid. Each item links to the repository or lab carrying
+            A dated changelog, including what got worse. Each item links to
             the evidence.
           </p>
         </div>
         <div class="news-grid">
           <article class="news-item">
-            <time datetime="2026-08-23">23 Aug 2026</time>
-            <h3>Global compression search</h3>
+            <time datetime="2026-09-27">27 Sep 2026</time>
+            <h3>The port pages, rebuilt by one compiler</h3>
             <p>
-              JavaScript spelling search now optimizes names, literals,
-              declarations, and layout as one codec-scored artifact.
+              Every library page where today’s compiler writes a smaller file
+              now shows it, with fresh sizes, bars, tests and compile times:
+              rehype is 1,474 B smaller, remark 632 B. KaTeX and Motion were
+              already current.
             </p>
-            <a href="https://github.com/yeargun/lilscript/commit/62374f1" target="_blank" rel="noopener">Read the compiler change</a>
+            <a href="#projects-title">See the list</a>
           </article>
           <article class="news-item">
-            <time datetime="2026-08-24">24 Aug 2026</time>
-            <h3>posthog-js adds two browser packs</h3>
+            <time datetime="2026-09-27">27 Sep 2026</time>
+            <h3>KaTeX’s font metrics, written in LilScript</h3>
             <p>
-              Autocapture utilities and session-replay core join surveys, error
-              tracking, and OTLP in a tabbed, behavior-checked benchmark lab;
-              the new Brotli cuts are 27.3% and 19.4% versus Oxc.
+              The metrics table is compiled like the rest of the library.
+              KaTeX now ships in 60,056 B Brotli, 722 B under SWC over its
+              own sources and 2,630 B under upstream’s <code>katex.min.js</code>.
             </p>
-            <a href="https://yeargun.github.io/posthoglil/" target="_blank" rel="noopener">Open posthoglil</a>
+            <a href="https://yeargun.github.io/katexlil/" target="_blank" rel="noopener">Open katexlil</a>
           </article>
           <article class="news-item">
-            <time datetime="2026-08-24">24 Aug 2026</time>
-            <h3>Zod size claim withdrawn after surface audit</h3>
+            <time datetime="2026-09-24">24 Sep 2026</time>
+            <h3>One compiler</h3>
             <p>
-              The port still passes 1,353 adapted official tests. Its old size
-              row omitted the compatibility facade, though, and 192 exported
-              names do not equal the official entry's 240. It is no longer in
-              the aggregate until the package boundary is exact.
+              The first compiler route was deleted and twelve goal ports were
+              rebuilt by the one that replaced it. Eleven of the twelve beat
+              every bar measured then, under Brotli.
             </p>
-            <a href="https://yeargun.github.io/zodlil/" target="_blank" rel="noopener">Open zodlil</a>
+            <a href="https://github.com/yeargun/lilscript/blob/finer/059-idiom-directed-naming/docs/reports/2026-09-24-release.md" target="_blank" rel="noopener">Read the release report</a>
           </article>
           <article class="news-item">
-            <time datetime="2026-08-20">20 Aug 2026</time>
-            <h3>marked 18.0.13 refresh</h3>
+            <time datetime="2026-09-27">27 Sep 2026</time>
+            <h3>What is worse than before</h3>
             <p>
-              Live option methods and matched raw, gzip, and Brotli compiles are
-              now published for the 18.0.10-compatible parse surface.
+              The deleted route folded small closed programs harder:
+              <code>comparison/apps</code> is 945 B today against its 558 B
+              and Closure ADVANCED’s 834 B. Pages where today’s compiler is
+              not smaller keep their earlier builds until their ports are
+              rewritten for it.
             </p>
-            <a href="https://yeargun.github.io/markedlil/" target="_blank" rel="noopener">Open markedlil</a>
+            <a href="https://github.com/yeargun/lilscript/blob/finer/059-idiom-directed-naming/docs/future-architecture.md" target="_blank" rel="noopener">Read the design that fixes it</a>
           </article>
         </div>
       </section>
@@ -597,134 +562,236 @@ console.log(`sum=${c}`)</code></pre>
           <h2 id="projects-title">The github.io labs, one per library.</h2>
           <p>
             Each port has its own site: install the package, open the paired
-            demos, read the receipts. The in-repo stage is still here for the
-            rest of the corpus.
+            demos, read the receipts. This table is the headline file each
+            site publishes, its bar, and which compiler built it. Ports still
+            on the previous compiler say what today’s compiler gives them.
           </p>
         </div>
-        <div class="project-links">
-          <a
-            class="project-link"
-            href="https://yeargun.github.io/solidlil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span>@itslil/solidjs</span>
-            <h3>SolidLil</h3>
-            <p>
-              Exact Solid 2.0 browser-runtime port in progress. Previous size
-              results are retained only as non-qualifying diagnostics.
-            </p>
-            <b>yeargun.github.io/solidlil</b>
-          </a>
-          <a
-            class="project-link"
-            href="https://yeargun.github.io/motionlil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span>motionlil 0.1.2</span>
-            <h3>Motion</h3>
-            <p>
-              Full Motion 13 DOM runtime exports. 16/16 paired demos; 10.2%
-              smaller gzip and 12.4% smaller Brotli in total.
-            </p>
-            <b>yeargun.github.io/motionlil</b>
-          </a>
-          <a
-            class="project-link"
-            href="https://yeargun.github.io/mobxlil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span>@itslil/mobx</span>
-            <h3>MobX</h3>
-            <p>
-              MobX 7 public API. 769 official tests; 0.9% smaller gzip and 0.4%
-              larger Brotli than the Vite 8 Oxc lane.
-            </p>
-            <b>yeargun.github.io/mobxlil</b>
-          </a>
-          <a
-            class="project-link"
-            href="https://yeargun.github.io/jquerylil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span>@itslil/jquery</span>
-            <h3>jQuery</h3>
-            <p>
-              jQuery 3.7.1 public API. Published drop-in; the LilScript ESM is
-              still 13.4% larger under gzip and 12.0% larger under Brotli than
-              the official minified file.
-            </p>
-            <b>yeargun.github.io/jquerylil</b>
-          </a>
-          <a
-            class="project-link"
-            href="https://yeargun.github.io/markedlil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span>@itslil/marked 18.0.13</span>
-            <h3>marked</h3>
-            <p>
-              18.0.10-compatible parse API. 660 cases; 2.0% smaller gzip and
-              5.7% smaller Brotli than parse-only Oxc.
-            </p>
-            <b>yeargun.github.io/markedlil</b>
-          </a>
-          <a
-            class="project-link"
-            href="https://yeargun.github.io/zodlil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span>@itslil/zod</span>
-            <h3>Zod</h3>
-            <p>
-              Zod 4.4.3 classic-compatible API. The old core-only size claim is
-              withdrawn; the linked package and official export inventories do
-              not yet match.
-            </p>
-            <b>yeargun.github.io/zodlil</b>
-          </a>
-          <a
-            class="project-link"
-            href="https://yeargun.github.io/posthoglil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span>@itslil/posthog-js</span>
-            <h3>posthog-js</h3>
-            <p>
-              Capture kernel plus five tabbed packs. Autocapture is 24.4%
-              smaller and replay core is 18.6% smaller on Brotli than Oxc.
-            </p>
-            <b>yeargun.github.io/posthoglil</b>
-          </a>
-          <a
-            class="project-link"
-            href="https://yeargun.github.io/monacolil/"
-            target="_blank"
-            rel="noopener"
-          >
-            <span>@itslil/monaco-editor</span>
-            <h3>Monaco</h3>
-            <p>
-              monaco-editor 0.56, submodule-by-submodule, plus the paired IDE:
-              54.2% smaller gzip and 53.4% smaller Brotli.
-            </p>
-            <b>yeargun.github.io/monacolil</b>
-          </a>
-          <a class="project-link" href="/demos.html">
-            <span>In-repo stage</span>
-            <h3>Demos and algorithms</h3>
-            <p>
-              Lastro, hashes, paired Closure cases, and the rest of the corpus
-              on this site.
-            </p>
-            <b>Browse every demo</b>
-          </a>
+        <div class="benchmark-table-wrap landing-ports">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Port · package</th>
+                <th scope="col">Headline file</th>
+                <th scope="col">Brotli-11</th>
+                <th scope="col">Bar</th>
+                <th scope="col">Δ</th>
+                <th scope="col">Built by</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- landing-ports:start -->
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/katexlil/" target="_blank" rel="noopener">katexlil</a><small>@itslil/katex</small></th>
+                <td><code>katex.esm.js</code></td>
+                <td>60,056 B</td>
+                <td>60,778 B<small>SWC, Flow sources</small></td>
+                <td class="win">−1.2%</td>
+                <td>d1d48c4c · 27 Sep<small>Port source rewrite; same compiler source as 24968659.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/react-markdownlil/" target="_blank" rel="noopener">react-markdownlil</a><small>@itslil/react-markdown</small></th>
+                <td><code>react-markdown.browser.js</code></td>
+                <td>27,250 B</td>
+                <td>30,950 B<small>Terser</small></td>
+                <td class="win">−12.0%</td>
+                <td>24968659 · 27 Sep</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/jquerylil/" target="_blank" rel="noopener">jquerylil</a><small>@itslil/jquery</small></th>
+                <td><code>jquery.esm.js</code></td>
+                <td>25,452 B</td>
+                <td>27,445 B<small>jquery.min.js</small></td>
+                <td class="win">−7.3%</td>
+                <td>24968659 · 27 Sep</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/markedlil/" target="_blank" rel="noopener">markedlil</a><small>@itslil/marked</small></th>
+                <td><code>marked.esm.js</code></td>
+                <td>9,287 B</td>
+                <td>10,092 B<small>Oxc</small></td>
+                <td class="win">−8.0%</td>
+                <td>aa2052f0 · 24 Sep<small>Today’s compiler: 9,289 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/zodlil/" target="_blank" rel="noopener">zodlil</a><small>@itslil/zod</small></th>
+                <td><code>package ESM</code></td>
+                <td>28,132 B</td>
+                <td>29,437 B<small>Oxc</small></td>
+                <td class="win">−4.4%</td>
+                <td>24968659 · 27 Sep</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/posthoglil/" target="_blank" rel="noopener">posthoglil</a><small>@itslil/posthog-js</small></th>
+                <td><code>posthog.esm.js</code></td>
+                <td>5,419 B</td>
+                <td>5,622 B<small>Oxc</small></td>
+                <td class="win">−3.6%</td>
+                <td>aa2052f0 · 24 Sep<small>An idiomatic rewrite is in release.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/rehypelil/" target="_blank" rel="noopener">rehypelil</a><small>@itslil/rehype</small></th>
+                <td><code>rehype.esm.js</code></td>
+                <td>49,345 B</td>
+                <td>54,982 B<small>Terser</small></td>
+                <td class="win">−10.3%</td>
+                <td>24968659 · 27 Sep</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/remarklil/" target="_blank" rel="noopener">remarklil</a><small>@itslil/remark</small></th>
+                <td><code>remark.esm.js</code></td>
+                <td>37,239 B</td>
+                <td>22,486 B<small>Terser</small></td>
+                <td class="loss">+65.6%</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 36,607 B. The page’s table shows 36,150 B, from a build that did not ship.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/micromarklil/" target="_blank" rel="noopener">micromarklil</a><small>@itslil/micromark</small></th>
+                <td><code>micromark.esm.js</code></td>
+                <td>22,033 B</td>
+                <td>22,696 B<small>Terser, Node graph</small></td>
+                <td class="win">−2.9%</td>
+                <td>24968659 · 27 Sep</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/mdast-util-from-markdownlil/" target="_blank" rel="noopener">mdast-util-from-markdownlil</a><small>@itslil/mdast-util-from-markdown</small></th>
+                <td><code>from-markdown.esm.js</code></td>
+                <td>22,308 B</td>
+                <td>23,151 B<small>Terser, Node graph</small></td>
+                <td class="win">−3.6%</td>
+                <td>aa2052f0 · 24 Sep<small>Today’s compiler: 22,323 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/remark-parselil/" target="_blank" rel="noopener">remark-parselil</a><small>@itslil/remark-parse</small></th>
+                <td><code>remark-parse.esm.js</code></td>
+                <td>22,386 B</td>
+                <td>23,171 B<small>Terser, Node graph</small></td>
+                <td class="win">−3.4%</td>
+                <td>aa2052f0 · 24 Sep<small>Today’s compiler: 22,404 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/unifiedlil/" target="_blank" rel="noopener">unifiedlil</a><small>@itslil/unified</small></th>
+                <td><code>unified.esm.js</code></td>
+                <td>4,199 B</td>
+                <td>4,339 B<small>Terser</small></td>
+                <td class="win">−3.2%</td>
+                <td>24968659 · 27 Sep</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/mdast-util-to-hastlil/" target="_blank" rel="noopener">mdast-util-to-hastlil</a><small>@itslil/mdast-util-to-hast</small></th>
+                <td><code>to-hast.esm.js</code></td>
+                <td>4,520 B</td>
+                <td>4,860 B<small>Terser</small></td>
+                <td class="win">−7.0%</td>
+                <td>24968659 · 27 Sep</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/remark-rehypelil/" target="_blank" rel="noopener">remark-rehypelil</a><small>@itslil/remark-rehype</small></th>
+                <td><code>remark-rehype.esm.js</code></td>
+                <td>4,610 B</td>
+                <td>4,908 B<small>Terser</small></td>
+                <td class="win">−6.1%</td>
+                <td>24968659 · 27 Sep</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/rehype-katexlil/" target="_blank" rel="noopener">rehype-katexlil</a><small>@itslil/rehype-katex</small></th>
+                <td><code>rehype-katex.esm.js</code></td>
+                <td>892 B</td>
+                <td>—<small>not like-for-like</small></td>
+                <td>—</td>
+                <td>24968659 · 27 Sep<small>The port imports three hast helpers the bars bundle.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/monacolil/" target="_blank" rel="noopener">monacolil</a><small>@itslil/monaco-editor</small></th>
+                <td><code>monaco.esm.js</code></td>
+                <td>47,442 B</td>
+                <td>—<small>not comparable</small></td>
+                <td>—</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 47,513 B. The editor pair is from the August lab.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/motionlil/" target="_blank" rel="noopener">motionlil</a><small>motionlil</small></th>
+                <td><code>matched ESM</code></td>
+                <td>34,540 B</td>
+                <td>39,934 B<small>Motion, same recipe</small></td>
+                <td class="win">−13.5%</td>
+                <td>aa2052f0 · 24 Sep<small>Not compiler-written; no vote.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/mobxlil/" target="_blank" rel="noopener">mobxlil</a><small>@itslil/mobx</small></th>
+                <td><code>mobx.esm.js</code></td>
+                <td>15,057 B</td>
+                <td>13,646 B<small>Terser</small></td>
+                <td class="loss">+10.3%</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 18,206 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/cnlil/" target="_blank" rel="noopener">cnlil</a><small>@itslil/cn</small></th>
+                <td><code>index.js</code></td>
+                <td>9,304 B</td>
+                <td>9,394 B<small>Terser</small></td>
+                <td class="win">−1.0%</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 9,406 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/hast-util-to-htmllil/" target="_blank" rel="noopener">hast-util-to-htmllil</a><small>@itslil/hast-util-to-html</small></th>
+                <td><code>to-html.esm.js</code></td>
+                <td>8,459 B</td>
+                <td>9,840 B<small>Terser</small></td>
+                <td class="win">−14.0%</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 9,379 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/rehype-stringifylil/" target="_blank" rel="noopener">rehype-stringifylil</a><small>@itslil/rehype-stringify</small></th>
+                <td><code>rehype-stringify.esm.js</code></td>
+                <td>8,716 B</td>
+                <td>9,873 B<small>Terser</small></td>
+                <td class="win">−11.7%</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 9,538 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/remark-gfmlil/" target="_blank" rel="noopener">remark-gfmlil</a><small>@itslil/remark-gfm</small></th>
+                <td><code>remark-gfm.esm.js</code></td>
+                <td>10,263 B</td>
+                <td>11,161 B<small>Terser</small></td>
+                <td class="win">−8.0%</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 10,333 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/remark-breakslil/" target="_blank" rel="noopener">remark-breakslil</a><small>@itslil/remark-breaks</small></th>
+                <td><code>remark-breaks.esm.js</code></td>
+                <td>1,125 B</td>
+                <td>1,175 B<small>Terser</small></td>
+                <td class="win">−4.3%</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 1,219 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/remark-mathlil/" target="_blank" rel="noopener">remark-mathlil</a><small>@itslil/remark-math</small></th>
+                <td><code>remark-math.esm.js</code></td>
+                <td>2,248 B</td>
+                <td>2,100 B<small>Terser</small></td>
+                <td class="loss">+7.0%</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 2,361 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/playcanvaslil/" target="_blank" rel="noopener">playcanvaslil</a><small>playcanvaslil</small></th>
+                <td><code>shader-processing.js</code></td>
+                <td>14,632 B</td>
+                <td>14,614 B<small>release build</small></td>
+                <td class="loss">+0.1%</td>
+                <td>previous compiler · 10 Sep<small>Today’s compiler: 14,681 B.</small></td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="https://yeargun.github.io/solidlil/" target="_blank" rel="noopener">solidlil</a><small>@itslil/solidjs</small></th>
+                <td><code>—</code></td>
+                <td>—</td>
+                <td>—<small>withheld</small></td>
+                <td>—</td>
+                <td>previous compiler · 10 Sep<small>Exact port in progress.</small></td>
+              </tr>
+              <!-- landing-ports:end -->
+            </tbody>
+          </table>
         </div>
         <div class="landing-actions">
           <a class="secondary-link" href="/demos.html#solidlil-keyed">Solid keyed pair</a>
@@ -784,13 +851,11 @@ console.log(`sum=${c}`)</code></pre>
           <p>
             That was not the plan; it is just what we keep seeing. A library
             rewrite is often close to one-shot, and the compiled file is usually
-            smaller once gzip or Brotli is applied. Across the 14 currently
-            comparable rows, the median project result is 5.3% smaller under
-            gzip-9 and 6.6% smaller under Brotli-11. Zod and SolidLil remain
-            visible but are excluded until their declared parity boundaries
-            match. This is a snapshot with one vote per project, including
-            losses and near-ties — not a promise that every file will move that
-            far.
+            smaller once gzip or Brotli is applied. Across the
+            <span data-landing-count>10</span> published library ports that
+            vote, the median is <span data-landing-median="gzip">5.8%</span> smaller under
+            gzip-9 and <span data-landing-median="brotli">5.7%</span> smaller
+            under Brotli-11, one vote per library. It is a snapshot, not a promise that every file will move that far.
           </p>
         </div>
       </section>

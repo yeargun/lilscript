@@ -4817,3 +4817,20 @@ tbody tr:last-child td {
     height: 420px;
   }
 }
+
+/* Dated notice on pages whose evidence predates today's compiler. */
+.evidence-notice {
+  margin: 24px 0 8px;
+  padding: 14px 18px;
+  border-left: 3px solid var(--blue);
+  background: color-mix(in srgb, var(--blue) 6%, transparent);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.evidence-notice strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink, inherit);
+}
