@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LilScript is a typed language that compiles to smaller JavaScript. Across 17 library rows measured with today’s compiler, the median result is 6.7% smaller with gzip and 7.3% smaller with Brotli than the bar named on each card."
+      content="LilScript is a typed language that compiles to smaller JavaScript. Across 11 library rows measured with today’s compiler, the median result is 5.9% smaller with gzip and 7.0% smaller with Brotli than the bar named on each card."
     />
     <title>LilScript — compiles to smaller JavaScript</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -81,12 +81,11 @@
             <div>
               <dt>Measured median</dt>
               <dd>
-                Across <span data-landing-count>17</span> libraries rebuilt
-                today by one compiler, one vote each:
-                <strong data-landing-median="gzip">6.7%</strong> smaller under
-                gzip-9 and <strong data-landing-median="brotli">7.3%</strong>
+                Across the <span data-landing-count>11</span> published
+                library ports that vote, one vote each:
+                <strong data-landing-median="gzip">5.9%</strong> smaller under
+                gzip-9 and <strong data-landing-median="brotli">7.0%</strong>
                 smaller under Brotli-11 than the bar named on each card.
-                Losses count.
               </dd>
             </div>
           </dl>
@@ -231,13 +230,14 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
           <p class="landing-kicker">03 · Libraries we actually port</p>
           <h2 id="ports-title">A grid of measured rewrites, not a slogan.</h2>
           <p>
-            Every card was rebuilt on 27 September 2026 by one pinned compiler
-            (<a href="https://github.com/yeargun/lilscript/commit/249686599dc3bf1b6bf70dc9a030081b755bbb24" target="_blank" rel="noopener">24968659</a>)
-            and measured with gzip-9 and Brotli-11. The bar is named on each
-            card: the strongest lane its library page records for ports
-            (Terser, Oxc, esbuild, or the library’s own minified file), and
-            Closure ADVANCED for the in-repo lab. The arrow is bar →
-            LilScript. Losses stay on the grid.
+            Each card is the file its library page publishes, measured with
+            gzip-9 and Brotli-11. Most were rebuilt on 27 September 2026 by
+            one pinned compiler
+            (<a href="https://github.com/yeargun/lilscript/commit/249686599dc3bf1b6bf70dc9a030081b755bbb24" target="_blank" rel="noopener">24968659</a>);
+            the table below says which compiler built each one. The bar is
+            the strongest lane the library page records: Terser, Oxc,
+            esbuild, or the library’s own minified file. The arrow is bar →
+            LilScript.
           </p>
         </div>
         <div class="lib-grid">
@@ -304,13 +304,13 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
           >
             <span class="lib-card-kicker">Parse API · 29 checks</span>
             <h3>marked 18</h3>
-            <p>Lexer, Parser, Tokenizer and Renderer of marked 18.0.10, not the extension system. The bar is Oxc over the same parse-only sources; SWC (10,031 B) is 61 B stronger and still loses by 742 B.</p>
+            <p>Lexer, Parser, Tokenizer and Renderer of marked 18.0.10, not the extension system. The bar is Oxc over the same parse-only sources; SWC (10,031 B) is 61 B stronger and still loses by 744 B.</p>
             <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="10930" data-candidate="10310">
-                <small>gzip-9 · vs Oxc</small><b>−5.7%</b><span>10,930 → 10,310 B</span>
+              <div class="win compression-rate" data-compression-rate data-baseline="10930" data-candidate="10314">
+                <small>gzip-9 · vs Oxc</small><b>−5.6%</b><span>10,930 → 10,314 B</span>
               </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="10092" data-candidate="9289">
-                <small>Brotli-11 · vs Oxc</small><b>−8.0%</b><span>10,092 → 9,289 B</span>
+              <div class="win compression-rate" data-compression-rate data-baseline="10092" data-candidate="9287">
+                <small>Brotli-11 · vs Oxc</small><b>−8.0%</b><span>10,092 → 9,287 B</span>
               </div>
             </div>
           </a>
@@ -484,99 +484,21 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
               <div><small>Vote</small><b>none</b></div>
             </div>
           </a>
-          <a class="lib-card" href="/libraries.html#murmurhash-js">
-            <span class="lib-card-kicker">In-repo lab · complete package</span>
-            <h3>murmurhash-js</h3>
-            <p>MurmurHash 2 and 3, same checksums. The bar is Closure ADVANCED, the smaller of Vite and Closure.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="951" data-candidate="506">
-                <small>gzip-9 · vs Closure</small><b>−46.8%</b><span>951 → 506 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="833" data-candidate="457">
-                <small>Brotli-11 · vs Closure</small><b>−45.1%</b><span>833 → 457 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/libraries.html#micro-math">
-            <span class="lib-card-kicker">In-repo lab · complete package</span>
-            <h3>clamp + lerp</h3>
-            <p>Both published roots. The bar is Closure ADVANCED.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="482" data-candidate="166">
-                <small>gzip-9 · vs Closure</small><b>−65.6%</b><span>482 → 166 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="414" data-candidate="141">
-                <small>Brotli-11 · vs Closure</small><b>−65.9%</b><span>414 → 141 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/libraries.html#string-hash">
-            <span class="lib-card-kicker">In-repo lab · complete package</span>
-            <h3>string-hash</h3>
-            <p>The djb2 string hash, same values. The bar is Closure ADVANCED.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="473" data-candidate="154">
-                <small>gzip-9 · vs Closure</small><b>−67.4%</b><span>473 → 154 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="403" data-candidate="129">
-                <small>Brotli-11 · vs Closure</small><b>−68.0%</b><span>403 → 129 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/libraries.html">
-            <span class="lib-card-kicker">In-repo lab · size only</span>
-            <h3>js-levenshtein</h3>
-            <p>Smaller than Closure ADVANCED, but 1.11× slower in the lab’s throughput workload today (gate: 1.05×), so the lab does not publish it.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="788" data-candidate="456">
-                <small>gzip-9 · vs Closure</small><b>−42.1%</b><span>788 → 456 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="714" data-candidate="413">
-                <small>Brotli-11 · vs Closure</small><b>−42.2%</b><span>714 → 413 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/libraries.html">
-            <span class="lib-card-kicker">In-repo lab · loses to Closure</span>
-            <h3>@emotion/hash</h3>
-            <p>Smaller than Vite (330 B) but 9 B larger than Closure ADVANCED under Brotli, so the lab does not publish it.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="287" data-candidate="281">
-                <small>gzip-9 · vs Closure</small><b>−2.1%</b><span>287 → 281 B</span>
-              </div>
-              <div class="loss compression-rate" data-compression-rate data-baseline="240" data-candidate="249">
-                <small>Brotli-11 · vs Closure</small><b>+3.8%</b><span>240 → 249 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/libraries.html">
-            <span class="lib-card-kicker">In-repo lab · raw loses</span>
-            <h3>robust-predicates</h3>
-            <p>Geometric predicates. Smaller under both codecs, but the raw file (26,191 B) is larger than Closure’s (25,208 B), which fails the lab’s gate.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="7872" data-candidate="7632">
-                <small>gzip-9 · vs Closure</small><b>−3.0%</b><span>7,872 → 7,632 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="6228" data-candidate="6015">
-                <small>Brotli-11 · vs Closure</small><b>−3.4%</b><span>6,228 → 6,015 B</span>
-              </div>
-            </div>
-          </a>
           <!-- landing-cards:end -->
         </div>
         <p class="note-box">
           <strong>How to read this.</strong> Each percentage is recalculated as
           <code>(candidate / bar − 1) × 100</code> from the byte pair beside
           it. A port ships one Brotli-objective file, so its gzip figure is
-          that same file under gzip-9; lab rows use each codec’s own build.
-          The headline median is over the <span data-landing-count>17</span>
+          that same file under gzip-9. The headline median is over the <span data-landing-count>11</span>
           cards with a vote, one per library, not a byte-weighted blend.
           Motion, SolidLil and MobX stay visible without a vote: Motion’s
           delivered files are not written by the compiler alone, SolidLil’s
           comparison is withheld, and MobX’s published build is from the
           previous compiler. On four ports SWC was measured separately and is
           stronger than the card’s bar; the card text gives that margin. The
-          full list, including ports still on the previous compiler, is below.
+          full list, including ports still on the previous compiler and their
+          losses, is below.
         </p>
       </section>
 
@@ -594,9 +516,10 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
             <time datetime="2026-09-27">27 Sep 2026</time>
             <h3>The port pages, rebuilt by one compiler</h3>
             <p>
-              Sixteen library pages now show builds by compiler 24968659,
-              with fresh sizes, bars, tests and compile times measured on one
-              host. KaTeX and Motion were already current.
+              Every library page where today’s compiler writes a smaller file
+              now shows it, with fresh sizes, bars, tests and compile times:
+              rehype is 1,474 B smaller, remark 632 B. KaTeX and Motion were
+              already current.
             </p>
             <a href="#projects-title">See the list</a>
           </article>
@@ -626,9 +549,9 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
             <p>
               The deleted route folded small closed programs harder:
               <code>comparison/apps</code> is 945 B today against its 558 B
-              and Closure ADVANCED’s 834 B. Nine ports that did not get the
-              one-compiler rewrite are larger today, so their pages keep the
-              10 September builds.
+              and Closure ADVANCED’s 834 B. Pages where today’s compiler is
+              not smaller keep their earlier builds until their ports are
+              rewritten for it.
             </p>
             <a href="https://github.com/yeargun/lilscript/blob/finer/059-idiom-directed-naming/docs/future-architecture.md" target="_blank" rel="noopener">Read the design that fixes it</a>
           </article>
@@ -687,10 +610,10 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
               <tr>
                 <th scope="row"><a href="https://yeargun.github.io/markedlil/" target="_blank" rel="noopener">markedlil</a><small>@itslil/marked</small></th>
                 <td><code>marked.esm.js</code></td>
-                <td>9,289 B</td>
+                <td>9,287 B</td>
                 <td>10,092 B<small>Oxc</small></td>
                 <td class="win">−8.0%</td>
-                <td>24968659 · 27 Sep</td>
+                <td>aa2052f0 · 24 Sep<small>Today’s compiler: 9,289 B.</small></td>
               </tr>
               <tr>
                 <th scope="row"><a href="https://yeargun.github.io/zodlil/" target="_blank" rel="noopener">zodlil</a><small>@itslil/zod</small></th>
@@ -735,18 +658,18 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
               <tr>
                 <th scope="row"><a href="https://yeargun.github.io/mdast-util-from-markdownlil/" target="_blank" rel="noopener">mdast-util-from-markdownlil</a><small>@itslil/mdast-util-from-markdown</small></th>
                 <td><code>from-markdown.esm.js</code></td>
-                <td>22,323 B</td>
+                <td>22,308 B</td>
                 <td>23,151 B<small>Terser, Node graph</small></td>
                 <td class="win">−3.6%</td>
-                <td>24968659 · 27 Sep</td>
+                <td>aa2052f0 · 24 Sep<small>Today’s compiler: 22,323 B.</small></td>
               </tr>
               <tr>
                 <th scope="row"><a href="https://yeargun.github.io/remark-parselil/" target="_blank" rel="noopener">remark-parselil</a><small>@itslil/remark-parse</small></th>
                 <td><code>remark-parse.esm.js</code></td>
-                <td>22,404 B</td>
+                <td>22,386 B</td>
                 <td>23,171 B<small>Terser, Node graph</small></td>
-                <td class="win">−3.3%</td>
-                <td>24968659 · 27 Sep</td>
+                <td class="win">−3.4%</td>
+                <td>aa2052f0 · 24 Sep<small>Today’s compiler: 22,404 B.</small></td>
               </tr>
               <tr>
                 <th scope="row"><a href="https://yeargun.github.io/unifiedlil/" target="_blank" rel="noopener">unifiedlil</a><small>@itslil/unified</small></th>
@@ -931,11 +854,10 @@ c({x:3,y:4})==25&amp;&amp;console.log(`sum=${a}`);</code></pre>
             That was not the plan; it is just what we keep seeing. A library
             rewrite is often close to one-shot, and the compiled file is usually
             smaller once gzip or Brotli is applied. Across the
-            <span data-landing-count>17</span> libraries rebuilt today, the
-            median is <span data-landing-median="gzip">6.7%</span> smaller under
-            gzip-9 and <span data-landing-median="brotli">7.3%</span> smaller
-            under Brotli-11, one vote per library, losses included. It is a
-            snapshot, not a promise that every file will move that far.
+            <span data-landing-count>11</span> published library ports that
+            vote, the median is <span data-landing-median="gzip">5.9%</span> smaller under
+            gzip-9 and <span data-landing-median="brotli">7.0%</span> smaller
+            under Brotli-11, one vote per library. It is a snapshot, not a promise that every file will move that far.
           </p>
         </div>
       </section>

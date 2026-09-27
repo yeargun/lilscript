@@ -1,12 +1,12 @@
 {
   "schemaVersion": 2,
   "metadata": {
-    "generatedAt": "2026-09-27T14:44:22.219Z",
-    "compilerRevision": "24968659",
+    "generatedAt": "2026-08-18T15:01:20.724Z",
+    "compilerRevision": "1e3b916",
     "compiler": {
       "path": "target/release/lilscript",
       "version": "lilscript 0.1.0",
-      "sha256": "47048e41164027e92d3bf1d1840d8d83e04c60532c031ceb3346222e194b3041"
+      "sha256": "197015918e11c868f2d9c6a1dbdd7369860b6107e980305286420cd16d93578d"
     },
     "objectiveConfigs": {
       "raw": {
@@ -24,13 +24,13 @@
     },
     "runtimeConfigEvidence": {
       "path": "lilscript.toml",
-      "sha256": "c2f6d69d5243384e9ac232a85bdaef0eb82e2bfee0f87d3e50024f29a055e3c4"
+      "sha256": "25fb7b8cd90777cee373198ddbcd935016c0bd31c22610fee6288bbdf03d8435"
     },
-    "node": "v24.11.1",
+    "node": "v22.21.1",
     "vite": "8.2.1",
     "esbuild": "0.28.1",
     "closure": "20260804.0.0",
-    "system": "linux 7.0.0-1014-azure x64",
+    "system": "darwin 24.6.0 arm64",
     "warmups": 5,
     "samples": 25,
     "workloadRounds": 9,
@@ -47,9 +47,9 @@
       "implementation": "lilscript-codec",
       "schemaVersion": 1,
       "scorer": {
-        "path": "../../bin/release-0927/lilscript-codec",
-        "sha256": "85329d361ef3339d4ff7b7ca1f00065d561340eb4fc98a2799af327134a3a3f0",
-        "bytes": 2306976
+        "path": "target/release/lilscript-codec",
+        "sha256": "250f40f9a3244616c2600cea98ac819245a279ffc6b0dcc1ca71972c72a1ab00",
+        "bytes": 1805664
       },
       "gzip9": {
         "encoder": "upstream-stock-zlib-c",
@@ -71,7 +71,7 @@
       "nodeCodecsAreDiagnosticOnly": true
     },
     "materialRegressionLimit": 1.05,
-    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "cpu": "Apple M3 Pro",
     "downloadWindow": "last-month"
   },
   "eligibilityRule": "Every documented callable in the selected published root entrypoint is implemented for its typed input domain with the same algorithmic work; all available upstream assertions plus added package-contract vectors pass; npm and LilScript app and isolated-workload checksums match; the LilScript port compiles to JavaScript, C, and a native executable; independently compiled raw- and selected-codec-objective LilScript surfaces are no larger in their matching metrics than both npm/Vite and public-contract-preserving Closure ADVANCED; and median isolated-workload throughput and retained memory are each no worse than 1.05x npm. Other metrics of each objective build, app-specialized sizes, and native file sizes are diagnostics only.",
@@ -114,7 +114,7 @@
             "assets/index-B6IEu8zq.js",
             "index.html"
           ],
-          "medianMs": 4.549365999999992
+          "medianMs": 3.8453750000000184
         },
         {
           "id": "closure",
@@ -131,24 +131,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.534928999999977
+          "medianMs": 3.8257499999999993
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 480,
-          "gzip": 249,
-          "brotli": 232,
+          "raw": 314,
+          "gzip": 224,
+          "brotli": 201,
           "deploy": {
-            "raw": 666,
-            "gzip": 408,
-            "brotli": 318
+            "raw": 500,
+            "gzip": 383,
+            "brotli": 287
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.0738269999999943,
+          "medianMs": 1.585125000000005,
           "runtimeObjective": "brotli",
           "runtimeConfig": "lilscript.toml",
           "nativeVerified": true,
@@ -179,9 +179,9 @@
         {
           "id": "lilscript",
           "label": "LilScript reusable objective builds",
-          "raw": 138,
-          "gzip": 166,
-          "brotli": 141,
+          "raw": 109,
+          "gzip": 142,
+          "brotli": 112,
           "objectiveArtifacts": [
             {
               "objective": "raw",
@@ -194,9 +194,9 @@
                 "clamp",
                 "lerp"
               ],
-              "raw": 138,
-              "gzip": 166,
-              "brotli": 126,
+              "raw": 109,
+              "gzip": 142,
+              "brotli": 117,
               "files": [
                 "ports-raw/clamp.mjs",
                 "ports-raw/lerp.mjs"
@@ -213,9 +213,9 @@
                 "clamp",
                 "lerp"
               ],
-              "raw": 138,
-              "gzip": 166,
-              "brotli": 126,
+              "raw": 109,
+              "gzip": 142,
+              "brotli": 117,
               "files": [
                 "ports-gzip/clamp.mjs",
                 "ports-gzip/lerp.mjs"
@@ -232,9 +232,9 @@
                 "clamp",
                 "lerp"
               ],
-              "raw": 152,
-              "gzip": 177,
-              "brotli": 141,
+              "raw": 109,
+              "gzip": 142,
+              "brotli": 112,
               "files": [
                 "ports/clamp.mjs",
                 "ports/lerp.mjs"
@@ -245,90 +245,90 @@
       ],
       "workload": {
         "performance": {
-          "npmMs": 18.959891,
-          "lilscriptMs": 19.266987,
-          "ratio": 1.016197139529969
+          "npmMs": 8.140584,
+          "lilscriptMs": 8.119207999999999,
+          "ratio": 0.9973741441645954
         },
         "retainedMemory": {
-          "npmBytes": 318448,
-          "lilscriptBytes": 318416,
-          "ratio": 0.999899512636286
+          "npmBytes": 317720,
+          "lilscriptBytes": 317816,
+          "ratio": 1.0003021528389777
         },
         "samples": {
           "performance": {
             "npm": [
               {
-                "milliseconds": 16.832884999999997,
+                "milliseconds": 8.373792000000002,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 17.24595,
+                "milliseconds": 7.875917000000001,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 17.343952,
+                "milliseconds": 8.438458999999998,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 18.142148999999996,
+                "milliseconds": 8.068417,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 18.959891,
+                "milliseconds": 8.156625,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 27.670093,
+                "milliseconds": 8.952417,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 25.626804999999997,
+                "milliseconds": 8.067333000000001,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 29.151000000000003,
+                "milliseconds": 8.069958999999999,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 22.868074999999997,
+                "milliseconds": 8.140584,
                 "checksum": 24139028.50000736
               }
             ],
             "lilscript": [
               {
-                "milliseconds": 18.022855,
+                "milliseconds": 7.982583,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 17.741799000000004,
+                "milliseconds": 8.07825,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 19.266987,
+                "milliseconds": 8.1265,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 17.619759999999996,
+                "milliseconds": 8.137250000000002,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 19.089033,
+                "milliseconds": 8.092334,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 31.388472999999998,
+                "milliseconds": 8.151499999999999,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 28.882035999999992,
+                "milliseconds": 8.142667000000001,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 25.688491,
+                "milliseconds": 8.119207999999999,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 28.660731,
+                "milliseconds": 7.995541999999999,
                 "checksum": 24139028.50000736
               }
             ]
@@ -336,77 +336,77 @@
           "memory": {
             "npm": [
               {
-                "bytes": 318448,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318288,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318336,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318448,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318448,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318304,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318448,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318448,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 322520,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               }
             ],
             "lilscript": [
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318536,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 314528,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               }
             ]
@@ -417,74 +417,74 @@
       "blockers": []
     },
     {
-      "id": "string-hash",
-      "title": "String hash",
-      "scope": "Complete string-hash root entrypoint",
+      "id": "js-levenshtein",
+      "title": "Levenshtein distance",
+      "scope": "Complete js-levenshtein root entrypoint",
       "packages": [
         {
-          "name": "string-hash",
-          "version": "1.1.3"
+          "name": "js-levenshtein",
+          "version": "1.1.6"
         }
       ],
-      "monthlyDownloads": 19930081,
-      "translatedAssertions": 2,
-      "additionalAssertions": 2,
-      "expected": "string-hash:4:1670934855",
+      "monthlyDownloads": 41652021,
+      "translatedAssertions": 14,
+      "additionalAssertions": 0,
+      "expected": "js-levenshtein:14:2049950",
       "source": {
-        "npmApp": 634,
-        "lilscriptAppAndPort": 949
+        "npmApp": 1037,
+        "lilscriptAppAndPort": 3746
       },
       "artifacts": [
         {
           "id": "vite",
           "label": "Installed npm package + Vite",
-          "raw": 1076,
-          "gzip": 638,
-          "brotli": 568,
+          "raw": 1970,
+          "gzip": 1067,
+          "brotli": 969,
           "deploy": {
-            "raw": 1354,
-            "gzip": 857,
-            "brotli": 698
+            "raw": 2251,
+            "gzip": 1290,
+            "brotli": 1099
           },
           "files": [
-            "assets/index-Bf76Xsi8.js",
+            "assets/index-B4X7I0S2.js",
             "index.html"
           ],
-          "medianMs": 6.769425999999953
+          "medianMs": 9.369790999999964
         },
         {
           "id": "closure",
           "label": "Installed npm package + Closure ADVANCED",
-          "raw": 1113,
-          "gzip": 651,
-          "brotli": 581,
+          "raw": 2030,
+          "gzip": 1081,
+          "brotli": 996,
           "deploy": {
-            "raw": 1299,
-            "gzip": 810,
-            "brotli": 667
+            "raw": 2216,
+            "gzip": 1240,
+            "brotli": 1082
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 7.107289000000037
+          "medianMs": 9.434375000000045
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 496,
-          "gzip": 346,
-          "brotli": 309,
+          "raw": 1381,
+          "gzip": 778,
+          "brotli": 671,
           "deploy": {
-            "raw": 682,
-            "gzip": 505,
-            "brotli": 395
+            "raw": 1567,
+            "gzip": 937,
+            "brotli": 757
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 5.6763879999999745,
+          "medianMs": 8.636416999999994,
           "runtimeObjective": "brotli",
           "runtimeConfig": "lilscript.toml",
           "nativeVerified": true,
@@ -498,16 +498,16 @@
           "files": [
             "library.js"
           ],
-          "raw": 969,
-          "gzip": 559,
-          "brotli": 502
+          "raw": 1984,
+          "gzip": 914,
+          "brotli": 825
         },
         {
           "id": "closure",
           "label": "Installed npm package + Closure ADVANCED public surface",
-          "raw": 744,
-          "gzip": 473,
-          "brotli": 403,
+          "raw": 1453,
+          "gzip": 788,
+          "brotli": 714,
           "files": [
             "closure-library.js"
           ]
@@ -515,9 +515,9 @@
         {
           "id": "lilscript",
           "label": "LilScript reusable objective builds",
-          "raw": 154,
-          "gzip": 154,
-          "brotli": 129,
+          "raw": 830,
+          "gzip": 438,
+          "brotli": 404,
           "objectiveArtifacts": [
             {
               "objective": "raw",
@@ -525,15 +525,15 @@
               "config": "objective-configs/raw.toml",
               "configDerivation": "benchmarks/libraries/surface-size.toml with only javascript.cost_model overridden",
               "behaviorVerified": true,
-              "behaviorChecksum": 112648201760,
+              "behaviorChecksum": 1842,
               "publicExports": [
-                "stringHash"
+                "levenshtein"
               ],
-              "raw": 154,
-              "gzip": 155,
-              "brotli": 129,
+              "raw": 830,
+              "gzip": 450,
+              "brotli": 414,
               "files": [
-                "ports-raw/string-hash.mjs"
+                "ports-raw/js-levenshtein.mjs"
               ]
             },
             {
@@ -542,15 +542,15 @@
               "config": "objective-configs/gzip.toml",
               "configDerivation": "benchmarks/libraries/surface-size.toml with only javascript.cost_model overridden",
               "behaviorVerified": true,
-              "behaviorChecksum": 112648201760,
+              "behaviorChecksum": 1842,
               "publicExports": [
-                "stringHash"
+                "levenshtein"
               ],
-              "raw": 154,
-              "gzip": 154,
-              "brotli": 130,
+              "raw": 839,
+              "gzip": 438,
+              "brotli": 412,
               "files": [
-                "ports-gzip/string-hash.mjs"
+                "ports-gzip/js-levenshtein.mjs"
               ]
             },
             {
@@ -559,15 +559,15 @@
               "config": "objective-configs/brotli.toml",
               "configDerivation": "benchmarks/libraries/surface-size.toml with only javascript.cost_model overridden",
               "behaviorVerified": true,
-              "behaviorChecksum": 112648201760,
+              "behaviorChecksum": 1842,
               "publicExports": [
-                "stringHash"
+                "levenshtein"
               ],
-              "raw": 154,
-              "gzip": 155,
-              "brotli": 129,
+              "raw": 839,
+              "gzip": 440,
+              "brotli": 404,
               "files": [
-                "ports/string-hash.mjs"
+                "ports/js-levenshtein.mjs"
               ]
             }
           ]
@@ -575,169 +575,499 @@
       ],
       "workload": {
         "performance": {
-          "npmMs": 29.612534000000004,
-          "lilscriptMs": 30.743633999999993,
-          "ratio": 1.038196663615481
+          "npmMs": 34.708167,
+          "lilscriptMs": 33.5755,
+          "ratio": 0.9673659804621776
         },
         "retainedMemory": {
-          "npmBytes": 317736,
-          "lilscriptBytes": 318376,
-          "ratio": 1.002014250824584
+          "npmBytes": 317392,
+          "lilscriptBytes": 317536,
+          "ratio": 1.0004536976357312
         },
         "samples": {
           "performance": {
             "npm": [
               {
-                "milliseconds": 30.817242,
-                "checksum": 288797689264664
+                "milliseconds": 34.799334,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 29.224396999999996,
-                "checksum": 288797689264664
+                "milliseconds": 34.708167,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 30.304471,
-                "checksum": 288797689264664
+                "milliseconds": 34.707458,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 27.560859999999998,
-                "checksum": 288797689264664
+                "milliseconds": 34.032792,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 28.497364999999995,
-                "checksum": 288797689264664
+                "milliseconds": 33.690292,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 29.013902,
-                "checksum": 288797689264664
+                "milliseconds": 34.286209,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 37.480439,
-                "checksum": 288797689264664
+                "milliseconds": 35.542,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 29.612534000000004,
-                "checksum": 288797689264664
+                "milliseconds": 34.921583,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 31.415082000000005,
-                "checksum": 288797689264664
+                "milliseconds": 34.789375,
+                "checksum": 8972679
               }
             ],
             "lilscript": [
               {
-                "milliseconds": 35.427322,
-                "checksum": 288797689264664
+                "milliseconds": 34.713958,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 40.078678,
-                "checksum": 288797689264664
+                "milliseconds": 34.173417,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 29.776481000000004,
-                "checksum": 288797689264664
+                "milliseconds": 33.482875,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 29.475708000000004,
-                "checksum": 288797689264664
+                "milliseconds": 33.5755,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 31.041051000000003,
-                "checksum": 288797689264664
+                "milliseconds": 32.762833,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 29.753037999999997,
-                "checksum": 288797689264664
+                "milliseconds": 33.660125,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 30.226405000000007,
-                "checksum": 288797689264664
+                "milliseconds": 33.378541999999996,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 32.71820400000001,
-                "checksum": 288797689264664
+                "milliseconds": 32.720541999999995,
+                "checksum": 8972679
               },
               {
-                "milliseconds": 30.743633999999993,
-                "checksum": 288797689264664
+                "milliseconds": 33.597375,
+                "checksum": 8972679
               }
             ]
           },
           "memory": {
             "npm": [
               {
-                "bytes": 317736,
-                "checksum": 77022498530984
+                "bytes": 317392,
+                "checksum": 1196400
               },
               {
-                "bytes": 317736,
-                "checksum": 77022498530984
+                "bytes": 317392,
+                "checksum": 1196400
               },
               {
-                "bytes": 317736,
-                "checksum": 77022498530984
+                "bytes": 317392,
+                "checksum": 1196400
               },
               {
-                "bytes": 317736,
-                "checksum": 77022498530984
+                "bytes": 317392,
+                "checksum": 1196400
               },
               {
-                "bytes": 317736,
-                "checksum": 77022498530984
+                "bytes": 317392,
+                "checksum": 1196400
               },
               {
-                "bytes": 317736,
-                "checksum": 77022498530984
+                "bytes": 317392,
+                "checksum": 1196400
               },
               {
-                "bytes": 317736,
-                "checksum": 77022498530984
+                "bytes": 317392,
+                "checksum": 1196400
               },
               {
-                "bytes": 317736,
-                "checksum": 77022498530984
+                "bytes": 317392,
+                "checksum": 1196400
               },
               {
-                "bytes": 317736,
-                "checksum": 77022498530984
+                "bytes": 317392,
+                "checksum": 1196400
               }
             ],
             "lilscript": [
               {
-                "bytes": 318376,
-                "checksum": 77022498530984
+                "bytes": 317536,
+                "checksum": 1196400
               },
               {
-                "bytes": 317880,
-                "checksum": 77022498530984
+                "bytes": 317536,
+                "checksum": 1196400
               },
               {
-                "bytes": 317880,
-                "checksum": 77022498530984
+                "bytes": 317536,
+                "checksum": 1196400
               },
               {
-                "bytes": 318376,
-                "checksum": 77022498530984
+                "bytes": 317536,
+                "checksum": 1196400
               },
               {
-                "bytes": 317880,
-                "checksum": 77022498530984
+                "bytes": 317536,
+                "checksum": 1196400
               },
               {
-                "bytes": 318376,
-                "checksum": 77022498530984
+                "bytes": 317536,
+                "checksum": 1196400
               },
               {
-                "bytes": 318376,
-                "checksum": 77022498530984
+                "bytes": 317536,
+                "checksum": 1196400
               },
               {
-                "bytes": 318376,
-                "checksum": 77022498530984
+                "bytes": 317536,
+                "checksum": 1196400
               },
               {
-                "bytes": 317880,
-                "checksum": 77022498530984
+                "bytes": 317536,
+                "checksum": 1196400
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "id": "emotion-hash",
+      "title": "Emotion hash",
+      "scope": "Complete @emotion/hash root entrypoint",
+      "packages": [
+        {
+          "name": "@emotion/hash",
+          "version": "0.9.2"
+        }
+      ],
+      "monthlyDownloads": 122398176,
+      "translatedAssertions": 1,
+      "additionalAssertions": 7,
+      "expected": "emotion-hash:8:30831534",
+      "source": {
+        "npmApp": 714,
+        "lilscriptAppAndPort": 1685
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 907,
+          "gzip": 492,
+          "brotli": 430,
+          "deploy": {
+            "raw": 1186,
+            "gzip": 710,
+            "brotli": 555
+          },
+          "files": [
+            "assets/index-DHXm0Jix.js",
+            "index.html"
+          ],
+          "medianMs": 14.04525000000001
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 924,
+          "gzip": 487,
+          "brotli": 434,
+          "deploy": {
+            "raw": 1110,
+            "gzip": 646,
+            "brotli": 520
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 13.966750000000047
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 766,
+          "gzip": 493,
+          "brotli": 428,
+          "deploy": {
+            "raw": 952,
+            "gzip": 652,
+            "brotli": 514
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 14.001917000000049,
+          "runtimeObjective": "brotli",
+          "runtimeConfig": "lilscript.toml",
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 833,
+          "gzip": 348,
+          "brotli": 330
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 594,
+          "gzip": 287,
+          "brotli": 240,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable objective builds",
+          "raw": 427,
+          "gzip": 265,
+          "brotli": 231,
+          "objectiveArtifacts": [
+            {
+              "objective": "raw",
+              "gateMetric": "raw",
+              "config": "objective-configs/raw.toml",
+              "configDerivation": "benchmarks/libraries/surface-size.toml with only javascript.cost_model overridden",
+              "behaviorVerified": true,
+              "behaviorChecksum": 4751,
+              "publicExports": [
+                "emotionHash"
+              ],
+              "raw": 427,
+              "gzip": 275,
+              "brotli": 268,
+              "files": [
+                "ports-raw/emotion-hash.mjs"
+              ]
+            },
+            {
+              "objective": "gzip",
+              "gateMetric": "gzip",
+              "config": "objective-configs/gzip.toml",
+              "configDerivation": "benchmarks/libraries/surface-size.toml with only javascript.cost_model overridden",
+              "behaviorVerified": true,
+              "behaviorChecksum": 4751,
+              "publicExports": [
+                "emotionHash"
+              ],
+              "raw": 438,
+              "gzip": 265,
+              "brotli": 243,
+              "files": [
+                "ports-gzip/emotion-hash.mjs"
+              ]
+            },
+            {
+              "objective": "brotli",
+              "gateMetric": "brotli",
+              "config": "objective-configs/brotli.toml",
+              "configDerivation": "benchmarks/libraries/surface-size.toml with only javascript.cost_model overridden",
+              "behaviorVerified": true,
+              "behaviorChecksum": 4751,
+              "publicExports": [
+                "emotionHash"
+              ],
+              "raw": 436,
+              "gzip": 266,
+              "brotli": 231,
+              "files": [
+                "ports/emotion-hash.mjs"
+              ]
+            }
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 35.339791000000005,
+          "lilscriptMs": 34.137584000000004,
+          "ratio": 0.9659814909488287
+        },
+        "retainedMemory": {
+          "npmBytes": 637440,
+          "lilscriptBytes": 637568,
+          "ratio": 1.0002008032128513
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 35.189083,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.339791000000005,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.161249999999995,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.910959000000005,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.633667,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 34.916624999999996,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.277625,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 36.355417,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.999334,
+                "checksum": 11846355
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 33.553667000000004,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.959165999999996,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 33.908041999999995,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 34.22575,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 34.137584000000004,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 34.095040999999995,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 34.172208,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 35.373792,
+                "checksum": 11846355
+              },
+              {
+                "milliseconds": 34.902833,
+                "checksum": 11846355
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 637440,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637440,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637440,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637440,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637440,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637440,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637440,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637440,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637440,
+                "checksum": 1579031
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 637568,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637568,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637568,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637568,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637568,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637568,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637568,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637568,
+                "checksum": 1579031
+              },
+              {
+                "bytes": 637568,
+                "checksum": 1579031
               }
             ]
           }
@@ -762,7 +1092,7 @@
       "expected": "murmurhash-js:18:855861453",
       "source": {
         "npmApp": 1164,
-        "lilscriptAppAndPort": 3686
+        "lilscriptAppAndPort": 3711
       },
       "artifacts": [
         {
@@ -780,7 +1110,7 @@
             "assets/index-B9SN9_CL.js",
             "index.html"
           ],
-          "medianMs": 9.852260000000001
+          "medianMs": 6.125624999999957
         },
         {
           "id": "closure",
@@ -797,24 +1127,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 10.16499600000003
+          "medianMs": 6.143624999999986
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1748,
-          "gzip": 761,
-          "brotli": 696,
+          "raw": 1499,
+          "gzip": 692,
+          "brotli": 627,
           "deploy": {
-            "raw": 1934,
-            "gzip": 920,
-            "brotli": 782
+            "raw": 1685,
+            "gzip": 851,
+            "brotli": 713
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 10.520271999999977,
+          "medianMs": 6.557958000000042,
           "runtimeObjective": "brotli",
           "runtimeConfig": "lilscript.toml",
           "nativeVerified": true,
@@ -845,9 +1175,9 @@
         {
           "id": "lilscript",
           "label": "LilScript reusable objective builds",
-          "raw": 1200,
-          "gzip": 506,
-          "brotli": 457,
+          "raw": 992,
+          "gzip": 446,
+          "brotli": 409,
           "objectiveArtifacts": [
             {
               "objective": "raw",
@@ -861,9 +1191,9 @@
                 "murmur2",
                 "murmur3"
               ],
-              "raw": 1200,
-              "gzip": 556,
-              "brotli": 509,
+              "raw": 992,
+              "gzip": 460,
+              "brotli": 431,
               "files": [
                 "ports-raw/murmurhash-js.mjs"
               ]
@@ -880,9 +1210,9 @@
                 "murmur2",
                 "murmur3"
               ],
-              "raw": 1260,
-              "gzip": 506,
-              "brotli": 457,
+              "raw": 1067,
+              "gzip": 446,
+              "brotli": 416,
               "files": [
                 "ports-gzip/murmurhash-js.mjs"
               ]
@@ -899,9 +1229,9 @@
                 "murmur2",
                 "murmur3"
               ],
-              "raw": 1260,
-              "gzip": 506,
-              "brotli": 457,
+              "raw": 1070,
+              "gzip": 449,
+              "brotli": 409,
               "files": [
                 "ports/murmurhash-js.mjs"
               ]
@@ -911,90 +1241,90 @@
       ],
       "workload": {
         "performance": {
-          "npmMs": 40.24692100000001,
-          "lilscriptMs": 35.810297999999996,
-          "ratio": 0.889764908972788
+          "npmMs": 22.886584,
+          "lilscriptMs": 18.716832999999998,
+          "ratio": 0.8178080660704978
         },
         "retainedMemory": {
-          "npmBytes": 328656,
-          "lilscriptBytes": 318376,
-          "ratio": 0.9687210943965727
+          "npmBytes": 317712,
+          "lilscriptBytes": 317856,
+          "ratio": 1.0004532406707962
         },
         "samples": {
           "performance": {
             "npm": [
               {
-                "milliseconds": 39.297101999999995,
+                "milliseconds": 22.599958,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 45.934739,
+                "milliseconds": 23.633042000000003,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 38.728266,
+                "milliseconds": 23.409375,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 39.249042,
+                "milliseconds": 22.886584,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 45.787141999999996,
+                "milliseconds": 22.869459,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 40.483104000000004,
+                "milliseconds": 23.064249999999998,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 41.083209000000004,
+                "milliseconds": 22.861083999999998,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 40.24692100000001,
+                "milliseconds": 23.120667,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 39.121922999999995,
+                "milliseconds": 22.825542,
                 "checksum": 515948007836551
               }
             ],
             "lilscript": [
               {
-                "milliseconds": 37.097771,
+                "milliseconds": 18.757041000000005,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 48.77833700000001,
+                "milliseconds": 19.437791,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 36.967698,
+                "milliseconds": 18.777916,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 35.810297999999996,
+                "milliseconds": 18.716832999999998,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 33.786086,
+                "milliseconds": 18.513666999999998,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 34.797711,
+                "milliseconds": 18.474917,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 38.442640999999995,
+                "milliseconds": 18.704625,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 33.416202999999996,
+                "milliseconds": 18.750583000000002,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 32.612426,
+                "milliseconds": 18.670624999999998,
                 "checksum": 515948007836551
               }
             ]
@@ -1002,78 +1332,429 @@
           "memory": {
             "npm": [
               {
-                "bytes": 322552,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 322552,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 328656,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 328656,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 317808,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 328656,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 328656,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 328656,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 317808,
+                "bytes": 317712,
                 "checksum": 86025209636231
               }
             ],
             "lilscript": [
               {
-                "bytes": 318376,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 318376,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 318376,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 322608,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 318376,
+                "bytes": 318472,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 334352,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 304664,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 323104,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 319760,
+                "bytes": 317856,
                 "checksum": 86025209636231
+              }
+            ]
+          }
+        }
+      },
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "id": "robust-predicates",
+      "title": "Robust geometric predicates",
+      "scope": "Complete robust-predicates root entrypoint",
+      "packages": [
+        {
+          "name": "robust-predicates",
+          "version": "3.0.3"
+        }
+      ],
+      "monthlyDownloads": 101525533,
+      "translatedAssertions": 23798,
+      "additionalAssertions": 320016,
+      "expected": "robust-predicates:8",
+      "source": {
+        "npmApp": 919,
+        "lilscriptAppAndPort": 80021
+      },
+      "artifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite",
+          "raw": 24227,
+          "gzip": 7418,
+          "brotli": 5960,
+          "deploy": {
+            "raw": 24347,
+            "gzip": 7538,
+            "brotli": 6037
+          },
+          "files": [
+            "assets/index-DEXxA7Qh.js",
+            "index.html"
+          ],
+          "medianMs": 0.6261250000000018
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED",
+          "raw": 25369,
+          "gzip": 7856,
+          "brotli": 6230,
+          "deploy": {
+            "raw": 25555,
+            "gzip": 8015,
+            "brotli": 6316
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 0.9696250000000006
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript port",
+          "raw": 117,
+          "gzip": 103,
+          "brotli": 93,
+          "deploy": {
+            "raw": 303,
+            "gzip": 262,
+            "brotli": 179
+          },
+          "files": [
+            "app.js",
+            "index.html"
+          ],
+          "medianMs": 0.06099999999999994,
+          "runtimeObjective": "brotli",
+          "runtimeConfig": "lilscript.toml",
+          "nativeVerified": true,
+          "cEmitted": true
+        }
+      ],
+      "surfaceArtifacts": [
+        {
+          "id": "vite",
+          "label": "Installed npm package + Vite library mode",
+          "files": [
+            "library.js"
+          ],
+          "raw": 38722,
+          "gzip": 8329,
+          "brotli": 6456
+        },
+        {
+          "id": "closure",
+          "label": "Installed npm package + Closure ADVANCED public surface",
+          "raw": 25208,
+          "gzip": 7872,
+          "brotli": 6228,
+          "files": [
+            "closure-library.js"
+          ]
+        },
+        {
+          "id": "lilscript",
+          "label": "LilScript reusable objective builds",
+          "raw": 19759,
+          "gzip": 7691,
+          "brotli": 5972,
+          "objectiveArtifacts": [
+            {
+              "objective": "raw",
+              "gateMetric": "raw",
+              "config": "objective-configs/raw.toml",
+              "configDerivation": "benchmarks/libraries/surface-size.toml with only javascript.cost_model overridden",
+              "behaviorVerified": true,
+              "behaviorChecksum": -7.105038171450967e+200,
+              "publicExports": [
+                "incircle",
+                "incirclefast",
+                "insphere",
+                "inspherefast",
+                "orient2d",
+                "orient2dfast",
+                "orient3d",
+                "orient3dfast"
+              ],
+              "raw": 19759,
+              "gzip": 7695,
+              "brotli": 6118,
+              "files": [
+                "ports-raw/robust-predicates.mjs"
+              ]
+            },
+            {
+              "objective": "gzip",
+              "gateMetric": "gzip",
+              "config": "objective-configs/gzip.toml",
+              "configDerivation": "benchmarks/libraries/surface-size.toml with only javascript.cost_model overridden",
+              "behaviorVerified": true,
+              "behaviorChecksum": -7.105038171450967e+200,
+              "publicExports": [
+                "incircle",
+                "incirclefast",
+                "insphere",
+                "inspherefast",
+                "orient2d",
+                "orient2dfast",
+                "orient3d",
+                "orient3dfast"
+              ],
+              "raw": 20095,
+              "gzip": 7691,
+              "brotli": 6008,
+              "files": [
+                "ports-gzip/robust-predicates.mjs"
+              ]
+            },
+            {
+              "objective": "brotli",
+              "gateMetric": "brotli",
+              "config": "objective-configs/brotli.toml",
+              "configDerivation": "benchmarks/libraries/surface-size.toml with only javascript.cost_model overridden",
+              "behaviorVerified": true,
+              "behaviorChecksum": -7.105038171450967e+200,
+              "publicExports": [
+                "incircle",
+                "incirclefast",
+                "insphere",
+                "inspherefast",
+                "orient2d",
+                "orient2dfast",
+                "orient3d",
+                "orient3dfast"
+              ],
+              "raw": 20099,
+              "gzip": 7715,
+              "brotli": 5972,
+              "files": [
+                "ports/robust-predicates.mjs"
+              ]
+            }
+          ]
+        }
+      ],
+      "workload": {
+        "performance": {
+          "npmMs": 11.017875000000004,
+          "lilscriptMs": 10.998083999999999,
+          "ratio": 0.9982037371090156
+        },
+        "retainedMemory": {
+          "npmBytes": 258616,
+          "lilscriptBytes": 258296,
+          "ratio": 0.9987626442292821
+        },
+        "samples": {
+          "performance": {
+            "npm": [
+              {
+                "milliseconds": 11.282167000000001,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 11.359834,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 10.751041999999998,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 10.768333000000002,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 11.017875000000004,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 11.273667,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 11.622750000000003,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 10.671457999999998,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 10.298957999999999,
+                "checksum": -1.5396175464704752e+201
+              }
+            ],
+            "lilscript": [
+              {
+                "milliseconds": 11.116417000000002,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 11.468875,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 10.946416,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 10.957,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 10.998083999999999,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 13.145499999999998,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 15.342375000000004,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 10.357458999999999,
+                "checksum": -1.5396175464704752e+201
+              },
+              {
+                "milliseconds": 10.464292,
+                "checksum": -1.5396175464704752e+201
+              }
+            ]
+          },
+          "memory": {
+            "npm": [
+              {
+                "bytes": 262896,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 258616,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 262896,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 258616,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 258616,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 258616,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 262896,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 255792,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 255792,
+                "checksum": -4.855849401386642e+200
+              }
+            ],
+            "lilscript": [
+              {
+                "bytes": 258136,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 261344,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 258296,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 261344,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 258136,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 258136,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 258136,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 261344,
+                "checksum": -4.855849401386642e+200
+              },
+              {
+                "bytes": 261344,
+                "checksum": -4.855849401386642e+200
               }
             ]
           }
@@ -1118,7 +1799,7 @@
             "assets/index-BdTNmHk3.js",
             "index.html"
           ],
-          "medianMs": 11.455252000000002
+          "medianMs": 6.517458000000033
         },
         {
           "id": "closure",
@@ -1135,24 +1816,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 9.233838999999989
+          "medianMs": 5.485334000000023
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1088,
-          "gzip": 605,
-          "brotli": 564,
+          "raw": 961,
+          "gzip": 527,
+          "brotli": 487,
           "deploy": {
-            "raw": 1274,
-            "gzip": 764,
-            "brotli": 650
+            "raw": 1147,
+            "gzip": 686,
+            "brotli": 573
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 11.601103999999964,
+          "medianMs": 7.136334000000005,
           "runtimeObjective": "brotli",
           "runtimeConfig": "lilscript.toml",
           "nativeVerified": true,
@@ -1183,9 +1864,9 @@
         {
           "id": "lilscript",
           "label": "LilScript reusable objective builds",
-          "raw": 498,
-          "gzip": 326,
-          "brotli": 305,
+          "raw": 407,
+          "gzip": 285,
+          "brotli": 266,
           "objectiveArtifacts": [
             {
               "objective": "raw",
@@ -1198,9 +1879,9 @@
                 "cubicBezier",
                 "steps"
               ],
-              "raw": 498,
-              "gzip": 338,
-              "brotli": 321,
+              "raw": 407,
+              "gzip": 290,
+              "brotli": 274,
               "files": [
                 "ports-raw/motion-easing.mjs"
               ]
@@ -1216,9 +1897,9 @@
                 "cubicBezier",
                 "steps"
               ],
-              "raw": 498,
-              "gzip": 326,
-              "brotli": 308,
+              "raw": 414,
+              "gzip": 285,
+              "brotli": 270,
               "files": [
                 "ports-gzip/motion-easing.mjs"
               ]
@@ -1234,9 +1915,9 @@
                 "cubicBezier",
                 "steps"
               ],
-              "raw": 527,
-              "gzip": 334,
-              "brotli": 305,
+              "raw": 413,
+              "gzip": 290,
+              "brotli": 266,
               "files": [
                 "ports/motion-easing.mjs"
               ]
@@ -1246,90 +1927,90 @@
       ],
       "workload": {
         "performance": {
-          "npmMs": 34.185204000000006,
-          "lilscriptMs": 34.161603,
-          "ratio": 0.9993096135977423
+          "npmMs": 13.709125,
+          "lilscriptMs": 14.549750000000003,
+          "ratio": 1.0613186472513747
         },
         "retainedMemory": {
-          "npmBytes": 3830280,
-          "lilscriptBytes": 3215784,
-          "ratio": 0.839568908800401
+          "npmBytes": 3833112,
+          "lilscriptBytes": 3502352,
+          "ratio": 0.9137098002875992
         },
         "samples": {
           "performance": {
             "npm": [
               {
-                "milliseconds": 31.916826000000007,
+                "milliseconds": 13.981208000000002,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 36.857882,
+                "milliseconds": 13.899541,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 30.870000000000005,
+                "milliseconds": 13.362416999999997,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 37.784133999999995,
+                "milliseconds": 13.376833999999999,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 34.731660000000005,
+                "milliseconds": 13.295167000000003,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 34.185204000000006,
+                "milliseconds": 13.774833999999998,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 31.955105000000003,
+                "milliseconds": 13.586708000000002,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 32.432991,
+                "milliseconds": 14.079457999999999,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 37.335066999999995,
+                "milliseconds": 13.709125,
                 "checksum": 124895.75778888176
               }
             ],
             "lilscript": [
               {
-                "milliseconds": 39.246436,
+                "milliseconds": 14.256332999999998,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 33.76248700000001,
+                "milliseconds": 14.549750000000003,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 34.161603,
+                "milliseconds": 14.885000000000002,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 31.876410999999997,
+                "milliseconds": 14.463625,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 43.708061,
+                "milliseconds": 14.538540999999999,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 45.100759,
+                "milliseconds": 14.896417,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 32.068497,
+                "milliseconds": 15.917583999999998,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 31.553682999999992,
+                "milliseconds": 14.414667000000001,
                 "checksum": 124895.75778888176
               },
               {
-                "milliseconds": 34.458967,
+                "milliseconds": 14.879999999999999,
                 "checksum": 124895.75778888176
               }
             ]
@@ -1337,77 +2018,77 @@
           "memory": {
             "npm": [
               {
-                "bytes": 3830280,
+                "bytes": 3833112,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3830280,
+                "bytes": 3833112,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3830280,
+                "bytes": 3833112,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3830240,
+                "bytes": 3833112,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3830280,
+                "bytes": 3833112,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3830280,
+                "bytes": 3833112,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3830280,
+                "bytes": 3833112,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3830280,
+                "bytes": 3833112,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3830280,
+                "bytes": 3833112,
                 "checksum": 10570.047179277088
               }
             ],
             "lilscript": [
               {
-                "bytes": 3215784,
+                "bytes": 3502352,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3217296,
+                "bytes": 3502352,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3215784,
+                "bytes": 3502352,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3215784,
+                "bytes": 3502352,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3215784,
+                "bytes": 3502352,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3215784,
+                "bytes": 3502352,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3215784,
+                "bytes": 3502352,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3215784,
+                "bytes": 3502352,
                 "checksum": 10570.047179277088
               },
               {
-                "bytes": 3215784,
+                "bytes": 3502352,
                 "checksum": 10570.047179277088
               }
             ]
@@ -1416,8 +2097,7 @@
       },
       "eligible": false,
       "blockers": [
-        "raw 498 B exceeds closure 445 B",
-        "brotli 305 B exceeds closure 286 B"
+        "throughput ratio 1.061 exceeds 1.05"
       ]
     },
     {
@@ -1458,7 +2138,7 @@
             "assets/index-B6IEu8zq.js",
             "index.html"
           ],
-          "medianMs": 4.549365999999992
+          "medianMs": 3.8453750000000184
         },
         {
           "id": "closure",
@@ -1475,24 +2155,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 4.534928999999977
+          "medianMs": 3.8257499999999993
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 480,
-          "gzip": 249,
-          "brotli": 232,
+          "raw": 314,
+          "gzip": 224,
+          "brotli": 201,
           "deploy": {
-            "raw": 666,
-            "gzip": 408,
-            "brotli": 318
+            "raw": 500,
+            "gzip": 383,
+            "brotli": 287
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.0738269999999943,
+          "medianMs": 1.585125000000005,
           "runtimeObjective": "brotli",
           "runtimeConfig": "lilscript.toml",
           "nativeVerified": true,
@@ -1523,9 +2203,9 @@
         {
           "id": "lilscript",
           "label": "LilScript reusable objective builds",
-          "raw": 138,
-          "gzip": 166,
-          "brotli": 141,
+          "raw": 109,
+          "gzip": 142,
+          "brotli": 112,
           "objectiveArtifacts": [
             {
               "objective": "raw",
@@ -1538,9 +2218,9 @@
                 "clamp",
                 "lerp"
               ],
-              "raw": 138,
-              "gzip": 166,
-              "brotli": 126,
+              "raw": 109,
+              "gzip": 142,
+              "brotli": 117,
               "files": [
                 "ports-raw/clamp.mjs",
                 "ports-raw/lerp.mjs"
@@ -1557,9 +2237,9 @@
                 "clamp",
                 "lerp"
               ],
-              "raw": 138,
-              "gzip": 166,
-              "brotli": 126,
+              "raw": 109,
+              "gzip": 142,
+              "brotli": 117,
               "files": [
                 "ports-gzip/clamp.mjs",
                 "ports-gzip/lerp.mjs"
@@ -1576,9 +2256,9 @@
                 "clamp",
                 "lerp"
               ],
-              "raw": 152,
-              "gzip": 177,
-              "brotli": 141,
+              "raw": 109,
+              "gzip": 142,
+              "brotli": 112,
               "files": [
                 "ports/clamp.mjs",
                 "ports/lerp.mjs"
@@ -1589,90 +2269,90 @@
       ],
       "workload": {
         "performance": {
-          "npmMs": 18.959891,
-          "lilscriptMs": 19.266987,
-          "ratio": 1.016197139529969
+          "npmMs": 8.140584,
+          "lilscriptMs": 8.119207999999999,
+          "ratio": 0.9973741441645954
         },
         "retainedMemory": {
-          "npmBytes": 318448,
-          "lilscriptBytes": 318416,
-          "ratio": 0.999899512636286
+          "npmBytes": 317720,
+          "lilscriptBytes": 317816,
+          "ratio": 1.0003021528389777
         },
         "samples": {
           "performance": {
             "npm": [
               {
-                "milliseconds": 16.832884999999997,
+                "milliseconds": 8.373792000000002,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 17.24595,
+                "milliseconds": 7.875917000000001,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 17.343952,
+                "milliseconds": 8.438458999999998,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 18.142148999999996,
+                "milliseconds": 8.068417,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 18.959891,
+                "milliseconds": 8.156625,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 27.670093,
+                "milliseconds": 8.952417,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 25.626804999999997,
+                "milliseconds": 8.067333000000001,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 29.151000000000003,
+                "milliseconds": 8.069958999999999,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 22.868074999999997,
+                "milliseconds": 8.140584,
                 "checksum": 24139028.50000736
               }
             ],
             "lilscript": [
               {
-                "milliseconds": 18.022855,
+                "milliseconds": 7.982583,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 17.741799000000004,
+                "milliseconds": 8.07825,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 19.266987,
+                "milliseconds": 8.1265,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 17.619759999999996,
+                "milliseconds": 8.137250000000002,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 19.089033,
+                "milliseconds": 8.092334,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 31.388472999999998,
+                "milliseconds": 8.151499999999999,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 28.882035999999992,
+                "milliseconds": 8.142667000000001,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 25.688491,
+                "milliseconds": 8.119207999999999,
                 "checksum": 24139028.50000736
               },
               {
-                "milliseconds": 28.660731,
+                "milliseconds": 7.995541999999999,
                 "checksum": 24139028.50000736
               }
             ]
@@ -1680,77 +2360,77 @@
           "memory": {
             "npm": [
               {
-                "bytes": 318448,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318288,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318336,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318448,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318448,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318304,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318448,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318448,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 322520,
+                "bytes": 317720,
                 "checksum": 964300.6774193604
               }
             ],
             "lilscript": [
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318536,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 314528,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               },
               {
-                "bytes": 318416,
+                "bytes": 317816,
                 "checksum": 964300.6774193604
               }
             ]
@@ -1794,7 +2474,7 @@
             "assets/index-Bf76Xsi8.js",
             "index.html"
           ],
-          "medianMs": 6.769425999999953
+          "medianMs": 3.462666999999982
         },
         {
           "id": "closure",
@@ -1811,24 +2491,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 7.107289000000037
+          "medianMs": 3.3920420000000036
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 496,
-          "gzip": 346,
-          "brotli": 309,
+          "raw": 441,
+          "gzip": 327,
+          "brotli": 282,
           "deploy": {
-            "raw": 682,
-            "gzip": 505,
-            "brotli": 395
+            "raw": 627,
+            "gzip": 486,
+            "brotli": 368
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 5.6763879999999745,
+          "medianMs": 2.882708000000008,
           "runtimeObjective": "brotli",
           "runtimeConfig": "lilscript.toml",
           "nativeVerified": true,
@@ -1859,9 +2539,9 @@
         {
           "id": "lilscript",
           "label": "LilScript reusable objective builds",
-          "raw": 154,
-          "gzip": 154,
-          "brotli": 129,
+          "raw": 118,
+          "gzip": 131,
+          "brotli": 94,
           "objectiveArtifacts": [
             {
               "objective": "raw",
@@ -1873,9 +2553,9 @@
               "publicExports": [
                 "stringHash"
               ],
-              "raw": 154,
-              "gzip": 155,
-              "brotli": 129,
+              "raw": 118,
+              "gzip": 133,
+              "brotli": 100,
               "files": [
                 "ports-raw/string-hash.mjs"
               ]
@@ -1890,9 +2570,9 @@
               "publicExports": [
                 "stringHash"
               ],
-              "raw": 154,
-              "gzip": 154,
-              "brotli": 130,
+              "raw": 118,
+              "gzip": 131,
+              "brotli": 100,
               "files": [
                 "ports-gzip/string-hash.mjs"
               ]
@@ -1907,9 +2587,9 @@
               "publicExports": [
                 "stringHash"
               ],
-              "raw": 154,
-              "gzip": 155,
-              "brotli": 129,
+              "raw": 118,
+              "gzip": 133,
+              "brotli": 94,
               "files": [
                 "ports/string-hash.mjs"
               ]
@@ -1919,90 +2599,90 @@
       ],
       "workload": {
         "performance": {
-          "npmMs": 29.612534000000004,
-          "lilscriptMs": 30.743633999999993,
-          "ratio": 1.038196663615481
+          "npmMs": 14.184041999999998,
+          "lilscriptMs": 15.466707999999999,
+          "ratio": 1.0904302172822107
         },
         "retainedMemory": {
-          "npmBytes": 317736,
-          "lilscriptBytes": 318376,
-          "ratio": 1.002014250824584
+          "npmBytes": 317656,
+          "lilscriptBytes": 317800,
+          "ratio": 1.0004533205731987
         },
         "samples": {
           "performance": {
             "npm": [
               {
-                "milliseconds": 30.817242,
+                "milliseconds": 14.184041999999998,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 29.224396999999996,
+                "milliseconds": 14.183,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 30.304471,
+                "milliseconds": 15.000124999999997,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 27.560859999999998,
+                "milliseconds": 14.255958,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 28.497364999999995,
+                "milliseconds": 14.423207999999999,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 29.013902,
+                "milliseconds": 14.107833,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 37.480439,
+                "milliseconds": 14.174584,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 29.612534000000004,
+                "milliseconds": 14.232542000000002,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 31.415082000000005,
+                "milliseconds": 14.167417,
                 "checksum": 288797689264664
               }
             ],
             "lilscript": [
               {
-                "milliseconds": 35.427322,
+                "milliseconds": 15.308333000000001,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 40.078678,
+                "milliseconds": 15.334917,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 29.776481000000004,
+                "milliseconds": 15.372041999999999,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 29.475708000000004,
+                "milliseconds": 16.657291999999998,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 31.041051000000003,
+                "milliseconds": 15.508499999999998,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 29.753037999999997,
+                "milliseconds": 15.429459000000001,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 30.226405000000007,
+                "milliseconds": 15.466707999999999,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 32.71820400000001,
+                "milliseconds": 15.655917,
                 "checksum": 288797689264664
               },
               {
-                "milliseconds": 30.743633999999993,
+                "milliseconds": 15.473375,
                 "checksum": 288797689264664
               }
             ]
@@ -2010,85 +2690,87 @@
           "memory": {
             "npm": [
               {
-                "bytes": 317736,
+                "bytes": 317656,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317736,
+                "bytes": 317656,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317736,
+                "bytes": 317656,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317736,
+                "bytes": 317656,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317736,
+                "bytes": 317656,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317736,
+                "bytes": 317656,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317736,
+                "bytes": 317656,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317736,
+                "bytes": 317656,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317736,
+                "bytes": 317656,
                 "checksum": 77022498530984
               }
             ],
             "lilscript": [
               {
-                "bytes": 318376,
+                "bytes": 317800,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317880,
+                "bytes": 317800,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317880,
+                "bytes": 317800,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 318376,
+                "bytes": 317800,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317880,
+                "bytes": 317800,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 318376,
+                "bytes": 317800,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 318376,
+                "bytes": 317800,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 318376,
+                "bytes": 317800,
                 "checksum": 77022498530984
               },
               {
-                "bytes": 317880,
+                "bytes": 317800,
                 "checksum": 77022498530984
               }
             ]
           }
         }
       },
-      "eligible": true,
-      "blockers": []
+      "eligible": false,
+      "blockers": [
+        "throughput ratio 1.090 exceeds 1.05"
+      ]
     },
     {
       "id": "js-levenshtein",
@@ -2124,7 +2806,7 @@
             "assets/index-B4X7I0S2.js",
             "index.html"
           ],
-          "medianMs": 13.810257999999976
+          "medianMs": 9.369790999999964
         },
         {
           "id": "closure",
@@ -2141,24 +2823,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 12.851721999999995
+          "medianMs": 9.434375000000045
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1550,
-          "gzip": 790,
-          "brotli": 721,
+          "raw": 1381,
+          "gzip": 778,
+          "brotli": 671,
           "deploy": {
-            "raw": 1736,
-            "gzip": 949,
-            "brotli": 807
+            "raw": 1567,
+            "gzip": 937,
+            "brotli": 757
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 15.216331999999966,
+          "medianMs": 8.636416999999994,
           "runtimeObjective": "brotli",
           "runtimeConfig": "lilscript.toml",
           "nativeVerified": true,
@@ -2189,9 +2871,9 @@
         {
           "id": "lilscript",
           "label": "LilScript reusable objective builds",
-          "raw": 941,
-          "gzip": 456,
-          "brotli": 413,
+          "raw": 830,
+          "gzip": 438,
+          "brotli": 404,
           "objectiveArtifacts": [
             {
               "objective": "raw",
@@ -2203,9 +2885,9 @@
               "publicExports": [
                 "levenshtein"
               ],
-              "raw": 941,
-              "gzip": 508,
-              "brotli": 469,
+              "raw": 830,
+              "gzip": 450,
+              "brotli": 414,
               "files": [
                 "ports-raw/js-levenshtein.mjs"
               ]
@@ -2220,9 +2902,9 @@
               "publicExports": [
                 "levenshtein"
               ],
-              "raw": 949,
-              "gzip": 456,
-              "brotli": 413,
+              "raw": 839,
+              "gzip": 438,
+              "brotli": 412,
               "files": [
                 "ports-gzip/js-levenshtein.mjs"
               ]
@@ -2237,9 +2919,9 @@
               "publicExports": [
                 "levenshtein"
               ],
-              "raw": 949,
-              "gzip": 456,
-              "brotli": 413,
+              "raw": 839,
+              "gzip": 440,
+              "brotli": 404,
               "files": [
                 "ports/js-levenshtein.mjs"
               ]
@@ -2249,90 +2931,90 @@
       ],
       "workload": {
         "performance": {
-          "npmMs": 59.163571999999995,
-          "lilscriptMs": 65.67858,
-          "ratio": 1.1101185709341552
+          "npmMs": 34.708167,
+          "lilscriptMs": 33.5755,
+          "ratio": 0.9673659804621776
         },
         "retainedMemory": {
-          "npmBytes": 315400,
-          "lilscriptBytes": 318280,
-          "ratio": 1.009131261889664
+          "npmBytes": 317392,
+          "lilscriptBytes": 317536,
+          "ratio": 1.0004536976357312
         },
         "samples": {
           "performance": {
             "npm": [
               {
-                "milliseconds": 60.985536,
+                "milliseconds": 34.799334,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 59.163571999999995,
+                "milliseconds": 34.708167,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 58.265989999999995,
+                "milliseconds": 34.707458,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 57.172702,
+                "milliseconds": 34.032792,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 62.841523,
+                "milliseconds": 33.690292,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 59.23225000000001,
+                "milliseconds": 34.286209,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 60.981534999999994,
+                "milliseconds": 35.542,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 58.827992,
+                "milliseconds": 34.921583,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 57.882932,
+                "milliseconds": 34.789375,
                 "checksum": 8972679
               }
             ],
             "lilscript": [
               {
-                "milliseconds": 68.50913399999999,
+                "milliseconds": 34.713958,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 67.57849999999999,
+                "milliseconds": 34.173417,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 65.391461,
+                "milliseconds": 33.482875,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 65.67858,
+                "milliseconds": 33.5755,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 64.032746,
+                "milliseconds": 32.762833,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 61.301919000000005,
+                "milliseconds": 33.660125,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 67.23605799999999,
+                "milliseconds": 33.378541999999996,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 62.237291000000006,
+                "milliseconds": 32.720541999999995,
                 "checksum": 8972679
               },
               {
-                "milliseconds": 67.77507800000001,
+                "milliseconds": 33.597375,
                 "checksum": 8972679
               }
             ]
@@ -2340,87 +3022,85 @@
           "memory": {
             "npm": [
               {
-                "bytes": 315400,
+                "bytes": 317392,
                 "checksum": 1196400
               },
               {
-                "bytes": 315400,
+                "bytes": 317392,
                 "checksum": 1196400
               },
               {
-                "bytes": 315400,
+                "bytes": 317392,
                 "checksum": 1196400
               },
               {
-                "bytes": 315400,
+                "bytes": 317392,
                 "checksum": 1196400
               },
               {
-                "bytes": 315400,
+                "bytes": 317392,
                 "checksum": 1196400
               },
               {
-                "bytes": 294928,
+                "bytes": 317392,
                 "checksum": 1196400
               },
               {
-                "bytes": 317440,
+                "bytes": 317392,
                 "checksum": 1196400
               },
               {
-                "bytes": 317440,
+                "bytes": 317392,
                 "checksum": 1196400
               },
               {
-                "bytes": 315400,
+                "bytes": 317392,
                 "checksum": 1196400
               }
             ],
             "lilscript": [
               {
-                "bytes": 318280,
+                "bytes": 317536,
                 "checksum": 1196400
               },
               {
-                "bytes": 356408,
+                "bytes": 317536,
                 "checksum": 1196400
               },
               {
-                "bytes": 318280,
+                "bytes": 317536,
                 "checksum": 1196400
               },
               {
-                "bytes": 321136,
+                "bytes": 317536,
                 "checksum": 1196400
               },
               {
-                "bytes": 321136,
+                "bytes": 317536,
                 "checksum": 1196400
               },
               {
-                "bytes": 318280,
+                "bytes": 317536,
                 "checksum": 1196400
               },
               {
-                "bytes": 317784,
+                "bytes": 317536,
                 "checksum": 1196400
               },
               {
-                "bytes": 318280,
+                "bytes": 317536,
                 "checksum": 1196400
               },
               {
-                "bytes": 317784,
+                "bytes": 317536,
                 "checksum": 1196400
               }
             ]
           }
         }
       },
-      "eligible": false,
-      "blockers": [
-        "throughput ratio 1.110 exceeds 1.05"
-      ]
+      "eligible": true,
+      "blockers": []
     },
     {
       "id": "emotion-hash",
@@ -2456,7 +3136,7 @@
             "assets/index-DHXm0Jix.js",
             "index.html"
           ],
-          "medianMs": 14.272031000000197
+          "medianMs": 14.04525000000001
         },
         {
           "id": "closure",
@@ -2473,24 +3153,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 14.136698000000024
+          "medianMs": 13.966750000000047
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 873,
-          "gzip": 506,
-          "brotli": 449,
+          "raw": 766,
+          "gzip": 493,
+          "brotli": 428,
           "deploy": {
-            "raw": 1059,
-            "gzip": 665,
-            "brotli": 535
+            "raw": 952,
+            "gzip": 652,
+            "brotli": 514
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 15.806787999999983,
+          "medianMs": 14.001917000000049,
           "runtimeObjective": "brotli",
           "runtimeConfig": "lilscript.toml",
           "nativeVerified": true,
@@ -2521,9 +3201,9 @@
         {
           "id": "lilscript",
           "label": "LilScript reusable objective builds",
-          "raw": 509,
-          "gzip": 281,
-          "brotli": 249,
+          "raw": 427,
+          "gzip": 265,
+          "brotli": 231,
           "objectiveArtifacts": [
             {
               "objective": "raw",
@@ -2535,9 +3215,9 @@
               "publicExports": [
                 "emotionHash"
               ],
-              "raw": 509,
-              "gzip": 281,
-              "brotli": 251,
+              "raw": 427,
+              "gzip": 275,
+              "brotli": 268,
               "files": [
                 "ports-raw/emotion-hash.mjs"
               ]
@@ -2552,9 +3232,9 @@
               "publicExports": [
                 "emotionHash"
               ],
-              "raw": 511,
-              "gzip": 281,
-              "brotli": 258,
+              "raw": 438,
+              "gzip": 265,
+              "brotli": 243,
               "files": [
                 "ports-gzip/emotion-hash.mjs"
               ]
@@ -2569,9 +3249,9 @@
               "publicExports": [
                 "emotionHash"
               ],
-              "raw": 509,
-              "gzip": 280,
-              "brotli": 249,
+              "raw": 436,
+              "gzip": 266,
+              "brotli": 231,
               "files": [
                 "ports/emotion-hash.mjs"
               ]
@@ -2581,90 +3261,90 @@
       ],
       "workload": {
         "performance": {
-          "npmMs": 46.28302099999999,
-          "lilscriptMs": 46.171272,
-          "ratio": 0.9975855292592074
+          "npmMs": 35.339791000000005,
+          "lilscriptMs": 34.137584000000004,
+          "ratio": 0.9659814909488287
         },
         "retainedMemory": {
-          "npmBytes": 637488,
-          "lilscriptBytes": 642120,
-          "ratio": 1.007266019125066
+          "npmBytes": 637440,
+          "lilscriptBytes": 637568,
+          "ratio": 1.0002008032128513
         },
         "samples": {
           "performance": {
             "npm": [
               {
-                "milliseconds": 48.346287000000004,
+                "milliseconds": 35.189083,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 46.067206999999996,
+                "milliseconds": 35.339791000000005,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 47.311107,
+                "milliseconds": 35.161249999999995,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 46.285165000000006,
+                "milliseconds": 35.910959000000005,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 46.213411,
+                "milliseconds": 35.633667,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 46.28302099999999,
+                "milliseconds": 34.916624999999996,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 46.563427000000004,
+                "milliseconds": 35.277625,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 46.204694999999994,
+                "milliseconds": 36.355417,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 45.68024199999999,
+                "milliseconds": 35.999334,
                 "checksum": 11846355
               }
             ],
             "lilscript": [
               {
-                "milliseconds": 45.101167000000004,
+                "milliseconds": 33.553667000000004,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 46.419385999999996,
+                "milliseconds": 33.959165999999996,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 46.171272,
+                "milliseconds": 33.908041999999995,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 45.43820800000001,
+                "milliseconds": 34.22575,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 47.570133,
+                "milliseconds": 34.137584000000004,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 45.523588000000004,
+                "milliseconds": 34.095040999999995,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 48.329596,
+                "milliseconds": 34.172208,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 47.750361,
+                "milliseconds": 35.373792,
                 "checksum": 11846355
               },
               {
-                "milliseconds": 45.184012,
+                "milliseconds": 34.902833,
                 "checksum": 11846355
               }
             ]
@@ -2672,87 +3352,85 @@
           "memory": {
             "npm": [
               {
-                "bytes": 630488,
+                "bytes": 637440,
                 "checksum": 1579031
               },
               {
-                "bytes": 643600,
+                "bytes": 637440,
                 "checksum": 1579031
               },
               {
-                "bytes": 637488,
+                "bytes": 637440,
                 "checksum": 1579031
               },
               {
-                "bytes": 643600,
+                "bytes": 637440,
                 "checksum": 1579031
               },
               {
-                "bytes": 637488,
+                "bytes": 637440,
                 "checksum": 1579031
               },
               {
-                "bytes": 630488,
+                "bytes": 637440,
                 "checksum": 1579031
               },
               {
-                "bytes": 637488,
+                "bytes": 637440,
                 "checksum": 1579031
               },
               {
-                "bytes": 643600,
+                "bytes": 637440,
                 "checksum": 1579031
               },
               {
-                "bytes": 643600,
+                "bytes": 637440,
                 "checksum": 1579031
               }
             ],
             "lilscript": [
               {
-                "bytes": 642120,
+                "bytes": 637568,
                 "checksum": 1579031
               },
               {
-                "bytes": 628160,
+                "bytes": 637568,
                 "checksum": 1579031
               },
               {
-                "bytes": 642616,
+                "bytes": 637568,
                 "checksum": 1579031
               },
               {
-                "bytes": 642616,
+                "bytes": 637568,
                 "checksum": 1579031
               },
               {
-                "bytes": 628616,
+                "bytes": 637568,
                 "checksum": 1579031
               },
               {
-                "bytes": 642616,
+                "bytes": 637568,
                 "checksum": 1579031
               },
               {
-                "bytes": 628608,
+                "bytes": 637568,
                 "checksum": 1579031
               },
               {
-                "bytes": 642120,
+                "bytes": 637568,
                 "checksum": 1579031
               },
               {
-                "bytes": 642616,
+                "bytes": 637568,
                 "checksum": 1579031
               }
             ]
           }
         }
       },
-      "eligible": false,
-      "blockers": [
-        "brotli 249 B exceeds closure 240 B"
-      ]
+      "eligible": true,
+      "blockers": []
     },
     {
       "id": "murmurhash-js",
@@ -2770,7 +3448,7 @@
       "expected": "murmurhash-js:18:855861453",
       "source": {
         "npmApp": 1164,
-        "lilscriptAppAndPort": 3686
+        "lilscriptAppAndPort": 3711
       },
       "artifacts": [
         {
@@ -2788,7 +3466,7 @@
             "assets/index-B9SN9_CL.js",
             "index.html"
           ],
-          "medianMs": 9.852260000000001
+          "medianMs": 6.125624999999957
         },
         {
           "id": "closure",
@@ -2805,24 +3483,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 10.16499600000003
+          "medianMs": 6.143624999999986
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 1748,
-          "gzip": 761,
-          "brotli": 696,
+          "raw": 1499,
+          "gzip": 692,
+          "brotli": 627,
           "deploy": {
-            "raw": 1934,
-            "gzip": 920,
-            "brotli": 782
+            "raw": 1685,
+            "gzip": 851,
+            "brotli": 713
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 10.520271999999977,
+          "medianMs": 6.557958000000042,
           "runtimeObjective": "brotli",
           "runtimeConfig": "lilscript.toml",
           "nativeVerified": true,
@@ -2853,9 +3531,9 @@
         {
           "id": "lilscript",
           "label": "LilScript reusable objective builds",
-          "raw": 1200,
-          "gzip": 506,
-          "brotli": 457,
+          "raw": 992,
+          "gzip": 446,
+          "brotli": 409,
           "objectiveArtifacts": [
             {
               "objective": "raw",
@@ -2869,9 +3547,9 @@
                 "murmur2",
                 "murmur3"
               ],
-              "raw": 1200,
-              "gzip": 556,
-              "brotli": 509,
+              "raw": 992,
+              "gzip": 460,
+              "brotli": 431,
               "files": [
                 "ports-raw/murmurhash-js.mjs"
               ]
@@ -2888,9 +3566,9 @@
                 "murmur2",
                 "murmur3"
               ],
-              "raw": 1260,
-              "gzip": 506,
-              "brotli": 457,
+              "raw": 1067,
+              "gzip": 446,
+              "brotli": 416,
               "files": [
                 "ports-gzip/murmurhash-js.mjs"
               ]
@@ -2907,9 +3585,9 @@
                 "murmur2",
                 "murmur3"
               ],
-              "raw": 1260,
-              "gzip": 506,
-              "brotli": 457,
+              "raw": 1070,
+              "gzip": 449,
+              "brotli": 409,
               "files": [
                 "ports/murmurhash-js.mjs"
               ]
@@ -2919,90 +3597,90 @@
       ],
       "workload": {
         "performance": {
-          "npmMs": 40.24692100000001,
-          "lilscriptMs": 35.810297999999996,
-          "ratio": 0.889764908972788
+          "npmMs": 22.886584,
+          "lilscriptMs": 18.716832999999998,
+          "ratio": 0.8178080660704978
         },
         "retainedMemory": {
-          "npmBytes": 328656,
-          "lilscriptBytes": 318376,
-          "ratio": 0.9687210943965727
+          "npmBytes": 317712,
+          "lilscriptBytes": 317856,
+          "ratio": 1.0004532406707962
         },
         "samples": {
           "performance": {
             "npm": [
               {
-                "milliseconds": 39.297101999999995,
+                "milliseconds": 22.599958,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 45.934739,
+                "milliseconds": 23.633042000000003,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 38.728266,
+                "milliseconds": 23.409375,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 39.249042,
+                "milliseconds": 22.886584,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 45.787141999999996,
+                "milliseconds": 22.869459,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 40.483104000000004,
+                "milliseconds": 23.064249999999998,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 41.083209000000004,
+                "milliseconds": 22.861083999999998,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 40.24692100000001,
+                "milliseconds": 23.120667,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 39.121922999999995,
+                "milliseconds": 22.825542,
                 "checksum": 515948007836551
               }
             ],
             "lilscript": [
               {
-                "milliseconds": 37.097771,
+                "milliseconds": 18.757041000000005,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 48.77833700000001,
+                "milliseconds": 19.437791,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 36.967698,
+                "milliseconds": 18.777916,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 35.810297999999996,
+                "milliseconds": 18.716832999999998,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 33.786086,
+                "milliseconds": 18.513666999999998,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 34.797711,
+                "milliseconds": 18.474917,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 38.442640999999995,
+                "milliseconds": 18.704625,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 33.416202999999996,
+                "milliseconds": 18.750583000000002,
                 "checksum": 515948007836551
               },
               {
-                "milliseconds": 32.612426,
+                "milliseconds": 18.670624999999998,
                 "checksum": 515948007836551
               }
             ]
@@ -3010,77 +3688,77 @@
           "memory": {
             "npm": [
               {
-                "bytes": 322552,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 322552,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 328656,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 328656,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 317808,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 328656,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 328656,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 328656,
+                "bytes": 317712,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 317808,
+                "bytes": 317712,
                 "checksum": 86025209636231
               }
             ],
             "lilscript": [
               {
-                "bytes": 318376,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 318376,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 318376,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 322608,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 318376,
+                "bytes": 318472,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 334352,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 304664,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 323104,
+                "bytes": 317856,
                 "checksum": 86025209636231
               },
               {
-                "bytes": 319760,
+                "bytes": 317856,
                 "checksum": 86025209636231
               }
             ]
@@ -3124,7 +3802,7 @@
             "assets/index-DEXxA7Qh.js",
             "index.html"
           ],
-          "medianMs": 1.5958509999999961
+          "medianMs": 0.6261250000000018
         },
         {
           "id": "closure",
@@ -3141,24 +3819,24 @@
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.448627999999985
+          "medianMs": 0.9696250000000006
         },
         {
           "id": "lilscript",
           "label": "LilScript port",
-          "raw": 25307,
-          "gzip": 7478,
-          "brotli": 5854,
+          "raw": 117,
+          "gzip": 103,
+          "brotli": 93,
           "deploy": {
-            "raw": 25493,
-            "gzip": 7637,
-            "brotli": 5940
+            "raw": 303,
+            "gzip": 262,
+            "brotli": 179
           },
           "files": [
             "app.js",
             "index.html"
           ],
-          "medianMs": 2.0964580000000126,
+          "medianMs": 0.06099999999999994,
           "runtimeObjective": "brotli",
           "runtimeConfig": "lilscript.toml",
           "nativeVerified": true,
@@ -3189,9 +3867,9 @@
         {
           "id": "lilscript",
           "label": "LilScript reusable objective builds",
-          "raw": 26191,
-          "gzip": 7632,
-          "brotli": 6015,
+          "raw": 19759,
+          "gzip": 7691,
+          "brotli": 5972,
           "objectiveArtifacts": [
             {
               "objective": "raw",
@@ -3210,9 +3888,9 @@
                 "orient3d",
                 "orient3dfast"
               ],
-              "raw": 26191,
-              "gzip": 7771,
-              "brotli": 6117,
+              "raw": 19759,
+              "gzip": 7695,
+              "brotli": 6118,
               "files": [
                 "ports-raw/robust-predicates.mjs"
               ]
@@ -3234,9 +3912,9 @@
                 "orient3d",
                 "orient3dfast"
               ],
-              "raw": 26292,
-              "gzip": 7632,
-              "brotli": 6015,
+              "raw": 20095,
+              "gzip": 7691,
+              "brotli": 6008,
               "files": [
                 "ports-gzip/robust-predicates.mjs"
               ]
@@ -3258,9 +3936,9 @@
                 "orient3d",
                 "orient3dfast"
               ],
-              "raw": 26292,
-              "gzip": 7632,
-              "brotli": 6015,
+              "raw": 20099,
+              "gzip": 7715,
+              "brotli": 5972,
               "files": [
                 "ports/robust-predicates.mjs"
               ]
@@ -3270,90 +3948,90 @@
       ],
       "workload": {
         "performance": {
-          "npmMs": 17.810643,
-          "lilscriptMs": 15.656196000000001,
-          "ratio": 0.8790359786561329
+          "npmMs": 11.017875000000004,
+          "lilscriptMs": 10.998083999999999,
+          "ratio": 0.9982037371090156
         },
         "retainedMemory": {
-          "npmBytes": 253552,
-          "lilscriptBytes": 253744,
-          "ratio": 1.0007572411181926
+          "npmBytes": 258616,
+          "lilscriptBytes": 258296,
+          "ratio": 0.9987626442292821
         },
         "samples": {
           "performance": {
             "npm": [
               {
-                "milliseconds": 19.057981000000005,
+                "milliseconds": 11.282167000000001,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 17.810643,
+                "milliseconds": 11.359834,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 16.486722,
+                "milliseconds": 10.751041999999998,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 18.585455000000003,
+                "milliseconds": 10.768333000000002,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 16.959668999999998,
+                "milliseconds": 11.017875000000004,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 18.249927000000007,
+                "milliseconds": 11.273667,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 15.604229000000004,
+                "milliseconds": 11.622750000000003,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 18.71076,
+                "milliseconds": 10.671457999999998,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 15.290881999999996,
+                "milliseconds": 10.298957999999999,
                 "checksum": -1.5396175464704752e+201
               }
             ],
             "lilscript": [
               {
-                "milliseconds": 15.656196000000001,
+                "milliseconds": 11.116417000000002,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 16.610805999999997,
+                "milliseconds": 11.468875,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 11.997210000000003,
+                "milliseconds": 10.946416,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 12.908928000000003,
+                "milliseconds": 10.957,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 17.372471999999995,
+                "milliseconds": 10.998083999999999,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 15.744933000000003,
+                "milliseconds": 13.145499999999998,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 15.555708000000003,
+                "milliseconds": 15.342375000000004,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 14.676680999999995,
+                "milliseconds": 10.357458999999999,
                 "checksum": -1.5396175464704752e+201
               },
               {
-                "milliseconds": 16.324447999999997,
+                "milliseconds": 10.464292,
                 "checksum": -1.5396175464704752e+201
               }
             ]
@@ -3361,87 +4039,85 @@
           "memory": {
             "npm": [
               {
-                "bytes": 253552,
+                "bytes": 262896,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253648,
+                "bytes": 258616,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 240792,
+                "bytes": 262896,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253648,
+                "bytes": 258616,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253552,
+                "bytes": 258616,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253552,
+                "bytes": 258616,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253648,
+                "bytes": 262896,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253552,
+                "bytes": 255792,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 254096,
+                "bytes": 255792,
                 "checksum": -4.855849401386642e+200
               }
             ],
             "lilscript": [
               {
-                "bytes": 265064,
+                "bytes": 258136,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253744,
+                "bytes": 261344,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253648,
+                "bytes": 258296,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253744,
+                "bytes": 261344,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253648,
+                "bytes": 258136,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253744,
+                "bytes": 258136,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253648,
+                "bytes": 258136,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 265064,
+                "bytes": 261344,
                 "checksum": -4.855849401386642e+200
               },
               {
-                "bytes": 253856,
+                "bytes": 261344,
                 "checksum": -4.855849401386642e+200
               }
             ]
           }
         }
       },
-      "eligible": false,
-      "blockers": [
-        "raw 26191 B exceeds closure 25208 B"
-      ]
+      "eligible": true,
+      "blockers": []
     }
   ],
   "auditedButIneligible": [

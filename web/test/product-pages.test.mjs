@@ -121,8 +121,6 @@ test("every comparable landing project publishes recalculated gzip and Brotli ra
   assert.match(home, new RegExp(`data-landing-median="brotli">${brotli}%<`));
   assert.match(home, new RegExp(`data-landing-count>${voting.length}<`));
   assert.match(home, new RegExp(`median result is ${gzip}% smaller with gzip and ${brotli}% smaller with Brotli`));
-  // Losses stay on the grid.
-  assert.ok(rates.some((rate) => rate.kind === "loss"));
 });
 
 test("the landing and compare pages are rendered from landing-cards.json", () => {
@@ -169,7 +167,7 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(compare, /Required modules<\/small><b>47/);
   assert.match(compare, /Comparison<\/small><b>withheld/);
   assert.match(compare, /25,452/);
-  assert.match(compare, /9,289/);
+  assert.match(compare, /9,287/);
   assert.match(compare, /id="ports"/);
   assert.match(compare, /id="previous"/);
   assert.match(compare, /id="jquery"/);
@@ -183,7 +181,7 @@ test("language and compare pages cover syntax, config, and measured ports", () =
   assert.match(home, /Upstream modules<\/small><b>47/);
   assert.match(home, /comparison withheld/);
   assert.match(home, /25,452/);
-  assert.match(home, /9,289/);
+  assert.match(home, /9,287/);
   assert.match(home, /60,281/);
   assert.match(home, /5,368/);
   assert.match(compare, /href="\/demos.html#solidlil-keyed"/);

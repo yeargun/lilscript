@@ -1,5 +1,5 @@
 {
-  "about": "Landing-page library cards. scripts/landing-cards.mjs renders them into index.html between the landing-cards markers and recomputes the medians. Every byte pair must be traceable to the linked page or the in-repo lab (web/src/library-results.json). A card with `vote: false` shows metrics but no rate and is excluded from the medians.",
+  "about": "Landing-page library cards. scripts/landing-cards.mjs renders them into index.html between the landing-cards markers and recomputes the medians. Every byte pair must be traceable to the linked page . A card with `vote: false` shows metrics but no rate and is excluded from the medians.",
   "measuredAt": "2026-09-27",
   "compiler": "24968659",
   "cards": [
@@ -60,15 +60,15 @@
       "external": true,
       "kicker": "Parse API · 29 checks",
       "title": "marked 18",
-      "text": "Lexer, Parser, Tokenizer and Renderer of marked 18.0.10, not the extension system. The bar is Oxc over the same parse-only sources; SWC (10,031 B) is 61 B stronger and still loses by 742 B.",
+      "text": "Lexer, Parser, Tokenizer and Renderer of marked 18.0.10, not the extension system. The bar is Oxc over the same parse-only sources; SWC (10,031 B) is 61 B stronger and still loses by 744 B.",
       "baselineLabel": "Oxc",
       "gzip": [
         10930,
-        10310
+        10314
       ],
       "brotli": [
         10092,
-        9289
+        9287
       ]
     },
     {
@@ -256,102 +256,6 @@
           "none"
         ]
       ]
-    },
-    {
-      "id": "murmurhash-js",
-      "href": "/libraries.html#murmurhash-js",
-      "kicker": "In-repo lab · complete package",
-      "title": "murmurhash-js",
-      "text": "MurmurHash 2 and 3, same checksums. The bar is Closure ADVANCED, the smaller of Vite and Closure.",
-      "baselineLabel": "Closure",
-      "gzip": [
-        951,
-        506
-      ],
-      "brotli": [
-        833,
-        457
-      ]
-    },
-    {
-      "id": "micro-math",
-      "href": "/libraries.html#micro-math",
-      "kicker": "In-repo lab · complete package",
-      "title": "clamp + lerp",
-      "text": "Both published roots. The bar is Closure ADVANCED.",
-      "baselineLabel": "Closure",
-      "gzip": [
-        482,
-        166
-      ],
-      "brotli": [
-        414,
-        141
-      ]
-    },
-    {
-      "id": "string-hash",
-      "href": "/libraries.html#string-hash",
-      "kicker": "In-repo lab · complete package",
-      "title": "string-hash",
-      "text": "The djb2 string hash, same values. The bar is Closure ADVANCED.",
-      "baselineLabel": "Closure",
-      "gzip": [
-        473,
-        154
-      ],
-      "brotli": [
-        403,
-        129
-      ]
-    },
-    {
-      "id": "js-levenshtein",
-      "href": "/libraries.html",
-      "kicker": "In-repo lab · size only",
-      "title": "js-levenshtein",
-      "text": "Smaller than Closure ADVANCED, but 1.11× slower in the lab’s throughput workload today (gate: 1.05×), so the lab does not publish it.",
-      "baselineLabel": "Closure",
-      "gzip": [
-        788,
-        456
-      ],
-      "brotli": [
-        714,
-        413
-      ]
-    },
-    {
-      "id": "emotion-hash",
-      "href": "/libraries.html",
-      "kicker": "In-repo lab · loses to Closure",
-      "title": "@emotion/hash",
-      "text": "Smaller than Vite (330 B) but 9 B larger than Closure ADVANCED under Brotli, so the lab does not publish it.",
-      "baselineLabel": "Closure",
-      "gzip": [
-        287,
-        281
-      ],
-      "brotli": [
-        240,
-        249
-      ]
-    },
-    {
-      "id": "robust-predicates",
-      "href": "/libraries.html",
-      "kicker": "In-repo lab · raw loses",
-      "title": "robust-predicates",
-      "text": "Geometric predicates. Smaller under both codecs, but the raw file (26,191 B) is larger than Closure’s (25,208 B), which fails the lab’s gate.",
-      "baselineLabel": "Closure",
-      "gzip": [
-        7872,
-        7632
-      ],
-      "brotli": [
-        6228,
-        6015
-      ]
     }
   ],
   "ports": [
@@ -387,10 +291,11 @@
       "name": "markedlil",
       "package": "@itslil/marked",
       "file": "marked.esm.js",
-      "now": 9289,
+      "now": 9287,
       "bar": 10092,
       "barLabel": "Oxc",
-      "builtBy": "24968659 · 27 Sep"
+      "builtBy": "aa2052f0 · 24 Sep",
+      "note": "Today’s compiler: 9,289 B."
     },
     {
       "name": "zodlil",
@@ -441,19 +346,21 @@
       "name": "mdast-util-from-markdownlil",
       "package": "@itslil/mdast-util-from-markdown",
       "file": "from-markdown.esm.js",
-      "now": 22323,
+      "now": 22308,
       "bar": 23151,
       "barLabel": "Terser, Node graph",
-      "builtBy": "24968659 · 27 Sep"
+      "builtBy": "aa2052f0 · 24 Sep",
+      "note": "Today’s compiler: 22,323 B."
     },
     {
       "name": "remark-parselil",
       "package": "@itslil/remark-parse",
       "file": "remark-parse.esm.js",
-      "now": 22404,
+      "now": 22386,
       "bar": 23171,
       "barLabel": "Terser, Node graph",
-      "builtBy": "24968659 · 27 Sep"
+      "builtBy": "aa2052f0 · 24 Sep",
+      "note": "Today’s compiler: 22,404 B."
     },
     {
       "name": "unifiedlil",

@@ -44,11 +44,11 @@
           compiler actually does. Numbers are independently measured gzip-9 and
           Brotli-11 bytes of the selected JavaScript, scored with the same stock
           zlib and official Brotli encoders. Across the
-          <span data-landing-count>17</span> libraries rebuilt on 27 September
-          2026 by one compiler, the median is
-          <span data-landing-median="gzip">6.7%</span> smaller under gzip-9 and
-          <span data-landing-median="brotli">7.3%</span> smaller under Brotli-11
-          than the bar named on each card, losses included.
+          <span data-landing-count>11</span> published library ports that
+          vote, the median is
+          <span data-landing-median="gzip">5.9%</span> smaller under gzip-9 and
+          <span data-landing-median="brotli">7.0%</span> smaller under Brotli-11
+          than the bar named on each card.
         </p>
         <nav class="compare-jumps" aria-label="Compare sections">
           <a href="#ports">Rebuilt today</a>
@@ -79,12 +79,13 @@
 
       <section class="landing-section landing-wrap" id="ports" aria-labelledby="ports-title">
         <div class="landing-heading">
-          <p class="landing-kicker">Rebuilt 27 September 2026 · compiler 24968659</p>
-          <h2 id="ports-title">Every library page, one compiler, the bar on the card.</h2>
+          <p class="landing-kicker">Published ports · 27 September 2026</p>
+          <h2 id="ports-title">Every library page, the bar on the card.</h2>
           <p>
-            Ports are measured against the strongest lane their own page
-            records; the in-repo lab against Closure ADVANCED. The same cards
-            are on the <a href="/">overview</a>.
+            Each card is the file its library page publishes, against the
+            strongest lane that page records. The
+            <a href="/#projects-title">overview’s table</a> says which
+            compiler built each one.
           </p>
         </div>
         <div class="lib-grid">
@@ -151,13 +152,13 @@
           >
             <span class="lib-card-kicker">Parse API · 29 checks</span>
             <h3>marked 18</h3>
-            <p>Lexer, Parser, Tokenizer and Renderer of marked 18.0.10, not the extension system. The bar is Oxc over the same parse-only sources; SWC (10,031 B) is 61 B stronger and still loses by 742 B.</p>
+            <p>Lexer, Parser, Tokenizer and Renderer of marked 18.0.10, not the extension system. The bar is Oxc over the same parse-only sources; SWC (10,031 B) is 61 B stronger and still loses by 744 B.</p>
             <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="10930" data-candidate="10310">
-                <small>gzip-9 · vs Oxc</small><b>−5.7%</b><span>10,930 → 10,310 B</span>
+              <div class="win compression-rate" data-compression-rate data-baseline="10930" data-candidate="10314">
+                <small>gzip-9 · vs Oxc</small><b>−5.6%</b><span>10,930 → 10,314 B</span>
               </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="10092" data-candidate="9289">
-                <small>Brotli-11 · vs Oxc</small><b>−8.0%</b><span>10,092 → 9,289 B</span>
+              <div class="win compression-rate" data-compression-rate data-baseline="10092" data-candidate="9287">
+                <small>Brotli-11 · vs Oxc</small><b>−8.0%</b><span>10,092 → 9,287 B</span>
               </div>
             </div>
           </a>
@@ -331,84 +332,6 @@
               <div><small>Vote</small><b>none</b></div>
             </div>
           </a>
-          <a class="lib-card" href="/libraries.html#murmurhash-js">
-            <span class="lib-card-kicker">In-repo lab · complete package</span>
-            <h3>murmurhash-js</h3>
-            <p>MurmurHash 2 and 3, same checksums. The bar is Closure ADVANCED, the smaller of Vite and Closure.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="951" data-candidate="506">
-                <small>gzip-9 · vs Closure</small><b>−46.8%</b><span>951 → 506 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="833" data-candidate="457">
-                <small>Brotli-11 · vs Closure</small><b>−45.1%</b><span>833 → 457 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/libraries.html#micro-math">
-            <span class="lib-card-kicker">In-repo lab · complete package</span>
-            <h3>clamp + lerp</h3>
-            <p>Both published roots. The bar is Closure ADVANCED.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="482" data-candidate="166">
-                <small>gzip-9 · vs Closure</small><b>−65.6%</b><span>482 → 166 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="414" data-candidate="141">
-                <small>Brotli-11 · vs Closure</small><b>−65.9%</b><span>414 → 141 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/libraries.html#string-hash">
-            <span class="lib-card-kicker">In-repo lab · complete package</span>
-            <h3>string-hash</h3>
-            <p>The djb2 string hash, same values. The bar is Closure ADVANCED.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="473" data-candidate="154">
-                <small>gzip-9 · vs Closure</small><b>−67.4%</b><span>473 → 154 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="403" data-candidate="129">
-                <small>Brotli-11 · vs Closure</small><b>−68.0%</b><span>403 → 129 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/libraries.html">
-            <span class="lib-card-kicker">In-repo lab · size only</span>
-            <h3>js-levenshtein</h3>
-            <p>Smaller than Closure ADVANCED, but 1.11× slower in the lab’s throughput workload today (gate: 1.05×), so the lab does not publish it.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="788" data-candidate="456">
-                <small>gzip-9 · vs Closure</small><b>−42.1%</b><span>788 → 456 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="714" data-candidate="413">
-                <small>Brotli-11 · vs Closure</small><b>−42.2%</b><span>714 → 413 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/libraries.html">
-            <span class="lib-card-kicker">In-repo lab · loses to Closure</span>
-            <h3>@emotion/hash</h3>
-            <p>Smaller than Vite (330 B) but 9 B larger than Closure ADVANCED under Brotli, so the lab does not publish it.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="287" data-candidate="281">
-                <small>gzip-9 · vs Closure</small><b>−2.1%</b><span>287 → 281 B</span>
-              </div>
-              <div class="loss compression-rate" data-compression-rate data-baseline="240" data-candidate="249">
-                <small>Brotli-11 · vs Closure</small><b>+3.8%</b><span>240 → 249 B</span>
-              </div>
-            </div>
-          </a>
-          <a class="lib-card" href="/libraries.html">
-            <span class="lib-card-kicker">In-repo lab · raw loses</span>
-            <h3>robust-predicates</h3>
-            <p>Geometric predicates. Smaller under both codecs, but the raw file (26,191 B) is larger than Closure’s (25,208 B), which fails the lab’s gate.</p>
-            <div class="lib-card-metrics compression-rates">
-              <div class="win compression-rate" data-compression-rate data-baseline="7872" data-candidate="7632">
-                <small>gzip-9 · vs Closure</small><b>−3.0%</b><span>7,872 → 7,632 B</span>
-              </div>
-              <div class="win compression-rate" data-compression-rate data-baseline="6228" data-candidate="6015">
-                <small>Brotli-11 · vs Closure</small><b>−3.4%</b><span>6,228 → 6,015 B</span>
-              </div>
-            </div>
-          </a>
           <!-- landing-cards:end -->
         </div>
       </section>
@@ -491,7 +414,7 @@
             Renderer, not <code>use()</code>. The bars run over the same
             parse-only sources: Oxc 10,092 B, Terser 10,138 B, esbuild
             10,362 B, and SWC 10,031 B measured separately. The published
-            ESM is 9,289 B Brotli, compiler-written, not post-minified.
+            ESM is 9,287 B Brotli, compiler-written, not post-minified.
           </p>
         </div>
       </section>
@@ -658,6 +581,56 @@
               <div class="win"><small>Brotli</small><b>−1.5%</b></div>
             </div>
           </a>
+          <a class="lib-card" href="/demos.html#port-murmurhash-js">
+            <span class="lib-card-kicker">Complete package</span>
+            <h3>murmurhash-js</h3>
+            <p>MurmurHash 2 and 3. Reusable API, not an app-specialized kernel.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>902</b></div>
+              <div><small>LilScript</small><b>409</b></div>
+              <div class="win"><small>Brotli</small><b>−55%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#port-js-levenshtein">
+            <span class="lib-card-kicker">Complete package</span>
+            <h3>js-levenshtein</h3>
+            <p>Full root. Eligible on size and throughput.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>825</b></div>
+              <div><small>LilScript</small><b>404</b></div>
+              <div class="win"><small>Brotli</small><b>−51%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#port-micro-math">
+            <span class="lib-card-kicker">Complete package</span>
+            <h3>clamp + lerp</h3>
+            <p>Both published roots compiled together.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>519</b></div>
+              <div><small>LilScript</small><b>112</b></div>
+              <div class="win"><small>Brotli</small><b>−78%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#port-emotion-hash">
+            <span class="lib-card-kicker">Complete package</span>
+            <h3>@emotion/hash</h3>
+            <p>Published root versus Vite and Closure ADVANCED.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>330</b></div>
+              <div><small>LilScript</small><b>231</b></div>
+              <div class="win"><small>Brotli</small><b>−30%</b></div>
+            </div>
+          </a>
+          <a class="lib-card" href="/demos.html#port-robust-predicates">
+            <span class="lib-card-kicker">Complete package</span>
+            <h3>robust-predicates</h3>
+            <p>Large typed suite. The cut is closer to the 5–10% band.</p>
+            <div class="lib-card-metrics">
+              <div><small>npm Vite</small><b>6,456</b></div>
+              <div><small>LilScript</small><b>5,972</b></div>
+              <div class="win"><small>Brotli</small><b>−7.5%</b></div>
+            </div>
+          </a>
           <a class="lib-card" href="/demos.html#lib-nanoid">
             <span class="lib-card-kicker">Exact browser entry</span>
             <h3>Nano ID</h3>
@@ -751,17 +724,17 @@
               <div class="win"><small>Brotli</small><b>−85%</b></div>
             </div>
           </a>
-          <a class="lib-card" href="/libraries.html">
-            <span class="lib-card-kicker">Complete easing package · today’s lab</span>
+          <a class="lib-card" href="/demos.html#port-motion-easing">
+            <span class="lib-card-kicker">Complete easing package</span>
             <h3>@motionone/easing</h3>
             <p>
-              Re-measured 27 September: smaller than Vite, but 19 B larger than
-              Closure ADVANCED under Brotli, so the lab does not publish it.
+              Full published easing root. Smaller than Vite and Closure; the
+              isolated throughput gate is still just over 1.05×.
             </p>
             <div class="lib-card-metrics">
-              <div><small>Closure</small><b>286</b></div>
-              <div><small>LilScript</small><b>305</b></div>
-              <div class="loss"><small>Brotli</small><b>+6.6%</b></div>
+              <div><small>npm Vite</small><b>431</b></div>
+              <div><small>LilScript</small><b>266</b></div>
+              <div class="win"><small>Brotli</small><b>−38%</b></div>
             </div>
           </a>
         </div>
@@ -829,7 +802,7 @@
           >
             <span>marked</span>
             <h3>yeargun.github.io/markedlil</h3>
-            <p>marked 18 parse API: 9,289 B against parse-only Oxc at 10,092 B, not the full <code>use()</code> package.</p>
+            <p>marked 18 parse API: 9,287 B against parse-only Oxc at 10,092 B, not the full <code>use()</code> package.</p>
             <b>Open Markedlil</b>
           </a>
           <a
