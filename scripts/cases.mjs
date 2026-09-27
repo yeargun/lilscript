@@ -75,6 +75,11 @@ const FALLBACK_TACTICS = [
   "string-array-packing", "startup-reconstruction", "recurring-reconstruction", "naming-search",
 ];
 const CC_FLAGS = ["-std=c11", "-O2", "-fno-fast-math", "-ffp-contract=off"];
+// A case marked `// harness: cc default flags` builds with the C compiler's
+// own language and floating-point defaults (GCC's gnu17 contracts floating
+// point by default): the emitted C must keep binary64 semantics by itself
+// (plan M11.2).
+const CC_DEFAULT_FLAGS = ["-O2"];
 const FAILURES = ["refused", "compiler-crash", "cc-rejected", "crashed", "wrong-output"];
 
 // ---------------------------------------------------------------- sources
@@ -174,6 +179,7 @@ function describeCase(base) {
     probe: optional(".module-probe.mjs"),
     // The test ran its script with "use strict"; prepended.
     strict: text.split("\n").slice(0, 8).some((line) => /^\s*\/\/\s*harness:\s*"use strict"/.test(line)),
+    ccDefault: text.split("\n").slice(0, 8).some((line) => /^\s*\/\/\s*harness:\s*cc default flags/.test(line)),
   };
   item.features = FEATURES.filter((feature) => {
     if (feature.id === "host-prelude") return item.host !== null;
@@ -444,12 +450,13 @@ export async function runCases(options) {
     const expected = readFileSync(item.expected, "utf8");
     let execution;
     if (lane.target === "c") {
-      const key = sha256(["c", cc, ...CC_FLAGS, row.artifact.sha256].join("\0"));
+      const flags = item.ccDefault ? CC_DEFAULT_FLAGS : CC_FLAGS;
+      const key = sha256(["c", cc, ...flags, row.artifact.sha256].join("\0"));
       if (!executions.has(key)) {
         executions.set(key, (async () => {
           const executable = `${base}.exe`;
           rmSync(executable, { force: true });
-          const build = await run(cc, [...CC_FLAGS, artifact, "-lm", "-o", executable], { timeoutMs: 300_000 });
+          const build = await run(cc, [...flags, artifact, "-lm", "-o", executable], { timeoutMs: 300_000 });
           if (build.status !== 0) return { cc: build };
           return { cc: build, run: await run(executable, [], { env: runEnv, cwd: directory, timeoutMs: options.timeoutMs }) };
         })());
@@ -541,7 +548,7 @@ export async function runCases(options) {
     compiler,
     codec,
     node: { path: node, version: (await run(node, ["--version"])).stdout.trim() },
-    cc: { path: cc, flags: CC_FLAGS, version: headLines((await run(cc, ["--version"])).stdout, 1) },
+    cc: { path: cc, flags: CC_FLAGS, defaultFlags: CC_DEFAULT_FLAGS, version: headLines((await run(cc, ["--version"])).stdout, 1) },
     scrubbedEnvironment: scrubbed,
     tactics: { source: tacticSource, ids: tactics },
     ledger: { path: ledger.path ? relative(repository, ledger.path) : null, sha256: ledger.sha256, entries: ledger.entries.length },

@@ -1,0 +1,54 @@
+// harness: cc default flags
+// JavaScript rounds every double operation. Built with the C compiler's own
+// defaults (GCC's gnu17 contracts `a*b+c` into a fused multiply-add where the
+// target has one), the emitted C must still round each operation: plan M11.2.
+float half(float value, int times) {
+  float result = value;
+  int i = 0;
+  while (i < times) {
+    result = result / 2.0;
+    i = i + 1;
+  }
+  return result;
+}
+
+float multiplyAdd(float a, float b, float c) {
+  return a * b + c;
+}
+
+// 2^-27, computed at run time so no compiler folds it.
+float tiny = half(1.0, 27);
+float left = 1.0 + tiny;
+float right = 1.0 - tiny;
+// (1 + 2^-27)(1 - 2^-27) = 1 - 2^-54 rounds to 1, so the sum is 0; fused,
+// it would be -2^-54.
+print(multiplyAdd(left, right, -1.0));
+print(left * right - 1.0);
+float fused = 0.0;
+int i = 0;
+while (i < 8) {
+  fused = fused + (left * right - 1.0) * 1024.0;
+  i = i + 1;
+}
+print(fused);
+// A chain the compiler must not reassociate: (big + 1) - big is 0 in
+// binary64, 1 if reassociated.
+float big = half(9007199254740992.0, 0) * 2.0;
+print((big + 1.0) - big);
+print(big + (1.0 - big));
+// Rounding at every step of a long accumulation.
+float sum = 0.0;
+int k = 0;
+while (k < 10) {
+  sum = sum + 0.1;
+  k = k + 1;
+}
+print(sum);
+print(sum == 1.0);
+float product = 1.0;
+k = 0;
+while (k < 20) {
+  product = product * 1.1 + tiny;
+  k = k + 1;
+}
+print(product);
