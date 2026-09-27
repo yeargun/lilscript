@@ -1,17 +1,62 @@
 # Migration plan: one compiler
 
-Revision 2026-09-23 (second revision, after an adversarial review of the first). **This is the only plan.** It does two things:
-1. It takes the codebase from two compilers in one binary to the single compiler described in [future-architecture.md](../future-architecture.md).
-2. It carries that compiler to winning every maintained library under every objective, in both the open and the closed world.
+Revision 2026-09-27, for version 1 of the design. **This is the only plan.** It does three things:
+1. It takes the codebase from two compilers in one binary to the single compiler described in [future-architecture.md](../future-architecture.md) (done in M1).
+2. It carries that compiler to version 1 of the design: the language contract [language.md](../language.md) and the compiler [future-architecture.md](../future-architecture.md).
+3. It carries both to winning every maintained library under every objective, in both the open and the closed world, at runtime parity, within the compile-time budget.
+
+Task ids are frozen (architecture §22): a merged task keeps its id and says "merged into"; a split task keeps its id with a letter suffix.
 
 History and records:
 - Milestones 001–013 (receipts, batch ledger, measurements, the Closure ADVANCED inventory 013-T7) are in [record-2026-09.md](record-2026-09.md).
-- Owner briefs are in `finer/intent/`; today's is [2026-09-23](../../finer/intent/2026-09-23.md).
-- The eleven area reports behind this plan are in `~/lilscript-work/out/arch/`.
+- Owner briefs are in `finer/intent/`; today's is [2026-09-27](../../finer/intent/2026-09-27.md).
+- The eleven area reports behind the 2026-09-23 page are in `~/lilscript-work/out/arch/`. The seven design reviews, the verified loss diagnosis and the katex runtime bisection behind version 1 are in `~/lilscript-work/out/design/review-*.md` and `~/lilscript-work/out/diagnosis/`.
 
 ---
 
 ## Where we are
+
+### Version 1 of the design (2026-09-27)
+
+The owner asked whether the migration is being done properly and asked for one final design, architected rather than iterated ([2026-09-27](../../finer/intent/2026-09-27.md)). The architecture answers the question in its §1.1: **partly no**, because mechanisms were deleted before their replacements existed, choices were built before rules, gates reported instead of blocking, and the language was left unfinished while the compiler recovered facts. Seven independent reviews of the design and the code, a verified diagnosis of the entries that still lose, a runtime bisection of katexlil, and three adversarial critiques of the first draft produced version 1. This revision of the plan re-scopes and re-orders every remaining phase to converge on it. Every landed record below is unchanged.
+
+**What the reviews measured** (binary `head-d1d48c4c` unless stated):
+
+| Finding | Evidence | Source |
+|---|---|---|
+| The compile-time gate (rule 3) fails | Level 13 at the ports' shipped configs, against pre-M1: zodlil 4.0×, posthoglil 3.9×, katexlil 3.7×, micromarklil 3.4×, markedlil 1.5×. Outside katexlil's one data-table choice, the extra time bought −88 to +7 Brotli. katexlil's package build went 9.6 → 54.9 s, against KaTeX's own build at 14.4 s | review-compile-time §2.5; measurements-2026-09-27.md |
+| Exact Brotli-11 is the compile | 55–74% of wall time at level 13 on every reference port; raw bytes, the ranking the search uses, orders only 5 of 18 real pairs 200–1,000 bytes apart; Brotli q5 orders all 99 pairs ≥ 200 bytes apart at 1/60 the cost | review-compile-time §2.2, §4 |
+| Effort above 8 buys almost nothing, non-monotonically | The search winner is byte-identical at levels 8, 13 and 15 on five of six ports; on jquerylil it is 25,466 at level 8 and 25,421 at 13. katexlil's level 13 is 98 bytes larger than its level 8 (two interleaved terminal budgets); level 0 ships 20–28% larger because naming is gated at 8 | review-compile-time §2.3–2.4; `compile-time-data/jquery-L{8,13}-production.explain.json` |
+| The per-objective procedure misses its own optimum | katexlil's gzip-objective build is 188 Brotli smaller than its Brotli-objective build (posthoglil −28) | review-objectives §1.1 |
+| The runtime gap came mostly with M1, and the adapter part is fixable | Steady-state Node ratio to upstream KaTeX: 1.102 for release-d; pre-M1 1.041; M1 added about 6 points. The recorded "20%" was an outlier of one recording run. Five shared receiver-adapter thunks serve all 141 methods, 9.6–10.0% of JS self time, one GENERIC call site. The adapter change alone (independent re-measurement): katexlil Brotli −62, gzip +2, raw +2,379; Node −0.041 [−0.058, −0.029]; Chromium −0.019 to −0.034; micromarklil −283 Brotli; mobxlil +130 Brotli unless constructors get formals; parity 30/30, Jest 1,230/1,230 | `~/lilscript-work/out/diagnosis/katex-perf-2026-09-27.md`, "Verification"; diagnosis addendum |
+| The program rule layer is empty in production | Only liveness (with M7.2) runs on the Program IR; 54 calls to 39 passes run on the JS tree with their own effect and initialization models. `comparison/apps`: 945 against Closure ADVANCED's 834 Brotli (old route 571); `comparison/algorithms`: 3,250 against 2,756 (old route 2,305); all 18 cases lose | review-closure-advanced §2 |
+| Local completeness trails every competitor | `comparison/cases`: 37 of 54 canonical cases and 380 of 570 catalog variants lose on Brotli to the best of Terser, Oxc and esbuild; `if (false)` bodies survive | review-competitors §1.5 |
+| The language forces the ceremony the diagnosis measures | About 1,040 of the ~1,800 verified recoverable Brotli bytes on the five losing entries; 0 of 11 M10 items started | review-language §2.3; review-code-reality §5.1 |
+| Facts landed without consumers | M6.1–M6.5 are computed on the program; the tree still re-derives effects and initialization (rule 2 was waived in `ff27361f`) | review-code-reality A6 |
+| Bars and consumers | SWC is the strongest general-purpose bar on 4 of 5 measured boundaries (katex 62,399; remark-parselil's gzip win becomes a tie). A consumer importing one zod export pays 28,006 Brotli from zodlil against 11,749 from upstream (Rolldown) | review-competitors §1.1, §1.4 |
+| Native is a subset | 236 of 361 corpus cases masked in C; no maintained library compiles natively ("native exported ABI"); the C output runs 3.3× slower than Node running our JavaScript for the same program | review-performance-native §3.4–3.5 |
+
+**What version 1 changed against the 2026-09-23 page (architecture).**
+- **The answer and stability.** §1.1 answers the owner's question; §22 fixes laws, IR, pipeline, procedure and contract behind owner-approved amendments and freezes ids.
+- **Laws.** L3 now decides rule against choice by measurement (a removal with a codec-stable sign over the calibration corpus); L7 governs choices only; L20 (replace, then delete) and L21 (gates block) are new; L14–L19 are kept.
+- **Objective.** Lexicographic: correct, not slower, smallest, within budget. Runtime parity is defined (architecture §16.4) as the owner ruled; it is not an open question.
+- **One decision procedure** (architecture §9.6), stated once: a level-independent move list walked as a prefix; the level sets only the prefix, an exact-judgement budget and a work budget; proxies only prune; monotone across levels by construction; several objectives walk in lockstep with checkpoint offers; a gzip shadow for Brotli builds; the structural beam becomes one move until M9.1's rest deletes it. Program-level moves re-run the rules on what they change.
+- **Rules.** One lexicographic measure, fixed structural order, never truncated by effort; transitional rules until replacements land; field-store, unit-merge, class-strictness, construction-order and regex-placement legality written down; `exact` folds only.
+- **Annotations.** Binding facts and evaluation behaviour join the tree columns, each with a transfer function and debug verification, before `quiet.rs` goes.
+- **Delivery.** Consumer annotations only where `discardable()` holds and only in the bundler-facing file (M3.8a/b); the IIFE default for application scripts with a global-facing refusal; a delta for the M3.3 session.
+- **Native.** Shifts stay defined; `volatile` goes only with in-source FP guards; QuickJS's `libregexp`; trial-deletion cycle collection; named portable cores as M11's exit.
+- **Language.** [language.md](../language.md) is the v1 target contract, tagged per clause; R2's spelling-observing operations are refused, R4 keeps in-place places with copy-on-store, R6's reflected set is a whole-program closure, R8 uses ABI values at reflected positions, R12 keeps JavaScript's `==` and adds `unknown`, R5 adds intersections, R9 adds specialization over const data.
+- **Compile time.** Frozen baselines; targets per entry and per package build; levels 1–4 against Terser's time; B9's exchange rate and ceilings; CPU-time pairs per batch.
+- **Runtime.** Hot-site alternatives ordered by runtime class before bytes; a runtime ledger with owners; per-batch timing gates in a quiet window.
+- **Benchmarks.** BC5 maps language guarantees; BC10 judges shipped artifacts; the per-cell threshold (Y6); a corrected held-out set with a failure procedure; calibration never on ports; a closure ledger per losing cell (architecture §18.4).
+- **Owner decisions.** Sixteen open questions became seven yes/no questions (Y1–Y7), each amending an earlier owner choice; the rest are decided with their reversal cost (architecture §21).
+
+**What version 1 changed in the plan.**
+- Rules 2, 3, 4, 5, 7 and 8 are sharpened; rules 9 (order), 10 (not overfitting) and 11 (stability) are new. Every gate blocks; phase gates are ratchets over ledgers; "no losing cell" is M12.3's exit only.
+- **New tasks:** M2.10–M2.15 (benchmark contract, held-out set, perf runner and runtime ledger, generic ratchet, frozen baselines, calibration corpus), M3.8a/b, M5.3a/b, M5.7, M6.4a/b, M6.8, M7.5a, M7.8a, M7.10, M9.11, M9.12, M10.12–M10.19, M11.10–M11.12, M12.6.
+- **Merged:** M3.6 and M9.4 into M3.5; M3.9's incremental formation into M5.7; M8.1 into M5.2 (annotations) and batch A1 (import identity).
+- **Batch A** splits into A1 (formation fixes that need no tree analysis) and A2 (after M2.5, M4.6 and M5.2).
+- **Order.** A floor slice of exact program rules and language slice 1 come right after A1; the budget model follows the floor slice; the core is split into batches by the ruling each needs; the critical path waits on no ruling (see "Effort and critical path").
 
 ### Now (2026-09-24, M1 closed)
 
@@ -205,37 +250,45 @@ History and records:
 
 1. **One compiler.** Nothing new may depend on the old route. Its code is prior art: read it, never link or port it line by line.
    - The frozen reference binary is `~/lilscript-work/bin/reference-2026-09-23/lilscript`: binary b80, SHA-256 `df8595…`. It was built at 21:00 on 2026-09-23 from the pre-flip working tree of `d362338f`, so its default route is the old one. It is used only to measure "the first bar".
-   - The pre-migration binary of the one compiler is `~/lilscript-work/bin/pre-m1/lilscript`, built from `0c17237e`.
+   - The pre-migration binary of the one compiler is `~/lilscript-work/bin/pre-m1/lilscript`, built from `0c17237e`. Its compile times are frozen once (M2.14), because later sources will not compile on it.
 2. **By design.** Every change is generic and owned, and a fact is computed once, by its owner.
-   - A fact reaches its consumers through its publication channel (program tables, or tree annotations after M5). **The re-derivation it replaces is deleted in the same batch its consumers switch.**
+   - A fact reaches its consumers through its publication channel (program tables, or tree annotations after M5.2). **The re-derivation it replaces is deleted in the same batch its consumers switch.** This rule is not waived again: a fact counts as landed only when its channel reaches every target layer that decides with it and its re-derivations are deleted (architecture L16). Until then the phase table says "computed, not consumed".
+   - **Replace, then delete** (L20). Nothing is deleted before its replacement lands and passes the gates; a replaced pass runs as a marked transitional rule (M5.3a) with its deleting task.
    - Formation never emits a shape a later pass undoes.
-   - No thresholds tuned on three ports: a choice goes to the codec, a structural bound comes from policy.
-3. **Gates.**
+   - No thresholds tuned on ports: a choice goes to the codec, a structural bound comes from versioned schedule data calibrated on the calibration corpus.
+3. **Gates. Every gate blocks** (L21): a failing gate stops the merge. A known loss is carried only by an expected-failure row with an owner task, written before the batch; no gate has an "unless the ledger row says why" clause.
 
    | Gate | Rule |
    |---|---|
    | Correctness | Unit tests, the case runner and the reference port suites. Byte identity is evidence, not a gate |
-   | Size | No Brotli degradation at batch end on the case runner's corpora and the reference ports; no per-library loss at phase end |
-   | Exact rules (removing operations) | Must not raise any port's Brotli. Until monotone selection exists (M5.4), judged on the formation-only lane plus a codec check of the final artifact |
-   | Codec-dependent shapes | Ship as choices or terminal challengers |
-   | Compile time | Level-13 wall time per reference port must not regress at phase end against the pre-M1 binary on this host (alternating pairs, one session). Runtime is a reported lane, not a gate (architecture §17) |
+   | Size, per batch | No Brotli degradation at batch end on the case runner's corpora and the reference ports beyond the seeded re-mangling band (NO6) |
+   | Size, per phase | A ratchet over the scoreboard frozen at the phase's start (M2.8, re-frozen under M2.10's bars): no cell that is a win or a tie becomes a loss, and no ledgered losing cell grows beyond its noise band. Every losing cell is a ledger row with an owner task (architecture §18.4). "No losing cell" is M12.3's exit, not an earlier phase's |
+   | Generic corpus | From M2.13: `comparison/cases` (54 canonical, 570 catalog), `comparison/apps` and `comparison/algorithms` run per change as a ratchet: the loss count against the smallest competitor, and against Closure ADVANCED on apps and algorithms, never rises; each new rule names the cases it wins |
+   | Exact rules | A new rule passes L3: it removes operations, and its Brotli, gzip and raw deltas are non-positive on every calibration-corpus program under seeded re-mangling, with the sign distribution in its registry entry. Its summed case-corpus effect is at most zero within the seeded band; per-port effects are judged under the noise law. A rule that loses beyond a port's band becomes a choice with prior "apply" in the next schedule version |
+   | Codec-dependent shapes | Ship as choice families under the budget model (M3.5). No new codec-judged family lands before M3.5 |
+   | Compile time | Per change and batch (architecture §13.7): (a) added default-level WU buys bytes at or above B9's exchange rate and no level exceeds its ceiling (from M3.5); (b) moves judged at the default level, reported beside (a); (c) process CPU time on the case runner and the seven main entries against the pinned previous binary, alternating pairs, median of at least three, fails above +15% (from now). Per phase: the targets of architecture §13.2 due at that phase, against the frozen baseline (M2.14). Before each of M5, M6 and M7: a projected WU table for katexlil and jquerylil of the facts and rules it adds |
+   | Runtime | Per change: the structural counters (architecture §16.5). Per batch, from M2.12: the reference perf lanes in a quiet window, this batch's artifact against the previous binary's; worse by more than the controls' spread δ fails. Per phase: a ratchet over the runtime ledger (architecture §16.6): no new miss, no ledgered ratio worse beyond its interval. M12's exit: no miss |
+   | Native | Per phase, from M11: native at least as fast as the JS output under Node on the native perf corpus median and on each named portable core |
 
 4. **Pass rule (D4).**
-   - At or below the bar is the floor ("tie"). A **win** is at least `max(100 bytes, 1%)` below it.
-   - Each library has a fixed bar list: its pinned comparable competitor builds under the 013-T5 comparability rules.
-   - Both the open world (the developer-facing API preserved, mangling fairness contract) and the closed world must pass.
-5. **Batches.** 4–8 changes per build, one verification pass per batch and one ledger row per batch. Builds and tests run on this host only.
+   - At or below the bar is the floor ("tie"). A **win** is at least the cell's threshold below it: max(1% of the bar, the cell's seeded noise band) once the owner answers Y6; until then `max(100 bytes, 1%)`.
+   - Each cell's bar is built by the benchmark contract (architecture §18, M2.10): generated from the declared surface, the minimum over a pinned recipe grid (SWC and the Rolldown bundler included), matched in assumptions (including the language guarantees a port relies on) and reflection, and passing the same oracle.
+   - Verdicts are on shipped artifacts per codec (BC10). Both the open world (the developer-facing API preserved, mangling fairness contract) and the closed world must pass, and so must the consumer lanes of library-world ports, from M3.3c's exit.
+5. **Batches.** 4–8 changes per build, one verification pass per batch and one ledger row per batch. Builds and tests run on this host only. Each ledger row pre-registers its predicted per-port deltas (NO5), its work-unit cost, and its expected runtime effect.
 6. **Evidence.** A result counts only when the delivered file is compiler-written, with no post-minifier. The receipt pins the binary, source, patch and dependency identities.
-7. **Prior art.** Each batch's ledger row cites the competitor source read (`repo@commit file:line`, from `~/competitors`) and the old-route prior art read (owner, 2026-09-01).
-8. **Verification ladder.** The fleet runs only at phase end: the owner's "don't build it all" (09-04) holds per change, and "no accepted losses" (09-22) holds per phase.
+7. **Prior art.** Each batch's ledger row cites the competitor source read (`repo@commit file:line`, from `~/competitors`) and the old-route prior art read (owner, 2026-09-01). A new exact rule cites the competitor rule it generalizes; one with no counterpart must win on two unrelated ports or cases, or on the held-out set (NO8).
+8. **Verification ladder.** The fleet runs only at phase end: the owner's "don't build it all" (09-04) holds per change, and "no accepted losses" (09-22) holds as the ratchet per phase and absolutely at M12.
 
    | When | What runs |
    |---|---|
-   | Per change | Unit tests, the case runner, probelil, the micro gates |
-   | Per batch | The reference port suites (katexlil, markedlil, zodlil, jquerylil, posthoglil, motionlil, micromarklil and its family), in the background, not blocking the next change |
-   | Per phase | The fleet |
+   | Per change | Unit tests, the case runner, probelil, the generic corpus ratchet, the micro size and perf gates, the structural perf counters, CPU-time pairs |
+   | Per batch | The reference port suites (katexlil, markedlil, zodlil, jquerylil, posthoglil, motionlil, micromarklil and its family); the reference perf lanes in a quiet window after the suites (no concurrent compiles, load recorded, a run above the load threshold repeated), blocking; work units per port |
+   | Per phase | The fleet, the held-out set, the benchmark contract's cells, the runtime ledger ratchet, wall-clock compile time per entry and per package build |
 
-   A change worth under about 400 fleet bytes is judged on micro gates or by the terminal slot, never by a fleet A/B.
+   A change worth under about 400 fleet bytes is judged on micro gates, seeded re-mangling or by the terminal slot, never by a fleet A/B.
+9. **Order.** Language before recognizers: a fact the language can state is not recovered by a new analysis or pattern (L14). Rules before choices: the canonical base comes from exact rules before a choice family varies it (L15). The budget model (M3.5) precedes every new codec-judged family. Replace, then delete (L20). The critical path never waits on an owner ruling: work that needs one is split so the rest proceeds.
+10. **Not overfitting.** The held-out libraries (M2.11) are never diagnosed while held out, and a held-out loss follows NO1a (architecture §18.3). Priors, margins, the tariff and the exchange rate are calibrated on the case corpus and the calibration corpus, never on ports (NO9). No port or upstream identifier, and no threshold without a policy or estimator source, may appear in `src/` beyond the NO3 allowlist ledger, which M8.7 empties. A port rewrite needed only because the compiler mishandles the idiomatic form is recorded as idiom debt, with the idiomatic form as a regression case (NO4).
+11. **Stability.** Ids are frozen. The plan changes by landing records and by re-ordering "Next action" with a ledger note; design changes go through an architecture amendment (§22).
 
 ---
 
@@ -245,17 +298,17 @@ History and records:
 |---|---|---|---|
 | M0 | Record and freeze | — | done 2026-09-23 |
 | M1 | One compiler: the old route leaves the product | M0 | done 2026-09-24 |
-| M2 | Verification ladder, baseline and interim release | M1.3 (runs alongside M1) | active: M2.1, M2.2 and M2.6 done; M2.8 and M2.9 done for the 13 goal ports (motionlil released 2026-09-27 on its newer origin; its delivered files are still esbuild + Terser, M12.2) |
-| M3 | Honest configuration, one public API, delivery contract | M1 | waiting |
-| M4 | Checker identities and checker-owned facts | M1 | active: M4.1 landed |
-| M5 | The machinery: edit kernel, annotations, scheduler, monotone selection | M1, M4.1 | active: M5.4 landed (monotone across levels open) |
-| M6 | The fact spine | M4, M5 | active: M6.1–M6.3 and M6.5 landed |
-| M7 | Program rules | M6 | active: M7.2 landed |
-| M8 | Canonical formation and the pure printer | M5, M6 | waiting |
-| M9 | Choices, naming, layouts and data | M5, M7, M8 | active: M9.1's first slice, M9.2, M9.3's first family and M9.8 landed |
-| M10 | Language for size | M4 (runs alongside M6–M9) | waiting |
-| M11 | Native and cross-target | M6, M7 | waiting |
-| M12 | Qualification and publication | continuous; closes last | waiting |
+| M2 | Verification ladder, baseline, interim release and the benchmark contract | M1.3 (runs alongside M1) | active: M2.1, M2.2 and M2.6 done; M2.8 and M2.9 done for the 13 goal ports (motionlil released 2026-09-27 on its newer origin; its delivered files are still esbuild + Terser, M12.2); katexlil re-released 2026-09-27 with its font metrics in LilScript (60,281 Brotli); M2.10–M2.15 new |
+| M3 | Honest configuration, one public API, delivery contract, the budget model | M1; M3.3c needs M5.2, M6.2 and M9.1; M3.8b needs M5.2 and M3.3c | active: M3.3a/b in flight (parallel session) |
+| M4 | Checker identities and checker-owned facts | M1 | active: M4.1 landed; M4.2 in language slice 1; M4.6 in the core; M4.3 and M4.4 before M5.2 |
+| M5 | The machinery: edit kernel, annotations, scheduler, monotone selection | M1, M4.1; M5.1 after M2.5; M5.2 after M4.3 and M4.4; M5.3a after M5.2 and M2.5; M5.3b interleaves with M7, M9.7 and M10.4/M10.7; M5.7 after M5.3a | active: M5.4 landed (monotone across levels: closed by M3.5's §9.6 procedure) |
+| M6 | The fact spine | M6.4a after M5.1; M6.4b after R1 and R11 (M10.12, M10.9); M6.6–M6.8 after M5.2; M6.7 after M10.14's checker half | active: M6.1–M6.3 and M6.5 **computed, not consumed** (rule 2) until M5.2 deletes their re-derivations |
+| M7 | Program rules: the floor | the floor slice (M7.3, M7.5a, M7.8a) after M5.1 and M6.4a; the rest after M5.2/M5.3a and M6 | active: M7.2 landed |
+| M8 | Canonical formation and the pure printer | A1: nothing; A2: M2.5, M4.6, M5.2; the rest of M8.2 by replacement (M7.3, M9.7, M10.4/M10.7); M8.3 after M5.2, its `\|0`/`++` half after M6.4b | next: batch A1 |
+| M9 | One choice system: choices, naming, layouts and data | M3.5; M5.2; M8.3 for spelling families; M7.5 for inline-or-share; M10.3 before M9.8's rest | active: M9.1's first slice, M9.2, M9.3's first family and M9.8 landed; no new family before M3.5 |
+| M10 | The final language (R1–R18) | slice 1: M4.2; the core: nothing (M10.12 after Y1); the rest after the core | waiting: slice 1 and the core are steps 7 and 8 |
+| M11 | Native: the whole language, directly executable | M11.2 in batch A1; M11.5 after M7; M11.11 after M4.5 | waiting |
+| M12 | Qualification and publication | continuous; M2.10 (bars); closes last | waiting; M12.2 for motionlil in flight with M3.3 |
 
 ### M0 Record and freeze: done 2026-09-23
 
@@ -311,36 +364,48 @@ History and records:
 |---|---|
 | M2.1 Green CI | <ul><li>Fix `cargo fmt` and `examples/semantic-integrated.rs`.</li><li>One Linux job under about 15 minutes, with explicit steps: fmt, `cargo test --lib`, the case runner's production lanes, the codec contract, and the micro gates as a *reported* step until M7.</li><li>Publishing steps (web catalog, VS Code packaging, Playwright, Closure) leave the gating path.</li><li>probelil is vendored into the repository, or run from a pinned copy.</li><li>Competitor artifacts for the micro gates are cached and committed.</li><li>Steps owned by later phases (extern ABI, differential native lane) stay out until their owners land</li></ul> |
 | M2.2 Case runner | <ul><li>One runner over `tests/cases`, the harvested regressions and the D3 clause cases, moved out of `d3_clause_tests.rs` so they run on shipped output.</li><li>Lanes: `{formation-only, production} × {brotli, gzip, raw} × {script, module, C}`, with per-target feature masks from day one.</li><li>The harvest's case conventions: `.host.js` preludes, `.module-probe.mjs`, multi-module folders and merged `.toml` keys.</li><li>Family-veto lanes are added after M3.2.</li><li>It replaces the development-mode census and the knob configs in `tests/config/`</li></ul> |
-| M2.3 Oracles | Interpreter-generated `.out` where the interpreter covers the program. Coverage is measured by running it, not estimated. Blessing is refused when the interpreter disagrees. `print` is never stripped (decision owned here; M10.11 adds the `debug` class) |
+| M2.3 Oracles | Interpreter-generated `.out` where the interpreter covers the program. Coverage is measured by running it, not estimated. Blessing is refused when the interpreter disagrees. `print` is never stripped (decision owned here; M10.11 adds the `debug` class). **Open:** the default `strip_console = true` still deletes `print` (`src/config.rs:1044`), so a program with no configuration compiles to an empty file; batch A1 makes `print` a program effect and splits the key into `strip_debug` and `strip_console_calls` |
 | M2.4 Interpreter extension | The reference interpreter gains structs, classes, enums, generics, Map/Set and a declared host model, feature by feature. Each feature lands before the M6/M7/M9 work that optimizes it. It stays independent of formation |
 | M2.5 Admission parse | Every delivered JavaScript file is re-parsed by Oxc inside admission; its structural digest must match the printed tree (A5) |
 | M2.6 Port runner and ledger | <ul><li>One versioned runner that records failing-test sets, diffs them against the **expected-failure ledger** (every entry has an owner task) and pins the compiler by digest.</li><li>It replaces `portgate.mjs`, `semantic-port-tests.mjs` and the unversioned `~/lilscript-work/tools` scripts.</li><li>It is checked into the repository</li></ul> |
 | M2.7 Differential | The generator becomes type-directed with per-target masks. Its hand-pinned prologue shapes move to `tests/cases`. It enters the gating job only after this |
 | M2.8 Baseline on one binary | <ul><li>Every maintained port's rewrite is committed to its own repository (M12.1 brought forward). The in-flight motion and zod rewrites in `~/lilscript-work/portwork/` land there too.</li><li>The fleet is built and its suites run on the post-M1 binary.</li><li>The scoreboard is frozen as the baseline that phase gates compare against, open and closed world</li></ul> |
 | M2.9 Interim release | The owner's 2026-09-23 release request. Every port is rebuilt by the pinned post-M1 binary with no post-minifier; its Pages site is updated with sizes and compile times (`site/results.json`, `npm run check:site`); one report compares against the last release and against Terser, Oxc/Rolldown and esbuild. Ports that lose are published as losses, not hidden |
+| M2.10 The benchmark contract | One repository tool, `scripts/bars.mjs`, with a pinned manifest and lockfile, builds every bar under the architecture's §18 (BC1–BC14): entries generated from the declared surface; Terser, **SWC**, Oxc minify, **the Rolldown bundler**, esbuild and upstream's minified file at pinned versions matching `~/competitors`; a recipe grid with the minimum over passing lanes; assumption-matched (BC5, including the language guarantees a port relies on) and reflection-matched (BC6) lanes; banner-free scoring; both sides through the same oracle (BC8); consumer lanes for library-world ports (BC9); closed-world cells (BC11); verdicts on shipped artifacts per codec (BC10) with robustness rows at Brotli q5 and a second gzip encoder; Terser's wall time on every port's input (for the level 1–4 target); one receipt per release that `site/results.json` renders. The per-port `measure-site` and `minify-lanes` scripts consume its receipt. Re-verdict on landing: remark-parselil gzip, unifiedlil, posthoglil main, katexlil's code lane, and every row of the closure ledger (architecture §18.4) |
+| M2.11 Held-out libraries | The split of architecture §18.3 NO1: the development set is the 13 goal boundaries plus every port that has been the subject of a hypothesis, a diagnosis finding or a migration patch, or shares the development families' code (cnlil, mobxlil, playcanvaslil, rehype-katexlil, hast-util-to-htmllil, rehype-stringifylil, remark-gfmlil and the rest of the unified ecosystem). The held-out set is monacolil and solidlil, with their prior exposure recorded (scoreboards and the idiom census), plus **at least three ports written blind** before M3's phase end (a fresh session, upstream's source only, libraries outside the development ecosystems), then two or three per quarter. NO1a's procedure for a held-out loss is a ledger row type. Their cells are published at every phase end and gate it (rule 10) |
+| M2.12 Perf runner, runtime ledger, static counters and micro perf gates | `scripts/perf.mjs`: motionlil's protocol (paired, alternating, a fresh process or page per lane, bootstrap CI), with the parity definition of architecture §16.4: at least three no-op-perturbed builds per artifact (`.pA`/`.pB`/`.vC`), at least five fresh processes each, at least 150 rounds after at least 30 warm-up, steady and warm-up windows, the controls' spread δ, a host-load threshold and the quiet-window protocol; pinned Node and Chromium gate, one non-V8 engine reported. **The runtime ledger** (architecture §16.6) frozen with measured ratios and intervals. **The warm-up study** for katexlil (bytecode size per hot function, deopts in rounds 0–40, tier-up), reported with an owner for what it finds. Structural counters in `--explain` now (shared adapters per method, `arguments` materializations, trampolines, startup statements); allocation and polymorphism counters when M6.6 and M6.8 land. A micro perf gate per law P1–P9, and from them the versioned runtime-class calibration table (architecture §16.3). Replaces katexlil's 50% guard rail and the site's single 30-round sample |
+| M2.13 Generic corpus ratchet | `comparison/cases` (canonical and catalog), `comparison/apps` and `comparison/algorithms` run per change against the smallest competitor, Closure ADVANCED and the frozen old route; the loss counts are a ratchet (rule 3). The case configurations move to the current schema with no "no effect" warnings; the 38 refused catalog cases are rewritten or ledgered with owners (BC12); the NO3 grep test with its allowlist ledger (about 35 port-name mentions in non-test `src/` today); the idiom-debt ledger (NO4). Doc hygiene in the same task: `docs/current-status.md` (it still says "M1 is active") and the stale `Cargo.toml` claims (Oxc "reserved for … final rewrite admission" at `:31-35`, where no admission parse exists; `rayon` declared at `:14` and unused) |
+| M2.14 Frozen baselines | The pre-M1 binary's compile times on the 2026-09-27 sources and configurations, frozen once per reference port: each main entry at level 13 and the full `npm run build`, median of five alternating runs, host load and credit state in the receipt; one number per port, with its size-normalized form (seconds per 100 KB delivered). Upstream's own build times and Terser's times beside them. Architecture §13.2's provisional values are replaced by these |
+| M2.15 Calibration corpus | Medium-size generic programs (10–300 KB) outside the development and held-out sets: unported npm packages compiled through `JsValue` shims, and synthetic concatenations of case programs, each with an oracle. Priors, the proxy margin M, the tariff and the exchange rate are calibrated on it and the case corpus, leave-one-out (NO9); the proxy's miss rate is validated on its no-prune lane. Lands before M3.5 |
 
 **Exit.**
 - CI is green on the one compiler.
 - The case runner, the micro gates and the port runner run each batch.
 - The baseline scoreboard exists and the interim release is published.
+- The benchmark contract builds every goal cell's bar; the held-out set is named and its first blind ports exist; the perf runner, the runtime ledger, the generic ratchet, the frozen baselines and the calibration corpus run on the ladder of rule 8.
 
-### M3 Honest configuration, one public API, delivery contract
+### M3 Honest configuration, one public API, delivery contract, the budget model
 
 | Task | Content |
 |---|---|
-| M3.1 Schema v3 | The axes of architecture §14: contract (`[target.javascript]` with independent `execution`, `world` and `format`, where `format` replaces `function_scope`), objective, effort, resources, execution, generated families. A translator maps every old key to a new key, a warning or a refusal |
-| M3.2 Family registry | Every program rule, JS rule and choice registers `{id, mandatory or optional, legality, risk}`. `TargetCompaction` splits into its real families. The five tactics without a producer are removed. The receipt lists the families that actually ran |
-| M3.3 Delivery contract | preserve-modules keeps every source module a file; lazy `import()` gets its chunk. Deploy cost uses the objective's codec only. `verify-bundles.mjs` is split into contract assertions and plan assertions, and its fixtures stop depending on `strip_console` |
-| M3.4 Public API | `build::{check, build, with_session}` with a typed `BuildReceipt` and `Delivered { files, manifest, sizes }`. The multi-objective CLI (`--objective raw,gzip,brotli`) gives one winner per objective |
-| M3.5 Budgets in policy | Search budgets enter the policy, receipt and fingerprint. `build::search_request`'s hard caps and `LILSCRIPT_SEMANTIC_WORK` go. Level calibration waits for M9.10 |
-| M3.6 Codec pool | Bounded threads for render and codec work, with deterministic batch order |
+| M3.1 Schema v3 | The axes of architecture §14: contract (`[target.javascript]` with independent `execution`, `world`, `format` and `checks`, where `format` replaces `function_scope`), objective, effort, resources, execution, performance, generated families. A translator maps every old key to a new key, a warning or a refusal. **First slice with M3.5** (objective, effort, resources, performance, `checks`); `format` with M3.3b |
+| M3.2 Family registry | Every program rule, JS rule and choice registers `{id, mandatory or optional, legality, risk, runtime class, bytes per WU}`; a rule's entry carries its L3 sign distribution. `TargetCompaction` splits into its real families. The five tactics without a producer are removed. The receipt lists the families that actually ran. With M3.5 |
+| M3.3 Delivery contract | The judged design (`~/lilscript-work/out/design/m3.3/design.md`), adopted with architecture §10.6's overrides and delta: M3.3a (multi-entry ESM, preserve-modules, lazy chunks, the plan verifier, manifest v3), M3.3b (formats), M3.3c (facts and choices, after M5.2, M6.2 and M9.1; **its exit gates the consumer lanes, BC9**), M3.3d (lazy effects and cycles), M3.3e (ports, with M12.2). Deploy cost uses the objective's codec only. `verify-bundles.mjs` is split into contract assertions and plan assertions, and its fixtures stop depending on `strip_console` |
+| M3.4 Public API and shared formation | `build::{check, build, with_session}` with a typed `BuildReceipt` and `Delivered { files, manifest, sizes }`. The multi-objective CLI (`--objective raw,gzip,brotli`) gives one winner per objective, from **one formation per candidate judged under each objective**. With M3.5, before its joint moves |
+| M3.5 The budget model (absorbs M3.6, M9.4, M5.6's accounting and the structural part of M9.10) | Architecture §9.6 and §13, in one milestone that lands before any new codec-judged family:<ul><li>**Work units.** A versioned tariff per work kind and codec setting (B1), charged by input size in every loop; WU per phase and per move in the receipt; `--print-policy` prints the planned budget; `[resources] work` is a deterministic truncation and `deadline` abort-only; B9's exchange rate and per-level ceilings. `build::search_request`'s caps and `LILSCRIPT_SEMANTIC_WORK` go. M5.6's per-worker ledgers and scratch limits land here.</li><li>**The procedure of §9.6.** Terminal challengers and choice alternatives merge into one level-independent list; levels set p(L), e(L), W(L) and F only; the two budgets of `src/config.rs:1339-1366` and the seven ladders of `:1183-1366` go. The structural beam runs at its level-13 schedule, ranks by proxy, and is one move at a fixed late position until M9.1's rest deletes it. Lockstep objectives with checkpoint offers; the gzip shadow.</li><li>**Three judges.** Tier-0 estimate under the name plan orders (the old M9.4); a proxy (Brotli at min(q, 5); gzip and raw exact) prunes beyond M; only the exact codec keeps; the exact budget bounds exact work. A periodic no-prune lane measures misses. Calibration on M2.15's corpus.</li><li>**Codec settings as objective configuration:** `[objective.brotli]` quality, window, mode and `[objective.gzip]` level, window, defaults unchanged, fingerprinted.</li><li>**Deterministic parallelism:** speculative parallel greedy with in-order commit; `-j N` (default from the schedule, never fingerprinted); `--codec-jobs` removed.</li><li>**Level 0** runs every rule and the naming seed, and no codec (estimated sizes).</li><li>**Per-port budget keys** (`candidate_search`, beam widths, byte and probe budgets, `[policy.search]`) warn for one release, then refuse after Y7; the port configs are rewritten to contract, objective, effort, performance floor and permissions.</li><li>The WU, moves-judged and CPU-time gates in `scripts/cases.mjs` and `scripts/ports.mjs`.</li></ul>**Exit.**<ul><li>*Monotone:* size(L+1) ≤ size(L) for L in 0–15 on the case corpus and the reference ports, by construction and by a test at every tier boundary that compares the recorded incumbent at each lower level's stopping point with a build at that level.</li><li>*Size:* level 15 at or below today's shipped bytes on every reference port; level 13 within the port's seeded re-mangling band of its shipped bytes, or the difference ledgered as a known cost with its owner (M9.1's rest or M7).</li><li>*Time:* level 13 at or below the frozen baseline (M2.14) at `-j 4` on every reference port and at most 1.3× it single-threaded; katexlil's package build at or below KaTeX's own build (14.4 s) and every other reference port's package build at or below its frozen pre-M1 package time; levels 1–4 within 2× Terser's time; the tariff's median error under 10%.</li><li>A thread-count change never changes bytes.</li></ul> |
+| M3.6 Codec pool | Merged into M3.5 (deterministic parallelism) |
 | M3.7 Environment variables | Only diagnostic variables remain |
+| M3.8a Consumer-shakeable delivery, first half (architecture §10.6, override 1) | With M3.3b's formats, for library-world ports, in the bundler-facing export condition only: `/*#__PURE__*/` on top-level calls in `Definition` root rows (which require `discardable()`), `sideEffects: false` per file only when every root row is `Definition`, exports bound by declaration-initialized bindings where the initialization fact proves no read in the temporal dead zone |
+| M3.8b Consumer-shakeable delivery, second half | After M5.2 and with M3.3c: `/*#__NO_SIDE_EFFECTS__*/` on functions `discardable()` for every admitted argument that call no parameter; the choice between annotations and export granularity; gated by the consumer lanes (BC9) at M3.3c's exit. Today a consumer importing one zod export pays 28,006 Brotli from zodlil against 11,749 from upstream |
+| M3.9 Caches and the decision lock | A codec memo keyed by (byte digest, codec settings) across candidates, objectives and chunks, persisted on disk; a content-addressed build cache (`--cache DIR\|off`); the opt-in decision lock `lilscript.choices.lock` (`--write-choices`, `--choices`) with memoized verdicts, a fingerprinted input replayed as move 0; a per-module elaboration cache for level 0 and the language server. Every cache is output-transparent except the declared lock (B7). With M3.5. *Incremental formation and fact reuse: merged into M5.7* |
 
 **Exit.**
 - No accepted key is silently inert.
-- `--print-policy` equals the build's request.
+- `--print-policy` equals the build's request, including the planned work budget.
 - The bundle contract cases pass.
 - A thread-count change never changes output bytes.
+- M3.5's exit holds.
+- The consumer lanes are M3.3c's exit, not M3's.
 
 ### M4 Checker identities and checker-owned facts
 
@@ -349,16 +414,17 @@ These are prerequisites for field identity, shapes and every fact the checker al
 | Task | Content |
 |---|---|
 | M4.1 Nominal identity | <ul><li>`NominalId` for classes, enums and extern classes, with per-module scopes; the 16 port class renames are reverted.</li><li>One module-graph checker entry with explicit phase products; `export constructor` in module mode.</li><li>Class fields become `FieldRef{nominal, slot}` places in the IR, and allocations carry their nominal.</li><li>`ClassDefinition`, native and formation look classes up by id, not by name</li></ul>**Landed 2026-09-27** (branch `m4-nominal`; see "M4.1 nominal identity" above). The rename reverts are patches in `~/lilscript-work/portwork/nominal/`, to land with each port's next release |
-| M4.2 The dynamic type | `Type::Dynamic` replaces `TypeParameter("$js")` at every site; type parameters by id; interned types without source lifetimes |
-| M4.3 Checker facts transported | <ul><li>`ResolvedOperator` recorded by the checker; elaboration stops re-deriving `IntBinary` from result types.</li><li>`assigned` split into `reassigned` and `observable_before_initialization`, plus a per-occurrence `ReadInitialization`, which seeds M6.5.</li><li>Parameter defaults on declarations, not in function types.</li><li>Declaration attributes (`pure`, `debug`); ambient `this`/`arguments` as checker-resolved bindings</li></ul> |
-| M4.4 Node ids | Ids on identifiers, declarations and statements; the span-keyed fact maps are deleted |
-| M4.5 Contracts at check time | Frame (D3.9) and boundary (D2) refusals are diagnosed in the check phase, with source spans, against the resolved contract |
-| M4.6 Operation catalog | `BuiltinCall` and `Intrinsic` merge into one declarative catalog: signature, defaults, effect class, fold, JS and C spelling, target capability. The checker diagnoses non-portable use against the requested targets. The "never rename" host surface is derived from `extern` declarations |
+| M4.2 The dynamic type (with R12, M10.2) | `Type::Dynamic` replaces `TypeParameter("$js")` at every site (`src/check.rs:9515`, `src/primitive.rs:654-656`, `src/program/effects.rs:361`, `src/program/native_plan.rs:476`); `unknown`; type parameters by id; interned types without source lifetimes (`NominalType`'s `&'src str` goes). It lands together with R12's ordinary syntax on the dynamic type (M10.2) in language slice 1, as its own batch because it touches the whole checker |
+| M4.3 Checker facts transported | <ul><li>`ResolvedOperator` recorded by the checker; elaboration stops re-deriving `IntBinary` from result types.</li><li>`assigned` split into `reassigned` and `observable_before_initialization`, plus a per-occurrence `ReadInitialization`, which seeds M6.5; the binding facts (written anywhere, creation moment) the tree's binding column needs.</li><li>Parameter defaults on declarations, not in function types.</li><li>Declaration attributes (`pure`, `debug`); ambient `this`/`arguments` as checker-resolved bindings</li></ul>Before M5.2 |
+| M4.4 Node ids | Ids on identifiers, declarations and statements; the span-keyed fact maps are deleted; tree-level `ChoiceKey` ordinals become source identities. Before M5.2 |
+| M4.5 Contracts and capabilities at check time | Frame (D3.9), boundary (D2) and delivery (DL1–DL10) refusals, and **target capabilities** (every JavaScript-only type or operation under a native target), are diagnosed in the check phase with source spans, against the resolved contract. Native's `Unsupported { span: 0..0 }` refusals (`src/program/native_plan.rs:1046,1073`) leave the backend (M11.11) |
+| M4.6 Operation catalog (in the core; no ruling) | `BuiltinCall` and `Intrinsic` merge into one declarative catalog: signature, defaults, effect class (including `debug`), fold with its exactness class (`exact` or `host-precision`), JS and C spelling, target capability, per-condition bindings (R17). A `GlobalId` on host nodes replaces `Expr::Host(String)` name tests and `STANDARD_GLOBALS` (`src/js/inline.rs:20-55`). The checker diagnoses non-portable use against the requested targets. The "never rename" host surface, and the property names the allocator reserves, are derived from `extern` declarations and the catalog. It carries effect-free known constructions (`new RegExp(valid literal)`, diagnosis C9) and `Object.hasOwn` for `hasOwnProperty.call` (1.2% of katexlil's self time) |
 
 **Exit.**
 - Tests show that two modules' private `class Node` compile, `export constructor` works, and no `"$js"` string test remains.
 - A grep finds no name-keyed class lookup.
-- The checker's diagnostics carry spans for every refusal.
+- The checker's diagnostics carry spans for every refusal, native capability refusals included.
+- No name-keyed host-global test remains on the JS tree.
 
 ### M5 The machinery
 
@@ -366,149 +432,186 @@ What every later phase needs: edits, the carriers that take facts to the tree, t
 
 | Task | Content |
 |---|---|
-| M5.1 Program edit kernel | Structural `EditBatch` on the existing transaction (insert, remove, splice, clone, delete unit, change signature, retype allocation); `UseIndex` updates incrementally, checked against a full rebuild. DCE, demand's liveness applied as an edit, is its first production rule, and native gets it |
-| M5.2 Tree annotations and journal | <ul><li>Annotation columns on the JS tree (value domain, `FieldRef`, `AllocSite`, `UnitId` and function facts, callee, initialization order, `GlobalId`, observation, spelling), renumbered by the arena itself.</li><li>`literal_alternatives`, `binding_classes` and `defined_parameters` move onto nodes.</li><li>Typed mutation helpers journal every edit; a debug build checks the journal against the actual difference</li></ul> |
-| M5.3 Scheduler | One scheduler for program rules and JS rules. It starts in **fixed-order mode**: today's chain, encoded as data (byte-identical), with the verifier after each rule set in debug builds. **Fixpoint mode** then runs as a terminal challenger against it, and replaces it once no port regresses. The hand-written chain in `javascript.rs:663-966` is deleted at that point |
-| M5.4 Monotone selection and the terminal slot | Incumbents never worsen; lower-effort incumbents are replayed. A terminal challenger stage offers choice assignments on the final artifact under the requested codec. The mechanism lands before any new family |
-| M5.5 Dataflow and views | The call graph with SCCs (generalized from `CallableInputs`); one region-structured dataflow solver; the cell-SSA view |
-| M5.6 Resource accounting | Work budgets per phase and per rule; exact byte accounting only for retained candidate and artifact storage (architecture §17) |
+| M5.1 Program edit kernel | Structural `EditBatch` on the existing transaction (insert, remove, splice, clone, delete unit, merge units, change signature, retype allocation); `UseIndex` updates incrementally, checked against a full rebuild. DCE, demand's liveness applied as an edit, is its first production rule, and native gets it: the native plan then plans only demanded code, so an unused refused function no longer blocks it. `drop_unreferenced_functions` (`src/js/mod.rs:1536`) is deleted. In the floor slice, after M2.5 |
+| M5.2 Tree annotations and journal (absorbs M8.1) | <ul><li>Annotation columns on the JS tree (value domain, binding facts, evaluation behaviour, `FieldRef`, `AllocSite`, `UnitId` and function facts, callee, effects summary, initialization order, `GlobalId`, observation, spelling, frequency), renumbered by the arena itself, each with a declared transfer for every target-rule edit (a join where statements merge, top for created nodes) and a debug-build verification against recomputation after each rule set. M3.3's root rows ride the effects and initialization columns.</li><li>`literal_alternatives`, `binding_classes` and `defined_parameters` move onto nodes; the hand remaps (`src/program/javascript.rs:797-1259`) and the `protected` protocol go.</li><li>Typed mutation helpers journal every edit; a debug build checks the journal against the actual difference.</li><li>**Deleted in the same batches, once their columns verify (rules 2 and L20):** `src/js/quiet.rs`; `inline.rs` `inert` and `runs_no_user_code`; `js/mod.rs` `inert_value`, `initialized_at` and `settled_reads`; `initializers.rs` `same_inert`; `javascript.rs:207-224`; the `debugLog` name tests; `root_constants.rs`'s own proof; native's initialization proof (`src/program/native_plan.rs:1102-1217`). M6.1–M6.5 are then landed</li></ul> |
+| M5.3a Scheduler | One journal-driven scheduler for program rules and JS target rules: one lexicographic measure (units, allocations, operations, nodes) asserted per edit in debug builds; a fixed structural order over SCCs; always to the fixed point, never truncated by effort; a round ceiling that aborts; the verifier after each rule set in debug builds. It hosts the classified rules and, for every pass whose replacement has not landed, a **marked transitional rule** in its current relative order with its deleting task (architecture §8.2's table). There is no byte-identical mode. The hand-written chain (`src/program/javascript.rs:744-986`, `:1073-1211`), its magic limit 6 and its hand rounds are deleted as a chain. Needs M2.5 and M5.2 |
+| M5.3b Transitional rules deleted | Each transitional rule is deleted in the batch its replacement lands: `drop_*default*` with M7.3; the removing half of the inliners with M7.5a, the rest with M9.1's rest; `eliminate_aliases`/`forward_root_constants` with M7.4; `inline_initializers`, `drop_redundant_init_stores`, `fold_object_stores` with M9.7 and M7.7; `scalarize_member_objects` with M7.9; `self_method_calls` and `array_receiver_calls` with M10.4/M10.7 and M6.4b. Interleaves with M7 |
+| M5.4 Monotone selection and the terminal slot | Incumbents never worsen. A terminal challenger stage offers choice assignments on the final artifact under the requested codec. The mechanism lands before any new family. **Landed** (batch T). Monotone across levels is closed by M3.5's §9.6 procedure, in which the lower level's result is the incumbent where that level stops (the replay is structural) |
+| M5.5 Dataflow and views | The call graph with SCCs (generalized from `CallableInputs`); one region-structured dataflow solver; the cell-SSA view. Before M7.4 and M6.4b |
+| M5.6 Resource accounting | Work units per phase and per rule through M3.5's tariff; exact byte accounting only for retained candidate and artifact storage; per-worker ledgers and scratch limits for speculation. The allocation-exact ledgers inside analyses (about 4,400 ledger lines in `src/program`, 1,074 in `src/js`; `AllocationBudget<'a>` across 398 sites in 101 files) are retired. **Lands inside M3.5** |
+| M5.7 Incremental tail (absorbs M3.9's incremental formation) | Re-form only the units a move touches and re-run JS target rules on them through M5.3a's dirty-unit scheduling; reuse `Arc`-shared units and revision-keyed facts across candidates (demand re-runs about 340 ms per katexlil candidate today). **Exit:** level 13 at or below the frozen baseline single-threaded on every reference port |
 
 **Exit.**
-- Fixed-order scheduling is byte-identical to the chain it replaces.
+- The hand-written chain is gone; the scheduler runs classified rules, and every remaining transitional rule is listed with its deleting task.
 - The terminal slot runs on every build.
 - The edit kernel carries DCE for both targets.
+- A grep finds none of the re-derivations M5.2 lists.
+- M5.7's single-threaded target holds.
 
 ### M6 The fact spine
 
-Every fact is taken through the same four steps in one batch: **compute → publish → switch consumers → delete the re-derivation.**
+Every fact is taken through the same four steps in one batch: **compute → publish → switch consumers → delete the re-derivation.** A fact counts as landed only after the fourth step (rule 2). M6.1–M6.3 and M6.5 have done the first step and the program-side consumers; M5.2 does the rest for them.
+
+Facts rest on the language's guarantees (architecture §7). The exact and finite-set tier of the value lattice needs no language rule and lands in the floor slice (M6.4a); the int32-range tier waits for R1 and R11 (M6.4b).
 
 | Task | Fact | Deleted when its consumers switch | First reproductions |
 |---|---|---|---|
 | M6.1 Call graph and function facts | Complete call sets, value calls resolved, address-taken, name and length observability | The call-only scans in `inline.rs`; the name-observability predicates in `javascript.rs:1265-1537` | — |
-| M6.2 Effects | Per-operation and per-unit summaries, seeded by declared `pure` and trusted `pure extern`. Termination needs a proof (D3.6; architecture §7) | `facts.rs`'s unknown calls, `demand.rs`'s private model, `helper_family`'s composition, `quiet.rs`, `inline.rs:inert`/`runs_no_user_code`, `mod.rs:inert_value` | `scratch-program/ip/pure.lil`; motionlil's `warning`/`invariant` |
+| M6.2 Effects | Per-operation and per-unit summaries, seeded by declared `pure` and trusted `pure extern`; `discardable()` is the one removal and annotation test. Termination needs a proof (D3.6; Y4) | `facts.rs`'s unknown calls, `demand.rs`'s private model, `helper_family`'s composition, `quiet.rs`, `inline.rs:inert`/`runs_no_user_code`, `mod.rs:inert_value` | `scratch-program/ip/pure.lil`; motionlil's `warning`/`invariant` (the `debug` class, not purity) |
 | M6.3 The `pure` contract | A check-phase diagnostic from the effect engine | — | The old route's diagnostic, verbatim |
-| M6.4 Values | One lattice: exact, finite set, int32 range, primitive class. Held per value, formal, result and `(nominal, slot)`. `binding_classes` trusts declared types only for private units, or under the `typed_arguments` assumption; this fixes an unsound source today | `javascript_int32.rs`'s proofs, `NumberFacts` sources, the `binding_classes` derivation, `simplify::known`, `scalar_transfer.rs` | `scratch-target/a.lil` (`9+40\|0`); probe `f1`; a D2/D3.3 case with an ill-typed JS caller |
+| M6.4a Values, exact tier (floor slice) | Exact and finite-set values over literals, `const` and `define`, per value, formal and result, joined over complete call sets; folds only `exact` catalog operations | `simplify::known` where it covers constants | `comparison/cases` `control/dead-branch`; `functions/nested-local` |
+| M6.4b Values, range tier (after M10.12 and M10.9) | int32 ranges and primitive classes; the array class of parameters and results over complete call sets (diagnosis C15). Held per value, formal, result and `(nominal, slot)`. Declared types are the lattice's start under R1; the effect obligations of `src/program/effects.rs:17-27` go | `javascript_int32.rs`'s proofs, `NumberFacts` sources, the `binding_classes` derivation, `scalar_transfer.rs`, `raw_domains.rs` | `scratch-target/a.lil` (`9+40\|0`); probe `f1`; a D2/D3.3 case with an ill-typed JS caller (development-check lane) |
 | M6.5 Initialization order | Settled root bindings; "not invoked before root statement S", seeded by M4.3 | `quiet.rs`'s order and factory shapes, `root_constants.rs`'s own proof, the duplication in `demand.rs:initialized` | zodlil's 41 enum constants; `scratch-target/b.lil` |
-| M6.6 Escape | Per allocation site: local, typed or host. A compare with `null` is not an escape | `scalar_objects.rs`'s syntactic test; lint's `aggregate-escape` returns | snippet `s17`; probe `f1`'s per-iteration array |
-| M6.7 Field facts | Per `(nominal, slot)`: read, written-value join, host-reachable, reflective, exported shape | Name-keyed field logic | probes `p2`, `p5`; motionlil's dead fields |
+| M6.6 Escape and uniqueness | Per allocation site: local, typed or host. A compare with `null` is not an escape. Per struct store: whether the source dies there (a move; law P2) | `scalar_objects.rs`'s syntactic test; lint's `aggregate-escape` returns | snippet `s17`; probe `f1`'s per-iteration array; the `native/pt.lil` cursor loop (4.0× slower than mutable JavaScript today) |
+| M6.7 Field facts (after M10.14's checker half) | Per `(nominal, slot)`: read, written-value join, host-reachable. Reflective and exported-shape status is the checker's reflected set (R6), not an analysis | Name-keyed field logic | probes `p2`, `p5`; motionlil's dead fields |
+| M6.8 Frequency | A static per-operation class, cold, warm or hot, from the region tree and the call graph (law P8); published as a tree column (M5.2) for hot-site ordering and vetoes | — (new) | katexlil's `toMarkup` methods hot, its `defineSymbol` tables cold |
 
 - Lint: `performance/aggregate-escape` (removed in M1.2) returns with M6.6. Lint's IR rules see the program before program rules and move after M7 when those land.
+- The reference interpreter gains each feature (M2.4) before the fact that optimizes it.
 
 **Exit.**
-- An owner table shows one owner per fact.
+- An owner table shows one owner per fact, and every fact is consumed by both targets where they decide with it.
 - A grep finds none of the deleted functions.
 - Every reproduction is committed to `tests/cases/regressions`.
 
-### M7 Program rules
+### M7 Program rules: the floor
 
-These are exact, operation-removing and target-neutral. Where a rule's value depends on printed length, it is not a rule; it becomes a choice (M9).
+These pass L3, run in the scheduler's fixed structural order, are target-neutral, and native gets every one. A transformation whose value depends on printed length, or whose codec sign is unstable, is not a rule; it becomes a choice (M9). Together they cover the architecture's floor inventory (§8.4): every exact transformation Terser, Oxc, esbuild and SWC ship that is legal under our facts. Each deletes its JS-tree twin in the batch it lands (M5.3b), and each is gated per change on the generic corpus ratchet (M2.13). The search inventory's always-winning opportunities (scalar, product, inline, function) become these rules, which also removes most of jquerylil's 161 structural proposals and their exact scores.
 
 | Task | Content |
 |---|---|
-| M7.1 Removal | Dead values, units and cells; unused `let`s whose initializer is removable; dead stores; common subexpressions and algebraic identities, where they remove operations |
-| M7.2 Discarded effect-free calls | Needs M6.2 and the termination proof |
-| M7.3 Parameters and returns | `Dropped` and `Constant` transports on complete call sets; unused results. Negative cases: effectful arguments stay in order; `arguments`, rest, exported and host-visible `length` |
-| M7.4 Root constants, defines, flow-sensitive forwarding | Settled constants of at most a few tokens are substituted; longer literals and aliases are choices. Build-time `define`s. Reaching-definition forwarding (katexlil's 41 `x=E;return x` sites) |
-| M7.5 Inlining | <ul><li>Direct and block inlining with the splice edit; structural bounds at program level, and codec-dependent cases as choices.</li><li>Runtime adapters, known-closure calls, constant-capture cloning, constructor chains.</li><li>Deleted: `helper_family`, `forwarding_builtin`, `undefined_call`, the semantic parts of the JS tree inliners, and the IIFEs from `place_single_calls`</li></ul> |
+| M7.1 Removal | Dead values, units and cells; unused `let`s whose initializer is discardable; dead stores; common subexpressions and algebraic identities, where they pass L3 |
+| M7.2 Discarded effect-free calls | Needs M6.2 and the termination proof. **Landed** |
+| M7.3 Parameters and returns (floor slice) | `Dropped` and `Constant` transports on complete call sets; unused results. Negative cases: effectful arguments stay in order; `arguments`, rest, exported and host-visible `length`. Deletes `drop_typed_default_checks`, `drop_default_arguments` and `native_default_lengths` in the same batch |
+| M7.4 Root constants, defines, flow-sensitive forwarding | Settled constants of a few tokens (schedule data) are substituted by rule; build-time `define`s; reaching-definition forwarding of constants (katexlil's 41 `x=E;return x` sites). Non-constant single-use forwarding and copy coalescing are a coupled choice with prior "apply" (M9.12) until their sign distribution passes L3 |
+| M7.5a Removal-only inlining (floor slice) | A rule when every call site is replaced and the unit is deleted with no operation growth; arrow IIFEs whose parameters are read once (diagnosis C16); parameter copies forwarded. Deletes the removing half of the JS tree inliners (M5.3b); the limit 6 (`src/program/javascript.rs:749-751,791`) goes with them |
+| M7.5 Inlining, the rest | Known-closure calls and constructor chains. Deleted: `helper_family`, `forwarding_builtin`, `undefined_call`, the semantic parts of the JS tree inliners, and the IIFEs from `place_single_calls`, when the inline-or-share choice (M9) holds the duplicating case. Runtime adapters are not inlined here: formation never emits a shared adapter for a private lambda (M8.2 A1, law P1) |
 | M7.6 Namespaces and emulated methods | Constant namespaces collapse, and single-definition methods of compiler-owned objects are devirtualized, on allocation identity and initialization order |
-| M7.7 Fields | Dead fields, constant fields, overwritten stores |
-| M7.8 Folding | Constant and branch folding; path-sensitive constants; string-literal sums; array store collection (`let e=[];e.push(…)`); `\|0` elision from ranges |
-| M7.9 Scalar replacement | Of classes, control-flow aggregates and loop-carried structs, on escape |
+| M7.7 Fields | Dead fields, constant fields, overwritten stores (diagnosis C4b: `a.n=0;a.n=b` in every published class with fields), with the legality of architecture §8.3 (no observation or throw between the stores; key order unchanged or the nominal neither reflected nor published; no accessor on the base chain); proving cases include a published and a host-derived class |
+| M7.8a Literal and branch folding (floor slice) | Constant and branch folding on M6.4a, before any spelling is chosen (`if (false)` bodies die here); dead code after folding with M5.1 |
+| M7.8 Folding, the rest | SCCP; interprocedural evaluation of small pure functions with constant arguments over `exact` operations; path-sensitive constants; known-method folds from the catalog (`exact` only); string-literal sums; array and object store collection (diagnosis C17); `\|0` only where a result can leave int32 without a range proof (after M6.4b) |
+| M7.9 Scalar replacement and store-copy elision (before M9) | Of classes, control-flow aggregates and loop-carried structs, on escape; a struct store that is a move copies nothing (P2), on both targets. Deleted: the tuple rebuild per field write (`src/program/javascript_structs.rs:1-3`) |
+| M7.10 Identical units | Compiler-generated units equal modulo names merge by rule only under P1's static test (architecture §8.3): no call to a parameter or capture, no receiver-nominal growth. Receiver and D2 adapters never merge by rule. After M8.5 for prelude units (batch A1 already emits one decoder per schema at formation) |
+
+**Floor slice interim exit.** `comparison/apps` and `comparison/algorithms` at or below the frozen old route (571 and 2,305 Brotli), or each remaining losing case named with the M7 task that owns it.
 
 **Exit.**
 - `comparison/cases`: no case loses to the reference binary's old route, and none loses to the smallest competitor without a ledgered owner.
-- `comparison/algorithms` and the census totals are at or below the old route.
+- `comparison/apps` and `comparison/algorithms`: no case loses to Closure ADVANCED, and the totals are at or below the old route.
 - Every M6 reproduction is fixed.
+- The JS-tree twins listed in architecture §8.2 are deleted.
 
 ### M8 Canonical formation and the pure printer
 
 | Task | Content |
 |---|---|
-| M8.1 Formation writes annotations | `FieldRef`, `AllocSite`, `UnitId`, callee, domain, initialization order, `GlobalId` |
-| M8.2 Canonical forms | <ul><li>`JS.call` and `JS.methodN` are formed as method calls; constructions by the layout choice; defaults by the transport.</li><li>Deleted: `self_method_calls` (except for user-written `JS.call`), `dissolve_receiver_adapters`, `array_receiver_calls`, `inline_initializers`, `drop_redundant_init_stores`, `drop_default_arguments`, `native_default_lengths`, `drop_typed_default_checks`</li></ul> |
-| M8.3 Pure printer | Structure rewrites leave the printer (`return c?a:b` consuming the next statement, logical statements, loop heads) and become spelling attributes. `\|0` and `++` come from facts |
+| M8.1 Formation writes annotations | *Merged into M5.2* (the annotation columns) and batch A1 (import identity `(source, imported)`; a default import prints `import x from`, diagnosis C18; the import spelling pinned "for katex's build", `src/program/javascript.rs:2705-2707`, goes) |
+| M8.2 Canonical forms | **Batch A1 (next; needs no tree analysis; 8 changes):**<ul><li>**A method is its own function** (law P1): `JS.methodN`/`methodRest` of a private lambda (or a private function referenced only by the adapter) is emitted as a function whose receiver reads `this`; a rest list read only at constant indices with `length` unobserved becomes named formals (katex-perf B2), otherwise it reads `arguments`. Guards: the receiver and rest parameters are never assigned or captured by a nested non-arrow function or a nested class's methods (the prototype's `receiver_reads` misses `Expr::Class` methods and must refuse there); the lambda has no own `this`/`arguments`; arity is kept; a case pins the gained `.name`. Constructors take the formals form or keep a private, unshared function each (the unconditional constructor form costs mobxlil +130 Brotli). Shared adapter factories (`src/program/javascript_host.rs:43,538-555`) are no longer emitted for private lambdas; `dissolve_receiver_adapters` is deleted. Prototype: `~/lilscript-work/diag/katex-perf/receiver-methods.patch`. **Pre-registered:** katexlil −62 Brotli (the adapter change alone), Node steady −0.04; micromarklil −283 Brotli and −311 gzip; zodlil within noise; mobxlil at or below zero.</li><li>**Observed classes print with their bodies** (diagnosis C1) within architecture §10.2's legality (class-body strictness under `execution = "script"`; a constructor omitted only for a parameterless empty base or an exact forwarding derived constructor); the dead receiver alias is dropped. Then posthoglil's error-tracking port change to `export constructor` (−360 with both halves).</li><li>**Operands are not spilled** (C3): object and array literal operands keep argument order without temporaries; a constant computed key never carries a sequence (mhchem −250).</li><li>**One decoder per schema** at formation, keyed by schema digest (`src/js/tables.rs:1471-1474`), routed through M3.3a's `RootRow` helpers.</li><li>**Imports** (C18), from M8.1.</li><li>**`print` never stripped** (M2.3's open item): `strip_console` splits into `strip_debug` and `strip_console_calls`, both off by default for libraries.</li><li>**Naming's seed at every level** (M9.5): out of the level-8 gate (`src/compilation_policy.rs:240`).</li><li>**Native arithmetic** (M11.2) with its guards.</li></ul>**Batch A2 (after M2.5, M4.6 and M5.2):** `let x; x = E` fusion and dead `let` with a discardable initializer as JS target rules on the binding and evaluation columns, with the TDZ and loop-capture legality (C4a); C9 through the catalog; `globalThis.<ECMAScript builtin>` as the builtin under R10 (C19); `fold_logical_assignments`/`fold_logical_returns` replaced by canonical formation of the constructs they recover. The overwritten-default drop is not a formation recognizer: R3 removes implicit defaults and M7.7 removes overwritten stores.<br>**The rest, each in its replacement's batch (L20):** constructions by the layout choice (M9.7: `inline_initializers`, `drop_redundant_init_stores`); defaults by the transport (M7.3: `drop_default_arguments`, `native_default_lengths`, `drop_typed_default_checks`); receivers (M10.4, M10.7 and M6.4b: `self_method_calls` except for user-written `JS.call`, `array_receiver_calls`) |
+| M8.3 Pure printer (before any further spelling family) | Structure rewrites leave the printer (`return c?a:b` consuming the next statement, logical statements, loop heads: `src/js/print.rs:523-560,1744-1795`) and become spelling attributes set per site. The `raw_spelling` bundle (`src/js/naming.rs:20-28`) is dissolved into its members, each its own family; the printer stops consulting the naming plan. After M5.2. *Second half, after M6.4b:* `\|0` and `++` come from facts |
 | M8.4 Host modules | A typed Oxc visitor produces host units; the ESTree JSON walk is deleted |
-| M8.5 Runtime helpers | The table decoder, reference helpers and adapters are written as LilScript prelude code, compiled through the pipeline and demand-pruned |
+| M8.5 Runtime helpers | The table decoders, reference helpers and D2 adapters are written as LilScript prelude code (`src/prelude/`), compiled through the pipeline, merged by M7.10 under P1 and demand-pruned. Share-or-specialize per schema is a choice (M9) |
 | M8.6 Source maps | Re-founded on tree origins as a delivery-plan feature. The old-route source-map branches are prior art |
-| M8.7 Port-shaped rules | Every rule in the inventory below is either given a generic legality condition, turned into a choice, or deleted. Every contract assumption a port sets carries a recorded reason |
+| M8.7 Port-shaped rules | Every rule in the inventory below is either given a generic legality condition, turned into a choice, or deleted. Every contract assumption a port sets carries a recorded reason. The NO3 allowlist ledger ends empty |
 
 **Exit.**
 - No pass recovers a shape formation emitted.
 - No side table is remapped by hand.
 - The printer holds no semantics.
 - The port-shaped inventory is empty.
+- No shared adapter serves two private methods (the P1 structural counter is zero on the reference ports).
 
-### M9 Choices, naming, layouts and data
+### M9 One choice system: choices, naming, layouts and data
+
+Every family is a `ChoiceFamily` of the one kernel (architecture §9.3): sites keyed by program identity, hierarchical per structural class, with a codec-free legality, a per-objective prior, a tier-0 estimate under the name plan, a coupling class and a runtime class per site. The procedure of §9.6 walks them as one move list. No family lands before M3.5, and each declares its bytes per work unit.
 
 | Task | Content |
 |---|---|
-| M9.1 Choice interface | `Choice` + `ChoiceMap`. The product, record and string families and function layout become implementations; `implementations.rs`'s per-family vectors are deleted. **First slice landed (`m9-data`):** `ChoiceKey`/`AltId`/`ChoiceMap` on the output assignment, sites recorded on the tree, per-site challengers and a joint canonical move in the terminal stage under their own `terminal_choices` budget; data encoding is its first family. **Open:** the other families still enumerate their own alternatives |
-| M9.2 Objective as a judge | `raw_structure` and `raw_spelling` become per-family seeds, and every family is available to every objective |
-| M9.3 Spelling families | 013-T7.2's subset (measured −462 Brotli over six ports) through the terminal slot; `loop_head_declarations` and `logical_statements` become choices |
-| M9.4 Estimator and finalists | A per-objective size estimator ranks; Brotli-11 runs only on finalists |
-| M9.5 Naming | One allocator. Slot scheme, assignment order and alphabet are codec-judged seeds (architecture §10: Closure's scheme measured +86 to +1,171). The −353 walk-order headroom is re-measured on current outputs first |
-| M9.6 Property names | Rename and ambiguate private `FieldRef`s (markedlil −252 measured), reporting the open and closed lanes |
-| M9.7 Layouts | Per nominal or allocation: scalars, positional, named or class; struct parameters as fields; `JS.assume` view or decode |
-| M9.8 Data | String tables as a choice with an estimator (no 64 / 0.85 thresholds); numeric and columnar tables; pooling at naming time. **Landed (`m9-data`):** literal, front-coded, schema columns (transposition, delta keys, scaled integers, joined strings) and value dictionaries, each verified exact in Rust before it is offered, seeded by the raw estimator and judged by the codec; with katexlil's metrics in LilScript, −2,423 Brotli (a win over Terser and `katex.min.js`). **Open:** a per-objective estimator for seeds (M9.4); pooling at naming time |
-| M9.9 Function folding | Identical, permuted and one-constant functions, as a choice; outlining of repeated regions as a choice |
-| M9.10 Effort calibration | Each level's schedule is calibrated on real alternatives. Level 15 is at most level 13 on every reference port, strictly smaller in total beyond the noise floor, and inside its declared time budget |
+| M9.1 Choice interface | `Choice` + `ChoiceMap`. **First slice landed (`m9-data`):** `ChoiceKey`/`AltId`/`ChoiceMap` on the output assignment, sites recorded on the tree, per-site challengers and a joint canonical move in the terminal stage under their own `terminal_choices` budget; data encoding is its first family. **The rest:** every optional representation becomes a family with prior, estimate, coupling and runtime class; program-level families key by program identity; coupling classes generate joint moves; the inline-or-share choice holds inlining's duplicating case. **Deleted:** the structural recipe search (beam, diversity clock, render batches in `src/program/search.rs`; `search_selection.rs`, `search_opportunities.rs`, `search_entries.rs`), `implementations.rs`, the five bespoke family analyses (`helper_family`, `product_family`, `record_family`, `string_family`, `function_layout`: 8,393 lines) once their codec-dependent opportunities are families and the rest are M7 rules, and `OutputFamilies`/`Challenger` once their members are per-site families |
+| M9.2 Objective as a judge | `raw_structure` and `raw_spelling` become per-family seeds, and every family is available to every objective. **Landed** for the terminal families (batch T). **Open:** gzip gets its own prior row; today it reuses Brotli's (`src/js/families.rs:116-119`) |
+| M9.3 Spelling families | 013-T7.2's subset (measured −462 Brotli over six ports); `loop_head_declarations` and `logical_statements` become choices. **First family landed** (batch T) as module-wide booleans; after M8.3 each spelling is a per-site family with structural classes (conditional returns per site class, diagnosis C14; optional chaining and logical assignment, C13) |
+| M9.4 Estimator and finalists | *Merged into M3.5* (the three judges and the exact budget) |
+| M9.5 Naming | One allocator with the locality algorithm of architecture §9.5. Its seed runs at every level (batch A1). Frequency seeds and frequency-sorted alphabets are whole-artifact joint moves. Root names are allocated over printed bindings only (C11). Closure's scheme measured +86 to +1,171; root order by use count stays a joint move (refuted as a default, diagnosis §5). The −353 walk-order headroom is re-measured on current outputs first |
+| M9.6 Property names (after M2.10's closed-world cells and M10.14's checker half) | Rename and ambiguate private `FieldRef`s outside the reflected set (R6) (markedlil −252 measured), never using a name reserved by extern declarations or the catalog; reporting the open and closed lanes against the competitors' property-mangling lanes (BC11) |
+| M9.7 Layouts | Per nominal or allocation: scalars, positional, named or class; struct parameters as fields; `JS.assume` view or decode. Legality includes the shape law P3. Deletes `inline_initializers`, `drop_redundant_init_stores` and `fold_object_stores` (M5.3b) |
+| M9.8 Data | String tables as a choice with an estimator (no 64 / 0.85 thresholds); numeric and columnar tables; pooling at naming time. **Landed (`m9-data`):** literal, front-coded, schema columns (transposition, delta keys, scaled integers, joined strings) and value dictionaries, each verified exact in Rust before it is offered, seeded by the raw estimator and judged by the codec; with katexlil's metrics in LilScript, −2,423 Brotli (a win over Terser and `katex.min.js`). **The rest, after M10.3:** the per-objective estimate (M3.5; katex's three small decoded tables are −218 Brotli as literals); decoders as prelude units (M8.5, M7.10); a lazy-decode alternative and the startup law P6, with the legality fact "the decoded binding is read by computed keys only"; legality by declaration (R9) replacing the `let`-shape recognizer; pooling at naming time |
+| M9.9 Function folding | Identical, permuted and one-constant user functions, as a choice; outlining of repeated regions as a choice. Legality includes the feedback law P1 |
+| M9.10 Calibration | Per-objective priors per (family, objective, structural site class), the proxy margin and error bands, the tariff and the exchange rate, calibrated on the case corpus and M2.15's calibration corpus, leave-one-out, never on ports (NO9), and versioned with the schedule. The structural monotonicity of levels is M3.5's; this task makes each level spend its budget where bytes are |
+| M9.11 Order and locality | A gzip lever: the order of hoistable declarations and data within an initialization class, and pooling of repeats more than 32 KiB apart (katexlil loses 4.5% with a 32 KiB window). Judged per objective |
+| M9.12 The diagnosis's codec-judged items | Batch 3 of the 2026-09-27 diagnosis as families, after M3.5 and M8.3: element loops as `for…of` or index (C5, within the runtime floor; after R14), regex placement (C10, only without `g`/`y` flags or `lastIndex` uses, and with identity unobserved), export binding shape (C12), conditional returns per site class with a lookup-table alternative (C14), coercion text as one coupled class (C8, where R1 and R11 have not already removed it), non-constant forwarding and copy coalescing as a coupled class (C4a's rest) |
 
 **Exit.**
 - No objective-conditioned rule remains.
-- The effort levels meet M9.10's rule.
+- One kernel, one move list; the structural search, the five family analyses, `OutputFamilies` and `Challenger` are deleted.
+- Every family declares its runtime class, and admission orders and vetoes by it on hot sites.
 
-### M10 Language for size
+### M10 The final language (R1–R18)
 
-The language law (architecture §12, L13): a typed form never costs more than its untyped equivalent. Each item lands with at least one port rewritten to use it, its suites green and no Brotli degradation.
+The rules are [language.md](../language.md) (version 1); the architecture's §12 gives the principle. Items are ranked by bytes × runtime and ordered by rule 9: **language slice 1** (M4.2 + M10.2, then M10.4, M10.7, M10.16) needs no ruling and lands right after the floor slice; **the core** (M4.6, M10.13, M10.9, M10.15, M10.11's `debug` class, M10.14's checker half, then M10.12 after Y1) lands before M6.4b and M6.7. Every rule that refuses code the ports contain lands in two batches (language.md §14): a warning with a fix-it applied to every reference port as patches in `~/lilscript-work/portwork/` with suites green, then the refusal. Each item lands with at least one port using it, no Brotli loss, and its typed form at least as fast as the `JsValue` spelling (micro perf gate, P9). ⚖ marks an item that waits for an owner yes (architecture §21.1).
 
-| Task | Content | Evidence |
-|---|---|---|
-| M10.1 L1 declared object shapes | `data`/`accessor` fields, optional fields, construction literal, nesting at boundaries. micromark's 11 views migrate first. `assume_pure_property_reads`, `preserve_properties` and `internal_properties` retire for declared values | −6,359 Brotli on the markdown stack as a global flag |
-| M10.2 L8 dynamic type | Member, call, `new` and operator syntax; the 63 `JS.*` builtins collapse into it and a typed host catalog. Host helpers that the old route matched by name get declared bindings | Deletes recovery glue |
-| M10.3 L2 const data and tables | Deep-immutable `const` data; exported const objects; hex, exponent and leading-dot literals; bounded `const` evaluation; katex's font metrics move into LilScript | katex −2,529, micromark −1,054 |
-| M10.4 L3 receivers, constructibility, rest | `fn(this: T, …)`, `fn` against `function`, methods in literals, `T... rest`. `JS.methodN` and `extern JsValue this/arguments` retire, and `assume_unconstructed_callbacks` becomes a type fact | katex −240 |
-| M10.5 L4 sealed virtuals, interfaces, sum types | A static call, tag switch or prototype method per call site | motion ≈ −700 |
-| M10.6 L5 ABI-valued enums | `enum T: string`, explicit values, `ordinal`/`from`, flag sets | micromark's 104 string types; zod's 41 int kinds |
-| M10.7 L9 casts and operators | `as?`, unsafe views, non-null assertion, float `%`, `is` on classes and shapes | motion's identity-cast externs |
-| M10.8 Record spread and records | Implement spread or refuse it with a diagnostic; decide `Record<T>`'s default prototype | `comparison/cases/collections/record-json` |
-| M10.9 L6 and L7, **owner rulings first** | Immutable value structs with functional update (revises D1); nullish `T?` on JS; a non-overflowing index/count type; `charCodeAt`; dynamic equality (strict against literals, explicit `looseEquals`) | `ref` used 0 times; the lens runtime; `??null` and `\|0` costs |
-| M10.10 `object` singletons | Deleted in favour of module namespaces and const records (0 uses), unless the owner keeps them | — |
-| M10.11 L10 pins and defines | `inline for`, `@pool` and region-scoped policy as pinned choices; `define` build constants; a `debug` effect class | Owner, 2026-09-04 (regions) |
+| Task | Rule | Content | Evidence |
+|---|---|---|---|
+| M10.2 The dynamic type (slice 1, with M4.2) | R12 | Ordinary JavaScript syntax on `JsValue` with JavaScript's meaning (member, call, `new`, `\|\|`, `&&`, `??`, `?.`, `?.()`, `typeof`, `instanceof`, `in`, `delete`, spread, `for…of`, `for…in`, `==` loose, `===` strict); `unknown`; `as`, `as?` and explicit conversions; the 63 `JS.*` builtins collapse into it and the catalog; a mechanical rewrite script per port that keeps meaning. This is the diagnosis's batch 2 (C6 `instanceof`, C7 rest, spread and dynamic `for…of`, mhchem's lambda-IIFE logic) | C6 107, C7 98, mhchem −75 ± 20 Brotli |
+| M10.4 Receivers and variadics (slice 1) | R7 | `fn(this: T, …)`, methods in literals and shapes, `T... rest`, spread arguments. `JS.methodN`, `JS.methodRest`, `JS.staticRest` and `extern JsValue this/arguments` retire (their formation half landed in batch A1); `self_method_calls` is deleted | katex −240; 3,513 adapter sites fleet-wide; rest −24/−48 on posthog error-tracking |
+| M10.7 Identity tests (slice 1) | R13 | `is`/`as?` on identity-kept classes, extern classes, variants and tagged shapes, lowering to `instanceof` or a tag compare | C6; katexlil's `isPrototypeOf` (1.1% of self time); motion's 11 identity-cast externs |
+| M10.16 Iteration (slice 1) | R14 | `for…of` lowering becomes a choice within the runtime floor; typed arrays stay index loops; `for (k, v of map)` and `for (x of set)` | C5 −62 (sound subset); error-tracking loops −49 |
+| M10.13 Definite assignment (core; two batches) | R3 | Locals without initializers, flow-checked; fields assigned by `init` or the construction literal; no implicit defaults; `this` unreadable before every field is assigned; non-reassignable function declarations and `const` bindings. Batch 1: warning and fix-it with port patches; batch 2: refusal | 8,609 placeholder-initialized declarations (upper bound); `a.n=0;a.n=b` in every published class with fields |
+| M10.9 Absence and integers (core; two batches) | R2, R11 | `T?` nullish, `T??` = `T?`, spelling-observing operations refused on `T?` without narrowing, defaults for omitted or absent arguments, reflected nominals' absent fields as missing keys; lengths are `int`; index and code-unit reads carry a precondition, `a.get(i)` is the checked read; `charCodeAt` keeps its JavaScript meaning (47 uses in the reference ports, fix-it to `\| 0` or `codeUnitAt`); float `%`. The development-check lane runs every port suite before the precondition becomes production semantics | `a.get(b)??null??-1`; 11,592 `undefined` ceremonies; index loads `??""` and `\|0` |
+| M10.15 Typed intrinsics (core) | R10 | Typed operations mean ECMAScript's originals; `assume_pristine_builtins` retires for typed code; the regex-literal gate goes | react-markdownlil's `pristine = false` cost 2,287 |
+| M10.11 Effects and pins | R15, R9 | **Core:** the `debug` effect class (with M8.2 A1's key split); `pure` asserting termination after Y4 ⚖. **Later:** `inline for`, `@pool` and `@choose` as pins the choice system honors; `define` build constants | `print(1);` compiles to an empty file under the default policy today |
+| M10.14 Reflection | R6 | **Core, checker half (no ruling):** the reflected set as a whole-program closure after instantiation (generic, transitive, throw and rejection and host callbacks as crossings, host-derived classes); explicit `as JsValue`; the allocator's reserved host names. **After Y3 ⚖:** non-constructible function values; `keep_*_function_names` and `assume_unconstructed_callbacks` retire | posthog `.name` about 9 B, contrib files about 15 B; katex −240 |
+| M10.12 Trusted crossings ⚖ Y1 | R1 | Host values enter only at declared crossings, trusted, checked in development builds. Loads never normalize (`src/program/javascript.rs:98-131`); `prove_int32_cells` and the effect obligations go; `typed_arguments` retires. If Y1 is no: crossings coerce once at entry instead | probes p2, p13–p15 (`review-language-probes/`); 222 `\|0` against Closure's 110 on `comparison/algorithms` |
+| M10.17 Host catalog and generics | R17, R18 | The platform catalog on M4.6 (`document`, `RegExp`, `console` …) with effect classes and per-target, per-condition bindings (a `browser` condition decoding entities through the DOM); `globalThis[...]` access retires; generics carry no runtime type information | small-contrib −98 (host globals); the micromark family's browser cells (about 9K each) |
+| M10.1 Shapes | R5 | `data`/`accessor` fields, optional fields, construction literal, spread of the declared key set, intersections `A & B`, nesting at boundaries. micromark's 11 views migrate first. `assume_pure_property_reads`, `preserve_properties` and `internal_properties` retire for declared values | −6,359 Brotli on the markdown stack as a global flag |
+| M10.8 Record spread and records | R5 | Spread with CreateDataProperty semantics over declared keys; `Record<T>` stays the null-prototype dictionary | `comparison/cases/collections/record-json`; 33 refused catalog cases |
+| M10.3 Const data (before M9.8's rest) | R9 | Deep-immutable `const` data; exported const objects; bounded `const` evaluation of `exact` operations (katex's `unicodeSymbols` computed at compile time); M9.8's legality becomes a declaration check; `const` units content-addressed for the codec memo | katex −2,529, micromark −1,054; `unicodeSymbols` 927–982 Brotli and about 7 ms of self time per import on a loaded host |
+| M10.19 Specialization over const data | R9 | A function called with const data is specialized on it at compile time, under M10.3's bound and exactness: a validator compiled per static schema | zodlil's 5.5× runtime gap (upstream's `new Function`, `zod/v4/core/schemas.js:970-987`) |
+| M10.5 Sealed virtuals and sum types | R8 | A static call, tag switch or prototype method per call site; sum types with payloads | motion ≈ −700 |
+| M10.6 ABI-valued enums | R8 | `enum T: string`, explicit values, `ordinal`/`from`, flag sets; ABI values at every reflected, printed, stringified or `JsValue` position; representation chosen per objective only at unreflected positions | micromark's 104 string types; zod's 41 int kinds |
+| M10.18 Value structs | R4 | Places update in place; copy on store only when the source stays live (M6.6, M7.9: law P2); `with` expressions. `ref` removed after Y2 ⚖ | `ref` used 0 times; p4 205 → 170 and p5 267 → 140 Brotli; the cursor loop 4.0× slower today |
+| M10.10 Sealed modules | R16 | `object` singletons deleted in favour of module namespaces and const records (0 uses); internal exports are visibility; the exports of every declared delivery entry are ABI | — |
 
 **Exit.**
-- Each L-item has a port using it.
-- The census of `JsValue` and `JS.*` per reference port falls from the 2026-09-23 counts, with no Brotli loss.
+- Each rule has a port using it, and every clause of [language.md](../language.md) is in force, so v0.1 is retired.
+- The census of `JsValue` and `JS.*` per reference port, reported at every batch, falls from the 2026-09-23 counts, with no Brotli loss.
+- Every typed form is at least as fast as its `JsValue` spelling on its micro perf gate.
 
-### M11 Native and cross-target
+### M11 Native: the whole language, directly executable
+
+The native-complete definition (architecture §11.1): every checked construct lowers to C, or is a JavaScript-only capability the checker reports with a span. Native forms from the optimized program and must run at least as fast as the JavaScript output under Node.
 
 | Task | Content |
 |---|---|
-| M11.1 Toolchain owner | One owner for compiler discovery, flags, strictness and sanitizer profiles. Native diagnostics carry spans and render as text |
-| M11.2 Plain arithmetic | Remove the per-operation `volatile` (4.5× on float loops), keeping the ABI guards |
+| M11.1 Toolchain owner | One owner for compiler discovery, flags, strictness and sanitizer profiles, used by the CLI (`-O3` today, `src/main.rs:672-690`), the case runner (`-O2`) and the tests (Clang 18 from an environment path). Native diagnostics carry spans and render as text |
+| M11.2 Plain arithmetic (**in batch A1**) | Remove the per-operation `volatile` (`src/program/native_runtime.rs:188-192`; 3.8× on float loops) only together with in-source guards that hold under any user's flags (`#pragma STDC FP_CONTRACT OFF`; `#pragma GCC optimize("fp-contract=off")` for GCC, which ignores the standard pragma; `#pragma clang fp contract(off)` for Clang), the required flags documented in the generated header, and one JS==C float case compiled with GCC's and Clang's default flags. `int * int` as an int64 multiply plus a range check (the plain wrap on proven ranges comes with M6.4b). Left shifts stay on `uint32_t` (`ls_shl`, `:230-233`; a signed left shift can be undefined in C11); signed right shifts may be plain under a static assertion that `(-1 >> 1) == -1` |
 | M11.3 Externs per target | `extern` binds a JS host name or a C link name; the header is generated. The `verify.sh` extern-ABI gate passes again |
 | M11.4 Portable records | `Record<T>`, `Object.keys/values/assign` and JSON natively; the differential's native `Record` lane is unmasked |
-| M11.5 Shared facts | Native consumes liveness, initialization order (no runtime guards), escape (stack storage, refcount elision), effects and specialization |
-| M11.6 Portable subset | Exceptions (status propagation driven by effects), a string ABI that reclaims memory, regex, generators/async |
+| M11.5 Native forms from the optimized program (follows M7 directly) | Native is formed after the program rules, not from the unedited source (`src/build.rs:609-611`). It consumes liveness, initialization order (no `ls_gN` guards, `src/program/native.rs:401-418`), escape and uniqueness (stack storage, refcount elision, store-copy elision), effects (throw-free calls skip status checks) and specialization (monomorphized hot generics, borrowed closures) |
+| M11.6 Exceptions, suspension, regex, strings | Exceptions by status propagation over `Try` regions; generators and `async` as region state machines with a runtime microtask queue (D3.8); QuickJS's `libregexp` (MIT) vendored at a pinned commit, differentially tested against V8; reference-counted strings (ABI v2) |
 | M11.7 Runtime and symbols | Runtime helpers as C files with declared dependencies and a standalone `-Werror`/sanitizer build; one native symbol allocator |
-| M11.8 Objective | A native objective (speed, size or balanced) and a cost measure; a C library ABI (exports plus header) |
+| M11.8 Objective and the library ABI | A native objective, speed by default (size and balanced as alternatives), measured on a native perf corpus (`comparison/algorithms`, compute-bound cases, ports' portable cores); a C library ABI (exports plus a generated header), without which no library is directly executable. Before M11's exit |
 | M11.9 Profiles | Cross triples and wasm32-wasi as toolchain profiles; the case runner runs one cross triple |
+| M11.10 Host API | A typed native host catalog on M4.6: argv, env, stdin/stdout/stderr, files, clock, exit code (`int main(void)` takes no input today, `src/program/native.rs:367`) |
+| M11.11 Native-complete definition | Every construct of the typed language has a native lowering or a checker capability refusal with a span (M4.5); the C lanes' 236 masked cases are each lowered or reclassified as a declared JavaScript-only capability |
+| M11.12 Cycles | Synchronous trial-deletion cycle collection over reference counts (Bacon–Rajan), run at allocation thresholds |
 
 **Exit.**
-- One maintained library's portable core compiles to C and passes JS == C.
-- The extern-ABI gate is green.
+- markedlil's lexer and parser and katexlil's parser compile to C as portable cores, pass JS == C on their suites, and each runs at least as fast as its JavaScript under Node.
+- The extern-ABI gate is green; the C library ABI builds for those cores.
 - Every corpus case runs on one cross triple.
+- No C-lane case is masked without a checker capability refusal.
 
 ### M12 Qualification and publication
 
 | Task | Content |
 |---|---|
-| M12.1 Ports own their sources | (Done in M2.8.) `finer/port-migrations/` is retired. Sibling-line knobs leave port configs |
-| M12.2 No post-minifiers | Compiler-written files for every export condition (ESM, CJS, browser). This replaces micromarklil's "smaller of compiler or esbuild", motionlil's esbuild+Terser `full.js` and zodlil's esbuild re-bundle |
-| M12.3 Every library wins | Per library, per objective, open and closed world, under the pass rule (rule 4). Work list: motionlil, zodlil, then the ports without a standing. SWC and Closure lanes are pinned where comparable |
-| M12.4 Rebuild and publish | Every port's `dist/` and Pages site is rebuilt by the pinned compiler with compile times; one report against the last release and the competitors |
+| M12.1 Ports own their sources | (Done in M2.8.) `finer/port-migrations/` is retired. Sibling-line knobs and per-port budget keys leave port configs (M3.5); every `assume_*` carries a recorded reason or goes |
+| M12.2 No post-minifiers | Compiler-written files for every export condition (ESM, CJS, browser), through M3.3's formats (M3.3b) and multi-entry delivery (M3.3a). motionlil first (in flight with M3.3: one compiler call, `compat.lil`, the nominal rename reverts), then zodlil's `index.cjs`, posthoglil's and katexlil's CJS/UMD re-bundles and micromarklil's "smaller of compiler or esbuild". Library-world files are consumer-shakeable (M3.8a/b). Builds for other objectives that a port wants scored ship as `[[delivery.also]]` files (BC10) |
+| M12.3 Every library wins | Per cell of the benchmark contract (M2.10): per library, export condition, objective (with robustness rows), open and closed world, consumer lanes, under the pass rule (rule 4), with the decomposition published (BC7). Work list, from the closure ledger (architecture §18.4): motionlil, zodlil (package and consumer lanes), the micromark family's browser cells (a `browser` condition decoding entities through the DOM, R17), katexlil's code lane and contrib files, posthoglil's error-tracking pack, then the ports without a standing; the held-out set at every phase end |
+| M12.4 Rebuild and publish | Every port's `dist/` and Pages site is rebuilt by the pinned compiler with compile times per level (single-threaded and at `-j 4`, with Terser's time and upstream's build time on the same library) and runtime ratios from `scripts/perf.mjs`; one report against the last release and the competitors. Every port's package build at the default level is at or below upstream's own build, with jquerylil ledgered until M7 turns its structural proposals into rules |
 | M12.5 Receipts | Refreshed on the final binary; separate conclusions for architecture, correctness, cost and size |
+| M12.6 Runtime parity and residual pairing, per port | Port-side work the runtime ledger and the closure ledger name, starting after batch A1: katexlil's idioms (`isPrototypeOf` → `is`, `hasOwnProperty.call` → `Object.hasOwn`, constructor formals where the port spells them); hand-pairing of katexlil core's 417-byte transliteration residual, mhchem's +89..+117 and posthoglil error-tracking's +121..+144 against the strict bar, each finding filed as idiom debt (NO4) with a generic case; diagnosis of jquerylil's retained memory (1.52× on `deferred`) and motionlil's 1.076 workload, each ending in an owner task |
 
-**Exit.** The scoreboard has no losing cell.
+**Exit.** The scoreboard has no losing cell: no size loss in any cell of the benchmark contract, no runtime floor miss, no native gate miss, on the development and the held-out libraries.
 
 ---
 
@@ -527,7 +630,7 @@ Every pass of the old optimizer chain (`optimizer.rs:243-430`, `compress_passes.
 | `devirtualize_methods` | Free by construction |
 | `devirtualize_known_closure_calls`, `clone_constant_capture_signatures` | M7.5 |
 | `specialize_constant_parameters` | M7.3 |
-| `specialize_profiled_call_sites` | Dropped: profile-guided optimization is removed (architecture §17) |
+| `specialize_profiled_call_sites` | Dropped: profile-guided optimization is removed (architecture §20) |
 | `optimize_unused_parameters`, `optimize_unused_returns` | M7.3 |
 | `validate_declared_purity` | M6.3 |
 | `optimize_inlining_fixed_point` (`inline_small_functions`, `inline_single_use_control_flow_function`, `eliminate_dead_functions`) | M7.5, M7.1 |
@@ -551,13 +654,16 @@ Every pass of the old optimizer chain (`optimizer.rs:243-430`, `compress_passes.
 
 | Rule or setting | Where | Disposition |
 |---|---|---|
-| `self_method_calls`, `dissolve_receiver_adapters`, `array_receiver_calls` | `js/calls.rs`, `js/typed.rs` | Deleted in M8.2 (formation) and M10.2 (dynamic type) |
+| `self_method_calls`, `dissolve_receiver_adapters`, `array_receiver_calls` | `js/calls.rs`, `js/typed.rs` | Deleted in batch A1 (`dissolve_receiver_adapters`), M10.4/M10.7 (`self_method_calls`) and M6.4b (`array_receiver_calls`), each as its replacement lands (M5.3b) |
+| Shared receiver-adapter factories (`host_factories`, "one per convention") | `program/javascript_host.rs:43,538-555`; `program/javascript.rs:1328` | Never emitted for private lambdas (batch A1, law P1); the adapters leave the language with R7 (M10.4) |
+| Per-port budget and basin keys (`candidate_search = "always"` in 16 configs, beam widths in 13, byte budgets in 14, probe limits in 4) | port configs | Warned, then refused (M3.5, Y7); the port configs keep contract, objective, effort, performance floor and permissions |
+| Rules justified by one port's measurement (`js/inline.rs:241`, `js/naming.rs:484`, `js/print.rs:779`, `js/mod.rs:1891`, `js/declarations.rs:6`) | `src/js` | Each becomes a choice or a rule with a declared legality (M8.7), checked by the NO3 grep test |
 | `group_prototype_stores` ("only katexlil declares both assumptions") | `declarations.rs:77` | Generic legality stated or deleted |
 | Per-site namespace flattening for katex's `let _c;…;_c=$c` | `inline.rs` | Replaced by M7.6 |
 | `fold_logical_assignments` / `fold_logical_returns` (transliteration temporaries) | `statements.rs` | Kept as canonical if a generic legality holds; otherwise a choice |
 | Nullish narrowing for a port's `isNull` | `simplify.rs` | Replaced by value facts (M6.4) |
 | The `undef()` helper-call fold | 008 batch 5 | Replaced by M7.5 inlining |
-| Pinned foreign import spelling "for katex's build" | `javascript.rs:2540-2542` | Import identity by `(source, imported)` (M8.1) |
+| Pinned foreign import spelling "for katex's build" | `javascript.rs:2705-2707` | Import identity by `(source, imported)` (batch A1, from M8.1) |
 | `loop_head_declarations` (two contradictory measurements) | `javascript.rs:504`, `mod.rs:1043` | Choice (M9.3) |
 | `assume_unconstructed_callbacks` (added to patch an unsound rule) | contract | Type fact (M10.4) |
 | Every port's `assume_*` settings | port configs | Each gets a recorded reason, or is removed (M12.1) |
@@ -573,17 +679,143 @@ Every pass of the old optimizer chain (`optimizer.rs:243-430`, `compress_passes.
 | 009 | M7, M9 |
 | 010 | M5.4, M9 |
 | 011 | M1, M3 |
-| 012 | M3.5, M3.6, M9.10, and the compile-time gate (rule 3) |
+| 012 | M3.5 (the budget model, with M3.6 and M9.4 merged into it), M9.10, and the compile-time gate (rule 3) |
 | 013 and 013-T1..T7 | M4–M9 and M12. T7.1 → M6.2/M7.2; T7.2 → M9.3; T7.3 → M5.3; T7.4 → M6.5/M7.4; T7.5 → M7.3; T7.6 → M7.5; T7.7 → M6.6/M7.9/M9.7; T7.8 → M4.1/M6.7; T7.9 → M7.7; T7.10 → M7.8/M8.3; T7.11 → M6.4; T7.12 → M7.6; T7.13 → M9.6/M9.7; T7.14 → M9.9 |
 | 014 | M1 (retirement), M12 (certification) |
 
 ---
 
+## Dependency graph
+
+Every open task, what it needs, and the "Next action" step it belongs to. "—" means nothing beyond landed work.
+
+| Task | Needs | Step |
+|---|---|---|
+| M3.3a, M3.3b, M3.3e (motionlil) | — (in flight) | 2 |
+| Layout commit (architecture §15) | M3.3a merged | 2 |
+| M2.5 Admission parse | — | 3 |
+| M2.10 Benchmark contract | — | 3 |
+| M2.11 Held-out set, blind ports | — | 3 |
+| M2.12 Perf runner, runtime ledger | — | 3 |
+| M2.13 Generic ratchet | — | 3 |
+| M2.14 Frozen baselines | — (must run on 2026-09-27 sources) | 3 |
+| M2.15 Calibration corpus | — | 3 |
+| M2.4 Interpreter features | — | 3, then ahead of each fact |
+| M2.7 Differential | M2.2 | 3 |
+| M8.2 A1 (with M11.2, M2.3's item, M9.5's seed, M8.1's imports) | — | 4 |
+| M5.1 Edit kernel and DCE | M2.5 | 5 |
+| M6.4a Values, exact tier | M5.1 | 5 |
+| M7.8a Literal and branch folding | M6.4a | 5 |
+| M7.3 Parameters and returns | M5.1 | 5 |
+| M7.5a Removal-only inlining | M5.1 | 5 |
+| M3.1 first slice | — | 6 |
+| M3.2 Family registry | — | 6 |
+| M3.4 Public API, shared formation | — | 6 |
+| M5.6 Resource accounting | — | 6 |
+| M3.5 Budget model | M3.1 first slice, M3.2, M3.4, M5.6, M2.14, M2.15 | 6 |
+| M3.9 Caches and lock | M3.5 | 6 |
+| M3.7 Environment variables | M3.5 (`LILSCRIPT_SEMANTIC_WORK` goes there) | 6 |
+| M4.2 + M10.2 | — | 7 |
+| M10.4, M10.7, M10.16 | M10.2 | 7 |
+| M4.6 Catalog | — | 8 |
+| M10.13, M10.9, M10.15 | M4.6 (catalog spellings) | 8 |
+| M10.11 `debug` class | M4.6 | 8 |
+| M10.14 checker half | — | 8 |
+| M10.12 | Y1 | 8 (after Y1) |
+| M4.3, M4.4 | — | 9 |
+| M5.2 Annotations (with M8.1) | M4.3, M4.4 | 9 |
+| M5.5 Dataflow, cell SSA | — | 9 |
+| M5.3a Scheduler | M5.2, M2.5 | 9 |
+| M8.2 A2 | M2.5, M4.6, M5.2 | 9 |
+| M8.3 Pure printer (first half) | M5.2 | 9 |
+| M3.3c, M3.8b | M5.2, M6.2, M9.1's rest | 11 |
+| M3.3d | M3.3a | 13 |
+| M6.4b Values, range tier | M10.12 (or its coerce-once alternative), M10.9, M5.5 | 10 |
+| M6.6 Escape and uniqueness | M5.2 | 10 |
+| M6.7 Field facts | M5.2, M10.14 checker half | 10 |
+| M6.8 Frequency | M5.2 | 10 |
+| M7.1, M7.4 | M5.3a, M5.5 | 10 |
+| M7.5 rest, M7.6, M7.7, M7.8 rest | M5.3a, M6.4b, M6.7 | 10 |
+| M7.9 | M6.6 | 10 |
+| M8.5 Prelude helpers | M5.3a | 10 |
+| M7.10 | M8.5 | 10 |
+| M8.4 Host modules | M5.1 | 10 |
+| M5.3b | each replacement | 10–12 |
+| M5.7 Incremental tail | M5.3a | 10 |
+| M8.3 second half | M6.4b | 10 |
+| M4.5, M11.1, M11.11 | — (M11.11 needs M4.5) | 10 |
+| M11.5 Native from the optimized program | M7 | 10 |
+| M10.3 Const data | — | 11 |
+| M9.1 rest, M9.3, M9.5, M9.7, M9.9, M9.11, M9.12 | M3.5, M5.2, M8.3, M7.5 | 11 |
+| M9.2's gzip row, M9.10 | M3.5, M2.15 | 11 |
+| M9.6 Property names | M2.10, M10.14 checker half | 11 |
+| M9.8 rest | M10.3, M8.5 | 11 |
+| M10.19 Specialization | M10.3 | 11 |
+| M10.1, M10.8, M10.5, M10.6, M10.10, M10.17 | the core | 12 |
+| M10.18 Value structs | M6.6, M7.9; Y2 for `ref` | 12 |
+| M10.14 constructibility | Y3 | 12 (after Y3) |
+| M10.11 termination, pins | Y4 (termination); M9.1 (pins) | 12 |
+| M12.2 other ports | M3.3b | 13 |
+| M8.6 Source maps | M3.3a (placement), M5.2 (tree origins) | 13 |
+| M8.7 Port-shaped rules | M2.13 (the NO3 allowlist); each rule's replacement | 9–11, continuous |
+| M12.6 Runtime parity and pairing | A1 (katexlil idioms); continuous | 4–13 |
+| M11.3, M11.4, M11.6–M11.10, M11.12 | M11.5 (M11.8 before M11's exit) | 13 |
+| M12.3–M12.5 | everything above | 13 |
+
+---
+
+## Effort and critical path
+
+**The critical path:** batch A1 → floor slice (M5.1, M6.4a, M7.3, M7.5a, M7.8a) → M3.5 → language slice 1 → the core → M4.3/M4.4 → M5.2 → M5.3a → M6.4b → the rest of M7 → M9.1's rest → M12.3.
+
+**It waits on no ruling.** Y1 gates only M10.12, and M6.4b has a designed alternative if the answer is no (coerce-once crossings). Y2 gates only the `ref` removal, Y3 only the constructibility of exported functions, Y4 only whether declared `pure` asserts termination, Y5 only the IIFE default and frames for application scripts (it affects the `comparison/algorithms` script lanes of M7's exit), Y6 only the verdict threshold, Y7 only when per-port keys stop warning and start refusing.
+
+**Size of each step** (batches of 4–8 changes; estimates, recorded so the next re-plan can be measured against them):
+
+| Step | Batches | Runs where |
+|---|---|---|
+| 2 M3.3a/b, motionlil | in flight | parallel session |
+| 3 Tools (M2.5, M2.10–M2.15) | 5–7 | parallel session |
+| 4 Batch A1 | 1–2 | this host |
+| 5 Floor slice | 3–5 | this host |
+| 6 Budget model | 4–6 | this host |
+| 7 Language slice 1 | 3–5 | this host |
+| 8 The core | 6–9 | this host |
+| 9 Machinery | 5–8 | this host |
+| 10 Facts and the rest of the floor | 8–12 | this host |
+| 11 One choice system | 7–11 | this host |
+| 12 The rest of M10 | 5–8 | this host |
+| 13 Qualification and native | 8–14 | this host, ports in parallel |
+
+About 55–85 batches after the tools. Recent throughput was four batches in three days with a parallel session (T and I on 2026-09-24, D and N on 2026-09-27); the estimate assumes about one batch per working day on this host.
+
+**Verification cost per batch on this host** (estimates): unit tests and the case runner about 45 minutes; the reference port suites with the family about an hour; the perf lanes in a quiet window about an hour, run first when the burstable host's CPU credits are full. So about 2–3 hours per batch; the per-phase fleet, held-out set and contract cells add about 3–4 hours.
+
+**Checkpoints the owner can expect** (projected dates; they move with the rulings and with host availability):
+
+| Checkpoint | Steps done | Expected scoreboard |
+|---|---|---|
+| CP1, about 2026-10-04 | 2–4 | katexlil Node steady about 1.06 (from 1.10) and −62 Brotli; micromarklil −283 Brotli and a gzip win; mhchem about −250; posthoglil error-tracking toward 5,100 with its port change; motionlil compiler-written; SWC-pinned bars, the re-verdicted closure ledger, and the frozen compile-time and runtime ledgers |
+| CP2, about 2026-10-25 | 5–6 | `comparison/apps` and `algorithms` at or below the old route (571, 2,305) or each remaining case named; level 13 at or below the frozen baseline at `-j 4` on every reference port (katexlil about 3–3.6 s, from 17.8 s); katexlil's package build at or below 14.4 s; levels monotone by test; codec settings configurable |
+| CP3, about 2026-12-06 | 7–9 | The `JS.*` census on the reference ports down through the rewrite script; posthoglil error-tracking a win against its shipped bar; katexlil's code lane about −170 more (`instanceof`, spreads); the core in force as the rulings allow; `quiet.rs` deleted; annotations on the tree |
+| M12, about 2027-02 | all | No losing cell, no runtime miss, native portable cores at least as fast as their JavaScript |
+
+---
+
 ## Next action
 
-M1 is closed; M2.1 is green; the interim release shipped on 2026-09-24 (`docs/reports/2026-09-24-release.md`). M4.1, M5.4, M6.1–M6.3, M6.5, M7.2, M9.1's first slice, M9.2, M9.3's first family and M9.8 have landed. In flight or next:
-1. **katexlil's release with its font metrics in LilScript** (patch `~/lilscript-work/portwork/katex-data/katexlil-font-metrics-in-lilscript.patch`, pinned binary `~/lilscript-work/bin/release-d`): −2,423 Brotli, a win over Terser and `katex.min.js`.
-2. **motionlil, M3.3 and M12.2.** Its release is pushed (`33826f6`, rebased on the owner's 19 commits), but every delivered file is esbuild + Terser output: the owner's design builds `full.lil` once as a shared graph that each entry re-exports, behind a hand-written facade. The compiler's own output wins (34,395 Brotli against the 39,871 bar); making the delivered files compiler-written needs multi-entry output with a shared chunk (M3.3) and the facade in LilScript, which `export constructor` (M4.1) now allows. The class-rename reverts are in `~/lilscript-work/portwork/nominal/`.
-3. **The diagnosis of the entries that still lose** (posthoglil's error-tracking pack, katexlil's contrib modules, the thin wins): its ranked findings become the next compiler batches.
-4. **M5.1–M5.3, then M3.5.** The edit kernel and tree annotations (M5.2 carries batch I's initialization facts to the tree, so zodlil's 41 proven-initialized constants can be substituted), the scheduler, then budgets in policy.
-5. **M12.2 for the other goal ports.** Compiler-written files for every export condition: zodlil's `index.cjs`, posthoglil's and katexlil's CJS/UMD re-bundles.
+M1 is closed; M2.1 is green; the interim release shipped on 2026-09-24 (`docs/reports/2026-09-24-release.md`). M4.1, M5.4, M6.1–M6.3 and M6.5 (computed, not consumed), M7.2, M9.1's first slice, M9.2, M9.3's first family and M9.8 have landed. Version 1 of the design (2026-09-27) sets this order; the dependency graph above lists each step's prerequisites. Steps 2 and 3 run in parallel sessions; the rest run one at a time on this host.
+
+1. **Done: katexlil's release with its font metrics in LilScript** (2026-09-27, `07d90d6`/`f039133`, pinned binary `~/lilscript-work/bin/release-d`): 60,281 Brotli, live on its Pages site; a win over Terser (63,044), SWC (62,399) and `katex.min.js` (62,686). Its code lane still loses (53,238 against SWC's 53,029 as published); the full file wins through M9.8's data encoding. The site's runtime figure is a single noisy draw (M2.12 replaces it).
+2. **In flight (parallel session, branch `m3-delivery`): M3.3a, M3.3b and motionlil's M12.2**, from the judged design (`~/lilscript-work/out/design/m3.3/design.md`), then motionlil as one compiler call with `compat.lil` and the nominal rename reverts (`~/lilscript-work/portwork/nominal/`). The compiler's own motionlil output wins (34,395 against the 39,871 bar); making the delivered files compiler-written is the remaining step. **Hand the session architecture §10.6's delta before M3.3b starts** (scores only where the judge needs them, `-j` only, new root statements through `RootRow`, M3.8a's annotation rule). The layout commit (architecture §15) lands right after M3.3a merges, and M3.3b branches from it. M3.8a is due with M3.3b.
+3. **In parallel, tools only: M2.5, M2.10–M2.15.** The admission parse; the benchmark contract with SWC and the Rolldown bundler pinned; the held-out set with its first blind ports; the perf runner with the runtime ledger, the warm-up study, the structural counters and micro perf gates; the generic ratchet with the NO3 allowlist; the frozen baselines (today, while the pre-M1 binary still compiles the sources); the calibration corpus. They are the gates every later step is judged by.
+4. **Batch A1: canonical formation without tree analysis** (M8.2 A1 with M11.2, M2.3's item, M9.5's level-0 seed and M8.1's imports; 8 changes; needs nothing new). Pre-registered: katexlil −62 Brotli and Node steady −0.04; micromarklil −283 Brotli and −311 gzip; mhchem −250; zodlil within noise; mobxlil at or below zero. M12.6's katexlil idioms can start after it.
+5. **The floor slice** (needs M2.5 and M2.13): M5.1 (edit kernel and DCE), M6.4a, M7.8a, M7.3, M7.5a, each deleting its JS-tree twin or its removing half. Gated per change on the generic ratchet. Interim exit: `comparison/apps` and `algorithms` at or below the frozen old route, or each remaining case named with its M7 owner.
+6. **The budget model** (needs M2.14 and M2.15): M3.1's first slice, M3.2, M3.4, M5.6, M3.5 and M3.9. Its exit (monotone levels by construction and by test; level 13 at or below the frozen baseline at `-j 4` and within 1.3× single-threaded; katexlil's package build at or below 14.4 s) gates every new choice family (rule 9).
+7. **Language slice 1** (no ruling): M4.2 with M10.2, then M10.4, M10.7 and M10.16, with the `JS.*` rewrite script and port patches in `~/lilscript-work/portwork/`.
+8. **The core, in batches keyed to rulings:** without a ruling, M4.6, M10.13 (two batches), M10.9 (two batches, with the development-check lane), M10.15, M10.11's `debug` class and M10.14's checker half; after Y1, M10.12.
+9. **The machinery:** M4.3 and M4.4, then M5.2 (absorbing M8.1, with the rule-2 deletions once each column verifies), M5.5, M5.3a with its transitional rules, batch A2, and M8.3's first half. Before it starts, the projected WU table for the facts and rules of steps 9 and 10 (rule 3).
+10. **The facts and the rest of the floor:** M6.4b, M6.6, M6.7, M6.8, then M7.1, M7.4, M7.5, M7.6, M7.7, M7.8, M7.9, M8.5 and M7.10, with M5.3b deleting each transitional rule as its replacement lands, until `comparison/apps` and `comparison/algorithms` no longer lose to Closure ADVANCED. M5.7 (incremental tail) and M8.3's second half. M4.5, M11.1, M11.11, and M11.5 directly after M7.
+11. **One choice system:** M10.3 first, then M9.1's rest (the structural search and the five family analyses deleted), M9.2's gzip row, M9.3 per site, M9.5, M9.6, M9.7, M9.8's rest, M9.9, M9.10, M9.11, M9.12 and M10.19; M3.3c with M3.8b, whose exit gates the consumer lanes.
+12. **The rest of M10:** M10.1, M10.8, M10.5, M10.6, M10.18 (with P2), M10.10, M10.17, M10.14's constructibility after Y3, M10.11's termination after Y4 and its pins.
+13. **Qualification and native:** M12.2 for the other goal ports once M3.3b lands (zodlil's `index.cjs`, posthoglil's and katexlil's CJS/UMD re-bundles, micromarklil's "smaller of compiler or esbuild"), M3.3d, M12.6 throughout, M11's remaining tasks (M11.3, M11.4, M11.6–M11.10, M11.12) to M11's exit, then M12.3–M12.5 under the benchmark contract.

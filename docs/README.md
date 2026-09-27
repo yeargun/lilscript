@@ -33,11 +33,12 @@ If two pages disagree, use the higher authority and fix the lower one.
 | Product intent and non-goals | [Why LilScript](../why-lilscript.md) → [mission](knowledge/mission.md) |
 | What exists and what is green | [Current status](current-status.md) |
 | The 2026-09-24 release: sizes against the last release and against Terser, Oxc/Rolldown and esbuild, plus compile times | [Release report](reports/2026-09-24-release.md) |
-| Syntax or semantics | [Language v0.1](language-v0.1.md) |
+| Syntax or semantics the compiler accepts today | [Language v0.1](language-v0.1.md) |
+| The target language contract (version 1: rules R1–R18, each clause tagged with its task and status) | [Language v1](language.md) |
 | TOML behavior | [Configuration](configuration.md) |
 | Why a design choice exists | [Design decisions](knowledge/decisions/README.md) |
 | How the compiler works now | [Current architecture](knowledge/compilation/current-architecture.md) |
-| The compiler's architecture and the language designed for size | [Future architecture](future-architecture.md) |
+| The design of the language and the compiler (version 1): the answer to "is the migration proper", laws, pipeline, the one decision procedure, per-objective decisions, compile-time budget, runtime floor, native, benchmark contract, owner questions Y1–Y7 | [Future architecture](future-architecture.md) |
 | Implement a bounded migration step or check progress | [Single migration plan](migration/index.md) |
 | Check a compiler binary: the case runner, the port runner and their expected-failure ledgers | [Testing](testing.md) |
 | Whether a size claim is valid | [Verification](knowledge/verification/README.md) → [evidence](knowledge/evidence/README.md) |
@@ -48,7 +49,8 @@ If two pages disagree, use the higher authority and fix the lower one.
 
 | Contract | Owns |
 |---|---|
-| [language-v0.1.md](language-v0.1.md) | Syntax, types, evaluation, target behavior |
+| [language-v0.1.md](language-v0.1.md) | Syntax, types, evaluation, target behavior, as the compiler implements them today |
+| [language.md](language.md) | The target language contract (version 1); a clause governs once its task lands |
 | [configuration.md](configuration.md) | `lilscript.toml` schema and defaults |
 | [modules-and-delivery.md](modules-and-delivery.md) | Imports, chunks, lockfiles, Lilpack |
 | [web-platform.md](web-platform.md) | Host and `extern` boundary |

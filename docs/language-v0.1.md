@@ -2,6 +2,11 @@
 
 Reasoning (types vs glue, closed world, escape, delivery): [knowledge/language](knowledge/language/README.md). This page is the syntax/semantics contract.
 
+This page is what the compiler accepts today. The target contract is
+[language.md](language.md) (version 1, rules R1–R18): each of its clauses names
+the v0.1 text it replaces and the task that implements it. When that task lands,
+the clause here is deleted; when none is left, this page is retired.
+
 ## Identity and compilation model
 
 LilScript is an independent statically typed language. LilScript source is never
@@ -441,7 +446,7 @@ dynamic arithmetic/equality/string conversion, dynamic indexing and property
 inspection, and `isArray()` on an unknown host value. Such an evaluation is not
 deleted merely because its result is unused, is not merged with an equal-looking
 evaluation, stays in source order, and makes a declared `pure` function invalid
-(a check that waits for M6.3; see Purity below).
+(checked since M6.3; see Purity below).
 Non-coercive operations such as truthiness, `typeof`-based narrowing, and nullish
 tests remain pure when their operands need no observable access.
 
@@ -907,11 +912,13 @@ declares an array of callbacks rather than a callback returning an array:
 ```
 
 Purity is inferred for every function by interprocedural effect analysis. The
-optional `pure` modifier turns that inference into a checked contract.
-**Until M6.3** the contract is not checked: the interprocedural effect engine
-that infers purity (M6.2) is not built, so a declared `pure` is recorded and a
-function that violates it compiles. Removing unused calls to pure functions
-waits for M7.2.
+optional `pure` modifier turns that inference into a checked contract: a
+declared `pure` function whose effect summary shows an observable side effect
+is rejected while checking (M6.3). A declared `pure` function may still throw
+or allocate. An unused call is removed (M7.2) only when it is discardable: no
+observable effect, it cannot throw, and it provably terminates (D3.6). Whether
+a declared `pure` asserts termination instead of needing a proof is owner
+question Y4 (rule R15 in [language.md](language.md)).
 
 ```lilscript
 pure int square(int value) {
@@ -923,7 +930,9 @@ pure extern int stableHostHash(int value);
 
 A declared-pure LilScript function is rejected if it can print, mutate a global,
 array, struct, or class, or call code with observable effects. Calls whose result
-is unused can be removed when their target is inferred or declared pure.
+is unused can be removed when the call has no observable effect, cannot throw
+and provably terminates; a declared or inferred `pure` target alone is not
+enough, because a pure function may throw.
 `pure extern` is a trusted host ABI promise; violating it is a host integration
 error. Dynamic `JsValue` coercions, proxy-sensitive operations, and operations
 that may throw through the explicit JavaScript boundary are observable effects;
