@@ -169,7 +169,7 @@ export async function verifyCli(compiler, outputRoot) {
   // The copy declares its entries on the command line, in another order.
   await writeFile(
     path.join(copy, "lilscript.toml"),
-    "[optimization]\ninlining = false\n\n[javascript]\nstrip_console = false\n\n[delivery]\nmode = \"split\"\n",
+    "[optimization]\ninlining = false\n\n[delivery]\nmode = \"split\"\n",
   );
   const first = path.join(outputRoot, "first");
   const second = path.join(outputRoot, "second");

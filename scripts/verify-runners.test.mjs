@@ -26,13 +26,13 @@ test("a case configuration merges into the lane's tables, one [javascript] table
   const text = composeConfig(lane, ["inlining", "naming-search"], '# comment\n[javascript]\nassume_pristine_builtins = false # why\n[mangle]\nexports = false\n');
   assert.equal(text.match(/^\[javascript\]$/gm).length, 1);
   const tables = parseTomlTables(text);
-  assert.equal(tables.get("javascript").get("strip_console"), "false");
+  assert.equal(tables.get("javascript").has("strip_console"), false);
   assert.equal(tables.get("javascript").get("cost_model"), '"gzip"');
   assert.equal(tables.get("javascript").get("candidate_search"), '"off"');
   assert.equal(tables.get("javascript").get("assume_pristine_builtins"), "false");
   assert.equal(tables.get("policy.tactics").get("naming-search"), '"off"');
   assert.equal(tables.get("mangle").get("exports"), "false");
-  assert.throws(() => composeConfig(lane, [], "[javascript]\nstrip_console = true\n"), /strip_console/);
+  assert.throws(() => composeConfig(lane, [], "[javascript]\nstrip_console = false\n"), /strip_console/);
 });
 
 test("production lanes carry no tactic table", () => {

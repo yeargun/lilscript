@@ -253,7 +253,7 @@ mod tests {
         let semantics = crate::analyze(&syntax).unwrap();
         let program = crate::program::from_checked_source(&syntax, &semantics).unwrap();
         let config: crate::config::ProjectConfig = toml::from_str(
-            "[javascript]\nstrip_console=false\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'",
+            "[javascript]\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'",
         )
         .unwrap();
         let policy = config

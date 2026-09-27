@@ -37,7 +37,7 @@ fn execute(javascript: &str, setup: &str, observations: &str) -> Json {
 fn matrix(case: &str, source: &str, setup: &str, observations: &str, expected: Json) {
     for compact in [false, true] {
         let config: crate::config::ProjectConfig = toml::from_str(&format!(
-            "[javascript]\nstrip_console=false\n[policy.tactics]\ntarget-compaction='{}'\n",
+            "[javascript]\n[policy.tactics]\ntarget-compaction='{}'\n",
             if compact { "on" } else { "off" },
         ))
         .unwrap();
@@ -312,7 +312,6 @@ fn reference_transport_rejects_script_frames_and_public_carrier_exports_without_
         ),
     ] {
         let mut config = crate::config::ProjectConfig::default();
-        config.javascript.strip_console = false;
         let policy = config
             .resolve_policy(CompilationRequest::JavaScript {
                 preserve_root_exports: execution == "module",

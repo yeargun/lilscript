@@ -10,10 +10,8 @@ const PROGRAM: &str = include_str!("../tests/cases/objective_judged_spellings.li
 const EXPECTED: &str = include_str!("../tests/cases/objective_judged_spellings.out");
 
 fn compile(codec: &str, extra: &str) -> ServiceCompilation {
-    let config: ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='{codec}'\n{extra}"
-    ))
-    .unwrap();
+    let config: ProjectConfig =
+        toml::from_str(&format!("[javascript]\ncost_model='{codec}'\n{extra}")).unwrap();
     compile_source(PROGRAM, &config, ServiceOptions::default()).unwrap()
 }
 
@@ -318,7 +316,7 @@ fn every_objective_judges_the_data_tables_and_delivers_them_exactly() {
     let mut delivered = Vec::new();
     for codec in ["raw", "gzip", "brotli"] {
         let config: ProjectConfig = toml::from_str(&format!(
-            "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\n\
+            "[javascript]\nassume_pristine_builtins=true\n\
              cost_model='{codec}'\noptimization_level=15\n"
         ))
         .unwrap();
@@ -367,7 +365,7 @@ fn every_objective_judges_the_data_tables_and_delivers_them_exactly() {
     );
     // Without the choice budget (the search-off levels), the seeds ship.
     let config: ProjectConfig = toml::from_str(
-        "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\n\
+        "[javascript]\nassume_pristine_builtins=true\n\
          cost_model='brotli'\noptimization_level=0\n",
     )
     .unwrap();

@@ -788,19 +788,26 @@ mod tests {
     fn with_placement_contract(
         program: &Program<'_>,
         limit: usize,
-        strip_console: bool,
+        strip_debug: bool,
         inspect: impl FnOnce(&UnitData, &[ValueStorage]),
     ) {
         let mut config = crate::config::ProjectConfig::default();
-        config.javascript.strip_console = strip_console;
+        config.javascript.strip_debug = strip_debug;
         let policy = config
             .resolve_policy(CompilationRequest::JavaScript {
                 preserve_root_exports: true,
             })
             .unwrap();
+        // A dropped `debugLog` call's lookup goes only when every use of it
+        // is known: stripping reads the use index, as formation does.
+        let mut uses_ledger = ledger();
+        let uses = strip_debug.then(|| {
+            super::super::uses::UseIndex::build(program, &mut uses_ledger, WorkDomain::Baseline)
+                .unwrap()
+        });
         let demand = DemandPlan::build(
             program,
-            None,
+            uses.as_ref(),
             None,
             policy.javascript_contract().unwrap(),
             DemandMode::Prune,
@@ -854,6 +861,9 @@ mod tests {
             .all(|value| !matches!(value, ValueStorage::Candidate)));
         inspect(data, &storage);
         demand.discard(None).unwrap();
+        if let Some(uses) = uses {
+            uses.discard(&mut uses_ledger).unwrap();
+        }
     }
     #[test]
     fn lexical_only_places_need_no_projection_workspace() {
@@ -932,7 +942,6 @@ mod tests {
             }
             assert_eq!(tiny.retained_bytes(), 0);
             let mut config = crate::config::ProjectConfig::default();
-            config.javascript.strip_console = false;
             let policy = config.resolve_policy(CompilationRequest::JavaScript {
                 preserve_root_exports: true,
             }).unwrap();
@@ -1088,14 +1097,17 @@ mod tests {
     }
     #[test]
     fn removed_call_envelopes_close_with_retained_argument_work() {
+        // `print` is never stripped; `debugLog` is under `strip_debug`.
         checked(
-            "extern int first();extern int second();print(first()+second());print(1);",
+            "extern int first();extern int second();extern void debugLog(int value);debugLog(first()+second());debugLog(1);",
             |program| {
                 with_placement_contract(program, 512, true, |data, storage| {
                     let mut hosts = 0;
                     for operation in &data.operations {
                         if let OperationKind::Call(call) = operation.kind {
-                            if matches!(data.calls[call.index()].target, CallTarget::Value { .. }) {
+                            if matches!(data.calls[call.index()].target, CallTarget::Value { .. })
+                                && data.arguments(data.calls[call.index()].arguments).unwrap().is_empty()
+                            {
                                 // A foreign result is not proved primitive: the
                                 // addition still owes its observable coercion and
                                 // possible exception. Each call remains its single
@@ -1124,29 +1136,28 @@ mod tests {
     }
     #[test]
     fn empty_removed_envelope_does_not_capture_an_adjacent_expression() {
+        // `print` is never stripped; `debugLog` is under `strip_debug`.
         checked(
-            "extern int first();extern void sink(int value);sink(first()+2);print(1);",
+            "extern int first();extern void sink(int value);extern void debugLog(int value);sink(first()+2);debugLog(1);",
             |original| {
                 let mut program = original.clone();
                 let unit = program.initialization[0];
                 let mut changed = program.units[unit.index()].clone().into_working();
                 let data = changed.get_mut();
-                let print = data
-                    .calls
-                    .iter()
-                    .position(|target| {
-                        matches!(target.target, CallTarget::Builtin(BuiltinCall::Print))
-                    })
-                    .unwrap();
+                // The last call is the logger's.
+                let print = data.calls.len() - 1;
                 let arithmetic = data
                     .operations
                     .iter()
                     .position(|operation| matches!(operation.kind, OperationKind::IntBinary(_)))
                     .unwrap();
+                // The logger's envelope starts at its callee's lookup.
+                let CallTarget::Value { callee, .. } = data.calls[print].target else {
+                    unreachable!("debugLog is called through its value")
+                };
+                let lookup = data.values[callee.index()].definition;
                 let schedule = &mut data.regions[data.entry.index()].operations;
-                let start = schedule.iter().position(|id| {
-                    matches!(data.operations[id.index()].kind, OperationKind::PrepareCall(call) if call.index() == print)
-                }).unwrap();
+                let start = schedule.iter().position(|id| *id == lookup).unwrap();
                 let removed = schedule.drain(start..).collect::<Vec<_>>();
                 let insert = schedule
                     .iter()
@@ -1248,7 +1259,6 @@ mod tests {
     fn exhausted_work_releases_planner_scratch_and_leaves_source_valid() {
         checked("print(1+2);", |program| {
             let mut config = crate::config::ProjectConfig::default();
-            config.javascript.strip_console = false;
             let policy = config
                 .resolve_policy(CompilationRequest::JavaScript {
                     preserve_root_exports: true,

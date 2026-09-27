@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 fn config(extra: &str) -> ProjectConfig {
     toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
+        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
     )).unwrap()
 }
 

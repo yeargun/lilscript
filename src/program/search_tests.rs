@@ -32,7 +32,7 @@ const FACTORY_EXPECTED: &str =
 
 fn policy(javascript: &str, tactics: &str) -> ResolvedPolicy {
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\n{javascript}\n[policy.tactics]\n{tactics}"
+        "[javascript]\n{javascript}\n[policy.tactics]\n{tactics}"
     ))
     .unwrap();
     config
@@ -767,7 +767,7 @@ fn optional_work_memory_and_probe_exhaustion_preserve_scored_incumbents() {
 #[test]
 fn panicking_observer_releases_losing_artifact_provenance_and_search_storage() {
     let policy = byte_policy("candidate_proposal_limit=384\nterminal_codec_probe_limit=384");
-    for panic_at in [Style::Global, Style::Source] {
+    for panic_at in [Style::Scoped, Style::Source] {
         with_source(BYTE, true, WORK, MEMORY, |compiler, source| {
             // The JavaScript contract, retained local-facts cache and vacant slots
             // in the retained artifact arena belong to Compilation, surviving an
@@ -787,7 +787,7 @@ fn panicking_observer_releases_losing_artifact_provenance_and_search_storage() {
                 .with_javascript_output(direct, &policy, |output| {
                     let mut retained = Vec::new();
                     for _ in 0..CODECS.len() + 1 {
-                        let artifact = output.render(&Plan::new(Style::Global))?;
+                        let artifact = output.render(&Plan::new(Style::Scoped))?;
                         retained.push(output.retain_artifact(artifact)?);
                     }
                     Ok::<_, CandidateError>(retained)
@@ -909,13 +909,18 @@ fn one_retained_artifact_allows_replacement_but_rejects_a_divergent_codec_union(
                 )
             })
             .unwrap();
-        assert_eq!(measured[0].0, Style::Global);
-        assert_eq!(style, Style::Scoped);
-        assert!(
-            gzip < measured[0].1,
-            "replacement must actually improve the incumbent"
-        );
-        assert_eq!(gzip, measured.iter().map(|entry| entry.1).min().unwrap());
+        // The allocator's seed is the incumbent. A later plan replaces it
+        // only by strictly improving it; the one retained artifact is always
+        // the smallest measured one.
+        assert_eq!(measured[0].0, Style::Scoped);
+        let best = measured.iter().map(|entry| entry.1).min().unwrap();
+        assert_eq!(gzip, best);
+        if best < measured[0].1 {
+            assert_ne!(style, Style::Scoped, "replacement must win");
+        } else {
+            assert_eq!(style, Style::Scoped, "a tie keeps the incumbent");
+            assert_eq!(javascript, measured[0].2);
+        }
         assert!(!matches!(
             search.stopped(),
             Some(SearchError::Limit(SearchLimit::ArtifactCount))
@@ -941,7 +946,7 @@ fn one_retained_artifact_allows_replacement_but_rejects_a_divergent_codec_union(
             "failed divergent promotion must not commit an observation"
         );
         assert!(measured[0].baseline);
-        assert_eq!(measured[0].plan.style, Style::Global);
+        assert_eq!(measured[0].plan.style, Style::Scoped);
         for winner in winners(&search, &measured) {
             assert_eq!(winner.javascript, measured[0].javascript);
             run_byte(&winner.javascript);

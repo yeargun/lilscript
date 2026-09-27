@@ -47,7 +47,7 @@ fn owner_with_deadline<'src>(slots: usize, memory: u64, deadline: bool) -> Compi
 
 fn policy(folding: bool, native: bool) -> ResolvedPolicy {
     let configuration: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\nconstant-folding='{}'\ndead-code-elimination='off'\ntarget-compaction='off'\n",
+        "[javascript]\n[policy.tactics]\nconstant-folding='{}'\ndead-code-elimination='off'\ntarget-compaction='off'\n",
         if folding { "on" } else { "off" }
     ))
     .unwrap();
@@ -1081,7 +1081,7 @@ fn checked_fold_unwind_and_deadline_restore_parent_indices_identities_and_artifa
 
 fn dce_policy(dead_code: bool, folding: bool) -> ResolvedPolicy {
     let configuration: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\nconstant-folding='{}'\ndead-code-elimination='{}'\ntarget-compaction='off'\n",
+        "[javascript]\n[policy.tactics]\nconstant-folding='{}'\ndead-code-elimination='{}'\ntarget-compaction='off'\n",
         if folding { "on" } else { "off" },
         if dead_code { "on" } else { "off" },
     ))

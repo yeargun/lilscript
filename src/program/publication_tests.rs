@@ -11,7 +11,6 @@ fn policy(text: &str) -> crate::compilation_policy::ResolvedPolicy {
     let mut config: crate::config::ProjectConfig = toml::from_str(text).unwrap();
     // These fixtures observe printed traces deliberately. Tests of stripping
     // construct their distinct effect contract explicitly below.
-    config.javascript.strip_console = false;
     config
         .resolve_policy(crate::compilation_policy::CompilationRequest::JavaScript {
             preserve_root_exports: true,
@@ -843,7 +842,6 @@ fn contract_changes_reject_candidate_and_output_reuse_without_changing_sources()
     use crate::compilation_policy::CompilationRequest;
     checked(SOURCE, |program| {
         let mut config = crate::config::ProjectConfig::default();
-        config.javascript.strip_console = false;
         let resolve = |config: &crate::config::ProjectConfig, exports| {
             config
                 .resolve_policy(CompilationRequest::JavaScript {
@@ -862,7 +860,7 @@ fn contract_changes_reject_candidate_and_output_reuse_without_changing_sources()
         let before = compiler.ledger().retained_bytes();
         let mut variants = Vec::new();
         let mut changed = config.clone();
-        changed.javascript.strip_console = true;
+        changed.javascript.strip_debug = true;
         variants.push(resolve(&changed, true));
         let mut changed = config.clone();
         changed.javascript.ecmascript = crate::js_syntax_target::EcmaScriptEdition::Es2015;
@@ -984,7 +982,6 @@ fn rejected_source_adoption_and_unsupported_package_do_not_bind_the_store() {
         // A native contract is no JavaScript package; refusing it binds nothing.
         let mut config: crate::config::ProjectConfig =
             toml::from_str("[mangle]\npreserve_properties=['not_retained']\n").unwrap();
-        config.javascript.strip_console = false;
         let unsupported = config
             .resolve_policy(crate::compilation_policy::CompilationRequest::Native)
             .unwrap();

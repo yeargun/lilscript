@@ -38,7 +38,6 @@ fn ledger() -> BudgetLedger {
 }
 fn contract() -> JavaScriptCompilationContract {
     let mut configuration = crate::config::ProjectConfig::default();
-    configuration.javascript.strip_console = false;
     *configuration
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

@@ -32,7 +32,6 @@ macro_rules! case {
 
 fn policy() -> ResolvedPolicy {
     let mut config = crate::config::ProjectConfig::default();
-    config.javascript.strip_console = false;
     // These fixtures observe identity through escaped names (`escaped-name`
     // prints `twice.name`): the contract that keeps every readable name.
     config.javascript.keep_function_names = true;

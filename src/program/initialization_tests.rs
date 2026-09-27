@@ -127,8 +127,7 @@ fn facts(program: &Program<'_>) -> Arc<ProgramInitialization> {
 fn compile(source: &str, module: bool) -> String {
     let arena = bumpalo::Bump::new();
     let program = source_program(&arena, source);
-    let config: crate::config::ProjectConfig =
-        toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
+    let config: crate::config::ProjectConfig = toml::from_str("[javascript]\n").unwrap();
     let policy: ResolvedPolicy = config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: module,

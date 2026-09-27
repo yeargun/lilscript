@@ -17,7 +17,7 @@ const POINT: &str = include_str!("fixtures/generic-provenance/point.lil");
 const OBSERVATIONS: &str = include_str!("fixtures/generic-provenance/observations.js");
 const EXPECTED: &str = include_str!("fixtures/generic-provenance/expected.json");
 fn policy() -> ResolvedPolicy {
-    let config: crate::config::ProjectConfig = toml::from_str("[javascript]\nstrip_console=false\n[policy.tactics]\nscalar-replacement='on'\ninlining='on'\ntarget-compaction='on'\n").unwrap();
+    let config: crate::config::ProjectConfig = toml::from_str("[javascript]\n[policy.tactics]\nscalar-replacement='on'\ninlining='on'\ntarget-compaction='on'\n").unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

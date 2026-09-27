@@ -1081,7 +1081,9 @@ String `+` accepts strings, numbers, and booleans. Template strings evaluate
 embedded expressions left to right and apply the same string conversion rules.
 
 The `print(value)` intrinsic is the portable observable-output operation used
-by examples and cross-target equivalence tests.
+by examples and cross-target equivalence tests. It is a program effect: no
+configuration strips it (`strip_debug` and `strip_console_calls` strip only
+host logging calls; see [configuration](configuration.md)).
 
 ## Compiler conformance
 

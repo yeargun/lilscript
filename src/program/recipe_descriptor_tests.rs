@@ -13,7 +13,7 @@ const MEMORY: u64 = 1_000_000;
 
 fn policy() -> ResolvedPolicy {
     toml::from_str::<crate::config::ProjectConfig>(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\nscalar-replacement='on'",
+        "[javascript]\n[policy.tactics]\nscalar-replacement='on'",
     )
     .unwrap()
     .resolve_policy(CompilationRequest::JavaScript {

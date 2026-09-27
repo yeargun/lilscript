@@ -43,12 +43,12 @@ Optional files next to a case, following the conventions of `tests/cases/regress
 | File | Effect |
 |---|---|
 | `X.host.js` | A prelude that defines the program's externs on `globalThis`. The prelude and the compiled program are written into one file and run in one realm. Host scripts that print a trace do so at process exit |
-| `X.toml` | Configuration keys merged into the lane's configuration. A key joins the lane's table of the same name, so there is one `[javascript]` table, never a second. A case key overrides the lane's value; a case may not set `strip_console` |
+| `X.toml` | Configuration keys merged into the lane's configuration. A key joins the lane's table of the same name, so there is one `[javascript]` table, never a second. A case key overrides the lane's value; a case may not set the retired `strip_console` |
 | `X.module-probe.mjs` | Module lane only. The case is built with `--target js-module`; the runner imports the output as `m` and awaits the probe's default export, called with `m` |
 | `// harness: "use strict"` in the first lines of `X.lil` | On the script lane, `"use strict";` is prepended to the run file |
 | `X/` | The case's other modules, which the entry imports as `./X/…` |
 
-Every lane compiles with `[javascript] strip_console = false`, because `print` is the observation channel.
+`print` is the observation channel: it is a program effect, which the compiler never strips (the retired `strip_console` key once did), so no lane sets a logging key.
 
 ### Lanes
 

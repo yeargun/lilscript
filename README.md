@@ -67,7 +67,7 @@ if (vector.lengthSquared() == 25.0) {
 }
 ```
 
-With `strip_console = false` (as the repository's `lilscript.toml` sets, so `print` stays), the compiler route deleted on 2026-09-23 compiled it to:
+Keeping `print` (the repository's `lilscript.toml` then set `strip_console = false`; `print` is now a program effect that is never stripped), the compiler route deleted on 2026-09-23 compiled it to:
 
 ```js
 for(var a=[1,2,3,4].map(n=>n*2|0),r=0,o=0;r<4;r++)o=o+(a[r]|0)|0;console.log(`sum=${o}`)

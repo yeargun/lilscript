@@ -1,10 +1,6 @@
 [optimization]
 inlining = false
 
-[javascript]
-# The fixture observes through `print`.
-strip_console = false
-
 # Two entries over one shared module (plan M3.3): `shared` is one file both
 # load, and each entry file is a facade.
 [delivery]

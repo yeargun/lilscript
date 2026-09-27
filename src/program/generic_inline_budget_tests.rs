@@ -37,9 +37,9 @@ fn owner<'src>() -> Compilation<'src> {
     compiler
 }
 fn policy() -> ResolvedPolicy {
-    let config: crate::config::ProjectConfig = toml::from_str(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\ninlining='on'\ntarget-compaction='off'\n",
-    ).unwrap();
+    let config: crate::config::ProjectConfig =
+        toml::from_str("[javascript]\n[policy.tactics]\ninlining='on'\ntarget-compaction='off'\n")
+            .unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

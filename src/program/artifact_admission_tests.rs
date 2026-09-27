@@ -11,8 +11,9 @@ use crate::program::{Constant, OpId, OperationKind, UnitId};
 
 fn policy(extra: &str, exports: bool) -> ResolvedPolicy {
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\n{extra}"
-    )).unwrap();
+        "[javascript]\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\n{extra}"
+    ))
+    .unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: exports,

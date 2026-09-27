@@ -249,7 +249,8 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
             numeric_lengths: false,
         },
         effects: JavaScriptEffectPolicy {
-            strip_console: false,
+            strip_debug: false,
+            strip_console_calls: false,
         },
     };
     // Inspection forms from the same use facts as an admitted build, so the
@@ -1941,34 +1942,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         })
     }
 
-    fn debug_log_value(&self, unit: UnitId, value: ValueId) -> bool {
-        let data = self.program.units[unit.index()].data();
-        let OperationKind::Load(place) =
-            data.operations[data.values[value.index()].definition.index()].kind
-        else {
-            return false;
-        };
-        let Place::Cell(cell) = data.places[place.index()] else {
-            return false;
-        };
-        let cell = &self.program.cells[cell.index()];
-        cell.binding == CellBinding::Foreign && cell.name == "debugLog"
-    }
-
+    /// A call the effect contract drops (`DemandPlan::stripped_call`).
     fn stripped_log_call(&self, unit: UnitId, call: CallId) -> bool {
-        self.contract.effects.strip_console
-            && match self.program.units[unit.index()].data().calls[call.index()].target {
-                CallTarget::Builtin(BuiltinCall::Print) => true,
-                CallTarget::Value {
-                    callee,
-                    invocation: Invocation::Value,
-                } => self.debug_log_value(unit, callee),
-                _ => false,
-            }
+        self.demand.stripped_call(unit, call)
     }
 
     fn elided_log_lookup(&mut self, unit: UnitId, value: ValueId) -> Result<bool, FormationError> {
-        if !self.contract.effects.strip_console || !self.debug_log_value(unit, value) {
+        if !self.demand.stripped_lookup_value(unit, value) {
             return Ok(false);
         }
         // Complete use coverage is required for removing the lookup. Every
@@ -1982,8 +1962,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         };
         for usage in uses {
             self.work(1)?;
-            if !matches!(usage, ValueUse::CallCallee { call, .. } if self.stripped_log_call(unit, *call))
-            {
+            if !self.demand.stripped_lookup_use(unit, usage) {
                 return Ok(false);
             }
         }
@@ -3274,14 +3253,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             Type::Void
                         )
                     }) {
-                        return Err(
-                            self.error(operation.span, "non-void debugLog logging contract")
-                        );
+                        return Err(self.error(operation.span, "non-void dropped logging call"));
                     }
-                    // Preparing a print never touches console. Its argument
-                    // schedules have already been retained in `arguments`.
-                    // Omit the host lookup/invocation, preserving all argument
-                    // evaluations and abrupt completion at their source site.
+                    // Preparing a dropped call never touches the logger. Its
+                    // argument schedules have already been retained in
+                    // `arguments`. Omit the host lookup/invocation, preserving
+                    // all argument evaluations and abrupt completion at their
+                    // source site.
                     {
                         let appended = self.literal(js::Literal::Undefined)?;
                         self.append(&mut arguments, appended)

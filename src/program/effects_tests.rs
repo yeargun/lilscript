@@ -55,8 +55,7 @@ fn summary(source: &str, name: &str) -> UnitEffects {
 fn compile(source: &str, module: bool) -> String {
     let arena = bumpalo::Bump::new();
     let program = program(&arena, source);
-    let config: crate::config::ProjectConfig =
-        toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
+    let config: crate::config::ProjectConfig = toml::from_str("[javascript]\n").unwrap();
     let policy: ResolvedPolicy = config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: module,
@@ -95,7 +94,6 @@ fn compile(source: &str, module: bool) -> String {
 /// phase, message and source span.
 fn build_error(source: &str) -> Option<(&'static str, String, crate::span::Span)> {
     let mut config = crate::config::ProjectConfig::default();
-    config.javascript.strip_console = false;
     crate::build::compile_source(source, &config, crate::build::ServiceOptions::default())
         .err()
         .map(|error| {

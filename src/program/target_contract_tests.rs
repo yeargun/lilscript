@@ -126,10 +126,27 @@ fn logging_contract_preserves_arguments_and_throws_and_controls_host_lookups() {
         Object.defineProperty(globalThis,'console',{configurable:true,get(){events.push('console-get');return consoleObject;}});
         Object.defineProperty(globalThis,'debugLog',{configurable:true,get(){events.push('debug-get');return value=>events.push('debug:'+value);}});
     "#;
+    // `print` is a program effect and stays under `strip_debug`; only the
+    // `debugLog` calls go, and their arguments are still evaluated.
     for strip in [false, true] {
-        let resolved = policy(&format!("[javascript]\nstrip_console={strip}\n"), true);
+        let resolved = policy(&format!("[javascript]\nstrip_debug={strip}\n"), true);
         let expected = if strip {
-            json!(["start", "arg:1", "arg:2", "arg:3", "caught", "arg:4", "arg:5", "caught", "end"])
+            json!([
+                "start",
+                "console-get",
+                "log-get",
+                "arg:1",
+                "print:1",
+                "arg:2",
+                "console-get",
+                "log-get",
+                "arg:3",
+                "caught",
+                "arg:4",
+                "arg:5",
+                "caught",
+                "end"
+            ])
         } else {
             json!([
                 "start",
@@ -169,7 +186,7 @@ fn logging_contract_preserves_arguments_and_throws_and_controls_host_lookups() {
 
 #[test]
 fn logging_stripping_preserves_shadowed_calls_and_separately_observed_foreign_values() {
-    let resolved = policy("[javascript]\nstrip_console=true\n", true);
+    let resolved = policy("[javascript]\nstrip_debug=true\n", true);
     let shadowed = "extern void observe(int value);export void run(){func(int)->void debugLog=(int value)=>{observe(value+10);};debugLog(2);}";
     for (_, javascript) in artifacts(shadowed, &resolved, false, Style::Global).unwrap() {
         assert_eq!(
@@ -198,7 +215,7 @@ fn logging_stripping_preserves_shadowed_calls_and_separately_observed_foreign_va
 #[test]
 fn stripping_rejects_non_void_debug_calls_without_fabricating_a_result() {
     let source = "extern int debugLog(int value);export int run(){return debugLog(2);}";
-    let observed = policy("[javascript]\nstrip_console=false\n", true);
+    let observed = policy("[javascript]\n", true);
     for (_, javascript) in artifacts(source, &observed, false, Style::Global).unwrap() {
         assert_eq!(
             execute(
@@ -209,7 +226,7 @@ fn stripping_rejects_non_void_debug_calls_without_fabricating_a_result() {
             json!([["debug", 2], ["result", 3]])
         );
     }
-    let stripped = policy("[javascript]\nstrip_console=true\n", true);
+    let stripped = policy("[javascript]\nstrip_debug=true\n", true);
     assert!(matches!(
         artifacts(source, &stripped, false, Style::Global),
         Err(CandidateError::Unsupported(_))
@@ -265,10 +282,7 @@ fn record_nullish_and_catch_contracts_preserve_getters_and_lazy_fallback_in_both
         ["recover", 4]
     ]);
     for edition in ["es2015", "es2022"] {
-        let resolved = policy(
-            &format!("[javascript]\nstrip_console=false\necmascript='{edition}'\n"),
-            true,
-        );
+        let resolved = policy(&format!("[javascript]\necmascript='{edition}'\n"), true);
         for (representation, javascript) in
             artifacts(source, &resolved, true, Style::Global).unwrap()
         {
@@ -291,7 +305,7 @@ fn root_export_contract_controls_only_the_public_module_boundary() {
     let source = "extern void observe(int value);export int answer(){return 7;}observe(answer());";
     let host = "globalThis.observe=value=>events.push(['initialization',value]);";
     for exports in [false, true] {
-        let resolved = policy("[javascript]\nstrip_console=false\n", exports);
+        let resolved = policy("[javascript]\n", exports);
         for (_, javascript) in artifacts(source, &resolved, false, Style::Global).unwrap() {
             let expected = if exports {
                 json!([
@@ -318,7 +332,7 @@ fn explicit_callable_spelling_preserves_names_and_arity_with_selected_constructi
     "#;
     for spelling in ["arrow", "function"] {
         let resolved = policy(
-            &format!("[javascript]\nstrip_console=false\nfunction_spelling='{spelling}'\n"),
+            &format!("[javascript]\nfunction_spelling='{spelling}'\n"),
             true,
         );
         // D2: the private spelling knob no longer reaches the public edge. A
@@ -351,7 +365,7 @@ fn declared_receivers_and_lexical_descendants_preserve_their_enclosing_receiver(
         ),
     ] {
         for spelling in ["", "function_spelling='arrow'", "function_spelling='function'"] {
-            let resolved = policy(&format!("[javascript]\nstrip_console=false\n{spelling}\n"), true);
+            let resolved = policy(&format!("[javascript]\n{spelling}\n"), true);
             for (_, javascript) in artifacts(source, &resolved, false, Style::Global).unwrap() {
                 assert_eq!(execute(&javascript, "", observations), expected, "{spelling}\n{javascript}");
             }
@@ -364,7 +378,7 @@ fn closure_spelling_preserves_lexical_module_this() {
     let source = "extern JsValue this;export auto callback=()=>this;";
     for spelling in ["arrow", "function"] {
         let resolved = policy(
-            &format!("[javascript]\nstrip_console=false\nfunction_spelling='{spelling}'\n"),
+            &format!("[javascript]\nfunction_spelling='{spelling}'\n"),
             true,
         );
         let observations = "events.push(library.callback.call({})===undefined);";
@@ -395,10 +409,7 @@ fn own_arguments_and_lexical_descendant_arguments_survive_callable_spelling_poli
         "function_spelling='arrow'",
         "function_spelling='function'",
     ] {
-        let resolved = policy(
-            &format!("[javascript]\nstrip_console=false\n{spelling}\n"),
-            true,
-        );
+        let resolved = policy(&format!("[javascript]\n{spelling}\n"), true);
         for (_, javascript) in artifacts(source, &resolved, false, Style::Global).unwrap() {
             assert_eq!(
                 execute(&javascript, "", observations),
@@ -440,10 +451,7 @@ fn sibling_closures_share_the_owner_arguments_object_with_capture_before_branch_
         "function_spelling='arrow'",
         "function_spelling='function'",
     ] {
-        let resolved = policy(
-            &format!("[javascript]\nstrip_console=false\n{spelling}\n"),
-            true,
-        );
+        let resolved = policy(&format!("[javascript]\n{spelling}\n"), true);
         for (_, javascript) in artifacts(source, &resolved, false, Style::Global).unwrap() {
             assert_eq!(
                 execute(&javascript, host, observations),
@@ -465,10 +473,7 @@ fn local_arguments_shadow_does_not_create_an_ambient_function_obligation() {
         export int local(){int arguments=9;return arguments;}
         export func()->int makeLocal(int value){int arguments=value+1;return ()=>arguments;}
     "#;
-    let resolved = policy(
-        "[javascript]\nstrip_console=false\nfunction_spelling='arrow'\n",
-        true,
-    );
+    let resolved = policy("[javascript]\nfunction_spelling='arrow'\n", true);
     let observations = r#"
         events.push([library.local(),Object.hasOwn(library.local,'prototype')]);
         events.push([library.makeLocal(7)(),Object.hasOwn(library.makeLocal,'prototype')]);
@@ -490,10 +495,7 @@ fn local_arguments_shadow_does_not_create_an_ambient_function_obligation() {
 fn module_arguments_lookup_stays_lazy_and_observes_each_global_read() {
     let source = "extern JsValue arguments;export auto callback=()=>arguments;";
     for spelling in ["", "function_spelling='arrow'"] {
-        let resolved = policy(
-            &format!("[javascript]\nstrip_console=false\n{spelling}\n"),
-            true,
-        );
+        let resolved = policy(&format!("[javascript]\n{spelling}\n"), true);
         for (_, javascript) in artifacts(source, &resolved, false, Style::Global).unwrap() {
             assert_eq!(execute(
                 &javascript,
@@ -517,10 +519,7 @@ fn a_public_closure_over_module_arguments_stays_an_arrow_whatever_the_private_sp
     // edge keeps the source's arrow, so the closure compiles and still reads
     // the global `arguments` lazily on each call.
     let source = "extern JsValue arguments;export auto callback=()=>arguments;";
-    let resolved = policy(
-        "[javascript]\nstrip_console=false\nfunction_spelling='function'\n",
-        true,
-    );
+    let resolved = policy("[javascript]\nfunction_spelling='function'\n", true);
     let outputs = artifacts(source, &resolved, false, Style::Global).unwrap();
     assert!(!outputs.is_empty());
     for (_, javascript) in outputs {
@@ -544,7 +543,7 @@ fn disabled_identifier_mangling_preserves_legal_source_cells_and_rejects_mangled
     // constant its reads would take.
     let source = "int descriptiveCounter=7;export void resetCounter(){descriptiveCounter=0;}export int readCounter(int suppliedIncrement){int updatedCounter=descriptiveCounter+suppliedIncrement;if(updatedCounter<0){return 0;}return updatedCounter;}";
     for search in ["on", "off"] {
-        let resolved = policy(&format!("[javascript]\nstrip_console=false\n[policy.tactics]\nidentifier-mangling='off'\nnaming-search='{search}'\n"), true);
+        let resolved = policy(&format!("[javascript]\n[policy.tactics]\nidentifier-mangling='off'\nnaming-search='{search}'\n"), true);
         for (_, javascript) in artifacts(source, &resolved, false, Style::Source).unwrap() {
             for name in ["descriptiveCounter", "suppliedIncrement", "updatedCounter"] {
                 assert!(javascript.contains(name), "missing {name}: {javascript}");
@@ -564,7 +563,7 @@ fn disabled_identifier_mangling_preserves_legal_source_cells_and_rejects_mangled
 fn mutable_builtin_integer_results_normalize_after_lookup_arguments_and_receiver_call() {
     let source =
         "extern int operand(int n);export int multiply(){return Math.imul(operand(1),operand(2));}";
-    let resolved = policy("[javascript]\nstrip_console=false\n", true);
+    let resolved = policy("[javascript]\n", true);
     let host = r#"
         let result=NaN;const failure={};
         globalThis.operand=n=>{events.push('arg:'+n);return n;};
@@ -604,6 +603,52 @@ fn mutable_builtin_integer_results_normalize_after_lookup_arguments_and_receiver
 }
 
 #[test]
+fn console_method_calls_are_dropped_only_under_strip_console_calls_and_print_never() {
+    // `strip_console_calls` drops a method call of the host `console` and
+    // keeps its argument's evaluation; `print`, spelled `console.log`, is a
+    // program effect and stays.
+    let source = r#"
+        extern class Console { void warn(int value); }
+        extern Console console;
+        extern int argument(int mark);
+        export void run(){
+            console.warn(argument(1));
+            print(argument(2));
+        }
+    "#;
+    let host = r#"
+        globalThis.argument=mark=>{events.push('arg:'+mark);return mark;};
+        const consoleObject={warn(value){events.push('warn:'+value);},log(value){events.push('log:'+value);}};
+        Object.defineProperty(globalThis,'console',{configurable:true,get(){events.push('console-get');return consoleObject;}});
+    "#;
+    for strip in [false, true] {
+        let resolved = policy(
+            &format!("[javascript]\nstrip_console_calls={strip}\n"),
+            true,
+        );
+        let expected = if strip {
+            json!(["arg:1", "console-get", "arg:2", "log:2"])
+        } else {
+            json!([
+                "console-get",
+                "arg:1",
+                "warn:1",
+                "console-get",
+                "arg:2",
+                "log:2"
+            ])
+        };
+        for (_, javascript) in artifacts(source, &resolved, false, Style::Global).unwrap() {
+            assert_eq!(
+                execute(&javascript, host, "library.run();"),
+                expected,
+                "strip={strip}\n{javascript}"
+            );
+        }
+    }
+}
+
+#[test]
 fn print_return_expression_is_void_and_keeps_host_throw_completion_when_enabled() {
     let source = "extern int argument();export void report(){return print(argument());}";
     let host = r#"
@@ -617,11 +662,13 @@ fn print_return_expression_is_void_and_keeps_host_throw_completion_when_enabled(
         fail=true;
         try{events.push(['second',library.report()===undefined]);}catch(error){events.push(['thrown',error===failure]);}
     "#;
+    // `print` is never stripped, whatever the logging keys say.
     for strip in [false, true] {
-        let resolved = policy(&format!("[javascript]\nstrip_console={strip}\n"), true);
-        let expected = if strip {
-            json!(["arg", ["result", true], "arg", ["second", true]])
-        } else {
+        let resolved = policy(
+            &format!("[javascript]\nstrip_debug={strip}\nstrip_console_calls={strip}\n"),
+            true,
+        );
+        let expected = {
             json!([
                 "get",
                 "arg",

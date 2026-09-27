@@ -9,8 +9,6 @@ priority = "size-first"
 # See docs/configuration.md and finer/hypotheses/007-level-13-sweet-spot.
 optimization_level = 13
 cost_model = "brotli"
-# Language tests use `print` as the observable oracle.
-strip_console = false
 candidate_search = "production"
 # Retained whole-artifact frontier count. Omitted proposal work also honors it.
 candidate_limit = 1536

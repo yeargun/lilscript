@@ -38,7 +38,7 @@ fn execute(javascript: &str, setup: &str, observations: &str) -> Json {
 fn matrix(case: &str, source: &str, setup: &str, observations: &str, expected: Json) {
     for compact in [false, true] {
         let config: crate::config::ProjectConfig = toml::from_str(&format!(
-            "[javascript]\nstrip_console=false\n[policy.tactics]\ntarget-compaction='{}'\n",
+            "[javascript]\n[policy.tactics]\ntarget-compaction='{}'\n",
             if compact { "on" } else { "off" },
         ))
         .unwrap();

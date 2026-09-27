@@ -61,7 +61,6 @@ fn with_fixture(inspect: impl FnOnce(&mut Compilation<'_>, &Fixture)) {
     });
     let parameter = program.unit(closures[0].1).unwrap().parameters[0];
     let mut config = crate::config::ProjectConfig::default();
-    config.javascript.strip_console = false;
     let policy = config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

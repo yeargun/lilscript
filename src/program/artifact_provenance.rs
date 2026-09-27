@@ -413,7 +413,8 @@ mod tests {
         use crate::js::{Binding, Expr, Literal, Module, ScopeId, Statement};
         let resolved = enabled();
         let baseline = policy("[policy.tactics]\nidentifier-mangling='on'\nnaming-search='off'");
-        assert_eq!(Plan::seeds_for_policy(&baseline).unwrap(), &[Style::Global]);
+        // The allocator's seed needs no search permission; Global does.
+        assert_eq!(Plan::seeds_for_policy(&baseline).unwrap(), &[Style::Scoped]);
         let mut module = Module::default();
         let binding = module.binding(Binding {
             source_symbol: None,
@@ -453,16 +454,16 @@ mod tests {
             NO_OUTPUT,
         );
         assert_eq!(
-            global.tactics(),
+            scoped.tactics(),
             &[TacticUse {
                 tactic: TacticId::IdentifierMangling,
                 risk: RuntimeRisk::Neutral
             }]
         );
-        assert_eq!(scoped.tactics().len(), 2);
-        assert!(admit(&global, &baseline, &mut ledger).is_ok());
+        assert_eq!(global.tactics().len(), 2);
+        assert!(admit(&scoped, &baseline, &mut ledger).is_ok());
         assert!(matches!(
-            admit(&scoped, &baseline, &mut ledger),
+            admit(&global, &baseline, &mut ledger),
             Err(ProvenanceError::Naming(_))
         ));
         global.discard(owner, &mut ledger).unwrap();

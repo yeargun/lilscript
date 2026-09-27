@@ -9,8 +9,8 @@
 // A case is a `.lil` entry with an expected-stdout `.out` beside it, found under
 // tests/cases (recursively, skipping multi-module folders) and tests/modules.
 // Lanes are {formation-only, production} x {brotli, gzip, raw} x {script,
-// module, c}. Every lane compiles with `[javascript] strip_console = false`:
-// print is the observation channel and the `.out` file is the oracle.
+// module, c}. `print` is the observation channel (a program effect the
+// compiler never strips) and the `.out` file is the oracle.
 //
 // Each (case, lane) ends in exactly one state:
 //   pass          compiled, ran, exit 0, stdout identical to the `.out` file
@@ -259,7 +259,7 @@ export function renderToml(tables) {
 }
 
 function laneTables(lane, tactics) {
-  const javascript = new Map([["strip_console", "false"], ["cost_model", JSON.stringify(lane.codec)]]);
+  const javascript = new Map([["cost_model", JSON.stringify(lane.codec)]]);
   const tables = new Map([["", new Map()], ["javascript", javascript]]);
   if (lane.mode === "formation-only") {
     javascript.set("candidate_search", '"off"');
@@ -269,15 +269,15 @@ function laneTables(lane, tactics) {
 }
 
 // Case keys are merged into the lane's tables (one `[javascript]` table,
-// never a second); a case key overrides the lane's value for that key, except
-// that no case may strip print, the observation channel.
+// never a second); a case key overrides the lane's value for that key. The
+// retired `strip_console` is refused: the compiler never strips `print`.
 export function composeConfig(lane, tactics, caseToml) {
   const tables = laneTables(lane, tactics);
   if (caseToml) {
     for (const [name, entries] of parseTomlTables(caseToml)) {
       if (!tables.has(name)) tables.set(name, new Map());
       for (const [key, value] of entries) {
-        if (name === "javascript" && key === "strip_console" && value !== "false") throw new Error("a case may not set strip_console");
+        if (name === "javascript" && key === "strip_console") throw new Error("a case may not set the retired strip_console");
         tables.get(name).set(key, value);
       }
     }

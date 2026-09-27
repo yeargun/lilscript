@@ -38,7 +38,7 @@ fn with_states(inspect: impl FnOnce(&mut JavaScriptSearch<'_, '_>)) {
         .collect();
     assert_eq!(definitions.len(), 1);
     let config: crate::config::ProjectConfig = toml::from_str(
-        "[javascript]\ncandidate_proposal_limit=0\nstrip_console=false\n\
+        "[javascript]\ncandidate_proposal_limit=0\n\
          [policy.tactics]\nconstant-folding='on'\nstring-pooling='on'",
     )
     .unwrap();
