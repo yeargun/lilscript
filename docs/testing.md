@@ -206,15 +206,15 @@ An item **loses** to a bar when it is larger. A lane with no artifact (refused, 
 
 **Bars and time.** The gate needs Node, the compiler and the codec only; the bars, the old route's configurations and the algorithms' reference host traces are committed. A full run is about 40 s at `--jobs 3` on the build host, and runs in CI's gate job.
 
-### Baseline: head-d1d48c4c, 2026-09-27
+### Baseline: head-a1, 2026-09-27
 
-Bars refreshed on 2026-09-27: Terser 5.50.0, Oxc through Rolldown 1.2.4, esbuild 0.28.1, Closure v20260804, and the reference binary (SHA-256 `df85958…`). The baseline is `head-d1d48c4c` (SHA-256 `47048e41…`); a build of this branch reproduces every item's sizes exactly.
+Bars refreshed on 2026-09-27: Terser 5.50.0, Oxc through Rolldown 1.2.4, esbuild 0.28.1, Closure v20260804, and the reference binary (SHA-256 `df85958…`). The baseline was first recorded on `head-d1d48c4c` (SHA-256 `47048e41…`), then re-recorded on `head-a1` (SHA-256 `7e720be7…`, batch A1 merged): A1 changed no loss count and no `comparison/apps` or `comparison/algorithms` artifact, and shrank 18 loss rows of three host variants (`host-callable-fn`, `host-callable-as-value`, `host-raf-or-null-type`: a method is its own function). A build of this branch reproduces every item's sizes.
 
-Brotli totals, ours against each bar over the items where both exist, and how many items lose:
+Totals, ours against each bar over the items where both exist, and how many items lose (Brotli):
 
 | Corpus | Items passing | vs smallest competitor | vs Closure ADVANCED | vs old route |
 |---|---:|---|---|---|
-| `comparison/cases` | 612 of 624 | 49,223 / 43,541 (439 lose) | — | 49,126 / 33,656 over 611 (603 lose) |
+| `comparison/cases` | 612 of 624 | 49,170 / 43,541 (439 lose) | — | 49,073 / 33,656 over 611 (603 lose) |
 | `comparison/apps` | 7 | 945 / 870 (5) | 945 / 834 (7) | 945 / 558 (7) |
 | `comparison/algorithms` | 11 | 3,250 / 3,039 (9) | 3,250 / 2,703 (11) | 3,250 / 2,305 (11) |
 

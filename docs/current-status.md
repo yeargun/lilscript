@@ -49,14 +49,14 @@ The plan's "Where we are" has each record with its evidence. In short:
 
 ## Standings
 
-The generic corpus against its bars (Brotli, `head-d1d48c4c`, 2026-09-27; the
+The generic corpus against its bars (Brotli, `head-a1`, 2026-09-27; the
 ratchet's baseline, which no change may worsen):
 
 | Corpus | Ours | Smallest competitor | Closure ADVANCED | Old route |
 |---|---:|---:|---:|---:|
 | `comparison/apps` (7) | 945 | 870 (5 lose) | 834 (7 lose) | 558 (7 lose) |
 | `comparison/algorithms` (11) | 3,250 | 3,039 (9 lose) | 2,703 (11 lose) | 2,305 (11 lose) |
-| `comparison/cases` (612 of 624 compile) | 49,223 | 43,541 (439 lose) | — | 603 of 611 lose |
+| `comparison/cases` (612 of 624 compile) | 49,170 | 43,541 (439 lose) | — | 603 of 611 lose |
 
 The program rule layer is empty in production: only liveness (with M7.2) runs
 on the Program IR, so constant branches, small helpers and dead functions

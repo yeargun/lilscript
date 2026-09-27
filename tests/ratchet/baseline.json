@@ -3,10 +3,10 @@
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
  "recorded": "2026-09-27",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/head-d1d48c4c/lilscript",
-  "sha256": "47048e41164027e92d3bf1d1840d8d83e04c60532c031ceb3346222e194b3041",
+  "source": "/home/azureuser/lilscript-work/bin/head-a1/lilscript",
+  "sha256": "7e720be75a6dd9e35ece0e068f228eb704b2125e106bb96952f45a7f3cda33d7",
   "version": "lilscript 0.1.0",
-  "label": "head-d1d48c4c"
+  "label": "head-a1"
  },
  "barsSha256": "770649437963ff5bd6955ea79195cf37c13a84d96fb6c83e7327db9a0085f45b",
  "counts": {
@@ -67,36 +67,36 @@
    "raw": {
     "competitor": {
      "items": 612,
-     "ours": 65533,
+     "ours": 65437,
      "bar": 58285
     },
     "old": {
      "items": 612,
-     "ours": 65533,
+     "ours": 65437,
      "bar": 44195
     }
    },
    "gzip9": {
     "competitor": {
      "items": 612,
-     "ours": 59036,
+     "ours": 58996,
      "bar": 54669
     },
     "old": {
      "items": 610,
-     "ours": 58848,
+     "ours": 58808,
      "bar": 45206
     }
    },
    "brotli11": {
     "competitor": {
      "items": 612,
-     "ours": 49223,
+     "ours": 49170,
      "bar": 43541
     },
     "old": {
      "items": 611,
-     "ours": 49126,
+     "ours": 49073,
      "bar": 33656
     }
    }
@@ -5697,29 +5697,29 @@
   "cases/catalog/host/host-callable-as-value": {
    "raw": {
     "state": "pass",
-    "size": 195
+    "size": 163
    },
    "gzip9": {
     "state": "pass",
-    "size": 139
+    "size": 126
    },
    "brotli11": {
     "state": "pass",
-    "size": 107
+    "size": 92
    }
   },
   "cases/catalog/host/host-callable-fn": {
    "raw": {
     "state": "pass",
-    "size": 178
+    "size": 146
    },
    "gzip9": {
     "state": "pass",
-    "size": 137
+    "size": 124
    },
    "brotli11": {
     "state": "pass",
-    "size": 111
+    "size": 88
    }
   },
   "cases/catalog/host/host-callable-object": {
@@ -6019,15 +6019,15 @@
   "cases/catalog/host/host-raf-or-null-type": {
    "raw": {
     "state": "pass",
-    "size": 151
+    "size": 119
    },
    "gzip9": {
     "state": "pass",
-    "size": 136
+    "size": 122
    },
    "brotli11": {
     "state": "pass",
-    "size": 100
+    "size": 85
    }
   },
   "cases/catalog/host/host-typeof-plain-object": {
