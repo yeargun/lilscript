@@ -94,15 +94,15 @@
       "external": true,
       "kicker": "Capture kernel + 5 packs",
       "title": "posthog-js",
-      "text": "The capture kernel of posthog-js 1.418.10. The bar is Oxc; SWC with kept names gives 5,482 B, a 114 B win. The error-tracking pack still loses.",
+      "text": "The capture kernel of posthog-js 1.418.10, as published on 24 September. The bar is Oxc; SWC with kept names gives 5,482 B, 63 B more, a tie. The error-tracking pack still loses.",
       "baselineLabel": "Oxc",
       "gzip": [
         6194,
-        5988
+        6039
       ],
       "brotli": [
         5622,
-        5368
+        5419
       ]
     },
     {
@@ -310,10 +310,11 @@
       "name": "posthoglil",
       "package": "@itslil/posthog-js",
       "file": "posthog.esm.js",
-      "now": 5368,
+      "now": 5419,
       "bar": 5622,
       "barLabel": "Oxc",
-      "builtBy": "24968659 · 27 Sep"
+      "builtBy": "aa2052f0 · 24 Sep",
+      "note": "An idiomatic rewrite is in release."
     },
     {
       "name": "rehypelil",
