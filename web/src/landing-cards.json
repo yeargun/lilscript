@@ -395,8 +395,9 @@
       "file": "rehype-katex.esm.js",
       "now": 892,
       "bar": null,
-      "barLabel": "see page",
-      "builtBy": "24968659 · 27 Sep"
+      "barLabel": "not like-for-like",
+      "builtBy": "24968659 · 27 Sep",
+      "note": "The port imports three hast helpers the bars bundle."
     },
     {
       "name": "monacolil",
