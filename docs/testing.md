@@ -152,6 +152,22 @@ The report pins the compiler and codec digests, each port's git HEAD and dirty s
 
 The runners' pure parts (feature detection, lane selection, configuration merging, objective rewriting, failing-test parsing) have unit tests: `node --test scripts/verify-runners.test.mjs`.
 
+## Delivery checks
+
+Multi-file delivery (plan M3.3: several entries, `split`, `preserve-modules`, lazy files, manifest v3) is checked in three places; each expected output comes from the sources' ES module semantics, never from the compiler under test.
+
+| Check | What it asserts |
+|---|---|
+| `src/build_delivery_tests.rs` (unit tests) | Scenarios per load sequence in Node: shared instances and identities across entries, per-entry order, a throwing initializer, setters, lazy loads that evaluate what the importer has not (in the target's order), `import()` of a module another entry imports statically, carried host code per entry, names under the default templates, foreign specifiers from nested files, content-safe `[hash]` names, the M3.3a refusals |
+| `scripts/delivery-contract.mjs` | Each `tests/bundles` fixture's behaviour and its manifest v3: bytes and SHA-256 equal the files, `side_effects` equals the anchored files, no file imports an entry or lazy file, every file with effects in an entry's closure carries its label, rows equal the closure's codec bytes; then the command line: identical names and bytes under `-j 1` and `-j 4`, from another working directory, a copy at another absolute path and reordered `--entry` flags; `-o FILE` naming; stale-file removal; the refusals before a compile |
+| `scripts/delivery-plan.mjs` | The exact files, roles and labels of each fixture; a change is legal only with an explanation in its commit |
+
+`scripts/verify-bundles.mjs` runs both scripts, then the `--target all` and package-lock checks; `scripts/verify.sh` runs it. The case runner does not build several entries yet: the design's delivery cases (a `[delivery]` table in a case's `.toml`) are an open item of M3.3.
+
+```sh
+node scripts/verify-bundles.mjs target/release/lilscript
+```
+
 ## The expected-failure ledgers
 
 | Ledger | Entry |

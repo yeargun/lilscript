@@ -22,7 +22,7 @@ optimizer, string emitter, text peephole) is deleted. `--backend` fails with
 |---|---|
 | M1.1 Shared pieces | The delivery manifest, diagnostics, codec helpers and the reference-parameter span left the old route for their owners; output unchanged |
 | M1.2 Tools | The language server runs a check-only session; the playground compiles with `strip_console = false`; lint runs on the checker and the Program IR; `--write-lock` no longer writes effect summaries |
-| M1.3 CLI | `--backend` refused, `--profile-template` deleted; one target-to-request function serves `--print-policy` and the build; `-j` and `--codec-jobs` are accepted and warn that they have no effect yet |
+| M1.3 CLI | `--backend` refused, `--profile-template` deleted; one target-to-request function serves `--print-policy` and the build; `-j` is accepted and warns that it has no effect yet; `--codec-jobs` warns that it is removed (M3.3a: `-j` is the one parallelism flag) |
 | M1.4 Configuration | One retired-key table (61 keys, `RETIRED_KEYS` in `src/config.rs`) is applied before strict reading: each old key warns "no effect in this compiler" or refuses. Refused: `[compiler] backend`, `priority` other than `size-first`, `[policy.constraints]`, `public_aggregate_abi = "positional"`, a nonzero `for_of_specialize_family`. See [configuration.md](configuration.md#retired-keys) |
 | M1.5 Tests | 288 regression cases harvested from the old route's executing tests (`tests/cases/regressions/`), each with an expected output derived from the test's own assertions |
 | M2.2, M2.6 (brought forward) | The case runner (`scripts/cases.mjs`: 361 cases × 18 lanes) and the port runner (`scripts/ports.mjs`), each against an expected-failure ledger whose entries name an owner task |

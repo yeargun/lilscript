@@ -109,6 +109,8 @@ cargo build --release --bins
 target/release/lilscript examples/v01.lil                      # JavaScript to stdout
 target/release/lilscript examples/v01.lil -o build/v01.js
 target/release/lilscript src/lib.lil --target js-module -o dist/lib.js
+target/release/lilscript --entry index=src/index.lil --entry extra=src/extra.lil \
+  --target js-module --delivery split --out-dir dist      # several entries, shared files, lilscript.manifest.json
 target/release/lilscript examples/v01.lil --target all -o build/v01   # .js, .c and a native executable
 target/release/lilscript examples/v01.lil --print-policy       # the resolved policy, then exit
 ```
@@ -116,7 +118,12 @@ target/release/lilscript examples/v01.lil --print-policy       # the resolved po
 | Flag | Meaning |
 |---|---|
 | `--target js \| js-module \| c \| native \| all` | A closed script, a library whose exports are the API, C11, a native executable, or all of them |
-| `-o, --output` | Output file, or the base path for `--target all` |
+| `-o, --output` | Output file (for a delivery of several files: the one entry's file, the others beside it), or the base path for `--target all` |
+| `--out-dir` | The directory a delivery's files and `lilscript.manifest.json` go to |
+| `--entry NAME=PATH` | An entry of the program (repeatable), besides `INPUT` and `[delivery.entries]` |
+| `--delivery single \| split \| preserve-modules` | How the program is placed in files; overrides `[delivery] mode` ([modules-and-delivery](docs/modules-and-delivery.md#delivery)) |
+| `--format esm` | The container of delivered files; overrides `[target.javascript] format` (`cjs` and the others arrive with plan M3.3b) |
+| `-j N` | Compiler threads, the one parallelism flag; no effect yet, and never on the output (`--codec-jobs` warns and has no effect) |
 | `--config` | An explicit `lilscript.toml`; otherwise it is discovered from the input's directory upward |
 | `--mode development` | Skip the candidate search (Lilpack's dev server uses it) |
 | `--explain human \| json` | The compiler's report on stderr |

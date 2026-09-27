@@ -78,22 +78,22 @@ codec_schedule = "staged"     # staged | immediate
 render_batch = 8
 diversity_interval = 4
 
-[bundle]
+[target.javascript]
+format = "esm"                # esm; cjs, iife, umd and bare arrive with plan M3.3b
+
+[delivery]
 mode = "single"               # single | split | preserve-modules
-min_chunk_bytes = 16384
-max_chunks = 32
-shared_min_imports = 2
+# entry_names = "[name].[ext]"   # placeholders: [name] [index] [hash:N] [path] [ext]
+# chunk_names = "[index].[ext]"  # a library's default; an application's is [hash:8].[ext]
+# module_names = "[path].[ext]"  # preserve-modules module files
 preload = "none"              # none | entry | all
 host_modules = "external"     # external | auto | embed
+request_bytes = 0             # declared cost per file an entry loads beyond its first
+depth_bytes = 0               # declared cost per static import level beyond the first
 
-[bundle.cost]
-raw_weight = 0
-gzip_weight = 1
-brotli_weight = 2
-request_overhead_bytes = 1000
-dependency_depth_penalty_bytes = 160
-preload_request_discount_percent = 70
-cache_reuse_discount_percent = 20
+[delivery.entries]            # entry name = source, relative to this file
+# index = "src/index.lil"
+# animate = "src/entries/animate.lil"
 
 [lint]
 enabled = true
@@ -248,28 +248,46 @@ The full table, generated from the source, is in
   | `javascript.public_aggregate_abi = "positional"` | public aggregates are plain objects with named fields (D2); the positional shape is not produced |
   | nonzero `optimization.for_of_specialize_family` | the for-of family specialization was an old-compiler source rewrite and was removed |
 
-## Delivery: `[bundle]`
+## Delivery: `[delivery]`
 
-Every mode first checks and optimizes the complete static module graph, so
-whole-program work happens before any chunk boundary is chosen.
+The contract is [modules-and-delivery](modules-and-delivery.md#delivery): clauses DL1–DL10, the
+modes, the files and manifest v3. Every mode checks and optimizes the whole
+program, all entries together, before any file boundary is chosen.
 
-- `single` emits one artifact.
-- `split` considers modules imported by at least `shared_min_imports` distinct
-  modules, rejects optional chunks smaller than `min_chunk_bytes`, and keeps up
-  to `max_chunks` chunks while each lowers the bundle's deploy cost. The cost
-  combines the `[bundle.cost]` weights of raw, gzip and Brotli bytes, request
-  overhead, dependency depth, preload and cache reuse. At least one byte weight
-  must be nonzero; the percentages are 0 to 100.
-- `preserve-modules` keeps one chunk per source module.
+- `mode`: `single` writes one file per entry; `split` writes each entry's file
+  plus the files the entries that load them share; `preserve-modules` writes a
+  file per source module. `split` and `preserve-modules` need module
+  execution (`--target js-module`).
+- `[delivery.entries]`: the program's entries, name to source path relative to
+  this file. Names are letters, digits, `_`, `.` and `-`; they sort the entries,
+  so the table's order never matters. The command line adds `--entry NAME=PATH`
+  and `INPUT` (named by its file stem).
+- `entry_names`, `chunk_names`, `module_names`: file name templates over
+  `[name]`, `[index]`, `[hash:N]` (1–64 hex digits of a content hash that covers
+  every file a file can load), `[path]` and `[ext]`. A template stays inside the
+  output directory and has no empty or `.` path segment. Two files that get one
+  name are refused.
+- `preload = "entry"` preloads the lazily loaded files an entry can load, and
+  `all` every lazily loaded file; the emitted guard is inert outside browsers.
+- `host_modules` decides whether the relative JavaScript or TypeScript modules
+  that `import extern` declarations name are imported from their specifiers
+  (`external`), carried when every one can be delivered (`auto`), or carried
+  with a refusal when one cannot (`embed`). A relative specifier is spelled from
+  the output directory, which stands for the first entry's source directory.
+- `request_bytes` and `depth_bytes` are declared deployment costs (L12, at most
+  1 GiB each), added to each entry's row: per file it loads beyond its first,
+  and per static import level beyond the first. The objective's codec prices
+  every file; there is no other cost model.
+- `[target.javascript] format` is `esm`; any other container is refused until
+  plan M3.3b.
 
-`split` and `preserve-modules` need `--output`; they write the entry, sibling
-chunks and `<entry-stem>.manifest.json`. `preload = "entry"` preloads the
-entry's direct lazy chunks and `all` every lazy root. `host_modules` decides
-whether the relative JavaScript or TypeScript modules that `import extern`
-declarations name are imported from their specifiers (`external`), carried
-when every one can be delivered (`auto`), or carried with a refusal when one
-cannot (`embed`). `preserve-modules` chunks and lazy `import()` chunks are
-broken on this compiler today (plan M3.3).
+The old `[bundle]` table translates before the file is read: `mode`, `preload`
+and `host_modules` move to `[delivery]` (with a warning to rename them);
+`cost.request_overhead_bytes` and `cost.dependency_depth_penalty_bytes` become
+`request_bytes` and `depth_bytes`; `min_chunk_bytes`, `max_chunks`,
+`shared_min_imports` and the codec weights and discounts of `[bundle.cost]`
+have no effect (placement follows reachability, and the objective's codec
+judges files). A key set in both tables is refused.
 
 ## Packages
 

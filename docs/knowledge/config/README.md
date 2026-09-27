@@ -19,7 +19,7 @@ refuses the build. Then strict reading: an unknown key or value is an error.
 | Page | Keys |
 |---|---|
 | [schema.md](schema.md) | Every accepted key, its type and default; the retired-key table |
-| [`[bundle]`](bundle.md) | Delivery modes, chunk limits and deploy-cost weights |
+| [`[bundle]`](bundle.md) | Retired: translated to `[delivery]` (M3.3a); the deleted chunk planner's keys |
 | [`[package]`, `[dependencies]` and lockfiles](package-dependencies.md) | Package identity, path dependencies, `lilscript.lock` |
 | [`[lint]` and `[format]`](lint-format.md) | Author constraints; no effect on emitted code |
 

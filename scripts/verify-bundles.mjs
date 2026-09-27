@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFile, rename, rm, mkdir, writeFile } from "node:fs/promises";
+import { readFile, rm, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { verifyCli, verifyContract } from "./delivery-contract.mjs";
+import { verifyPlans } from "./delivery-plan.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const compiler = process.argv[2] ?? path.join(root, "target/release/lilscript");
@@ -11,79 +13,14 @@ const outputRoot = path.join(root, "target/verification/bundles");
 await rm(outputRoot, { recursive: true, force: true });
 await mkdir(outputRoot, { recursive: true });
 
-await verifyBundle("preserve", "42", "preserve-modules", ["state.lil"]);
-await verifyBundle("split", "7", "split", ["shared.lil"]);
-await verifyBundle("lazy", "42", "split", ["feature.lil"]);
-await verifyBundle("lazy-cycle", "42", "split", ["feature.lil"]);
+// Plan M3.3: behaviour and manifest v3 assertions, then the pinned plans.
+await verifyContract(compiler, path.join(outputRoot, "contract"));
+await verifyPlans(compiler, path.join(outputRoot, "plan"));
+await verifyCli(compiler, path.join(outputRoot, "cli"));
 await verifyAllTarget();
 await verifyPackageLock();
 
 console.log("JavaScript bundle policies passed.");
-
-async function verifyBundle(name, expected, mode, modules) {
-  const source = path.join(root, `tests/bundles/${name}/main.lil`);
-  const directory = path.join(outputRoot, name);
-  const entry = path.join(directory, "entry.mjs");
-  await mkdir(directory, { recursive: true });
-  execFileSync(compiler, [source, "--target", "js-module", "-o", entry], {
-    cwd: root,
-    stdio: "inherit",
-  });
-
-  const result = execFileSync(process.execPath, [entry], {
-    encoding: "utf8",
-  }).trim();
-  assert.equal(result, expected, `${name} bundle output`);
-
-  const manifestPath = path.join(directory, "entry.manifest.json");
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  assert.equal(manifest.version, 2);
-  assert.match(manifest.build_id, /^[0-9a-f]{64}$/);
-  assert.equal(typeof manifest.deploy_cost, "number");
-  assert.equal(manifest.mode, mode);
-  assert.equal(manifest.entry, "entry.mjs");
-  assert.deepEqual(
-    manifest.chunks.flatMap((chunk) => chunk.modules),
-    modules,
-  );
-  for (const chunk of manifest.chunks) {
-    const code = await readFile(path.join(directory, chunk.file), "utf8");
-    assert.equal(Buffer.byteLength(code), chunk.bytes);
-    assert.ok(chunk.gzip_bytes > 0);
-    assert.ok(chunk.brotli_bytes > 0);
-    assert.match(chunk.cache_key, /^[0-9a-f]{64}$/);
-    assert.ok(Array.isArray(chunk.dependencies));
-    assert.ok(Array.isArray(chunk.dynamic_dependencies));
-  }
-  if (name === "lazy") {
-    const [chunk] = manifest.chunks;
-    assert.equal(chunk.kind, "lazy");
-    assert.deepEqual(manifest.preload, [chunk.file]);
-    assert.deepEqual(chunk.dependencies, []);
-    const lazyCode = await readFile(path.join(directory, chunk.file), "utf8");
-    assert.doesNotMatch(lazyCode, /99|unused/);
-    const entryCode = await readFile(entry, "utf8");
-    assert.match(entryCode, /modulepreload/);
-    const chunkPath = path.join(directory, chunk.file);
-    const hiddenPath = `${chunkPath}.missing`;
-    await rename(chunkPath, hiddenPath);
-    const failure = execFileSync(process.execPath, [entry], {
-      encoding: "utf8",
-    }).trim();
-    assert.match(failure, /Cannot find module|ERR_MODULE_NOT_FOUND/);
-    await rename(hiddenPath, chunkPath);
-  }
-  if (name === "preserve") {
-    const stale = "chunk-stale.mjs";
-    await writeFile(path.join(directory, stale), "export{};\n");
-    manifest.chunks.push({ file: stale, modules: [], bytes: 10 });
-    await writeFile(manifestPath, `${JSON.stringify(manifest)}\n`);
-    execFileSync(compiler, [source, "--target", "js-module", "-o", entry]);
-    await assert.rejects(readFile(path.join(directory, stale)), {
-      code: "ENOENT",
-    });
-  }
-}
 
 async function verifyPackageLock() {
   const source = path.join(root, "tests/packages/app/main.lil");
@@ -136,11 +73,18 @@ async function verifyPackageLock() {
 }
 
 async function verifyAllTarget() {
-  const source = path.join(root, "tests/bundles/preserve/main.lil");
+  // A program with no exports: a native build has no exported ABI yet.
   const directory = path.join(outputRoot, "all");
+  const source = path.join(directory, "main.lil");
   const base = path.join(directory, "app");
   await mkdir(directory, { recursive: true });
   await writeFile(path.join(directory, "package.json"), '{"type":"module"}\n');
+  await writeFile(path.join(directory, "lilscript.toml"), "[javascript]\nstrip_console = false\n");
+  await writeFile(
+    source,
+    "int state = 40;\nvoid setState(int value) { state = value; }\nsetState(41);\nprint(state + 1);\n",
+  );
+  // `--target all` builds a script and a native program, one file each.
   execFileSync(compiler, [source, "--target", "all", "-o", base], {
     cwd: root,
     stdio: "inherit",
@@ -151,7 +95,5 @@ async function verifyAllTarget() {
   const jsResult = execFileSync(process.execPath, [`${base}.js`], {
     encoding: "utf8",
   }).trim();
-  assert.equal(jsResult, "42", "all-target chunked JavaScript output");
-  const manifest = JSON.parse(await readFile(`${base}.manifest.json`, "utf8"));
-  assert.equal(manifest.mode, "preserve-modules");
+  assert.equal(jsResult, "42", "all-target JavaScript output");
 }
