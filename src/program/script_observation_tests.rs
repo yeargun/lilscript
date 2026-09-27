@@ -23,7 +23,6 @@ fn check_arguments(module: bool) {
     let semantics = crate::analyze(&syntax).unwrap();
     let program = from_checked_source(&syntax, &semantics).unwrap();
     let mut config = crate::config::ProjectConfig::default();
-    config.javascript.strip_console = false;
     let policy = config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: module,

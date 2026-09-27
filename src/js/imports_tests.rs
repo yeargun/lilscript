@@ -239,7 +239,12 @@ fn fixed_import_export_names_and_escaped_specifier_survive_local_alias_mangling(
     let output = module.prepare_output_with_policy(&policy(true)).unwrap();
     for style in STYLES {
         let js = output.render(&Plan::new(style)).unwrap();
-        assert!(js.contains("import{default as ") && js.contains(" as publicAlias"));
+        // The default binding is spelled as one (C18).
+        assert!(
+            js.starts_with("import ") && !js.contains("default as"),
+            "{js}"
+        );
+        assert!(js.contains(" as publicAlias"), "{js}");
         assert!(js.contains("producer\\\"quoted.mjs"));
         let dir = Directory::new();
         std::fs::write(dir.0.join("producer\"quoted.mjs"), "export default 17;").unwrap();
@@ -433,4 +438,59 @@ fn imports_require_module_policy_and_printer_limits_never_return_partial_imports
     let empty = Module::default();
     assert_eq!(empty.render(PrintPolicy::default()).unwrap(), "");
     assert!(empty.imports.is_empty());
+}
+
+#[test]
+fn imports_of_one_specifier_share_one_declaration_at_its_first_request() {
+    // C18: `default` is the default binding, and the imports of a specifier
+    // merge into its first declaration. Module requests are unique and
+    // ordered by first appearance, so the evaluation order of the two
+    // modules is unchanged: first, then second.
+    let mut module = Module::default();
+    let named = imported(&mut module, "named", "./first.mjs", "value");
+    let other = imported(&mut module, "other", "./second.mjs", "value");
+    let fallback = imported(&mut module, "fallback", "./first.mjs", "default");
+    let read = |module: &mut Module, binding| module.expression(Expr::Binding(binding), None);
+    let (a, b, c) = (
+        read(&mut module, named),
+        read(&mut module, other),
+        read(&mut module, fallback),
+    );
+    let values = module.expression(Expr::Array(vec![a, b, c]), None);
+    let report = module.expression(Expr::Host("report".into()), None);
+    let call = module.expression(
+        Expr::Call {
+            callee: report,
+            arguments: vec![values],
+            invocation: Invocation::Value,
+        },
+        None,
+    );
+    module.regions[0].statements.push(Statement::Evaluate(call));
+    let output = module.prepare_output_with_policy(&policy(true)).unwrap();
+    for style in STYLES {
+        let js = output.render(&Plan::new(style)).unwrap();
+        assert_eq!(js.matches("from\"./first.mjs\"").count(), 1, "{js}");
+        assert!(js.starts_with("import "), "{js}");
+        assert!(!js.contains("default as"), "{js}");
+        let first = js.find("./first.mjs").unwrap();
+        let second = js.find("./second.mjs").unwrap();
+        assert!(first < second, "{js}");
+        let consumer = format!("globalThis.report=v=>console.log(JSON.stringify(v));{js}");
+        assert_eq!(
+            execute(
+                &consumer,
+                &[
+                    (
+                        "first.mjs",
+                        "console.log('first');export const value=1;export default 3;"
+                    ),
+                    ("second.mjs", "console.log('second');export const value=2;")
+                ],
+                false
+            ),
+            "first\nsecond\n[1,2,3]\n",
+            "{js}"
+        );
+    }
 }

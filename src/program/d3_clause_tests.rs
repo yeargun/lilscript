@@ -14,8 +14,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 fn policy(module: bool) -> ResolvedPolicy {
-    let config: crate::config::ProjectConfig =
-        toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
+    let config: crate::config::ProjectConfig = toml::from_str("[javascript]\n").unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: module,

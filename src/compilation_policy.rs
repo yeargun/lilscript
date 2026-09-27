@@ -798,7 +798,8 @@ impl ResolvedPolicy {
                 "pure_property_reads":language.assumptions.pure_property_reads,
                 "unconstructed_callbacks":language.assumptions.unconstructed_callbacks,
                 "numeric_lengths":language.assumptions.numeric_lengths,
-                "strip_console":language.effects.strip_console,
+                "strip_debug":language.effects.strip_debug,
+                "strip_console_calls":language.effects.strip_console_calls,
                 "preserved_properties":preserved_properties,
                 "bundle_mode":format!("{bundle_mode:?}"),
                 "split":split.map(|rule| json!({"min_chunk_bytes":rule.min_chunk_bytes, "max_chunks":rule.max_chunks,
@@ -1522,13 +1523,12 @@ mod tests {
 
     #[test]
     fn logging_and_boundaries_are_independent_of_effort_and_codec() {
-        let low = js("[javascript]\noptimization_level=0\nstrip_console=false\ncost_model='raw'");
-        let high =
-            js("[javascript]\noptimization_level=16\nstrip_console=false\ncost_model='brotli'");
+        let low = js("[javascript]\noptimization_level=0\ncost_model='raw'");
+        let high = js("[javascript]\noptimization_level=16\ncost_model='brotli'");
         assert_eq!(low.contract(), high.contract());
-        assert!(!low.javascript_contract().unwrap().effects.strip_console);
+        assert!(!low.javascript_contract().unwrap().effects.strip_debug);
         assert_ne!(low.fingerprint(), high.fingerprint());
-        let closed = config("[javascript]\nstrip_console=false")
+        let closed = config("")
             .resolve_policy(CompilationRequest::JavaScript {
                 preserve_root_exports: false,
             })
@@ -1554,10 +1554,9 @@ mod tests {
         let a = config("")
             .resolve_policy(CompilationRequest::Native)
             .unwrap();
-        let b =
-            config("[javascript]\noptimization_level=16\nstrip_console=false\ncost_model='raw'")
-                .resolve_policy(CompilationRequest::Native)
-                .unwrap();
+        let b = config("[javascript]\noptimization_level=16\ncost_model='raw'")
+            .resolve_policy(CompilationRequest::Native)
+            .unwrap();
         assert!(a.objective().is_none());
         assert!(a.javascript_contract().is_none());
         assert_eq!(a.fingerprint(), b.fingerprint());

@@ -1,7 +1,10 @@
 //! The `JS.*`, `Object.*`, `JSON.*` and `Task.*` builtins: typed spellings of
 //! host operations on `JsValue`s. Each renders exactly as the old route's
-//! emitter spelled it, and none assumes a pristine host. `JS.methodN` adapters come
-//! from one hoisted factory per calling convention.
+//! emitter spelled it, and none assumes a pristine host. A `JS.methodN`
+//! adapter of a private callback is the callback formed as a method
+//! (`javascript_methods.rs`); any other adapter comes from one hoisted factory
+//! per calling convention, transitional until R7's receivers retire the
+//! adapters (plan M10.4).
 use super::*;
 
 impl Formation<'_, '_, '_, '_, '_> {
@@ -39,7 +42,9 @@ impl Formation<'_, '_, '_, '_, '_> {
         Ok(js::Expr::Binary { op, left, right })
     }
 
-    /// `e => function(a,...){return e(this,a,...)}`, one per convention.
+    /// `e => function(a,...){return e(this,a,...)}`, one per convention: the
+    /// adapter of a callback that is not private to it (a parameter, or a
+    /// function other code also reads). A private callback never gets one.
     fn method_factory(&mut self, builtin: BuiltinCall) -> Result<js::BindingId, FormationError> {
         let (arity, receiver, rest) = match builtin {
             BuiltinCall::JsMethod0 => (0, true, false),
@@ -173,6 +178,39 @@ impl Formation<'_, '_, '_, '_, '_> {
             js::Expr::Sequence(items) => items.last().is_some_and(|last| self.string_key(*last)),
             _ => false,
         }
+    }
+
+    /// A key `(e₁,…,eₙ,"k")` and its value `v`: the key `"k"` and the value
+    /// `(e₁,…,eₙ,v)`. The key's sequence node leaves the tree and its items
+    /// move; any other key and value stay as they are.
+    fn key_prefix_to_value(
+        &mut self,
+        key: js::ExprId,
+        value: js::ExprId,
+    ) -> Result<(js::ExprId, js::ExprId), FormationError> {
+        let mut key = key;
+        let mut prefix = Vec::new();
+        while matches!(&self.module.expressions[key.index()], js::Expr::Sequence(items) if !items.is_empty())
+        {
+            self.work(1)?;
+            // The sequence node leaves the tree; its items move.
+            let js::Expr::Sequence(mut items) = std::mem::replace(
+                &mut self.module.expressions[key.index()],
+                js::Expr::Literal(js::Literal::Undefined),
+            ) else {
+                unreachable!("matched above")
+            };
+            key = items.pop().expect("checked non-empty");
+            self.budget
+                .reserve_vec(AllocationClass::Retained, &mut prefix, items.len())?;
+            prefix.extend(items);
+        }
+        if prefix.is_empty() {
+            return Ok((key, value));
+        }
+        self.append(&mut prefix, value)?;
+        let value = self.expression(js::Expr::Sequence(prefix))?;
+        Ok((key, value))
     }
 
     /// `JS.add` of two string literals is their concatenation. A `JS.add`
@@ -397,7 +435,14 @@ impl Formation<'_, '_, '_, '_, '_> {
                     if !self.string_key(pair[0]) {
                         return Err(self.error(span, "plain-object key is not a constant string"));
                     }
-                    self.append(&mut entries, (js::Property::Computed(pair[0]), pair[1]))?;
+                    // Work scheduled before a key (a captured operand's
+                    // store) runs before its value instead: evaluating a
+                    // constant key does nothing, so `{k:(t=…,v)}` is
+                    // `{[(t=…,"k")]:v}` without a computed key (diagnosis
+                    // C3). Terser refuses to inline into a computed key at all
+                    // (`lib/compress/inline.js`, `in_computed_key`).
+                    let (key, value) = self.key_prefix_to_value(pair[0], pair[1])?;
+                    self.append(&mut entries, (js::Property::Computed(key), value))?;
                 }
                 js::Expr::Object(entries)
             }

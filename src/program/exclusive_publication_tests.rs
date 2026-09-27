@@ -213,7 +213,6 @@ fn retained_batch_output(
     source: SemanticId,
 ) -> (CandidateId, ArtifactId, String) {
     let mut config = crate::config::ProjectConfig::default();
-    config.javascript.strip_console = false;
     let policy = config
         .resolve_policy(crate::compilation_policy::CompilationRequest::JavaScript {
             preserve_root_exports: true,
@@ -704,7 +703,6 @@ fn retained_candidate_forces_copy_and_original_charge_domains_survive_both_drop_
                 .adopt_checked(program, WorkDomain::Baseline)
                 .unwrap();
             let mut config = crate::config::ProjectConfig::default();
-            config.javascript.strip_console = false;
             let policy = config
                 .resolve_policy(crate::compilation_policy::CompilationRequest::JavaScript {
                     preserve_root_exports: true,
@@ -1064,7 +1062,6 @@ fn advancing_reference_place_updates_both_negative_exposure_facts_and_execution(
         assert_eq!([old[0].1, old[1].1], [true, false]);
         let render = |compiler: &mut Compilation<'_>, source| {
             let mut config = crate::config::ProjectConfig::default();
-            config.javascript.strip_console = false;
             let policy = config
                 .resolve_policy(crate::compilation_policy::CompilationRequest::JavaScript {
                     preserve_root_exports: true,

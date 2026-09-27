@@ -152,27 +152,7 @@ pub(super) fn render_with_literals_admitted(
         discarded_root: None,
         files: None,
     };
-    for import in &module.imports {
-        if !printer.output.work(1) {
-            break;
-        }
-        if hosted(hosts, import) {
-            continue;
-        }
-        printer.text("import{");
-        printer.text(&import.imported);
-        let local = names.get(import.binding);
-        if !printer.output.work(local.len().min(import.imported.len())) {
-            break;
-        }
-        if local != import.imported {
-            printer.text(" as ");
-            printer.text(local);
-        }
-        printer.text("}from");
-        printer.string(&import.source);
-        printer.text(";");
-    }
+    printer.foreign_imports(0..module.imports.len(), hosts);
     if let Some(hosts) = hosts {
         printer.host_bindings(hosts, 0..module.imports.len());
     }
@@ -290,21 +270,8 @@ pub(super) fn render_file_admitted(
         printer.string(&crate::literal::StringValue::from(path.as_str()));
         printer.text(";");
     }
-    for &index in links.foreign.iter().filter(|_| header) {
-        let import = &module.imports[index];
-        if hosted(hosts, import) {
-            continue;
-        }
-        printer.text("import{");
-        printer.text(&import.imported);
-        let local = names.get(import.binding);
-        if local != import.imported {
-            printer.text(" as ");
-            printer.text(local);
-        }
-        printer.text("}from");
-        printer.string(&import.source);
-        printer.text(";");
+    if header {
+        printer.foreign_imports(links.foreign.iter().copied(), hosts);
     }
     if let Some(hosts) = hosts.filter(|_| header && entry) {
         printer.host_bindings(hosts, links.foreign.iter().copied());
@@ -517,6 +484,92 @@ enum InferredName<'a> {
 }
 
 impl<'a> Printer<'a, '_, '_> {
+    /// Foreign imports (indices into the module's imports, in order): one
+    /// declaration per specifier, at its first occurrence. Module requests
+    /// are unique and ordered by first appearance (ECMA-262
+    /// ModuleRequests), so merging a later import of a specifier into the
+    /// first changes no linking or evaluation order. The imported name
+    /// `default` is the default binding, `import x from"s"` (Rolldown
+    /// `esm.rs` `create_import_declaration`; esbuild's printer likewise
+    /// prints the default clause before the named ones).
+    fn foreign_imports(
+        &mut self,
+        imports: impl Iterator<Item = usize>,
+        hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
+    ) {
+        let module = self.module;
+        let mut order: Vec<usize> = Vec::new();
+        for index in imports {
+            if !self.output.work(1) {
+                return;
+            }
+            if !hosted(hosts, &module.imports[index]) {
+                order.push(index);
+            }
+        }
+        let mut done = vec![false; order.len()];
+        for first in 0..order.len() {
+            if done[first] {
+                continue;
+            }
+            let source = &module.imports[order[first]].source;
+            let mut group: Vec<usize> = Vec::new();
+            for later in first..order.len() {
+                if !self.output.work(1) {
+                    return;
+                }
+                if !done[later] && module.imports[order[later]].source == *source {
+                    done[later] = true;
+                    group.push(order[later]);
+                }
+            }
+            let default = group
+                .iter()
+                .position(|&index| module.imports[index].imported == "default");
+            self.text("import");
+            if let Some(position) = default {
+                let local = self.names.get(module.imports[group[position]].binding);
+                if !self.output.work(local.len()) {
+                    return;
+                }
+                self.text(" ");
+                self.text(local);
+                if group.len() > 1 {
+                    self.text(",");
+                }
+            }
+            if group.len() > usize::from(default.is_some()) {
+                self.text("{");
+                let mut first_named = true;
+                for (position, &index) in group.iter().enumerate() {
+                    if Some(position) == default {
+                        continue;
+                    }
+                    let import = &module.imports[index];
+                    let local = self.names.get(import.binding);
+                    if !self.output.work(local.len().min(import.imported.len()) + 1) {
+                        return;
+                    }
+                    if !first_named {
+                        self.text(",");
+                    }
+                    first_named = false;
+                    self.text(&import.imported);
+                    if local != import.imported {
+                        self.text(" as ");
+                        self.text(local);
+                    }
+                }
+                self.text("}");
+            } else {
+                self.text(" ");
+            }
+            self.text("from");
+            self.string(source);
+            self.text(";");
+        }
+    }
+
     /// `{let i=v;for(;c;u)body}` as `for(let i=v;c;u)body`. A for head's
     /// binding is fresh each iteration, so no closure in the loop may capture
     /// it, and `in` cannot appear in the head's initializer.
@@ -1425,8 +1478,11 @@ impl<'a> Printer<'a, '_, '_> {
                     // The heritage is a LeftHandSideExpression.
                     self.expression(*base, 18);
                 }
-                self.text("{constructor");
-                self.function(*constructor);
+                self.text("{");
+                if let Some(constructor) = constructor {
+                    self.text("constructor");
+                    self.function(*constructor);
+                }
                 for (method, function) in methods {
                     self.text(method);
                     self.function(*function);
@@ -1498,7 +1554,11 @@ impl<'a> Printer<'a, '_, '_> {
                         self.text("=");
                         self.expression(default, 2);
                     }
-                    None => self.text("=void 0"),
+                    // `length` counts the parameters before the first one
+                    // with an initializer, so only that one needs one; a
+                    // later parameter receives `undefined` either way.
+                    None if function.length == Some(index) => self.text("=void 0"),
+                    None => {}
                 }
             }
         }

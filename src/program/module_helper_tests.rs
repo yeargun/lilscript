@@ -112,7 +112,6 @@ fn imported_named_helper_uses_real_module_roots_before_its_module_evaluation() {
             .with_inline_helper(family, &mut ledger, WorkDomain::Optional)
             .unwrap();
         let mut config = crate::config::ProjectConfig::default();
-        config.javascript.strip_console = false;
         let policy = config
             .resolve_policy(CompilationRequest::JavaScript {
                 preserve_root_exports: true,

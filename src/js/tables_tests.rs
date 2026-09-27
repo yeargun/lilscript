@@ -437,3 +437,60 @@ fn the_seed_is_the_largest_estimated_saving() {
         .unwrap();
     assert!(formed.choice_sites.is_empty());
 }
+
+#[test]
+fn two_tables_of_one_schema_decode_through_one_decoder() {
+    // Plan M8.2 A1: a decoder is a function of its schema alone, so formation
+    // keys decoders by schema and emits each once. Two tables of one schema,
+    // both spelled as columns, share one decoder and each builds its own
+    // literal's graph.
+    let (mut module, _) = table_module(&metrics());
+    let second = module.binding(Binding {
+        source_symbol: None,
+        scope: ScopeId::new(0),
+        spelling: "second".into(),
+        pinned: false,
+    });
+    let value = build(&mut module, &metrics());
+    module.regions[0].statements.push(Statement::Let {
+        binding: second,
+        value: Some(value),
+    });
+    let describe = module.expression(Expr::Host("describe".into()), None);
+    let read = module.expression(Expr::Binding(second), None);
+    let call = module.expression(
+        Expr::Call {
+            callee: describe,
+            arguments: vec![read],
+            invocation: Invocation::Value,
+        },
+        None,
+    );
+    module.regions[0].statements.push(Statement::Evaluate(call));
+    let oracle = run(&module);
+    let mut seeded = module.clone();
+    seeded
+        .encode_tables(&[], &ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
+        .unwrap();
+    assert_eq!(seeded.choice_sites.len(), 2, "two sites");
+    let mut choices = ChoiceMap::SEEDS;
+    for site in &seeded.choice_sites {
+        let columns = site
+            .alternatives
+            .iter()
+            .find(|offered| offered.name == "columns")
+            .expect("columns offered");
+        choices = choices.with(site.key, columns.alternative);
+    }
+    let mut formed = module.clone();
+    formed
+        .encode_tables(&[], &choices, &mut AllocationBudget::new(None))
+        .unwrap();
+    let decoders = formed.regions[formed.root.index()]
+        .statements
+        .iter()
+        .filter(|statement| matches!(statement, Statement::Function { .. }))
+        .count();
+    assert_eq!(decoders, 1, "one decoder for the one schema");
+    assert_eq!(run(&formed), oracle);
+}

@@ -59,7 +59,9 @@ impl Plan {
         eligibility.check_in(self)?;
         Ok(NamingProvenance {
             mangling: self.style != Style::Source,
-            search: self.style == Style::Scoped
+            // The allocator's seed (`Scoped`) is not a search, at any level;
+            // every other plan is one of the search's alternatives.
+            search: self.style == Style::Global
                 || !self.source_names.is_empty()
                 || (self.style == Style::Source && eligibility.permits_search()),
         })
@@ -111,10 +113,15 @@ impl NamingProvenance {
 
 /// Permissions belong to a prepared output, independently of reusable naming
 /// constraints. Public rendering and exploration both consult this same value.
+///
+/// The allocator's seed is `Scoped` (bindings named per scope, so the same
+/// position in every function spells the same name) and runs at every
+/// effort level (architecture §10.5, plan M9.5): it is the naming rule, not a
+/// search move. `naming-search` permits only the alternatives after it.
 #[derive(Debug, Clone, Copy)]
 pub(super) enum Eligibility {
     SourceOnly,
-    GlobalOnly,
+    SeedOnly,
     Search,
 }
 
@@ -126,9 +133,7 @@ impl Eligibility {
         Ok(if !policy.tactic(TacticId::IdentifierMangling).enabled {
             Self::SourceOnly
         } else if !policy.tactic(TacticId::NamingSearch).enabled {
-            // Global is the existing selector's first useful baseline. It also
-            // avoids preparing the extra scoped-name interference structure.
-            Self::GlobalOnly
+            Self::SeedOnly
         } else {
             Self::Search
         })
@@ -137,7 +142,7 @@ impl Eligibility {
     pub(super) fn check_in(self, plan: &Plan) -> Result<(), OutputError> {
         let permitted = match self {
             Self::SourceOnly => plan.style == Style::Source && plan.source_names.is_empty(),
-            Self::GlobalOnly => plan.style == Style::Global && plan.source_names.is_empty(),
+            Self::SeedOnly => plan.style == Style::Scoped && plan.source_names.is_empty(),
             Self::Search => true,
         };
         if permitted {
@@ -145,7 +150,7 @@ impl Eligibility {
         } else {
             Err(match self {
                 Self::SourceOnly => "identifier mangling is disabled; only the source naming plan is eligible",
-                Self::GlobalOnly => "naming search is disabled; only the global baseline without naming overrides is eligible",
+                Self::SeedOnly => "naming search is disabled; only the allocator's seed without naming overrides is eligible",
                 Self::Search => unreachable!(),
             }.into())
         }
@@ -154,8 +159,8 @@ impl Eligibility {
     pub(super) fn seeds(self) -> &'static [Style] {
         match self {
             Self::SourceOnly => &[Style::Source],
-            Self::GlobalOnly => &[Style::Global],
-            Self::Search => &[Style::Global, Style::Scoped, Style::Source],
+            Self::SeedOnly => &[Style::Scoped],
+            Self::Search => &[Style::Scoped, Style::Global, Style::Source],
         }
     }
 

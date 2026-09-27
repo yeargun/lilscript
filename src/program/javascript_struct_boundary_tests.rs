@@ -31,7 +31,7 @@ fn output_with_edit(
     edit(&mut program);
     program.verify().unwrap();
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\n[policy.tactics]\ntarget-compaction='{}'\n",
+        "[javascript]\n[policy.tactics]\ntarget-compaction='{}'\n",
         if compact { "on" } else { "off" },
     ))
     .unwrap();

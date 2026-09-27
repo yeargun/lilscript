@@ -15,8 +15,8 @@ use crate::compilation_policy::{
 use crate::js::selection::{Plan, Style};
 use std::process::Command;
 
-const CONFIG: &str = "[javascript]\nstrip_console=false\n";
-const KEEP_NAMES: &str = "[javascript]\nstrip_console=false\nkeep_function_names=true\n";
+const CONFIG: &str = "[javascript]\n";
+const KEEP_NAMES: &str = "[javascript]\nkeep_function_names=true\n";
 
 /// One production formation of a checked program, rendered with `style`.
 /// `library` keeps root declarations exported (the reusable-library world);

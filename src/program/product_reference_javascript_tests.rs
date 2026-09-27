@@ -27,7 +27,7 @@ struct Case {
     function_fields: Option<&'static str>,
 }
 fn policy(compact: bool) -> ResolvedPolicy {
-    let config:crate::config::ProjectConfig=toml::from_str(&format!("[javascript]\nstrip_console=false\n[policy.tactics]\ncall-specialization='on'\nscalar-replacement='on'\ninlining='on'\ntarget-compaction='{}'\n",if compact{"on"}else{"off"})).unwrap();
+    let config:crate::config::ProjectConfig=toml::from_str(&format!("[javascript]\n[policy.tactics]\ncall-specialization='on'\nscalar-replacement='on'\ninlining='on'\ntarget-compaction='{}'\n",if compact{"on"}else{"off"})).unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

@@ -171,17 +171,7 @@ impl Module {
             });
         }
         let count = statements.len();
-        budget.reserve_vec(
-            AllocationClass::Retained,
-            &mut self.regions[root].statements,
-            count,
-        )?;
-        self.regions[root].statements.splice(0..0, statements);
-        if let Some(&first) = self.root_modules.first() {
-            budget.reserve_vec(AllocationClass::Retained, &mut self.root_modules, count)?;
-            self.root_modules
-                .splice(0..0, std::iter::repeat_n(first, count));
-        }
+        self.prepend_root_statements(statements, budget)?;
         Ok(count)
     }
 }

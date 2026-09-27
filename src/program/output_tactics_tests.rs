@@ -30,7 +30,7 @@ const SOURCE: &str = r#"
 
 fn policy(settings: &str) -> ResolvedPolicy {
     let config: crate::config::ProjectConfig =
-        toml::from_str(&format!("[javascript]\nstrip_console=false\n{settings}")).unwrap();
+        toml::from_str(&format!("[javascript]\n{settings}")).unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

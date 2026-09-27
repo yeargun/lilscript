@@ -14,7 +14,7 @@ const VALLEY: &str = include_str!("program/fixtures/search-structural-valley/ent
 
 fn configuration(proposals: usize, inlining: bool) -> crate::config::ProjectConfig {
     toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=48\ncandidate_limit=8\ncandidate_beam_width=2\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'\ninlining='{}'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
+        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=48\ncandidate_limit=8\ncandidate_beam_width=2\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'\ninlining='{}'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
         if inlining { "on" } else { "off" },
     )).unwrap()
 }

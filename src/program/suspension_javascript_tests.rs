@@ -18,8 +18,7 @@ fn compile(source: &str, style: Style) -> String {
     let program = from_checked_source(&syntax, &checked)
         .unwrap_or_else(|error| panic!("convert: {error:?}\n{source}"));
     program.verify().unwrap();
-    let config: crate::config::ProjectConfig =
-        toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
+    let config: crate::config::ProjectConfig = toml::from_str("[javascript]\n").unwrap();
     let policy = config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,

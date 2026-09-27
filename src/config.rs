@@ -31,6 +31,13 @@ pub enum Retirement {
         then: Option<&'static str>,
         refused: &'static str,
     },
+    /// The key's remaining meaning moved to key `to` (a path of the same
+    /// form): its value is moved there unless `to` is set too, and the loader
+    /// warns: "`<key>` is replaced by `<to>`: <reason>; rename it".
+    Renamed {
+        to: &'static str,
+        reason: &'static str,
+    },
 }
 
 /// The one value a conditionally refused key may hold.
@@ -179,6 +186,15 @@ pub const RETIRED_KEYS: &[(&str, Retirement)] = &[
     ("javascript.local_phi_expression_regions", Retirement::NoEffect(OLD_EMITTER)),
     ("javascript.rematerialize_member_reads", Retirement::NoEffect(OLD_EMITTER)),
     ("javascript.aggregate_layout", Retirement::NoEffect(OLD_EMITTER)),
+    (
+        "javascript.strip_console",
+        Retirement::Renamed {
+            to: "javascript.strip_debug",
+            reason: "`print` is a program effect and is never stripped; the key's other half, \
+dropping `debugLog` calls, is `javascript.strip_debug` (host `console.*` calls are \
+`javascript.strip_console_calls`)",
+        },
+    ),
     ("javascript.startup", Retirement::NoEffect(RUNTIME_SCORING)),
     ("javascript.performance", Retirement::NoEffect(RUNTIME_SCORING)),
     (
@@ -293,6 +309,22 @@ pub fn apply_retired_keys(table: &mut toml::Table) -> Result<Vec<String>, String
         };
         let no_effect = match retirement {
             Retirement::NoEffect(reason) => reason,
+            Retirement::Renamed { to, reason } => {
+                let value = value.clone();
+                let target = to.split('.').collect::<Vec<_>>();
+                remove(table, &path);
+                if lookup(table, &target).is_some() {
+                    warnings.push(format!(
+                        "`{key}` has no effect in this compiler: `{to}` is set, and {reason}; remove it"
+                    ));
+                } else {
+                    insert(table, &target, value);
+                    warnings.push(format!(
+                        "`{key}` is replaced by `{to}`, which takes its value: {reason}; rename it"
+                    ));
+                }
+                continue;
+            }
             Retirement::Refused(reason) => return Err(format!("`{key}` is refused: {reason}")),
             Retirement::RefusedUnless {
                 value: allowed,
@@ -376,6 +408,25 @@ fn lookup<'a>(table: &'a toml::Table, path: &[&str]) -> Option<&'a toml::Value> 
         current = current.get(*part)?.as_table()?;
     }
     current.get(*last)
+}
+
+/// Set `path` to `value`, creating its tables. An existing non-table on the
+/// way is left alone: strict reading then reports the configuration.
+fn insert(table: &mut toml::Table, path: &[&str], value: toml::Value) {
+    let Some((last, parents)) = path.split_last() else {
+        return;
+    };
+    let mut current = table;
+    for part in parents {
+        let next = current
+            .entry(part.to_string())
+            .or_insert_with(|| toml::Value::Table(toml::Table::new()));
+        match next.as_table_mut() {
+            Some(next) => current = next,
+            None => return,
+        }
+    }
+    current.insert(last.to_string(), value);
 }
 
 fn remove(table: &mut toml::Table, path: &[&str]) {
@@ -543,7 +594,8 @@ impl ProjectConfig {
                             .compression_enabled(CompressionDecision::LengthToNumberElision),
                     },
                     effects: JavaScriptEffectPolicy {
-                        strip_console: self.javascript.strip_console,
+                        strip_debug: self.javascript.strip_debug,
+                        strip_console_calls: self.javascript.strip_console_calls,
                     },
                 };
                 let mut preserved_properties =
@@ -1005,10 +1057,16 @@ pub struct JavaScriptConfig {
     /// functions are then named like any other, as a minifier's top-level
     /// mangling names them.
     pub keep_published_function_names: bool,
-    /// Drop `print()` / `debugLog` from JavaScript. On by default so production
-    /// builds do not ship `console.log`. Test oracles set false. Does not strip
-    /// `console.warn` (observable library behavior).
-    pub strip_console: bool,
+    /// Drop calls of the host `debugLog` extern from JavaScript, keeping the
+    /// evaluation of their arguments (the `debug` effect class of plan M10.11
+    /// generalizes it). Off by default: a library's logging is its behavior.
+    /// `print` is a program effect and is never stripped.
+    pub strip_debug: bool,
+    /// Drop calls of the host `console` object's methods (`console.warn(x)`
+    /// through an extern `console`), keeping the evaluation of their
+    /// arguments: a declared relaxation of host console output (D3.4). Off by
+    /// default.
+    pub strip_console_calls: bool,
 }
 
 impl Default for JavaScriptConfig {
@@ -1041,7 +1099,8 @@ impl Default for JavaScriptConfig {
             assume_unconstructed_callbacks: false,
             keep_function_names: false,
             keep_published_function_names: true,
-            strip_console: true,
+            strip_debug: false,
+            strip_console_calls: false,
         }
     }
 }
@@ -1871,12 +1930,38 @@ mod tests {
     }
 
     #[test]
-    fn parses_javascript_strip_console() {
-        let enabled = parse("[javascript]\nstrip_console=true\n").config;
-        assert!(enabled.javascript.strip_console);
-        let disabled = parse("[javascript]\nstrip_console=false\n").config;
-        assert!(!disabled.javascript.strip_console);
-        assert!(ProjectConfig::default().javascript.strip_console);
+    fn strip_console_is_replaced_by_strip_debug_and_print_is_never_stripped() {
+        // `print` is a program effect: nothing strips it, and both keys
+        // that strip host logging are off by default.
+        let defaults = ProjectConfig::default().javascript;
+        assert!(!defaults.strip_debug && !defaults.strip_console_calls);
+        let parsed = parse("[javascript]\nstrip_debug=true\nstrip_console_calls=true\n");
+        assert!(parsed.warnings.is_empty());
+        assert!(parsed.config.javascript.strip_debug);
+        assert!(parsed.config.javascript.strip_console_calls);
+        // The retired key's value moves to `strip_debug`, with a warning that
+        // says what became of its `print` half.
+        let renamed = parse("[javascript]\nstrip_console=true\n");
+        assert!(renamed.config.javascript.strip_debug);
+        assert!(!renamed.config.javascript.strip_console_calls);
+        assert_eq!(renamed.warnings.len(), 1);
+        assert!(
+            renamed.warnings[0].contains("replaced by `javascript.strip_debug`")
+                && renamed.warnings[0].contains("never stripped"),
+            "{:?}",
+            renamed.warnings
+        );
+        let kept = parse("[javascript]\nstrip_console=false\n");
+        assert!(!kept.config.javascript.strip_debug);
+        assert_eq!(kept.warnings.len(), 1);
+        // An explicit `strip_debug` wins; the retired key then has no effect.
+        let both = parse("[javascript]\nstrip_console=true\nstrip_debug=false\n");
+        assert!(!both.config.javascript.strip_debug);
+        assert!(
+            both.warnings[0].contains("has no effect"),
+            "{:?}",
+            both.warnings
+        );
     }
 
     #[test]

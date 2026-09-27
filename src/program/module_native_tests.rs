@@ -162,8 +162,7 @@ fn native_module_cycles_instantiate_all_functions_before_ordered_evaluation() {
         assert_eq!(compilation.checkpoint_count(), 1);
         let executions = compile_and_execute(&c, EXPECTED, "module-instantiation-cycle");
 
-        let config: crate::config::ProjectConfig =
-            toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
+        let config: crate::config::ProjectConfig = toml::from_str("[javascript]\n").unwrap();
         let policy = config
             .resolve_policy(CompilationRequest::JavaScript {
                 preserve_root_exports: false,

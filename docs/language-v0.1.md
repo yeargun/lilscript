@@ -412,16 +412,27 @@ functions without weakening the callback's static signature:
 - `JS.staticRest(func(JsValue) -> JsValue)` passes only that `arguments`
   object.
 
-Each evaluation returns a fresh anonymous, constructible ordinary function.
-Each `methodN` wrapper has JavaScript `length == N`; both rest wrappers have
-`length == 0`, and every callback is invoked as a plain function. The checker
-resolves these operations by builtin identity and checks the exact callback
-arity and types; an unrelated extern with the same spelling has no special
-behavior. The JavaScript target may fuse a private callback with its wrapper
-only after proving its identity and lexical bindings do not escape; where
-JavaScript would infer a function name, the fused spelling explicitly
-preserves the wrapper's anonymous reflection. Otherwise it emits a
-compiler-private shared factory. C/native targets reject all thirteen adapters.
+Each evaluation returns a fresh constructible ordinary function. Each
+`methodN` wrapper has JavaScript `length == N`; both rest wrappers have
+`length == 0`. The checker resolves these operations by builtin identity and
+checks the exact callback arity and types; an unrelated extern with the same
+spelling has no special behavior. C/native targets reject all thirteen
+adapters.
+
+A callback private to its adapter (a lambda whose one use is the adapter's
+argument, or a lambda or function in a cell whose one read is, in the same
+region) is the wrapper itself: one ordinary function per callback, never a
+body shared by several (plan M8.2 A1, law P1). Its receiver parameter reads
+`this`, or an alias of it where a nested function with its own `this` reads
+it or the program assigns it; a rest list read only as `list[k]` for constant
+`k` is named parameters whose declared `length` stays 0 (`p=void 0`), and any
+other rest list reads `arguments`. It is anonymous where the contract observes
+names (`keep_function_names`, or a published value under
+`keep_published_function_names`); otherwise its name, like any internal
+function's, is unobservable and may be the one JavaScript infers from its
+binding or key (language R6). A callback that reads the enclosing `this` or
+`arguments`, suspends, or is not private keeps a compiler-private shared
+factory, until R7's receivers retire the adapters (plan M10.4).
 
 String concatenation may consume a guarded `JsValue` and uses JavaScript's
 ordinary coercion. An unguarded Symbol therefore throws exactly as it would in
@@ -614,7 +625,15 @@ it. Each such construction is `new`, and each instance is a real instance, so
 `instanceof` holds for instances LilScript creates as well. A JavaScript caller
 reaches the prototype methods of a published class and of the classes it
 extends; they call the same statically dispatched bodies LilScript code calls,
-and apply the source's parameter defaults to omitted arguments. A class's name
+and apply the source's parameter defaults to omitted arguments. A prototype
+method whose body nothing else calls is that body, with its receiver as
+`this`; a body other code also calls stays shared behind a forwarding method.
+Under `--target js` (a classic script) a body moves into the class, whose code
+is strict, only when strictness cannot change what it does: it makes no host
+member, index or global write, `JS.set` or `JS.delete`, and reads no ambient
+`this` or `arguments`. A root class whose constructor takes no parameters and
+does nothing is printed without one: JavaScript's implicit constructor, with
+`length` 0 either way. A class's name
 read as a value is its constructor, which only such a class has; reading a
 dissolved class's name as a value, or calling any class without `new`, is
 refused. A generic class cannot be kept as a JavaScript class yet. Native
@@ -1077,7 +1096,9 @@ String `+` accepts strings, numbers, and booleans. Template strings evaluate
 embedded expressions left to right and apply the same string conversion rules.
 
 The `print(value)` intrinsic is the portable observable-output operation used
-by examples and cross-target equivalence tests.
+by examples and cross-target equivalence tests. It is a program effect: no
+configuration strips it (`strip_debug` and `strip_console_calls` strip only
+host logging calls; see [configuration](configuration.md)).
 
 ## Compiler conformance
 

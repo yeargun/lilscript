@@ -2566,34 +2566,89 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         Ok(())
     }
     fn stripped_log_call(&self, unit: UnitId, kind: &OperationKind) -> bool {
-        if !self.contract.effects.strip_console {
-            return false;
-        }
-        let OperationKind::Call(call) = kind else {
-            return false;
-        };
-        let data = self.program.units[unit.index()].data();
-        match data.calls[call.index()].target {
-            CallTarget::Builtin(BuiltinCall::Print) => true,
-            CallTarget::Value {
-                callee,
-                invocation: Invocation::Value,
-            } => self.debug_log_value(unit, callee),
+        match *kind {
+            OperationKind::Call(call) => self.stripped_call(unit, call),
             _ => false,
         }
     }
+    /// A call the effect contract drops, keeping the evaluation of its
+    /// arguments: `debugLog(…)` under `strip_debug`, and a method call of
+    /// the host `console` (`console.warn(x)` through an extern `console`)
+    /// under `strip_console_calls`. `print` is a program effect and is never
+    /// dropped. The one owner of this decision: formation asks it too.
+    pub(super) fn stripped_call(&self, unit: UnitId, call: CallId) -> bool {
+        let data = self.program.units[unit.index()].data();
+        match data.calls[call.index()].target {
+            CallTarget::Value {
+                callee,
+                invocation: Invocation::Value,
+            } => self.contract.effects.strip_debug && self.debug_log_value(unit, callee),
+            CallTarget::Reference { place } => {
+                self.contract.effects.strip_console_calls
+                    && match data.places[place.index()] {
+                        Place::Member { receiver, .. } | Place::ClassField { receiver, .. } => {
+                            self.console_value(unit, receiver)
+                        }
+                        _ => false,
+                    }
+            }
+            _ => false,
+        }
+    }
+    /// A read of the foreign `debugLog` extern.
     fn debug_log_value(&self, unit: UnitId, value: ValueId) -> bool {
+        self.foreign_read(unit, value)
+            .is_some_and(|cell| self.program.cells[cell.index()].name == "debugLog")
+    }
+    /// A read of the host's global `console`: a foreign `console` no module
+    /// imports from a foreign module.
+    fn console_value(&self, unit: UnitId, value: ValueId) -> bool {
+        self.foreign_read(unit, value).is_some_and(|cell| {
+            self.program.cells[cell.index()].name == "console"
+                && !self.program.modules.iter().any(|module| {
+                    module
+                        .foreign_imports
+                        .iter()
+                        .any(|import| import.cell == cell)
+                })
+        })
+    }
+    /// The foreign cell whose plain read defines `value`.
+    fn foreign_read(&self, unit: UnitId, value: ValueId) -> Option<CellId> {
         let data = self.program.units[unit.index()].data();
         let OperationKind::Load(place) =
             data.operations[data.values[value.index()].definition.index()].kind
         else {
-            return false;
+            return None;
         };
         let Place::Cell(cell) = data.places[place.index()] else {
-            return false;
+            return None;
         };
-        let cell = &self.program.cells[cell.index()];
-        cell.binding == CellBinding::Foreign && cell.name == "debugLog"
+        (self.program.cells[cell.index()].binding == CellBinding::Foreign).then_some(cell)
+    }
+    /// Whether this use of a looked-up logger belongs to a dropped call: the
+    /// callee of a dropped `debugLog` call, or the receiver of a dropped
+    /// `console` method call.
+    pub(super) fn stripped_lookup_use(&self, unit: UnitId, usage: &ValueUse) -> bool {
+        let data = self.program.units[unit.index()].data();
+        match *usage {
+            ValueUse::CallCallee { call, .. } => self.stripped_call(unit, call),
+            ValueUse::PlaceReceiver { operation, place } => {
+                matches!(data.operations[operation.index()].kind,
+                    OperationKind::PrepareCall(call)
+                        if matches!(data.calls[call.index()].target,
+                            CallTarget::Reference { place: called } if called == place)
+                        && self.stripped_call(unit, call))
+            }
+            _ => false,
+        }
+    }
+    /// A lookup of `debugLog` or `console` whose every use belongs to a
+    /// dropped call: it is not evaluated either.
+    pub(super) fn stripped_lookup_value(&self, unit: UnitId, value: ValueId) -> bool {
+        let effects = self.contract.effects;
+        (effects.strip_debug && self.debug_log_value(unit, value))
+            || (effects.strip_console_calls && self.console_value(unit, value))
     }
     fn elided_log_lookup(
         &self,
@@ -2601,14 +2656,11 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         operation: OpId,
         budget: &mut Budget<'_>,
     ) -> Result<bool, DemandError> {
-        if !self.contract.effects.strip_console {
-            return Ok(false);
-        }
         let data = self.program.units[unit.index()].data();
         let Some(value) = data.operations[operation.index()].result else {
             return Ok(false);
         };
-        if !self.debug_log_value(unit, value) {
+        if !self.stripped_lookup_value(unit, value) {
             return Ok(false);
         }
         let Some(usages) = self
@@ -2619,7 +2671,10 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             return Ok(false);
         };
         budget.work(usages.len())?;
-        Ok(!usages.is_empty()&&usages.iter().all(|usage|matches!(usage,ValueUse::CallCallee{call,..} if self.stripped_log_call(unit,&OperationKind::Call(*call)))))
+        Ok(!usages.is_empty()
+            && usages
+                .iter()
+                .all(|usage| self.stripped_lookup_use(unit, usage)))
     }
 }
 
@@ -2775,7 +2830,6 @@ mod tests {
     }
     fn contract() -> JavaScriptCompilationContract {
         let mut config = crate::config::ProjectConfig::default();
-        config.javascript.strip_console = false;
         *config
             .resolve_policy(CompilationRequest::JavaScript {
                 preserve_root_exports: true,

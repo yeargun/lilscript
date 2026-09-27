@@ -20,7 +20,7 @@ fn checked(source: &str, inspect: impl FnOnce(Program<'_>)) {
 }
 
 fn policy(extra: &str) -> ResolvedPolicy {
-    let text = format!("[javascript]\nstrip_console=false\n{extra}");
+    let text = format!("[javascript]\n{extra}");
     let config: crate::config::ProjectConfig = toml::from_str(&text).unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {

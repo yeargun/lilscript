@@ -18,7 +18,7 @@ fn workspace(name: &str, files: &[(&str, &str)]) -> std::path::PathBuf {
 
 fn compile(directory: &Path, mode: &str) -> ServiceCompilation {
     let config: ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[bundle]\nmode='{mode}'"
+        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[bundle]\nmode='{mode}'"
     ))
     .unwrap();
     compile_path(
@@ -237,7 +237,7 @@ fn functions_that_call_into_the_entry_module_stay_in_the_entry() {
 
 fn split(directory: &Path, min_chunk_bytes: usize, cost: &str) -> ServiceCompilation {
     let config: ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n\
+        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n\
          [bundle]\nmode='split'\nmin_chunk_bytes={min_chunk_bytes}\nmax_chunks=1\nshared_min_imports=2\n\
          [bundle.cost]\nraw_weight=1\ngzip_weight=0\nbrotli_weight=0\ndependency_depth_penalty_bytes=0\n{cost}"
     ))
@@ -338,7 +338,7 @@ fn lazy_workspace(name: &str, main: &str) -> std::path::PathBuf {
 
 fn with_bundle(directory: &Path, bundle: &str) -> ServiceCompilation {
     let config: ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[bundle]\n{bundle}"
+        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[bundle]\n{bundle}"
     ))
     .unwrap();
     compile_path(
@@ -460,10 +460,9 @@ fn split_refuses_more_lazy_chunks_than_max_chunks() {
             ),
         ],
     );
-    let config: ProjectConfig = toml::from_str(
-        "[javascript]\nstrip_console=false\n[bundle]\nmode='split'\nmin_chunk_bytes=1\nmax_chunks=1",
-    )
-    .unwrap();
+    let config: ProjectConfig =
+        toml::from_str("[javascript]\n[bundle]\nmode='split'\nmin_chunk_bytes=1\nmax_chunks=1")
+            .unwrap();
     let error = compile_path(
         &directory.join("main.lil"),
         &config,
@@ -492,7 +491,7 @@ fn lazy_modules_must_be_initialization_free() {
             ),
         ],
     );
-    let config: ProjectConfig = toml::from_str("[javascript]\nstrip_console=false").unwrap();
+    let config: ProjectConfig = toml::from_str("").unwrap();
     let error = compile_path(
         &directory.join("main.lil"),
         &config,
@@ -542,7 +541,7 @@ const HOST: &str = "import { sum } from \"./math.ts\"\n// Adds.\nexport function
 
 fn with_config(directory: &Path, extra: &str) -> Result<ServiceCompilation, ServiceError> {
     let config: ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
+        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
     ))
     .unwrap();
     compile_path(
@@ -577,8 +576,7 @@ fn relative_host_modules_travel_with_the_output() {
     }
     // A script output runs host code strict, as the module it was written as.
     let config: ProjectConfig =
-        toml::from_str("[javascript]\nstrip_console=false\n[bundle]\nhost_modules='embed'")
-            .unwrap();
+        toml::from_str("[javascript]\n[bundle]\nhost_modules='embed'").unwrap();
     let script = compile_path(
         &directory.join("main.lil"),
         &config,
@@ -646,7 +644,11 @@ fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
         .unwrap()
         .javascript()
         .to_string();
-    assert!(text.contains("import{add}from\"./host.ts\""), "{text}");
+    // Its local name is the naming allocator's (C18).
+    assert!(
+        text.contains("import{add as ") && text.contains("}from\"./host.ts\""),
+        "{text}"
+    );
     let _ = fs::remove_dir_all(directory);
 }
 
@@ -748,10 +750,7 @@ fn unread_exceptions_and_argumentless_constructions_print_short() {
     let source = "extern int read();int total=0;try{if(read()>0){throw \"x\";}}catch(auto e){total=total+1;}\
                   Map<string,int> map=new Map<string,int>();map.set(\"a\",total);print(map.size);";
     let config = |edition: &str| -> ProjectConfig {
-        toml::from_str(&format!(
-            "[javascript]\nstrip_console=false\necmascript='{edition}'"
-        ))
-        .unwrap()
+        toml::from_str(&format!("[javascript]\necmascript='{edition}'")).unwrap()
     };
     let text = |edition: &str| {
         compile_source(source, &config(edition), ServiceOptions::default())
@@ -788,7 +787,7 @@ fn js_call_with_an_undefined_receiver_is_a_plain_call() {
     let source = "extern JsValue target;JsValue undef(){return JS.undefined();}\
                   JsValue noisy(){print(\"receiver\");return JS.undefined();}\
                   print(JS.call(target, undef(), 1));print(JS.call(target, noisy(), 2));";
-    let config: ProjectConfig = toml::from_str("[javascript]\nstrip_console=false").unwrap();
+    let config: ProjectConfig = toml::from_str("").unwrap();
     let text = compile_source(source, &config, ServiceOptions::default())
         .unwrap()
         .javascript(Objective::Brotli)

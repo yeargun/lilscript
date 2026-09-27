@@ -26,7 +26,7 @@ node scripts/cases.mjs --compiler <bin> --lanes 'formation-only/*/c' --filter re
 | `--compare` | an earlier report: prints byte changes per case and lane, and state changes. This is evidence, never a failure | — |
 | `--jobs` | parallel (case, lane) tasks | CPU count − 2 |
 | `--work` | scratch directory | `target/verify/cases` |
-| `--cc` | C compiler for the C lane, run with `-std=c11 -O2 -fno-fast-math -ffp-contract=off … -lm` | `/usr/bin/cc` (GCC 13 here) |
+| `--cc` | C compiler for the C lane, run with `-std=c11 -O2 -fno-fast-math -ffp-contract=off … -lm` (a `cc default flags` case: `-O2 … -lm`) | `/usr/bin/cc` (GCC 13 here) |
 | `--codec` | `lilscript-codec` for raw/gzip/Brotli sizes of every JavaScript artifact; `none` to skip | the codec beside the compiler, else `target/release/lilscript-codec` |
 | `--ledger` | the expected-failure ledger; `none` for no ledger | `tests/cases/expected-failures.json` |
 | `--timeout` | seconds allowed per program run | 30 |
@@ -43,12 +43,13 @@ Optional files next to a case, following the conventions of `tests/cases/regress
 | File | Effect |
 |---|---|
 | `X.host.js` | A prelude that defines the program's externs on `globalThis`. The prelude and the compiled program are written into one file and run in one realm. Host scripts that print a trace do so at process exit |
-| `X.toml` | Configuration keys merged into the lane's configuration. A key joins the lane's table of the same name, so there is one `[javascript]` table, never a second. A case key overrides the lane's value; a case may not set `strip_console` |
+| `X.toml` | Configuration keys merged into the lane's configuration. A key joins the lane's table of the same name, so there is one `[javascript]` table, never a second. A case key overrides the lane's value; a case may not set the retired `strip_console` |
 | `X.module-probe.mjs` | Module lane only. The case is built with `--target js-module`; the runner imports the output as `m` and awaits the probe's default export, called with `m` |
 | `// harness: "use strict"` in the first lines of `X.lil` | On the script lane, `"use strict";` is prepended to the run file |
+| `// harness: cc default flags` in the first lines of `X.lil` | On the C lane, the program is built with `-O2` and the C compiler's own language and floating-point defaults instead of `--cc`'s qualified flags, so the emitted C must keep binary64 semantics by itself (plan M11.2) |
 | `X/` | The case's other modules, which the entry imports as `./X/…` |
 
-Every lane compiles with `[javascript] strip_console = false`, because `print` is the observation channel.
+`print` is the observation channel: it is a program effect, which the compiler never strips (the retired `strip_console` key once did), so no lane sets a logging key.
 
 ### Lanes
 
@@ -89,6 +90,7 @@ The mask is declared once, in `FEATURES` in `scripts/cases.mjs`. Detection is le
 | `.host.js` prelude | script, module | defines externs in a JavaScript realm | — |
 | `.module-probe.mjs` | module | imports the ES module's exports | — |
 | `JsValue` | script, module | JavaScript-only (language-v0.1) | — |
+| `import extern` | module | a foreign ES module edge needs module syntax; a classic script carries only embedded host modules, which cannot have default exports. The case's folder `X/` is linked beside the artifact, so the output's imports resolve | — |
 | `extern` | script, module | C rejects host declarations | M11.3 |
 | `export` in the entry | script, module | the exports are a module ABI; C has none yet | M11.8 |
 | `JS.` operations | script, module | JavaScript-only | — |

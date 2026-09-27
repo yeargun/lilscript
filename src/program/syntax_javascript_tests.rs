@@ -9,7 +9,7 @@ use crate::js::selection::{Plan, Style};
 use std::process::Command;
 
 fn compile(source: &str) -> String {
-    compile_with(source, "[javascript]\nstrip_console=false\n")
+    compile_with(source, "[javascript]\n")
 }
 
 fn compile_with(source: &str, config: &str) -> String {
@@ -274,7 +274,7 @@ fn a_closure_only_invoked_through_its_cell_loses_its_name() {
         JsValue result = run(21);
         print(result["shown"]["name"]);
         "#,
-        "[javascript]\nstrip_console=false\nkeep_function_names=true\n",
+        "[javascript]\nkeep_function_names=true\n",
     );
     // Every read of `twice` calls it; `shown` escapes into an exported object,
     // and this contract keeps every name some code could read.
@@ -312,7 +312,7 @@ fn only_published_functions_keep_their_source_names_by_default() {
 }
 
 const SHOW: &str = "globalThis.show=v=>console.log(JSON.stringify(v));";
-const PRISTINE: &str = "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\n";
+const PRISTINE: &str = "[javascript]\nassume_pristine_builtins=true\n";
 
 #[test]
 fn forwarding_wrappers_become_their_builtins_and_stores_fold_into_the_literal() {
@@ -1500,7 +1500,7 @@ fn a_declared_unconstructed_callback_may_be_an_arrow_where_it_escapes() {
     );
     let assumed = compile_with(
         source,
-        "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\nassume_unconstructed_callbacks=true\n",
+        "[javascript]\nassume_pristine_builtins=true\nassume_unconstructed_callbacks=true\n",
     );
     // The escaping lambda may be an arrow; the one the program constructs
     // through its variable stays a function.
@@ -1550,8 +1550,7 @@ fn a_repeated_long_number_is_named_once_for_raw_bytes() {
         export float d(float x) { return x / big; }
         show(JS.box(a(1.0) + b(1.0) + c(0.0) + d(0.0)));
     "#;
-    let raw =
-        "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
+    let raw = "[javascript]\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
     let javascript = compile_with(source, raw);
     // Canonicalized into its reads, then pooled again for the raw objective.
     assert_eq!(
@@ -1589,8 +1588,7 @@ fn a_string_of_double_quotes_prints_in_single_quotes_for_raw_bytes() {
         export JsValue table() { return JS.invoke(JSON, "parse", "{\"a\":\"b\"}"); }
         show(table());
     "#;
-    let raw =
-        "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
+    let raw = "[javascript]\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
     let javascript = compile_plan(source, raw, Plan::spelled(Style::Global, true));
     assert!(javascript.contains(r#"'{"a":"b"}'"#), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "{\"a\":\"b\"}\n");

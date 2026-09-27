@@ -32,6 +32,8 @@ use crate::scalar_transfer::NumberFacts;
 mod host;
 #[path = "javascript_int32.rs"]
 mod int32;
+#[path = "javascript_methods.rs"]
+mod methods;
 #[path = "javascript_product_calls.rs"]
 mod product_calls;
 #[path = "javascript_products.rs"]
@@ -249,7 +251,8 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
             numeric_lengths: false,
         },
         effects: JavaScriptEffectPolicy {
-            strip_console: false,
+            strip_debug: false,
+            strip_console_calls: false,
         },
     };
     // Inspection forms from the same use facts as an admitted build, so the
@@ -609,6 +612,14 @@ fn form_head(
         arguments_read: None,
         int32_cells: Vec::new(),
         current_module: 0,
+        this_cells: Vec::new(),
+        arguments_cells: Vec::new(),
+        activation_cells: Vec::new(),
+        formal_lists: Vec::new(),
+        method_calls: Vec::new(),
+        prototype_forms: Vec::new(),
+        class_methods: Vec::new(),
+        unbound_cells: Vec::new(),
         budget: &mut phase,
     };
     let result = (|| {
@@ -663,8 +674,9 @@ fn form_head(
                     ));
                 }
                 // JavaScript's `length` stops at the first default. The body
-                // applies each default, so the printed parameters from that one
-                // on only need default syntax: `p=void 0`.
+                // applies each default, so the printed parameter at that index
+                // only needs default syntax (`p=void 0`), and the later ones
+                // none.
                 if let (Type::Function(signature), CellBinding::Function(unit)) = (
                     &program.types[program.cells[cell.index()].ty.index()],
                     program.cells[cell.index()].binding,
@@ -767,16 +779,10 @@ fn form_head(
             .map(|alternative| alternative.expression())
             .collect();
         // `x.m.call(x,…)` is `x.m(…)` for the operator rules too
-        // (`+Number.parseInt(s)` needs no `+`), and a lambda that ignores its
-        // receiver is judged for inlining without the adapter around it.
+        // (`+Number.parseInt(s)` needs no `+`).
         if let Err(error) = formation
             .module
             .self_method_calls(formation.budget)
-            .and_then(|_| {
-                formation
-                    .module
-                    .dissolve_receiver_adapters(formation.budget)
-            })
             .and_then(|_| {
                 formation
                     .module
@@ -960,17 +966,8 @@ fn form_head(
             }
         }
         // Calls through the host's call machinery that name plain calls:
-        // `x.m.call(x,…)`, and receiver adapters of lambdas that ignore
-        // their receiver.
-        if let Err(error) = formation
-            .module
-            .self_method_calls(formation.budget)
-            .and_then(|_| {
-                formation
-                    .module
-                    .dissolve_receiver_adapters(formation.budget)
-            })
-        {
+        // `x.m.call(x,…)`.
+        if let Err(error) = formation.module.self_method_calls(formation.budget) {
             drop(formation);
             return Err(error.into());
         }
@@ -1342,6 +1339,26 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     int32_cells: Vec<u8>,
     /// The source module whose root statements are being formed.
     current_module: u32,
+    /// Receiver cells of units formed as methods, read as `this`
+    /// (`javascript_methods.rs`).
+    this_cells: Vec<CellId>,
+    /// Rest lists of units formed as methods, read as `arguments`.
+    arguments_cells: Vec<CellId>,
+    /// Both kinds: a nested callback reading one cannot be a function of
+    /// its own.
+    activation_cells: Vec<CellId>,
+    /// Rest lists read only at constant indices, and each index's formal.
+    formal_lists: Vec<(CellId, Vec<js::BindingId>)>,
+    /// Adapter calls whose argument is formed as the method itself.
+    method_calls: Vec<(UnitId, CallId)>,
+    /// Each static body's prototype method form, once decided.
+    prototype_forms: Vec<(UnitId, Option<methods::MethodForm>)>,
+    /// Static bodies formed as their class's prototype methods.
+    class_methods: Vec<(UnitId, js::FunctionId)>,
+    /// Parameters a method form spells without a binding (its receiver as
+    /// `this`, its list as `arguments` or formals, or either unread): they
+    /// get no storage and no parameter.
+    unbound_cells: Vec<CellId>,
 }
 
 impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
@@ -1839,34 +1856,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         })
     }
 
-    fn debug_log_value(&self, unit: UnitId, value: ValueId) -> bool {
-        let data = self.program.units[unit.index()].data();
-        let OperationKind::Load(place) =
-            data.operations[data.values[value.index()].definition.index()].kind
-        else {
-            return false;
-        };
-        let Place::Cell(cell) = data.places[place.index()] else {
-            return false;
-        };
-        let cell = &self.program.cells[cell.index()];
-        cell.binding == CellBinding::Foreign && cell.name == "debugLog"
-    }
-
+    /// A call the effect contract drops (`DemandPlan::stripped_call`).
     fn stripped_log_call(&self, unit: UnitId, call: CallId) -> bool {
-        self.contract.effects.strip_console
-            && match self.program.units[unit.index()].data().calls[call.index()].target {
-                CallTarget::Builtin(BuiltinCall::Print) => true,
-                CallTarget::Value {
-                    callee,
-                    invocation: Invocation::Value,
-                } => self.debug_log_value(unit, callee),
-                _ => false,
-            }
+        self.demand.stripped_call(unit, call)
     }
 
     fn elided_log_lookup(&mut self, unit: UnitId, value: ValueId) -> Result<bool, FormationError> {
-        if !self.contract.effects.strip_console || !self.debug_log_value(unit, value) {
+        if !self.demand.stripped_lookup_value(unit, value) {
             return Ok(false);
         }
         // Complete use coverage is required for removing the lookup. Every
@@ -1880,8 +1876,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         };
         for usage in uses {
             self.work(1)?;
-            if !matches!(usage, ValueUse::CallCallee { call, .. } if self.stripped_log_call(unit, *call))
-            {
+            if !self.demand.stripped_lookup_use(unit, usage) {
                 return Ok(false);
             }
         }
@@ -2050,6 +2045,16 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         }
         for &cell_id in self.demand.owned_cells(unit) {
             self.work(1)?;
+            if self.unbound_cells.contains(&cell_id) {
+                continue;
+            }
+            // A static body its class's prototype method is has no cell of
+            // its own: nothing reads it.
+            if let CellBinding::Function(method) = self.program.cells[cell_id.index()].binding {
+                if self.prototype_method_form(method)?.is_some() {
+                    continue;
+                }
+            }
             let index = cell_id.index();
             let cell = &self.program.cells[index];
             if cell.binding != CellBinding::Foreign {
@@ -2143,6 +2148,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 || self.demand.product_for_value(unit, value).is_some()
                 || (matches!(operation.kind, OperationKind::Closure(_))
                     && self.private_function_cell(context, value)?.is_some())
+                || matches!(operation.kind, OperationKind::Closure(created)
+                    if self.prototype_method_form(created)?.is_some())
+                || self.formal_list_value(context, value).is_some()
                 || matches!(operation.kind, OperationKind::Constant(_))
                 || self.elided_log_lookup(unit, value)?
                 || self.demand.string_value(unit, value).is_some_and(|family| {
@@ -2180,18 +2188,23 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             };
         }
         if self.compact {
-            value_placement::plan(
+            let mut closure_entries =
+                self.budget
+                    .filled(AllocationClass::Scratch, data.values.len(), 0usize)?;
+            value_placement::plan_with_closures(
                 data,
                 self.demand,
                 context,
                 &mut values,
+                Some(&mut closure_entries),
                 PlacementDepth {
                     enclosing,
                     limit: js::MAX_NESTING,
                 },
                 self.budget,
             )?;
-            // Only a deferred closure needs its consumer tree's allowance.
+            // A deferred closure's body starts below the tree that holds it;
+            // a captured one's under its assignment.
             for (index, operation) in data.operations.iter().enumerate() {
                 self.work(1)?;
                 let (OperationKind::Closure(_), Some(result)) = (&operation.kind, operation.result)
@@ -2202,13 +2215,16 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 else {
                     continue;
                 };
+                let depth = &mut self.entry_depths[child.index()];
                 if !matches!(values[result.index()], ValueStorage::Deferred(_)) {
-                    let depth = &mut self.entry_depths[child.index()];
                     *depth = depth
                         .saturating_sub(value_placement::DEFERRED_CLOSURE_ENTRY)
                         .saturating_add(value_placement::CAPTURED_CLOSURE_ENTRY);
+                } else if closure_entries[result.index()] != 0 {
+                    *depth = closure_entries[result.index()];
                 }
             }
+            self.drop_scratch(closure_entries)?;
         }
         for (index, slot) in values.iter_mut().enumerate() {
             self.work(1)?;
@@ -2615,6 +2631,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
 
     fn cell(&mut self, unit: ContextId, cell: CellId) -> Result<js::ExprId, FormationError> {
         self.work(1)?;
+        // A method's receiver is `this`, its rest list `arguments`.
+        if let Some(read) = self.activation_read(cell)? {
+            return Ok(read);
+        }
         if self.program.cells[cell.index()].binding == CellBinding::Foreign {
             if let Some(binding) = self.foreign_import(cell)? {
                 return self.reference(binding);
@@ -2674,23 +2694,20 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         };
         // A classic script can only use a foreign module its output carries;
         // output preparation refuses any other import there.
-        let declaration = program.cells[cell.index()].declaration;
-        // Pinned local names are module-wide: modules importing the same
-        // binding share one import, and one name cannot name two sources.
-        let name = &program.cells[cell.index()].name;
+        //
+        // An import's identity is what it imports, `(source, imported)`
+        // (ECMA-262 ImportEntry records): every module importing it shares one
+        // binding, whatever each calls it, and two externs of one name from
+        // two sources are two imports. The local name is the naming
+        // allocator's, like any other root binding's (Rolldown and esbuild
+        // key imports by symbol, never by local spelling).
         self.work(self.module.imports.len())?;
         for index in 0..self.module.imports.len() {
             let existing = &self.module.imports[index];
-            if self.module.bindings[existing.binding.index()].spelling != *name {
-                continue;
-            }
             if existing.imported != import.imported
                 || existing.source.as_unicode() != Some(import.source.as_str())
             {
-                return Err(self.error(
-                    declaration,
-                    "foreign binding imported from conflicting modules",
-                ));
+                continue;
             }
             let binding = existing.binding;
             self.budget.push(
@@ -2702,15 +2719,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         }
         let scope = self.module.regions[self.module.root.index()].scope;
         let spelling = self.text(&program.cells[cell.index()].name)?;
-        // The local name is invisible at runtime, but ports' builds match
-        // the import text (katex inlines its font metrics that way), and the
-        // old route's linker kept the extern's name. Pinning keeps that contract.
         let binding = self.module.binding_in(
             js::Binding {
                 source_symbol: None,
                 scope,
                 spelling,
-                pinned: true,
+                pinned: false,
             },
             self.budget,
         )?;
@@ -2755,6 +2769,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 (receiver, js::Property::Computed(key))
             }
             Place::Index { receiver, key } => {
+                // `list[k]` of a rest list spelled as formals is formal `k`.
+                if let Some(formal) = self.formal_read(unit, receiver, place)? {
+                    return Ok(formal);
+                }
                 let key_ty = &self.program.types[self.data(unit).values[key.index()].ty.index()];
                 // Converting an object key runs host code (`toString`,
                 // `valueOf`, `Symbol.toPrimitive`). JavaScript converts once
@@ -3172,14 +3190,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             Type::Void
                         )
                     }) {
-                        return Err(
-                            self.error(operation.span, "non-void debugLog logging contract")
-                        );
+                        return Err(self.error(operation.span, "non-void dropped logging call"));
                     }
-                    // Preparing a print never touches console. Its argument
-                    // schedules have already been retained in `arguments`.
-                    // Omit the host lookup/invocation, preserving all argument
-                    // evaluations and abrupt completion at their source site.
+                    // Preparing a dropped call never touches the logger. Its
+                    // argument schedules have already been retained in
+                    // `arguments`. Omit the host lookup/invocation, preserving
+                    // all argument evaluations and abrupt completion at their
+                    // source site.
                     {
                         let appended = self.literal(js::Literal::Undefined)?;
                         self.append(&mut arguments, appended)
@@ -3690,6 +3707,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     invocation: Invocation::Reference,
                 }
             }
+            // An adapter whose callback was formed as the method itself is
+            // that function (`javascript_methods.rs`).
+            CallTarget::Builtin(_)
+                if arguments.len() == 1 && self.method_call(self.semantic(unit), call) =>
+            {
+                return Ok(arguments[0]);
+            }
             CallTarget::Builtin(builtin) if crate::primitive::host_builtin(builtin) => {
                 let mut arguments = arguments;
                 // `JS.call(f, t, ...)` whose `t` is a call to a function that
@@ -4111,6 +4135,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     if self.elided_log_lookup(self.semantic(unit), result)? {
                         return Ok(None);
                     }
+                    // A rest list spelled as formals is read only through
+                    // its indices (`place`).
+                    if self.formal_list_value(unit, result).is_some() {
+                        return Ok(None);
+                    }
                 }
                 let ty = self.data(unit).values[operation.result.unwrap().index()].ty;
                 return self.load(unit, &operation, place, ty);
@@ -4507,7 +4536,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     };
                 }
             },
-            OperationKind::Closure(_) => {
+            OperationKind::Closure(created) => {
+                // A static body only its class's prototype reaches is formed
+                // inside the class, as the method itself (`class_expression`).
+                if self.prototype_method_form(created)?.is_some() {
+                    self.prototype_method_function(unit, created, operation.span)?;
+                    return Ok(None);
+                }
                 let region = self.plan(unit).regions[operation.region.index()];
                 let body = self
                     .module
@@ -4516,17 +4551,47 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     .demand
                     .child(unit, operation_id)
                     .ok_or_else(|| self.error(operation.span, "missing callable demand context"))?;
-                self.plan_context(child, body)?;
-                // A kept root class's constructor holds its instance from
-                // entry: `this`. A derived one's is bound where `super(...)`
-                // returns.
-                if let Some(class) = self.data(child).constructor_of {
-                    if self
-                        .program
-                        .class(class)
-                        .is_some_and(|definition| definition.base.is_none())
-                    {
+                // An adapter's private callback is the adapter's result: a
+                // method, its own function (law P1).
+                let method = self.adapter_method_form(unit, operation_id)?;
+                let formals = match &method {
+                    Some(form) => self.begin_method(body, form)?,
+                    None => Vec::new(),
+                };
+                // A kept class's constructor holds its instance: `this`,
+                // bound from entry in a root class and where `super(...)`
+                // returns in a derived one. Its reads are `this` where they
+                // see the constructor's own `this`; otherwise a root class
+                // aliases it at entry, and a derived one after `super(...)`.
+                let instance_this = match self.data(child).constructor_of {
+                    Some(_) => {
                         let instance = self.data(child).parameters[0];
+                        let this = self.activation_spelling(created, instance)? == Some(true);
+                        if this {
+                            for list in [
+                                &mut self.this_cells,
+                                &mut self.activation_cells,
+                                &mut self.unbound_cells,
+                            ] {
+                                self.budget.push(AllocationClass::Scratch, list, instance)?;
+                            }
+                        }
+                        this
+                    }
+                    None => false,
+                };
+                self.plan_context(child, body)?;
+                if let Some(form) = &method {
+                    self.method_aliases(child, body, form)?;
+                }
+                if let Some(class) = self.data(child).constructor_of {
+                    let instance = self.data(child).parameters[0];
+                    if !instance_this
+                        && self
+                            .program
+                            .class(class)
+                            .is_some_and(|definition| definition.base.is_none())
+                    {
                         let this = self.expression(js::Expr::This)?;
                         let binding = self.cell_binding(child, instance)?;
                         self.statement(
@@ -4540,7 +4605,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 self.statement_region(child, self.data(child).entry)?;
                 self.finish_unit(child)?;
-                let parameters = self.physical_parameters(child)?;
+                let parameters = match &method {
+                    Some(form) => self.method_parameters(child, form, formals)?,
+                    None => self.physical_parameters(child)?,
+                };
                 let name = self.data(child).function_name.ok_or_else(|| {
                     self.error(operation.span, "missing semantic function-name contract")
                 })?;
@@ -4601,11 +4669,26 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             None => true,
                         });
                 // The exact name is allocated only when it is kept.
-                let name = if private || private_cell.is_some() || unobserved || internal {
+                let mut name = if private || private_cell.is_some() || unobserved || internal {
                     js::FunctionName::Unobserved
                 } else {
                     js::FunctionName::Exact(self.string(&self.program.strings[name.index()])?)
                 };
+                let mut arrow = arrow;
+                let mut length = None;
+                if let Some(form) = &method {
+                    // The adapter's result: an anonymous function where its
+                    // name is observed; a rest adapter's `length` is 0.
+                    arrow = form.arrow;
+                    name = if form.exact_empty_name {
+                        js::FunctionName::Exact(crate::literal::StringValue::default())
+                    } else {
+                        js::FunctionName::Unobserved
+                    };
+                    if matches!(form.list, Some((_, methods::List::Formals(count))) if count > 0) {
+                        length = Some(0);
+                    }
+                }
                 let strict = self.plan(child).strict_frame;
                 if strict && self.plan(child).observes_activation {
                     // Strictness would change this frame's `this`/`arguments`.
@@ -4618,7 +4701,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 // is `this`, bound where `super(...)` returns.
                 let constructor_of = self.data(child).constructor_of;
                 let mut parameters = parameters;
-                if constructor_of.is_some() {
+                if constructor_of.is_some() && !instance_this {
                     parameters.remove(0);
                 }
                 self.budget.push(
@@ -4634,7 +4717,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             name
                         },
                         strict: strict && constructor_of.is_none(),
-                        length: None,
+                        length,
                         suspension,
                     },
                 )?;
@@ -4731,10 +4814,22 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             let method = self.prototype_method(unit, region, cell, span)?;
             self.append(&mut methods, (name, method))?;
         }
+        // A root class's constructor that takes nothing and does nothing
+        // is JavaScript's implicit one (a derived class's implicit
+        // constructor forwards any arguments, which no formed constructor
+        // does).
+        let formed = &self.module.functions[constructor.index()];
+        let implicit = base.is_none()
+            && formed.parameters.is_empty()
+            && !formed.strict
+            && formed.length.is_none()
+            && self.module.regions[formed.body.index()]
+                .statements
+                .is_empty();
         Ok(js::Expr::Class {
             name: definition.name.clone(),
             base,
-            constructor,
+            constructor: (!implicit).then_some(constructor),
             methods,
         })
     }
@@ -4753,6 +4848,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let CellBinding::Function(method) = program.cells[cell.index()].binding else {
             return Err(self.error(span, "prototype method without a function"));
         };
+        // A body nothing else calls is the method itself.
+        if self.prototype_method_form(method)?.is_some() {
+            return self.prototype_method_function(unit, method, span);
+        }
         let signature = match program
             .unit(method)
             .and_then(|data| data.callable_type)
@@ -4875,6 +4974,16 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     cursor += 1;
                     continue;
                 }
+                OperationKind::Initialize(cell)
+                    if matches!(self.program.cells[cell.index()].binding,
+                        CellBinding::Function(method)
+                            if self.prototype_method_form(method)?.is_some()) =>
+                {
+                    // A static body only its class reaches is that class's
+                    // prototype method; nothing reads the cell.
+                    cursor += 1;
+                    continue;
+                }
                 OperationKind::Initialize(cell) => {
                     let value = self.value(unit, operands[0])?;
                     let value = self.carrier_value(unit, cell, value)?;
@@ -4900,12 +5009,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         self.append(&mut arguments, argument)?;
                     }
                     let call = self.expression(js::Expr::SuperCall { arguments })?;
-                    self.statement(target_region, js::Statement::Evaluate(call))?;
                     let instance = self.data(unit).parameters[0];
-                    let this = self.expression(js::Expr::This)?;
-                    js::Statement::Let {
-                        binding: self.cell_binding(unit, instance)?,
-                        value: Some(this),
+                    if self.this_cells.contains(&instance) {
+                        // Every read of the instance is `this`.
+                        js::Statement::Evaluate(call)
+                    } else {
+                        self.statement(target_region, js::Statement::Evaluate(call))?;
+                        let this = self.expression(js::Expr::This)?;
+                        js::Statement::Let {
+                            binding: self.cell_binding(unit, instance)?,
+                            value: Some(this),
+                        }
                     }
                 }
                 OperationKind::Yield { delegate } => {

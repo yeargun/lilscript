@@ -10,7 +10,10 @@ use crate::js::selection::{Plan, Style};
 use std::process::Command;
 
 fn policy(preserve: bool, target: &str) -> ResolvedPolicy {
-    let configuration = format!("[javascript]\nstrip_console=false\necmascript='{target}'\n[optimization]\ndead_code_elimination={}\n", !preserve);
+    let configuration = format!(
+        "[javascript]\necmascript='{target}'\n[optimization]\ndead_code_elimination={}\n",
+        !preserve
+    );
     let config: crate::config::ProjectConfig = toml::from_str(&configuration).unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {
