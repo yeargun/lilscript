@@ -1072,9 +1072,7 @@ impl Module {
                 statements.push(Statement::Evaluate(id));
             }
             let root = region == self.root;
-            let module = root
-                .then(|| self.root_rows.get(index).copied())
-                .flatten();
+            let module = root.then(|| self.root_rows.get(index).copied()).flatten();
             let count = statements.len();
             self.regions[region.index()]
                 .statements

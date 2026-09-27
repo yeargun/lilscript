@@ -255,10 +255,7 @@ impl Module {
                     let mut stores = None::<RootRow>;
                     let mut declared = Vec::with_capacity(replaced);
                     for (offset, row) in original.iter().enumerate() {
-                        if matches!(
-                            removed_kinds[offset],
-                            StatementKind::Declaration
-                        ) {
+                        if matches!(removed_kinds[offset], StatementKind::Declaration) {
                             declared.push(*row);
                         } else {
                             stores = Some(stores.map_or(*row, |held| held.fuse(*row)));

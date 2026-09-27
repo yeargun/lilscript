@@ -60,7 +60,8 @@ fn module_storage(module: &js::Module) -> u64 {
         + bytes(&module.exports)
         + bytes(&module.scopes)
         + bytes(&module.regions)
-        + bytes(&module.root_modules)
+        + bytes(&module.root_rows)
+        + bytes(&module.entries)
         + bytes(&module.defined_parameters)
         + bytes(&module.binding_classes);
     for expression in &module.expressions {

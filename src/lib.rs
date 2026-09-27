@@ -35,10 +35,11 @@ pub mod timing;
 pub mod typed_array;
 
 pub use build::{
-    build_inputs, check_path, check_source, compile_path, compile_source, with_checked_path,
-    with_checked_program, with_checked_source, BuildInputs, CheckedProgram, CheckedSourceSession,
-    ChunkExtension, FinishedSourceSession, ServiceCompilation, ServiceError, ServiceJavaScript,
-    ServiceJavaScriptBatch, ServiceOptions, ServiceTarget,
+    build_inputs, check_path, check_source, compile_entries, compile_path, compile_source,
+    with_checked_entries, with_checked_path, with_checked_program, with_checked_source,
+    BuildInputs, CheckedProgram, CheckedSourceSession, ChunkExtension, FinishedSourceSession,
+    ServiceCompilation, ServiceError, ServiceJavaScript, ServiceJavaScriptBatch, ServiceOptions,
+    ServiceTarget,
 };
 pub use check::{analyze, CheckError, CheckedModule, Type};
 pub use compilation_contract::{
@@ -52,10 +53,7 @@ pub use diagnostics::{
 pub use interpreter::{
     interpret_program, interpret_program_with_limits, InterpretError, InterpreterLimits,
 };
-pub use js::manifest::{
-    javascript_bundle, JavaScriptBundle, JavaScriptBundleFile, JavaScriptBundleManifest,
-    JavaScriptBundleManifestChunk, JavaScriptBundleObjectiveManifest, ManifestFile,
-};
+pub use js::manifest::{manifest_v3, ManifestFile, ManifestOutput};
 pub use lint::{
     lint_checked, lint_checked_with_providers, lint_path_with_providers, LintProviderDiagnostic,
     LintRuleContext, LintRuleProvider, WebRuleProvider,

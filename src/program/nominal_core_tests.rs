@@ -36,7 +36,8 @@ fn modules(
             })
             .collect(),
         dependency_order: order.to_vec(),
-        root: 0,
+        roots: vec![0],
+        root_names: vec!["main".to_string()],
         eager: vec![true; sources.len()],
     };
     let arena = bumpalo::Bump::new();
@@ -331,6 +332,7 @@ fn type_only_interface_scan_is_admitted_and_work_refusal_releases_demand_scratch
                 target,
             }));
             Arc::make_mut(&mut program.modules)[0].exports = 0..count;
+            program.public = 0..count;
             program.tables_revision = RevisionId::fresh();
             program.verify().unwrap();
             assert_eq!(program.value_exports().count(), 0);

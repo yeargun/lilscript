@@ -161,14 +161,14 @@ pub struct EntryGraph {
     /// Modules importing a host module the output carries: host code runs
     /// for the entries that reach one of them.
     pub host_importers: Vec<u32>,
+    /// Per module: its source path relative to the common source
+    /// directory, without extension (`[path]` in file name templates).
+    pub paths: Vec<String>,
 }
 
 impl EntryGraph {
     fn statics(&self) -> usize {
         self.entries.len()
-    }
-    fn bits(&self) -> usize {
-        self.entries.len() + self.dynamic.len()
     }
     /// The bit of a lazily loaded module, if it is one.
     fn dynamic_bit(&self, module: u32) -> Option<usize> {
@@ -264,6 +264,24 @@ pub struct DeliveryPlan {
     pub setters: Vec<(BindingId, BindingId)>,
     /// Static entries; the rest of `entries` are lazily loaded.
     pub statics: usize,
+    /// Static entry names, bit order.
+    pub entry_names: Vec<String>,
+    /// How every file is named: its template and fields.
+    pub naming: Vec<FileName>,
+    pub preload: crate::config::PreloadPolicy,
+    pub format: crate::config::JavaScriptFormat,
+    pub request_bytes: u64,
+    pub depth_bytes: u64,
+}
+
+/// One file's name before a content hash is known.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileName {
+    pub template: String,
+    pub name: String,
+    pub index: usize,
+    pub path: String,
+    pub ext: String,
 }
 
 impl DeliveryPlan {
@@ -272,6 +290,184 @@ impl DeliveryPlan {
         self.files
             .iter()
             .position(|file| file.role == FileRole::Lazy(module))
+    }
+
+    /// Whether some file's name is its content hash.
+    pub fn needs_hash(&self) -> bool {
+        self.naming
+            .iter()
+            .any(|name| super::names::needs_hash(&name.template))
+    }
+
+    /// Every file's name; `hashes` gives each file's hex digest when a
+    /// template needs one.
+    pub fn file_names(&self, hashes: Option<&[String]>) -> Vec<String> {
+        self.naming
+            .iter()
+            .enumerate()
+            .map(|(index, name)| {
+                super::names::expand(
+                    &name.template,
+                    &super::names::Fields {
+                        name: &name.name,
+                        index: name.index,
+                        path: &name.path,
+                        ext: &name.ext,
+                        hash: hashes.map_or("", |hashes| hashes[index].as_str()),
+                    },
+                )
+            })
+            .collect()
+    }
+
+    /// Each file a static entry's facade preloads (`preload`): the lazily
+    /// loaded files its closure loads, or every one.
+    pub fn preloads(&self, file: usize) -> Vec<usize> {
+        let FileRole::Entry(entry) = self.files[file].role else {
+            return Vec::new();
+        };
+        match self.preload {
+            crate::config::PreloadPolicy::None => Vec::new(),
+            crate::config::PreloadPolicy::All => (0..self.files.len())
+                .filter(|&index| matches!(self.files[index].role, FileRole::Lazy(_)))
+                .collect(),
+            crate::config::PreloadPolicy::Entry => {
+                let mut loaded = Vec::new();
+                if let Some(delivery) = self.entries.get(entry as usize) {
+                    for &member in &delivery.closure {
+                        for &target in &self.files[member as usize].links.dynamic {
+                            if !loaded.contains(&(target as usize)) {
+                                loaded.push(target as usize);
+                            }
+                        }
+                    }
+                }
+                loaded
+            }
+        }
+    }
+
+    /// What an artifact keeps of this plan once its tree is gone.
+    pub fn layout(&self) -> DeliveredLayout {
+        DeliveredLayout {
+            mode: self.mode,
+            format: self.format,
+            entries: self.entries.clone(),
+            entry_names: self.entry_names.clone(),
+            files: self
+                .files
+                .iter()
+                .map(|file| LayoutFile {
+                    role: file.role,
+                    label: file.label.bits().collect(),
+                    modules: file.modules.clone(),
+                    anchored: file.anchored,
+                    imports: file
+                        .links
+                        .imports
+                        .iter()
+                        .map(|&(source, _)| source)
+                        .collect(),
+                    dynamic: file.links.dynamic.clone(),
+                })
+                .collect(),
+            request_bytes: self.request_bytes,
+            depth_bytes: self.depth_bytes,
+        }
+    }
+}
+
+/// What an artifact keeps of its delivery plan: every file's role, label,
+/// source modules and links (as file positions), and every entry's closure
+/// (design §10: the rows the objective scores, and manifest v3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeliveredLayout {
+    pub mode: DeliveryMode,
+    pub format: crate::config::JavaScriptFormat,
+    pub entries: Vec<EntryDelivery>,
+    /// Static entry names, bit order: a label's bits name these, then the
+    /// lazily loaded entries of `entries`.
+    pub entry_names: Vec<String>,
+    pub files: Vec<LayoutFile>,
+    pub request_bytes: u64,
+    pub depth_bytes: u64,
+}
+
+/// One delivered file of a layout.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LayoutFile {
+    pub role: FileRole,
+    /// Entry bits: static entries in name order, then lazily loaded ones.
+    pub label: Vec<usize>,
+    pub modules: Vec<u32>,
+    /// Loading it runs code (the manifest's `side_effects`).
+    pub anchored: bool,
+    /// Static imports in evaluation order, and files loaded by `import()`.
+    pub imports: Vec<u32>,
+    pub dynamic: Vec<u32>,
+}
+
+impl DeliveredLayout {
+    /// Each entry's row (design §10): the bytes of the files it loads, plus
+    /// the declared cost of every file beyond the first and of every static
+    /// import level beyond the first. `sizes` holds one size per file.
+    pub fn rows(&self, sizes: &[usize]) -> Vec<u64> {
+        self.entries
+            .iter()
+            .map(|entry| {
+                let bytes = entry
+                    .closure
+                    .iter()
+                    .map(|&file| sizes.get(file as usize).copied().unwrap_or(0) as u64)
+                    .sum::<u64>();
+                let requests = (entry.closure.len() as u64).saturating_sub(1);
+                let depth = self.depth(entry.file as usize);
+                bytes
+                    .saturating_add(self.request_bytes.saturating_mul(requests))
+                    .saturating_add(self.depth_bytes.saturating_mul(depth.saturating_sub(1)))
+            })
+            .collect()
+    }
+
+    /// The longest chain of static imports from `file`.
+    fn depth(&self, file: usize) -> u64 {
+        let mut memo = vec![None; self.files.len()];
+        fn visit(layout: &DeliveredLayout, file: usize, memo: &mut Vec<Option<u64>>) -> u64 {
+            if let Some(depth) = memo[file] {
+                return depth;
+            }
+            memo[file] = Some(0);
+            let depth = layout.files[file]
+                .imports
+                .iter()
+                .map(|&source| 1 + visit(layout, source as usize, memo))
+                .max()
+                .unwrap_or(0);
+            memo[file] = Some(depth);
+            depth
+        }
+        if file < self.files.len() {
+            visit(self, file, &mut memo)
+        } else {
+            0
+        }
+    }
+
+    /// A label as entry names.
+    pub fn label_names(&self, label: &[usize]) -> Vec<String> {
+        let statics = self.entry_names.len();
+        label
+            .iter()
+            .map(|&bit| {
+                self.entry_names.get(bit).cloned().unwrap_or_else(|| {
+                    self.entries
+                        .iter()
+                        .filter(|entry| entry.dynamic)
+                        .nth(bit - statics)
+                        .map_or_else(|| format!("lazy-{bit}"), |entry| entry.name.clone())
+                })
+            })
+            .collect()
     }
 }
 
@@ -441,34 +637,40 @@ impl Facts {
             let mut loaded = Vec::new();
             let mut writes_root = false;
             let mut loads_here = false;
-            visit_references(module, statement, lazy, budget, |reference| match reference {
-                Reference::Read(binding) => {
-                    let owner = owners[binding.index()];
-                    if owner != NONE && owner != index {
-                        own.push((binding, owner, false));
-                    }
-                    if foreign[binding.index()] != NONE {
-                        foreign_used.push(foreign[binding.index()]);
-                    }
-                }
-                Reference::Write(binding, nested) => {
-                    let owner = owners[binding.index()];
-                    if owner != NONE && owner != index {
-                        own.push((binding, owner, true));
-                        if !nested {
-                            writes_root = true;
+            visit_references(
+                module,
+                statement,
+                lazy,
+                budget,
+                |reference| match reference {
+                    Reference::Read(binding) => {
+                        let owner = owners[binding.index()];
+                        if owner != NONE && owner != index {
+                            own.push((binding, owner, false));
+                        }
+                        if foreign[binding.index()] != NONE {
+                            foreign_used.push(foreign[binding.index()]);
                         }
                     }
-                }
-                Reference::Load(target, nested) => {
-                    if !nested {
-                        loads_here = true;
+                    Reference::Write(binding, nested) => {
+                        let owner = owners[binding.index()];
+                        if owner != NONE && owner != index {
+                            own.push((binding, owner, true));
+                            if !nested {
+                                writes_root = true;
+                            }
+                        }
                     }
-                    if lazy(target) {
-                        loaded.push(target);
+                    Reference::Load(target, nested) => {
+                        if !nested {
+                            loads_here = true;
+                        }
+                        if lazy(target) {
+                            loaded.push(target);
+                        }
                     }
-                }
-            })?;
+                },
+            )?;
             own.sort_unstable();
             own.dedup();
             foreign_used.sort_unstable();
@@ -566,9 +768,14 @@ impl Atoms {
                     if !write {
                         continue;
                     }
+                    // A writer in another module never joins: its write
+                    // becomes a setter call. Joining a definition writer
+                    // would carry its references to its own module's state
+                    // into the declaring module's file, against the import
+                    // order (a file cycle).
                     let same_module = facts.rows[writer].module == facts.rows[owner].module
                         && facts.rows[writer].origin == facts.rows[owner].origin;
-                    if facts.anchored[writer] && !same_module {
+                    if !same_module {
                         continue;
                     }
                     let (left, right) = (find(&mut parents, writer), find(&mut parents, owner));
@@ -619,7 +826,11 @@ fn labels(
     let reach = |statement: usize| -> EntrySet {
         match facts.module_of(statement) {
             None => host.clone(),
-            Some(module) => graph.reach.get(module as usize).cloned().unwrap_or_default(),
+            Some(module) => graph
+                .reach
+                .get(module as usize)
+                .cloned()
+                .unwrap_or_default(),
         }
     };
     for statement in 0..count {
@@ -779,7 +990,6 @@ struct Context<'a> {
     module: &'a Module,
     facts: &'a Facts,
     graph: &'a EntryGraph,
-    labels: &'a [EntrySet],
     /// `Module::imports` rows of carried host modules printed as host text
     /// (not lowered into the tree): the host file declares them.
     hosted: &'a [bool],
@@ -795,7 +1005,11 @@ struct Context<'a> {
 impl Context<'_> {
     /// A file's first point in the canonical schedule.
     fn first_point(&self, file: &PlannedFile) -> usize {
-        file.statements.iter().map(|&s| s as usize).min().unwrap_or(NONE)
+        file.statements
+            .iter()
+            .map(|&s| s as usize)
+            .min()
+            .unwrap_or(NONE)
     }
 
     /// Where an anchored file sits in a static entry's own order: its
@@ -876,6 +1090,8 @@ fn link(context: &Context<'_>, layout: &mut Layout) -> Result<(), OutputError> {
     // Public names: each entry's exports, and each lazily loaded module's
     // namespace, from the file declaring each binding.
     let mut public: Vec<Vec<(String, BindingId, u32)>> = vec![Vec::new(); count];
+    // Per file: (source file, binding) it re-exports with `export{…}from`.
+    let mut reexports: Vec<Vec<(usize, BindingId)>> = vec![Vec::new(); count];
     let declaring = |binding: BindingId, layout: &Layout| -> Option<usize> {
         let owner = facts.owners[binding.index()];
         if owner != NONE {
@@ -906,7 +1122,7 @@ fn link(context: &Context<'_>, layout: &mut Layout) -> Result<(), OutputError> {
                         Some(source) => {
                             public[index].push((export.name.clone(), binding, source as u32));
                             if source != index {
-                                needs[index].push((source, binding));
+                                reexports[index].push((source, binding));
                             }
                         }
                         None => {
@@ -935,9 +1151,9 @@ fn link(context: &Context<'_>, layout: &mut Layout) -> Result<(), OutputError> {
                         .ok_or("a namespace member has no declaration")?;
                     if !public[index].iter().any(|(known, ..)| known == name) {
                         public[index].push((name.clone(), binding, source as u32));
-                    }
-                    if source != index {
-                        needs[index].push((source, binding));
+                        if source != index {
+                            reexports[index].push((source, binding));
+                        }
                     }
                 }
             }
@@ -950,7 +1166,13 @@ fn link(context: &Context<'_>, layout: &mut Layout) -> Result<(), OutputError> {
         let mut needed = std::mem::take(&mut needs[index]);
         needed.sort_unstable();
         needed.dedup();
-        let mut sources: Vec<usize> = needed.iter().map(|&(source, _)| source).collect();
+        // A file it only re-exports from is still a module it requests.
+        let mut sources: Vec<usize> = needed
+            .iter()
+            .chain(&reexports[index])
+            .map(|&(source, _)| source)
+            .collect();
+        sources.sort_unstable();
         sources.dedup();
         let file = &layout.files[index];
         let mut order: Vec<usize> = Vec::new();
@@ -1029,10 +1251,13 @@ fn link(context: &Context<'_>, layout: &mut Layout) -> Result<(), OutputError> {
             dynamic: loads,
         });
     }
-    // Exports: what importers name.
+    // Exports: what importers name or re-export.
     for index in 0..count {
         for (source, bindings) in links[index].imports.clone() {
             links[source as usize].exports.extend(bindings);
+        }
+        for &(source, binding) in &reexports[index] {
+            links[source].exports.push(binding);
         }
     }
     for link in &mut links {
@@ -1189,13 +1414,23 @@ impl PlanFailure {
             Self::P1Placement => "delivery plan P1: a root statement is not delivered exactly once",
             Self::P2Write => "delivery plan P2: a file assigns a binding another file declares",
             Self::P3Link => "delivery plan P3: an import names nothing its file exports",
-            Self::P4Order => "delivery plan P4: an entry runs its modules' effects out of source order",
-            Self::P5Closure => "delivery plan P5: an entry runs effects of a module it does not reach",
+            Self::P4Order => {
+                "delivery plan P4: an entry runs its modules' effects out of source order"
+            }
+            Self::P5Closure => {
+                "delivery plan P5: an entry runs effects of a module it does not reach"
+            }
             Self::P6Cycle => "delivery plan P6: the file graph has a cycle",
-            Self::P7Facade => "delivery plan P7: a file imports an entry facade, or a lazy file statically",
+            Self::P7Facade => {
+                "delivery plan P7: a file imports an entry facade, or a lazy file statically"
+            }
             Self::P8Surface => "delivery plan P8: an entry's public names differ from its exports",
-            Self::P9Modules => "delivery plan P9: preserve-modules moved a statement out of its module's file",
-            Self::P10Reference => "delivery plan P10: a file references a binding it neither declares nor imports",
+            Self::P9Modules => {
+                "delivery plan P9: preserve-modules moved a statement out of its module's file"
+            }
+            Self::P10Reference => {
+                "delivery plan P10: a file references a binding it neither declares nor imports"
+            }
         }
     }
 }
@@ -1223,7 +1458,10 @@ fn reference_orders(context: &Context<'_>) -> Vec<Vec<usize>> {
                 })
                 .collect::<Vec<_>>();
             statements.sort_unstable();
-            statements.into_iter().map(|(_, statement)| statement).collect()
+            statements
+                .into_iter()
+                .map(|(_, statement)| statement)
+                .collect()
         })
         .collect()
 }
@@ -1377,46 +1615,108 @@ fn fallback(
     let count = facts.count;
     let mut files = facades(graph);
     let mut file_of = vec![NONE; count];
-    // Groups, by first point.
-    let mut group_file: Vec<((EntrySet, u32), usize)> = Vec::new();
+    // Groups in canonical order: by their module's place in the canonical
+    // schedule (a cycle's earliest member; host code first), then by their
+    // first statement. File positions then follow the schedule.
+    let rank = |group: u32| -> u32 {
+        if group == HOST_GROUP {
+            return 0;
+        }
+        match cycle_of_group(group) {
+            Some(cycle) => (0..graph.cycles.len())
+                .filter(|&module| graph.cycles[module] == Some(cycle))
+                .map(|module| graph.position[module].saturating_add(1))
+                .min()
+                .unwrap_or(u32::MAX),
+            None => graph
+                .position
+                .get(group as usize)
+                .map_or(u32::MAX, |position| position.saturating_add(1)),
+        }
+    };
+    let mut keys: Vec<(u32, usize, EntrySet, u32)> = Vec::new();
     for statement in 0..count {
         budget.work(WorkKind::Analysis, 1)?;
         let atom = atoms.of[statement];
         let Some(group) = atoms.group[atom].filter(|_| atoms.anchored[atom]) else {
             continue;
         };
-        let key = (labels[statement].clone(), group);
-        let index = match group_file.iter().find(|(known, _)| *known == key) {
-            Some(&(_, index)) => index,
-            None => {
-                let role = if group == HOST_GROUP {
-                    FileRole::Host
-                } else {
-                    FileRole::Shared
-                };
-                files.push(file(role, key.0.clone()));
-                group_file.push((key, files.len() - 1));
-                files.len() - 1
-            }
+        let label = labels[statement].clone();
+        if !keys
+            .iter()
+            .any(|(_, _, known, other)| *known == label && *other == group)
+        {
+            keys.push((rank(group), statement, label, group));
+        }
+    }
+    keys.sort_by(|left, right| (left.0, left.1).cmp(&(right.0, right.1)));
+    let mut group_file: Vec<((EntrySet, u32), usize)> = Vec::with_capacity(keys.len());
+    for (_, _, label, group) in keys {
+        let role = if group == HOST_GROUP {
+            FileRole::Host
+        } else {
+            FileRole::Shared
         };
+        files.push(file(role, label.clone()));
+        group_file.push(((label, group), files.len() - 1));
+    }
+    let group_module: Vec<Option<u32>> = {
+        let mut modules = vec![None; files.len()];
+        for ((_, group), index) in &group_file {
+            modules[*index] = Some(*group);
+        }
+        modules
+    };
+    for statement in 0..count {
+        let atom = atoms.of[statement];
+        let Some(group) = atoms.group[atom].filter(|_| atoms.anchored[atom]) else {
+            continue;
+        };
+        let key = (labels[statement].clone(), group);
+        let index = group_file
+            .iter()
+            .find(|(known, _)| *known == key)
+            .map(|&(_, index)| index)
+            .ok_or("a group has no file")?;
         for &member in &atoms.members[atom] {
             file_of[member] = index;
         }
     }
-    // Definitions: the latest same-label group each depends on.
-    let mut latest = vec![NONE; count];
+    // Which group modules each group's module statically reaches.
+    let reaches = reachability(graph);
+    let group_reaches = |from: usize, to: usize| -> bool {
+        match (group_module[from], group_module[to]) {
+            (_, Some(HOST_GROUP)) => true,
+            (Some(from), Some(to)) => {
+                let members = |group: u32| -> Vec<usize> {
+                    match cycle_of_group(group) {
+                        Some(cycle) => (0..graph.cycles.len())
+                            .filter(|&module| graph.cycles[module] == Some(cycle))
+                            .collect(),
+                        None if group == HOST_GROUP => Vec::new(),
+                        None => vec![group as usize],
+                    }
+                };
+                let targets = members(to);
+                members(from)
+                    .iter()
+                    .any(|&module| targets.iter().all(|&target| reaches[module][target]))
+            }
+            _ => false,
+        }
+    };
+    // Definitions (design §7.5): every anchored group each depends on,
+    // directly or through other definitions, and the latest of its own
+    // label.
+    let mut needs: Vec<Vec<usize>> = vec![Vec::new(); count];
     for statement in 0..count {
         let atom = atoms.of[statement];
         if atoms.anchored[atom] {
             continue;
         }
         for &(_, owner, _) in &facts.references[statement] {
-            let target = atoms.of[owner];
-            if atoms.anchored[target] && labels[owner] == labels[statement] {
-                let group = file_of[owner];
-                if latest[atom] == NONE || group > latest[atom] {
-                    latest[atom] = group;
-                }
+            if atoms.anchored[atoms.of[owner]] && !needs[atom].contains(&file_of[owner]) {
+                needs[atom].push(file_of[owner]);
             }
         }
     }
@@ -1429,14 +1729,15 @@ fn fallback(
             }
             for &(_, owner, _) in &facts.references[statement] {
                 let target = atoms.of[owner];
-                if !atoms.anchored[target]
-                    && target != atom
-                    && labels[owner] == labels[statement]
-                    && latest[target] != NONE
-                    && (latest[atom] == NONE || latest[target] > latest[atom])
-                {
-                    latest[atom] = latest[target];
-                    changed = true;
+                if atoms.anchored[target] || target == atom {
+                    continue;
+                }
+                for index in 0..needs[target].len() {
+                    let group = needs[target][index];
+                    if !needs[atom].contains(&group) {
+                        needs[atom].push(group);
+                        changed = true;
+                    }
                 }
             }
         }
@@ -1445,24 +1746,43 @@ fn fallback(
             break;
         }
     }
-    let mut definitions: Vec<(EntrySet, usize)> = Vec::new();
+    // Definitions-only files, one per label and set of anchored groups its
+    // definitions need: a group a definition needs never imports that
+    // definition's file (references follow source import paths), so these
+    // files close no cycle.
+    let mut definitions: Vec<((EntrySet, Vec<usize>), usize)> = Vec::new();
     for statement in 0..count {
         let atom = atoms.of[statement];
         if atoms.anchored[atom] || file_of[statement] != NONE {
             continue;
         }
-        let index = if latest[atom] != NONE {
-            latest[atom]
-        } else {
-            let label = &labels[statement];
-            match definitions.iter().find(|(known, _)| known == label) {
+        needs[atom].sort_unstable();
+        let label = &labels[statement];
+        // The latest group of its own label, when that group's module
+        // reaches every group the definition depends on: joining it then
+        // adds no evaluation order the source lacks.
+        let latest = needs[atom]
+            .iter()
+            .copied()
+            .filter(|&group| files[group].label == *label)
+            .max();
+        let index = match latest.filter(|&group| {
+            needs[atom]
+                .iter()
+                .all(|&other| other == group || group_reaches(group, other))
+        }) {
+            Some(group) => group,
+            None => match definitions
+                .iter()
+                .find(|((known, needed), _)| known == label && *needed == needs[atom])
+            {
                 Some(&(_, index)) => index,
                 None => {
                     files.push(file(FileRole::Definitions, label.clone()));
-                    definitions.push((label.clone(), files.len() - 1));
+                    definitions.push(((label.clone(), needs[atom].clone()), files.len() - 1));
                     files.len() - 1
                 }
-            }
+            },
         };
         for &member in &atoms.members[atom] {
             file_of[member] = index;
@@ -1471,6 +1791,27 @@ fn fallback(
     let mut layout = Layout { files, file_of };
     settle(facts, &mut layout);
     Ok(layout)
+}
+
+/// The static import cycle a group stands for, if it is one.
+fn cycle_of_group(group: u32) -> Option<u32> {
+    (group != HOST_GROUP && group > u32::MAX / 2).then(|| u32::MAX - 1 - group)
+}
+
+/// Per module, every module its static imports reach (itself included).
+fn reachability(graph: &EntryGraph) -> Vec<Vec<bool>> {
+    let count = graph.imports.len();
+    let mut reaches = vec![vec![false; count]; count];
+    for (start, row) in reaches.iter_mut().enumerate() {
+        let mut pending = vec![start];
+        while let Some(module) = pending.pop() {
+            if std::mem::replace(&mut row[module], true) {
+                continue;
+            }
+            pending.extend(graph.imports[module].iter().map(|&target| target as usize));
+        }
+    }
+    reaches
 }
 
 /// Move every statement of file `from` into file `into`.
@@ -1648,7 +1989,7 @@ fn coalesce(
 /// its own file; a definition a rule created in its only user's file, the
 /// latest module file it references, or a definitions-only file. An entry
 /// module another module imports keeps its module file and gets a facade.
-fn preserve(
+fn preserve_layout(
     module: &Module,
     facts: &Facts,
     labels: &[EntrySet],
@@ -1755,8 +2096,7 @@ fn preserve(
                     let latest = facts.references[statement]
                         .iter()
                         .filter(|&&(_, owner, _)| {
-                            file_of[owner] != NONE
-                                && facts.rows[owner].origin == RowOrigin::Source
+                            file_of[owner] != NONE && facts.rows[owner].origin == RowOrigin::Source
                         })
                         .max_by_key(|&&(_, owner, _)| {
                             graph.position[facts.rows[owner].module as usize]
@@ -1797,6 +2137,46 @@ fn preserve(
     let mut layout = Layout { files, file_of };
     settle(facts, &mut layout);
     Ok(layout)
+}
+
+/// Fold each entry facade into its module's file when no other file
+/// imports that file; whether any facade folded.
+fn fold_unimported_entry_modules(facts: &Facts, layout: &mut Layout, graph: &EntryGraph) -> bool {
+    let mut folded = false;
+    for (entry, (_, root)) in graph.entries.iter().enumerate() {
+        let Some(facade) = layout
+            .files
+            .iter()
+            .position(|file| file.role == FileRole::Entry(entry as u32))
+        else {
+            continue;
+        };
+        let Some(own) = layout
+            .files
+            .iter()
+            .position(|file| file.role == FileRole::Module(*root))
+        else {
+            continue;
+        };
+        let imported = layout.files.iter().enumerate().any(|(index, file)| {
+            index != facade
+                && file
+                    .links
+                    .imports
+                    .iter()
+                    .any(|&(source, _)| source as usize == own)
+        });
+        if imported {
+            continue;
+        }
+        let label = layout.files[own].label.clone();
+        layout.files[own].role = FileRole::Entry(entry as u32);
+        layout.files[facade].role = FileRole::Definitions;
+        layout.files[facade].label = label;
+        merge(facts, layout, facade, own);
+        folded = true;
+    }
+    folded
 }
 
 /// `single` with several entries (design §7.7): each entry's file holds the
@@ -1903,7 +2283,12 @@ fn link_single(context: &Context<'_>, layout: &mut Layout) -> Result<(), OutputE
 // ---------------------------------------------------------------- setters
 
 /// Every assignment of `binding` in `statement`'s subtree.
-fn assignments(module: &Module, statement: &Statement, binding: BindingId, found: &mut Vec<ExprId>) {
+fn assignments(
+    module: &Module,
+    statement: &Statement,
+    binding: BindingId,
+    found: &mut Vec<ExprId>,
+) {
     let mut statements = vec![statement];
     let mut expressions: Vec<ExprId> = Vec::new();
     loop {
@@ -1931,7 +2316,8 @@ fn assignments(module: &Module, statement: &Statement, binding: BindingId, found
             return;
         };
         current.visit_expressions(|root| expressions.push(root));
-        let mut region = |id: RegionId| statements.extend(module.regions[id.index()].statements.iter());
+        let mut region =
+            |id: RegionId| statements.extend(module.regions[id.index()].statements.iter());
         match current {
             Statement::If { yes, no, .. } => {
                 region(*yes);
@@ -1956,9 +2342,7 @@ fn assignments(module: &Module, statement: &Statement, binding: BindingId, found
                     region(*finally);
                 }
             }
-            Statement::Function { function, .. } => {
-                region(module.functions[function.index()].body)
-            }
+            Statement::Function { function, .. } => region(module.functions[function.index()].body),
             _ => {}
         }
     }
@@ -2007,8 +2391,14 @@ fn create_setters(
                 )?;
                 let target = module.expression_in(Expr::Binding(binding), None, budget)?;
                 let read = module.expression_in(Expr::Binding(value), None, budget)?;
-                let assign =
-                    module.expression_in(Expr::Assign { target, value: read }, None, budget)?;
+                let assign = module.expression_in(
+                    Expr::Assign {
+                        target,
+                        value: read,
+                    },
+                    None,
+                    budget,
+                )?;
                 budget.push(
                     crate::output_budget::AllocationClass::Retained,
                     &mut module.regions[body.index()].statements,
@@ -2099,6 +2489,7 @@ pub(crate) fn plan(
     graph: &EntryGraph,
     contract: &DeliveryContract,
     dynamic_import: bool,
+    ext: &str,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Option<DeliveryPlan>, OutputError> {
     let statics = graph.statics();
@@ -2138,6 +2529,17 @@ pub(crate) fn plan(
                 .is_some_and(|source| module.carried.iter().any(|carried| carried == source))
         })
         .collect::<Vec<_>>();
+    // Carried host code that stayed text (not lowered into the tree) is one
+    // blob with no file of its own yet (design §7.9; M8.4 makes it host
+    // units): only a file per entry can carry it.
+    if contract.mode != DeliveryMode::Single
+        && !facts.rows.iter().any(|row| row.origin == RowOrigin::Host)
+        && facts.imports.iter().flatten().any(|&import| hosted[import])
+    {
+        return Err(OutputError::Invalid(
+            "carried host modules that were not lowered into the program are delivered in one file per entry: use `delivery.mode = \"single\"` or `host_modules = \"external\"` (plan M8.4)",
+        ));
+    }
     let positions = graph
         .orders
         .iter()
@@ -2156,7 +2558,6 @@ pub(crate) fn plan(
         module,
         facts: &facts,
         graph,
-        labels: &labels,
         hosted: &hosted,
         setters: &no_setters,
         positions: positions.clone(),
@@ -2177,9 +2578,16 @@ pub(crate) fn plan(
             layout
         }
         DeliveryMode::PreserveModules => {
-            let mut layout = preserve(module, &facts, &labels, graph)?;
+            let mut layout = preserve_layout(module, &facts, &labels, graph)?;
             compact(&mut layout);
             link(&context, &mut layout)?;
+            // An entry module the source imports gets a facade; when no
+            // delivered file imports its module file after all, that file
+            // is the entry file itself.
+            if fold_unimported_entry_modules(&facts, &mut layout, graph) {
+                compact(&mut layout);
+                link(&context, &mut layout)?;
+            }
             match simulate(&context, &layout, &reference) {
                 Ok(()) => {}
                 Err(PlanFailure::P6Cycle) => {
@@ -2207,19 +2615,11 @@ pub(crate) fn plan(
     };
     if !setters.is_empty() {
         facts = Facts::collect(module, &is_lazy, budget)?;
-        let labels = {
-            let mut extended = labels.clone();
-            while extended.len() < facts.count {
-                extended.push(EntrySet::default());
-            }
-            extended
-        };
         let no_setters = vec![None; module.bindings.len()];
         let context = Context {
             module,
             facts: &facts,
             graph,
-            labels: &labels,
             hosted: &hosted,
             setters: &no_setters,
             positions: positions.clone(),
@@ -2240,18 +2640,10 @@ pub(crate) fn plan(
         module.reserved.push("then".to_string());
     }
     let no_setters = vec![None; module.bindings.len()];
-    let labels_final = {
-        let mut extended = labels.clone();
-        while extended.len() < facts.count {
-            extended.push(EntrySet::default());
-        }
-        extended
-    };
     let context = Context {
         module,
         facts: &facts,
         graph,
-        labels: &labels_final,
         hosted: &hosted,
         setters: &no_setters,
         positions,
@@ -2261,13 +2653,113 @@ pub(crate) fn plan(
     verify(&context, &layout, &reference, contract.mode)
         .map_err(|failure| OutputError::Invalid(failure.describe()))?;
     let entries = closures(graph, &layout, contract.mode);
+    let naming = file_naming(&layout, graph, contract, ext)?;
     Ok(Some(DeliveryPlan {
         mode: contract.mode,
         files: layout.files,
         entries,
         setters,
         statics,
+        entry_names: graph.entries.iter().map(|(name, _)| name.clone()).collect(),
+        naming,
+        preload: contract.preload,
+        format: contract.format,
+        request_bytes: contract.request_bytes,
+        depth_bytes: contract.depth_bytes,
     }))
+}
+
+/// Each file's name template and fields (design §8): entries by
+/// `entry_names`, `preserve-modules` module files by `module_names`, every
+/// other file by `chunk_names` with its position among them as `[index]`.
+/// Two files whose names cannot differ are refused here; hashed names are
+/// checked when they are known.
+fn file_naming(
+    layout: &Layout,
+    graph: &EntryGraph,
+    contract: &DeliveryContract,
+    ext: &str,
+) -> Result<Vec<FileName>, OutputError> {
+    let path_of = |module: u32| -> String {
+        graph
+            .paths
+            .get(module as usize)
+            .cloned()
+            .unwrap_or_else(|| format!("m{module}"))
+    };
+    let stem = |path: &str| -> String { path.rsplit('/').next().unwrap_or(path).to_string() };
+    let mut chunks = 0;
+    let mut naming = Vec::with_capacity(layout.files.len());
+    for (index, file) in layout.files.iter().enumerate() {
+        let first = file.modules.first().copied();
+        let named = match file.role {
+            FileRole::Entry(entry) => {
+                let (name, root) = &graph.entries[entry as usize];
+                FileName {
+                    template: contract.entry_names().to_string(),
+                    name: name.clone(),
+                    index: entry as usize,
+                    path: path_of(*root),
+                    ext: ext.to_string(),
+                }
+            }
+            FileRole::Module(module) | FileRole::Lazy(module)
+                if contract.mode == DeliveryMode::PreserveModules =>
+            {
+                let path = path_of(module);
+                FileName {
+                    template: contract.module_names().to_string(),
+                    name: stem(&path),
+                    index,
+                    path,
+                    ext: ext.to_string(),
+                }
+            }
+            role => {
+                let path = match role {
+                    FileRole::Lazy(module) | FileRole::Module(module) => path_of(module),
+                    FileRole::Host => "host".to_string(),
+                    _ => first.map_or_else(|| "chunk".to_string(), path_of),
+                };
+                chunks += 1;
+                FileName {
+                    template: contract.chunk_names().to_string(),
+                    name: stem(&path),
+                    index: chunks - 1,
+                    path,
+                    ext: ext.to_string(),
+                }
+            }
+        };
+        naming.push(named);
+    }
+    if !naming
+        .iter()
+        .any(|name| super::names::needs_hash(&name.template))
+    {
+        let mut names = naming
+            .iter()
+            .map(|name| {
+                super::names::expand(
+                    &name.template,
+                    &super::names::Fields {
+                        name: &name.name,
+                        index: name.index,
+                        path: &name.path,
+                        ext: &name.ext,
+                        hash: "",
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        names.sort_unstable();
+        if names.windows(2).any(|pair| pair[0] == pair[1]) {
+            return Err(OutputError::Invalid(
+                "two delivered files get one name: give `delivery.chunk_names` an [index] or [hash] and keep entry names distinct",
+            ));
+        }
+    }
+    Ok(naming)
 }
 
 /// Each lazily loaded module's namespace, from its first `import()`.
@@ -2285,9 +2777,7 @@ fn namespaces(
         else {
             continue;
         };
-        if !graph.dynamic.contains(target)
-            || namespaces.iter().any(|(known, _)| known == target)
-        {
+        if !graph.dynamic.contains(target) || namespaces.iter().any(|(known, _)| known == target) {
             continue;
         }
         let mut namespace = Vec::with_capacity(members.len());
@@ -2353,9 +2843,12 @@ fn closures(graph: &EntryGraph, layout: &Layout, mode: DeliveryMode) -> Vec<Entr
             }
         }
         let closure = evaluation(layout, index, &loaded);
+        // A lazily loaded entry is named by its source module.
         let name = graph
-            .dynamic_bit(module)
-            .map_or_else(|| format!("lazy-{module}"), |bit| format!("lazy-{bit}"));
+            .paths
+            .get(module as usize)
+            .cloned()
+            .unwrap_or_else(|| format!("lazy-{module}"));
         entries.push(EntryDelivery {
             name,
             file: index as u32,

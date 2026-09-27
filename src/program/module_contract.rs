@@ -23,7 +23,10 @@ pub(super) fn initialization_order_admitted(
 ) -> Result<Vec<UnitId>, StaticOrderError> {
     let mut initializers = budget.vector(Scratch, modules.len())?;
     let mut scope = budget.scope();
-    let roots = entries.iter().map(|entry| entry.index()).collect::<Vec<_>>();
+    let roots = entries
+        .iter()
+        .map(|entry| entry.index())
+        .collect::<Vec<_>>();
     let order = crate::module::initialization_order_admitted(
         &roots,
         modules.len(),
@@ -75,7 +78,7 @@ mod tests {
 
     fn cyclic_interfaces<'src>(source: &Program<'src>) -> Program<'src> {
         let mut program = source.clone();
-        let root = program.entry;
+        let root = program.entry_module();
         let initializer = UnitId::from_index(program.units.len()).unwrap();
         let module = ModuleId::from_index(program.modules.len()).unwrap();
         let mut data = UnitData::empty(UnitKind::ModuleInitialization);
@@ -136,15 +139,18 @@ mod tests {
             assert_eq!(program.initialization.len(), 2);
             assert_eq!(
                 program.initialization[1],
-                program.modules[program.entry.index()].initializer
+                program.modules[program.entry_module().index()].initializer
             );
             assert_eq!(program.exports().len(), 2);
             assert_eq!(program.exports.len(), 3);
             assert_eq!(program.exports[0].target, program.exports[2].target);
             let mut dependent_entry = program.clone();
-            dependent_entry.entry = ModuleId::from_index(1).unwrap();
+            Arc::make_mut(&mut dependent_entry.entries)[0].module =
+                ModuleId::from_index(1).unwrap();
+            dependent_entry.public = dependent_entry.modules[1].exports.clone();
             dependent_entry.initialization = Arc::new(
-                initialization_order(&dependent_entry.modules, dependent_entry.entry).unwrap(),
+                initialization_order(&dependent_entry.modules, dependent_entry.entry_module())
+                    .unwrap(),
             );
             dependent_entry.verify().unwrap();
             assert_eq!(dependent_entry.exports().len(), 1);
@@ -197,7 +203,7 @@ mod tests {
             );
             rejects(
                 &program,
-                |p| p.entry = ModuleId::from_index(99).unwrap(),
+                |p| Arc::make_mut(&mut p.entries)[0].module = ModuleId::from_index(99).unwrap(),
                 "entry module",
             );
         });
@@ -235,7 +241,7 @@ mod tests {
     #[test]
     fn named_prefix_values_cannot_escape_into_calls_or_region_results() {
         checked("export int answer(){return 7;}print(answer());", |source| {
-            let root = source.modules[source.entry.index()].initializer;
+            let root = source.modules[source.entry_module().index()].initializer;
             let unit = source.unit(root).unwrap();
             let creation = unit.regions[unit.entry.index()].operations[0];
             let value = unit.operations[creation.index()].result.unwrap();

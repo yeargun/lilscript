@@ -370,7 +370,7 @@ fn type_clone_reconciles_its_own_spare_capacity_before_exact_preparation() {
         let mut lower = Lower::new(
             semantics.view(),
             std::slice::from_ref(&syntax),
-            ModuleId::from_index(0).unwrap(),
+            &[(ModuleId::from_index(0).unwrap(), "main")],
             &mut scope,
         )
         .unwrap();

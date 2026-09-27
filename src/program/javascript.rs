@@ -682,23 +682,21 @@ fn form_head(
                     if let Some(&(_, binding)) =
                         identities.iter().find(|&&(known, _)| known == cell)
                     {
-                        let position = match formation
-                            .module
-                            .exports
-                            .iter()
-                            .position(|known| known.binding == binding && known.name == export_name)
-                        {
-                            Some(position) => position,
-                            None => {
-                                let name = formation.text(export_name)?;
-                                formation.budget.push(
-                                    AllocationClass::Retained,
-                                    &mut formation.module.exports,
-                                    js::Export { binding, name },
-                                )?;
-                                formation.module.exports.len() - 1
-                            }
-                        };
+                        let position =
+                            match formation.module.exports.iter().position(|known| {
+                                known.binding == binding && known.name == export_name
+                            }) {
+                                Some(position) => position,
+                                None => {
+                                    let name = formation.text(export_name)?;
+                                    formation.budget.push(
+                                        AllocationClass::Retained,
+                                        &mut formation.module.exports,
+                                        js::Export { binding, name },
+                                    )?;
+                                    formation.module.exports.len() - 1
+                                }
+                            };
                         positions.push(position as u32);
                         continue;
                     }
@@ -1874,13 +1872,45 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         region: js::RegionId,
         statement: js::Statement,
     ) -> Result<(), FormationError> {
+        // A function declaration only creates its function (design §6,
+        // rule 1): a definition wherever it is formed.
+        let anchor = if matches!(statement, js::Statement::Function { .. }) {
+            js::Anchor::Definition
+        } else {
+            self.anchor
+        };
+        self.push_statement(
+            region,
+            statement,
+            js::RootRow::new(self.current_module, anchor),
+        )
+    }
+    /// A root statement formation creates for the whole program, not for the
+    /// module being formed (a shared adapter, a D2 wrapper): a synthetic
+    /// definition (design §6), beside the current module.
+    pub(super) fn helper_statement(
+        &mut self,
+        region: js::RegionId,
+        statement: js::Statement,
+    ) -> Result<(), FormationError> {
+        self.push_statement(
+            region,
+            statement,
+            js::RootRow::synthetic(self.current_module),
+        )
+    }
+    fn push_statement(
+        &mut self,
+        region: js::RegionId,
+        statement: js::Statement,
+        row: js::RootRow,
+    ) -> Result<(), FormationError> {
         self.budget.push(
             AllocationClass::Retained,
             &mut self.module.regions[region.index()].statements,
             statement,
         )?;
         if region == self.module.root {
-            let row = js::RootRow::new(self.current_module, self.anchor);
             self.budget
                 .push(AllocationClass::Retained, &mut self.module.root_rows, row)?;
         }
@@ -4907,7 +4937,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let data = self.data(unit);
         for &operation in operations {
             self.work(1)?;
-            let kind = data.operations[operation.index()].kind;
+            let kind = &data.operations[operation.index()].kind;
             if !matches!(kind, OperationKind::PrepareCall(_))
                 && !self.demand.needs_operation(unit, operation)
             {
@@ -4930,7 +4960,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             let writes = match behavior.writes {
                 super::facts::MemoryAccess::None => true,
                 super::facts::MemoryAccess::Cell(cell) => {
-                    matches!(kind, OperationKind::Initialize(initialized) if initialized == cell)
+                    matches!(kind, OperationKind::Initialize(initialized) if *initialized == cell)
                 }
                 super::facts::MemoryAccess::Unknown => false,
             };

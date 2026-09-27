@@ -8,12 +8,14 @@ use clap::{Parser, ValueEnum};
 use serde_json::{json, Value};
 
 use lilscript::config::{
-    load_project_config, BundleMode, CandidateSearch, LoadedConfig, ProjectConfig,
+    load_project_config, CandidateSearch, DeliveryMode, JavaScriptFormat, LoadedConfig,
+    ProjectConfig,
 };
+use lilscript::module::EntrySource;
 use lilscript::package::write_lockfile;
 use lilscript::{
-    render_service_error, ChunkExtension, JavaScriptBundle, ServiceCompilation, ServiceJavaScript,
-    ServiceOptions, ServiceTarget,
+    render_service_error, ChunkExtension, ServiceCompilation, ServiceJavaScript, ServiceOptions,
+    ServiceTarget,
 };
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -32,6 +34,19 @@ enum BuildMode {
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
+enum DeliveryArg {
+    Single,
+    Split,
+    PreserveModules,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum FormatArg {
+    Esm,
+    Cjs,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
 enum ExplainFormat {
     Human,
     Json,
@@ -42,12 +57,34 @@ enum ExplainFormat {
 #[command(version)]
 #[command(about = "Compile LilScript source to optimized JavaScript, C, or a native executable.")]
 struct Args {
-    /// LilScript source file to compile.
-    input: PathBuf,
+    /// LilScript source file to compile: an entry named by its file stem.
+    /// Optional when the configuration's `[delivery.entries]` or `--entry`
+    /// name the entries.
+    input: Option<PathBuf>,
 
-    /// Output file, or the base path used by `--target all`.
+    /// Output file, or the base path used by `--target all`. A build with
+    /// several entries or files writes a directory instead (`--out-dir`).
     #[arg(short, long)]
     output: Option<PathBuf>,
+
+    /// An entry of the program, `NAME=PATH` (repeatable): each is a root of
+    /// one module graph and a public surface of its own.
+    #[arg(long = "entry", value_name = "NAME=PATH")]
+    entries: Vec<String>,
+
+    /// The directory a delivery's files and `lilscript.manifest.json` are
+    /// written to.
+    #[arg(long, value_name = "DIR")]
+    out_dir: Option<PathBuf>,
+
+    /// How the program is placed in files; overrides `[delivery] mode`.
+    #[arg(long, value_enum, value_name = "MODE")]
+    delivery: Option<DeliveryArg>,
+
+    /// The container of the primary output; overrides
+    /// `[target.javascript] format`.
+    #[arg(long, value_enum, value_name = "FORMAT")]
+    format: Option<FormatArg>,
 
     /// Compilation target.
     #[arg(long, value_enum, default_value_t = Target::Js)]
@@ -62,15 +99,16 @@ struct Args {
     #[arg(long)]
     config: Option<PathBuf>,
 
-    /// Compiler worker threads. Accepted; the compiler does not run worker
-    /// threads yet, so it has no effect.
+    /// Compiler worker threads, the one parallelism flag. Accepted; the
+    /// compiler does not run worker threads yet, so it has no effect. A
+    /// thread count never changes the output.
     #[arg(short = 'j', long, value_name = "N")]
     jobs: Option<NonZeroUsize>,
 
-    /// Concurrent codec workers. Accepted; codec work runs on one thread
-    /// yet, so it has no effect.
-    #[arg(long, value_name = "N")]
-    codec_jobs: Option<NonZeroUsize>,
+    /// Removed: `-j` is the one parallelism flag (plan M3.5). Present only
+    /// to refuse with a clear message.
+    #[arg(long, hide = true, value_name = "N")]
+    codec_jobs: Option<String>,
 
     /// Development skips the candidate search; production uses project policy.
     #[arg(long, value_enum, default_value_t = BuildMode::Production)]
@@ -118,7 +156,22 @@ fn run() -> Result<(), String> {
             "error: --backend was removed: there is one compiler; remove the flag".to_string(),
         );
     }
-    let mut loaded = load_project_config(&args.input, args.config.as_deref())
+    if args.codec_jobs.is_some() {
+        return Err(
+            "error: --codec-jobs was removed: -j is the one parallelism flag; remove it"
+                .to_string(),
+        );
+    }
+    let discovery = args
+        .input
+        .clone()
+        .or_else(|| {
+            args.entries
+                .first()
+                .and_then(|entry| entry.split_once('=').map(|(_, path)| PathBuf::from(path)))
+        })
+        .unwrap_or_else(|| PathBuf::from("."));
+    let mut loaded = load_project_config(&discovery, args.config.as_deref())
         .map_err(|error| error.to_string())?;
     let config_label = loaded.path.as_ref().map_or_else(
         || "lilscript.toml".to_string(),
@@ -127,29 +180,92 @@ fn run() -> Result<(), String> {
     for warning in &loaded.warnings {
         eprintln!("warning: {config_label}: {warning}");
     }
-    if args.jobs.is_some() || args.codec_jobs.is_some() {
+    if args.jobs.is_some() {
         eprintln!(
-            "warning: --jobs and --codec-jobs have no effect in this compiler yet: it compiles and encodes on one thread"
+            "warning: --jobs has no effect in this compiler yet: it compiles and encodes on one thread"
         );
     }
     if args.write_lock {
         let path = write_lockfile(&loaded.config).map_err(|error| error.to_string())?;
         eprintln!("wrote {}", path.display());
     }
+    if let Some(mode) = args.delivery {
+        loaded.config.delivery.mode = match mode {
+            DeliveryArg::Single => DeliveryMode::Single,
+            DeliveryArg::Split => DeliveryMode::Split,
+            DeliveryArg::PreserveModules => DeliveryMode::PreserveModules,
+        };
+    }
+    if let Some(format) = args.format {
+        loaded.config.target.javascript.format = match format {
+            FormatArg::Esm => JavaScriptFormat::Esm,
+            FormatArg::Cjs => JavaScriptFormat::Cjs,
+        };
+    }
     if args.delegate_bundling {
-        loaded.config.bundle.mode = BundleMode::Single;
+        loaded.config.delivery.mode = DeliveryMode::Single;
     }
     if matches!(args.mode, BuildMode::Development) {
         loaded.config.javascript.candidate_search = CandidateSearch::Off;
     }
+    let entries = entries(&args, &loaded)?;
+    if args.delegate_bundling && entries.len() > 1 {
+        return Err("--delegate-bundling builds one entry".to_string());
+    }
     let options = service_options(&args);
     if args.print_dependencies {
-        return print_dependencies(&args.input, &loaded, options);
+        return print_dependencies(&entries, &loaded, options);
     }
     if args.print_policy {
         return print_policy(&args, &loaded, options);
     }
-    build(&args, &loaded.config, options)
+    build(&args, &entries, &loaded.config, options)
+}
+
+/// The build's entries (plan M3.3, design §4): `[delivery.entries]`
+/// (relative to the configuration file), each `--entry NAME=PATH`, and
+/// `INPUT`, named by its stem unless a declared entry has that source.
+fn entries(args: &Args, loaded: &LoadedConfig) -> Result<Vec<EntrySource>, String> {
+    let base = loaded
+        .config
+        .config_dir
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("."));
+    let mut entries = loaded
+        .config
+        .delivery
+        .entries
+        .iter()
+        .map(|(name, path)| EntrySource {
+            name: name.clone(),
+            path: base.join(path),
+        })
+        .collect::<Vec<_>>();
+    for entry in &args.entries {
+        let (name, path) = entry
+            .split_once('=')
+            .ok_or_else(|| format!("--entry `{entry}` must be NAME=PATH"))?;
+        entries.push(EntrySource {
+            name: name.to_string(),
+            path: PathBuf::from(path),
+        });
+    }
+    if let Some(input) = &args.input {
+        let same = |path: &Path| match (fs::canonicalize(path), fs::canonicalize(input)) {
+            (Ok(left), Ok(right)) => left == right,
+            _ => path == input,
+        };
+        if !entries.iter().any(|entry| same(&entry.path)) {
+            entries.push(EntrySource::of(input));
+        }
+    }
+    if entries.is_empty() {
+        return Err(
+            "no entry: name a source file, `--entry NAME=PATH`, or `[delivery.entries]`"
+                .to_string(),
+        );
+    }
+    Ok(entries)
 }
 
 /// The one mapping from the command line to what the compiler builds. The
@@ -165,6 +281,7 @@ fn service_options(args: &Args) -> ServiceOptions {
         chunk_extension: args
             .output
             .as_deref()
+            .filter(|_| args.out_dir.is_none())
             .map(ChunkExtension::of)
             .unwrap_or_default(),
         // Whole ports exceed the library default: Micromark's 303 KB of
@@ -180,8 +297,13 @@ fn service_options(args: &Args) -> ServiceOptions {
     }
 }
 
-fn build(args: &Args, config: &ProjectConfig, options: ServiceOptions) -> Result<(), String> {
-    let result = lilscript::compile_path(&args.input, config, options)
+fn build(
+    args: &Args,
+    entries: &[EntrySource],
+    config: &ProjectConfig,
+    options: ServiceOptions,
+) -> Result<(), String> {
+    let result = lilscript::compile_entries(entries, config, options)
         .map_err(|error| render_service_error(&error))?;
     if let Some(format) = args.explain {
         let text = match format {
@@ -203,21 +325,21 @@ fn build(args: &Args, config: &ProjectConfig, options: ServiceOptions) -> Result
             .ok_or_else(|| "missing native C artifact".to_string())
     };
     let base = || {
-        args.output
-            .clone()
-            .unwrap_or_else(|| args.input.with_extension(""))
+        args.output.clone().unwrap_or_else(|| {
+            args.input
+                .clone()
+                .unwrap_or_else(|| entries[0].path.clone())
+                .with_extension("")
+        })
     };
     match args.target {
-        Target::Js | Target::JsModule if config.bundle.mode == BundleMode::Single => {
-            write_or_print(args.output.as_deref(), javascript()?.javascript())
-        }
         Target::Js | Target::JsModule => {
-            let output = args.output.as_deref().ok_or_else(|| {
-                "split and preserve-modules bundle modes require an explicit --output entry file"
-                    .to_string()
-            })?;
-            let bundle = javascript_bundle(args, config, &result, javascript()?, output)?;
-            write_javascript_bundle(output, &bundle)
+            let selected = javascript()?;
+            if selected.layout().is_none() && args.out_dir.is_none() {
+                write_or_print(args.output.as_deref(), selected.javascript())
+            } else {
+                write_delivery(args, config, &result, selected)
+            }
         }
         Target::C => write_or_print(args.output.as_deref(), native_c()?),
         Target::Native => {
@@ -229,12 +351,12 @@ fn build(args: &Args, config: &ProjectConfig, options: ServiceOptions) -> Result
             let base = base();
             ensure_parent(&base)?;
             let entry = base.with_extension("js");
-            if config.bundle.mode == BundleMode::Single {
-                fs::write(&entry, javascript()?.javascript())
+            let selected = javascript()?;
+            if selected.layout().is_none() {
+                fs::write(&entry, selected.javascript())
                     .map_err(|error| format!("failed to write {}: {error}", entry.display()))?;
             } else {
-                let bundle = javascript_bundle(args, config, &result, javascript()?, &entry)?;
-                write_javascript_bundle(&entry, &bundle)?;
+                return Err("--target all delivers one JavaScript file; build a multi-file delivery with --target js-module".to_string());
             }
             let c = base.with_extension("c");
             fs::write(&c, native_c()?)
@@ -244,21 +366,97 @@ fn build(args: &Args, config: &ProjectConfig, options: ServiceOptions) -> Result
     }
 }
 
-/// The delivered files of a multi-file build and their manifest, with the
-/// entry written at `output`.
-fn javascript_bundle(
+/// Where a delivery's files go (design §4): `--out-dir`, or, for one entry
+/// written with `-o FILE`, FILE for the entry and its other files beside it.
+/// The manifest is `lilscript.manifest.json` in the directory, or
+/// `<stem>.manifest.json` beside FILE.
+fn write_delivery(
     args: &Args,
     config: &ProjectConfig,
     result: &ServiceCompilation,
     selected: &ServiceJavaScript,
-    output: &Path,
-) -> Result<JavaScriptBundle, String> {
-    let entry_file = output
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or_else(|| "bundle output must have a UTF-8 file name".to_string())?;
-    // Module names relative to the entry module's directory.
-    let paths = result.report()["inputs"]["modules"]
+) -> Result<(), String> {
+    let (directory, entry_file, manifest_path) = match (&args.out_dir, &args.output) {
+        (Some(directory), _) => (
+            directory.clone(),
+            None,
+            directory.join("lilscript.manifest.json"),
+        ),
+        (None, Some(output)) => {
+            let directory = output
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .map_or_else(|| PathBuf::from("."), Path::to_path_buf);
+            (
+                directory,
+                Some(output.clone()),
+                output.with_extension("manifest.json"),
+            )
+        }
+        (None, None) => {
+            return Err(
+                "a delivery of several files needs --out-dir DIR (or -o FILE for one entry)"
+                    .to_string(),
+            )
+        }
+    };
+    // (name, code) of every file this build writes.
+    let mut written: Vec<(PathBuf, &str)> = Vec::new();
+    let mut outputs = Vec::new();
+    match selected.layout() {
+        None => {
+            let name = args
+                .input
+                .as_deref()
+                .and_then(Path::file_stem)
+                .and_then(|stem| stem.to_str())
+                .unwrap_or("index");
+            written.push((directory.join(format!("{name}.js")), selected.javascript()));
+        }
+        Some(layout) => {
+            let statics = layout.entries.iter().filter(|entry| !entry.dynamic).count();
+            if entry_file.is_some() && statics != 1 {
+                return Err(format!(
+                    "-o FILE writes one entry, and this build has {statics}: use --out-dir DIR"
+                ));
+            }
+            for (index, file) in selected.files().iter().enumerate() {
+                let facade = layout
+                    .entries
+                    .first()
+                    .is_some_and(|entry| entry.file as usize == index && !entry.dynamic);
+                let path = match (&entry_file, facade) {
+                    (Some(entry), true) => entry.clone(),
+                    _ => directory.join(&file.name),
+                };
+                written.push((path, file.code.as_str()));
+            }
+            outputs.push(lilscript::ManifestOutput {
+                files: selected
+                    .files()
+                    .iter()
+                    .map(|file| lilscript::ManifestFile {
+                        name: &file.name,
+                        code: &file.code,
+                        sizes: file.sizes,
+                    })
+                    .collect(),
+                layout,
+            });
+        }
+    }
+    let mut sorted = written
+        .iter()
+        .map(|(path, _)| path.clone())
+        .collect::<Vec<_>>();
+    sorted.sort();
+    if let Some(pair) = sorted.windows(2).find(|pair| pair[0] == pair[1]) {
+        return Err(format!(
+            "two delivered files are both {}: give the outputs distinct file names",
+            pair[0].display()
+        ));
+    }
+    let modules = result.report()["inputs"]["modules"]
         .as_array()
         .map(|modules| {
             modules
@@ -267,49 +465,103 @@ fn javascript_bundle(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    let base = args
-        .input
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    let base = fs::canonicalize(base).unwrap_or_else(|_| base.to_path_buf());
-    let name = |index: u32| {
-        let path = Path::new(paths.get(index as usize).map_or("", String::as_str));
-        path.strip_prefix(&base)
-            .unwrap_or(path)
-            .display()
-            .to_string()
-    };
-    let entry = lilscript::ManifestFile {
-        file_name: entry_file.to_string(),
-        modules: Vec::new(),
-        dependencies: selected.entry_links().dependencies.clone(),
-        dynamic_dependencies: selected.entry_links().dynamic_dependencies.clone(),
-        lazy: false,
-        importers: 0,
-        code: selected.javascript().to_string(),
-    };
-    let chunks = selected
-        .chunks()
+    let base = common_directory(&modules);
+    let modules = modules
         .iter()
-        .map(|chunk| lilscript::ManifestFile {
-            file_name: chunk.name.clone(),
-            modules: chunk.modules.iter().map(|&module| name(module)).collect(),
-            dependencies: chunk.dependencies.clone(),
-            dynamic_dependencies: chunk.dynamic_dependencies.clone(),
-            lazy: chunk.lazy,
-            importers: chunk.importers,
-            code: chunk.code.clone(),
+        .map(|path| {
+            Path::new(path)
+                .strip_prefix(&base)
+                .unwrap_or(Path::new(path))
+                .display()
+                .to_string()
         })
-        .collect();
-    lilscript::javascript_bundle(
-        entry,
-        chunks,
-        selected.entry_links().preload.clone(),
-        config.bundle.mode,
-        config.javascript.cost_model,
-        &config.bundle.cost,
-    )
+        .collect::<Vec<_>>();
+    let manifest = lilscript::manifest_v3(&outputs, &modules, config.javascript.cost_model);
+    remove_stale_files(&directory, &manifest_path, &written)?;
+    for (path, code) in &written {
+        ensure_parent(path)?;
+        fs::write(path, code)
+            .map_err(|error| format!("failed to write {}: {error}", path.display()))?;
+    }
+    ensure_parent(&manifest_path)?;
+    let text = serde_json::to_string_pretty(&manifest)
+        .map_err(|error| format!("failed to serialize the manifest: {error}"))?;
+    fs::write(&manifest_path, format!("{text}\n"))
+        .map_err(|error| format!("failed to write {}: {error}", manifest_path.display()))
+}
+
+/// The directory every path shares.
+fn common_directory(paths: &[String]) -> PathBuf {
+    let mut common: Option<Vec<std::ffi::OsString>> = None;
+    for path in paths {
+        let parts = Path::new(path)
+            .parent()
+            .map(|parent| {
+                parent
+                    .iter()
+                    .map(|part| part.to_os_string())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        common = Some(match common {
+            None => parts,
+            Some(known) => known
+                .into_iter()
+                .zip(parts)
+                .take_while(|(left, right)| left == right)
+                .map(|(left, _)| left)
+                .collect(),
+        });
+    }
+    common.unwrap_or_default().iter().collect()
+}
+
+/// Remove the files the previous manifest listed that this build does not
+/// write again, within the output directory.
+fn remove_stale_files(
+    directory: &Path,
+    manifest_path: &Path,
+    written: &[(PathBuf, &str)],
+) -> Result<(), String> {
+    let Ok(previous) = fs::read_to_string(manifest_path) else {
+        return Ok(());
+    };
+    let Ok(previous) = serde_json::from_str::<Value>(&previous) else {
+        return Ok(());
+    };
+    let Some(outputs) = previous.get("outputs").and_then(Value::as_array) else {
+        return Ok(());
+    };
+    for file in outputs
+        .iter()
+        .filter_map(|output| output.get("files")?.as_array())
+        .flatten()
+        .filter_map(|file| file.get("file")?.as_str())
+    {
+        let relative = Path::new(file);
+        if relative.is_absolute()
+            || relative
+                .components()
+                .any(|part| matches!(part, std::path::Component::ParentDir))
+        {
+            continue;
+        }
+        let path = directory.join(relative);
+        if written.iter().any(|(known, _)| *known == path) {
+            continue;
+        }
+        match fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(format!(
+                    "failed to remove stale file {}: {error}",
+                    path.display()
+                ))
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The compiler's report as a person reads it: the objective, each codec's
@@ -341,11 +593,11 @@ fn explain_human(report: &Value) -> String {
         line(
             "contract",
             format!(
-                "{} {}, {}, bundle {}",
+                "{} {}, {}, delivery {}",
                 text(&contract["execution"]).to_lowercase(),
                 text(&contract["world"]),
                 text(&contract["ecmascript"]),
-                text(&contract["bundle_mode"]).to_lowercase()
+                text(&contract["delivery"]["mode"]).to_lowercase()
             ),
         );
         let artifacts = report["artifacts"]
@@ -371,7 +623,7 @@ fn explain_human(report: &Value) -> String {
                     text(&artifact["raw"]),
                     text(&artifact["gzip9"]),
                     text(&artifact["brotli11"]),
-                    1 + details["chunks"].as_array().map_or(0, Vec::len),
+                    details["delivery"]["files"].as_array().map_or(1, Vec::len),
                     text(&details["style"]).to_lowercase(),
                     text(&details["output"]["literals"]).to_lowercase(),
                     details["semantic"]["rewrites"]
@@ -522,7 +774,6 @@ fn print_policy(args: &Args, loaded: &LoadedConfig, options: ServiceOptions) -> 
         // outside the fingerprint: thread counts must never change the output.
         "execution": {
             "threads": args.jobs.map(NonZeroUsize::get),
-            "codec_workers": args.codec_jobs.map(NonZeroUsize::get),
             "mode": format!("{:?}", args.mode),
             "target": format!("{:?}", args.target),
         },
@@ -544,11 +795,11 @@ fn print_policy(args: &Args, loaded: &LoadedConfig, options: ServiceOptions) -> 
 /// Every file the build reads — source modules, delivered host modules, the
 /// configuration and the lockfile — for an external incremental build graph.
 fn print_dependencies(
-    input: &Path,
+    entries: &[EntrySource],
     loaded: &LoadedConfig,
     options: ServiceOptions,
 ) -> Result<(), String> {
-    let inputs = lilscript::build_inputs(input, &loaded.config, options)
+    let inputs = lilscript::build_inputs(entries, &loaded.config, options)
         .map_err(|error| render_service_error(&error))?;
     let mut files = inputs.files;
     if let Some(path) = &loaded.path {
@@ -567,79 +818,11 @@ fn print_dependencies(
         serde_json::to_string(&json!({
             "version": 1,
             "entry": inputs.entry,
+            "entries": inputs.entries.iter().map(|(name, path)| json!({"name": name, "path": path})).collect::<Vec<_>>(),
             "files": files,
         }))
         .map_err(|error| format!("failed to serialize compiler inputs: {error}"))?
     );
-    Ok(())
-}
-
-fn write_javascript_bundle(output: &Path, bundle: &JavaScriptBundle) -> Result<(), String> {
-    ensure_parent(output)?;
-    let directory = output.parent().unwrap_or_else(|| Path::new("."));
-    let manifest_path = output.with_extension("manifest.json");
-    remove_stale_chunks(directory, &manifest_path, bundle)?;
-    for file in &bundle.files {
-        let path = if file.file_name == bundle.manifest.entry {
-            output.to_path_buf()
-        } else {
-            directory.join(&file.file_name)
-        };
-        ensure_parent(&path)?;
-        fs::write(&path, &file.code)
-            .map_err(|error| format!("failed to write {}: {error}", path.display()))?;
-    }
-    let manifest = serde_json::to_string_pretty(&bundle.manifest)
-        .map_err(|error| format!("failed to serialize bundle manifest: {error}"))?;
-    fs::write(&manifest_path, format!("{manifest}\n")).map_err(|error| {
-        format!(
-            "failed to write bundle manifest {}: {error}",
-            manifest_path.display()
-        )
-    })
-}
-
-fn remove_stale_chunks(
-    directory: &Path,
-    manifest_path: &Path,
-    bundle: &JavaScriptBundle,
-) -> Result<(), String> {
-    let Ok(previous) = fs::read_to_string(manifest_path) else {
-        return Ok(());
-    };
-    let Ok(previous) = serde_json::from_str::<Value>(&previous) else {
-        return Ok(());
-    };
-    let current = bundle
-        .manifest
-        .chunks
-        .iter()
-        .map(|chunk| chunk.file.as_str())
-        .collect::<std::collections::HashSet<_>>();
-    let Some(chunks) = previous.get("chunks").and_then(|chunks| chunks.as_array()) else {
-        return Ok(());
-    };
-    for file in chunks
-        .iter()
-        .filter_map(|chunk| chunk.get("file")?.as_str())
-    {
-        let flat_chunk = (file.starts_with("chunk-") || file.starts_with("lil-chunk-"))
-            && Path::new(file).file_name().and_then(|name| name.to_str()) == Some(file);
-        if current.contains(file) || !flat_chunk {
-            continue;
-        }
-        let path = directory.join(file);
-        match fs::remove_file(&path) {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => {
-                return Err(format!(
-                    "failed to remove stale bundle chunk {}: {error}",
-                    path.display()
-                ));
-            }
-        }
-    }
     Ok(())
 }
 
@@ -721,19 +904,36 @@ mod tests {
 
     #[test]
     fn resource_flags_are_nonzero() {
+        let args = Args::try_parse_from(["lilscript", "input.lil", "--jobs", "12"]).unwrap();
+        assert_eq!(args.jobs.unwrap().get(), 12);
+        assert!(Args::try_parse_from(["lilscript", "input.lil", "--jobs", "0"]).is_err());
+        // Parsed only to be refused: -j is the one parallelism flag.
+        assert!(
+            Args::try_parse_from(["lilscript", "input.lil", "--codec-jobs", "8"])
+                .unwrap()
+                .codec_jobs
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn entries_parse_from_flags() {
         let args = Args::try_parse_from([
             "lilscript",
-            "input.lil",
-            "--jobs",
-            "12",
-            "--codec-jobs",
-            "8",
+            "--entry",
+            "a=src/a.lil",
+            "--entry",
+            "b=src/b.lil",
+            "--out-dir",
+            "dist",
+            "--delivery",
+            "split",
         ])
         .unwrap();
-        assert_eq!(args.jobs.unwrap().get(), 12);
-        assert_eq!(args.codec_jobs.unwrap().get(), 8);
-        assert!(Args::try_parse_from(["lilscript", "input.lil", "--jobs", "0"]).is_err());
-        assert!(Args::try_parse_from(["lilscript", "input.lil", "--codec-jobs", "0"]).is_err());
+        assert!(args.input.is_none());
+        assert_eq!(args.entries, ["a=src/a.lil", "b=src/b.lil"]);
+        assert_eq!(args.out_dir.as_deref(), Some(Path::new("dist")));
+        assert!(matches!(args.delivery, Some(DeliveryArg::Split)));
     }
 
     #[test]
@@ -789,14 +989,14 @@ mod tests {
                 "effort": 13,
                 "objective": {"codec": "Brotli"},
                 "contract": {"execution": "Module", "world": "ReusableLibrary",
-                    "ecmascript": "es2022", "bundle_mode": "Single"},
+                    "ecmascript": "es2022", "delivery": {"mode": "single"}},
                 "tactics": [
                     {"id": "inlining", "state": {"permission": "auto", "enabled": true}},
                     {"id": "property-mangling", "state": {"permission": "off", "enabled": false}},
                 ],
             },
             "artifacts": [{"raw": 4786, "gzip9": null, "brotli11": 1646, "details": {
-                "style": "Scoped", "output": {"literals": "Original"}, "chunks": [],
+                "style": "Scoped", "output": {"literals": "Original"}, "delivery": null,
                 "semantic": {"rewrites": []}}}],
             "winners": [null, null, 0],
             "search": {"proposals": 104, "structures": 35, "renders": 105, "codec_probes": 102,

@@ -359,7 +359,6 @@ fn convert_modules<'ast, 'src>(
             ModuleId::from_index(root).ok_or_else(|| fail(root, "semantic module capacity"))?;
         entries.push((module, name.as_str()));
     }
-    let entry = entries[0].0;
     let mut lower =
         Lower::new(semantics.view(0).unwrap(), sources, &entries, budget).map_err(|error| {
             ModuleConversionError {
@@ -440,19 +439,25 @@ fn convert_modules<'ast, 'src>(
             Ok(())
         };
     convert_interfaces(&mut lower)?;
-    let roots = entries.iter().map(|&(module, _)| module).collect::<Vec<_>>();
-    let order =
-        module_contract::initialization_order_admitted(&lower.program.modules, &roots, lower.budget)
-            .map_err(|error| match error {
-                crate::module::StaticOrderError::Invalid(_) => fail(
-                    semantics.root(),
-                    "invalid checked module initialization graph",
-                ),
-                crate::module::StaticOrderError::Resources(error) => ModuleConversionError {
-                    module: semantics.root(),
-                    error: error.into(),
-                },
-            })?;
+    let roots = entries
+        .iter()
+        .map(|&(module, _)| module)
+        .collect::<Vec<_>>();
+    let order = module_contract::initialization_order_admitted(
+        &lower.program.modules,
+        &roots,
+        lower.budget,
+    )
+    .map_err(|error| match error {
+        crate::module::StaticOrderError::Invalid(_) => fail(
+            semantics.root(),
+            "invalid checked module initialization graph",
+        ),
+        crate::module::StaticOrderError::Resources(error) => ModuleConversionError {
+            module: semantics.root(),
+            error: error.into(),
+        },
+    })?;
     lower
         .work(order.len())
         .map_err(|error| ModuleConversionError {
@@ -639,7 +644,11 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         let mut program_entries = budget.vector(Retained, entries.len())?;
         for &(module, name) in entries {
             let name = budget.string(Retained, name)?;
-            budget.push(Retained, &mut program_entries, ProgramEntry { name, module })?;
+            budget.push(
+                Retained,
+                &mut program_entries,
+                ProgramEntry { name, module },
+            )?;
         }
         let mut units = budget.vector(Scratch, sources.len())?;
         let mut modules = budget.vector(Retained, sources.len())?;

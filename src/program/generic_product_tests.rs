@@ -100,7 +100,8 @@ fn imported_forwarding_preserves_nominal_presence_for_an_independent_downstream_
             })
             .collect(),
         dependency_order: vec![2, 1, 0],
-        root: 0,
+        roots: vec![0],
+        root_names: vec!["main".to_string()],
         eager: vec![true; 3],
     };
     let arena = bumpalo::Bump::new();

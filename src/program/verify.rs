@@ -1431,15 +1431,16 @@ fn verify_modules(
         .iter()
         .map(|entry| entry.module)
         .collect::<Vec<_>>();
-    let expected = super::module_contract::initialization_order_admitted(
-        &program.modules,
-        &roots,
-        budget,
-    )
-    .map_err(|error| match error {
-        crate::module::StaticOrderError::Invalid(reason) => VerificationError::Invalid(reason),
-        crate::module::StaticOrderError::Resources(error) => VerificationError::Allocation(error),
-    })?;
+    let expected =
+        super::module_contract::initialization_order_admitted(&program.modules, &roots, budget)
+            .map_err(|error| match error {
+                crate::module::StaticOrderError::Invalid(reason) => {
+                    VerificationError::Invalid(reason)
+                }
+                crate::module::StaticOrderError::Resources(error) => {
+                    VerificationError::Allocation(error)
+                }
+            })?;
     work(budget, expected.len())?;
     if expected.as_slice() != program.initialization.as_slice() {
         return Err(

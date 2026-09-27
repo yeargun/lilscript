@@ -159,11 +159,14 @@ impl std::error::Error for ServiceError {
 /// The service returns immutable delivered bytes with their exact scores.
 #[derive(Debug)]
 pub struct ServiceJavaScript {
+    /// The one delivered file; empty when a delivery plan places the output
+    /// in several files.
     javascript: String,
-    /// Chunk files the entry loads; empty for single-file delivery.
-    chunks: Vec<crate::program::publication::DeliveredChunk>,
-    /// What the entry imports, loads and preloads.
-    entry_links: crate::program::publication::EntryLinks,
+    /// Every file of a delivery plan, with its measured sizes; empty for one
+    /// file.
+    files: Vec<crate::program::publication::DeliveredFile>,
+    /// The plan's files, entries and links (manifest v3).
+    layout: Option<crate::js::delivery::DeliveredLayout>,
     sha256: String,
     sizes: Sizes,
     details: Value,
@@ -173,14 +176,13 @@ impl ServiceJavaScript {
     pub fn javascript(&self) -> &str {
         &self.javascript
     }
-    pub fn chunks(&self) -> &[crate::program::publication::DeliveredChunk] {
-        &self.chunks
+    /// Every file of a multi-file delivery, in plan order.
+    pub fn files(&self) -> &[crate::program::publication::DeliveredFile] {
+        &self.files
     }
-    pub fn entry_dependencies(&self) -> &[String] {
-        &self.entry_links.dependencies
-    }
-    pub fn entry_links(&self) -> &crate::program::publication::EntryLinks {
-        &self.entry_links
+    /// The delivery plan's layout, when the output is several files.
+    pub fn layout(&self) -> Option<&crate::js::delivery::DeliveredLayout> {
+        self.layout.as_ref()
     }
     pub fn sha256(&self) -> &str {
         &self.sha256
@@ -312,31 +314,21 @@ impl Frontend {
                 return Err((ServiceError::new("adoption", error), compilation.finish()));
             }
         };
-        // File stems name delivered chunks; they never affect a program.
-        let names = inputs["modules"]
+        // Module paths name delivered files (`[path]`, `[name]`); they
+        // never affect a program: each relative to the common source
+        // directory, without extension.
+        let paths = inputs["modules"]
             .as_array()
             .map(|modules| {
                 modules
                     .iter()
                     .map(|module| {
-                        let stem = module["path"]
-                            .as_str()
-                            .and_then(|path| std::path::Path::new(path).file_stem())
-                            .and_then(|stem| stem.to_str())
-                            .unwrap_or("module");
-                        stem.chars()
-                            .map(|c| {
-                                if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                                    c
-                                } else {
-                                    '_'
-                                }
-                            })
-                            .collect::<String>()
+                        std::path::PathBuf::from(module["path"].as_str().unwrap_or("module"))
                     })
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
+        let names = module_paths(&paths);
         if let Err(error) = compilation.set_module_names(names) {
             return Err((ServiceError::new("adoption", error), compilation.finish()));
         }
@@ -791,9 +783,9 @@ fn deliver_javascript(
     receipt: QualifiedArtifact,
 ) -> Result<ServiceJavaScript, ServiceError> {
     let delivered = (|| {
-        let (sizes, bundle, details) = compilation.with_qualified_artifact(&receipt, |view, provenance| {
+        let (sizes, several, details) = compilation.with_qualified_artifact(&receipt, |view, provenance| {
         let plan = provenance.naming();
-        (view.sizes, !view.chunks.is_empty(), json!({
+        (view.sizes, view.layout.is_some(), json!({
             "recipe_words":view.implementation.recipe_words(),
             "recipe_fingerprint":view.recipe_fingerprint,
             "semantic":semantic_report(view.implementation.snapshot_identity(),
@@ -806,29 +798,41 @@ fn deliver_javascript(
                 "families":format!("{:?}",view.output.families),"raw_spelling":plan.raw_spelling,
                 "choices":view.output.choices.iter().map(|(key,alternative)| json!({"family":key.family,"site":key.site,"alternative":alternative.0})).collect::<Vec<_>>()},
             "sizes":[Some(view.sizes.raw),view.sizes.gzip9,view.sizes.brotli11],
-            "chunks":view.chunks.iter().map(|chunk| json!({"file":chunk.name,"modules":chunk.modules,"bytes":chunk.code.len(),"lazy":chunk.lazy})).collect::<Vec<_>>(),
+            "delivery":view.layout.map(|layout| delivery_report(layout, view.files)),
             "policy_fingerprint":receipt.policy_fingerprint(),
         }))
     }).map_err(|error| ServiceError::new("handoff",error))?;
-        let (javascript, entry_links, chunks) = if bundle {
+        let (javascript, files, layout) = if several {
             let delivered = compilation
-                .take_qualified_bundle(receipt)
+                .take_qualified_files(receipt)
                 .map_err(|error| ServiceError::new("handoff", error))?;
-            (delivered.entry, delivered.entry_links, delivered.chunks)
+            (String::new(), delivered.files, Some(delivered.layout))
         } else {
             (
                 compilation
                     .take_qualified_artifact(receipt)
                     .map_err(|error| ServiceError::new("handoff", error))?,
-                Default::default(),
                 Vec::new(),
+                None,
             )
         };
+        let sha256 = if files.is_empty() {
+            digest(javascript.as_bytes())
+        } else {
+            let mut all = String::new();
+            for file in &files {
+                all.push_str(&file.name);
+                all.push('\0');
+                all.push_str(&digest(file.code.as_bytes()));
+                all.push('\n');
+            }
+            digest(all.as_bytes())
+        };
         Ok(ServiceJavaScript {
-            sha256: digest(javascript.as_bytes()),
+            sha256,
             javascript,
-            chunks,
-            entry_links,
+            files,
+            layout,
             sizes,
             details,
         })
@@ -839,6 +843,49 @@ fn deliver_javascript(
             .map_err(|error| ServiceError::new("handoff cleanup", error))?;
     }
     delivered
+}
+
+/// The build report's `delivery` (design §10): files with their roles,
+/// labels, links and measured sizes, and each entry's closure and rows.
+fn delivery_report(
+    layout: &crate::js::delivery::DeliveredLayout,
+    files: &[crate::program::publication::ArtifactFile],
+) -> Value {
+    let name = |index: u32| {
+        files
+            .get(index as usize)
+            .map_or("", |file| file.name.as_str())
+    };
+    let sizes = files.iter().map(|file| file.sizes()).collect::<Vec<_>>();
+    let rows = |pick: fn(&Sizes) -> Option<usize>| -> Option<Vec<u64>> {
+        let per_file = sizes.iter().map(pick).collect::<Option<Vec<_>>>()?;
+        Some(layout.rows(&per_file))
+    };
+    json!({
+        "mode": layout.mode.name(),
+        "format": layout.format.name(),
+        "files": layout.files.iter().enumerate().map(|(index, file)| json!({
+            "file": name(index as u32),
+            "role": format!("{:?}", file.role),
+            "label": layout.label_names(&file.label),
+            "modules": file.modules,
+            "anchored": file.anchored,
+            "imports": file.imports.iter().map(|&target| name(target)).collect::<Vec<_>>(),
+            "dynamic_imports": file.dynamic.iter().map(|&target| name(target)).collect::<Vec<_>>(),
+            "sizes": [Some(sizes[index].raw), sizes[index].gzip9, sizes[index].brotli11],
+        })).collect::<Vec<_>>(),
+        "entries": layout.entries.iter().enumerate().map(|(index, entry)| json!({
+            "name": entry.name,
+            "file": name(entry.file),
+            "dynamic": entry.dynamic,
+            "closure": entry.closure.iter().map(|&file| name(file)).collect::<Vec<_>>(),
+            "rows": [
+                rows(|sizes| Some(sizes.raw)).map(|rows| rows[index]),
+                rows(|sizes| sizes.gzip9).map(|rows| rows[index]),
+                rows(|sizes| sizes.brotli11).map(|rows| rows[index]),
+            ],
+        })).collect::<Vec<_>>(),
+    })
 }
 
 fn semantic_report(
@@ -1177,8 +1224,15 @@ pub fn with_checked_entries<R>(
     }
     let mut frontend = Frontend::new(config, options)?;
     let sources = StableSourceArena::new(WorkDomain::Baseline);
-    let prepared =
-        check_path_frontend(&mut frontend, &entries, None, config, &sources, true, |_| ());
+    let prepared = check_path_frontend(
+        &mut frontend,
+        &entries,
+        None,
+        config,
+        &sources,
+        true,
+        |_| (),
+    );
     let (program, inputs, ()) = match prepared {
         Ok(prepared) => prepared,
         Err(error) => {
@@ -1199,12 +1253,64 @@ pub fn with_checked_entries<R>(
     Ok(finish_factory(outcome, finished, started, Some(release_ns)))
 }
 
+/// Each module's path relative to the directory every module shares,
+/// without extension, each segment spelled for a file name.
+fn module_paths(paths: &[std::path::PathBuf]) -> Vec<String> {
+    let directories = paths
+        .iter()
+        .map(|path| path.parent().map(Path::to_path_buf).unwrap_or_default())
+        .collect::<Vec<_>>();
+    let mut common: Vec<std::ffi::OsString> = directories
+        .first()
+        .map(|first| first.iter().map(|part| part.to_os_string()).collect())
+        .unwrap_or_default();
+    for directory in &directories[directories.len().min(1)..] {
+        let parts = directory.iter().collect::<Vec<_>>();
+        let shared = common
+            .iter()
+            .zip(&parts)
+            .take_while(|(left, right)| left.as_os_str() == **right)
+            .count();
+        common.truncate(shared);
+    }
+    let prefix = common.iter().collect::<std::path::PathBuf>();
+    paths
+        .iter()
+        .map(|path| {
+            let relative = path
+                .strip_prefix(&prefix)
+                .unwrap_or(path)
+                .with_extension("");
+            relative
+                .iter()
+                .map(|segment| {
+                    segment
+                        .to_string_lossy()
+                        .chars()
+                        .map(|c| {
+                            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') {
+                                c
+                            } else {
+                                '_'
+                            }
+                        })
+                        .collect::<String>()
+                })
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .collect()
+}
+
 /// Entries sorted by name, each name valid and unique (plan M3.3: bit `i`
 /// of every label is the `i`-th name, so the TOML's table order never
 /// matters).
 fn sorted_entries(entries: &[EntrySource]) -> Result<Vec<EntrySource>, ServiceError> {
     if entries.is_empty() {
-        return Err(ServiceError::new("entries", "a build needs at least one entry"));
+        return Err(ServiceError::new(
+            "entries",
+            "a build needs at least one entry",
+        ));
     }
     let mut sorted = entries.to_vec();
     sorted.sort_by(|left, right| left.name.cmp(&right.name));
@@ -1321,7 +1427,9 @@ pub fn build_inputs(
         {
             match crate::host_modules::delivered_files(root_directory, &requests, edition) {
                 Ok(files) => inputs.files.extend(files),
-                Err(reason) if config.delivery.host_modules == crate::config::HostModules::Embed => {
+                Err(reason)
+                    if config.delivery.host_modules == crate::config::HostModules::Embed =>
+                {
                     return Err(ServiceError::new("host modules", reason));
                 }
                 // Not carried: the output imports them from their specifiers.
@@ -1367,10 +1475,10 @@ pub fn with_checked_program<R>(
         false,
         client,
     )
-        .map(|(program, _inputs, inspected)| {
-            program.discard(&mut frontend.ledger);
-            inspected
-        });
+    .map(|(program, _inputs, inspected)| {
+        program.discard(&mut frontend.ledger);
+        inspected
+    });
     release_source_buffers(sources, &mut frontend.ledger);
     checked
 }
@@ -1427,8 +1535,9 @@ pub fn compile_entries(
     config: &ProjectConfig,
     options: ServiceOptions,
 ) -> Result<ServiceCompilation, ServiceError> {
-    let (output, finished) =
-        with_checked_entries(entries, config, options, |session| session.compile_targets())?;
+    let (output, finished) = with_checked_entries(entries, config, options, |session| {
+        session.compile_targets()
+    })?;
     finish_output(output, finished)
 }
 

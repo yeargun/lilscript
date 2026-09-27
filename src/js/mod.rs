@@ -26,6 +26,7 @@ pub use families::{Challenger, OutputFamilies, Spelling, StatementSpellings};
 pub mod extract;
 mod literal_output;
 pub mod manifest;
+pub mod names;
 mod root_constants;
 mod scalar_objects;
 pub mod tables;
@@ -1347,8 +1348,7 @@ impl Module {
                 let Some(&target) = first.get(&binding) else {
                     continue;
                 };
-                if target <= index
-                    || (root && self.root_module(index) != self.root_module(target))
+                if target <= index || (root && self.root_module(index) != self.root_module(target))
                 {
                     continue;
                 }
@@ -2541,7 +2541,8 @@ impl Module {
                             FunctionName::Unobserved
                         )
                     });
-                let same_module = |at: usize| !root || self.root_module(index) == self.root_module(at);
+                let same_module =
+                    |at: usize| !root || self.root_module(index) == self.root_module(at);
                 let leaf = if movable && function.is_none() && same_module(index + 1) {
                     let next = &self.regions[region].statements[index + 1];
                     // A function created in a `for…in`/`for…of` head closes

@@ -1192,7 +1192,7 @@ fn a_call_initializing_a_binding_its_function_reads_stays_a_call() {
         },
         Statement::Evaluate(captured),
     ];
-    module.root_modules = vec![0; 3];
+    module.root_rows = vec![RootRow::new(0, Anchor::Anchored); 3];
     module.verify().unwrap();
     let mut budget = AllocationBudget::new(None);
     assert_eq!(module.inline_single_calls(true, &mut budget).unwrap(), 0);
@@ -1259,7 +1259,7 @@ fn a_function_called_once_becomes_a_block_at_its_call() {
         },
         Statement::Evaluate(reported),
     ];
-    module.root_modules = vec![0; 3];
+    module.root_rows = vec![RootRow::new(0, Anchor::Anchored); 3];
     module.verify().unwrap();
     let before = [
         execute(
@@ -1366,7 +1366,7 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
             Statement::Evaluate(second),
             Statement::Evaluate(third),
         ]);
-        module.root_modules = vec![0; statements.len()];
+        module.root_rows = vec![RootRow::new(0, Anchor::Anchored); statements.len()];
         module.regions[root.index()].statements = statements;
         module.verify().unwrap();
         module
@@ -1421,7 +1421,7 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
             value: Some(one),
         },
     ];
-    module.root_modules = vec![0; 2];
+    module.root_rows = vec![RootRow::new(0, Anchor::Anchored); 2];
     module.verify().unwrap();
     assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 0);
 
@@ -1479,7 +1479,7 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
         binding: f,
         name: "f".into(),
     });
-    module.root_modules = vec![0];
+    module.root_rows = vec![RootRow::new(0, Anchor::Anchored)];
     module.verify().unwrap();
     assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 0);
 }

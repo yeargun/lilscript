@@ -128,7 +128,8 @@ pub(crate) fn initialization_order_admitted<I: IntoIterator<Item = usize>>(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<usize>, StaticOrderError> {
     use crate::output_budget::AllocationClass::Scratch;
-    let mut order = static_evaluation_order_from_admitted(roots, module_count, dependencies, budget)?;
+    let mut order =
+        static_evaluation_order_from_admitted(roots, module_count, dependencies, budget)?;
     if order.len() == module_count {
         return Ok(order);
     }

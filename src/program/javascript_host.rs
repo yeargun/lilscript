@@ -133,7 +133,7 @@ impl Formation<'_, '_, '_, '_, '_> {
         )?;
         let binding = self.fresh_binding(scope, "method_adapter")?;
         // Hoisted, so an adapter created during initialization is available.
-        self.statement(
+        self.helper_statement(
             root,
             js::Statement::Function {
                 binding,

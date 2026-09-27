@@ -44,7 +44,7 @@ fn admitted_source_graph_matches_legacy_and_releases_exact_capacities() {
     let mut ledger = ledger(1_000_000, 1_000_000);
     let (modules, charge) =
         discover_modules_configured_admitted(&root, &config, &mut ledger).unwrap();
-    assert_eq!(modules.root, legacy.root);
+    assert_eq!(modules.root(), legacy.root());
     assert_eq!(modules.eager, legacy.eager);
     assert_eq!(modules.dependency_order, legacy.dependency_order);
     assert_eq!(modules.modules.len(), legacy.modules.len());

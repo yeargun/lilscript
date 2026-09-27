@@ -330,7 +330,7 @@ fn canonical_mapping(program: &Program<'_>) -> String {
             &program.fields,
             &program.exports,
             &program.initialization,
-            program.entry,
+            program.entry_module(),
             modules,
             units
         )

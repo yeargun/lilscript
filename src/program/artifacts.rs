@@ -88,10 +88,14 @@ impl QualifiedArtifact {
 
 #[derive(Debug, Clone)]
 pub struct ArtifactView<'a> {
-    /// The entry file.
+    /// The one delivered file; empty when a delivery plan places the output
+    /// in several files (`files`).
     pub javascript: &'a str,
-    /// Chunk files loaded by the entry; every one is part of the scored bytes.
-    pub chunks: &'a [ArtifactChunk],
+    /// Every file of a delivery plan, in plan order; each is part of the
+    /// scored bytes. Empty for one file.
+    pub files: &'a [ArtifactFile],
+    /// The plan's files, entries and links, when there is one.
+    pub layout: Option<&'a crate::js::delivery::DeliveredLayout>,
     /// Module artifacts must be loaded as ECMAScript modules, including when
     /// their export list is empty. Script artifacts promise no strict entry.
     pub execution: JavaScriptExecution,
@@ -103,6 +107,9 @@ pub struct ArtifactView<'a> {
     /// Actual choices used for these immutable bytes, including canonicalized
     /// inactive literal alternatives. Permissions alone are not provenance.
     pub output: OutputTactics,
+    /// The scores: one file's sizes, or a plan's sum of entry rows (design
+    /// §10), which is the sum of its files' sizes when every file is in one
+    /// row.
     pub sizes: Sizes,
     pub retained_capacity: usize,
 }
@@ -161,72 +168,54 @@ impl CachedSizes {
     }
 }
 
-pub(crate) use crate::js::delivery::BundleSpec;
-
-/// One chunk file of a multi-file artifact, scored with its entry.
-pub struct ArtifactChunk {
+/// One file of a delivery plan, scored with the others.
+pub struct ArtifactFile {
     pub name: String,
-    pub modules: Vec<u32>,
-    /// Chunk files this one imports, by name.
-    pub dependencies: Vec<String>,
-    /// Lazy chunks this one loads with `import()`, by name.
-    pub dynamic_dependencies: Vec<String>,
-    /// Loaded only by `import()`.
-    pub lazy: bool,
-    /// Modules importing this chunk's module, when split counts them.
-    pub importers: usize,
     pub code: String,
+    /// This file's own codec sizes, measured once.
+    sizes: CachedSizes,
     charge: RetainedCharge<RevisionId>,
 }
 
-impl std::fmt::Debug for ArtifactChunk {
+impl ArtifactFile {
+    /// This file's measured sizes.
+    pub fn sizes(&self) -> Sizes {
+        self.sizes.get()
+    }
+}
+
+impl std::fmt::Debug for ArtifactFile {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("ArtifactChunk")
+            .debug_struct("ArtifactFile")
             .field("name", &self.name)
-            .field("modules", &self.modules)
             .field("bytes", &self.code.len())
             .finish()
     }
 }
 
-/// A delivered chunk file, detached from artifact storage.
+/// A delivered file of a plan, detached from artifact storage, with the
+/// codec sizes the search measured (manifest v3 reads these; it never
+/// encodes again).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeliveredChunk {
+pub struct DeliveredFile {
     pub name: String,
-    pub modules: Vec<u32>,
-    pub dependencies: Vec<String>,
-    pub dynamic_dependencies: Vec<String>,
-    pub lazy: bool,
-    /// Modules importing this chunk's module, when split counts them.
-    pub importers: usize,
     pub code: String,
+    pub sizes: Sizes,
 }
 
-/// What a multi-file delivery's entry links to: the chunks it imports and
-/// loads with `import()`, and the lazy chunks it preloads.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct EntryLinks {
-    pub dependencies: Vec<String>,
-    pub dynamic_dependencies: Vec<String>,
-    pub preload: Vec<String>,
-}
-
-/// An exact multi-file delivery: the entry, what it links to, and every
-/// chunk file.
+/// An exact multi-file delivery: every file and the plan's layout.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeliveredBundle {
-    pub entry: String,
-    pub entry_links: EntryLinks,
-    pub chunks: Vec<DeliveredChunk>,
+pub struct DeliveredFiles {
+    pub files: Vec<DeliveredFile>,
+    pub layout: crate::js::delivery::DeliveredLayout,
 }
 
 struct Record {
     text: String,
-    /// Chunk files delivered with the entry text; empty for one file.
-    chunks: Vec<ArtifactChunk>,
-    /// What the entry links to, charged with the entry text.
-    entry_links: EntryLinks,
+    /// Every file of a delivery plan; empty for one file (`text`).
+    files: Vec<ArtifactFile>,
+    layout: Option<crate::js::delivery::DeliveredLayout>,
     execution: JavaScriptExecution,
     candidate: CandidateId,
     identity: SharedImplementationIdentity,
@@ -241,7 +230,8 @@ impl Record {
     fn view(&self) -> ArtifactView<'_> {
         ArtifactView {
             javascript: &self.text,
-            chunks: &self.chunks,
+            files: &self.files,
+            layout: self.layout.as_ref(),
             execution: self.execution,
             candidate: self.candidate,
             implementation: self.identity.description(),
@@ -249,6 +239,38 @@ impl Record {
             output: self.output.clone(),
             sizes: self.sizes.get(),
             retained_capacity: self.text.capacity(),
+        }
+    }
+    /// Each file's size under `codec`, measuring each at most once.
+    fn file_sizes(
+        &self,
+        codec: CompressionCostModel,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<usize>, CandidateError> {
+        let mut sizes = Vec::with_capacity(self.files.len());
+        for file in &self.files {
+            budget.work(WorkKind::Codec, 1)?;
+            let size = match file.sizes.measured(codec) {
+                Some(size) => size,
+                None => {
+                    let size =
+                        crate::compression::measure_admitted(file.code.as_bytes(), codec, budget)?;
+                    file.sizes.publish(codec, size)?
+                }
+            };
+            sizes.push(size);
+        }
+        Ok(sizes)
+    }
+    /// Each entry's row under `codec` (design §10); one row for one file.
+    fn rows(
+        &self,
+        codec: CompressionCostModel,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<u64>, CandidateError> {
+        match &self.layout {
+            None => Ok(vec![self.measure(codec, budget)? as u64]),
+            Some(layout) => Ok(layout.rows(&self.file_sizes(codec, budget)?)),
         }
     }
     fn measure(
@@ -261,30 +283,36 @@ impl Record {
         if let Some(size) = self.sizes.measured(codec) {
             return Ok(size);
         }
-        let mut size = crate::compression::measure_admitted(self.text.as_bytes(), codec, budget)?;
-        for chunk in &self.chunks {
-            size = size
-                .checked_add(crate::compression::measure_admitted(
-                    chunk.code.as_bytes(),
-                    codec,
-                    budget,
-                )?)
-                .ok_or(AllocationError::Capacity)?;
-        }
-        // A refusal in any file, a zero score, or an overflowing package
-        // sum never publishes a partial coordinate. Other completed codecs
-        // retain their independent monotone entries.
+        let size = match &self.layout {
+            None => crate::compression::measure_admitted(self.text.as_bytes(), codec, budget)?,
+            // The sum of the entries' rows: shared code weighs by how many
+            // entries load it. A refusal in any file, a zero score, or an
+            // overflowing sum never publishes a partial coordinate.
+            Some(layout) => {
+                let rows = layout.rows(&self.file_sizes(codec, budget)?);
+                let total = rows
+                    .iter()
+                    .try_fold(0u64, |sum, row| sum.checked_add(*row))
+                    .ok_or(AllocationError::Capacity)?;
+                usize::try_from(total).map_err(|_| AllocationError::Capacity)?
+            }
+        };
+        // Other completed codecs retain their independent monotone entries.
         self.sizes.publish(codec, size)
     }
     fn take(
         self,
         owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
-    ) -> (String, EntryLinks, Vec<DeliveredChunk>) {
+    ) -> (
+        String,
+        Vec<DeliveredFile>,
+        Option<crate::js::delivery::DeliveredLayout>,
+    ) {
         let Self {
             text,
-            chunks,
-            entry_links,
+            files,
+            layout,
             charge,
             provenance,
             identity,
@@ -293,41 +321,67 @@ impl Record {
         discard_provenance(provenance, owner, budget);
         discard_identity(identity, owner, budget);
         release(charge, owner, budget);
-        let chunks = chunks
+        let files = files
             .into_iter()
-            .map(|chunk| {
-                release(chunk.charge, owner, budget);
-                DeliveredChunk {
-                    name: chunk.name,
-                    modules: chunk.modules,
-                    dependencies: chunk.dependencies,
-                    dynamic_dependencies: chunk.dynamic_dependencies,
-                    lazy: chunk.lazy,
-                    importers: chunk.importers,
-                    code: chunk.code,
+            .map(|file| {
+                release(file.charge, owner, budget);
+                DeliveredFile {
+                    sizes: file.sizes.get(),
+                    name: file.name,
+                    code: file.code,
                 }
             })
             .collect();
-        (text, entry_links, chunks)
+        (text, files, layout)
     }
     fn discard(self, owner: RevisionId, budget: &mut AllocationBudget<'_>) {
         let Self {
             text,
-            chunks,
+            files,
             charge,
             provenance,
             identity,
             ..
         } = self;
         drop(text);
-        for chunk in chunks {
-            drop(chunk.code);
-            release(chunk.charge, owner, budget);
+        for file in files {
+            drop(file.code);
+            release(file.charge, owner, budget);
         }
         discard_provenance(provenance, owner, budget);
         discard_identity(identity, owner, budget);
         release(charge, owner, budget);
     }
+}
+
+/// The heap bytes a layout holds, charged with its record.
+fn layout_bytes(layout: &crate::js::delivery::DeliveredLayout) -> u64 {
+    let words = |count: usize| (count * size_of::<u64>()) as u64;
+    let files = layout
+        .files
+        .iter()
+        .map(|file| {
+            size_of::<crate::js::delivery::LayoutFile>() as u64
+                + words(
+                    file.label.len() + file.modules.len() + file.imports.len() + file.dynamic.len(),
+                )
+        })
+        .sum::<u64>();
+    let entries = layout
+        .entries
+        .iter()
+        .map(|entry| {
+            size_of::<crate::js::delivery::EntryDelivery>() as u64
+                + entry.name.len() as u64
+                + words(entry.closure.len())
+        })
+        .sum::<u64>();
+    let names = layout
+        .entry_names
+        .iter()
+        .map(|name| (name.len() + size_of::<String>()) as u64)
+        .sum::<u64>();
+    files + entries + names
 }
 
 fn discard_provenance(
@@ -380,10 +434,10 @@ fn same_streams(
     if !equal_bytes(left.javascript, right.javascript, budget)? {
         return Ok(false);
     }
-    if left.chunks.len() != right.chunks.len() {
+    if left.files.len() != right.files.len() {
         return Ok(false);
     }
-    for (left, right) in left.chunks.iter().zip(right.chunks) {
+    for (left, right) in left.files.iter().zip(right.files) {
         if !equal_bytes(&left.name, &right.name, budget)?
             || !equal_bytes(&left.code, &right.code, budget)?
         {
@@ -717,6 +771,32 @@ impl ArtifactArena {
                 }
             }
         }
+        // The files of equal streams are equal too: their sizes carry over,
+        // so manifest v3 never encodes the delivered files again.
+        if !target.files.is_empty() {
+            for slot in &self.slots {
+                let Some(StoredRecord::JavaScript(donor)) = &slot.record else {
+                    continue;
+                };
+                if donor.files.len() != target.files.len()
+                    || !same_streams(target.view(), donor.view(), budget)?
+                {
+                    continue;
+                }
+                for (file, source) in target.files.iter().zip(&donor.files) {
+                    for codec in objectives.iter() {
+                        if codec == CompressionCostModel::Raw
+                            || file.sizes.measured(codec).is_some()
+                        {
+                            continue;
+                        }
+                        if let Some(size) = source.sizes.measured(codec) {
+                            file.sizes.publish(codec, size)?;
+                        }
+                    }
+                }
+            }
+        }
         Ok(known)
     }
     pub(super) fn take(
@@ -724,25 +804,38 @@ impl ArtifactArena {
         id: ArtifactId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<String, CandidateError> {
-        if !self.get(id.0)?.chunks.is_empty() {
+        if self.get(id.0)?.layout.is_some() {
             return Err(CandidateError::Artifact(
-                "a multi-file artifact is delivered with all of its chunks",
+                "a multi-file artifact is delivered with all of its files",
             ));
         }
         Ok(self.remove(id.0)?.take(self.owner, budget).0)
     }
-    /// The entry text and every chunk file of one artifact.
-    pub(super) fn take_bundle(
+    /// Every file of one multi-file artifact, with its layout.
+    pub(super) fn take_files(
         &mut self,
         id: ArtifactId,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<DeliveredBundle, CandidateError> {
-        let (entry, entry_links, chunks) = self.remove(id.0)?.take(self.owner, budget);
-        Ok(DeliveredBundle {
-            entry,
-            entry_links,
-            chunks,
+    ) -> Result<DeliveredFiles, CandidateError> {
+        if self.get(id.0)?.layout.is_none() {
+            return Err(CandidateError::Artifact(
+                "a one-file artifact has no layout",
+            ));
+        }
+        let (_, files, layout) = self.remove(id.0)?.take(self.owner, budget);
+        Ok(DeliveredFiles {
+            files,
+            layout: layout.expect("checked above"),
         })
+    }
+    /// Each entry's row under `codec` (design §10): one row for one file.
+    pub(super) fn rows(
+        &self,
+        id: ArtifactId,
+        codec: CompressionCostModel,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<u64>, CandidateError> {
+        self.get(id.0)?.rows(codec, budget)
     }
     pub(super) fn discard(
         &mut self,
@@ -823,14 +916,8 @@ pub struct BudgetedJavaScriptOutput<'scope, 'target> {
     policy: &'scope ResolvedPolicy,
     execution: JavaScriptExecution,
     choices: OutputTactics,
-    /// Multi-file delivery, when the contract asks for it.
-    bundle: Option<&'scope BundleSpec>,
 }
 impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
-    pub(super) fn with_bundle(mut self, bundle: Option<&'scope BundleSpec>) -> Self {
-        self.bundle = bundle;
-        self
-    }
     pub(super) fn new(
         output: &'scope Output<'target>,
         retained: &'scope mut ArtifactArena,
@@ -851,7 +938,6 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
             policy,
             execution,
             choices,
-            bundle: None,
         }
     }
     pub fn render(&mut self, plan: &Plan) -> Result<ScopedArtifactId, CandidateError> {
@@ -879,36 +965,32 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         }
         self.output
             .with_allocation_budget(|budget| self.staging.prepare_insert(budget))?;
-        let (text, charge, literals, chunks, entry_links) = match self.bundle {
-            Some(bundle) => {
-                let (rendered, literals) = self.output.render_bundle_with_literals_admitted(
+        let (text, charge, literals, files, layout) = match self.output.delivery_layout() {
+            Some(layout) => {
+                let (rendered, literals) = self.output.render_plan_with_literals_admitted(
                     plan,
                     literals,
                     byte_limit,
                     self.staging.owner,
-                    bundle,
                 )?;
-                let (text, charge) = rendered.entry;
-                let chunks = rendered
-                    .chunks
+                let files = rendered
                     .into_iter()
-                    .map(|chunk| ArtifactChunk {
-                        name: chunk.name,
-                        modules: chunk.modules,
-                        dependencies: chunk.dependencies,
-                        dynamic_dependencies: chunk.dynamic_dependencies,
-                        lazy: chunk.lazy,
-                        importers: chunk.importers,
-                        code: chunk.code,
-                        charge: chunk.charge,
+                    .map(|file| ArtifactFile {
+                        sizes: CachedSizes::new(file.code.len()),
+                        name: file.name,
+                        code: file.code,
+                        charge: file.charge,
                     })
                     .collect::<Vec<_>>();
-                let links = EntryLinks {
-                    dependencies: rendered.entry_dependencies,
-                    dynamic_dependencies: rendered.entry_dynamic_dependencies,
-                    preload: rendered.preload,
-                };
-                (text, charge, literals, chunks, links)
+                // The record's own charge covers the layout it keeps.
+                let bytes = layout_bytes(&layout);
+                let (text, charge) = self.output.with_allocation_budget(|budget| {
+                    budget
+                        .retain(AllocationClass::Retained, bytes)
+                        .and_then(|()| budget.detach_retained(self.staging.owner, bytes))
+                        .map(|charge| (String::new(), charge))
+                })?;
+                (text, charge, literals, files, Some(layout))
             }
             None => {
                 let (text, charge, literals) = self.output.render_with_literals_admitted(
@@ -917,7 +999,7 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
                     byte_limit,
                     self.staging.owner,
                 )?;
-                (text, charge, literals, Vec::new(), EntryLinks::default())
+                (text, charge, literals, Vec::new(), None)
             }
         };
         let actual_output = OutputTactics {
@@ -947,20 +1029,28 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
                 drop(text);
                 self.output.with_allocation_budget(|budget| {
                     release(charge, self.staging.owner, budget);
-                    for chunk in chunks {
-                        release(chunk.charge, self.staging.owner, budget);
+                    for file in files {
+                        release(file.charge, self.staging.owner, budget);
                     }
                 });
                 return Err(error);
             }
         };
         let (provenance, identity) = retained;
-        let chunk_bytes: usize = chunks.iter().map(|chunk| chunk.code.len()).sum();
-        let sizes = CachedSizes::new(text.len() + chunk_bytes);
+        // Raw bytes rank like every codec: a plan's raw score is the sum of
+        // its entries' rows.
+        let raw = match &layout {
+            None => text.len(),
+            Some(layout) => {
+                let sizes = files.iter().map(|file| file.code.len()).collect::<Vec<_>>();
+                layout.rows(&sizes).iter().sum::<u64>() as usize
+            }
+        };
+        let sizes = CachedSizes::new(raw);
         Ok(ScopedArtifactId(self.staging.insert(Record {
             text,
-            chunks,
-            entry_links,
+            files,
+            layout,
             execution: self.execution,
             candidate: self.candidate,
             identity,
@@ -1014,9 +1104,9 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         Ok(ArtifactId(self.retained.insert(self.staging.remove(id.0)?)))
     }
     pub fn take_artifact(&mut self, id: ScopedArtifactId) -> Result<String, CandidateError> {
-        if !self.staging.get(id.0)?.chunks.is_empty() {
+        if self.staging.get(id.0)?.layout.is_some() {
             return Err(CandidateError::Artifact(
-                "a multi-file artifact is delivered with all of its chunks",
+                "a multi-file artifact is delivered with all of its files",
             ));
         }
         let record = self.staging.remove(id.0)?;

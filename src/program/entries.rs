@@ -11,7 +11,11 @@ use crate::js::delivery::{EntryGraph, EntrySet};
 /// The entry graph of `program` for its delivery. `carried` names the host
 /// modules the output carries: their code runs for the entries that reach
 /// a module importing one.
-pub(super) fn entry_graph(program: &Program<'_>, carried: &[String]) -> EntryGraph {
+pub(super) fn entry_graph(
+    program: &Program<'_>,
+    carried: &[String],
+    paths: &[String],
+) -> EntryGraph {
     let modules = program.modules();
     let count = modules.len();
     let imports = modules
@@ -63,7 +67,10 @@ pub(super) fn entry_graph(program: &Program<'_>, carried: &[String]) -> EntryGra
             }
         }
     }
-    let dynamic_roots = dynamic.iter().map(|&module| module as usize).collect::<Vec<_>>();
+    let dynamic_roots = dynamic
+        .iter()
+        .map(|&module| module as usize)
+        .collect::<Vec<_>>();
     orders.extend(crate::module::fresh_orders(&dynamic_roots, &graph));
     let mut reach = vec![EntrySet::default(); count];
     for (bit, order) in orders.iter().enumerate() {
@@ -94,5 +101,13 @@ pub(super) fn entry_graph(program: &Program<'_>, carried: &[String]) -> EntryGra
         reach,
         cycles: crate::module::static_cycles(&graph),
         host_importers,
+        paths: (0..count)
+            .map(|module| {
+                paths
+                    .get(module)
+                    .cloned()
+                    .unwrap_or_else(|| format!("m{module}"))
+            })
+            .collect(),
     }
 }

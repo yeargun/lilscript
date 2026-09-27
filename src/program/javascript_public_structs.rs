@@ -569,7 +569,7 @@ impl Formation<'_, '_, '_, '_, '_> {
         // module cycle before this module finishes evaluating still works.
         let binding =
             self.adapter_binding(scope, if incoming { "public_in" } else { "public_out" })?;
-        self.statement(root, js::Statement::Function { binding, function })?;
+        self.helper_statement(root, js::Statement::Function { binding, function })?;
         self.budget.push(
             AllocationClass::Scratch,
             &mut self.struct_plan.public_codecs,
@@ -687,10 +687,10 @@ impl Formation<'_, '_, '_, '_, '_> {
         if declared_form {
             // A hoisted declaration is callable from instantiation on, like
             // the source declaration it publishes, and needs no name recipe.
-            self.statement(root, js::Statement::Function { binding, function })?;
+            self.helper_statement(root, js::Statement::Function { binding, function })?;
         } else {
             let value = self.expression(js::Expr::Function(function))?;
-            self.statement(
+            self.helper_statement(
                 root,
                 js::Statement::Let {
                     binding,

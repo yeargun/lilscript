@@ -815,16 +815,18 @@ fn validate_graph<S>(
             .map(|module| module.dependencies.clone())
             .collect::<Vec<_>>();
         budget
-            .work(WorkKind::Analysis, graph.len() as u64 * modules.roots.len() as u64)
+            .work(
+                WorkKind::Analysis,
+                graph.len() as u64 * modules.roots.len() as u64,
+            )
             .map_err(|error| resource(root, error))?;
         let cycles = crate::module::static_cycles(&graph);
         let entered = crate::module::cycle_entries(&modules.roots, &graph, &cycles);
         for (first, first_entries) in entered.iter().enumerate() {
             for (second, second_entries) in entered.iter().enumerate().skip(first + 1) {
                 for &(cycle, at) in first_entries {
-                    let Some(&(_, other)) = second_entries
-                        .iter()
-                        .find(|&&(known, _)| known == cycle)
+                    let Some(&(_, other)) =
+                        second_entries.iter().find(|&&(known, _)| known == cycle)
                     else {
                         continue;
                     };

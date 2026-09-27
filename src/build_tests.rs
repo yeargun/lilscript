@@ -394,15 +394,12 @@ fn service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback(
     for mode in ["preserve-modules", "split"] {
         let result = compile_source(
             "export int answer(){return 17;}",
-            &config(&format!("[bundle]\nmode='{mode}'")),
+            &config(&format!("[delivery]\nmode='{mode}'")),
             ServiceOptions::default(),
         )
         .unwrap();
-        assert!(result
-            .javascript(Objective::Brotli)
-            .unwrap()
-            .chunks()
-            .is_empty());
+        // One entry without `import()`: at most its one file (design §7.6).
+        assert!(result.javascript(Objective::Brotli).unwrap().files().len() <= 1);
     }
 }
 
@@ -1285,8 +1282,14 @@ fn path_post_discovery_work_refusal_releases_sources_before_returning() {
     let mut frontend = Frontend::new(&config, ServiceOptions::default()).unwrap();
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
-    let (modules, syntax) =
-        discover_parsed_modules_admitted(&path, None, &config, &sources, &arena).unwrap();
+    let (modules, syntax) = discover_parsed_modules_admitted(
+        &[crate::module::EntrySource::of(&path)],
+        None,
+        &config,
+        &sources,
+        &arena,
+    )
+    .unwrap();
     let source_bytes = sources.allocated_bytes() as u64;
     drop(syntax);
     drop(arena);
@@ -1325,8 +1328,14 @@ fn path_checker_and_conversion_refusals_release_sources_without_a_diagnostic_cop
     let mut frontend = Frontend::new(&config, ServiceOptions::default()).unwrap();
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
-    let (modules, syntax) =
-        discover_parsed_modules_admitted(&path, None, &config, &sources, &arena).unwrap();
+    let (modules, syntax) = discover_parsed_modules_admitted(
+        &[crate::module::EntrySource::of(&path)],
+        None,
+        &config,
+        &sources,
+        &arena,
+    )
+    .unwrap();
     let source_bytes = sources.allocated_bytes() as u64;
     let bytes = modules
         .modules
@@ -1509,8 +1518,14 @@ fn shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger()
     let mut frontend = Frontend::new(&config, ServiceOptions::default()).unwrap();
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
-    let (modules, syntax) =
-        discover_parsed_modules_admitted(&path, None, &config, &sources, &arena).unwrap();
+    let (modules, syntax) = discover_parsed_modules_admitted(
+        &[crate::module::EntrySource::of(&path)],
+        None,
+        &config,
+        &sources,
+        &arena,
+    )
+    .unwrap();
     drop(syntax);
     drop(arena);
     let discovery_peak = frontend.ledger.peak_retained_bytes();
@@ -1525,8 +1540,14 @@ fn shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger()
     let mut frontend = Frontend::new(&config, options).unwrap();
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
-    let error =
-        discover_parsed_modules_admitted(&path, None, &config, &sources, &arena).unwrap_err();
+    let error = discover_parsed_modules_admitted(
+        &[crate::module::EntrySource::of(&path)],
+        None,
+        &config,
+        &sources,
+        &arena,
+    )
+    .unwrap_err();
     assert!(matches!(error, ModuleDiscoveryError::Resources(_)));
     drop(arena);
     let source_bytes = sources.allocated_bytes() as u64;

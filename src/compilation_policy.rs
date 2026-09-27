@@ -60,10 +60,15 @@ pub struct DeliveryContract {
     pub format: crate::config::JavaScriptFormat,
     /// Which lazily loaded files an entry preloads; `None` for one file.
     pub preload: crate::config::PreloadPolicy,
-    /// File name templates (`js::names`).
-    pub entry_names: String,
-    pub chunk_names: String,
-    pub module_names: String,
+    /// File name templates (`js::names`); `None` is the default, which
+    /// costs the contract no storage.
+    pub entry_names: Option<String>,
+    pub chunk_names: Option<String>,
+    pub module_names: Option<String>,
+    /// The world is a library: chunk names default to their plan position,
+    /// the shortest delivered bytes; an application's to a content hash,
+    /// which caches safely across releases (design §8).
+    pub library: bool,
     /// Declared deployment costs (L12), added to an entry's row.
     pub request_bytes: u64,
     pub depth_bytes: u64,
@@ -76,12 +81,32 @@ impl DeliveryContract {
             mode: crate::config::DeliveryMode::Single,
             format: crate::config::JavaScriptFormat::Esm,
             preload: crate::config::PreloadPolicy::None,
-            entry_names: "[name].[ext]".to_string(),
-            chunk_names: "[index].[ext]".to_string(),
-            module_names: "[path].[ext]".to_string(),
+            entry_names: None,
+            chunk_names: None,
+            module_names: None,
+            library: true,
             request_bytes: 0,
             depth_bytes: 0,
         }
+    }
+    pub fn entry_names(&self) -> &str {
+        self.entry_names.as_deref().unwrap_or("[name].[ext]")
+    }
+    pub fn chunk_names(&self) -> &str {
+        self.chunk_names.as_deref().unwrap_or(if self.library {
+            "[index].[ext]"
+        } else {
+            "[hash:8].[ext]"
+        })
+    }
+    pub fn module_names(&self) -> &str {
+        self.module_names.as_deref().unwrap_or("[path].[ext]")
+    }
+    /// The templates this contract stores, for its payload.
+    pub fn templates(&self) -> impl Iterator<Item = &String> {
+        [&self.entry_names, &self.chunk_names, &self.module_names]
+            .into_iter()
+            .flatten()
     }
 }
 
@@ -824,8 +849,8 @@ impl ResolvedPolicy {
                 "strip_console":language.effects.strip_console,
                 "preserved_properties":preserved_properties,
                 "delivery":{"mode":delivery.mode.name(), "format":delivery.format.name(),
-                    "preload":format!("{:?}", delivery.preload), "entry_names":delivery.entry_names,
-                    "chunk_names":delivery.chunk_names, "module_names":delivery.module_names,
+                    "preload":format!("{:?}", delivery.preload), "entry_names":delivery.entry_names(),
+                    "chunk_names":delivery.chunk_names(), "module_names":delivery.module_names(),
                     "request_bytes":delivery.request_bytes, "depth_bytes":delivery.depth_bytes},
             }),
         };

@@ -339,7 +339,8 @@ pub(super) fn verify_in(
         // entries may give one name to different bindings, and the one
         // export list holds each (binding, name) once.
         for entry in &module.entries {
-            walk.budget.work(WorkKind::Analysis, entry.exports.len() as u64)?;
+            walk.budget
+                .work(WorkKind::Analysis, entry.exports.len() as u64)?;
             let mut names = Vec::with_capacity(entry.exports.len());
             for &position in &entry.exports {
                 let export = module

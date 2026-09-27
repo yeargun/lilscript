@@ -1,7 +1,8 @@
-//! Multi-file delivery (008-D1): the delivered files
-//! are the scored files, each parses and loads on its own, and loading the
-//! entry observes exactly what the single-file program observes.
+//! Multi-file delivery (plan M3.3): the delivered files are the scored
+//! files, each parses on its own, and loading an entry observes what the
+//! single-file program observes (design §3, DL1-DL10).
 use super::*;
+use crate::module::EntrySource;
 use std::fs;
 use std::process::Command;
 
@@ -16,81 +17,96 @@ fn workspace(name: &str, files: &[(&str, &str)]) -> std::path::PathBuf {
     directory
 }
 
-fn compile(directory: &Path, mode: &str) -> ServiceCompilation {
-    let config: ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[bundle]\nmode='{mode}'"
+fn options() -> ServiceOptions {
+    ServiceOptions {
+        target: ServiceTarget::JavaScript,
+        preserve_root_exports: true,
+        ..ServiceOptions::default()
+    }
+}
+
+fn config(delivery: &str) -> ProjectConfig {
+    crate::config::parse_project_config(&format!(
+        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[delivery]\n{delivery}"
     ))
-    .unwrap();
+    .unwrap()
+    .config
+}
+
+fn compile(directory: &Path, mode: &str) -> ServiceCompilation {
     compile_path(
         &directory.join("main.lil"),
-        &config,
-        ServiceOptions {
-            target: ServiceTarget::JavaScript,
-            preserve_root_exports: true,
-            ..ServiceOptions::default()
-        },
+        &config(&format!("mode='{mode}'")),
+        options(),
     )
     .unwrap()
 }
 
-/// Write the delivered files into `out/` and run the entry as a module.
-fn run(directory: &Path, compiled: &ServiceCompilation) -> String {
+/// Every delivered file, by name; one file is `main.js`.
+fn delivered(compiled: &ServiceCompilation) -> Vec<(String, String)> {
     let artifact = compiled.javascript(Objective::Brotli).unwrap();
+    if artifact.layout().is_none() {
+        return vec![("main.js".to_string(), artifact.javascript().to_string())];
+    }
+    artifact
+        .files()
+        .iter()
+        .map(|file| (file.name.clone(), file.code.clone()))
+        .collect()
+}
+
+/// Write the delivered files into `out/` and run `script` there as a
+/// module; `entry` names the file the default script loads.
+fn run_script(directory: &Path, compiled: &ServiceCompilation, script: &str) -> String {
     let out = directory.join("out");
     let _ = fs::remove_dir_all(&out);
     fs::create_dir_all(&out).unwrap();
-    fs::write(out.join("entry.js"), artifact.javascript()).unwrap();
-    for chunk in artifact.chunks() {
-        fs::write(out.join(&chunk.name), &chunk.code).unwrap();
+    fs::write(out.join("package.json"), "{\"type\":\"module\"}").unwrap();
+    for (name, code) in delivered(compiled) {
+        let path = out.join(&name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, code).unwrap();
     }
-    for chunk in artifact.chunks() {
-        // Every chunk parses and loads without the entry.
-        let loaded = Command::new("node")
-            .args(["--input-type=module", "-e"])
-            .arg(format!(
-                "globalThis.read=()=>7;await import({});",
-                serde_json::to_string(out.join(&chunk.name).to_str().unwrap()).unwrap()
-            ))
-            .output()
-            .unwrap();
-        assert!(
-            loaded.status.success(),
-            "{}\n{}",
-            String::from_utf8_lossy(&loaded.stderr),
-            chunk.code
-        );
-    }
+    fs::write(out.join("probe.mjs"), script).unwrap();
     let output = Command::new("node")
-        .args(["--input-type=module", "-e"])
-        .arg(format!(
-            "let n=0;globalThis.read=()=>{{n+=1;return 7*n}};await import({});",
-            serde_json::to_string(out.join("entry.js").to_str().unwrap()).unwrap()
-        ))
+        .arg(out.join("probe.mjs"))
+        .current_dir(&out)
         .output()
         .unwrap();
     assert!(
         output.status.success(),
-        "{}\n{}",
+        "{}\n{:?}",
         String::from_utf8_lossy(&output.stderr),
-        artifact.javascript()
+        delivered(compiled)
     );
     String::from_utf8(output.stdout).unwrap()
 }
 
-fn delivered(compiled: &ServiceCompilation) -> Vec<(String, String)> {
-    let artifact = compiled.javascript(Objective::Brotli).unwrap();
-    std::iter::once(("entry.js".to_string(), artifact.javascript().to_string()))
-        .chain(
-            artifact
-                .chunks()
-                .iter()
-                .map(|chunk| (chunk.name.clone(), chunk.code.clone())),
-        )
-        .collect()
+/// Run the `main` entry with a `read` host that counts its calls.
+fn run(directory: &Path, compiled: &ServiceCompilation) -> String {
+    run_script(
+        directory,
+        compiled,
+        "let n=0;globalThis.read=()=>{n+=1;return 7*n};await import('./main.js');",
+    )
 }
 
+/// Every file parses and loads (with its imports) on its own.
+fn each_file_loads(directory: &Path, compiled: &ServiceCompilation) {
+    for (name, _) in delivered(compiled) {
+        run_script(
+            directory,
+            compiled,
+            &format!("globalThis.read=()=>7;await import('./{name}');"),
+        );
+    }
+}
+
+/// preserve-modules (design §7.4, DL8): every module is a file, and the
+/// entry's write to the library's `counter` goes through a setter the
+/// library's file exports (ES imports are read-only).
 #[test]
-fn preserve_modules_moves_self_contained_functions_into_module_chunks() {
+fn preserve_modules_keeps_each_module_in_its_file_and_writes_through_a_setter() {
     let directory = workspace(
         "state",
         &[
@@ -110,57 +126,65 @@ fn preserve_modules_moves_self_contained_functions_into_module_chunks() {
     let bundle = compile(&directory, "preserve-modules");
     let expected = run(&directory, &single);
     assert_eq!(run(&directory, &bundle), expected);
+    each_file_loads(&directory, &bundle);
+    let files = delivered(&bundle);
+    assert_eq!(
+        files
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>(),
+        ["main.js", "lib.js"],
+        "{files:?}"
+    );
+    let (_, main) = &files[0];
+    assert!(main.contains("from\"./lib.js\""), "{main}");
     let artifact = bundle.javascript(Objective::Brotli).unwrap();
-    // Only the pure function moves; the state and its mutator stay.
-    assert_eq!(artifact.chunks().len(), 1, "{:?}", delivered(&bundle));
-    let chunk = &artifact.chunks()[0];
-    assert!(chunk.name.starts_with("chunk-") && chunk.name.ends_with("-lib.js"));
-    assert!(chunk.code.contains("export{"), "{}", chunk.code);
-    assert!(!chunk.code.contains("import"), "{}", chunk.code);
-    assert!(artifact
-        .javascript()
-        .contains(&format!("from\"./{}\"", chunk.name)));
-    assert_eq!(artifact.entry_dependencies(), [chunk.name.clone()]);
-    // The scored bytes are exactly the delivered files.
-    let total: usize = delivered(&bundle).iter().map(|(_, code)| code.len()).sum();
+    let layout = artifact.layout().unwrap();
+    assert_eq!(layout.files.len(), 2);
+    // The scored bytes are exactly the delivered files (one entry: its row
+    // holds every file once).
+    let total: usize = files.iter().map(|(_, code)| code.len()).sum();
     assert_eq!(artifact.sizes().raw, total);
     let _ = fs::remove_dir_all(directory);
 }
 
+/// A static cycle among delivered files is refused in M3.3a: ES modules
+/// reproduce it only with a hoisting constraint the tree does not carry yet.
 #[test]
-fn mutually_recursive_module_functions_import_each_other_across_chunks() {
+fn preserve_modules_refuses_a_static_cycle() {
     let directory = workspace(
         "cycle",
         &[
             (
-                "even.lil",
-                "import {isOdd} from \"./odd\";export bool isEven(int n){if(n==0){return true;}return isOdd(n-1);}",
-            ),
-            (
-                "odd.lil",
-                "import {isEven} from \"./even\";export bool isOdd(int n){if(n==0){return false;}return isEven(n-1);}",
+                "lib.lil",
+                "import {base} from \"./main\";export int twice(int x){int t=0;for(int i=0;i<x;i++){t=t+base(i);}return t;}",
             ),
             (
                 "main.lil",
-                "extern int read();import {isEven} from \"./even\";import {isOdd} from \"./odd\";\
-                 int value=read();print(isEven(value));print(isOdd(value+1));",
+                "extern int read();import {twice} from \"./lib\";export int base(int x){return x+read();}print(twice(3));print(twice(4));",
             ),
         ],
     );
     let single = compile(&directory, "single");
-    let bundle = compile(&directory, "preserve-modules");
-    assert_eq!(run(&directory, &bundle), run(&directory, &single));
-    let artifact = bundle.javascript(Objective::Brotli).unwrap();
-    assert_eq!(artifact.chunks().len(), 2, "{:?}", delivered(&bundle));
-    for chunk in artifact.chunks() {
-        assert_eq!(chunk.dependencies.len(), 1, "{}", chunk.code);
-        assert!(!chunk.dependencies.contains(&"entry.js".to_string()));
-    }
+    assert_eq!(run(&directory, &single), "45\n160\n");
+    let error = compile_path(
+        &directory.join("main.lil"),
+        &config("mode='preserve-modules'"),
+        options(),
+    )
+    .map(|_| ())
+    .unwrap_err();
+    assert!(error.to_string().contains("M3.3d"), "{error}");
+    // `split` has one file per label, and one entry means one label: the
+    // cycle stays inside one file.
+    let bundle = compile(&directory, "split");
+    assert_eq!(run(&directory, &bundle), "45\n160\n");
     let _ = fs::remove_dir_all(directory);
 }
 
+/// A function reading its module's state stays in that module's file.
 #[test]
-fn functions_that_read_module_state_stay_in_the_entry() {
+fn functions_that_read_module_state_stay_with_it() {
     let directory = workspace(
         "reader",
         &[
@@ -175,18 +199,18 @@ fn functions_that_read_module_state_stay_in_the_entry() {
         ],
     );
     let single = compile(&directory, "single");
-    let bundle = compile(&directory, "preserve-modules");
-    assert_eq!(run(&directory, &bundle), run(&directory, &single));
-    assert!(bundle
-        .javascript(Objective::Brotli)
-        .unwrap()
-        .chunks()
-        .is_empty());
+    for mode in ["preserve-modules", "split"] {
+        let bundle = compile(&directory, mode);
+        assert_eq!(run(&directory, &bundle), run(&directory, &single), "{mode}");
+        each_file_loads(&directory, &bundle);
+    }
     let _ = fs::remove_dir_all(directory);
 }
 
+/// Names and bytes are a function of sources, configuration and binary
+/// (DL10): the same build twice, and the entries table in another order.
 #[test]
-fn bundle_delivery_names_and_bytes_are_deterministic() {
+fn delivery_names_and_bytes_are_deterministic() {
     let directory = workspace(
         "determinism",
         &[
@@ -195,131 +219,103 @@ fn bundle_delivery_names_and_bytes_are_deterministic() {
                 "export int square(int x){return x*x;}export int cube(int x){return x*square(x);}",
             ),
             (
-                "main.lil",
-                "extern int read();import {cube} from \"./math\";print(cube(read()));",
-            ),
-        ],
-    );
-    let first = delivered(&compile(&directory, "preserve-modules"));
-    let second = delivered(&compile(&directory, "preserve-modules"));
-    assert_eq!(first, second);
-    assert_eq!(first.len(), 2);
-    let _ = fs::remove_dir_all(directory);
-}
-
-#[test]
-fn functions_that_call_into_the_entry_module_stay_in_the_entry() {
-    // `twice` reads `base`, which the entry module declares; moving it would
-    // make a chunk import the entry.
-    let directory = workspace(
-        "entry-cycle",
-        &[
-            (
-                "lib.lil",
-                "import {base} from \"./main\";export int twice(int x){return base(x)*2;}",
-            ),
-            (
-                "main.lil",
-                "import {twice} from \"./lib\";export int base(int x){return x+1;}print(twice(3));",
-            ),
-        ],
-    );
-    let single = compile(&directory, "single");
-    let bundle = compile(&directory, "preserve-modules");
-    assert_eq!(run(&directory, &bundle), run(&directory, &single));
-    assert!(bundle
-        .javascript(Objective::Brotli)
-        .unwrap()
-        .chunks()
-        .is_empty());
-    let _ = fs::remove_dir_all(directory);
-}
-
-fn split(directory: &Path, min_chunk_bytes: usize, cost: &str) -> ServiceCompilation {
-    let config: ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n\
-         [bundle]\nmode='split'\nmin_chunk_bytes={min_chunk_bytes}\nmax_chunks=1\nshared_min_imports=2\n\
-         [bundle.cost]\nraw_weight=1\ngzip_weight=0\nbrotli_weight=0\ndependency_depth_penalty_bytes=0\n{cost}"
-    ))
-    .unwrap();
-    compile_path(
-        &directory.join("main.lil"),
-        &config,
-        ServiceOptions {
-            target: ServiceTarget::JavaScript,
-            preserve_root_exports: true,
-            ..ServiceOptions::default()
-        },
-    )
-    .unwrap()
-}
-
-/// The old route's split rule: only a module that several modules
-/// import, whose chunk has the minimum size and lowers the deploy cost.
-#[test]
-fn split_keeps_a_shared_module_chunk_only_when_it_lowers_the_deploy_cost() {
-    let directory = workspace(
-        "split",
-        &[
-            // Large enough that moving it out saves more than its import line.
-            (
-                "shared.lil",
-                "export int shared(int value){int total=0;for(int i=0;i<value;i++){\
-                 if(i%3==0){total=total+i*value;}else{total=total-i;}}return total+value;}",
-            ),
-            (
                 "left.lil",
-                "import {shared} from \"./shared\";export int left(){return shared(2);}",
+                "extern int read();import {cube} from \"./math\";export int left(){return cube(read());}",
             ),
             (
                 "right.lil",
-                "import {shared} from \"./shared\";export int right(){return shared(3);}",
+                "import {square} from \"./math\";export int right(int x){return square(x)+1;}",
+            ),
+            ("main.lil", "print(1);"),
+        ],
+    );
+    let build = |entries: &[(&str, &str)]| {
+        let entries = entries
+            .iter()
+            .map(|(name, file)| EntrySource {
+                name: name.to_string(),
+                path: directory.join(file),
+            })
+            .collect::<Vec<_>>();
+        let compiled = compile_entries(&entries, &config("mode='split'"), options()).unwrap();
+        delivered(&compiled)
+    };
+    let first = build(&[("left", "left.lil"), ("right", "right.lil")]);
+    let second = build(&[("left", "left.lil"), ("right", "right.lil")]);
+    let reordered = build(&[("right", "right.lil"), ("left", "left.lil")]);
+    assert_eq!(first, second);
+    assert_eq!(first, reordered);
+    assert!(first.iter().any(|(name, _)| name == "left.js"));
+    assert!(first.iter().any(|(name, _)| name == "right.js"));
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// Two entries over one module (DL1, DL3, DL6): code both reach is one
+/// file both facades import, so its state is one instance whichever loads
+/// first; an entry never runs a module it does not reach.
+#[test]
+fn two_entries_share_one_instance_of_what_both_reach() {
+    let directory = workspace(
+        "shared",
+        &[
+            (
+                "core.lil",
+                "int count=0;print(\"core loaded\");export void bump(){count=count+1;}export int read(){return count;}",
             ),
             (
-                "main.lil",
-                "import {left} from \"./left\";import {right} from \"./right\";print(left()+right());",
+                "a.lil",
+                "import {bump,read} from \"./core\";export int twice(){bump();bump();return read();}export {bump,read};",
+            ),
+            (
+                "b.lil",
+                "import {read} from \"./core\";print(\"b loaded\");export int onlyB(){return 7;}export {read};",
             ),
         ],
     );
-    let single = compile(&directory, "single");
-    let expected = run(&directory, &single);
-    // Cache reuse outweighs the request: the shared module is split out.
-    let reused = split(
-        &directory,
-        1,
-        "request_overhead_bytes=0\ncache_reuse_discount_percent=100",
+    let entries = [("a", "a.lil"), ("b", "b.lil")]
+        .iter()
+        .map(|(name, file)| EntrySource {
+            name: name.to_string(),
+            path: directory.join(file),
+        })
+        .collect::<Vec<_>>();
+    let compiled = compile_entries(&entries, &config("mode='split'"), options()).unwrap();
+    each_file_loads(&directory, &compiled);
+    assert_eq!(
+        run_script(
+            &directory,
+            &compiled,
+            "const b=await import('./b.js');const a=await import('./a.js');\
+             console.log(b.read(),a.twice(),b.read(),a.read===b.read,b.onlyB());"
+        ),
+        "core loaded\nb loaded\n0 2 2 true 7\n"
     );
-    assert_eq!(run(&directory, &reused), expected);
-    let artifact = reused.javascript(Objective::Brotli).unwrap();
-    assert_eq!(artifact.chunks().len(), 1, "{:?}", delivered(&reused));
-    let chunk = &artifact.chunks()[0];
-    assert!(chunk.name.ends_with("-shared.js"), "{}", chunk.name);
-    assert_eq!(chunk.importers, 2);
-    let total: usize = delivered(&reused).iter().map(|(_, code)| code.len()).sum();
-    assert_eq!(artifact.sizes().raw, total);
-    // A request that costs more than the reuse saves keeps one file.
-    let costly = split(
-        &directory,
-        1,
-        "request_overhead_bytes=1000000\ncache_reuse_discount_percent=0",
+    assert_eq!(
+        run_script(&directory, &compiled, "await import('./a.js');"),
+        "core loaded\n"
     );
-    assert!(costly
-        .javascript(Objective::Brotli)
-        .unwrap()
-        .chunks()
-        .is_empty());
-    assert_eq!(run(&directory, &costly), expected);
-    // Below the minimum chunk size, nothing is a candidate.
-    let small = split(
-        &directory,
-        100_000,
-        "request_overhead_bytes=0\ncache_reuse_discount_percent=100",
+    let artifact = compiled.javascript(Objective::Brotli).unwrap();
+    let layout = artifact.layout().unwrap();
+    // One row per entry; each file is in the rows of the entries loading it.
+    assert_eq!(layout.entries.len(), 2);
+    let sizes = artifact
+        .files()
+        .iter()
+        .map(|file| file.code.len())
+        .collect::<Vec<_>>();
+    let rows = layout.rows(&sizes);
+    assert_eq!(artifact.sizes().raw as u64, rows.iter().sum::<u64>());
+    // `single` with several entries: isolated instances (DL1's exception).
+    let isolated = compile_entries(&entries, &config("mode='single'"), options()).unwrap();
+    assert_eq!(delivered(&isolated).len(), 2);
+    assert_eq!(
+        run_script(
+            &directory,
+            &isolated,
+            "const a=await import('./a.js');const b=await import('./b.js');console.log(a.twice(),b.read());"
+        ),
+        "core loaded\ncore loaded\nb loaded\n2 0\n"
     );
-    assert!(small
-        .javascript(Objective::Brotli)
-        .unwrap()
-        .chunks()
-        .is_empty());
     let _ = fs::remove_dir_all(directory);
 }
 
@@ -336,30 +332,13 @@ fn lazy_workspace(name: &str, main: &str) -> std::path::PathBuf {
     )
 }
 
-fn with_bundle(directory: &Path, bundle: &str) -> ServiceCompilation {
-    let config: ProjectConfig = toml::from_str(&format!(
-        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[bundle]\n{bundle}"
-    ))
-    .unwrap();
-    compile_path(
-        &directory.join("main.lil"),
-        &config,
-        ServiceOptions {
-            target: ServiceTarget::JavaScript,
-            preserve_root_exports: true,
-            ..ServiceOptions::default()
-        },
-    )
-    .unwrap()
-}
-
 const LAZY_MAIN: &str = "import(\"./feature\").then((auto feature)=>print(feature.answer(40)))\
     .catch((auto error)=>print(error.message));";
 
-/// `import()` of a module nothing imports statically loads its own chunk,
+/// `import()` of a module nothing imports statically loads its own file,
 /// which exports exactly the namespace members some code reads.
 #[test]
-fn dynamic_import_loads_a_lazy_chunk_serving_only_the_members_read() {
+fn dynamic_import_loads_a_lazy_file_serving_only_the_members_read() {
     let directory = lazy_workspace("lazy", LAZY_MAIN);
     let single = compile(&directory, "single");
     assert_eq!(run(&directory, &single), "42\n");
@@ -369,48 +348,37 @@ fn dynamic_import_loads_a_lazy_chunk_serving_only_the_members_read() {
         .javascript()
         .to_string();
     assert!(!single_text.contains("99"), "{single_text}");
-    for (bundle, preloaded) in [
+    for (delivery, preloaded) in [
         ("mode='preserve-modules'", false),
-        (
-            "mode='split'\nmin_chunk_bytes=1\nmax_chunks=1\npreload='entry'",
-            true,
-        ),
+        ("mode='split'\npreload='entry'", true),
     ] {
-        let compiled = with_bundle(&directory, bundle);
+        let compiled =
+            crate::build::compile_path(&directory.join("main.lil"), &config(delivery), options())
+                .unwrap();
         assert_eq!(run(&directory, &compiled), "42\n");
-        let artifact = compiled.javascript(Objective::Brotli).unwrap();
-        assert_eq!(artifact.chunks().len(), 1, "{:?}", delivered(&compiled));
-        let chunk = &artifact.chunks()[0];
+        let files = delivered(&compiled);
+        assert_eq!(files.len(), 2, "{files:?}");
+        let (lazy_name, lazy) = &files[1];
+        assert!(lazy_name.ends_with(".js"), "{lazy_name}");
+        // The importer receives the namespace, so the member keeps its name.
         assert!(
-            chunk.lazy && chunk.name.ends_with("-feature.js"),
-            "{}",
-            chunk.name
+            lazy.contains("export{answer}") || lazy.contains(" as answer}"),
+            "{lazy}"
         );
-        // The importer receives the namespace, so the member keeps its name
-        // (`export{answer}`, or `export{a as answer}` under a raw spelling).
+        assert!(!lazy.contains("99"), "{lazy}");
+        let (_, main) = &files[0];
+        assert_eq!(main.contains("modulepreload"), preloaded, "{main}");
         assert!(
-            chunk.code.contains("export{answer}") || chunk.code.contains(" as answer}"),
-            "{}",
-            chunk.code
+            main.contains(&format!("import(\"./{lazy_name}\")")),
+            "{main}"
         );
-        assert!(!chunk.code.contains("99"), "{}", chunk.code);
-        let links = artifact.entry_links();
-        assert!(links.dependencies.is_empty());
-        assert_eq!(links.dynamic_dependencies, [chunk.name.clone()]);
-        assert_eq!(links.preload.len(), usize::from(preloaded));
-        assert_eq!(artifact.javascript().contains("modulepreload"), preloaded);
-        assert!(artifact
-            .javascript()
-            .contains(&format!("import(\"./{}\")", chunk.name)));
         // A failed load rejects with the source specifier and a message.
         let out = directory.join("out");
-        fs::remove_file(out.join(&chunk.name)).unwrap();
+        fs::remove_file(out.join(lazy_name)).unwrap();
         let output = Command::new("node")
-            .args(["--input-type=module", "-e"])
-            .arg(format!(
-                "await import({});await new Promise(r=>setTimeout(r,10));",
-                serde_json::to_string(out.join("entry.js").to_str().unwrap()).unwrap()
-            ))
+            .arg("-e")
+            .arg("import('./main.js').then(()=>new Promise(r=>setTimeout(r,10)))")
+            .current_dir(&out)
             .output()
             .unwrap();
         let printed = String::from_utf8_lossy(&output.stdout);
@@ -419,10 +387,11 @@ fn dynamic_import_loads_a_lazy_chunk_serving_only_the_members_read() {
     let _ = fs::remove_dir_all(directory);
 }
 
-/// A lazy module that calls into the entry module cannot move without
-/// importing the entry, so its namespace is built in place.
+/// A lazy module that calls into the entry module (design §7.8, the old
+/// `tests/bundles/lazy-cycle`): what both need is never in the facade,
+/// so the lazy file imports a shared file, not the entry.
 #[test]
-fn a_lazy_module_that_calls_the_entry_loads_in_place() {
+fn a_lazy_module_that_calls_the_entry_module_never_imports_the_facade() {
     let directory = workspace(
         "lazy-cycle",
         &[
@@ -438,18 +407,21 @@ fn a_lazy_module_that_calls_the_entry_loads_in_place() {
     );
     let single = compile(&directory, "single");
     assert_eq!(run(&directory, &single), "42\n");
-    let bundle = with_bundle(&directory, "mode='split'\nmin_chunk_bytes=1\nmax_chunks=8");
+    let bundle = compile(&directory, "split");
     assert_eq!(run(&directory, &bundle), "42\n");
-    let artifact = bundle.javascript(Objective::Brotli).unwrap();
-    assert!(artifact.chunks().is_empty(), "{:?}", delivered(&bundle));
-    assert!(artifact.javascript().contains(".resolve().then("));
+    for (name, code) in delivered(&bundle) {
+        if name != "main.js" {
+            assert!(!code.contains("main.js"), "{name}: {code}");
+        }
+    }
     let _ = fs::remove_dir_all(directory);
 }
 
+/// Two lazily loaded modules: a file each.
 #[test]
-fn split_refuses_more_lazy_chunks_than_max_chunks() {
+fn every_lazily_loaded_module_gets_its_file() {
     let directory = workspace(
-        "lazy-limit",
+        "lazy-two",
         &[
             ("first.lil", "export int answer(){return 1;}"),
             ("second.lil", "export int answer(){return 2;}"),
@@ -460,19 +432,8 @@ fn split_refuses_more_lazy_chunks_than_max_chunks() {
             ),
         ],
     );
-    let config: ProjectConfig = toml::from_str(
-        "[javascript]\nstrip_console=false\n[bundle]\nmode='split'\nmin_chunk_bytes=1\nmax_chunks=1",
-    )
-    .unwrap();
-    let error = compile_path(
-        &directory.join("main.lil"),
-        &config,
-        ServiceOptions::default(),
-    )
-    .unwrap_err();
-    assert!(error.message.contains("bundle.max_chunks"), "{error}");
-    let two = with_bundle(&directory, "mode='split'\nmin_chunk_bytes=1\nmax_chunks=2");
-    assert_eq!(two.javascript(Objective::Brotli).unwrap().chunks().len(), 2);
+    let two = compile(&directory, "split");
+    assert_eq!(delivered(&two).len(), 3, "{:?}", delivered(&two));
     assert_eq!(run(&directory, &two), "1\n2\n");
     let _ = fs::remove_dir_all(directory);
 }
@@ -492,10 +453,9 @@ fn lazy_modules_must_be_initialization_free() {
             ),
         ],
     );
-    let config: ProjectConfig = toml::from_str("[javascript]\nstrip_console=false").unwrap();
     let error = compile_path(
         &directory.join("main.lil"),
-        &config,
+        &config(""),
         ServiceOptions::default(),
     )
     .unwrap_err();
@@ -564,20 +524,22 @@ fn relative_host_modules_travel_with_the_output() {
     for mode in ["single", "preserve-modules", "split"] {
         let compiled = with_config(
             &directory,
-            &format!("[bundle]\nmode='{mode}'\nhost_modules='embed'"),
+            &format!("[delivery]\nmode='{mode}'\nhost_modules='embed'"),
         )
         .unwrap();
-        let artifact = compiled.javascript(Objective::Brotli).unwrap();
-        let text = artifact.javascript();
-        assert!(!text.contains("import"), "{text}");
-        assert!(!text.contains("number") && !text.contains("Adds"), "{text}");
-        assert!(!text.contains('\n'), "{text}");
-        assert!(artifact.chunks().is_empty());
+        let files = delivered(&compiled);
+        for (_, text) in &files {
+            assert!(!text.contains("number") && !text.contains("Adds"), "{text}");
+            assert!(!text.contains('\n'), "{text}");
+        }
+        if files.len() == 1 {
+            assert!(!files[0].1.contains("import"), "{}", files[0].1);
+        }
         assert_eq!(run(&directory, &compiled), "42\n");
     }
     // A script output runs host code strict, as the module it was written as.
     let config: ProjectConfig =
-        toml::from_str("[javascript]\nstrip_console=false\n[bundle]\nhost_modules='embed'")
+        toml::from_str("[javascript]\nstrip_console=false\n[delivery]\nhost_modules='embed'")
             .unwrap();
     let script = compile_path(
         &directory.join("main.lil"),
@@ -607,14 +569,14 @@ fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
         "host-enum",
         "export enum Mode { A }\nexport function add(left: number, right: number): number { return left + right }\n",
     );
-    let auto = with_config(&directory, "[bundle]\nhost_modules='auto'").unwrap();
+    let auto = with_config(&directory, "[delivery]\nhost_modules='auto'").unwrap();
     let text = auto
         .javascript(Objective::Brotli)
         .unwrap()
         .javascript()
         .to_string();
     assert!(text.contains("from\"./host.ts\""), "{text}");
-    let error = with_config(&directory, "[bundle]\nhost_modules='embed'").unwrap_err();
+    let error = with_config(&directory, "[delivery]\nhost_modules='embed'").unwrap_err();
     assert!(error.message.contains("enum"), "{error}");
     let _ = fs::remove_dir_all(&directory);
     // Syntax newer than the target edition stays with the importer's toolchain.
@@ -624,7 +586,7 @@ fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
     );
     let old = with_config(
         &directory,
-        "ecmascript='es2019'\n[bundle]\nhost_modules='auto'",
+        "ecmascript='es2019'\n[delivery]\nhost_modules='auto'",
     )
     .unwrap();
     let text = old
@@ -633,7 +595,7 @@ fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
         .javascript()
         .to_string();
     assert!(text.contains("from\"./host.ts\""), "{text}");
-    let current = with_config(&directory, "[bundle]\nhost_modules='auto'").unwrap();
+    let current = with_config(&directory, "[delivery]\nhost_modules='auto'").unwrap();
     assert!(!current
         .javascript(Objective::Brotli)
         .unwrap()
@@ -684,7 +646,7 @@ fn embedded_host_modules_become_program_code_in_a_strict_output() {
             ),
         ],
     );
-    let compiled = with_config(&directory, "[bundle]\nhost_modules='embed'").unwrap();
+    let compiled = with_config(&directory, "[delivery]\nhost_modules='embed'").unwrap();
     let text = compiled
         .javascript(Objective::Brotli)
         .unwrap()

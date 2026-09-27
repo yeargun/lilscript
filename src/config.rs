@@ -392,7 +392,8 @@ fn remove(table: &mut toml::Table, path: &[&str]) {
     current.remove(*last);
 }
 
-const PLACEMENT_FOLLOWS_REACHABILITY: &str = "placement follows entry reachability and the objective's codec judges every merge (L8)";
+const PLACEMENT_FOLLOWS_REACHABILITY: &str =
+    "placement follows entry reachability and the objective's codec judges every merge (L8)";
 const ONE_CODEC_PRICES_FILES: &str = "the objective's codec prices every delivered file (A6)";
 
 /// What became of each `[bundle]` key when the table became `[delivery]`
@@ -407,10 +408,22 @@ const BUNDLE_KEYS: &[(&str, Option<&str>, &str)] = &[
     ("cost.raw_weight", None, ONE_CODEC_PRICES_FILES),
     ("cost.gzip_weight", None, ONE_CODEC_PRICES_FILES),
     ("cost.brotli_weight", None, ONE_CODEC_PRICES_FILES),
-    ("cost.preload_request_discount_percent", None, ONE_CODEC_PRICES_FILES),
-    ("cost.cache_reuse_discount_percent", None, ONE_CODEC_PRICES_FILES),
+    (
+        "cost.preload_request_discount_percent",
+        None,
+        ONE_CODEC_PRICES_FILES,
+    ),
+    (
+        "cost.cache_reuse_discount_percent",
+        None,
+        ONE_CODEC_PRICES_FILES,
+    ),
     ("cost.request_overhead_bytes", Some("request_bytes"), ""),
-    ("cost.dependency_depth_penalty_bytes", Some("depth_bytes"), ""),
+    (
+        "cost.dependency_depth_penalty_bytes",
+        Some("depth_bytes"),
+        "",
+    ),
 ];
 
 /// Translate `[bundle]` into `[delivery]`, one warning per key. A key set in
@@ -681,9 +694,6 @@ impl ProjectConfig {
                 delivery.mode.name()
             ));
         }
-        let template = |value: &Option<String>, default: &str| {
-            value.clone().unwrap_or_else(|| default.to_string())
-        };
         Ok(crate::compilation_policy::DeliveryContract {
             mode: delivery.mode,
             format: self.target.javascript.format,
@@ -692,16 +702,10 @@ impl ProjectConfig {
             } else {
                 delivery.preload
             },
-            entry_names: template(&delivery.entry_names, "[name].[ext]"),
-            chunk_names: template(
-                &delivery.chunk_names,
-                if library {
-                    "[index].[ext]"
-                } else {
-                    "[hash:8].[ext]"
-                },
-            ),
-            module_names: template(&delivery.module_names, "[path].[ext]"),
+            entry_names: delivery.entry_names.clone(),
+            chunk_names: delivery.chunk_names.clone(),
+            module_names: delivery.module_names.clone(),
+            library,
             request_bytes: delivery.request_bytes,
             depth_bytes: delivery.depth_bytes,
         })
@@ -1986,9 +1990,11 @@ mod tests {
         assert!(parse_project_config("[bundle]\nmagic=0")
             .unwrap_err()
             .contains("bundle.magic"));
-        assert!(parse_project_config("[delivery]\nentries={\"a/b\"=\"x.lil\"}")
-            .unwrap_err()
-            .contains("delivery.entries"));
+        assert!(
+            parse_project_config("[delivery]\nentries={\"a/b\"=\"x.lil\"}")
+                .unwrap_err()
+                .contains("delivery.entries")
+        );
         assert!(parse_project_config(
             "[javascript]\ncompression=['string-pooling','string-pooling']\n"
         )

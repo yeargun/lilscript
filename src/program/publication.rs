@@ -9,11 +9,11 @@
 
 pub use super::artifact_provenance::{ArtifactProvenanceDescription, LiteralOutput, OutputTactics};
 use super::artifacts::ArtifactArena;
+pub use super::artifacts::{ArtifactFile, DeliveredFile, DeliveredFiles};
 pub use super::artifacts::{
     ArtifactId, ArtifactRuntimeEvidence, ArtifactView, BudgetedJavaScriptOutput,
     NativeArtifactView, QualifiedArtifact, QualifiedNativeArtifact, ScopedArtifactId,
 };
-pub use super::artifacts::{DeliveredBundle, DeliveredChunk, EntryLinks};
 use super::facts::{
     CacheLimits, FactRequest, FactsError, FactsSession, FactsSessionWork, RetainedFactsCache,
     UnitFacts, LOCAL_FACTS_PLAN, LOCAL_FACTS_VERSION,
@@ -573,7 +573,7 @@ impl Charge {
 struct SemanticCharges {
     shell: Charge,
     units: Vec<Charge>,
-    tables: [Charge; 10],
+    tables: [Charge; 11],
     // Borrowed source names are not owned table payload, but a rejected typed
     // edit may format them into a transient diagnostic String.
     diagnostic_text_bytes: u64,
@@ -618,7 +618,7 @@ impl<'src> PreparedProgram<'src> {
                 Charge { domain, bytes },
             )?;
         }
-        let mut tables = [Charge::empty(domain); 10];
+        let mut tables = [Charge::empty(domain); 11];
         let mut diagnostic_text_bytes = 0;
         for (index, charge) in tables.iter_mut().enumerate() {
             let (bytes, text) = budget.with_ledger(|ledger| {
@@ -801,23 +801,26 @@ impl JavaScriptTarget<'_, '_> {
             if module.delivery.is_none()
                 && (entries > 1 || contract.mode != crate::config::DeliveryMode::Single)
             {
-                let graph = super::entries::entry_graph(&semantic.program, &module.carried);
+                let graph =
+                    super::entries::entry_graph(&semantic.program, &module.carried, module_names);
                 let dynamic_import = policy.javascript_contract().is_some_and(|language| {
                     language
                         .ecmascript
                         .allows(crate::js_syntax_target::JsSyntaxFeature::DynamicImport)
                 });
-                module.delivery =
-                    crate::js::delivery::plan(module, &graph, contract, dynamic_import, budget)
-                        .map_err(|error| {
-                            CandidateError::Formation(FormationError::Unsupported(Unsupported {
-                                span: Span::default(),
-                                feature: match error {
-                                    crate::js::extract::OutputError::Invalid(reason) => reason,
-                                    _ => "delivery placement",
-                                },
-                            }))
-                        })?;
+                // `[ext]`: the format's, unless one output file names its own.
+                let ext = match contract.format {
+                    crate::config::JavaScriptFormat::Esm => *chunk_extension,
+                    format => format.extension(),
+                };
+                module.delivery = crate::js::delivery::plan(
+                    module,
+                    &graph,
+                    contract,
+                    dynamic_import,
+                    ext,
+                    budget,
+                )?;
             }
         }
         budget.with_ledger(|ledger| {
@@ -850,8 +853,7 @@ impl JavaScriptTarget<'_, '_> {
                 policy,
                 policy.javascript_contract().unwrap().execution,
                 choices.clone(),
-            )
-            ;
+            );
             Ok(inspect(&mut facade))
         })
     }
@@ -1304,7 +1306,7 @@ impl<'src> Compilation<'src> {
             charges: SemanticCharges {
                 shell,
                 units: Vec::with_capacity(unit_count),
-                tables: [Charge::empty(domain); 10],
+                tables: [Charge::empty(domain); 11],
                 diagnostic_text_bytes: 0,
             },
             changes: Vec::new(),
@@ -1326,7 +1328,7 @@ impl<'src> Compilation<'src> {
                     .units
                     .push(Charge::reserve(&mut self.ledger, domain, bytes)?);
             }
-            for index in 0..10 {
+            for index in 0..11 {
                 let (bytes, diagnostics) =
                     table_bytes(&pending.program, index, &mut self.ledger, domain)?;
                 pending.charges.tables[index] = Charge::reserve(&mut self.ledger, domain, bytes)?;
@@ -2411,14 +2413,14 @@ impl<'src> Compilation<'src> {
         })
     }
 
-    /// Deliver the exact multi-file artifact admitted by this receipt: its
-    /// entry text and every chunk file scored with it.
-    pub fn take_qualified_bundle(
+    /// Deliver the exact multi-file artifact admitted by this receipt:
+    /// every file of its delivery plan, with the plan's layout.
+    pub fn take_qualified_files(
         &mut self,
         artifact: QualifiedArtifact,
-    ) -> Result<DeliveredBundle, CandidateError> {
+    ) -> Result<DeliveredFiles, CandidateError> {
         self.artifacts.check_qualified(&artifact)?;
-        self.artifacts.take_bundle(
+        self.artifacts.take_files(
             artifact.artifact(),
             &mut AllocationBudget::new(Some((&mut self.ledger, WorkDomain::Baseline))),
         )
@@ -2801,23 +2803,20 @@ fn admitted_contract_payload(
             .checked_add(16)
             .ok_or(CandidateError::Capacity)?,
     )?;
-    let templates = [
-        &delivery.entry_names,
-        &delivery.chunk_names,
-        &delivery.module_names,
-    ];
     let strings = preserved_properties
         .iter()
-        .chain(templates)
+        .chain(delivery.templates())
         .try_fold(0u64, |bytes, name| {
             bytes
                 .checked_add(name.len() as u64)
                 .ok_or(CandidateError::Capacity)
         })?;
     ledger.charge(domain, WorkKind::Edit, strings)?;
-    Ok(bytes::<String>(preserved_properties.len())?
-        .checked_add(strings)
-        .ok_or(CandidateError::Capacity)?)
+    Ok(
+        bytes::<String>(preserved_properties.len() + delivery.templates().count())?
+            .checked_add(strings)
+            .ok_or(CandidateError::Capacity)?,
+    )
 }
 
 fn copy_javascript_contract(
@@ -2843,13 +2842,17 @@ fn copy_javascript_contract(
         copied.push_str(name);
         names.push(copied);
     }
-    let copy = |text: &String| -> Result<String, CandidateError> {
-        let mut copied = String::new();
-        copied
-            .try_reserve_exact(text.len())
-            .map_err(|_| CandidateError::AllocationFailed)?;
-        copied.push_str(text);
-        Ok(copied)
+    let copy = |text: &Option<String>| -> Result<Option<String>, CandidateError> {
+        text.as_ref()
+            .map(|text| {
+                let mut copied = String::new();
+                copied
+                    .try_reserve_exact(text.len())
+                    .map_err(|_| CandidateError::AllocationFailed)?;
+                copied.push_str(text);
+                Ok(copied)
+            })
+            .transpose()
     };
     Ok(CompilationContract::JavaScript {
         language: *language,
@@ -2979,6 +2982,7 @@ fn release_program(
         exports,
         initialization,
         modules,
+        entries,
         ..
     } = program;
     let mut unit_charges = charges.units.into_iter();
@@ -3001,6 +3005,7 @@ fn release_program(
     release_table(initialization, charges.tables[7], ledger)?;
     release_table(modules, charges.tables[8], ledger)?;
     release_table(classes, charges.tables[9], ledger)?;
+    release_table(entries, charges.tables[10], ledger)?;
     charges.shell.release(ledger)
 }
 fn release_table<T>(
@@ -3026,6 +3031,7 @@ fn unique_input(program: &Program<'_>) -> bool {
         && Arc::strong_count(&program.exports) == 1
         && Arc::strong_count(&program.initialization) == 1
         && Arc::strong_count(&program.modules) == 1
+        && Arc::strong_count(&program.entries) == 1
 }
 fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
     Program {
@@ -3393,6 +3399,18 @@ fn table_bytes(
                 for parameter in &class.type_params {
                     total = sum(&[total, parameter.capacity() as u64])?;
                 }
+            }
+        }
+        10 => {
+            workspace.work(program.entries.len())?;
+            total = sum(&[total, capacity(&program.entries)?])?;
+            for entry in program.entries.iter() {
+                if entry.module.index() >= program.modules.len() {
+                    return Err(PublicationError::InvalidNominalContract(
+                        "an entry names no module",
+                    ));
+                }
+                total = sum(&[total, entry.name.capacity() as u64])?;
             }
         }
         _ => unreachable!(),
