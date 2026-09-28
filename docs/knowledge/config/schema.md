@@ -58,7 +58,7 @@ error, not a silently ignored setting.
 | `assume_unconstructed_callbacks` | `bool` | `false` | A function made from a lambda is never constructed (with `new`) nor its `prototype` read, except through the variable the program declared it in, the way Terser's `unsafe_arrows` assumes. |
 | `keep_function_names` | `bool` | `false` | Keep the exact source `name` of every function whose name some code could read, not only of published exports. |
 | `keep_published_function_names` | `bool` | `true` | Keep the exact source `name` of published functions (D2). |
-| `strip_debug` | `bool` | `false` | Drop calls of the host `debugLog` extern from JavaScript, keeping the evaluation of their arguments (the `debug` effect class of plan M10.11 generalizes it). |
+| `strip_debug` | `bool` | `false` | Drop direct calls of `debug` functions and externs (R15) from JavaScript, keeping the evaluation of their arguments; an extern named `debugLog` counts until `migration/debug-class` has declared it `debug`. |
 | `strip_console_calls` | `bool` | `false` | Drop calls of the host `console` object's methods (`console.warn(x)` through an extern `console`), keeping the evaluation of their arguments: a declared relaxation of host console output (D3.4). |
 
 ## `[mangle]` — closed

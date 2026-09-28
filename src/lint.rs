@@ -19,6 +19,7 @@ use crate::program::{
 };
 use crate::span::Span;
 
+mod debug_class;
 mod implicit_default;
 mod js_builtin;
 
@@ -31,6 +32,7 @@ pub const RULES: &[&str] = &[
     "effects/pure-extern-requires-allowlist",
     js_builtin::RULE,
     implicit_default::RULE,
+    debug_class::RULE,
     "performance/allocation-in-loop",
     "performance/closure-allocation-in-loop",
     "performance/indirect-call-in-loop",
@@ -303,6 +305,7 @@ pub fn lint_checked_with_providers(
         if let Some(view) = checked.semantics.view(module) {
             js_builtin::lint(module, source, syntax, &view, &mut pending);
             implicit_default::lint(module, source, syntax, &view, &mut pending);
+            debug_class::lint(module, syntax, &mut pending);
         }
     }
     lint_unused_private_symbols(checked, &mut pending);
@@ -2347,6 +2350,39 @@ print(new Holder(true).kept);
                 .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
                 .collect::<Vec<_>>(),
             [(false, "tail")]
+        );
+    }
+
+    /// `migration/debug-class`: an extern named `debugLog` is declared
+    /// `debug`; a `pure` one is reported without a fix.
+    #[test]
+    fn debug_class_fix_declares_debug_log() {
+        let scratch = Scratch::new("debug-class");
+        let path = scratch.file("main.lil", "");
+        let mut source = "export extern void debugLog(JsValue value);\ndebugLog(1);\n".to_string();
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        let edits = diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.rule == "migration/debug-class")
+            .filter_map(|diagnostic| diagnostic.fix.as_ref())
+            .flat_map(|fix| fix.edits.iter().cloned())
+            .collect::<Vec<_>>();
+        assert_eq!(edits.len(), 1);
+        for edit in edits {
+            source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
+        }
+        assert_eq!(source, "export debug extern void debugLog(JsValue value);\ndebugLog(1);\n");
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        assert!(!diagnostics.iter().any(|diagnostic| diagnostic.rule == "migration/debug-class"));
+        let pure = "pure extern void debugLog(JsValue value);\ndebugLog(1);\n";
+        let diagnostics = lint_path_with_source(&path, pure, &ProjectConfig::default()).unwrap();
+        assert_eq!(
+            diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.rule == "migration/debug-class")
+                .map(|diagnostic| diagnostic.fix.is_some())
+                .collect::<Vec<_>>(),
+            [false]
         );
     }
 

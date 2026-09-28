@@ -187,7 +187,7 @@ Two laws bind every rule: a typed form never costs more bytes **or time** than i
 
 - **Clause.** `pure` means no observable effect **and termination**; effects are checked (M6.3, in force), termination is asserted (Y4). `pure extern` is trusted. A call whose result is unused is removed only when it is discardable: no observable effect, it cannot throw, and it terminates (a declared `pure` function may throw, so purity alone does not remove its calls). A `debug` effect class marks strippable logging and assertions (`console.debug`-style helpers, `invariant`, `warning`): they are stripped only by `strip_debug`, never because they are pure. `print` is a program effect and is never stripped. Author pins (`@pool`, `inline for`, `@choose(family = alt)`) fix a choice at a region and are honored by the choice system.
 - **Replaces.** v0.1:909-914, :932-946, :321-327.
-- **Status.** Target (M10.11): the `debug` class in the core; pins with the choice system.
+- **Status.** Partly in force (batch K6, 2026-09-28): `debug` before `void` or `extern void` declares the class; `strip_debug` drops the declaration's direct calls, keeping their arguments' evaluation, and the inliner keeps its body. `debugLog` stays strippable by its name until the ports declare it (`migration/debug-class`), at their release (M12.4). Open: termination (Y4), and pins with the choice system (M10.11's later half).
 
 ---
 

@@ -43,7 +43,7 @@ priority = "size-first"      # the only accepted value; see "Retired keys"
 # candidate_search = "off"    # only `off` has an effect: --mode development sets it
 # ecmascript = "es2022"       # es2015 … es2022 | esnext
 # browsers = ["chrome80", "firefox78"] # intersected with ecmascript; the lower floor wins
-strip_debug = false           # drop debugLog calls (print is never stripped)
+strip_debug = false           # drop calls of `debug` declarations (print is never stripped)
 strip_console_calls = false   # drop host console.* method calls
 assume_pristine_builtins = false
 assume_pure_property_reads = false
@@ -137,8 +137,11 @@ Per-library configuration is contract, objective, effort and permission
   with no configuration prints what it prints. Two keys strip host logging,
   both off by default because a library's logging is its behavior, and both
   keep their calls' argument evaluations and throws:
-  `javascript.strip_debug` drops calls of the host `debugLog` extern (plan
-  M10.11 generalizes it to the declared `debug` effect class), and
+  `javascript.strip_debug` drops direct calls of a declaration marked
+  `debug` (`debug void trace(string m) {…}`, `debug extern void
+  invariant(bool ok, string m);`, language rule R15), and, until the ports
+  declare it so, of an extern named `debugLog` (`migration/debug-class`
+  writes the modifier); and
   `javascript.strip_console_calls` drops method calls of the host `console`
   (`console.warn(x)` through an extern `console`), a declared relaxation of
   console output. The retired `strip_console` stripped `print` and `debugLog`;
