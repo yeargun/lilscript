@@ -1656,6 +1656,31 @@ Predicted: byte-identical everywhere (a move and an identity).
 
 ---
 
+## 2026-09-28 Batch K4: definite assignment, first batch (M10.13, R3)
+
+**Pre-registration** (written before the first build of the batch; base: K3's last commit).
+
+What the batch builds (language.md R3):
+- **Locals without an initializer.** `int x;` in a function body. Every read must be definitely assigned, which the checker proves over the statements:
+  - an `if`'s branches start from the state before it, and join where they fall through;
+  - a loop body, a lambda body, the catch and finally of a `try`, the right operand of `&&`, `||` and `??`, a conditional's arms and a match's arms may not run, so their assignments do not count after them;
+  - a read of an unassigned local is refused with its span;
+  - a compound assignment or an update reads its target first.
+
+  A module's own bindings keep their initializers until the initialization order proves their reads (M6.5).
+- **`let x;` in the IR.** `OperationKind::Declare(cell)`: the cell exists, with no value until its first store. JavaScript prints `let x;`; native declares the C local without a value.
+
+Changes:
+- **C1.** The checker's flow.
+- **C2.** `Declare` through the IR, the targets and the passes.
+- **C3.** Tests: the flow's acceptances and refusals, and programs with declared locals, run.
+
+Not in this batch: a field's implicit default (R3's second half), which gets a warning with its fix-it and then the refusal, and `this` read before every field is assigned. Both are K5.
+
+Predicted: unmodified programs are byte-identical, since none declares a local without an initializer.
+
+---
+
 ## Appendix: where milestones 001–014 went
 
 | Old | Now |
