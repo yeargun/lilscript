@@ -931,7 +931,14 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             if self.is_at_end() {
                 return Err(self.error_here("unterminated struct declaration"));
             }
-            fields.push(self.parse_field_decl()?)?;
+            let field = self.parse_field_decl()?;
+            if let Some(initializer) = &field.initializer {
+                return Err(AdmittedParseError::new(
+                    initializer.span(),
+                    "a struct field takes its value from the construction literal, not an initializer",
+                ));
+            }
+            fields.push(field)?;
         }
 
         let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
@@ -1105,10 +1112,16 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         ty: TypeRef<'arena, 'src>,
         name: Ident<'src>,
     ) -> Result<FieldDecl<'arena, 'src>, AdmittedParseError> {
+        let initializer = if self.match_kind(|kind| matches!(kind, TokenKind::Eq)) {
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
         let semi = self.expect_semicolon()?;
         Ok(FieldDecl {
             ty,
             name,
+            initializer,
             span: ty.span.merge(semi.span),
         })
     }

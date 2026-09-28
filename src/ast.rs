@@ -217,6 +217,9 @@ pub struct ConstructorDecl<'ast, 'src> {
 pub struct FieldDecl<'ast, 'src> {
     pub ty: TypeRef<'ast, 'src>,
     pub name: Ident<'src>,
+    /// `T name = e;` (R3): the value every construction gives the field
+    /// before `init` runs, in place of an implicit default.
+    pub initializer: Option<Expr<'ast, 'src>>,
     pub span: Span,
 }
 
