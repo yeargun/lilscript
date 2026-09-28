@@ -1368,7 +1368,7 @@ Predicted:
 - Unmodified programs, cases and ports: byte-identical.
 - No census change: `JS.apply` sites could become spreads, but `apply` passes an array-like where a spread iterates, so the fix-it leaves them.
 
-**Status (2026-09-28, evening).** Pushed before its ladder at the owner's request ("commit and push everything"). The unit suite passes: 1,593 tests, 9 ignored. Its first runs found four things, each fixed in its own commit: a test constructed `Argument` without `spread`; the arity error hid the spread refusal; the demand walk had no arm for a spread argument; and the JavaScript tree's verifier admitted a spread only inside an array literal. The ladder against `s3-1` and the record follow.
+**Status (2026-09-28, evening).** Pushed before its ladder at the owner's request ("commit and push everything"). The unit suite passes: 1,593 tests, 9 ignored. Its first runs found four things, each fixed in its own commit: a test constructed `Argument` without `spread`; the arity error hid the spread refusal; the demand walk had no arm for a spread argument; and the JavaScript tree's verifier admitted a spread only inside an array literal. The ladder ran with S5's (below): every unmodified program, case and port is byte-identical through S4.
 
 **Deviation found while writing the owner's report.** The pre-registration said a map entry's bindings are "viewed as `K` and `V` with no code (Y1)". That holds for the key, but an `int` value is still normalized on load: `for (string name, int count of counts)` prints `let e=d[0],f=d[1],c=f|0`. This is the load normalization that M10.12 deletes ("loads never normalize", step 8), so its owner is M10.12, not S4.
 
@@ -1397,6 +1397,62 @@ Predicted:
 - Unmodified programs, cases and ports: byte-identical to `s3-1` through S4 and S5.
 - Census: 1,054 `JS.*` mentions fall below 400. What stays is the catalog helpers, function-reference adapters, `JS.undefined()` where a module binds `undefined`, and calls whose operand keeps a `JS.*` spelling.
 - Rewritten ports: the same operations, so bytes within noise.
+
+
+**Landed** (binary `~/lilscript-work/bin/s5-1`, SHA-256 `99468b74817edc7d`). The ladder covers S4 and S5 together.
+
+Changes, each its own commit:
+- **C1.** The checker: `as JsValue` from any value type, resolved to the trusted view `JS.assume` resolves to.
+- **C2–C4** (one commit; `LILSCRIPT_JS_FIX_ONLY` separates them by name). The fix-it on typed operands:
+  - typed-`string` `JS.add` becomes `+`, but not as a receiver or a unary operand;
+  - `JS.get`, `set`, `delete`, `invoke`, `call` and `apply` on a typed or nullable receiver or callee are spelled on `(x as JsValue)`;
+  - `JS.assume` on a typed value becomes the value itself, `x as JsValue`, or `x as JsValue as T`.
+- **C5.** Tests.
+- **Fix-ups:**
+  - a same-type `JS.assume` keeps its operand's text;
+  - the test's `show` prints strings quoted.
+
+**Evidence** (ladder at `s5-1` against `s3-1`):
+- Unit tests: 1,595 pass, 9 ignored.
+- Case runner, 395 cases × 18 lanes: 0 artifacts changed in every lane.
+- Monotone and replay: pass, all 45,162 stops; the level-16 totals are unchanged.
+- Ratchet: pass, no change.
+- Reference ports, unpatched: all green, 0 of 681 files changed.
+- CPU pairs: ×0.995–×1.053 (posthoglil 0.47 → 0.50 s), with identical bytes and judgement counts. A type-check of K1 overlapped one pair; the pairs are medians of three.
+- **Ports rewritten by S1–S5's fixes**, from their own sources: all seven suites green.
+- **Census:** the seven ports' `JS.*` mentions fall from 14,335 to **452 (−96.8%)**:
+
+  | Port | Mentions |
+  |---|---:|
+  | markedlil | 4 |
+  | zodlil | 7 |
+  | micromarklil | 9 |
+  | katexlil | 48 |
+  | posthoglil | 81 |
+  | motionlil | 127 |
+  | jquerylil | 176 |
+
+  What remains:
+  - `JS.assume` on types the fix-it cannot spell (61);
+  - the method adapters over a function reference (83), which S7's forwarding fix takes;
+  - the catalog helpers (`regexTest`, `isArray`, `stringSlice`, …), for M4.6;
+  - `JS.or`, `JS.invoke` and `JS.add` in the contexts the fix-it declines;
+  - `JS.undefined()` where a module binds `undefined`;
+  - `JS.array` in `auto` contexts.
+
+**Finding: a katexlil regression under the rewrite.** Bytes against the unpatched ports:
+
+| Port | Files changed | Raw | gzip | Brotli |
+|---|---:|---:|---:|---:|
+| zodlil | 2 of 7 | +85 | −56 | +15 |
+| motionlil | 21 of 621 | +925 | +154 | +88 |
+| micromarklil | 8 of 9 | +177 | +119 | +37 |
+| katexlil | 10 of 26 | −73,567 | +19,572 | **+12,770** |
+
+- Every katexlil bundle is about 6.5K smaller raw, but about 2K larger in gzip and about 1.3K larger in Brotli (+2.2%). katexlil's whole build went from 144 s to 1,477 s.
+- S3's rewrite was a Brotli win on katexlil (−298), so S5's new rewrites are the cause. The prime suspect is the typed-`string` `+` (227 of katexlil's sites). As a typed concatenation, `+` exposes its literal operands to string pooling and the data choices, which `JS.add` kept opaque.
+- The patches are not applied anywhere, since port repositories change only at release. The diagnosis runs in S7's window, and its owner is the fix-it or the choice it exposes.
+
 
 ---
 
