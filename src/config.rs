@@ -739,6 +739,7 @@ impl ProjectConfig {
                         strip_debug: self.javascript.strip_debug,
                         strip_console_calls: self.javascript.strip_console_calls,
                     },
+                    checks: self.javascript.checks,
                 };
                 let mut preserved_properties =
                     self.mangle.preserve_properties.clone().unwrap_or_default();
@@ -1356,6 +1357,10 @@ pub struct JavaScriptConfig {
     /// arguments: a declared relaxation of host console output (D3.4). Off by
     /// default.
     pub strip_console_calls: bool,
+    /// `"development"` checks the program's preconditions (an index read in
+    /// range, R11), throwing where `"production"`, the default, gives an
+    /// unspecified result. A contract axis, independent of effort.
+    pub checks: crate::compilation_contract::PreconditionChecks,
 }
 
 impl Default for JavaScriptConfig {
@@ -1380,6 +1385,7 @@ impl Default for JavaScriptConfig {
             keep_published_function_names: true,
             strip_debug: false,
             strip_console_calls: false,
+            checks: crate::compilation_contract::PreconditionChecks::Production,
         }
     }
 }

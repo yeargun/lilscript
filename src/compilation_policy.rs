@@ -984,6 +984,7 @@ impl ResolvedPolicy {
                 "numeric_lengths":language.assumptions.numeric_lengths,
                 "strip_debug":language.effects.strip_debug,
                 "strip_console_calls":language.effects.strip_console_calls,
+                "checks":language.checks.name(),
                 "preserved_properties":preserved_properties,
                 "delivery":{"mode":delivery.mode.name(), "format":delivery.format.name(),
                     "preload":delivery.preload.name(), "host_modules":delivery.host_modules.name(), "entry_names":delivery.entry_names(),

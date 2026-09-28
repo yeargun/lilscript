@@ -250,6 +250,7 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
             strip_debug: false,
             strip_console_calls: false,
         },
+        checks: crate::compilation_contract::PreconditionChecks::Production,
     };
     // Inspection forms from the same use facts as an admitted build, so the
     // two agree on every use-directed shape; its ledger is never exhausted.

@@ -57,6 +57,29 @@ pub struct JavaScriptEffectPolicy {
     pub strip_console_calls: bool,
 }
 
+/// Whether the program's preconditions are checked (language.md R1, R11, R12;
+/// future-architecture's contract axis). `Development` emits a check at each
+/// precondition that lands (an index read so far), which throws where
+/// production gives an unspecified result. It is independent of effort: a
+/// development build at level 13 checks everything, and level 0 in
+/// production checks nothing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PreconditionChecks {
+    #[default]
+    Production,
+    Development,
+}
+
+impl PreconditionChecks {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Production => "production",
+            Self::Development => "development",
+        }
+    }
+}
+
 /// Immutable legality input for JavaScript compilation. This is intentionally
 /// separate from profitability and search effort.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,4 +90,5 @@ pub struct JavaScriptCompilationContract {
     pub abi: JavaScriptAbiContract,
     pub assumptions: JavaScriptUnsafeAssumptions,
     pub effects: JavaScriptEffectPolicy,
+    pub checks: PreconditionChecks,
 }
