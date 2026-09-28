@@ -4741,7 +4741,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         }, .. } if matches!(object, Expr { kind: ExprKind::Ident(Ident { name: "Math", .. }), .. })
                     )
                 {
-                    let contract = crate::primitive::builtin_call_contract(BuiltinCall::MathImul)
+                    let contract = crate::catalog::builtin_call_contract(BuiltinCall::MathImul)
                         .expect("checked Math.imul contract");
                     if args.len() != contract.arity {
                         return Err(AdmittedCheckError::new(
@@ -4769,7 +4769,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         }
                     )
                 {
-                    let contract = crate::primitive::builtin_call_contract(BuiltinCall::Print)
+                    let contract = crate::catalog::builtin_call_contract(BuiltinCall::Print)
                         .expect("checked print contract");
                     if args.len() != contract.arity {
                         return Err(AdmittedCheckError::new(

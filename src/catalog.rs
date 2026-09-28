@@ -1,8 +1,8 @@
 //! The operation catalog (M4.6): what each builtin operation is, declared in
-//! one place. Its first slice holds the intrinsics' effect classes, their
-//! reliance on replaceable host builtins, and their JavaScript spellings:
-//! form, arity and the int32 facts of their results. Checking, effects and
-//! the JavaScript target read them here.
+//! one place: the intrinsics' effect classes, their reliance on replaceable
+//! host builtins and their JavaScript spellings (form, arity and the int32
+//! facts of their results); the builtins' host status, contracts and effect
+//! classes. Checking, effects and the targets read them here.
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
 use crate::typed_array::TypedArrayKind;
 
@@ -384,3 +384,61 @@ fn typed_array_member(intrinsic: Intrinsic) -> Option<bool> {
     })
 }
 
+/// `JS.*`, `Object.*`, `JSON.*`, `Task.*` and URI builtins: host operations
+/// the JavaScript target spells directly. The checker owns their arities and
+/// operand types; natively they are unsupported.
+pub(crate) fn host_builtin(builtin: crate::check::BuiltinCall) -> bool {
+    use crate::check::BuiltinCall as B;
+    !matches!(builtin, B::Print | B::MathImul | B::JsOr | B::JsAnd)
+}
+
+/// Builtins whose checker branch does not visit a separate callee expression.
+/// `argument: None` means Print's existing unrestricted single argument, not
+/// missing callable metadata. Unsupported builtins have no contract here.
+pub(crate) struct BuiltinCallContract {
+    pub arity: usize,
+    pub argument: Option<crate::check::Type<'static>>,
+    pub result: crate::check::Type<'static>,
+}
+
+pub(crate) fn builtin_call_contract(
+    builtin: crate::check::BuiltinCall,
+) -> Option<BuiltinCallContract> {
+    use crate::check::{BuiltinCall, Type};
+    Some(match builtin {
+        BuiltinCall::Print => BuiltinCallContract {
+            arity: 1,
+            argument: None,
+            result: Type::Void,
+        },
+        BuiltinCall::MathImul => BuiltinCallContract {
+            arity: 2,
+            argument: Some(Type::Int),
+            result: Type::Int,
+        },
+        _ => return None,
+    })
+}
+
+/// How a builtin call touches the program (its effect class).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BuiltinEffect {
+    /// `JS.object(…)`, `JS.array(…)`: a fresh object from its operands.
+    Fresh,
+    /// `JS.undefined()`: nothing at all.
+    None,
+    /// `print`: the program's output.
+    Output,
+    /// Any other host operation: anything at all.
+    Host,
+}
+
+pub(crate) fn builtin_effect(builtin: crate::check::BuiltinCall) -> BuiltinEffect {
+    use crate::check::BuiltinCall as B;
+    match builtin {
+        B::JsObject | B::JsArray => BuiltinEffect::Fresh,
+        B::JsUndefined => BuiltinEffect::None,
+        B::Print => BuiltinEffect::Output,
+        _ => BuiltinEffect::Host,
+    }
+}

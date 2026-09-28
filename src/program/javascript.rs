@@ -3319,7 +3319,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         .result
                         .and_then(|result| self.forwarding_builtin(unit, result))
                         .filter(|&builtin| {
-                            crate::primitive::host_builtin(builtin)
+                            crate::catalog::host_builtin(builtin)
                                 && (self.contract.assumptions.pristine_builtins
                                     || operands_first(builtin))
                                 && (self.contract.execution.guarantees_strict_execution()
@@ -3871,7 +3871,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             {
                 return Ok(arguments[0]);
             }
-            CallTarget::Builtin(builtin) if crate::primitive::host_builtin(builtin) => {
+            CallTarget::Builtin(builtin) if crate::catalog::host_builtin(builtin) => {
                 let mut arguments = arguments;
                 // `JS.call(f, t, ...)` whose `t` is a call to a function that
                 // only returns undefined is `f(...)`: the dropped call has no

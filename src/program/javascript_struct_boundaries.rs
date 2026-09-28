@@ -522,7 +522,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     // A host builtin's operands are `JsValue` positions.
                     let host = matches!(
                         data.calls[call.index()].target,
-                        CallTarget::Builtin(builtin) if crate::primitive::host_builtin(builtin)
+                        CallTarget::Builtin(builtin) if crate::catalog::host_builtin(builtin)
                     );
                     for &argument in arguments {
                         self.work(1)?;

@@ -2108,8 +2108,8 @@ fn verify_types(
             // MaterializeAtCaller: arguments past `supplied` are the omitted
             // parameters' checked defaults, evaluated by the caller.
             if let CallTarget::Builtin(builtin) = site.target {
-                if crate::primitive::builtin_call_contract(builtin).is_none()
-                    && crate::primitive::host_builtin(builtin)
+                if crate::catalog::builtin_call_contract(builtin).is_none()
+                    && crate::catalog::host_builtin(builtin)
                 {
                     // A host builtin: checked by the checker, operands are
                     // values. `f.call(t, ...xs)` and `new C(...xs)` spread
@@ -2128,7 +2128,7 @@ fn verify_types(
                             }),
                     );
                 }
-                let contract = crate::primitive::builtin_call_contract(builtin)
+                let contract = crate::catalog::builtin_call_contract(builtin)
                     .ok_or("builtin has no supported semantic call contract")?;
                 expect(
                     site.contract.signature.is_none()

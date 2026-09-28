@@ -32,7 +32,6 @@ use super::facts::{self, EvaluationBehavior, MemoryAccess};
 use super::initialization::ProgramInitialization;
 use super::views::{Deps, Fact, Limit, Reason};
 use super::*;
-use crate::check::BuiltinCall;
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
 use ahash::AHashMap;
 use std::sync::Arc;
@@ -719,18 +718,20 @@ fn call_effects(ctx: &Context<'_, '_>, values: &impl ValueFacts, call: CallId) -
             }
         }
         CallTarget::Value { .. } | CallTarget::Reference { .. } => Effects::UNKNOWN,
-        CallTarget::Builtin(BuiltinCall::JsObject | BuiltinCall::JsArray) => Effects {
-            creates_identity: true,
-            exhausts_resources: true,
-            ..Effects::NONE
+        CallTarget::Builtin(builtin) => match crate::catalog::builtin_effect(builtin) {
+            crate::catalog::BuiltinEffect::Fresh => Effects {
+                creates_identity: true,
+                exhausts_resources: true,
+                ..Effects::NONE
+            },
+            crate::catalog::BuiltinEffect::None => Effects::NONE,
+            crate::catalog::BuiltinEffect::Output => Effects {
+                writes: Regions::HOST,
+                exhausts_resources: true,
+                ..Effects::NONE
+            },
+            crate::catalog::BuiltinEffect::Host => Effects::UNKNOWN,
         },
-        CallTarget::Builtin(BuiltinCall::JsUndefined) => Effects::NONE,
-        CallTarget::Builtin(BuiltinCall::Print) => Effects {
-            writes: Regions::HOST,
-            exhausts_resources: true,
-            ..Effects::NONE
-        },
-        CallTarget::Builtin(_) => Effects::UNKNOWN,
         CallTarget::Intrinsic {
             operation,
             receiver,
@@ -1585,7 +1586,9 @@ fn value_transfer(
         Op::Call(call) => {
             let site = &data.calls[call.index()];
             match site.target {
-                CallTarget::Builtin(BuiltinCall::JsObject | BuiltinCall::JsArray) => {
+                CallTarget::Builtin(builtin)
+                    if crate::catalog::builtin_effect(builtin) == crate::catalog::BuiltinEffect::Fresh =>
+                {
                     (None, None, Root::Fresh)
                 }
                 CallTarget::Intrinsic { operation, .. } if !crate::catalog::host_replaceable(operation) => primitive,

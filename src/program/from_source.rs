@@ -4731,8 +4731,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     .map(|ty| self.ty(ty))
                     .transpose()?;
                 if let CallTarget::Builtin(builtin) = target {
-                    if crate::primitive::builtin_call_contract(builtin).is_none()
-                        && !crate::primitive::host_builtin(builtin)
+                    if crate::catalog::builtin_call_contract(builtin).is_none()
+                        && !crate::catalog::host_builtin(builtin)
                     {
                         return self.unsupported(span, "semantic builtin call contract");
                     }
