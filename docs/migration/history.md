@@ -33,6 +33,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-28 | [Batch B3: the objective and effort axes](#2026-09-28-batch-b3-the-objective-and-effort-axes-m31-first-slice-m35-codec-settings) | M3.1, M3.5 | `m3-budget` |
 | 2026-09-28 | [Batch S1: the dynamic type's syntax](#2026-09-28-batch-s1-the-dynamic-types-syntax-m42-m102-first-part) | M4.2, M10.2 | `language-slice-1` |
 | 2026-09-28 | [Owner decisions: compile time scales, test on a clock, track each change](#2026-09-28-owner-decisions-compile-time-scales-test-on-a-clock-track-each-change) | AM3, plan rules 3, 5 and 8 | — |
+| 2026-09-28 | [Batch S2: receivers and rest parameters](#2026-09-28-batch-s2-receivers-and-rest-parameters-m104-first-part) | M10.4 | `language-slice-1` |
 
 ---
 
@@ -1212,6 +1213,27 @@ The owner's message, during batch S1, is in [finer/intent/2026-09-28.md](../../f
   The frozen baseline (M2.14) stays as the record of where the time went. The plan's compile-time gate, M3.5's exit, step 6's exit, CP2 and M12.4 follow.
 - **Test on a clock** (plan rule 8). Per change, a type-check only. Builds and unit tests run about every 20 minutes of work or right after a critical part, meaning a change every program passes through; the ladder runs per batch.
 - **Track each change** (plan rule 5). A batch's pre-registration lists its changes as C1, C2, …; each lands as its own commit on the batch branch, and a surprise in the batch's verification is bisected over those commits. Batch S1, already built when the rule came, records its changes as a list; the rule applies from the next batch.
+
+## 2026-09-28 Batch S2: receivers and rest parameters (M10.4, first part)
+
+**Pre-registration** (written before the first build of the batch; base `02cb92a1`, baseline binary `~/lilscript-work/bin/s1-1`).
+
+What the batch builds (language.md R7; plan M10.4):
+- A lambda may name its receiver and gather its rest arguments: `(this JsValue self, JsValue a) => body` and `(this JsValue self, JsValue... argv) => body`, and without a receiver `(JsValue... argv) => body`. Such a lambda is the method its `JS.method<N>`, `JS.methodRest` or `JS.staticRest` spelling makes, with the same IR, so batch A1's formation emits it as the function itself. Its parameters and result are `JsValue`, and the value is a `JsValue`, as the adapters' are. Typed receivers (`fn(this: T, A) -> R` as a type), spread arguments and `extern JsValue this` retire in the second part.
+
+Changes (one commit each):
+- **C1.** AST and parser: `ast::ParamRole` (`Value`, `Receiver`, `Rest`); `this` before the first parameter's type; `...` after a parameter's type, last parameter only.
+- **C2.** The checker: a lambda with a receiver or rest parameter resolves to `Dynamic(JsMethod<N> | JsMethodRest | JsStaticRest)`. The roles must be in their places, every parameter and the result are `JsValue`, and no parameter has a default. The node's recorded type is its callback's function type, and its value is `JsValue`.
+- **C3.** The lowering: such a lambda's closure is formed with its callback type and passed to its adapter, exactly as `JS.method<N>(lambda)` lowers.
+- **C4.** The fix-it: `JS.method<N>`, `JS.methodRest` and `JS.staticRest` of a lambda become receiver and rest lambdas. `JS.call(o.m, o, …)`, where both `o`s are one binding, becomes `o.m(…)`.
+- **C5.** Tests: the parser's roles, the adapters' identity with their spellings, and the fix's fixed point.
+- **C6.** Port patches regenerated with the new fix-it on top of S1's, measured per port.
+
+Predicted:
+- Unmodified programs, cases and ports: byte-identical.
+- The receiver and rest syntax compiles byte-identically to its adapter spelling.
+- `o.m(…)` is the reference call where `JS.call` was: the output was already `o.m(…)` through `self_method_calls`, so bytes are within noise.
+- Census: the seven ports' `JS.method*`, `JS.methodRest` and `JS.staticRest` mentions (about 800) fall to those with a function reference as the argument.
 
 ---
 
