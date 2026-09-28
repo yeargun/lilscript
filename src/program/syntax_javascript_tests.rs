@@ -1882,3 +1882,41 @@ fn sets_maps_and_dynamic_iterables_iterate_in_order() {
         "\"b\"\n\"a\"\n\"x1\"\n\"h\"\n\"i\"\n"
     );
 }
+
+/// R7: `...xs` spreads an array or a `JsValue` iterable into a JavaScript
+/// call, a method call, `new` and `f.call(t, …)`, observed by running them.
+#[test]
+fn spread_arguments_reach_javascript_calls() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        extern JsValue Math;
+        extern JsValue Date;
+        export void f(JsValue fn, JsValue list) {
+            float[] xs = [3.0, 1.0, 2.0];
+            show(Math.max(...xs));
+            show(Math.min(0, ...list));
+            show(fn(...xs, 10));
+            show(fn.call(null, ...list));
+            show(new Date(...[2000, 1, 2]).getFullYear());
+        }
+        f((JsValue a, JsValue b, JsValue c, JsValue d) => a + b + c + d, [4, 5, 6, 7]);
+        "#,
+        PRISTINE,
+    );
+    assert!(javascript.contains("...") , "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "3\n0\n16\n22\n2000\n");
+}
+
+/// A LilScript function's parameters are declared: it takes no spread.
+#[test]
+fn a_spread_into_a_lilscript_function_is_refused() {
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(
+        &arena,
+        "int sum(int a, int b) { return a + b; } int[] xs = [1, 2]; print(sum(...xs));",
+    )
+    .unwrap();
+    let error = crate::analyze(&syntax).unwrap_err();
+    assert!(format!("{error:?}").contains("spread argument"), "{error:?}");
+}
