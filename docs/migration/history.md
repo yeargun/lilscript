@@ -1486,6 +1486,25 @@ Not in this batch:
 
 Predicted: unmodified programs byte-identical (no program uses the new forms); the new forms' outputs as written in C4's tests.
 
+
+**Landed** with S7 (binary `~/lilscript-work/bin/s7-1`, SHA-256 in `s7-1.sha256`).
+
+Changes:
+- **C1.** `is` and `as?` on classes (R13): `instanceof`, with the second marking step.
+- **C2.** Declared rest parameters (R7).
+- **C3.** Typed receivers and parameters in method lambdas.
+- **C4.** Tests.
+
+Fix-ups, found by the unit run (1,599 pass, 3 failed):
+- the parser's "required parameters cannot follow defaulted parameters" hid the checker's reason that a function with a rest parameter takes no defaults;
+- the verifier took an extern's rest arguments against the rest's array type, not its element;
+- the identity test built an `Error` from LilScript, where an extern class cannot be constructed. It now builds it through `globalThis`.
+
+The fix-ups' tests run with K1–K3's unit suite, on the core branch that carries them.
+
+Evidence: S7's (below). Every unmodified case and port is byte-identical.
+
+
 ---
 
 ## 2026-09-28 Batch S7: `unknown`, and the fix-it's last family (M4.2, M10.2, M10.4)
@@ -1507,6 +1526,45 @@ Changes (one commit each):
 - **C3.** Tests.
 
 Predicted: unmodified programs byte-identical; the census's adapter mentions fall to the ones a function reference cannot be forwarded from (none expected).
+
+
+**Landed** (binary `~/lilscript-work/bin/s7-1`). The ladder covers S6 and S7 together, against `s5-1`.
+
+Changes:
+- **C1.** `unknown` (R12).
+- **C2.** The fix-it writes a function-reference adapter as the lambda that forwards to it, where the binding is never reassigned.
+- **C3.** Tests.
+
+**Evidence** (ladder at `s7-1` against `s5-1`):
+- Unit tests: S6's three failures are above; every other test passes (1,599 in total).
+- Case runner, 395 cases × 18 lanes: 0 artifacts changed.
+- Monotone and replay: pass, all 45,162 stops. Ratchet: pass, no change.
+- Reference ports, unpatched: all green, 0 of 681 files changed.
+- CPU pairs: ×0.932–×1.013, with identical bytes and judgement counts.
+- **Census** after S1–S7's fixes: 14,335 → **355 (−97.5%)**; the method adapters are gone.
+
+  | Port | Mentions |
+  |---|---:|
+  | markedlil | 2 |
+  | zodlil | 7 |
+  | posthoglil | 7 |
+  | micromarklil | 9 |
+  | katexlil | 48 |
+  | motionlil | 109 |
+  | jquerylil | 173 |
+
+  What remains:
+  - `JS.assume` on types the fix-it cannot spell (61);
+  - `JS.or` and `JS.invoke` where their operands keep them (31, 30);
+  - the catalog helpers (`regexTest` 24, `isArray` 17, `stringSlice` 15, `regexExec` 15, `stringReplace` 14, …);
+  - typed-string `JS.add` in declined positions (22);
+  - `JS.undefined()` where a module binds `undefined` (18);
+  - `JS.array` in `auto` contexts (17).
+- **Step 7 closes** with the language slice built and the fix-it complete: R12, R7, R13 and R14 are in force on the one compiler.
+  - The refusal of the spellings lands with each port's release (M12.4).
+  - M4.2's remaining items move to step 9 with M4.4's node ids: type parameters by id, and interned types without source lifetimes.
+  - `?.` stays with M9.3's optional-chaining family.
+
 
 ---
 
