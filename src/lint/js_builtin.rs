@@ -489,7 +489,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
         args: &[ast::Argument<'ast, 'src>],
         at: Position,
     ) {
-        if !SPELLED.contains(&name) {
+        if !SPELLED.contains(&name) || !fix_enabled(name) {
             return;
         }
         let nested = args
@@ -911,6 +911,15 @@ const SPELLED: [&str; 38] = [
     "methodRest",
     "staticRest",
 ];
+
+/// `LILSCRIPT_JS_FIX_ONLY=get,set,…`, a diagnostic knob: only those `JS.*`
+/// names are reported and fixed, so a port's rewrite can be measured one
+/// family of spellings at a time.
+fn fix_enabled(name: &str) -> bool {
+    std::env::var("LILSCRIPT_JS_FIX_ONLY")
+        .map(|only| only.split(',').any(|enabled| enabled.trim() == name))
+        .unwrap_or(true)
+}
 
 /// The members a `JsValue` has with a declared type (v0.1); reading one is
 /// not a dynamic property, so the fix writes it with brackets.
