@@ -2353,3 +2353,25 @@ fn typed_operations_mean_the_originals_without_pristine_builtins() {
     assert!(!javascript.contains("length|0"), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "8\ntrue\nfalse\n");
 }
+
+/// `checks = "development"` (the contract axis; R11's precondition): an index
+/// read out of range throws a RangeError through one hoisted helper, where a
+/// production build reads past the end.
+#[test]
+fn development_checks_index_reads() {
+    let source = r#"
+        extern void show(JsValue value);
+        export int at(int[] values, int i) { return values[i]; }
+        export string letter(string s, int i) { return s[i]; }
+        show(at([4, 5], 1));
+        try { show(at([4, 5], 2)); } catch { show("range"); }
+        try { show(letter("ab", -1)); } catch { show("range"); }
+        show(letter("ab", 0));
+    "#;
+    let development = compile_with(source, "[javascript]\nchecks = \"development\"\n");
+    assert_eq!(development.matches("RangeError").count(), 1, "{development}");
+    assert_eq!(run(&development, SHOW), "5\n\"range\"\n\"range\"\n\"a\"\n");
+    let production = compile_with(source, "");
+    assert!(!production.contains("RangeError"), "{production}");
+    assert_eq!(run(&production, SHOW), "5\n0\n\"\"\n\"a\"\n");
+}
