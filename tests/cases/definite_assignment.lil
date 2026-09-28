@@ -1,0 +1,44 @@
+// Locals declared without a value (R3): every read follows an assignment
+// on every path, which the checker proves; the output declares them bare.
+int pick(bool first, int a, int b) {
+    int chosen;
+    if (first) {
+        chosen = a * 3 + b;
+    } else {
+        chosen = b * 5 - a;
+    }
+    return chosen;
+}
+
+string grade(int score) {
+    string label;
+    if (score > 90) {
+        label = "excellent";
+    } else if (score > 50) {
+        label = "fine";
+    } else {
+        return "poor";
+    }
+    return label + "!";
+}
+
+int firstEven(int[] values) {
+    int found;
+    found = -1;
+    for (int i = 0; i < values.length; i = i + 1) {
+        if (values[i] % 2 == 0) {
+            found = values[i];
+            break;
+        }
+    }
+    return found;
+}
+
+print(pick(true, 4, 5));
+print(pick(false, 4, 5));
+print(grade(95));
+print(grade(60));
+print(grade(10));
+int[] values = [3, 7, 8, 9];
+print(firstEven(values));
+print(firstEven([1, 3]));

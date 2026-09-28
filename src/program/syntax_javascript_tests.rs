@@ -2173,3 +2173,59 @@ fn typed_int_loads_are_not_normalized() {
     assert_eq!(run(&javascript, SHOW), "41\n3\n");
 }
 
+/// Definite assignment (R3): a local declared without a value is read only
+/// where every path has assigned it.
+#[test]
+fn definite_assignment_accepts_and_refuses_reads() {
+    let arena = bumpalo::Bump::new();
+    let accepted = [
+        "int f(bool b) { int x; if (b) { x = 1; } else { x = 2; } return x; }",
+        "int f(bool b) { int x; if (b) { return 0; } else { x = 2; } return x; }",
+        "int f(bool b) { int x; x = 1; if (b) { x = 2; } return x; }",
+        "int f() { int x; try { x = 1; } finally { } return 0; }",
+        "int f() { int x; x = 3; auto g = () => x; return g(); }",
+    ];
+    for source in accepted {
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        crate::analyze(&syntax).unwrap_or_else(|error| panic!("{source}: {error:?}"));
+    }
+    let refused = [
+        "int f(bool b) { int x; if (b) { x = 1; } return x; }",
+        "int f(int n) { int x; while (n > 0) { x = n; n = n - 1; } return x; }",
+        "int f() { int x; x += 1; return x; }",
+        "int f(bool b) { int x; bool ok = b && ((x = 1) > 0); return x; }",
+        "int f() { int x; auto g = () => x; x = 1; return g(); }",
+        "int f() { int x; try { x = 1; } catch (auto e) { } return x; }",
+    ];
+    for source in refused {
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        let error = crate::analyze(&syntax).expect_err(source);
+        assert!(
+            format!("{error:?}").contains("read before it is assigned"),
+            "{source}: {error:?}"
+        );
+    }
+    let syntax = crate::parse_source(&arena, "int x; print(1);").unwrap();
+    let error = crate::analyze(&syntax).unwrap_err();
+    assert!(format!("{error:?}").contains("module-level"), "{error:?}");
+}
+
+/// A declared local runs as JavaScript's `let x;` (R3).
+#[test]
+fn declared_locals_run() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export int pick(bool first, int a, int b) {
+            int chosen;
+            if (first) { chosen = a * 3 + b; } else { chosen = b * 5 - a; }
+            return chosen;
+        }
+        show(pick(true, 4, 5));
+        show(pick(false, 4, 5));
+        "#,
+        PRISTINE,
+    );
+    assert_eq!(run(&javascript, SHOW), "17\n21\n");
+}
+
