@@ -204,7 +204,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                         1 + (usize::BITS - layout.parameters().len().leading_zeros()) as usize,
                     )?;
                     empty &= match argument {
-                        CallArgument::Reference(_) => false,
+                        CallArgument::Reference(_) | CallArgument::Spread(_) => false,
                         CallArgument::Value(_) => {
                             layout.parameter(position as u32).is_some_and(|parameter| {
                                 self.program.structs[parameter.schema.index()]

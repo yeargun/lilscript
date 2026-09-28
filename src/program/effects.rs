@@ -1124,7 +1124,7 @@ fn classified_intrinsic_effects(
         .iter()
         .filter_map(|argument| match argument {
             CallArgument::Value(value) => Some(*value),
-            CallArgument::Reference(_) => None,
+            CallArgument::Reference(_) | CallArgument::Spread(_) => None,
         })
         .collect::<Vec<_>>();
     if argument_values.len() != arguments.len() {

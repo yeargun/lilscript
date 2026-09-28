@@ -2554,6 +2554,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                         && plan.places[place.index()].writable
                                         && expected == plan.places[place.index()].storage
                                 }
+                                // A spread reaches only JavaScript.
+                                CallArgument::Spread(_) => false,
                             };
                             expect(compatible, "native call argument representation")?;
                         }
@@ -2607,6 +2609,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                         && plan.places[place.index()].writable
                                         && expected == plan.places[place.index()].storage
                                 }
+                                CallArgument::Spread(_) => false,
                             };
                             expect(compatible, "native callable argument representation")?;
                         }

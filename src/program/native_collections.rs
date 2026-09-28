@@ -197,7 +197,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let arguments = data.arguments(data.calls[call.index()].arguments).unwrap();
         let argument = |position: usize| match arguments[position] {
             CallArgument::Value(value) => value,
-            CallArgument::Reference(_) => unreachable!("native collections take values"),
+            CallArgument::Reference(_) | CallArgument::Spread(_) => {
+                unreachable!("native collections take values")
+            }
         };
         let any = NativeType::Dynamic(Tagged::ANY);
         let r = receiver.index();

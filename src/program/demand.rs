@@ -1913,7 +1913,9 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                 {
                     let actual = self.inline_actual(context, position);
                     match *actual.argument {
-                        CallArgument::Value(value) => {
+                        // A spread reaches only host calls, never an inlined
+                        // parameter; its value is needed all the same.
+                        CallArgument::Value(value) | CallArgument::Spread(value) => {
                             self.need_value(
                                 actual.caller,
                                 value,

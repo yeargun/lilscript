@@ -1527,6 +1527,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 CallArgument::Reference(_) => {
                     self.write(format_args!("ls_a{}_{}", call.index(), index))?
                 }
+                CallArgument::Spread(_) => unreachable!("the native plan refuses spread arguments"),
             }
         }
         // Omitted arrow defaults: the empty callable, which the callee's

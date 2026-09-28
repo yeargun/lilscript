@@ -526,7 +526,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     );
                     for &argument in arguments {
                         self.work(1)?;
-                        if let CallArgument::Value(value) = argument {
+                        if let CallArgument::Value(value) | CallArgument::Spread(value) = argument {
                             if self.struct_boundary_value(context, value) {
                                 let actual =
                                     &self.program.types[data.values[value.index()].ty.index()];
@@ -766,7 +766,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     for &argument in data.arguments(site.arguments).unwrap() {
                         self.work(1)?;
                         // An encoded argument reaches the callee as a plain object.
-                        if let CallArgument::Value(value) = argument {
+                        if let CallArgument::Value(value) | CallArgument::Spread(value) = argument {
                             if !self.encoded(context, value)? {
                                 boundary |= self.struct_boundary_value(context, value);
                             }

@@ -273,9 +273,14 @@ fn candidate(
             return None;
         }
         for (position, argument) in arguments.iter().enumerate() {
-            if let CallArgument::Value(value) = argument {
-                forwarded[position] &= caller.values[value.index()].ty
-                    == program.cells[data.parameters[position].index()].ty;
+            match argument {
+                CallArgument::Value(value) => {
+                    forwarded[position] &= caller.values[value.index()].ty
+                        == program.cells[data.parameters[position].index()].ty;
+                }
+                // A spread is never a forwarded parameter.
+                CallArgument::Spread(_) => forwarded[position] = false,
+                CallArgument::Reference(_) => {}
             }
         }
         // A used result is the returned value itself, of the same type.
@@ -319,7 +324,7 @@ fn candidate(
                                 _ => false,
                             }
                         }
-                        CallArgument::Reference(_) => false,
+                        CallArgument::Reference(_) | CallArgument::Spread(_) => false,
                     })
                 })
         })
@@ -655,6 +660,7 @@ fn inline(
         .map(|argument| match argument {
             CallArgument::Value(value) => Ok(*value),
             CallArgument::Reference(_) => Err("an inlined call passes a reference"),
+            CallArgument::Spread(_) => Err("an inlined call spreads an argument"),
         })
         .collect::<Result<_, _>>()?;
     // A scoped copy stands in a block at the call: the block's region is

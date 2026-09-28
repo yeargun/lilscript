@@ -966,7 +966,7 @@ fn verify_units(
                                 unit.arguments(site.arguments).unwrap().iter().enumerate()
                             {
                                 match *argument {
-                                    CallArgument::Value(value) => {
+                                    CallArgument::Value(value) | CallArgument::Spread(value) => {
                                         prefix_use(value, id)?;
                                         if !available.get(value.index()).copied().unwrap_or(false) {
                                             return fail("call reads an unavailable argument");
@@ -1015,7 +1015,9 @@ fn verify_units(
                                 .map_or(0, |position| position as usize + 1);
                             work(budget, (*position as usize).saturating_sub(previous))?;
                             for argument in &arguments[previous..*position as usize] {
-                                if let CallArgument::Value(value) = *argument {
+                                if let CallArgument::Value(value) | CallArgument::Spread(value) =
+                                    *argument
+                                {
                                     if !available.get(value.index()).copied().unwrap_or(false) {
                                         return fail(
                                             "reference preparation precedes an earlier value argument",
@@ -2077,7 +2079,7 @@ fn verify_types(
             )?;
             let value_argument = |argument: &CallArgument| match *argument {
                 CallArgument::Value(value) => Some(value_type(value)),
-                CallArgument::Reference(_) => None,
+                CallArgument::Reference(_) | CallArgument::Spread(_) => None,
             };
             let supplied = site.contract.supplied as usize;
             let convention = match site.target {
@@ -2101,14 +2103,21 @@ fn verify_types(
                 if crate::primitive::builtin_call_contract(builtin).is_none()
                     && crate::primitive::host_builtin(builtin)
                 {
-                    // A host builtin: checked by the checker, operands are values.
+                    // A host builtin: checked by the checker, operands are
+                    // values. `f.call(t, ...xs)` and `new C(...xs)` spread
+                    // after their first operand (R7).
+                    let spreads = matches!(builtin, BuiltinCall::JsCall | BuiltinCall::JsConstruct);
                     return expect(
                         site.contract.signature.is_none()
                             && site.contract.instantiation.is_none()
                             && supplied == arguments.len()
-                            && arguments
-                                .iter()
-                                .all(|argument| matches!(argument, CallArgument::Value(_))),
+                            && arguments.iter().enumerate().all(|(position, argument)| {
+                                match argument {
+                                    CallArgument::Value(_) => true,
+                                    CallArgument::Spread(_) => spreads && position > 0,
+                                    CallArgument::Reference(_) => false,
+                                }
+                            }),
                     );
                 }
                 let contract = crate::primitive::builtin_call_contract(builtin)

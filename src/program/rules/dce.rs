@@ -220,7 +220,7 @@ pub(super) fn reads(data: &UnitData, operation: &Operation, out: &mut Vec<ValueI
             let site = &data.calls[call.index()];
             for argument in data.arguments(site.arguments).unwrap_or(&[]) {
                 match *argument {
-                    CallArgument::Value(value) => out.push(value),
+                    CallArgument::Value(value) | CallArgument::Spread(value) => out.push(value),
                     CallArgument::Reference(place) => place_values(place, out),
                 }
             }

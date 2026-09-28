@@ -186,7 +186,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let arguments = data.arguments(data.calls[call.index()].arguments).unwrap();
         let argument = |position: usize| match arguments[position] {
             CallArgument::Value(value) => value.index(),
-            CallArgument::Reference(_) => unreachable!("native binary ranges take values"),
+            CallArgument::Reference(_) | CallArgument::Spread(_) => {
+                unreachable!("native binary ranges take values")
+            }
         };
         let (start, end, r) = (argument(0), argument(1), receiver.index());
         let expression = match crate::typed_array::classify_typed_array_intrinsic(method) {

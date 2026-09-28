@@ -3258,6 +3258,25 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                                 &mut arguments,
                             )?;
                         }
+                        // `...value` (R7): one array or iterable, never a
+                        // product, printed as a spread.
+                        CallArgument::Spread(value) => {
+                            let start = arguments.len();
+                            expanded_products |= self.append_product_argument(
+                                unit,
+                                call,
+                                index as u32,
+                                value,
+                                &mut before,
+                                &mut arguments,
+                            )?;
+                            if arguments.len() != start + 1 {
+                                return Err(self.error(operation.span, "spread argument expanded"));
+                            }
+                            let value = arguments.pop().expect("appended the spread value");
+                            let spread = self.expression(js::Expr::Spread(value))?;
+                            self.append(&mut arguments, spread)?;
+                        }
                         CallArgument::Reference(_) => {
                             let (carrier, path) =
                                 self.prepared_reference(unit, call, index as u32)?;

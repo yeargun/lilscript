@@ -679,6 +679,9 @@ pub struct ArgumentRange {
 pub enum CallArgument {
     Value(ValueId),
     Reference(PlaceId),
+    /// `...value`: an iterable spread into a host call's arguments (R7).
+    /// Only a call that reaches JavaScript takes one.
+    Spread(ValueId),
 }
 
 #[derive(Debug, Clone)]

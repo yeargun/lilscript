@@ -66,6 +66,8 @@ enum DynamicOperand<'a, 'ast, 'src> {
     Value(ValueId),
     /// A method lambda's closure, formed as the adapter's operand.
     Closure(&'a ast::Expr<'ast, 'src>),
+    /// `...xs` among a call's arguments: the iterable, spread.
+    Spread(&'a ast::Expr<'ast, 'src>),
 }
 
 fn drop_vector<T>(
@@ -1808,7 +1810,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             .into_iter()
             .map(|argument| match argument {
                 CallArgument::Value(value) => value,
-                CallArgument::Reference(_) => unreachable!("constructor arguments are values"),
+                CallArgument::Reference(_) | CallArgument::Spread(_) => {
+                    unreachable!("constructor arguments are values")
+                }
             })
             .collect())
     }
@@ -5279,11 +5283,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             }
             _ => return self.unsupported(span, "dynamic operation syntax"),
         }
-        operands.extend(
-            arguments
-                .iter()
-                .map(|argument| O::Expression(&argument.expression)),
-        );
+        operands.extend(arguments.iter().map(|argument| {
+            if argument.spread {
+                O::Spread(&argument.expression)
+            } else {
+                O::Expression(&argument.expression)
+            }
+        }));
         // An adapter lambda's recorded type is its callback's; its value is
         // the method, a `JsValue`.
         let ty = if method_adapter(builtin) {
@@ -5318,8 +5324,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let call = self.open_call(unit, region, CallTarget::Builtin(builtin), contract, span)?;
         let mut values = self.budget.vector(Scratch, operands.len())?;
         for &operand in operands {
-            let value = self.dynamic_operand(unit, region, operand)?;
-            self.budget.push(Scratch, &mut values, CallArgument::Value(value))?;
+            let argument = match operand {
+                DynamicOperand::Spread(iterable) => {
+                    CallArgument::Spread(self.expression(unit, region, iterable)?)
+                }
+                operand => CallArgument::Value(self.dynamic_operand(unit, region, operand)?),
+            };
+            self.budget.push(Scratch, &mut values, argument)?;
         }
         self.close_call(unit, region, call, contract, values, span)?;
         self.value(unit, region, OperationKind::Call(call), &[], ty, origin, span)
@@ -5355,6 +5366,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 self.copy_value(unit, region, value, name.span)
             }
             DynamicOperand::Value(value) => Ok(value),
+            DynamicOperand::Spread(iterable) => {
+                self.unsupported(iterable.span(), "a spread outside a call's arguments")
+            }
             DynamicOperand::Closure(lambda) => {
                 let ExprKind::ArrowFunction { params, body, .. } = &lambda.kind else {
                     return self.unsupported(lambda.span(), "adapter operand is not a lambda");
@@ -5431,6 +5445,12 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         for (index, argument) in arguments.iter().enumerate() {
             let position = index + offset;
             match argument.passing {
+                // `...xs` into a host call (R7): the iterable itself.
+                crate::primitive::ParameterPassing::Value if argument.spread => {
+                    let value = self.expression(unit, region, &argument.expression)?;
+                    self.budget
+                        .push(Scratch, &mut values, CallArgument::Spread(value))?;
+                }
                 crate::primitive::ParameterPassing::Value => {
                     let value = self.expression(unit, region, &argument.expression)?;
                     let value = self.copy_value(unit, region, value, argument.span)?;

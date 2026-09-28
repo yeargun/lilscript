@@ -227,7 +227,7 @@ impl CallGraph {
                                     CallArgument::Value(value) => {
                                         graph.denoted(program, data, value)
                                     }
-                                    CallArgument::Reference(_) => None,
+                                    CallArgument::Reference(_) | CallArgument::Spread(_) => None,
                                 })
                                 .and_then(|target| match target {
                                     Target::Unit(body) => Some(body),

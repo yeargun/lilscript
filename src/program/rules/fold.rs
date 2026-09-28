@@ -412,6 +412,7 @@ fn replaced_text(
                 .iter()
                 .map(|argument| match argument {
                     CallArgument::Value(value) => text(value),
+                    CallArgument::Spread(value) => 3 + text(value),
                     CallArgument::Reference(_) => 1,
                 })
                 .sum();

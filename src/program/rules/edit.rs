@@ -165,7 +165,7 @@ pub(super) fn substitute(data: &mut UnitData, from: ValueId, to: ValueId) {
     };
     data.operands.iter_mut().for_each(swap);
     for argument in &mut data.call_arguments {
-        if let CallArgument::Value(value) = argument {
+        if let CallArgument::Value(value) | CallArgument::Spread(value) = argument {
             swap(value);
         }
     }
@@ -392,6 +392,7 @@ impl Remaps {
         Ok(match argument {
             CallArgument::Value(value) => CallArgument::Value(self.value(*value)?),
             CallArgument::Reference(place) => CallArgument::Reference(self.place(*place)?),
+            CallArgument::Spread(value) => CallArgument::Spread(self.value(*value)?),
         })
     }
 

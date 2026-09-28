@@ -639,7 +639,8 @@ pub(super) fn walk(
                         .ok_or(UseError::InvalidProgram("call argument range"))?;
                     for (position, argument) in arguments.iter().enumerate() {
                         emit(Event::Tick)?;
-                        if let CallArgument::Value(value) = *argument {
+                        // A spread uses its iterable as an argument too.
+                        if let CallArgument::Value(value) | CallArgument::Spread(value) = *argument {
                             emit(Event::Value(
                                 value,
                                 ValueUse::CallArgument {
