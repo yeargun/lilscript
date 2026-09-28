@@ -200,6 +200,10 @@ fn operands_first(builtin: BuiltinCall) -> bool {
             | B::JsStrictNotEqual
             | B::JsConstruct
             | B::JsInstanceOf
+            | B::JsSubtract
+            | B::JsMultiply
+            | B::JsDivide
+            | B::JsNegate
     )
 }
 

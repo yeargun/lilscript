@@ -583,6 +583,19 @@ impl Formation<'_, '_, '_, '_, '_> {
             B::JsInstanceOf if count == 2 => {
                 self.host_binary(js::Binary::InstanceOf, argument(0), argument(1))?
             }
+            B::JsSubtract if count == 2 => {
+                self.host_binary(js::Binary::Subtract, argument(0), argument(1))?
+            }
+            B::JsMultiply if count == 2 => {
+                self.host_binary(js::Binary::Multiply, argument(0), argument(1))?
+            }
+            B::JsDivide if count == 2 => {
+                self.host_binary(js::Binary::Divide, argument(0), argument(1))?
+            }
+            B::JsNegate if count == 1 => js::Expr::Unary {
+                op: js::Unary::Negate,
+                value: argument(0),
+            },
             B::JsMethod0
             | B::JsMethod1
             | B::JsMethod2

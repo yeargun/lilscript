@@ -5176,7 +5176,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             | (ExprKind::DynamicBinary { lhs, rhs, .. }, _) => {
                 operands.extend([O::Expression(lhs), O::Expression(rhs)])
             }
-            (ExprKind::DynamicUnary { expr: value, .. }, BuiltinCall::JsTypeOf)
+            (ExprKind::Unary { expr: value, .. }, BuiltinCall::JsNegate)
+            | (ExprKind::DynamicUnary { expr: value, .. }, BuiltinCall::JsTypeOf)
             | (ExprKind::Cast { value, .. }, BuiltinCall::JsAssume)
             | (ExprKind::Convert { value, .. }, BuiltinCall::JsString | BuiltinCall::JsNumber) => {
                 operands.push(O::Expression(value))

@@ -96,6 +96,12 @@ pub enum BuiltinCall {
     JsIn,
     /// `value instanceof constructor` (R12); no `JS.*` spelling.
     JsInstanceOf,
+    /// `a - b`, `a * b`, `a / b` and `-a` with a `JsValue` operand (R12): the
+    /// operators with JavaScript's meaning; no `JS.*` spelling.
+    JsSubtract,
+    JsMultiply,
+    JsDivide,
+    JsNegate,
     JsBox,
     JsArrayPush,
     JsArrayPop,
@@ -4566,17 +4572,33 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 None => self.analyze_arrow(params, body, expected)?,
             },
             Expr {
-                kind: ExprKind::Unary { op, expr, span },
-                ..
+                kind:
+                    ExprKind::Unary {
+                        op,
+                        expr: operand_expr,
+                        span,
+                    },
+                id,
             } => {
-                let operand = self.analyze_expr(expr, None)?;
+                let operand = self.analyze_expr(operand_expr, None)?;
                 match op {
+                    // `-v` with JavaScript's meaning (R12).
+                    UnaryOp::Neg if is_js_value(&operand) => {
+                        self.resolve_dynamic(*id, BuiltinCall::JsNegate);
+                        Type::Dynamic
+                    }
                     UnaryOp::Neg if operand.is_numeric() => operand,
                     UnaryOp::Not if operand == Type::Bool => Type::Bool,
                     UnaryOp::Neg => {
                         return Err(AdmittedCheckError::new(
                             *span,
                             format!("unary `-` requires a numeric operand, found `{operand}`"),
+                        ));
+                    }
+                    UnaryOp::Not if is_js_value(&operand) => {
+                        return Err(AdmittedCheckError::new(
+                            *span,
+                            "unary `!` requires a bool operand; a `JsValue`'s truthiness is explicit: `!bool(v)`",
                         ));
                     }
                     UnaryOp::Not => {
@@ -9970,6 +9992,9 @@ fn dynamic_binary<'src>(
             (BuiltinCall::JsAdd, Type::Dynamic)
         }
         BinaryOp::Mod => (BuiltinCall::JsMod, Type::Dynamic),
+        BinaryOp::Sub => (BuiltinCall::JsSubtract, Type::Dynamic),
+        BinaryOp::Mul => (BuiltinCall::JsMultiply, Type::Dynamic),
+        BinaryOp::Div => (BuiltinCall::JsDivide, Type::Dynamic),
         BinaryOp::Less => (BuiltinCall::JsLessThan, Type::Bool),
         BinaryOp::LessEq => (BuiltinCall::JsLessThanOrEqual, Type::Bool),
         BinaryOp::Greater => (BuiltinCall::JsGreaterThan, Type::Bool),
