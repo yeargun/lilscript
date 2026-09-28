@@ -574,6 +574,10 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
                 self.property(arg(0), arg(1), &METHOD_WORDS),
                 rest(2)
             ),
+            ("call", 2..) if dynamic(0) && self.same_binding_receiver(arg(0), arg(1)) => {
+                // `JS.call(o.m, o, a)`: the method called on its own receiver.
+                format!("{}({})", text(0, precedence::POSTFIX), rest(2))
+            }
             ("call", 2..) if dynamic(0) => {
                 let callee = arg(0);
                 let unbound = !matches!(
@@ -629,6 +633,9 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
                 }
             }
             ("array", _) if at.dynamic => format!("[{}]", rest(0)),
+            (adapter, 1) if adapter.starts_with("method") || adapter == "staticRest" => {
+                self.method_lambda(adapter, arg(0))?
+            }
             ("assume", 1) if self.dynamic_or_nullable(arg(0)) => {
                 // The type the call was checked to produce, spelled as this
                 // module names it.
@@ -637,6 +644,61 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             }
             _ => return None,
         })
+    }
+
+    /// `JS.call(o.m, o, …)` where both `o`s are one binding: a method call
+    /// on its own receiver, `o.m(…)`, which reads `o.m` once and calls it with
+    /// `o` as `this`, as `JS.call` did.
+    fn same_binding_receiver(&self, callee: &Expr<'ast, 'src>, receiver: &Expr<'ast, 'src>) -> bool {
+        let (ExprKind::Member { object, .. } | ExprKind::Index { object, .. }) = &callee.kind else {
+            return false;
+        };
+        let (ExprKind::Ident(object), ExprKind::Ident(receiver)) = (&object.kind, &receiver.kind)
+        else {
+            return false;
+        };
+        object.name == receiver.name
+            && self.view.identifier_symbol(object.span).is_some()
+            && self.view.identifier_symbol(object.span) == self.view.identifier_symbol(receiver.span)
+    }
+
+    /// `JS.method<N>(lambda)`, `JS.methodRest(lambda)` and
+    /// `JS.staticRest(lambda)` as the lambda with its roles written (R7):
+    /// `this` before the receiver's type, `...` after the rest's.
+    fn method_lambda(&self, adapter: &str, lambda: &Expr<'ast, 'src>) -> Option<String> {
+        let ExprKind::ArrowFunction { params, .. } = &lambda.kind else {
+            return None;
+        };
+        let (receiver, rest, count) = match adapter {
+            "methodRest" => (true, true, 2),
+            "staticRest" => (false, true, 1),
+            name => (true, false, name.strip_prefix("method")?.parse::<usize>().ok()? + 1),
+        };
+        if params.len() != count
+            || params.iter().any(|param| {
+                param.default.is_some()
+                    || param.role != ast::ParamRole::Value
+                    || !is_js_type(&param.parameter.ty)
+            })
+        {
+            return None;
+        }
+        let span = self.balanced(lambda.span());
+        let mut text = String::new();
+        let mut at = span.start;
+        let mut insert = |offset: usize, marker: &str, text: &mut String| {
+            text.push_str(&self.source[at..offset]);
+            text.push_str(marker);
+            at = offset;
+        };
+        if receiver {
+            insert(params[0].parameter.ty.span.start, "this ", &mut text);
+        }
+        if rest {
+            insert(params[count - 1].parameter.ty.span.end, "...", &mut text);
+        }
+        text.push_str(&self.source[at..span.end]);
+        Some(text)
     }
 
     /// A checked type in source syntax, where this module's names spell it.
@@ -809,7 +871,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
 }
 
 /// The `JS.*` builtins with a syntax spelling in this batch.
-const SPELLED: [&str; 25] = [
+const SPELLED: [&str; 38] = [
     "get",
     "set",
     "delete",
@@ -835,6 +897,19 @@ const SPELLED: [&str; 25] = [
     "object",
     "array",
     "assume",
+    "method0",
+    "method1",
+    "method2",
+    "method3",
+    "method4",
+    "method5",
+    "method6",
+    "method7",
+    "method8",
+    "method9",
+    "method10",
+    "methodRest",
+    "staticRest",
 ];
 
 /// The members a `JsValue` has with a declared type (v0.1); reading one is
@@ -849,6 +924,7 @@ const METHOD_WORDS: [&str; 5] = ["truthy", "isArray", "isObject", "call", "apply
 fn precedence_of(name: &str) -> u8 {
     match name {
         "set" => precedence::LOWEST,
+        name if name.starts_with("method") || name == "staticRest" => precedence::LOWEST,
         "or" => 1,
         "and" => 2,
         "strictEqual" | "strictNotEqual" => 6,
