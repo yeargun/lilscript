@@ -624,13 +624,16 @@ impl<'a> Printer<'a, '_, '_> {
     }
 
     /// A typed intrinsic whose original returns an int32 (R10), or a value
-    /// nothing reads: no `|0`.
+    /// nothing reads: no `|0`. Under the `int32_hints` family the rule is the
+    /// one before R10: an original's int32 is trusted only under pristine
+    /// builtins.
     fn plain_integer(&self, id: ExprId) -> bool {
         self.discarded_root == Some(id)
-            || matches!(
-                self.module.expressions[id.index()],
-                Expr::Intrinsic { operation, .. } if original_int32_intrinsic(operation)
-            )
+            || (!self.module.int32_hints || self.module.pristine_builtins)
+                && matches!(
+                    self.module.expressions[id.index()],
+                    Expr::Intrinsic { operation, .. } if original_int32_intrinsic(operation)
+                )
     }
 
     /// The part of a statement's value worth printing. The value is
@@ -658,8 +661,11 @@ impl<'a> Printer<'a, '_, '_> {
                     return id;
                 }
                 // A typed integer method's original returns a number (R10):
-                // `|0` on it has no effect when the value is discarded.
-                Expr::Intrinsic { operation, .. } if integer_intrinsic(operation) =>
+                // `|0` on it has no effect when the value is discarded. The
+                // `int32_hints` family keeps the rule before R10.
+                Expr::Intrinsic { operation, .. }
+                    if (!self.module.int32_hints || self.module.pristine_builtins)
+                        && integer_intrinsic(operation) =>
                 {
                     self.discarded_root = Some(id);
                     return id;

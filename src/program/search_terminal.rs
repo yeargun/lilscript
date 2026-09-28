@@ -297,6 +297,7 @@ fn spelling_names(spelling: Spelling) -> Vec<&'static str> {
             Challenger::ConditionalReturns,
         ),
         (statements.logical_branches, Challenger::LogicalBranches),
+        (families.int32_hints, Challenger::Int32Hints),
     ]
     .into_iter()
     .filter_map(|(on, challenger)| on.then_some(challenger.name()))
@@ -1596,6 +1597,7 @@ impl JavaScriptSearch<'_, '_> {
             policy,
             output.dead_code_elimination,
             output.target_compaction,
+            output.families.int32_hints,
             WorkDomain::Optional,
             |formations| -> Result<(), SearchError> {
                 let mut walker = Walker {

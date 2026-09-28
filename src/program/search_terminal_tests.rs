@@ -313,6 +313,7 @@ fn a_terminal_formation_of_the_winners_own_assignment_is_the_winner() {
                     &policy,
                     output.dead_code_elimination,
                     output.target_compaction,
+                    output.families.int32_hints,
                     WorkDomain::Optional,
                     |formations| {
                         formations.form(output.clone(), |target| {

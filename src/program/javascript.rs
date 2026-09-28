@@ -463,7 +463,16 @@ fn form_with_demand(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
-    let head = form_head(program, uses, contract, demand, compact, hosts, budget)?;
+    let head = form_head(
+        program,
+        uses,
+        contract,
+        demand,
+        compact,
+        families.int32_hints,
+        hosts,
+        budget,
+    )?;
     form_tail(head, families, choices, budget)
 }
 
@@ -513,6 +522,7 @@ pub(super) fn form_head_admitted(
     contract: &JavaScriptCompilationContract,
     demand: &DemandPlan<'_, '_>,
     compact: bool,
+    int32_hints: bool,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<FormedHead, FormationError> {
@@ -523,6 +533,7 @@ pub(super) fn form_head_admitted(
         contract,
         demand,
         compact,
+        int32_hints,
         hosts,
         budget,
     )
@@ -546,6 +557,7 @@ fn form_head(
     contract: &JavaScriptCompilationContract,
     demand: &DemandPlan<'_, '_>,
     compact: bool,
+    int32_hints: bool,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<FormedHead, FormationError> {
@@ -580,6 +592,7 @@ fn form_head(
     module.pristine_builtins = contract.assumptions.pristine_builtins;
     module.pure_property_reads = contract.assumptions.pure_property_reads;
     module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
+    module.int32_hints = int32_hints;
     let mut formation = Formation {
         program,
         uses,
@@ -597,6 +610,7 @@ fn form_head(
         host_factories: Vec::new(),
         index_check: None,
         crossing_checks: Vec::new(),
+        int32_hints,
         unit_functions: Vec::new(),
         foreign_bindings: Vec::new(),
         stable_cells: Vec::new(),
@@ -1389,6 +1403,10 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     index_check: Option<js::BindingId>,
     /// The hoisted crossing checks, one per shape and absence.
     crossing_checks: Vec<((checks::Crossing, bool), js::BindingId)>,
+    /// The `int32_hints` output family: the `|0` the compiler printed before
+    /// R1 and R11 after an `int` field, member or element read and an `int`
+    /// host call's result.
+    int32_hints: bool,
     /// Each formed function unit's target function, for export reflection.
     unit_functions: Vec<(UnitId, js::FunctionId)>,
     /// One ES import binding per foreign cell with an `import extern` source.
@@ -2989,6 +3007,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 let value = self.expression(js::Expr::ToInt32(raw))?;
                 Ok(self.save(unit, operation, value)?)
             }
+            LoadResultRecipe::Raw
+                if self.int32_hints
+                    && matches!(self.program.types[ty.index()], Type::Int)
+                    && !matches!(
+                        self.data(unit).places[place.index()],
+                        Place::Cell(_) | Place::Value(_)
+                    ) =>
+            {
+                let value = self.expression(js::Expr::ToInt32(raw))?;
+                Ok(self.save(unit, operation, value)?)
+            }
             LoadResultRecipe::Raw => Ok(self.save(unit, operation, raw)?),
         }
     }
@@ -3404,6 +3433,22 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             op: js::Unary::Void,
                             value: expression,
                         })?,
+                        CallResultRecipe::Raw
+                            if self.int32_hints
+                                && operation.result.is_some_and(|result| {
+                                    matches!(
+                                        self.program.types
+                                            [self.data(unit).values[result.index()].ty.index()],
+                                        Type::Int
+                                    )
+                                })
+                                && matches!(
+                                    self.data(unit).calls[call.index()].target,
+                                    CallTarget::Reference { .. } | CallTarget::Builtin(_)
+                                ) =>
+                        {
+                            self.expression(js::Expr::ToInt32(expression))?
+                        }
                         CallResultRecipe::Raw | CallResultRecipe::IntrinsicInteger => expression,
                     };
                 // A development build checks what crosses in (R1).
