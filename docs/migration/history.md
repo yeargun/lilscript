@@ -1633,6 +1633,32 @@ Predicted:
 
 ---
 
+## 2026-09-28 Batch K3: the operation catalog, first slice (M4.6)
+
+**Pre-registration** (written before the first build of the batch; base: B4's last commit). Its tests and ladder run with K1, K2 and B4.
+
+What the batch builds: `src/catalog.rs`, the one place an intrinsic's attributes are declared. Its first slice moves the tables that were spread across the effect analysis and the JavaScript target:
+- the effect class;
+- the reliance on a replaceable host builtin;
+- the callback, typed-array constructor and typed-array member classifications;
+- the JavaScript recipe: form, arity, and the int32 facts of the result, pristine or not.
+
+The effect analysis, the call graph and the JavaScript target read them there.
+
+The later slices, each its own batch:
+- the builtins' attributes, and one identity for builtins and intrinsics;
+- a `GlobalId` on host nodes in place of name tests;
+- the reserved host surface derived from externs and the catalog;
+- `new RegExp(valid literal)` as an effect-free known construction;
+- `Object.hasOwn` for `hasOwnProperty.call`.
+
+Changes:
+- **C1.** The move, with the callers pointed at the catalog.
+
+Predicted: byte-identical everywhere (a move).
+
+---
+
 ## Appendix: where milestones 001–014 went
 
 | Old | Now |
