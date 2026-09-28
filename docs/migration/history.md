@@ -30,6 +30,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-28 | [Batch B1: the counted walk](#2026-09-28-batch-b1-the-counted-walk-m35-first-part) | M3.5 | `m3-budget` |
 | 2026-09-28 | [Batch B1b: the upper levels try more](#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2) | M3.5, AM2 | `m3-budget` |
 | 2026-09-28 | [Batch B2: level 0 without a codec, the replay check, the audit lane, the counts](#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35) | M3.5 | `m3-budget` |
+| 2026-09-28 | [Batch B3: the objective and effort axes](#2026-09-28-batch-b3-the-objective-and-effort-axes-m31-first-slice-m35-codec-settings) | M3.1, M3.5 | `m3-budget` |
 
 ---
 
@@ -1037,6 +1038,28 @@ Predicted:
 **Open.**
 - katexlil's level 13 makes 66 exact judgements across its starts. The memo recalls repeats within a start only, because W's and A0's candidates differ.
 - M3.1's first slice and the codec settings (B3); M3.4.
+
+## 2026-09-28 Batch B3: the objective and effort axes (M3.1 first slice, M3.5 codec settings)
+
+**Pre-registration** (written before the first build of the batch; base `bd3ddbd0`, baseline binary `~/lilscript-work/bin/b2-2`).
+
+What the batch builds (architecture §14.1–§14.2, law B2; plan M3.1's first slice, M3.5's codec settings):
+- **`[objective]`**: `codecs = ["brotli"]` (any of raw, gzip, brotli; a single string is accepted too), `[objective.brotli] quality = 11, window = 22, mode = "generic"` (or `text` or `font`), and `[objective.gzip] level = 9, window = 15`. Ranges are validated. The settings are fingerprinted and printed in the receipt. For now `codecs` names one codec: the CLI delivers one winner, and several come with M3.4.
+- **`[effort] level = 13`** (0–16).
+- **The translator.** `[javascript] cost_model` is replaced by `[objective] codecs`, and `[javascript] optimization_level` by `[effort] level`, each with a rename warning; when both old and new are set, the new one wins with a warning. The repository's configurations and test configurations move to the new keys in the same batch, so the case configurations still load without warnings (BC12). The ports' configurations warn until M12.2 rewrites them.
+- **The judge is the configured codec** (law B2). Every exact measurement of the build uses the objective's settings, and the proxy is Brotli at min(quality, 5) with the objective's window and mode. `lilscript-codec` and the benchmark contract stay canonical (quality 11, window 22; gzip level 9, window 15).
+
+Deferred, each with its owner:
+- `[resources]` to M5.6: memory and deadline, once the work ledgers retire.
+- `[performance]` to M2.12's perf runner.
+- `[target.javascript] checks` to M10.9's development-check lane.
+
+None of them can mean anything before its owner lands, and an accepted key must not be inert.
+
+Predicted:
+- Default settings change no byte at any level.
+- A configuration with `quality = 9` compiles faster and is judged, reported and fingerprinted at quality 9.
+- Every existing configuration keeps building, with the warnings above.
 
 ---
 
