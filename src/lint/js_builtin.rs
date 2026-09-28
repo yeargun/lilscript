@@ -716,7 +716,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
                 // viewed as a `JsValue` first.
                 let checked = self.view.expression_type(call.id)?;
                 if self.view.expression_type(arg(0).id)? == checked {
-                    text(0, precedence::PRIMARY)
+                    self.text(arg(0)).to_string()
                 } else if *checked == Type::Dynamic {
                     format!("{} as JsValue", text(0, precedence::RELATIONAL))
                 } else {

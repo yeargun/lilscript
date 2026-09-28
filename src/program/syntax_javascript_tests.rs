@@ -1941,7 +1941,7 @@ fn a_typed_value_viewed_as_js_value_keeps_its_operation() {
         "#,
         PRISTINE,
     );
-    assert_eq!(run(&javascript, SHOW), "ello\n5\n1.5\nhello!\n");
+    assert_eq!(run(&javascript, SHOW), "\"ello\"\n5\n1.5\n\"hello!\"\n");
 }
 
 /// A typed value is viewed as another type only through `JsValue`.
