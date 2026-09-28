@@ -1795,6 +1795,8 @@ fn receiver_and_rest_lambdas_compile_as_their_adapters() {
             proto.size = (this JsValue self) => self.items;
             proto.add = (this JsValue self, JsValue item, JsValue at) => self.items.splice(at, 0, item);
             proto.all = (this JsValue self, JsValue... items) => self.items.concat(items);
+            JsValue named = (this JsValue self) => self;
+            proto.named = named;
             return (JsValue... values) => values;
         }
     "#;
@@ -1803,6 +1805,8 @@ fn receiver_and_rest_lambdas_compile_as_their_adapters() {
             proto.size = JS.method0((JsValue self) => self.items);
             proto.add = JS.method2((JsValue self, JsValue item, JsValue at) => self.items.splice(at, 0, item));
             proto.all = JS.methodRest((JsValue self, JsValue items) => self.items.concat(items));
+            JsValue named = JS.method0((JsValue self) => self);
+            proto.named = named;
             return JS.staticRest((JsValue values) => values);
         }
     "#;
