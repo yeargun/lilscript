@@ -1985,6 +1985,9 @@ struct Analyzer<'check, 'budget, 'ast, 'src> {
     /// names each assigns: a narrowing holds only where no code the flow
     /// does not see can assign its binding (R1, `check/assignments.rs`).
     bodies: Vec<assignments::Assigned<'src>>,
+    /// Per body in `bodies`, the first narrowing scope its own code opens:
+    /// a narrowing in an earlier scope is inherited from an enclosing body.
+    narrowing_bases: Vec<usize>,
     /// The body that declares each source binding, as an index into `bodies`.
     symbol_bodies: AHashMap<SymbolId, usize>,
     /// Locals declared without a value and not assigned on every path to
@@ -2205,6 +2208,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             async_depth: 0,
             callable_depth: 0,
             bodies: Vec::new(),
+            narrowing_bases: Vec::new(),
             symbol_bodies: AHashMap::default(),
             unassigned: Vec::new(),
             conditional_assignments: 0,
@@ -2307,7 +2311,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     fn analyze_items(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedCheckError> {
         self.enter_body(assignments::Assigned::module(program))?;
         let result = self.analyze_module_items(program);
-        self.bodies.pop();
+        self.leave_body();
         result
     }
 
@@ -3385,7 +3389,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.constructor_classes.pop();
         self.return_contexts.pop();
         self.pop_scope();
-        self.bodies.pop();
+        self.leave_body();
         self.callable_depth -= 1;
         Ok(())
     }
@@ -3475,7 +3479,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .pop()
             .expect("function analysis pushed a return context");
         self.pop_scope();
-        self.bodies.pop();
+        self.leave_body();
         self.callable_depth -= 1;
         self.pending_references = outer_pending;
         self.current_reference_formals = outer_formals;
@@ -3752,6 +3756,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 self.analyze_yield(value, *delegate, *span)?;
                 // Other code runs while the generator is suspended.
                 self.invalidate_host_narrowings();
+                self.invalidate_captured_narrowings();
                 Ok(())
             }
             Stmt::Try {
@@ -5486,6 +5491,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 | ExprKind::Await { .. }
         ) {
             self.invalidate_host_narrowings();
+            if matches!(expr.kind, ExprKind::Await { .. }) {
+                self.invalidate_captured_narrowings();
+            }
         }
 
         self.facts.expression_types[expr.id.index()] = Some(ty.clone());
@@ -8098,7 +8106,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             ArrowBody::Block(statements) => assignments::Assigned::body(params, statements),
         })?;
         let result = self.analyze_arrow_body(params, body, expected);
-        self.bodies.pop();
+        self.leave_body();
         self.unassigned = outer;
         self.conditional_assignments = conditional;
         result
@@ -9101,19 +9109,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
     }
 
-    /// Whether a test narrows `symbol` here (R1: a narrowed value inhabits
-    /// its narrowed type). Code the flow does not see must not assign it: no
-    /// function nested in its declaring body does, and, read from such a
-    /// function, its declaring body does not either. A host binding changes
-    /// only while code runs, so its narrowing ends at the next call.
-    fn narrowable(&self, symbol: SymbolId) -> bool {
-        // A module's own binding may be declared before its body is entered
-        // (the module's bindings are declared first): its body is the
-        // module's, the outermost.
-        let declared = match self.symbol_bodies.get(&symbol) {
-            Some(&declared) => declared,
-            // Another module's binding is assigned by code this one does not
-            // see: it is never narrowed here.
+    /// The body that declares `symbol`, as an index into `bodies`: `Ok(None)`
+    /// for a host binding, `Err(())` for another module's binding.
+    fn declaring_body(&self, symbol: SymbolId) -> Result<Option<usize>, ()> {
+        match self.symbol_bodies.get(&symbol) {
+            Some(&declared) => Ok(Some(declared)),
             None if self
                 .declarations
                 .symbol_modules
@@ -9122,20 +9122,42 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 .flatten()
                 .is_some_and(|module| Some(module) != self.module) =>
             {
-                return false;
+                Err(())
             }
-            None if self.declarations.module_bindings.contains(&symbol) => 0,
-            // A host binding is narrowed until code runs: a call, a
-            // construction or a suspension ends it
-            // (`invalidate_host_narrowings`).
-            None => return true,
-        };
-        let Some(body) = self.bodies.get(declared) else {
-            return true;
-        };
-        let name = self.declarations.symbols[symbol.0 as usize].name;
-        !body.nested.contains(name)
-            && (declared + 1 >= self.bodies.len() || !body.own.contains(name))
+            // A module's own binding may be declared before its body is
+            // entered (the module's bindings are declared first): its body
+            // is the module's, the outermost.
+            None if self.declarations.module_bindings.contains(&symbol) => Ok(Some(0)),
+            None => Ok(None),
+        }
+    }
+
+    /// Whether a test may narrow `symbol` (R1: a narrowed value inhabits its
+    /// narrowed type): no function nested in its declaring body assigns it,
+    /// since a call may run that function between the test and a use, and it
+    /// is not another module's. A host binding is narrowed until code runs
+    /// (`invalidate_host_narrowings`).
+    fn narrowable(&self, symbol: SymbolId) -> bool {
+        match self.declaring_body(symbol) {
+            Err(()) => false,
+            Ok(None) => true,
+            Ok(Some(declared)) => self.bodies.get(declared).is_none_or(|body| {
+                !body
+                    .nested
+                    .contains(self.declarations.symbols[symbol.0 as usize].name)
+            }),
+        }
+    }
+
+    /// Whether the declaring body of `symbol` assigns it in its own code:
+    /// a nested function that captures it sees the value that code last
+    /// stored, whenever it runs.
+    fn captured_and_assigned(&self, symbol: SymbolId) -> Option<usize> {
+        let declared = self.declaring_body(symbol).ok()??;
+        let body = self.bodies.get(declared)?;
+        body.own
+            .contains(self.declarations.symbols[symbol.0 as usize].name)
+            .then_some(declared)
     }
 
     /// Enters a function's, lambda's or module's body.
@@ -9147,8 +9169,45 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             crate::compilation_policy::WorkKind::Analysis,
             (assigned.own.len() + assigned.nested.len()) as u64 + 1,
         )?;
+        // The module's narrowings start in the analyzer's first scope.
+        let base = if self.bodies.is_empty() {
+            0
+        } else {
+            self.narrowings.len()
+        };
         self.bodies.push(assigned);
+        self.narrowing_bases.push(base);
         Ok(())
+    }
+
+    fn leave_body(&mut self) {
+        self.bodies.pop();
+        self.narrowing_bases.pop();
+    }
+
+    /// At a suspension, other code runs: a narrowing this body made of a
+    /// binding its declaring body assigns ends here.
+    fn invalidate_captured_narrowings(&mut self) {
+        let Some(current) = self.bodies.len().checked_sub(1) else {
+            return;
+        };
+        let base = self.narrowing_bases[current].min(self.narrowings.len());
+        let mut ended = Vec::new();
+        for scope in &self.narrowings[base..] {
+            for &symbol in scope.keys() {
+                if self
+                    .captured_and_assigned(symbol)
+                    .is_some_and(|declared| declared < current)
+                {
+                    ended.push(symbol);
+                }
+            }
+        }
+        for scope in &mut self.narrowings[base..] {
+            for symbol in &ended {
+                scope.remove(symbol);
+            }
+        }
     }
 
     fn current_scope_preserves(&self, narrowing: &Narrowing<'src>) -> bool {
@@ -9163,14 +9222,33 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .all(|(symbol, ty)| scope.get(symbol) == Some(ty))
     }
 
+    /// The narrowed type of `symbol` here. A narrowing an enclosing body
+    /// made does not hold inside a nested one for a binding the enclosing
+    /// code assigns: the nested function runs after that code, at any time.
     fn narrowed_type(&self, symbol: SymbolId) -> Option<&Type<'src>> {
         if !self.narrowable(symbol) {
             return None;
         }
-        self.narrowings
+        let (scope, ty) = self
+            .narrowings
             .iter()
+            .enumerate()
             .rev()
-            .find_map(|scope| scope.get(&symbol))
+            .find_map(|(index, scope)| scope.get(&symbol).map(|ty| (index, ty)))?;
+        let current = self.bodies.len().checked_sub(1)?;
+        let made_in = self
+            .narrowing_bases
+            .iter()
+            .rposition(|&base| base <= scope)
+            .unwrap_or(0);
+        if made_in < current
+            && self
+                .captured_and_assigned(symbol)
+                .is_some_and(|declared| declared < current)
+        {
+            return None;
+        }
+        Some(ty)
     }
 
     fn invalidate_assigned_narrowing(&mut self, target: &'ast Expr<'ast, 'src>) {
@@ -13010,6 +13088,11 @@ mod tests {
             "auto f = (string? s) => { string? v = s; if (v != null) { return v.length; } return 0; }; print(f(\"ab\"));",
             // A host binding until code runs.
             "extern string? host; if (host != null) { print(host.length); }",
+            // A lambda's own test of a captured binding its function assigns
+            // (motionlil's stagger and animate consumer): nothing assigns it
+            // between that test and its use.
+            "float f(bool b) { JsValue from = 0.0; if (b) { from = 1.5; } auto g = () => { float x = if (from is float) { from } else { 0.0 }; return x; }; return g(); } print(f(true));",
+            "string? scope = null; scope = \"s\"; auto use = () => { if (scope != null) { string active = scope; print(active); } }; use();",
         ];
         for source in accepted {
             let arena = Bump::new();
