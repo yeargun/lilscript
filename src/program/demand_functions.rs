@@ -275,15 +275,25 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             cursor.stage = 3;
             return InputStep::Skip;
         };
-        let CallArgument::Value(value) = *argument else {
-            let CallArgument::Reference(place) = *argument else {
-                unreachable!()
-            };
-            cursor.index += 1;
-            return InputStep::Dependency(InputDependency::Location(
-                PlaceLocation { context, place },
-                LocationUse::Shared,
-            ));
+        let value = match *argument {
+            CallArgument::Value(value) => value,
+            CallArgument::Reference(place) => {
+                cursor.index += 1;
+                return InputStep::Dependency(InputDependency::Location(
+                    PlaceLocation { context, place },
+                    LocationUse::Shared,
+                ));
+            }
+            // A spread's iterable is read whole, as a value operand.
+            CallArgument::Spread(value) => {
+                cursor.index += 1;
+                return InputStep::Dependency(InputDependency::Value(EffectiveValueUse {
+                    observation: ObservationDemand::Exact,
+                    value,
+                    site: EffectiveUseSite::Operation(cursor.operation),
+                    role: EffectiveUseRole::Operand(position as u32),
+                }));
+            }
         };
         if let Some(parameter) = self.call_product_parameter(context, call, position as u32) {
             let count = self.program.structs[parameter.schema.index()].fields.len();

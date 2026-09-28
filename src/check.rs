@@ -6534,10 +6534,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         expected: Option<&Type<'src>>,
     ) -> Result<Type<'src>, AdmittedCheckError> {
         if argument.spread {
-            return Err(AdmittedCheckError::new(
-                argument.span,
-                "a spread argument passes to a JavaScript function; this callee's parameters are declared",
-            ));
+            return Err(spread_refusal(argument.span));
         }
         if argument.passing != ParameterPassing::Value {
             return Err(AdmittedCheckError::new(
@@ -6575,6 +6572,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         if is_js_value(callee) {
             self.analyze_dynamic_arguments(args)?;
             return Ok(Type::Dynamic);
+        }
+        if let Some(spread) = args.iter().find(|argument| argument.spread) {
+            return Err(spread_refusal(spread.span));
         }
         if let Type::GenericFunction(function) = callee {
             return self.analyze_generic_call(function, args, span, expected_return, call_node);
@@ -10047,6 +10047,15 @@ fn dynamic_binary<'src>(
     })
 }
 
+/// A spread passes to a JavaScript function only: a declared parameter list
+/// takes its arguments one by one.
+fn spread_refusal(span: Span) -> AdmittedCheckError {
+    AdmittedCheckError::new(
+        span,
+        "a spread argument passes to a JavaScript function; this callee's parameters are declared",
+    )
+}
+
 /// The adapter a lambda's parameter roles name (R7), if it has a receiver or
 /// a rest parameter: `JS.method<N>` for a receiver and `N` arguments,
 /// `JS.methodRest` for a receiver and the rest, `JS.staticRest` for the rest
@@ -11181,7 +11190,7 @@ mod tests {
         assert!(wrong.message.contains("expected `int`"), "{wrong}");
 
         let string = check("for(string value of \"text\"){}").unwrap_err();
-        assert!(string.message.contains("array or typed array"), "{string}");
+        assert!(string.message.contains("a typed array, a Set<T>"), "{string}");
     }
 
     #[test]
