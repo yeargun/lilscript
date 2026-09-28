@@ -161,6 +161,9 @@ fn unequal<A: RelationAdmission>(
     }
 
     match (expected, actual) {
+        // Every value is an `unknown`; leaving one is written (R12).
+        (Type::Unknown, _) => Ok(!actual.is_void()),
+        (Type::Dynamic, Type::Unknown) => Ok(false),
         (Type::Dynamic, _) => Ok(!actual.is_void()),
         (Type::Float, Type::Int) => Ok(true),
         (Type::Nullable(_), Type::Null) => Ok(true),

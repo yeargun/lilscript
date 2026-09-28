@@ -1,6 +1,7 @@
 // Test-only frozen prior helpers; never linked in production.
 // Extracted from src/semantic.rs SHA256 039727514ec0e0119ff516f209ac6c25b8cb1d9d234f6aecbd26be24d5824bc1.
 use super::*;
+use crate::check::binary_types::loosely_equatable;
 
 pub(super) fn old_checked_binary_type<'src>(
     op: BinaryOp,
@@ -147,8 +148,9 @@ pub(super) fn old_equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
             .any(|lhs| rhs.iter().any(|rhs| old_equality_comparable(lhs, rhs))),
         (Type::Union(lhs), rhs) => lhs.iter().any(|lhs| old_equality_comparable(lhs, rhs)),
         (lhs, Type::Union(rhs)) => rhs.iter().any(|rhs| old_equality_comparable(lhs, rhs)),
-        (lhs, rhs) if is_js_value(lhs) || is_js_value(rhs) => {
-            let other = if is_js_value(lhs) { rhs } else { lhs };
+        // Loose equality on a `JsValue` or an `unknown` (R12).
+        (lhs, rhs) if loosely_equatable(lhs) || loosely_equatable(rhs) => {
+            let other = if loosely_equatable(lhs) { rhs } else { lhs };
             matches!(
                 other,
                 Type::Dynamic
@@ -157,7 +159,7 @@ pub(super) fn old_equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
                     | Type::String
                     | Type::Int
                     | Type::Float
-            ) || is_js_value(other)
+            ) || loosely_equatable(other)
         }
         _ => {
             (lhs == rhs || (lhs.is_numeric() && rhs.is_numeric()))

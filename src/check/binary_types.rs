@@ -310,12 +310,13 @@ pub(crate) fn equality_comparable_with<A: RelationAdmission>(
             }
             Ok(false)
         }
-        (lhs, rhs) if is_js_value(lhs) || is_js_value(rhs) => {
-            let other = if is_js_value(lhs) { rhs } else { lhs };
+        // Loose equality on a `JsValue` or an `unknown` (R12).
+        (lhs, rhs) if loosely_equatable(lhs) || loosely_equatable(rhs) => {
+            let other = if loosely_equatable(lhs) { rhs } else { lhs };
             Ok(matches!(
                 other,
                 Type::Null | Type::Bool | Type::String | Type::Int | Type::Float
-            ) || is_js_value(other))
+            ) || loosely_equatable(other))
         }
         _ => Ok(
             (type_equal_with(lhs, rhs, admission)? || (lhs.is_numeric() && rhs.is_numeric()))
@@ -425,3 +426,8 @@ fn infallible<T>(result: Result<T, Infallible>) -> T {
 #[cfg(test)]
 #[path = "binary_types_tests.rs"]
 mod tests;
+
+/// A `JsValue` or an `unknown`, which loose equality takes (R12).
+pub(super) fn loosely_equatable(ty: &Type<'_>) -> bool {
+    matches!(ty, Type::Dynamic | Type::Unknown)
+}

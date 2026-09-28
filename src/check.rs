@@ -173,6 +173,10 @@ pub enum Type<'src> {
     /// `JsValue`: the dynamic type, a JavaScript-only capability (R12,
     /// M4.2). Every host value that no declared type describes has it.
     Dynamic,
+    /// `unknown`: dynamic too, but only the tests (`==`, `===`, `typeof`,
+    /// `instanceof`, `is`) and the ways out (`as`, `as?`, the conversions)
+    /// apply to it until it is narrowed (R12). It lowers as `JsValue`.
+    Unknown,
     Function(FunctionType<'src>),
     GenericFunction(GenericFunctionType<'src>),
 }
@@ -188,6 +192,59 @@ impl Type<'_> {
 
     /// Borrow existing type nodes only. Nominal schema fields remain the
     /// caller's table traversal; no cloned type/default compatibility view.
+    /// Whether `unknown` occurs in this type.
+    pub fn mentions_unknown(&self) -> bool {
+        match self {
+            Self::Unknown => true,
+            Self::Array(value)
+            | Self::Record(value)
+            | Self::Set(value)
+            | Self::Task(value)
+            | Self::Generator(value)
+            | Self::Nullable(value) => value.mentions_unknown(),
+            Self::Map(key, value) => key.mentions_unknown() || value.mentions_unknown(),
+            Self::Union(values)
+            | Self::StructInstance { args: values, .. }
+            | Self::ClassInstance { args: values, .. } => values.iter().any(Self::mentions_unknown),
+            Self::Function(signature) => signature_mentions_unknown(signature),
+            Self::GenericFunction(function) => signature_mentions_unknown(&function.signature),
+            _ => false,
+        }
+    }
+
+    /// This type with `unknown` as `JsValue`: how it lowers (R12), since the
+    /// two differ only in what the checker allows.
+    pub fn without_unknown(&self) -> Self {
+        let each = |values: &[Self]| values.iter().map(Self::without_unknown).collect::<Vec<_>>();
+        match self {
+            Self::Unknown => Self::Dynamic,
+            Self::Array(value) => Self::Array(Box::new(value.without_unknown())),
+            Self::Record(value) => Self::Record(Box::new(value.without_unknown())),
+            Self::Set(value) => Self::Set(Box::new(value.without_unknown())),
+            Self::Task(value) => Self::Task(Box::new(value.without_unknown())),
+            Self::Generator(value) => Self::Generator(Box::new(value.without_unknown())),
+            Self::Nullable(value) => Self::Nullable(Box::new(value.without_unknown())),
+            Self::Map(key, value) => {
+                Self::Map(Box::new(key.without_unknown()), Box::new(value.without_unknown()))
+            }
+            Self::Union(values) => normalize_union(each(values)),
+            Self::StructInstance { declaration, args } => Self::StructInstance {
+                declaration: *declaration,
+                args: each(args),
+            },
+            Self::ClassInstance { declaration, args } => Self::ClassInstance {
+                declaration: *declaration,
+                args: each(args),
+            },
+            Self::Function(signature) => Self::Function(signature_without_unknown(signature)),
+            Self::GenericFunction(function) => Self::GenericFunction(GenericFunctionType {
+                type_params: function.type_params.clone(),
+                signature: signature_without_unknown(&function.signature),
+            }),
+            other => other.clone(),
+        }
+    }
+
     pub fn contains_mutable_reference_parameters(&self) -> bool {
         fn nested(ty: &Type<'_>) -> bool {
             matches!(
@@ -332,6 +389,7 @@ impl fmt::Display for Type<'_> {
                 f.write_str(">")
             }
             Self::Dynamic => f.write_str("JsValue"),
+            Self::Unknown => f.write_str("unknown"),
             Self::TypeParameter(name) => f.write_str(name),
             Self::Function(signature) => {
                 f.write_str("function(")?;
@@ -5015,7 +5073,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 // `bool(v)`: JavaScript's truthiness, the `truthy()` intrinsic
                 // on a `JsValue` (R12; a condition stays a `bool`).
                 if matches!(target.kind, TypeKind::Bool) {
-                    self.analyze_dynamic_operand(value)?;
+                    self.analyze_test_operand(value)?;
                     self.facts.source_info[expr.id.index()].resolution =
                         ExpressionResolution::Primitive(crate::primitive::ResolvedIntrinsic::Method(
                             crate::primitive::Intrinsic::JsTruthy,
@@ -5035,7 +5093,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         ))
                     }
                 };
-                self.analyze_dynamic_operand(value)?;
+                self.analyze_test_operand(value)?;
                 self.resolve_dynamic(expr.id, builtin);
                 result
             }
@@ -5059,8 +5117,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 kind: ExprKind::DynamicBinary { op, lhs, rhs, .. },
                 ..
             } => {
-                self.analyze_dynamic_operand(lhs)?;
-                self.analyze_dynamic_operand(rhs)?;
+                // `===`, `!==` and `instanceof` are tests, which `unknown`
+                // takes; `in` reads a property, which it does not (R12).
+                if matches!(op, DynamicBinaryOp::In) {
+                    self.analyze_dynamic_operand(lhs)?;
+                    self.analyze_dynamic_operand(rhs)?;
+                } else {
+                    self.analyze_test_operand(lhs)?;
+                    self.analyze_test_operand(rhs)?;
+                }
                 self.resolve_dynamic(
                     expr.id,
                     match op {
@@ -5081,7 +5146,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     },
                 ..
             } => {
-                self.analyze_dynamic_operand(value)?;
+                self.analyze_test_operand(value)?;
                 self.resolve_dynamic(expr.id, BuiltinCall::JsTypeOf);
                 Type::String
             }
@@ -5499,7 +5564,27 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         expression: &'ast Expr<'ast, 'src>,
     ) -> Result<Type<'src>, AdmittedCheckError> {
         let ty = self.analyze_expr(expression, Some(&Type::Dynamic))?;
+        if is_unknown(&ty) {
+            return Err(AdmittedCheckError::new(
+                expression.span(),
+                "an `unknown` is narrowed before other operations: `v is T`, `v as? T` or `v as T` (R12)",
+            ));
+        }
         self.require_assignable(&Type::Dynamic, &ty, expression.span())?;
+        Ok(ty)
+    }
+
+    /// An operand of a test or a conversion, which an `unknown` takes too
+    /// (R12): `===`, `!==`, `instanceof`, `typeof`, `bool(v)`, `string(v)`,
+    /// `float(v)`.
+    fn analyze_test_operand(
+        &mut self,
+        expression: &'ast Expr<'ast, 'src>,
+    ) -> Result<Type<'src>, AdmittedCheckError> {
+        let ty = self.analyze_expr(expression, Some(&Type::Dynamic))?;
+        if !is_unknown(&ty) {
+            self.require_assignable(&Type::Dynamic, &ty, expression.span())?;
+        }
         Ok(ty)
     }
 
@@ -8139,6 +8224,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 Ok(Type::Dynamic)
             }
             TypeKind::Named {
+                name: "unknown",
+                args,
+            } => {
+                self.resolve_type_arguments("unknown", args, &[], ty.span)?;
+                Ok(Type::Unknown)
+            }
+            TypeKind::Named {
                 name: "Record",
                 args,
             } => {
@@ -9333,7 +9425,8 @@ fn finalize_default_bindings_in_type<'src>(
         | Type::Struct(_)
         | Type::Class(_)
         | Type::TypeParameter(_)
-        | Type::Dynamic => {}
+        | Type::Dynamic
+        | Type::Unknown => {}
     }
     Ok(())
 }
@@ -9388,7 +9481,8 @@ fn strip_parameter_defaults_from_type(ty: &mut Type<'_>) {
         | Type::Struct(_)
         | Type::Class(_)
         | Type::TypeParameter(_)
-        | Type::Dynamic => {}
+        | Type::Dynamic
+        | Type::Unknown => {}
     }
 }
 
@@ -10192,6 +10286,28 @@ fn optional_result_type<'src>(ty: Type<'src>, span: Span) -> Result<Type<'src>, 
     }
 }
 
+fn signature_mentions_unknown(signature: &FunctionType<'_>) -> bool {
+    signature.return_type.mentions_unknown()
+        || signature
+            .params
+            .iter()
+            .any(|parameter| parameter.ty.mentions_unknown())
+}
+
+fn signature_without_unknown<'src>(signature: &FunctionType<'src>) -> FunctionType<'src> {
+    FunctionType::new(FunctionSignature {
+        params: signature
+            .params
+            .iter()
+            .map(|parameter| FunctionParameter {
+                ty: parameter.ty.without_unknown(),
+                ..parameter.clone()
+            })
+            .collect(),
+        return_type: Box::new(signature.return_type.without_unknown()),
+    })
+}
+
 fn normalize_union<'src>(members: Vec<Type<'src>>) -> Type<'src> {
     binary_types::normalize_union_plain(members)
 }
@@ -10382,7 +10498,21 @@ fn is_js_index_type(ty: &Type<'_>) -> bool {
     matches!(ty, Type::Int | Type::Float | Type::String) || is_js_value(ty)
 }
 
+/// `unknown`, or a nullable one.
+fn is_unknown(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Unknown => true,
+        Type::Nullable(inner) => **inner == Type::Unknown,
+        _ => false,
+    }
+}
+
+/// A value the tests and the ways out take (`is`, `as`, `as?`; R12): a
+/// `JsValue` or an `unknown`, or a nullable one.
 fn is_js_value_or_nullable_js_value(ty: &Type<'_>) -> bool {
+    if is_unknown(ty) {
+        return true;
+    }
     match ty {
         Type::Dynamic => true,
         Type::Nullable(inner) => is_js_value(inner),

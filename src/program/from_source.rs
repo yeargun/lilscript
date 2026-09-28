@@ -1164,6 +1164,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         Err(Unsupported { span, feature }.into())
     }
     fn ty(&mut self, ty: &Type<'src>) -> Result<TypeId, ConversionError> {
+        // `unknown` lowers as `JsValue` (R12).
+        if ty.mentions_unknown() {
+            return self.ty(&ty.without_unknown());
+        }
         use crate::check::type_admission::TypeQueryAdmission;
         use crate::check::type_payload::{measure_payload, Payload, PayloadError, PayloadMeasure};
         fn measure(
@@ -2628,7 +2632,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     span,
                 );
             }
-            Type::Nullable(_) | Type::Dynamic | Type::Null => Constant::Null,
+            Type::Nullable(_) | Type::Dynamic | Type::Unknown | Type::Null => Constant::Null,
             // Legacy leaves a non-nullable class, struct or callable field
             // null until `init` assigns it. That is not a value of the field's
             // type, so the constant keeps its own type.
