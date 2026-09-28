@@ -23,6 +23,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-27 | [M3.3a: the delivery contract, first slice](#2026-09-27-m33a-the-delivery-contract-first-slice) | M3.3a | `m3-delivery` |
 | 2026-09-27 | [Batch A1: canonical formation without tree analysis](#2026-09-27-batch-a1-canonical-formation-without-tree-analysis) | M8.2 A1, M8.1 (imports), M2.3 (`print`), M9.5 (seed), M11.2 | `m8-a1` |
 | 2026-09-27 | [The tools, first part: M2.13, M2.5 and M2.14](#2026-09-27-the-tools-first-part-m213-m25-and-m214) | M2.13, M2.5, M2.14 | `m2-tools` |
+| 2026-09-28 | [Owner decisions: counted budgets, decide statically first, verify per batch](#2026-09-28-owner-decisions-counted-budgets-decide-statically-first-verify-per-batch) | AM1, L22, plan rules 3 and 8 | — |
 
 ---
 
@@ -537,6 +538,27 @@ Loss counts (raw / gzip / Brotli): cases against the competitor 399 / 400 / 439 
 - At each port's shipped level (15 where it is not 13), pre-M1 / head: markedlil 0.82 / 1.37, zodlil 0.77 / 2.77, posthoglil 0.11 / 0.41, micromarklil 0.62 / 2.27, jquerylil 23.87 / 22.36, motionlil 14.69 / 18.00 s.
 - Against §13.2's targets: level 13 today is 1.06–3.81× the frozen value (3.81× on katexlil); katexlil's package build (37.29 s head) is 2.9× KaTeX's own (12.74 s); jquerylil's is 7.1× jQuery's own (3.12 s). With the frozen katexlil value at 4.62 s rather than the provisional 5.6 s, §13.2's single-threaded ceiling (1.3×, 6.0 s) is below its own projection for M3.5 (6.5–8.1 s); §13.2 now says so.
 - posthoglil's upstream build ran 12 turbo tasks without cache (`--force`), about 490 CPU-seconds a run; the port's source-build record of 2026-09-24 has 170 s.
+
+---
+
+## 2026-09-28 Owner decisions: counted budgets, decide statically first, verify per batch
+
+The owner's messages of 2026-09-27 (evening) and 2026-09-28 are in [finer/intent/2026-09-28.md](../../finer/intent/2026-09-28.md).
+
+- **The documents.** Progress is a one-line-per-task list ([index.md](index.md)), the plan is [plan.md](plan.md) with no status, and the batch records are here.
+- **Amendment AM1** (architecture, appendix A):
+  - Budgets are counts: the prefix length, the number of exact judgements and the decision floor.
+  - Dropped: the work-unit currency, its tariff, the exchange rate and the per-level work ceilings.
+  - Deferred: lockstep objectives with checkpoint offers, the gzip shadow and the speculative parallel greedy. Each returns only by amendment, with its bytes per exact judgement measured on the calibration corpus.
+  - M3.5 is slimmed and no longer waits for M2.15, and step 6 is re-estimated at 1–2 batches.
+- **Law L22, decide statically first.** The language is typed and closed-world by design. Rules decide whatever types, the checker and program facts can decide, and the codec judges only representations whose value depends on the codec.
+- **Verification rhythm** (plan rules 3 and 8): each change gets a build and the unit tests of the modules it touches, and the full ladder runs once per batch.
+- **Implement the whole plan**, one heavy job at a time. The end result must be smaller under gzip, Brotli and raw.
+
+The evidence behind AM1:
+- exact Brotli-11 is 55–74% of every production compile;
+- batches T and D bought −88..+7 bytes per port for 2.7× compile time;
+- the search winner is byte-identical at levels 8, 13 and 15 on five of six ports.
 
 ---
 

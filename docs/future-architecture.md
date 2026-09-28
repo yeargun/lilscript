@@ -1,6 +1,6 @@
 # LilScript: the design of the language and the compiler
 
-**Version 1, 2026-09-27.** This page is the design of the LilScript language and its one compiler, written as a whole in answer to the owner's brief of 2026-09-27 ([finer/intent/2026-09-27.md](../finer/intent/2026-09-27.md)). It changes only by an amendment the owner approves (§22). Three documents go with it:
+**Version 1.1, 2026-09-28** (version 1 of 2026-09-27 with the owner's amendment AM1, appendix A). This page is the design of the LilScript language and its one compiler, written as a whole in answer to the owner's brief of 2026-09-27 ([finer/intent/2026-09-27.md](../finer/intent/2026-09-27.md)). It changes only by an amendment the owner approves (§22). Three documents go with it:
 - [migration/plan.md](migration/plan.md) is the only plan for reaching it; its progress is [migration/index.md](migration/index.md), and [migration/history.md](migration/history.md) records each batch and what version 1 changed against the 2026-09-23 page;
 - [language.md](language.md) is the target language contract (version 1), each clause tagged with the task that implements it;
 - [language-v0.1.md](language-v0.1.md) is what the compiler accepts today; a clause leaves it when its v1 replacement lands.
@@ -45,7 +45,7 @@ Code citations are `path:line` at `d1d48c4c`. Competitor citations are `repo@com
 | 4 | Static and semantic analysis at Closure ADVANCED depth and beyond | Identity-based facts on the Program IR (effects over call-graph SCCs, values, escape and uniqueness, fields, initialization, frequency), consumed by both targets; a floor of every exact rule Terser, Oxc, esbuild and SWC ship legally; program-level moves re-run the rules on what they change | §7, §8, §9.6 |
 | 5 | Same or better runtime performance | Runtime is a floor: parity means the upper CI bound of the steady-state ratio is at or below 1.00 plus the no-op control's spread, on every declared workload. Laws forbid transformations that add polymorphism or hot allocations; a static frequency fact orders hot-site alternatives by runtime class before bytes | §16 |
 | 6 | Beat Rolldown, Terser, Oxc and every JS toolchain on the cloned libraries, without overfitting | A floor of competitor rules gated on a library-independent corpus; one pinned benchmark contract (SWC and the Rolldown bundler included; bars matched in assumptions and reflection; the same oracle; consumer lanes); a held-out set with a failure procedure; a closure ledger per losing cell | §8.4, §18 |
-| 7 | Compile time is first class; flags, effort and codec settings change it | One work currency; one move list walked as a prefix whose length, exact budget and work budget the level sets; a proxy that prunes and the exact codec that keeps; codec settings as objective configuration; deterministic parallelism; caches; targets per entry and per package build | §9.6, §13, §14 |
+| 7 | Compile time is first class; flags, effort and codec settings change it | One move list walked as a prefix whose length and count of exact judgements the level sets (AM1); a proxy that prunes and the exact codec that keeps; codec settings as objective configuration; deterministic parallelism; caches; targets per entry and per package build | §9.6, §13, §14 |
 
 ### 1.3 Built and to build
 
@@ -54,7 +54,7 @@ Code citations are `path:line` at `d1d48c4c`. Competitor citations are `repo@com
 | One compiler; the old route deleted, a frozen reference binary kept (M1) | Benchmark contract, held-out set, perf runner, generic ratchet, frozen baselines, calibration corpus (M2.10–M2.15) |
 | Region-structured Program IR; nominal identity, `FieldRef` places, `export constructor` (M4.1) | Canonical formation, batch A1: methods as their own functions, class bodies, no operand spills, one decoder per schema (M8.2) |
 | Effect engine with SCC summaries and the `pure` check; call graph; initialization order (M6.1–M6.3, M6.5; computed, not yet consumed by the tree) | Program edit kernel and the exact-rule floor (M5.1, M6.4a, M7.x) |
-| Discarded effect-free calls (M7.2) | The budget model: work units, one move list, proxy and exact judges (M3.5) |
+| Discarded effect-free calls (M7.2) | The budget model: one move list, counted budgets, proxy and exact judges (M3.5, AM1) |
 | The terminal challenger stage (M5.4); the choice kernel's first slice and data tables (M9.1, M9.8); the first spelling families (M9.3) | The language: v1's eighteen rules (M4.2, M4.6, M10) |
 | The delivery design (M3.3, in flight) | Tree annotations and one scheduler (M5.2, M5.3); the rest of the facts (M6.4, M6.6–M6.8) |
 | | One choice system (M9); native from the optimized program and native-complete (M11); qualification (M12) |
@@ -111,11 +111,12 @@ Each law exists because the codebase's history measured what happens without it.
 | L14 | **Language before recognizers.** A fact the author knows is stated by a type or a declaration before the compiler builds an analysis or a pattern to recover it | M9.8 recognizes tables from `let` shapes (`src/js/tables.rs:2-4`); `prove_int32_cells` proves from producers what `int` should guarantee (`src/program/javascript_int32.rs:1-6`) |
 | L15 | **Rules before choices.** Exact rules produce the canonical base to a fixed point before any codec-judged alternative varies it, and a program-level choice re-runs the rules on what it changes | The search saturates when rules have not supplied the base; choices built first vary a non-canonical base and pay exact codec trials a rule never needs (§1.1) |
 | L16 | **A fact has landed only when it is consumed.** Its publication channel reaches every target layer that decides with it, and each re-derivation is deleted in the same batch | Batch E deferred the deletions "until M5.2" (`ff27361f`); the tree's 54 passes still reason from syntax |
-| L17 | **Compile time is designed.** One work currency, one move list walked as a prefix, a proxy that only prunes, an exact codec that only keeps, threads that never change bytes, and hard work ceilings per level (§13) | 55–74% of every production compile is exact Brotli-11, paid once per candidate and ordered by raw bytes |
+| L17 | **Compile time is designed.** One move list walked as a prefix, budgets that are counts (the prefix length and the exact judgements), a proxy that only prunes, an exact codec that only keeps, and threads that never change bytes (§13, AM1) | 55–74% of every production compile is exact Brotli-11, paid once per candidate and ordered by raw bytes |
 | L18 | **The runtime floor holds by construction.** No transformation makes one function body serve more receivers or callees than the source did, adds a per-evaluation allocation in a loop, or makes a typed form slower (§16, P1–P9) | Shared adapters: one SharedFunctionInfo for 141 methods, 9.6–10.0% of katex's JS self time |
 | L19 | **Benchmarks are contracts.** Bars are generated from the declared surface, pinned, matched in assumptions and reflection, and pass the same oracle; held-out libraries gate phase ends (§18) | SWC unpinned; Terser versions and pass counts drift per port; one port's win can live in one lever while its code loses |
 | L20 | **Replace, then delete.** A mechanism is deleted only in the batch its replacement lands and passes the gates; until then it runs as a marked transitional rule with its deletion task | M1 deleted the old route's program rules and real-class emission with no successor: `comparison/apps` 571 → 945, katexlil's Node ratio 1.041 → 1.102 |
 | L21 | **Gates block.** Every gate is a ratchet over an expected-failure ledger. A failing gate stops the merge; a loss is carried only as a ledger row with an owner task; no gate has an escape clause | Rule 3 failed on five of six ports while batches T and D landed; rule 2 was waived (`ff27361f`) |
+| L22 | **Decide statically first.** LilScript is typed and closed-world by design, so every decision that its types, its checker and the program facts can make is made by a rule, once, at every level. The codec judges only representations whose value depends on the codec, and such a family keeps default-level exact judgements only while it shows bytes for them (B9, AM1) | Batches T and D bought −88..+7 bytes per port outside katexlil's data table for 2.7× compile time; the search winner is byte-identical at levels 8, 13 and 15 on five of six ports; more candidate budget made output worse (+652). The owner, 2026-09-27: the language is typed by design and everything is statically analyzable |
 
 ---
 
@@ -156,7 +157,7 @@ flowchart TD
   W -. program-level move: rules on dirty units .-> R
   W -. tree-level move: re-form touched units .-> J
   N --> X[C11 + header, toolchain profile]
-  L[Resolved policy: contract, objective, effort budget in WU, performance floor] -.-> C
+  L[Resolved policy: contract, objective, effort budget as counts, performance floor] -.-> C
   L -.-> R
   L -.-> H
   L -.-> W
@@ -412,14 +413,14 @@ Every codec proxy agrees in sign with Brotli-11 on every measured pair more than
 
 - **Coupling classes.** Sites that print shared text are judged as one unit first, and individually only when their own stake exceeds F: every decoder of one schema, every site of one spelling class, the naming order of one scope class, every coercion of one class. This generalizes the hard-coded "every site canonical" move (`src/program/search_terminal.rs:336-364`) and explains diagnosis C14 (the five a11y functions win only together).
 - **Naming locality, by algorithm.** The allocator assigns each scope's bindings slots by interference, in printed order within the scope, top-down: a scope's names are drawn from the slots that its enclosing scopes' bindings referenced inside it do not occupy. So adding, removing or re-ordering a binding inside scope X renames only bindings in X's subtree. Locality is claimed for the declaration-order and printed-order seeds only. Frequency-based seeds and frequency-sorted alphabets rank root names by global counts, so any site change can renumber every root; they are **whole-artifact joint moves** at fixed positions after every site move (§9.6), never the seed a site walk runs under.
-- **Joint moves** at fixed positions: each family's all-prior and all-canonical assignments after the family's sites; whole-artifact naming seeds and alphabets after all site moves; cross-objective checkpoints (§9.6).
+- **Joint moves** at fixed positions: each family's all-prior and all-canonical assignments after the family's sites; whole-artifact naming seeds and alphabets after all site moves.
 
 ### 9.6 The decision procedure, once
 
 This is the only statement of the procedure. §13.4 gives only its parameters per level.
 
 ```
-Given objective o, schedule version v, level L with parameters p(L), e(L), W(L) (§13.4),
+Given objective o, schedule version v, level L with parameters p(L), e(L) (§13.4),
 each non-decreasing in L, and p(0) = e(0) = 0.
 
 P*  := program rules to their fixed point                 (§8.2: codec-, name- and level-free, never truncated)
@@ -427,12 +428,12 @@ A0  := every program-level site at prior(o) → rules on dirty units → formati
        to their fixed point → placement → naming seed → print          (the level-0 artifact)
 S   := the move list, a function of (P*, A0's sites and tier-0 estimates, o, v) only:
        coupling classes by stake, then their sites by stake, stable tie key; joint moves at fixed
-       positions (§9.5); cross-objective checkpoints at fixed positions (below); moves reserved
+       positions (§9.5); moves reserved
        for level 16 at the tail. Sites below F are not in S.
 walk:
   I := A0; judged := 0
   for i in 0 .. p(L):
-      if work(i) > W(L) or judged = e(L): stop
+      if judged = e(L): stop
       m := S[i]
       C := apply m to I:
              a program-level move edits P and re-runs the rule scheduler on its dirty units to their
@@ -445,11 +446,11 @@ walk:
   deliver I
 ```
 
-**Why this is monotone, by construction.** Nothing the walk reads depends on L: P*, A0, S, M, admission, the runtime vetoes and both codecs are level-independent, and work is charged by a deterministic tariff (§13.3). The walk at level L stops at the first position where the prefix, the exact budget or the work budget runs out. The walk at level L+1 has limits at least as large, so it passes through the same states up to that position and then continues; every later change is a strict exact win. Therefore size(L+1) ≤ size(L) for every L ≥ 0, and size(1) ≤ size(0) because level 1 starts from A0. The replay of the lower level's result, which the compile-time review proposed as a guard (review-compile-time §7.4, §7.7), is structural here: the incumbent at the point where level L stops *is* level L's artifact. A test checks it at every tier boundary on the case corpus and the reference ports: debug builds record the incumbent at each lower level's stopping point and compare it byte for byte with a build at that level.
+**Why this is monotone, by construction.** Nothing the walk reads depends on L: P*, A0, S, M, admission, the runtime vetoes and both codecs are level-independent, and both budgets are counts (§13.3). The walk at level L stops at the first position where the prefix or the exact budget runs out. The walk at level L+1 has limits at least as large, so it passes through the same states up to that position and then continues; every later change is a strict exact win. Therefore size(L+1) ≤ size(L) for every L ≥ 0, and size(1) ≤ size(0) because level 1 starts from A0. The replay of the lower level's result, which the compile-time review proposed as a guard (review-compile-time §7.4, §7.7), is structural here: the incumbent at the point where level L stops *is* level L's artifact. A test checks it at every tier boundary on the case corpus and the reference ports: debug builds record the incumbent at each lower level's stopping point and compare it byte for byte with a build at that level.
 
 **What would break it, and is therefore forbidden:** a proxy keep; a list whose content or order depends on the budget; a rule phase truncated by the budget; a stop rule that fires differently at L and L+1 before L's stopping point; a thread count that changes a verdict. Today's code states the prefix argument (`src/config.rs:1335-1337`) but interleaves two budgets and a budget-dependent beam, and katexlil's level 13 is 98 bytes larger than its level 8 (review-compile-time §2.3).
 
-**Several objectives.** Requested objectives walk in lockstep, each on its own list. At each checkpoint position, every objective is offered the other objectives' incumbents as they stood at the start of that checkpoint, in the declared order raw, gzip, Brotli; an offer is judged by the receiver's exact codec, consumes its exact budget, and is kept only on a strict win. Each walk's state at a checkpoint is level-independent, so the offers are too, and the prefix argument holds for the joint walk. **The gzip shadow:** a Brotli-only build also walks a gzip objective to a fixed position c_s of its own list, and offers its incumbent at c_s; the shadow is computed only when the Brotli walk reaches c_s, and its work is charged in WU. It captures katexlil's case: the gzip-built artifact is 188 Brotli bytes smaller than the Brotli-built one (60,137 against 60,325; review-objectives §1.1).
+**Several objectives.** Requested objectives share parse, check, the program rules and formation (M3.4), and each walks its own list to its own incumbent (A6). Cross-objective checkpoint offers and the gzip shadow are deferred by AM1. The case for them is katexlil's gzip-built artifact, 188 Brotli bytes smaller than its Brotli-built one (60,137 against 60,325; review-objectives §1.1). Such a move returns only by amendment, as a move of the list whose bytes per exact judgement are measured on the calibration corpus.
 
 **Hot sites.** Admission vetoes an alternative whose runtime class is worse than the prior's on a site the frequency fact marks hot, and the prior on a hot site is the alternative with the best runtime class, bytes breaking ties (§16.3). Both are level-independent.
 
@@ -457,7 +458,7 @@ walk:
 
 **Delivery rows.** With several entries (M3.3), each entry's row is the codec bytes of its closure; a move is kept only if the sum of rows shrinks and no row grows (dominance; M3.3 design §10).
 
-**Receipts.** `--explain json` records per move: family, site, coupling class, prior, each judgement's tier, proxy and exact deltas, runtime class, work units, and the position where each level would stop. Calibration (M9.10) reads these receipts.
+**Receipts.** `--explain json` records per move: family, site, coupling class, prior, each judgement's tier, proxy and exact deltas, runtime class, and the position where each level would stop. Calibration (M9.10) reads these receipts.
 
 **The decision lock** (§13.6) adds one move at position 0: the locked assignment, judged exactly. Given the same lock, the argument above holds unchanged.
 
@@ -678,7 +679,7 @@ Each Closure ADVANCED pass family (`closure-compiler@0da58e1 DefaultPassConfig.j
 
 | # | Law | Why (review-compile-time) |
 |---|---|---|
-| B1 | **One currency.** All compiler work is charged in calibrated work units (WU, about 1 µs on the reference host) through a versioned tariff per work kind and per codec setting. Every loop is charged by its input size, not per call. Stopping decisions read WU, never the clock | The ledger's four kinds (`src/compilation_policy.rs:867-872`) and about 133 flat `Analysis, 1` charges mispredict wall time by a median 91% unweighted and 13% (max 45%) weighted; the clock-based deadline makes output depend on machine speed (`src/compilation_policy.rs:1088-1113,1201-1210`) |
+| B1 | **Counted budgets** (AM1). A level's budget is the prefix length p(L) and the number of exact judgements e(L) of §9.6, with the decision floor F. Stopping decisions read these counts, never the clock. The receipt reports both counts and the measured time of each phase | The ledger's four kinds (`src/compilation_policy.rs:867-872`) and about 133 flat `Analysis, 1` charges mispredict wall time by a median 91% unweighted and 13% (max 45%) weighted; the clock-based deadline makes output depend on machine speed (`src/compilation_policy.rs:1088-1113,1201-1210`); exact Brotli-11 is 55–74% of every production compile, so the count of exact judgements is the budget that matters |
 | B2 | **The judge is the configured codec**, and its settings are objective configuration | "Compression rate is adjustable" (owner); pairs flip between q5 and q11 |
 | B3 | **Three judges, one decider**: estimate orders, proxy prunes, exact keeps | Raw bytes orders only 5 of 18 real pairs 200–1,000 bytes apart; Brotli q5 orders all 99 pairs 200 bytes or more apart at 1/60 the cost |
 | B4 | **One list, prefix walks** (§9.6) | katexlil level 13 > level 8 by 98 bytes |
@@ -686,7 +687,7 @@ Each Closure ADVANCED pass family (`closure-compiler@0da58e1 DefaultPassConfig.j
 | B6 | **Threads change neither bytes nor the stopping point** | Determinism (A6) |
 | B7 | **Caches are content-addressed.** A hit returns exactly what a cold build would; the decision lock is the one declared exception (a fingerprinted input, §13.6) | Output must not depend on cache state |
 | B8 | **Compile time is gated per batch and per phase, and ceilings do not move silently** (§13.7) | Wall-clock pairs on a burstable, shared host cannot judge a batch alone; a work counter alone cannot see a quadratic loop charged per call |
-| B9 | **Work is bought at a published exchange rate.** The schedule carries a versioned bytes-per-WU rate per objective and a hard WU ceiling per level. A batch that adds default-level work must buy bytes at or above the rate; raising a ceiling is a schedule version that the ledger names | Rule 3's "unless the ledger row states what it buys" let batches T and D add 2.7× (`measurements-2026-09-27.md`) |
+| B9 | **Default-level judgements are earned** (AM1). A batch that adds default-level exact judgements or formations shows the bytes they buy on the calibration corpus and the reference ports; e(L) and F change only with that evidence. There is no work-unit currency, tariff or exchange rate | Rule 3's "unless the ledger row states what it buys" let batches T and D add 2.7× (`measurements-2026-09-27.md`) |
 
 ### 13.2 Where the time goes today, and the targets
 
@@ -707,34 +708,33 @@ Measured single-threaded at level 13 (review-compile-time §2.2): katexlil 12.5 
 
 **The arithmetic, under §9.6.** On katexlil at level 13: base (frontend, demand, one formation) about 1.4 s; each examined move costs formation 95 ms + print 25 ms + proxy 12 ms, about 132 ms; each exact judgement 450 ms. With 25–30 examined moves and e(13) = 4–6: 1.4 + 3.3–4.0 + 1.8–2.7 = 6.5–8.1 s single-threaded (1.4–1.75× the frozen 4.62 s; the provisional value this was first written against was 5.6 s), about 3.0–3.6 s at `-j 4`. So M3.5 meets its `-j 4` target, and its single-threaded 1.3× ceiling (6.0 s) is below this projection: e(13) and F must come down further, or the ceiling moves only by a schedule version (B9). Incremental formation (M5.7: re-form only the touched units, reuse revision-keyed facts, about 340 ms of demand per candidate today) cuts the 95 ms formation to the touched units and brings the single-threaded figure to about 5–5.7 s, still above the frozen 4.62 s, which is why that target belongs to M5.7 and needs its reuse to reach further than this estimate, after M5.2/M5.3 give target rules dirty-unit scheduling.
 
-**New analyses are costed before they land.** Before each of M5–M7, the facts and rules it adds are charged in WU in a projected table for katexlil and jquerylil (plan rule 3); a projection above the level's ceiling needs a schedule version (B9).
+**New analyses are timed when they land.** Each batch of M5–M7 reports the CPU time its facts and rules add on katexlil and jquerylil against the pinned previous binary (plan rule 3). A rule phase is never truncated, so its cost is paid at every level, level 0 included.
 
-### 13.3 Work units and the tariff
+### 13.3 Counted budgets (AM1)
 
-- **Tariffed kinds:** analysis step, edit, formed operation, printed byte, named binding; codec input byte per setting (Brotli q0–q11 × window, gzip levels; raw is 0). Starting values: Brotli-11 about 1.8 WU per input byte, Brotli-5 about 0.03, gzip-9 about 0.05, formation about 0.4 WU per output byte.
-- **Coverage is a done-criterion.** Every loop in formation, the tail and analyses is charged by input size, so a quadratic rule shows up as WU. M3.5 is done only when the tariff predicts wall time on the case corpus and the reference ports with a median error under 10%.
-- The ledger keeps per-kind counters (`work_by_kind`, `src/compilation_policy.rs:926-940`) and multiplies by the tariff once. The receipt prints WU per phase and per move, with predicted seconds. `--print-policy` prints the planned budget for this input after the baseline is formed.
-- **Resource ceilings:** `[resources] work` (WU) is a deterministic truncation of the walk, reported; `memory` stays and charges the sequential walk's peak; speculative work runs against a separate per-worker scratch limit that never affects a keep; `deadline` is abort-only (the build fails with a partial receipt, never delivers a truncated search).
-- **Deleted:** `LILSCRIPT_SEMANTIC_WORK` (`src/main.rs:171-178`), `build::search_request`'s divisors and caps, the allocation-exact ledgers inside analyses (M5.6, which lands inside M3.5 because parallel workers need per-worker ledgers; `AllocationBudget<'a>` holds `&'a mut BudgetLedger` across 398 sites in 101 files, `src/output_budget.rs:69-74`).
+- **Counts.** The walk counts the list positions it examines and the exact judgements it makes. The receipt reports both per objective, with the measured time of each phase (`LILSCRIPT_TIMING`), and `--print-policy` prints p(L), e(L) and F.
+- **Why not a tariff.** A work-unit currency calibrated to predict wall time within 10% on a burstable, shared host is a research project of its own, and the compile-time evidence already names the cost: exact codec calls are 55–74% of every production compile, formations most of the rest. The counts bound both. A tariff returns only by amendment, if the counts stop predicting time.
+- **Resource ceilings:** `memory` stays and charges the walk's peak; `deadline` is abort-only (the build fails with a partial receipt, never delivers a truncated search).
+- **Deleted:** `LILSCRIPT_SEMANTIC_WORK` (`src/main.rs:171-178`), `build::search_request`'s divisors and caps, and the allocation-exact ledgers inside analyses (M5.6; `AllocationBudget<'a>` holds `&'a mut BudgetLedger` across 398 sites in 101 files, `src/output_budget.rs:69-74`).
 
 ### 13.4 Effort levels
 
-Effort stays one published number, 0–16, with a versioned schedule printed in the receipt. **Effort is a work budget only**; it grants no permission (Y7) and never changes which runtime checks are emitted (§17). Each level sets only the three parameters of §9.6 and the decision floor, all versioned schedule data with their calibration source (M9.10); the values below are starting points.
+Effort stays one published number, 0–16, with a versioned schedule printed in the receipt. **Effort is a work budget only**; it grants no permission (Y7) and never changes which runtime checks are emitted (§17). Each level sets only the two parameters of §9.6 and the decision floor, all versioned schedule data with their calibration source (M9.10); the values below are starting points.
 
-| Levels | Tier | p(L): prefix | e(L): exact judgements | W(L): work | Target time |
-|---|---|---|---|---|---|
-| 0 | **rules** | 0 | 0 | base only | ≤ 1.4 s on katexlil; no codec, estimated sizes in the receipt unless exact is requested or a manifest needs it |
-| 1–4 | **short** | the first classes of S | 1–2 | ≤ 2× Terser's time | ≤ 2× Terser |
-| 5–9 | **finalists** | longer | 2–4 | grows about 1.5× per level | ≤ 4× level 0 |
-| 10–13 (13 default) | **joint** | reaches the joint moves; the gzip shadow where its bytes per WU pay (B9) | 4–8 | the level-13 ceiling (B9) | §13.2 |
-| 14–15 | **whole list** | \|S\| without the tail | unbounded up to p | published ceiling | reported |
-| 16 | **maximum** | \|S\|, including the tail's beam over joint assignments | unbounded | published ceiling | reported |
+| Levels | Tier | p(L): prefix | e(L): exact judgements | Target time |
+|---|---|---|---|---|
+| 0 | **rules** | 0 | 0 | ≤ 1.4 s on katexlil; no codec, estimated sizes in the receipt unless exact is requested or a manifest needs it |
+| 1–4 | **short** | the first classes of S | 1–2 | ≤ 2× Terser |
+| 5–9 | **finalists** | longer | 2–4 | ≤ 4× level 0 |
+| 10–13 (13 default) | **joint** | reaches the joint moves | 4–8, each family earning its share (B9) | §13.2 |
+| 14–15 | **whole list** | \|S\| without the tail | unbounded up to p | reported |
+| 16 | **maximum** | \|S\|, including the tail's beam over joint assignments | unbounded | reported |
 
 There is no diminishing-returns stop at or above the default level: the budget bounds the search, it is not a reason to stop early (owner, 2026-09-01). Below the default level the exact budget e(L) is the bound.
 
 ### 13.5 Parallelism with deterministic output
 
-Speculative parallel greedy with in-order commit: workers form, proxy-judge and exact-judge the next b moves against the current incumbent; commits happen in list order; after a keep, later speculative verdicts are re-judged. The delivered bytes equal the sequential walk for every b and thread count, and WU charges the sequential walk's judgements. One flag, `-j N` (formation, render and codec workers), default min(cores, 4) (schedule data), never fingerprinted. Multi-objective builds parallelize by objective; multi-entry delivery prints chunks in parallel. Today `-j` and `--codec-jobs` are accepted no-ops (`src/main.rs:130-134`); `rayon`, declared but never used, was removed in M2.13.
+**Deterministic parallel scoring** (AM1). Exact scores of independent artifacts (the objectives of one build, the files of one delivery) run on worker threads and are consumed in list order, so bytes never depend on the thread count. The speculative greedy (workers forming and judging the next moves ahead of the incumbent, re-judged after a keep) is deferred until the counts show the sequential walk is the bottleneck. One flag, `-j N`, default min(cores, 4) (schedule data), never fingerprinted. Multi-entry delivery prints chunks in parallel. Today `-j` and `--codec-jobs` are accepted no-ops (`src/main.rs:130-134`); `rayon`, declared but never used, was removed in M2.13.
 
 ### 13.6 Caches and incremental work
 
@@ -750,11 +750,11 @@ Ranked by payoff:
 
 | When | What | Pass rule |
 |---|---|---|
-| Per change and per batch | (a) WU per phase and per move at the default level on the case runner and the reference ports, against the pinned previous binary; (b) the count of moves judged at the default level; (c) process CPU time (`getrusage` user + system) on the case runner and the seven main entries, pinned previous binary, alternating pairs, median of at least three | (a) Added WU must buy bytes at or above B9's exchange rate, and no level exceeds its ceiling; (b) reported next to (a), so fewer moves judged is not mistaken for a cheaper compiler; (c) fails above +15% |
+| Per batch | (a) the counts of list positions examined and exact judgements at the default level on the case runner and the reference ports, against the pinned previous binary; (b) process CPU time (`getrusage` user + system) on the case runner and the seven main entries, pinned previous binary, alternating pairs, median of at least three | (a) Added default-level judgements show the bytes they buy (B9); (b) fails above +15% |
 | Per phase | Wall time at the default level against the frozen baseline (§13.2), per entry and per package build, alternating pairs; the ratio to Terser on the same library | The §13.2 targets due at that phase |
-| Per release | Wall time per level, single-threaded and at `-j 4`, published with the tariff version and Terser's time | Published |
+| Per release | Wall time per level, single-threaded and at `-j 4`, published with the schedule version and Terser's time | Published |
 
-Every move records its WU and its byte verdict; "bytes per WU" is the column every family must justify.
+Every move records its judgements and its byte verdict; "bytes per exact judgement" is the column every family must justify.
 
 ---
 
@@ -779,7 +779,7 @@ checks = "production"          # production | development: runtime precondition 
 [objective.gzip]    level = 9      window = 15
 [effort]     level = 13            # a work budget with a versioned schedule
 [performance]                  # bar, workloads, engines, floor, startup, memory (§16.4)
-[resources]                    # work (WU, deterministic), memory, deadline (abort-only)
+[resources]                    # memory, deadline (abort-only)
 [execution]                    # threads: never fingerprinted
 [families]                     # generated from the registry: auto | on | off per family
 ```
@@ -795,9 +795,9 @@ Each old key maps to exactly one outcome: a new key, a "no effect" warning, or a
 | **User: effort** | `[effort] level`, `--effort N` | A work budget only |
 | **User: performance** | `[performance]` | The runtime floor (§16.4) |
 | **User: permissions** | `[families]` (`off` vetoes; `on` permits) | Generated from the registry; only families that exist |
-| **User: resources and execution** | `[resources]`, `-j N`, `--cache`, `--write-choices`, `--choices` | Never change bytes, except the declared lock and the deterministic `work` ceiling |
-| **Effort-derived** | p(L), e(L), W(L), decision floor F, gzip shadow position, chunk-plan moves | Schedule data per level, printed in the receipt |
-| **Fixed and versioned** | Tariff, exchange rate and ceilings (B9), proxy quality, margin M, error bands, priors, move order, finite-set width | Calibrated on the calibration corpus (M9.10, M2.15); never configurable, never calibrated on ports |
+| **User: resources and execution** | `[resources]`, `-j N`, `--cache`, `--write-choices`, `--choices` | Never change bytes, except the declared lock |
+| **Effort-derived** | p(L), e(L), decision floor F, chunk-plan moves | Schedule data per level, printed in the receipt |
+| **Fixed and versioned** | Proxy quality, margin M, error bands, priors, move order, finite-set width | Calibrated on the calibration corpus (M9.10, M2.15); never configurable, never calibrated on ports |
 | **Removed** | `candidate_search`, `candidate_limit`, `candidate_byte_budget`, `candidate_beam_width`, `candidate_proposal_limit`, `terminal_codec_probe_limit`, `[policy.search]`, `[bundle.cost]` codec weights, `--codec-jobs`, `LILSCRIPT_SEMANTIC_WORK` | Warn for one release, then refuse (Y7) |
 
 **Stripping.** `strip_console` becomes two keys. `strip_debug` removes the declared `debug` effect class (R15) and is off by default for libraries. `strip_console_calls` removes `console.*` host calls, keeps their arguments' effects, is off by default, and is recorded as a declared D3.4 relaxation because console output is a host effect. `print` is a program effect and is never stripped; today the default strips it (`src/config.rs:1044`), so a program with no configuration compiles to an empty file.
@@ -831,7 +831,7 @@ The layout is moved **once**, in one mechanical commit with no output change. It
 | `src/program/` | Program IR, elaboration, verifier, views, facts, edits, rules, program-level choices, the decision walk, artifacts | `program/` minus formation and native |
 | `src/js/` | formation, target tree, target rules, choice families, naming, print, delivery, host units | `js/` plus `program/javascript*.rs` |
 | `src/native/` | native plan, C writer, runtime, toolchain | `program/native*.rs`, `artifact_native.rs` |
-| `src/policy/` | configuration schema and resolver, contract, objective, tariff, budgets, codecs | `config.rs`, `compilation_policy.rs`, `compilation_contract.rs`, `compression.rs`, `output_budget.rs`, `arena_budget.rs`, `timing.rs`, `stable_hash.rs` |
+| `src/policy/` | configuration schema and resolver, contract, objective, budgets, codecs | `config.rs`, `compilation_policy.rs`, `compilation_contract.rs`, `compression.rs`, `output_budget.rs`, `arena_budget.rs`, `timing.rs`, `stable_hash.rs` |
 | `src/prelude/` | runtime helpers written in LilScript (decoders, adapters) | Rust-built JS nodes (`src/js/tables.rs:1449-1506`) |
 | `src/build.rs` | the public API | `build.rs` with `Service*` names |
 | `src/tools/` | lint, formatter, reference interpreter | `lint.rs`, `formatter.rs`, `interpreter.rs` at the root |
@@ -983,7 +983,7 @@ What LilScript has that none can copy: the exact codec on the final artifact; cl
 | NO6 | **Noise law.** Claims under about 400 fleet bytes, and every exact rule's per-port effect, are judged by seeded re-mangling (8 alphabets) or the terminal slot | The receipt shows the seeds |
 | NO7 | **Win decomposition** (BC7) | Site and release report |
 | NO8 | **Competitor-first rules.** A new exact rule cites the competitor rule it generalizes; one with no counterpart must win on two unrelated ports or cases, or on the held-out set | Ledger citation field |
-| NO9 | **Calibration never touches ports.** Priors, the proxy margin, the tariff and the exchange rate are calibrated on the case corpus and the calibration corpus (plan M2.15), leave-one-out; port agreement is a reported validation lane | The schedule's receipt names its corpus digest |
+| NO9 | **Calibration never touches ports.** Priors, the proxy margin and the decision floor are calibrated on the case corpus and the calibration corpus (plan M2.15), leave-one-out; port agreement is a reported validation lane | The schedule's receipt names its corpus digest |
 
 ### 18.4 The closure ledger
 
@@ -1032,13 +1032,13 @@ Each can be reversed by the owner (§21 gives the cost); none of these changes l
 | Consumer shakeability | Required for library-world ports; annotations only where `discardable()` holds; scored by BC9 |
 | Native | Speed by default; gated on being at least as fast as the JS output under Node; QuickJS's `libregexp`; trial-deletion cycle collection; a C library ABI |
 | Runtime floor | §16.4's definition; hot-site alternatives ordered by runtime class before bytes |
-| Compile-time promises | §13.2's targets, frozen baselines, B9's exchange rate and ceilings |
+| Compile-time promises | §13.2's targets and the frozen baselines; budgets are counts (AM1) |
 | Profile-guided optimization | Stays removed as a codegen driver; measured workloads feed only gates |
 | Source maps | Part of complete delivery, re-founded on the target tree (M8.6) |
 | Lint API | Rules run on the checked program and its facts |
 | Reference interpreter | Independent of the compiler; extended to the typed language ahead of the facts that optimize each feature |
 | Old route | Deleted; the frozen reference binary measures "the first bar" |
-| Resource accounting | Work units per phase and per rule; exact bytes only for retained candidates and artifacts (M5.6 inside M3.5) |
+| Resource accounting | Counted budgets and the measured time of each phase (AM1); exact bytes only for retained candidates and artifacts (M5.6) |
 | `public_aggregate_abi = "positional"` | Refused: D2 fixes the public shape as a plain object |
 | Layout | Moved once, as a chore after M3.3a (§15) |
 
@@ -1088,7 +1088,7 @@ Each reverses or amends an earlier owner choice or contract (Appendix A). The de
 | R10 and R11 | Typed intrinsics mean the originals; index reads carry a precondition; lengths are `int`; `charCodeAt` keeps JavaScript's meaning | `assume_pristine_builtins` stays per port; index loads keep `??""` and `\|0` |
 | R16 | `object` singletons deleted (0 uses; they do not compile today) | None |
 | Decision lock | Opt-in, fingerprinted; output may depend on it | Lose the package-build time it saves |
-| Compile-time promises | §13.2's targets and B9 | Looser targets; the owner's point 7 unmet |
+| Compile-time promises | §13.2's targets, with counted budgets (AM1) | Looser targets; the owner's point 7 unmet |
 | zodlil runtime | Compile-time specialization over const data (M10.19); ledgered until then | A `jitless` bar would hide a 5.5× gap |
 | Native scope | Batch programs (argv, stdin, files), a C library ABI, async and regex natively; QuickJS `libregexp`; trial-deletion cycle collection | A smaller native subset; "directly executable" limited to closed programs |
 | Benchmarks | SWC pinned; consumer lanes gate at M3.3c; BC5 includes language guarantees; the held-out set of §18.3 | Weaker bars; overfitting undetected |
@@ -1101,9 +1101,9 @@ Each reverses or amends an earlier owner choice or contract (Appendix A). The de
 ## 22. Stability and change control
 
 - **What is fixed.** The laws (§3, B1–B9, P1–P9), the contracts (§4, Appendix A), the IR (§6), the pipeline stages (§5), the decision procedure (§9.6) and the language contract ([language.md](language.md)) change only by an amendment the owner approves, recorded in Appendix A with its date and evidence. A version number on this page counts amendments.
-- **What changes freely.** Schedule data (p, e, W, F, M, priors, tariff, exchange rate), which is versioned and calibrated; the plan's order and estimates; evidence and numbers.
+- **What changes freely.** Schedule data (p, e, F, M, priors), which is versioned and calibrated; the plan's order and estimates; evidence and numbers.
 - **Ids are frozen.** Law, rule (R1–R18), task (M0–M12) and question (Y1–Y7) ids are never renumbered. A merged task keeps its id and is marked "merged into"; a split task keeps its id with a letter suffix (M3.8a, M5.3b). The language rules were renamed once, from "L1–L10" to R1–R18, because the old ids collided with the laws; they are frozen from now on.
-- **What this version changed** against the 2026-09-23 page is recorded in the plan, not here.
+- **What this version changed** against the 2026-09-23 page is recorded in the [migration history](migration/history.md#2026-09-27-design-version-1-and-the-plans-revision), not here.
 
 ---
 
@@ -1133,6 +1133,14 @@ Each is in force once the owner answers its question (§21.1) yes. A6 and A7 (§
 | D3.9 | In `world = "application"`, host reflection over compiler-owned frames and access to root bindings by other scripts are outside the contract unless declared global; application scripts default to an IIFE | Y5 |
 | D4 | Verdicts under the benchmark contract (§18); per-cell threshold max(1%, seeded noise band) | Y6 |
 | D5 | Effort is a budget only; the level-16 grant moves to family permissions | Y7 |
+
+### Design amendments
+
+Amendments to the laws, the decision procedure and §13 that the owner approved (§22). The version number at the top counts them.
+
+| # | Date | Amendment | Evidence and the owner's words |
+|---|---|---|---|
+| AM1 | 2026-09-28 | **Counted budgets, and decide statically first.** Budgets are counts: a level sets the prefix length p(L), the exact-judgement count e(L) and the decision floor F (B1, B9, §9.6, §13.3–§13.7). The work-unit currency, its tariff, the exchange rate and the per-level work ceilings are dropped. Cross-objective checkpoint offers, the gzip shadow and the speculative parallel greedy are deferred; each returns only by amendment, with its bytes per exact judgement measured on the calibration corpus. New law L22. In the plan, M3.5 is slimmed and no longer waits for M2.15, and verification runs per batch (plan rules 3 and 8) | Exact Brotli-11 is 55–74% of every production compile; batches T and D bought −88..+7 bytes per port for 2.7× compile time; the search winner is byte-identical at levels 8, 13 and 15 on five of six ports. The owner, 2026-09-27: the budget model may be unnecessary over-engineering; the language is typed by design and everything is statically analyzable. 2026-09-28: approved, with verification after each batch of updates ([finer/intent/2026-09-28.md](../finer/intent/2026-09-28.md)) |
 
 ### D2 for value structs
 
@@ -1188,7 +1196,7 @@ D3.6-D3.10 each have a positive and a refusal case since 007 (`src/program/d3_cl
 | Shipped is not compiled | Only compiler-written delivered files count |
 | One runtime sample is not evidence | A 30-round, 5-warmup Node run spans 0.98–1.38 for an unchanged artifact. Runtime claims use ≥ 5 fresh processes per lane, alternating lane order, ≥ 150 rounds after ≥ 30 warm-up, a bootstrap CI, and no-op perturbation controls, pooled over ≥ 3 perturbed builds |
 | Alignment lottery | Hot-loop timings move by up to ±17% with code placement; a delta smaller than a no-op control's spread is not a change |
-| Wall clock on this host | The host is a burstable B8als_v2 shared by sessions; per-batch compile-time gates use work units and CPU-time pairs, and wall-clock gates run in alternating pairs at phase end |
+| Wall clock on this host | The host is a burstable B8als_v2 shared by sessions; per-batch compile-time gates use the counts of exact judgements and CPU-time pairs, and wall-clock gates run in alternating pairs at phase end |
 
 ## Appendix C. Old names and new names
 

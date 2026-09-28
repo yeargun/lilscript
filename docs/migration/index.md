@@ -15,13 +15,17 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
 - **Next on the critical path:** step 5, the floor slice (M5.1, M6.4a, M7.8a, M7.3 and M7.5a). Nothing blocks it: M2.5 and M2.13, its prerequisites, have landed.
 - **Also open, off the critical path:**
   - Step 2: the layout commit, then M3.3b with M3.8a, then motionlil compiler-written (M12.2).
-  - Step 3: M2.10, M2.11, M2.12 and M2.15. M2.15 must land before step 6.
+  - Step 3: M2.10, M2.11, M2.12 and M2.15.
 - **Largest gaps:**
   - **Program rules barely run.** Only liveness and M7.2 run on the Program IR. `comparison/apps` is 945 Brotli, against 834 for Closure ADVANCED and 558 for the old route. Step 5 starts closing this.
   - **Compile time.** Level 13 takes 1.06–3.81× the frozen pre-M1 time (katexlil 17.6 s against 4.62 s, measured on head `d1d48c4c` for M2.14). Step 6's exit (M3.5) brings it back.
   - **Runtime.** katexlil's steady state in Node is 1.047× upstream KaTeX (after A1). M2.12's runtime ledger will track every port.
 - **Owner rulings pending:** Y1–Y7 (architecture §21.1). None of them blocks the critical path.
-- **How work runs:** one building, testing or measuring job at a time on this host (plan rule 5).
+- **How work runs:** one building, testing or measuring job at a time on this host (plan rule 5), with the full verification after each batch rather than each change (rule 8).
+- **Owner decisions of 2026-09-28** ([brief](../../finer/intent/2026-09-28.md)):
+  - Amendment AM1: budgets are counts, and the work-unit tariff and its machinery are dropped.
+  - Law L22: decide statically first.
+  - Implement the whole plan.
 - **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214).
 
 ## Steps
@@ -33,7 +37,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] **3** Tools. Done: M2.5, M2.13, M2.14. Open: M2.10, M2.11, M2.12, M2.15, and M2.7; M2.4 starts here and then runs ahead of each fact
 - [x] **4** Batch A1, canonical formation without tree analysis: 2026-09-27
 - [ ] **5** Floor slice: M5.1, M6.4a, M7.8a, M7.3, M7.5a. **Next on the critical path**
-- [ ] **6** Budget model: M3.1 (first slice), M3.2, M3.4, M5.6, M3.5, M3.9, M3.7. Needs M2.15
+- [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed
 - [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16
 - [ ] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half); M10.12 after Y1
 - [ ] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half)
@@ -78,7 +82,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] M2.12 Perf runner, runtime ledger, counters, micro perf gates: step 3
 - [x] M2.13 Generic corpus ratchet: 2026-09-27
 - [x] M2.14 Frozen compile-time baselines: 2026-09-27 (`tests/compile-time/frozen-2026-09-27.json`)
-- [ ] M2.15 Calibration corpus: step 3, before M3.5
+- [ ] M2.15 Calibration corpus: step 3 (M3.5 no longer waits for it, AM1)
 
 ### M3 Configuration, public API, delivery contract, budget model: 1 of 13 · [plan](plan.md#m3-honest-configuration-one-public-api-delivery-contract-the-budget-model)
 
@@ -90,7 +94,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] M3.3d Lazy effects and cycles: step 13
 - [ ] M3.3e Ports, with M12.2: step 2 for motionlil
 - [ ] M3.4 Public API and shared formation: step 6
-- [ ] M3.5 The budget model: step 6
+- [ ] M3.5 The budget model, counted (AM1): step 6
 - M3.6 Codec pool: merged into M3.5
 - [ ] M3.7 Environment variables: step 6
 - [ ] M3.8a Consumer-shakeable delivery, first half: step 2, with M3.3b
@@ -114,7 +118,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] M5.3b Transitional rules deleted: steps 10–12, each with its replacement
 - [x] M5.4 Monotone selection and the terminal slot: 2026-09-24 (batch T). Monotone across levels closes with M3.5
 - [ ] M5.5 Dataflow and views: step 9
-- [ ] M5.6 Resource accounting: step 6, inside M3.5
+- [ ] M5.6 Resource accounting: counts (AM1), retiring the allocation-exact ledgers; independent of M3.5
 - [ ] M5.7 Incremental tail: step 10
 
 ### M6 The fact spine: 0 of 9 · [plan](plan.md#m6-the-fact-spine)
