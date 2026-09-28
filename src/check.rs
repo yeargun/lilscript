@@ -3689,7 +3689,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     match binding {
                         ArrayBinding::Hole(_) => {}
                         ArrayBinding::Name(name) => {
-                            self.declare(*name, Type::Nullable(element.clone()))?;
+                            self.declare(*name, nullable_type(element.as_ref().clone()))?;
                         }
                         ArrayBinding::Rest(name) => {
                             self.declare(*name, Type::Array(element.clone()))?;
@@ -3719,7 +3719,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             format!("duplicate record binding key `{}`", binding.key.name),
                         ));
                     }
-                    self.declare(binding.name, Type::Nullable(element.clone()))?;
+                    self.declare(binding.name, nullable_type(element.as_ref().clone()))?;
                 }
                 if let Some(rest) = rest {
                     self.declare(*rest, Type::Record(element.clone()))?;
