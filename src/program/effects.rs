@@ -27,14 +27,13 @@
 //! `pure extern`'s host code has no proof, so a discarded `pure extern` call
 //! stays. The pending amendment (a declared `pure` asserts termination) is
 //! `DECLARED_PURE_ASSERTS_TERMINATION`, off until the owner rules.
-use super::call_graph::{callback_intrinsic, CallGraph, Callee, Seal};
+use super::call_graph::{CallGraph, Callee, Seal};
 use super::facts::{self, EvaluationBehavior, MemoryAccess};
 use super::initialization::ProgramInitialization;
 use super::views::{Deps, Fact, Limit, Reason};
 use super::*;
 use crate::check::BuiltinCall;
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
-use crate::typed_array::TypedArrayKind;
 use ahash::AHashMap;
 use std::sync::Arc;
 
@@ -802,203 +801,10 @@ fn unit_call_effects(
     effects
 }
 
-/// How an intrinsic touches its receiver and arguments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum IntrinsicClass {
-    /// A computation over primitives, which convert their inputs.
-    Pure {
-        throws: bool,
-        fresh: bool,
-    },
-    /// No input is converted and nothing is read or written.
-    Inert {
-        throws: bool,
-    },
-    /// Reads the receiver container.
-    Read {
-        fresh: bool,
-    },
-    /// Writes the receiver container.
-    Write {
-        throws: bool,
-    },
-    /// Creates a new object from primitive inputs.
-    Construct {
-        throws: bool,
-    },
-    /// Calls its first argument once per element of the receiver.
-    Callback,
-    Print,
-    Unknown,
-}
 
-fn intrinsic_class(operation: ResolvedIntrinsic) -> IntrinsicClass {
-    use Intrinsic as I;
-    use IntrinsicClass as Class;
-    let intrinsic = match operation {
-        ResolvedIntrinsic::Property(intrinsic)
-        | ResolvedIntrinsic::Method(intrinsic)
-        | ResolvedIntrinsic::Constructor(intrinsic) => intrinsic,
-    };
-    if let ResolvedIntrinsic::Constructor(intrinsic) = operation {
-        return match intrinsic {
-            I::MapNew | I::SetNew | I::SymbolNew => Class::Construct { throws: false },
-            I::ArrayBufferNew | I::SharedArrayBufferNew | I::RegexNew => {
-                Class::Construct { throws: true }
-            }
-            _ if typed_array_constructor(intrinsic) => Class::Construct { throws: true },
-            _ => Class::Unknown,
-        };
-    }
-    if callback_intrinsic(operation) {
-        return Class::Callback;
-    }
-    match intrinsic {
-        I::IntImul
-        | I::IntToString
-        | I::IntToUnsignedString
-        | I::FloatAbs
-        | I::FloatFloor
-        | I::FloatCeil
-        | I::FloatRound
-        | I::FloatSqrt
-        | I::FloatSin
-        | I::FloatCos
-        | I::FloatAcos
-        | I::FloatExp
-        | I::FloatLog
-        | I::FloatTan
-        | I::FloatAtan2
-        | I::FloatHypot
-        | I::FloatMin
-        | I::FloatMax
-        | I::FloatToInt
-        | I::StringLength
-        | I::StringCharCodeAt
-        | I::StringCharAt
-        | I::StringIncludes
-        | I::StringIndexOf
-        | I::StringLastIndexOf
-        | I::StringStartsWith
-        | I::StringEndsWith
-        | I::StringToUpperCase
-        | I::StringToLowerCase
-        | I::StringTrim
-        | I::StringTrimStart
-        | I::StringTrimEnd
-        | I::StringSlice
-        | I::StringCodePointLength
-        | I::JsMathPI => Class::Pure {
-            throws: false,
-            fresh: false,
-        },
-        I::StringSplit => Class::Pure {
-            throws: false,
-            fresh: true,
-        },
-        I::StringRepeat => Class::Pure {
-            throws: true,
-            fresh: false,
-        },
-        I::JsTruthy
-        | I::JsTypeOf
-        | I::JsIsNullish
-        | I::JsIsFalse
-        | I::JsIsUndefined
-        | I::JsStrictEqual
-        | I::JsStrictNotEqual => Class::Inert { throws: false },
-        I::JsIsArray => Class::Inert { throws: true },
-        I::ArrayLength
-        | I::ArrayIndexOf
-        | I::ArrayIncludes
-        | I::MapSize
-        | I::MapGet
-        | I::MapHas
-        | I::SetSize
-        | I::SetHas
-        | I::BufferByteLength
-        | I::RegexSource
-        | I::RegexFlags
-        | I::RegexGlobal
-        | I::RegexIgnoreCase
-        | I::RegexMultiline
-        | I::RegexDotAll
-        | I::RegexSticky
-        | I::RegexUnicode => Class::Read { fresh: false },
-        I::ArraySlice | I::BufferSlice => Class::Read { fresh: true },
-        I::ArrayPush
-        | I::ArrayPop
-        | I::ArraySplice
-        | I::ArrayFill
-        | I::ArrayCopyWithin
-        | I::ArrayReverse
-        | I::TypedArrayFill
-        | I::TypedArrayCopyWithin
-        | I::MapSet
-        | I::MapDelete
-        | I::MapClear
-        | I::SetAdd
-        | I::SetDelete
-        | I::SetClear => Class::Write { throws: false },
-        // An offset past the end throws a RangeError.
-        I::TypedArraySet => Class::Write { throws: true },
-        I::Print => Class::Print,
-        _ => match typed_array_member(intrinsic) {
-            Some(fresh) => Class::Read { fresh },
-            None => Class::Unknown,
-        },
-    }
-}
 
-fn typed_array_constructor(intrinsic: Intrinsic) -> bool {
-    TypedArrayKind::ALL
-        .iter()
-        .any(|kind| kind.new_intrinsic() == intrinsic)
-}
 
-/// A typed array property or view method: `Some(creates a view)`.
-fn typed_array_member(intrinsic: Intrinsic) -> Option<bool> {
-    TypedArrayKind::ALL.iter().find_map(|kind| {
-        if [
-            kind.length_intrinsic(),
-            kind.byte_length_intrinsic(),
-            kind.byte_offset_intrinsic(),
-            kind.buffer_intrinsic(),
-        ]
-        .contains(&intrinsic)
-        {
-            Some(false)
-        } else if [kind.slice_intrinsic(), kind.subarray_intrinsic()].contains(&intrinsic) {
-            Some(true)
-        } else {
-            None
-        }
-    })
-}
 
-/// Whether an intrinsic dispatches through a builtin the host can replace: a
-/// prototype method or accessor, or a global constructor or namespace. Its
-/// language meaning is what the `pure` contract judges; that the running
-/// builtin still has it is an assumption about the environment, so it is an
-/// undischarged obligation for removal. The primitive string and array
-/// `length`, and the language operators, dispatch through nothing.
-fn replaceable(operation: ResolvedIntrinsic) -> bool {
-    let (ResolvedIntrinsic::Property(intrinsic)
-    | ResolvedIntrinsic::Method(intrinsic)
-    | ResolvedIntrinsic::Constructor(intrinsic)) = operation;
-    !matches!(
-        intrinsic,
-        Intrinsic::StringLength
-            | Intrinsic::ArrayLength
-            | Intrinsic::JsTruthy
-            | Intrinsic::JsTypeOf
-            | Intrinsic::JsIsNullish
-            | Intrinsic::JsIsFalse
-            | Intrinsic::JsIsUndefined
-            | Intrinsic::JsStrictEqual
-            | Intrinsic::JsStrictNotEqual
-    )
-}
 
 fn intrinsic_effects(
     ctx: &Context<'_, '_>,
@@ -1008,7 +814,7 @@ fn intrinsic_effects(
     arguments: impl Iterator<Item = CallArgument>,
 ) -> Effects {
     let mut effects = classified_intrinsic_effects(ctx, values, operation, receiver, arguments);
-    if replaceable(operation) {
+    if crate::catalog::host_replaceable(operation) {
         effects.assumes_host = true;
     }
     effects
@@ -1021,7 +827,7 @@ fn classified_intrinsic_effects(
     receiver: Option<ValueId>,
     arguments: impl Iterator<Item = CallArgument>,
 ) -> Effects {
-    use IntrinsicClass as Class;
+    use crate::catalog::EffectClass as Class;
     let arguments = arguments.collect::<Vec<_>>();
     let argument_values = arguments
         .iter()
@@ -1043,7 +849,7 @@ fn classified_intrinsic_effects(
         }
         Effects::NONE
     };
-    let class = intrinsic_class(operation);
+    let class = crate::catalog::effect_class(operation);
     match class {
         Class::Pure { throws, fresh } => {
             let mut effects =
@@ -1782,7 +1588,7 @@ fn value_transfer(
                 CallTarget::Builtin(BuiltinCall::JsObject | BuiltinCall::JsArray) => {
                     (None, None, Root::Fresh)
                 }
-                CallTarget::Intrinsic { operation, .. } if !replaceable(operation) => primitive,
+                CallTarget::Intrinsic { operation, .. } if !crate::catalog::host_replaceable(operation) => primitive,
                 CallTarget::Value {
                     callee,
                     invocation: Invocation::Value,

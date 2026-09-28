@@ -18,12 +18,13 @@
 //! call can only ever run the denoted body. This is the rule
 //! `callable_inputs` applies to one producer at a time, stated once for the
 //! whole program.
+use crate::catalog::callback_intrinsic;
 use super::uses::{self, CellUse, Event, ValueUse};
 use super::views::Deps;
 use super::*;
 use crate::check::BuiltinCall;
 use crate::compilation_contract::JavaScriptExecution;
-use crate::primitive::{Intrinsic, ResolvedIntrinsic};
+use crate::primitive::ResolvedIntrinsic;
 
 /// Whether root storage is sealed against the host (see the module comment).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -144,21 +145,6 @@ pub struct CallGraph {
     recursive: Vec<bool>,
 }
 
-/// Intrinsics that call their first argument once per element and return.
-pub(super) fn callback_intrinsic(operation: ResolvedIntrinsic) -> bool {
-    matches!(
-        operation,
-        ResolvedIntrinsic::Method(
-            Intrinsic::ArrayMap
-                | Intrinsic::ArrayFilter
-                | Intrinsic::ArrayReduce
-                | Intrinsic::ArrayForEach
-                | Intrinsic::ArraySome
-                | Intrinsic::ArrayEvery
-                | Intrinsic::ArrayFindIndex
-        )
-    )
-}
 
 struct Scan {
     storage: Vec<CellStorage>,
