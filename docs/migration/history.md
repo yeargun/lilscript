@@ -1774,6 +1774,31 @@ Changes:
 
 Predicted: production builds are byte-identical (the policy JSON gains `"checks":"production"`). The lane's port runs show which suites read past an end.
 
+## 2026-09-28 Batch K9: R11's first batch (M10.9)
+
+**Pre-registration** (written before the first build of the batch; base: K8's last commit). Its tests and ladder run with K10's, or with the next batch's.
+
+What the batch builds (language.md R11). The language additions come first, so that the fix-it's rewrite type-checks both before R11's second batch and after it:
+- **Float `%`.** With a `float` operand, `%` is JavaScript's remainder, a `float`. Native uses `fmod`, and the interpreter the same.
+- **Bitwise operators on floats.** A bitwise operator takes a `float` operand through ToInt32 and gives an `int` (`s.charCodeAt(i) | 0` stays valid once `charCodeAt` returns a number). Native uses `ls_to_i32`; the interpreter uses JavaScript's ToInt32.
+- **`s.codeUnitAt(i) -> int`.** The code unit at an index in range by precondition. JavaScript spells it `charCodeAt` with no `|0`. Under development checks it reads `index_checked(s,i).charCodeAt(0)`.
+- **The identity fold.** `x | 0`, `x ^ 0`, `x << 0`, `x >> 0`, `0 | x` and `0 ^ x` of an `int` are `x`, so the fix-it's `| 0` costs nothing while `charCodeAt` still prints its own `|0`.
+- **`migration/char-code`.** A typed `s.charCodeAt(i)` gets one of two fixes:
+  - `s.codeUnitAt(i)` inside `for (int i = k; i < s.length; …)`, with `k` a non-negative literal and neither `i` nor `s` assigned in the body;
+  - `(s.charCodeAt(i) | 0)` elsewhere, today's meaning exactly.
+
+  The ports use it 27 times at their current heads. The census above says 47, but that count predates the port rewrites.
+
+Not in this batch: `charCodeAt` returning a number; `a.get(i)`, which lands when the development-check lane shows a port that needs it; and the precondition as production semantics. They form the second batch.
+
+Changes:
+- **C1.** Float `%`, ToInt32 bitwise operands and `codeUnitAt` through the checker, formation, native and the interpreter.
+- **C2.** The identity fold.
+- **C3.** The lint, its test and the scanner it reuses.
+- **C4.** Tests, a case in every lane, and docs.
+
+Predicted: unmodified programs are byte-identical except where they write `x | 0` of an `int`, which gets smaller. Fixed ports are byte-identical where the fix wrote `| 0`, and smaller by `|0` where it wrote `codeUnitAt`.
+
 ---
 
 ## Appendix: where milestones 001–014 went
