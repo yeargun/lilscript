@@ -2438,3 +2438,23 @@ fn development_checks_crossings() {
     let production = compile_with(source, "");
     assert!(!production.contains("TypeError"), "{production}");
 }
+
+/// Development checks at an export's entry (R1): a caller that passes the
+/// wrong type meets a TypeError; a parameter with a default is left to it.
+#[test]
+fn development_checks_export_parameters() {
+    let javascript = compile_with(
+        "export int twice(int n, int step = 1) { return n * 2 + step; }\n",
+        "[javascript]\nchecks = \"development\"\n",
+    );
+    let script = format!(
+        "const library=await import('data:text/javascript,'+encodeURIComponent({}));\nconst seen=[library.twice(4)];\ntry{{library.twice('x')}}catch(e){{seen.push(e.name)}}\nconsole.log(JSON.stringify(seen));",
+        serde_json::to_string(&javascript).unwrap()
+    );
+    let output = Command::new("node")
+        .args(["--input-type=module", "-e", &script])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "[9,\"TypeError\"]\n", "{javascript}");
+}

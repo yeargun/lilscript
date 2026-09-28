@@ -401,3 +401,55 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         Ok(binding)
     }
 }
+
+impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
+    /// At an exported function's entry, under development checks, each
+    /// parameter a caller must pass (no default: an omitted one is
+    /// `undefined` until its default applies), by value, in plain storage,
+    /// and of a checkable shape is checked as a crossing (R1).
+    pub(super) fn export_parameter_checks(
+        &mut self,
+        unit: ContextId,
+        result: ValueId,
+        child: ContextId,
+        body: js::RegionId,
+    ) -> Result<(), FormationError> {
+        if self.contract.checks != PreconditionChecks::Development
+            || !self.flows_into_exported_cell(unit, result)?
+        {
+            return Ok(());
+        }
+        let program = self.program;
+        let Some(Type::Function(signature)) = self
+            .data(child)
+            .callable_type
+            .map(|ty| &program.types[ty.index()])
+        else {
+            return Ok(());
+        };
+        let parameters = self.data(child).parameters.clone();
+        for (index, &cell) in parameters.iter().enumerate() {
+            self.work(1)?;
+            let Some(parameter) = signature.params.get(index) else {
+                continue;
+            };
+            if parameter.default.is_some()
+                || parameter.passing != crate::primitive::ParameterPassing::Value
+                || self.unbound_cells.contains(&cell)
+                || self.activation_cells.contains(&cell)
+                || references::is_reference(program, cell)
+            {
+                continue;
+            }
+            let ty = program.cells[cell.index()].ty;
+            if Crossing::of(&program.types[ty.index()]).is_none() {
+                continue;
+            }
+            let binding = self.cell_binding(child, cell)?;
+            let read = self.reference(binding)?;
+            let checked = self.crossing_check(ty, read)?;
+            self.statement(body, js::Statement::Evaluate(checked))?;
+        }
+        Ok(())
+    }
+}

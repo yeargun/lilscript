@@ -4860,6 +4860,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         )?;
                     }
                 }
+                // A development build checks what an exported function's
+                // caller passes (R1).
+                if let (Some(result), None) = (operation.result, &method) {
+                    self.export_parameter_checks(unit, result, child, body)?;
+                }
                 self.statement_region(child, self.data(child).entry)?;
                 self.finish_unit(child)?;
                 let parameters = match &method {

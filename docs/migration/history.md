@@ -1852,11 +1852,12 @@ What the batch builds, under `checks = "development"` only:
   | function | a function |
 
   Each is also offered with absence allowed, for `T?`. A class, struct, map or `JsValue` has no cheap test and is not checked.
-- Not yet: export parameters. They join the lane when their function-entry hook is in place, a later increment.
+- **Export parameters.** An exported function checks, at its entry, each parameter a caller must pass: no default (an omitted one is `undefined` until its default applies), passed by value, in plain storage, of a checkable shape.
 
 Changes:
 - **C1.** The helpers and the call and read hooks.
 - **C2.** A test, and docs.
+- **C3.** Export parameters, and their test.
 
 Predicted: production builds byte-identical. The lane's port runs show which host values break their declared types.
 
