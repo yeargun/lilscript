@@ -2409,11 +2409,44 @@ fn verify_types(
                         }
                     }
                     expect(full_arity(signature, &mut query)?)?;
-                    for (expected, actual) in signature.params.iter().zip(arguments) {
+                    // A host callee takes a declared rest parameter's arguments
+                    // one by one (R7): each is an element, or a spread array.
+                    let host_rest = signature.has_rest()
+                        && convention == DefaultConvention::PreserveOmission;
+                    let fixed = if host_rest {
+                        signature.fixed_params()
+                    } else {
+                        signature.params.len()
+                    };
+                    for (expected, actual) in signature.params[..fixed].iter().zip(arguments) {
                         query.admit(RelationEvent::ParameterPair)?;
                         if !argument_matches(expected, actual, &mut query)? {
                             return Err(error());
                         }
+                    }
+                    if host_rest {
+                        let array = &signature.params[fixed].ty;
+                        let Type::Array(element) = array else {
+                            return Err("a rest parameter is an array".into());
+                        };
+                        for actual in arguments.iter().skip(fixed) {
+                            query.admit(RelationEvent::ParameterPair)?;
+                            let fits = match *actual {
+                                CallArgument::Value(value) => {
+                                    class_assignable(program, element, value_type(value), &mut query)?
+                                }
+                                CallArgument::Spread(value) => matches!(
+                                    value_type(value),
+                                    Type::Array(_) | Type::Dynamic
+                                ),
+                                CallArgument::Reference(_) => false,
+                            };
+                            if !fits {
+                                return Err(error());
+                            }
+                        }
+                    } else if arguments.len() > signature.params.len() {
+                        return Err(error());
                     }
                     expect(type_matches(
                         result,
