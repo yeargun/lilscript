@@ -491,7 +491,7 @@ fn reads_in_order(
 }
 
 /// Whether anything reads `value`.
-fn used(data: &UnitData, value: ValueId) -> bool {
+pub(super) fn used(data: &UnitData, value: ValueId) -> bool {
     let mut scratch = Vec::new();
     data.regions
         .iter()

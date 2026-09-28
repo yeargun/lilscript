@@ -776,6 +776,47 @@ Predicted:
 - The twins: `drop_typed_default_checks` changes nothing after F2's typed defaults. The others may still act where callers omit a callee-built default.
 - Compile time: neutral.
 
+**What landed** (M7.3's signature edits, with M5.1's; branch `m5-floor` on `ce260fde`).
+- **Parameters and returns** (`rules/params.rs`), on bodies whose calls are all known and direct:
+  - a parameter the body never reads leaves the signature and every call, and the call still evaluates its argument;
+  - a parameter every call passes one exact value becomes that constant where it is read, when the literal costs no more than the arguments it removes;
+  - a result no call uses leaves: the body returns nothing, and its calls' results are `void`.
+- **A signature is a coupling class** (architecture §9.5). The functions that share one print one shape, which a codec compresses. The batch's first binary dropped parameters one function at a time: markedlil's handlers of one signature, where only some read their first parameter, measured +300 Brotli, and posthoglil +106. Now:
+  - a position leaves only when no function of the signature reads it;
+  - a result leaves only when no function's calls use it;
+  - a constant stands for a parameter only where one function has the signature to itself.
+- **The kernel:**
+  - `Editor::intern_type` adds a function type to the program's table, interned by equality;
+  - signatures, parameter cells, the holding cell, callee values and call contracts are retyped, and argument lists rebuilt;
+  - compaction now also drops operand and argument slots an edit orphaned.
+- **The tree twins stay** (measured). A binary with `drop_typed_default_checks`, `drop_default_arguments` and `native_default_lengths` off, against one with them on, over the case corpus:
+  - script lanes: 9 cases grow, +113 Brotli, +162 gzip and +341 raw;
+  - module lanes: 5 cases grow, +32 Brotli.
+
+  They still act where the program rules do not reach: a script's global roots, and defaults the callee builds. They go with Y5 and M7.3's remaining cases.
+- **Tests:** 5 new rule tests.
+
+**Evidence (binary `~/lilscript-work/bin/f3-2`, against F2's `f2-10`).**
+- Unit tests: 1,582 pass, 9 ignored, after a comment named a port (NO3; the check caught it).
+- Case runner: no failure outside the ledger. Production, against F2 (in brackets, against the A1 baseline, all three batches):
+
+  | Lane | Brotli | gzip | raw |
+  |---|---:|---:|---:|
+  | module | −96 (−1,270) | −137 (−1,280) | −158 (−2,184) |
+  | script | 0 (−316) | 0 (−307) | 0 (−547) |
+
+  - C: −2,748 bytes.
+  - No case grows in raw.
+- Ratchet: pass, with the same totals as F2. Its cases are scripts, whose root functions are globals (Y5).
+- Reference ports: all seven green.
+  - Against F2: raw −3,487, gzip −367, Brotli −522 (zodlil −190 Brotli, motionlil −332); markedlil, katexlil, jquerylil, posthoglil and micromarklil are byte-identical.
+  - **Against A1, the three batches together: raw −7,858, gzip −2,059, Brotli −3,050**, and every port is smaller in Brotli.
+- CPU time at level 13 against F2: markedlil ×1.011, zodlil ×0.949, posthoglil ×1.018, micromarklil ×1.018, katexlil ×1.009, jquerylil ×1.001, motionlil ×1.046.
+
+**Deviations.** Constant parameters apply only to functions whose signature is their own. Class-wide constants, where every member passes the same value, are M9's coupled choices. The tree twins stay, as measured above.
+
+**Open.** Step 5 is done except its carried items: the twins, which go with Y5 and M7.3's remaining cases; M7.9's two growths; M7.5's rest.
+
 ---
 
 ## Appendix: where milestones 001–014 went

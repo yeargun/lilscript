@@ -331,7 +331,7 @@ fn value(
 
 /// The constant of `ty` that is `known`; none when its literal would not have
 /// exactly that type.
-fn constant(program: &Program<'_>, ty: TypeId, known: &StoredExact) -> Option<Constant> {
+pub(super) fn constant(program: &Program<'_>, ty: TypeId, known: &StoredExact) -> Option<Constant> {
     Some(match (program.ty(ty)?, known) {
         (Type::Int, StoredExact::Integer(value)) => Constant::Integer(*value),
         (Type::Float, StoredExact::Number(bits)) => Constant::Number(*bits),
@@ -353,7 +353,7 @@ fn constant(program: &Program<'_>, ty: TypeId, known: &StoredExact) -> Option<Co
 
 /// The shortest text of a constant; none for a number with no finite
 /// numeral, which folding never introduces.
-fn constant_text(program: &Program<'_>, constant: &Constant) -> Option<usize> {
+pub(super) fn constant_text(program: &Program<'_>, constant: &Constant) -> Option<usize> {
     Some(match constant {
         Constant::Integer(value) => numeral(f64::from(*value))?,
         Constant::Number(bits) => numeral(f64::from_bits(*bits))?,

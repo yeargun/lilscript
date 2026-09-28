@@ -100,6 +100,21 @@ impl<'src> Editor<'src> {
         self.program.units[unit.index()].clone()
     }
 
+    /// The type's id in the program's table, added when no equal type is
+    /// there yet (conversion interns types the same way).
+    pub(super) fn intern_type(
+        &mut self,
+        ty: crate::check::Type<'src>,
+    ) -> Result<TypeId, &'static str> {
+        if let Some(index) = self.program.types.iter().position(|known| *known == ty) {
+            return TypeId::from_index(index).ok_or("type capacity");
+        }
+        let types = Arc::make_mut(&mut self.program.types);
+        let id = TypeId::from_index(types.len()).ok_or("type capacity")?;
+        types.push(ty);
+        Ok(id)
+    }
+
     /// Adds a synthetic cell; synthetic cells follow every checked one.
     pub(super) fn add_cell(&mut self, cell: Cell) -> Result<CellId, &'static str> {
         let cells = Arc::make_mut(&mut self.program.cells);
@@ -518,12 +533,26 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
         values: value_keep,
     } = ownership(data, |_, _| false)?;
     let everything = |keep: &[bool]| keep.iter().all(|kept| *kept);
+    // An edit that rewrites an operation's operands or a call's arguments
+    // leaves the old slots unowned: they are dropped too.
+    let owned_operands: usize = data
+        .operations
+        .iter()
+        .map(|op| op.operands.len as usize)
+        .sum();
+    let owned_arguments: usize = data
+        .calls
+        .iter()
+        .map(|call| call.arguments.len as usize)
+        .sum();
     if everything(&op_keep)
         && everything(&region_keep)
         && everything(&call_keep)
         && everything(&place_keep)
         && everything(&instantiation_keep)
         && everything(&value_keep)
+        && owned_operands == data.operands.len()
+        && owned_arguments == data.call_arguments.len()
     {
         return Ok(RegionRemap {
             map: Vec::new(),

@@ -21,6 +21,7 @@ mod dce;
 mod edit;
 mod fold;
 mod inline;
+mod params;
 mod values;
 
 #[cfg(test)]
@@ -70,6 +71,11 @@ pub(crate) struct RuleReceipt {
     /// Calls replaced by a copy of their body, and the bodies copied.
     pub(crate) inlined_calls: u32,
     pub(crate) inlined_bodies: u32,
+    /// Parameters that left their signatures, those because every call
+    /// passed one constant, and results no call used.
+    pub(crate) dropped_parameters: u32,
+    pub(crate) constant_parameters: u32,
+    pub(crate) unused_results: u32,
 }
 
 impl RuleReceipt {
@@ -84,6 +90,9 @@ impl RuleReceipt {
             "emptied_units": self.emptied_units,
             "inlined_calls": self.inlined_calls,
             "inlined_bodies": self.inlined_bodies,
+            "dropped_parameters": self.dropped_parameters,
+            "constant_parameters": self.constant_parameters,
+            "unused_results": self.unused_results,
         })
     }
 }
@@ -122,6 +131,15 @@ pub(crate) fn optimize<'src>(
             let effects = editor.program().effects(request.seal);
             changed |= inline::apply(&mut editor, &effects, &mut receipt)
                 .map_err(|error| format!("program rules, inlining: {error}"))?;
+            editor.commit()?;
+        }
+        if request.dead_code {
+            // Unread parameters and unused results are dead code; constant
+            // parameters are folding.
+            let effects = editor.program().effects(request.seal);
+            let values = values::ProgramValues::compute(editor.program(), &effects, request.seal);
+            changed |= params::apply(&mut editor, &effects, &values, request.fold, &mut receipt)
+                .map_err(|error| format!("program rules, parameters: {error}"))?;
             editor.commit()?;
         }
         if request.dead_code {

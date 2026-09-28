@@ -366,3 +366,72 @@ fn a_duplicate_with_typed_arithmetic_between_its_reads_is_free() {
         assert!(!instantiated(program, "add"), "{receipt:?}");
     });
 }
+
+/// The parameter count and return type of the function named `name`.
+fn signature(program: &Program<'_>, name: &str) -> (usize, bool) {
+    let cell = program
+        .cells()
+        .iter()
+        .find(|cell| cell.name == name && matches!(cell.binding, CellBinding::Function(_)))
+        .unwrap_or_else(|| panic!("no function {name}"));
+    let CellBinding::Function(unit) = cell.binding else {
+        unreachable!()
+    };
+    let data = program.unit(unit).unwrap();
+    let Some(crate::check::Type::Function(function)) =
+        data.callable_type.and_then(|ty| program.ty(ty))
+    else {
+        panic!("{name} has no signature");
+    };
+    assert_eq!(function.params.len(), data.parameters.len());
+    (data.parameters.len(), function.return_type.is_void())
+}
+
+#[test]
+fn an_unread_parameter_leaves_every_call() {
+    let source = "int pick(int value, int unused) {\n  if (value > 2) { return 1; }\n  return 2;\n}\nfor (int i = 0; i < 4; i++) {\n  print(pick(i, i * 7));\n  print(pick(i + 1, 5));\n}\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert_eq!(signature(program, "pick"), (1, false), "{receipt:?}");
+        assert_eq!(receipt.dropped_parameters, 1, "{receipt:?}");
+    });
+}
+
+#[test]
+fn a_parameter_every_call_passes_the_same_constant_becomes_it() {
+    let source = "int scale(int value, int factor) {\n  if (value > 100) { return 0; }\n  return value * factor;\n}\nfor (int i = 0; i < 4; i++) {\n  print(scale(i, 3));\n  print(scale(i + 1, 3));\n}\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert_eq!(signature(program, "scale"), (1, false), "{receipt:?}");
+        assert_eq!(receipt.constant_parameters, 1, "{receipt:?}");
+        assert!(constant(program, 3), "{receipt:?}");
+    });
+}
+
+#[test]
+fn a_result_no_call_uses_leaves() {
+    let source = "int report(int value) {\n  print(value);\n  if (value > 1) { return 1; }\n  return 0;\n}\nfor (int i = 0; i < 3; i++) {\n  report(i);\n  report(i * 2);\n}\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert_eq!(signature(program, "report"), (1, true), "{receipt:?}");
+        assert_eq!(receipt.unused_results, 1, "{receipt:?}");
+    });
+}
+
+#[test]
+fn a_published_signature_stays() {
+    let source = "export int pick(int value, int unused) {\n  if (value > 2) { return 1; }\n  return 2;\n}\nprint(pick(1, 2));\nprint(pick(3, 4));\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert_eq!(signature(program, "pick"), (2, false), "{receipt:?}");
+    });
+}
+
+#[test]
+fn a_signature_changes_for_every_function_that_shares_it() {
+    // `left` and `right` share `(int, int) -> int`; only `right` leaves its
+    // first parameter unread, so both keep it: one shape stays one shape.
+    // `spare` has its signature to itself, and loses its unread parameter.
+    let source = "int left(int a, int b) {\n  if (a > b) { return a; }\n  return b;\n}\nint right(int a, int b) {\n  if (b > 2) { return 1; }\n  return b;\n}\nbool spare(bool unused, float value) {\n  if (value > 1.5) { return true; }\n  return false;\n}\nfor (int i = 0; i < 4; i++) {\n  print(left(i, 2));\n  print(right(i, i));\n  print(spare(true, 1.0 * i));\n  print(spare(false, 2.0));\n}\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert_eq!(signature(program, "left"), (2, false), "{receipt:?}");
+        assert_eq!(signature(program, "right"), (2, false), "{receipt:?}");
+        assert_eq!(signature(program, "spare"), (1, false), "{receipt:?}");
+    });
+}
