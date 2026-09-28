@@ -601,26 +601,35 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
         let typed_string = |index: usize| {
             matches!(self.view.expression_type(arg(index).id), Some(Type::String))
         };
+        // A receiver or callee as the dynamic operation needs it: a typed
+        // value is viewed as a `JsValue`, which keeps the operation (R12).
+        let receiver = |index: usize| {
+            if dynamic(index) {
+                self.operand(arg(index), precedence::POSTFIX)
+            } else {
+                format!("({} as JsValue)", self.operand(arg(index), precedence::RELATIONAL))
+            }
+        };
         Some(match (name, args.len()) {
-            ("get", 2) if dynamic(0) => self.property(arg(0), arg(1), &TYPED_MEMBERS),
-            ("set", 3) if dynamic(0) && at.statement => format!(
+            ("get", 2) => self.property(receiver(0), arg(1), &TYPED_MEMBERS),
+            ("set", 3) if at.statement => format!(
                 "{} = {}",
-                self.property(arg(0), arg(1), &TYPED_MEMBERS),
+                self.property(receiver(0), arg(1), &TYPED_MEMBERS),
                 text(2, precedence::LOWEST)
             ),
-            ("delete", 2) if dynamic(0) && at.statement => {
-                format!("delete {}", self.property(arg(0), arg(1), &[]))
+            ("delete", 2) if at.statement => {
+                format!("delete {}", self.property(receiver(0), arg(1), &[]))
             }
-            ("invoke", 2..) if dynamic(0) => format!(
+            ("invoke", 2..) => format!(
                 "{}({})",
-                self.property(arg(0), arg(1), &METHOD_WORDS),
+                self.property(receiver(0), arg(1), &METHOD_WORDS),
                 rest(2)
             ),
             ("call", 2..) if dynamic(0) && self.same_binding_receiver(arg(0), arg(1)) => {
                 // `JS.call(o.m, o, a)`: the method called on its own receiver.
                 format!("{}({})", text(0, precedence::POSTFIX), rest(2))
             }
-            ("call", 2..) if dynamic(0) => {
+            ("call", 2..) => {
                 let callee = arg(0);
                 let unbound = !matches!(
                     callee.kind,
@@ -630,18 +639,27 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
                         | ExprKind::OptionalIndex { .. }
                 );
                 if unbound && self.is_undefined(arg(1)) {
-                    format!("{}({})", text(0, precedence::POSTFIX), rest(2))
+                    format!("{}({})", receiver(0), rest(2))
                 } else {
-                    format!("{}.call({})", text(0, precedence::POSTFIX), rest(1))
+                    format!("{}.call({})", receiver(0), rest(1))
                 }
             }
-            ("apply", 3) if dynamic(0) => {
-                format!("{}.apply({})", text(0, precedence::POSTFIX), rest(1))
-            }
+            ("apply", 3) => format!("{}.apply({})", receiver(0), rest(1)),
             ("construct", 1..) if dynamic(0) => {
                 format!("new {}({})", self.constructor(arg(0)), rest(1))
             }
             ("add", 2) if either_dynamic() && !typed_string(0) && !typed_string(1) => {
+                binary("+", 9, 10)
+            }
+            // `+` with a `string` operand is typed concatenation, which prints
+            // the same JavaScript `+`. Its type is `string`, so not where the
+            // sum is a receiver or a unary operand.
+            ("add", 2)
+                if (typed_string(0) || typed_string(1))
+                    && self.stringable(arg(0))
+                    && self.stringable(arg(1))
+                    && at.precedence < precedence::UNARY =>
+            {
                 binary("+", 9, 10)
             }
             ("mod", 2) if either_dynamic() => binary("%", 10, 11),
@@ -692,6 +710,19 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
                 // module names it.
                 let target = self.source_type(self.view.expression_type(call.id)?)?;
                 format!("{} as {target}", text(0, precedence::RELATIONAL))
+            }
+            ("assume", 1) => {
+                // A typed value: itself where it already has the type, else
+                // viewed as a `JsValue` first.
+                let checked = self.view.expression_type(call.id)?;
+                if self.view.expression_type(arg(0).id)? == checked {
+                    text(0, precedence::PRIMARY)
+                } else if *checked == Type::Dynamic {
+                    format!("{} as JsValue", text(0, precedence::RELATIONAL))
+                } else {
+                    let target = self.source_type(checked)?;
+                    format!("{} as JsValue as {target}", text(0, precedence::RELATIONAL))
+                }
             }
             _ => return None,
         })
@@ -816,13 +847,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
 
     /// `v.k` for a key that is an identifier-like string literal outside
     /// `reserved`, and `v[k]` otherwise.
-    fn property(
-        &self,
-        receiver: &Expr<'ast, 'src>,
-        key: &Expr<'ast, 'src>,
-        reserved: &[&str],
-    ) -> String {
-        let receiver = self.operand(receiver, precedence::POSTFIX);
+    fn property(&self, receiver: String, key: &Expr<'ast, 'src>, reserved: &[&str]) -> String {
         match &key.kind {
             ExprKind::String(raw, _) if identifier(raw) && !reserved.contains(raw) => {
                 format!("{receiver}.{raw}")
@@ -850,6 +875,19 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
                 text.to_string()
             }
             _ => format!("({text})"),
+        }
+    }
+
+    /// An operand typed concatenation takes, as the checker's rule does:
+    /// a string, a number, a boolean or a `JsValue`, or a union of them.
+    fn stringable(&self, expression: &Expr<'ast, 'src>) -> bool {
+        let scalar = |ty: &Type<'src>| {
+            matches!(ty, Type::String | Type::Int | Type::Float | Type::Bool | Type::Dynamic)
+        };
+        match self.view.expression_type(expression.id) {
+            Some(Type::Union(members)) => members.iter().all(scalar),
+            Some(ty) => scalar(ty),
+            None => false,
         }
     }
 
