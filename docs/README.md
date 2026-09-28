@@ -16,8 +16,10 @@ behavior.
    compiler and the size-relevant language design.
    [Current architecture](knowledge/compilation/current-architecture.md) describes
    today's code against it, without overriding the source.
-4. **[migration/index.md](migration/index.md) is the plan**: every numbered step and
-   its progress. There is no other plan, board or packet.
+4. **[migration/plan.md](migration/plan.md) is the plan**: every task, the order of
+   work and the rules. [migration/index.md](migration/index.md) is its progress, one
+   line per task, and [migration/history.md](migration/history.md) records each
+   batch. There is no other plan, board or packet.
 5. **[testing.md](testing.md) is the verification tools**: the case runner, the port
    runner and their expected-failure ledgers. Tracked generated reports define
    numerical evidence.
@@ -39,7 +41,9 @@ If two pages disagree, use the higher authority and fix the lower one.
 | Why a design choice exists | [Design decisions](knowledge/decisions/README.md) |
 | How the compiler works now | [Current architecture](knowledge/compilation/current-architecture.md) |
 | The design of the language and the compiler (version 1): the answer to "is the migration proper", laws, pipeline, the one decision procedure, per-objective decisions, compile-time budget, runtime floor, native, benchmark contract, owner questions Y1–Y7 | [Future architecture](future-architecture.md) |
-| Implement a bounded migration step or check progress | [Single migration plan](migration/index.md) |
+| Where the migration stands: every task done or open, and what is next | [Migration progress](migration/index.md) |
+| Implement a migration task: what it is, its rules and its order | [Migration plan](migration/plan.md) |
+| What a migration batch landed, measured and left open | [Migration history](migration/history.md) |
 | Check a compiler binary: the case runner, the port runner and their expected-failure ledgers | [Testing](testing.md) |
 | Whether a size claim is valid | [Verification](knowledge/verification/README.md) → [evidence](knowledge/evidence/README.md) |
 | How the deleted route did something | [History](knowledge/history/README.md) |
@@ -57,5 +61,6 @@ If two pages disagree, use the higher authority and fix the lower one.
 | [differential-testing.md](differential-testing.md) | Independent semantic oracle |
 
 Do not create separate migration packets or boards. Add bounded work under its
-phase in the single plan. The architecture owns the target; the plan owns how to
-reach it and how replacement is verified.
+phase in the single plan, its state to the progress list and its evidence to the
+history. The architecture owns the target; the plan owns how to reach it and how
+replacement is verified.

@@ -1,6 +1,6 @@
 # Compiler measurement tools and historical experiments
 
-The architecture of the compiler and the language is [docs/future-architecture.md](../docs/future-architecture.md). All active steps and progress live in the single [migration plan](../docs/migration/index.md); the current state is [docs/current-status.md](../docs/current-status.md). Do not resume retired work from an old task list or hypothesis note.
+The architecture of the compiler and the language is [docs/future-architecture.md](../docs/future-architecture.md). All active steps live in the single [migration plan](../docs/migration/plan.md) and their progress in [its to-do list](../docs/migration/index.md); the current state is [docs/current-status.md](../docs/current-status.md). Do not resume retired work from an old task list or hypothesis note.
 
 This folder retains useful [measurement tools](tools/), [source fixtures](tools/fixtures/), [competitor research](refs/competitor-techniques.md), historical [hypotheses](hypotheses/), [results](log.md), a historical [status snapshot](status.md), and original [owner briefs](intent/). These are evidence and tools, not a second architecture or migration coordinator.
 

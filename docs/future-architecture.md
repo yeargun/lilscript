@@ -1,7 +1,7 @@
 # LilScript: the design of the language and the compiler
 
 **Version 1, 2026-09-27.** This page is the design of the LilScript language and its one compiler, written as a whole in answer to the owner's brief of 2026-09-27 ([finer/intent/2026-09-27.md](../finer/intent/2026-09-27.md)). It changes only by an amendment the owner approves (§22). Three documents go with it:
-- [migration/index.md](migration/index.md) is the only plan for reaching it, including what changed against the 2026-09-23 page;
+- [migration/plan.md](migration/plan.md) is the only plan for reaching it; its progress is [migration/index.md](migration/index.md), and [migration/history.md](migration/history.md) records each batch and what version 1 changed against the 2026-09-23 page;
 - [language.md](language.md) is the target language contract (version 1), each clause tagged with the task that implements it;
 - [language-v0.1.md](language-v0.1.md) is what the compiler accepts today; a clause leaves it when its v1 replacement lands.
 

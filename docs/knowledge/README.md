@@ -19,8 +19,8 @@ more specific question and links to detail instead of repeating it.
    describes the one compiler as it exists now.
 6. **Architecture and plan:** [future-architecture.md](../future-architecture.md) is
    the compiler's architecture and the size-relevant language design; the single
-   [migration plan](../migration/index.md) contains all implementation steps and
-   verified progress.
+   [migration plan](../migration/plan.md) contains all implementation steps, and
+   [its progress](../migration/index.md) says which are done.
 7. **Verification tools:** [testing.md](../testing.md) (the case runner, the port
    runner and their expected-failure ledgers); [verification](verification/README.md)
    defines valid evidence; [evidence](evidence/README.md) links results.
@@ -45,7 +45,7 @@ more specific question and links to detail instead of repeating it.
 | How did the old route do something? | [History](history/README.md) |
 | Is a size number publishable? | [Verification](verification/README.md) -> [evidence](evidence/README.md) |
 | How do I check a compiler binary? | [Testing](../testing.md) |
-| What happens next? | [Single migration plan](../migration/index.md); see readiness, dependencies and unverified gates |
+| What happens next? | [Migration progress](../migration/index.md); the [plan](../migration/plan.md) has the dependencies and gates |
 
 ## Domain Tree
 

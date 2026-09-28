@@ -1,6 +1,6 @@
 # LilScript
 
-**One compiler, 2026-09-24.** The route that shared the binary with it until 2026-09-23 is deleted (plan phase M1). The architecture is [docs/future-architecture.md](docs/future-architecture.md), the only plan is [docs/migration/index.md](docs/migration/index.md), and what stands today is [docs/current-status.md](docs/current-status.md). Implementation gates remain unverified.
+**One compiler, 2026-09-24.** The route that shared the binary with it until 2026-09-23 is deleted (plan phase M1). The architecture is [docs/future-architecture.md](docs/future-architecture.md), the only plan is [docs/migration/plan.md](docs/migration/plan.md) with its progress in [docs/migration/index.md](docs/migration/index.md), and what stands today is [docs/current-status.md](docs/current-status.md). Implementation gates remain unverified.
 
 **LilScript is built to make correct web programs smaller than equivalent JavaScript.**
 
@@ -33,7 +33,7 @@ meaning and eligible comparisons are defined by the
 and scoped interpretations are indexed under
 [evidence](docs/knowledge/evidence/README.md).
 The compiler and the language follow [the architecture](docs/future-architecture.md)
-and its [migration plan](docs/migration/index.md). Open language decisions remain explicit. Former migration plans are retired;
+and its [migration plan](docs/migration/plan.md) ([progress](docs/migration/index.md)). Open language decisions remain explicit. Former migration plans are retired;
 [finer/](finer/README.md) retains measurement tools and historical experiments.
 
 ## How it compresses JS finer than Vite / Oxc / Terser / esbuild

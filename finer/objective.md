@@ -11,8 +11,9 @@ beat the strongest pinned competitor in every cell of the benchmark contract
 native code with identical results. The rest of
 [future-architecture.md](../docs/future-architecture.md) (version 1) is the
 design that serves it, [language.md](../docs/language.md) is the target language
-contract, and the single [migration plan](../docs/migration/index.md) holds every
-implementation step, its gates and its progress. What stands today is in
+contract, and the single [migration plan](../docs/migration/plan.md) holds every
+implementation step and its gates; [its to-do list](../docs/migration/index.md)
+holds its progress. What stands today is in
 [current status](../docs/current-status.md).
 
 This page is a pointer, not another objective or plan. Earlier objectives are in

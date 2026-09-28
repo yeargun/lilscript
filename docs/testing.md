@@ -262,7 +262,7 @@ node scripts/verify-bundles.mjs target/release/lilscript
 | `tests/ports/expected-failures.json` | `port` and `tests` (exact failing names or pseudo-names), plus `reason` and `owner`. `intermittent: true` marks tests whose outcome depends on the host, such as an upstream wall-clock timeout on a loaded machine: they may fail, and passing is not reported for removal |
 
 The rules:
-- Every entry names the plan task that owns the fix (`owner`, from [the migration plan](migration/index.md)) and says why it fails (`reason`). The runners refuse a ledger entry without them.
+- Every entry names the plan task that owns the fix (`owner`, from [the migration plan](migration/plan.md)) and says why it fails (`reason`). The runners refuse a ledger entry without them.
 - A failure the ledger does not cover fails the run (exit 1). The runner prints it with its lanes and first difference.
 - **A ledgered failure that passes is reported for removal.** The case runner calls an entry stale when it covers no failure at all, and with `--verbose` lists entries that also cover passing lanes. The port runner lists each ledgered test name that now passes.
 - An entry is added only with its owner, in the same commit as the change that exposes the failure. It is removed in the commit that fixes it.

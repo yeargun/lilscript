@@ -2,7 +2,7 @@
 
 **Version 1, 2026-09-27.** This page is the language contract the compiler converges to. [language-v0.1.md](language-v0.1.md) is what the compiler accepts today. Every clause below carries a status:
 - **in force**: the compiler implements it, and v0.1 says the same;
-- **target (task)**: the plan task that implements it ([migration/index.md](migration/index.md)); until it lands, v0.1's clause governs. When the task lands, the clause becomes *in force* and its v0.1 text is deleted. When every clause is in force, v0.1 is retired and this page is the only contract.
+- **target (task)**: the plan task that implements it ([migration/plan.md](migration/plan.md); its state is in [migration/index.md](migration/index.md)); until it lands, v0.1's clause governs. When the task lands, the clause becomes *in force* and its v0.1 text is deleted. When every clause is in force, v0.1 is retired and this page is the only contract.
 
 **⚖ Yn** marks a clause that amends an earlier owner choice and waits for the owner's yes to question Yn ([future-architecture.md §21](future-architecture.md#21-owner-decisions)). Every other clause is decided (§21.2 there). The page changes only by amendment ([future-architecture.md §22](future-architecture.md#22-stability-and-change-control)); rule ids R1–R18 are frozen.
 
@@ -253,7 +253,7 @@ Two laws bind every rule: a typed form never costs more bytes **or time** than i
 
 Each rule lands with at least one port using it, its suites green, no Brotli loss, and its typed form at least as fast as the `JsValue` spelling (micro perf gate, P9). The census of `JsValue` and `JS.*` per reference port is reported at every batch.
 
-**Order** (the plan's "Next action" holds the batches): language slice 1 (R12, R7, R13, R14) needs no ruling; the core (R2, R3, R11, R10, R15's `debug` class, then R1 after Y1) comes before M6.4b and M6.7; data and variants (R5, R8, R9) before M9.8 grows; then R4, R6, R16, R18.
+**Order** (the plan's "Order of work" holds the batches): language slice 1 (R12, R7, R13, R14) needs no ruling; the core (R2, R3, R11, R10, R15's `debug` class, then R1 after Y1) comes before M6.4b and M6.7; data and variants (R5, R8, R9) before M9.8 grows; then R4, R6, R16, R18.
 
 ---
 

@@ -11,7 +11,7 @@
     {
       "kind": "failure",
       "items": "cases/catalog/nullish/semantic-nullish-lazy-assignment",
-      "reason": "Refused: production formation refuses `??=` on a place (Unsupported: nullish place assignment), one of the four production gaps M1 carried (plan, 'Now'); the same gap keeps four tests ignored in src/program/source_legality_tests.rs. language-v0.1 promises `place ??= fallback`.",
+      "reason": "Refused: production formation refuses `??=` on a place (Unsupported: nullish place assignment), one of the four production gaps M1 carried (docs/migration/history.md, 'M1: one compiler'); the same gap keeps four tests ignored in src/program/source_legality_tests.rs. language-v0.1 promises `place ??= fallback`.",
       "owner": "M10.9"
     },
     {
