@@ -5133,14 +5133,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                     self.resolve_dynamic(expression.id, builtin);
                                     result
                                 }
-                                // JavaScript's nullish coalescing: the natural
-                                // short circuit, with either side's value.
-                                None if *op == BinaryOp::Nullish
-                                    && is_js_value(&left)
-                                    && !ty.is_void() =>
-                                {
-                                    Type::Dynamic
-                                }
                                 None => self.analyze_binary(*op, &left, &ty, *span)?,
                             };
                             narrowing = if matches!(op, BinaryOp::And | BinaryOp::Or) {

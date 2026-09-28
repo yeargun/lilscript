@@ -120,6 +120,11 @@ pub(crate) fn checked_binary_type_with<'src, A: TypeConstructionAdmission>(
             if matches!(lhs, Type::Null) {
                 return Ok(admission.clone_type(rhs)?);
             }
+            // `v ?? x` on a `JsValue`: JavaScript's nullish coalescing, whose
+            // value is either side (R12).
+            if matches!(lhs, Type::Dynamic) && !rhs.is_void() {
+                return Ok(Type::Dynamic);
+            }
             let present = nullish_present_type(lhs).ok_or(BinaryTypeError::Semantic(
                 BinaryTypeReason::NullishLeftRequired,
             ))?;
