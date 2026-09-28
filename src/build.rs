@@ -598,11 +598,12 @@ impl<'src> CheckedSourceSession<'src> {
             .compilation
             .search_javascript_observed(source, policy, request, observe)
             .map_err(|error| ServiceError::output("javascript", error))?;
-        // The walk (architecture §9.6, plan M3.5): from the level-0 artifact,
-        // each requested objective's list of moves within the level's counted
-        // budget, then the reserved beam move where the level reaches it.
+        // The walk (architecture §9.6, plan M3.5, AM2): each requested
+        // objective's list of moves within the level's counted budget, from
+        // the level-0 artifact and, from the default level, from the
+        // structural search's winner and the naming restarts too.
         let terminal = search
-            .challenge(policy, request, |_| {})
+            .challenge(policy, request)
             .map(|report| serde_json::to_value(report).unwrap_or(Value::Null))
             .map_err(|error| ServiceError::output("javascript", error))?;
         let counters = search.counters();

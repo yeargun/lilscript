@@ -690,10 +690,10 @@ fn public_factory_qualifies_combined_recipes_with_exact_scores_and_original_obse
     SKIP_PROGRAM_INLINING.with(|skip| skip.set(true));
     let _restore = Restore;
     verify_archives();
-    let config = configuration(true);
+    let mut config = configuration(true);
     // The service's ordinary baseline lifecycle seals the ledger. The bounded
-    // manual portfolio below does not run an automatic discovery neighborhood:
-    // at level 13 the walk does not reach the beam.
+    // manual portfolio below does not run an automatic discovery neighborhood.
+    config.javascript.candidate_proposal_limit = Some(0);
     let required_tactics = [
         TacticId::ScalarReplacement,
         TacticId::Inlining,

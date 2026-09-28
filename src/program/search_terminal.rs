@@ -59,6 +59,9 @@ pub enum ChallengerOutcome {
     Pruned,
     /// The compilation's resources ran out before it; the stage ended.
     Stopped,
+    /// Its assignment was judged earlier in this walk: the earlier verdict
+    /// stands, and it is not formed again (the walk's memo).
+    Recalled,
 }
 
 /// One declared challenger's trial, in schedule order.
@@ -148,8 +151,11 @@ pub struct TerminalObjective {
     pub scored: usize,
     /// Exact codec scores the walk spent.
     pub codec_probes: usize,
-    /// The level-0 artifact's size under the codec, and the delivered one's.
+    /// The level-0 artifact's size under the codec, the structural search's
+    /// winner's (the level-0 artifact's where no search runs), and the
+    /// delivered one's.
     pub before: usize,
+    pub searched: usize,
     pub after: usize,
     /// The delivered artifact's families and raw spelling, by name.
     pub spelling: Vec<&'static str>,
@@ -175,52 +181,38 @@ pub struct TerminalObjective {
     pub joint_trials: Vec<JointTrial>,
     /// Restarts formed.
     pub restarts_tried: usize,
-    /// The tail's restarts (from level 14), in the policy's seed order.
-    pub restarts: Vec<RestartTrial>,
+    /// Every start the objective walked, in order (AM2): the structural
+    /// search's winner, the level-0 artifact, the level-0 artifact under
+    /// each other naming seed (a restart), and the beam's winner.
+    pub starts: Vec<StartTrial>,
 }
 
-/// One restart of the walk's tail: the level-0 artifact under another
-/// naming seed, walked in passes of its own from `pass` on.
+/// One start of an objective's walks: `search` (the structural search's
+/// winner), `level-0`, `naming:<seed>` (the level-0 artifact under another
+/// naming seed) or `beam` (the beam's winner). Its walk runs in passes from
+/// `pass` on.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct RestartTrial {
+pub struct StartTrial {
     pub name: String,
     /// The first pass of its walk.
     pub pass: usize,
-    /// Kept: its result replaced the best walk's; rejected: it did not;
-    /// pruned, identical or refused: its start.
+    /// Kept: its walk's result replaced the objective's winner; rejected: it
+    /// did not; pruned, identical, refused or budget: a restart's start was
+    /// not walked.
     pub outcome: ChallengerOutcome,
-    /// Its start's size under the objective's codec, when measured.
+    /// Its start's size under the objective's codec, when it has one.
     pub start: Option<usize>,
-    /// Its walk's result, and that minus the best result at the time.
+    /// Its walk's result, and that minus the winner's at the time.
     pub size: Option<usize>,
     pub delta: Option<i64>,
-    /// The proxy judge's delta of its start against the level-0 artifact.
+    /// A restart's proxy delta against the level-0 artifact.
     pub proxy: Option<i64>,
 }
 
-/// Bounded by the declared schedule: at most `Challenger::ORDER.len()`
-/// challenger trials per requested objective, and one choice trial per
-/// alternative of each site the delivered candidate offers.
+/// Every requested objective's walks, bounded by the level's schedule.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct TerminalReport {
     pub objectives: Vec<TerminalObjective>,
-    /// The reserved beam move, when the level reaches it.
-    pub beam: Option<BeamReport>,
-}
-
-/// The beam move (architecture §9.6): the structural exploration at its
-/// level-13 schedule, every recipe formed with the walk incumbent's tactics
-/// and naming, kept only on a strict exact win.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct BeamReport {
-    /// Why it did not run, when it did not.
-    pub skipped: Option<&'static str>,
-    pub proposals: usize,
-    pub structures: usize,
-    pub renders: usize,
-    pub codec_probes: usize,
-    pub before: usize,
-    pub after: usize,
 }
 
 fn codec_name(codec: Objective) -> &'static str {
@@ -300,6 +292,11 @@ enum Judgement {
     Identical,
     Refused,
     Stopped,
+    /// The walk's memo holds the assignment's earlier verdict: not formed
+    /// again. Its size, when it was measured or matched an incumbent.
+    Recalled {
+        size: Option<usize>,
+    },
 }
 
 /// Dominance (design §10, L7): a challenger may replace the incumbent only
@@ -322,13 +319,21 @@ struct Judge<'a> {
     baseline: Option<QualifiedArtifact>,
 }
 
+/// The proxy judge's reading of one move: its delta against the reference
+/// and its own proxy size, which the walk's memo keeps.
+#[derive(Debug, Clone, Copy)]
+struct Proxy {
+    delta: i64,
+    size: usize,
+}
+
 impl Judge<'_> {
     /// Form the candidate under `spelling` and `choices` and render it under
     /// `plan` with `literals`; then judge it against `reference`: identical
     /// bytes are `Identical`, and a proxy worse by more than the margin is
     /// `Pruned`. Otherwise the objective's exact codec measures it and
     /// admission qualifies it. Returns the retained artifact with its exact
-    /// size and qualification, the proxy delta, and whether an exact codec
+    /// size and qualification, the proxy reading, and whether an exact codec
     /// score was spent; on any other verdict the artifact is discarded.
     fn measure(
         &self,
@@ -338,7 +343,7 @@ impl Judge<'_> {
         plan: &Plan,
         literals: crate::js::LiteralOutput,
         reference: &Incumbent,
-    ) -> Result<(Result<(ArtifactId, usize, QualifiedArtifact), Judgement>, Option<i64>, bool), SearchError>
+    ) -> Result<(Result<(ArtifactId, usize, QualifiedArtifact), Judgement>, Option<Proxy>, bool), SearchError>
     {
         let Self {
             policy,
@@ -376,17 +381,21 @@ impl Judge<'_> {
         // move's exact probe.
         let exact_proxy = codec != Objective::Raw;
         let proxied = formations.with_arena(|arena, _, budget| {
-            let result = (|| -> Result<Option<(i64, bool)>, CandidateError> {
+            let result = (|| -> Result<Option<(Proxy, bool)>, CandidateError> {
                 if arena.same_output(challenged, reference.artifact, budget)? {
                     return Ok(None);
                 }
                 let exact = exact_proxy && arena.proxy_is_exact(challenged, codec)?;
                 let challenger = arena.measure_proxy(challenged, codec, budget)?;
                 let held = arena.measure_proxy(reference.artifact, codec, budget)?;
-                Ok(Some((challenger as i64 - held as i64, exact)))
+                let proxy = Proxy {
+                    delta: challenger as i64 - held as i64,
+                    size: challenger,
+                };
+                Ok(Some((proxy, exact)))
             })();
             let prune = match &result {
-                Ok(Some((delta, _))) => *delta > margin,
+                Ok(Some((proxy, _))) => proxy.delta > margin,
                 Ok(None) => true,
                 Err(_) => true,
             };
@@ -398,10 +407,10 @@ impl Judge<'_> {
             result
         });
         let proxy = match proxied {
-            Ok(Some((delta, exact))) if delta > margin => {
-                return Ok((Err(Judgement::Pruned), Some(delta), exact))
+            Ok(Some((proxy, exact))) if proxy.delta > margin => {
+                return Ok((Err(Judgement::Pruned), Some(proxy), exact))
             }
-            Ok(Some((delta, _))) => Some(delta),
+            Ok(Some((proxy, _))) => Some(proxy),
             Ok(None) => return Ok((Err(Judgement::Identical), None, false)),
             Err(error) if exhausted(&error) => return Ok((Err(Judgement::Stopped), None, false)),
             Err(_) => return Ok((Err(Judgement::Refused), None, false)),
@@ -443,13 +452,14 @@ impl Judge<'_> {
         formations: &mut Formations<'_, '_>,
         challenger: ArtifactId,
         qualified: QualifiedArtifact,
-        held: &Incumbent,
+        held: (ArtifactId, usize),
     ) -> Result<bool, SearchError> {
         let codec = self.codec;
+        let (held, held_size) = held;
         let rows = formations.with_arena(|arena, _, budget| {
             Ok::<_, CandidateError>((
                 arena.rows(challenger, codec, budget)?,
-                arena.rows(held.artifact, codec, budget)?,
+                arena.rows(held, codec, budget)?,
             ))
         })?;
         let base = self
@@ -459,7 +469,7 @@ impl Judge<'_> {
             .policy
             .compare_evidence(
                 qualified.cost(),
-                CandidateCostEvidence::size_only(held.size as u64),
+                CandidateCostEvidence::size_only(held_size as u64),
                 base,
             )
             .map_err(SearchError::from)?
@@ -471,8 +481,8 @@ impl Judge<'_> {
     /// first, pruning a move worse than the incumbent by more than the
     /// margin; then the objective's exact codec, which alone keeps. A kept
     /// move's artifact is retained for the walk; any other is discarded.
-    /// Returns the verdict, the proxy delta and whether an exact codec score
-    /// was spent.
+    /// Returns the verdict, the proxy reading and whether an exact codec
+    /// score was spent.
     fn judge(
         &self,
         formations: &mut Formations<'_, '_>,
@@ -481,14 +491,19 @@ impl Judge<'_> {
         plan: &Plan,
         literals: crate::js::LiteralOutput,
         incumbent: &Incumbent,
-    ) -> Result<(Judgement, Option<i64>, bool), SearchError> {
+    ) -> Result<(Judgement, Option<Proxy>, bool), SearchError> {
         let (measured, proxy, probed) =
             self.measure(formations, spelling, choices, plan, literals, incumbent)?;
         let (challenged, size, qualified) = match measured {
             Ok(measured) => measured,
             Err(judgement) => return Ok((judgement, proxy, probed)),
         };
-        let wins = self.wins(formations, challenged, qualified, incumbent);
+        let wins = self.wins(
+            formations,
+            challenged,
+            qualified,
+            (incumbent.artifact, incumbent.size),
+        );
         if !matches!(wins, Ok(true)) {
             formations.with_arena(|arena, _, budget| {
                 arena
@@ -515,15 +530,43 @@ impl Judge<'_> {
     }
 }
 
-/// One objective's walk inside its candidate's formations (architecture
-/// §9.6): the list walked in passes from an incumbent, with the walk's counts
-/// in its report.
+/// What the walk's memo holds of one assignment it judged.
+#[derive(Debug, Clone, Copy)]
+enum Recall {
+    /// Measured exactly at this size.
+    Measured(usize),
+    /// Pruned; the proxy size of its artifact.
+    Pruned(usize),
+    /// It rendered the bytes of an incumbent of this size.
+    Identical(usize),
+    Refused,
+}
+
+/// One assignment the walk forms: the output families and raw spelling, the
+/// choice sites' alternatives, the naming plan and the literal spelling.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Assignment {
+    spelling: Spelling,
+    choices: ChoiceMap,
+    style: Style,
+    source_names: Vec<crate::js::BindingId>,
+    literals: crate::js::LiteralOutput,
+}
+
+/// One start's walks inside its candidate's formations (architecture §9.6,
+/// AM2): the list walked in passes from an incumbent, restarts from the
+/// same candidate, and the settlement of each result against the
+/// objective's winner, with the walk's counts in its report.
 struct Walker<'w, 'scope, 'src> {
     formations: &'w mut Formations<'scope, 'src>,
+    portfolio: &'w mut Portfolio,
     judge: &'w Judge<'w>,
     report: &'w mut TerminalObjective,
     walk: crate::compilation_policy::WalkSchedule,
     codec: Objective,
+    /// The source state of the start's candidate, which a promoted result
+    /// belongs to.
+    state: usize,
     output: &'w OutputTactics,
     /// The naming seeds the policy permits.
     naming: &'w [Style],
@@ -531,6 +574,10 @@ struct Walker<'w, 'scope, 'src> {
     /// The compilation's resources ran out: every later position is
     /// `Stopped`.
     stopped: bool,
+    /// Every assignment this start's walks judged, with its verdict. Sizes
+    /// only fall along a walk, so a measured assignment that was not smaller
+    /// then is not smaller now; a repeat is not formed again.
+    memo: Vec<(Assignment, Recall)>,
 }
 
 impl Walker<'_, '_, '_> {
@@ -557,7 +604,7 @@ impl Walker<'_, '_, '_> {
     }
 
     /// Let go of an incumbent: the walk discards what it retains, and never
-    /// the portfolio's level-0 artifact.
+    /// an artifact the portfolio holds.
     fn discard(&mut self, incumbent: Incumbent) {
         if incumbent.qualified.is_some() {
             self.formations.with_arena(|arena, _, budget| {
@@ -566,6 +613,71 @@ impl Walker<'_, '_, '_> {
                     .expect("the walk owns its incumbents")
             });
         }
+    }
+
+    /// Judge one move from `incumbent`, through the memo: a repeated
+    /// assignment keeps its earlier verdict without being formed, unless it
+    /// was measured smaller than the incumbent (a dominance rejection) or
+    /// its recorded proxy no longer exceeds the margin.
+    fn judge_move(
+        &mut self,
+        spelling: Spelling,
+        choices: &ChoiceMap,
+        plan: &Plan,
+        literals: crate::js::LiteralOutput,
+        incumbent: &Incumbent,
+    ) -> Result<(Judgement, Option<Proxy>, bool), SearchError> {
+        let key = Assignment {
+            spelling: spelling.effective(),
+            choices: choices.clone(),
+            style: plan.style,
+            source_names: plan.source_names.clone(),
+            literals,
+        };
+        let recalled = self
+            .memo
+            .iter()
+            .find(|(assignment, _)| *assignment == key)
+            .map(|&(_, recall)| recall);
+        match recalled {
+            Some(Recall::Measured(size) | Recall::Identical(size)) if size >= incumbent.size => {
+                return Ok((Judgement::Recalled { size: Some(size) }, None, false));
+            }
+            Some(Recall::Refused) => {
+                return Ok((Judgement::Recalled { size: None }, None, false));
+            }
+            Some(Recall::Pruned(size)) => {
+                let codec = self.codec;
+                let held = self.formations.with_arena(|arena, _, budget| {
+                    arena.measure_proxy(incumbent.artifact, codec, budget)
+                })?;
+                let delta = size as i64 - held as i64;
+                if delta > self.judge.margin {
+                    let proxy = Proxy { delta, size };
+                    return Ok((Judgement::Recalled { size: None }, Some(proxy), false));
+                }
+            }
+            _ => {}
+        }
+        let (judgement, proxy, probed) =
+            self.judge
+                .judge(self.formations, spelling, choices, plan, literals, incumbent)?;
+        let recall = match &judgement {
+            Judgement::Kept { size, .. } | Judgement::Rejected { size } => {
+                Some(Recall::Measured(*size))
+            }
+            Judgement::Pruned => proxy.map(|proxy| Recall::Pruned(proxy.size)),
+            Judgement::Identical => Some(Recall::Identical(incumbent.size)),
+            Judgement::Refused => Some(Recall::Refused),
+            Judgement::Stopped | Judgement::Recalled { .. } => None,
+        };
+        if let Some(recall) = recall {
+            match self.memo.iter_mut().find(|(assignment, _)| *assignment == key) {
+                Some(entry) => entry.1 = recall,
+                None => self.memo.push((key, recall)),
+            }
+        }
+        Ok((judgement, proxy, probed))
     }
 
     /// Walk the list in passes from `incumbent`, each from the incumbent the
@@ -655,14 +767,12 @@ impl Walker<'_, '_, '_> {
                 record.outcome = ChallengerOutcome::Duplicate;
             } else {
                 self.report.examined += 1;
-                self.report.choices_tried += 1;
                 let choices = moved
                     .iter()
                     .fold(incumbent.choices.clone(), |choices, &(site, alternative)| {
                         choices.with(sites[site].key, alternative)
                     });
-                let (judgement, proxy, probed) = self.judge.judge(
-                    self.formations,
+                let (judgement, proxy, probed) = self.judge_move(
                     incumbent.spelling,
                     &choices,
                     &incumbent.plan,
@@ -670,7 +780,10 @@ impl Walker<'_, '_, '_> {
                     incumbent,
                 )?;
                 self.count(&judgement, probed);
-                record.proxy = proxy;
+                if !matches!(judgement, Judgement::Recalled { .. } | Judgement::Stopped) {
+                    self.report.choices_tried += 1;
+                }
+                record.proxy = proxy.map(|proxy| proxy.delta);
                 match judgement {
                     Judgement::Kept {
                         artifact,
@@ -700,12 +813,16 @@ impl Walker<'_, '_, '_> {
                         record.size = Some(size);
                         record.delta = Some(size as i64 - incumbent.size as i64);
                     }
+                    Judgement::Recalled { size } => {
+                        record.outcome = ChallengerOutcome::Recalled;
+                        record.size = size;
+                        record.delta = size.map(|size| size as i64 - incumbent.size as i64);
+                    }
                     Judgement::Pruned => record.outcome = ChallengerOutcome::Pruned,
                     Judgement::Identical => record.outcome = ChallengerOutcome::Identical,
                     Judgement::Refused => record.outcome = ChallengerOutcome::Refused,
                     Judgement::Stopped => {
                         self.stopped = true;
-                        self.report.choices_tried -= 1;
                         record.outcome = ChallengerOutcome::Stopped;
                     }
                 }
@@ -776,9 +893,7 @@ impl Walker<'_, '_, '_> {
                     .push(trial(challenger, ChallengerOutcome::Vetoed));
                 continue;
             }
-            self.report.tried += 1;
-            let (judgement, proxy, probed) = self.judge.judge(
-                self.formations,
+            let (judgement, proxy, probed) = self.judge_move(
                 next,
                 &incumbent.choices,
                 &incumbent.plan,
@@ -786,6 +901,9 @@ impl Walker<'_, '_, '_> {
                 incumbent,
             )?;
             self.count(&judgement, probed);
+            if !matches!(judgement, Judgement::Recalled { .. } | Judgement::Stopped) {
+                self.report.tried += 1;
+            }
             let (outcome, size, delta) = match judgement {
                 Judgement::Kept {
                     artifact,
@@ -810,12 +928,16 @@ impl Walker<'_, '_, '_> {
                     let delta = size as i64 - incumbent.size as i64;
                     (ChallengerOutcome::Rejected, Some(size), Some(delta))
                 }
+                Judgement::Recalled { size } => (
+                    ChallengerOutcome::Recalled,
+                    size,
+                    size.map(|size| size as i64 - incumbent.size as i64),
+                ),
                 Judgement::Pruned => (ChallengerOutcome::Pruned, None, None),
                 Judgement::Identical => (ChallengerOutcome::Identical, None, None),
                 Judgement::Refused => (ChallengerOutcome::Refused, None, None),
                 Judgement::Stopped => {
                     self.stopped = true;
-                    self.report.tried -= 1;
                     (ChallengerOutcome::Stopped, None, None)
                 }
             };
@@ -825,7 +947,7 @@ impl Walker<'_, '_, '_> {
                 outcome,
                 size,
                 delta,
-                proxy,
+                proxy: proxy.map(|proxy| proxy.delta),
             });
         }
         Ok(kept)
@@ -864,7 +986,6 @@ impl Walker<'_, '_, '_> {
                 record.outcome = ChallengerOutcome::Stopped;
             } else if self.open() {
                 self.report.examined += 1;
-                self.report.joints_tried += 1;
                 // A naming move keeps the incumbent's literal spelling, which
                 // the literal move may just have changed.
                 let literals = if style.is_some() {
@@ -880,8 +1001,7 @@ impl Walker<'_, '_, '_> {
                     },
                     None => incumbent.plan.clone(),
                 };
-                let (judgement, proxy, probed) = self.judge.judge(
-                    self.formations,
+                let (judgement, proxy, probed) = self.judge_move(
                     incumbent.spelling,
                     &incumbent.choices,
                     &plan,
@@ -889,7 +1009,10 @@ impl Walker<'_, '_, '_> {
                     incumbent,
                 )?;
                 self.count(&judgement, probed);
-                record.proxy = proxy;
+                if !matches!(judgement, Judgement::Recalled { .. } | Judgement::Stopped) {
+                    self.report.joints_tried += 1;
+                }
+                record.proxy = proxy.map(|proxy| proxy.delta);
                 record.outcome = match judgement {
                     Judgement::Kept {
                         artifact,
@@ -915,12 +1038,16 @@ impl Walker<'_, '_, '_> {
                         record.delta = Some(size as i64 - incumbent.size as i64);
                         ChallengerOutcome::Rejected
                     }
+                    Judgement::Recalled { size } => {
+                        record.size = size;
+                        record.delta = size.map(|size| size as i64 - incumbent.size as i64);
+                        ChallengerOutcome::Recalled
+                    }
                     Judgement::Pruned => ChallengerOutcome::Pruned,
                     Judgement::Identical => ChallengerOutcome::Identical,
                     Judgement::Refused => ChallengerOutcome::Refused,
                     Judgement::Stopped => {
                         self.stopped = true;
-                        self.report.joints_tried -= 1;
                         ChallengerOutcome::Stopped
                     }
                 };
@@ -930,14 +1057,88 @@ impl Walker<'_, '_, '_> {
         Ok(kept)
     }
 
-    /// A restart, the tail's joint move (from level 14): the level-0
-    /// artifact under another naming seed, walked in passes of its own. Its
-    /// start is judged by the proxy against the level-0 artifact and then
-    /// measured exactly; its result replaces `best` only on a strict exact
-    /// win. A pass-by-pass walk cannot reach an assignment whose naming loses
-    /// alone and wins with the families it enables.
-    fn restart(&mut self, origin: &Incumbent, best: &mut Incumbent, style: Style) -> Result<(), SearchError> {
-        let mut record = RestartTrial {
+    /// Settle a start's result against the objective's winner (the
+    /// portfolio's selected entry): a result the walk retains replaces the
+    /// winner on a strict exact win and is discarded otherwise. The start's
+    /// record, `starts[index]`, takes the verdict.
+    fn settle(&mut self, slot: usize, result: Incumbent) -> Result<(), SearchError> {
+        let codec = self.codec;
+        let winner = self.portfolio.selected[index(codec)]
+            .expect("an objective walked has a winner");
+        let held = self.portfolio.entries.get(winner).unwrap().artifact;
+        let held_size = self
+            .formations
+            .with_arena(|arena, _, _| arena.with_artifact(held, |view| view.sizes.get(codec)))?
+            .expect("a winner is measured under its codec");
+        let delta = result.size as i64 - held_size as i64;
+        let outcome = match result.qualified {
+            // The start itself, unchanged: the portfolio holds it.
+            None if result.artifact == held => ChallengerOutcome::Identical,
+            None => ChallengerOutcome::Rejected,
+            Some(qualified) => {
+                let wins = self
+                    .judge
+                    .wins(self.formations, result.artifact, qualified, (held, held_size));
+                let promoted = match wins {
+                    Ok(true) => {
+                        let (portfolio, state) = (&mut *self.portfolio, self.state);
+                        self.formations.with_arena(|arena, _, budget| {
+                            portfolio
+                                .promote_terminal(arena, budget, codec, state, result.artifact, qualified)
+                                .map(|_| true)
+                        })
+                    }
+                    other => other,
+                };
+                match promoted {
+                    Ok(true) => ChallengerOutcome::Kept,
+                    Ok(false) => {
+                        self.discard(result.clone());
+                        ChallengerOutcome::Rejected
+                    }
+                    Err(error) if error.optional_memory_refusal() || resource(&error) => {
+                        self.stopped = true;
+                        self.discard(result.clone());
+                        ChallengerOutcome::Stopped
+                    }
+                    Err(error) => {
+                        self.discard(result.clone());
+                        return Err(error);
+                    }
+                }
+            }
+        };
+        let record = &mut self.report.starts[slot];
+        record.outcome = outcome;
+        record.size = Some(result.size);
+        record.delta = Some(delta);
+        Ok(())
+    }
+
+    /// Walk from a start the portfolio holds, then settle its result.
+    fn walk_start(&mut self, name: &str, start: Incumbent) -> Result<(), SearchError> {
+        let slot = self.report.starts.len();
+        self.report.starts.push(StartTrial {
+            name: name.to_string(),
+            pass: self.report.passes + 1,
+            outcome: ChallengerOutcome::Budget,
+            start: Some(start.size),
+            size: None,
+            delta: None,
+            proxy: None,
+        });
+        let mut result = start;
+        self.passes(&mut result)?;
+        self.settle(slot, result)
+    }
+
+    /// A restart (AM2): `origin` under another naming seed, walked in passes
+    /// of its own and settled like any start. Its start is judged by the
+    /// proxy against `origin` and then measured exactly. A pass-by-pass walk
+    /// cannot reach an assignment whose naming loses alone and wins with the
+    /// families it enables.
+    fn restart(&mut self, origin: &Incumbent, style: Style) -> Result<(), SearchError> {
+        let mut record = StartTrial {
             name: format!("naming:{style:?}"),
             pass: self.report.passes + 1,
             outcome: ChallengerOutcome::Budget,
@@ -948,11 +1149,11 @@ impl Walker<'_, '_, '_> {
         };
         if self.stopped {
             record.outcome = ChallengerOutcome::Stopped;
-            self.report.restarts.push(record);
+            self.report.starts.push(record);
             return Ok(());
         }
         if !self.open() {
-            self.report.restarts.push(record);
+            self.report.starts.push(record);
             return Ok(());
         }
         self.report.examined += 1;
@@ -971,7 +1172,7 @@ impl Walker<'_, '_, '_> {
             origin,
         )?;
         self.report.codec_probes += usize::from(probed);
-        record.proxy = proxy;
+        record.proxy = proxy.map(|proxy| proxy.delta);
         let (artifact, size, qualified) = match measured {
             Ok(measured) => measured,
             Err(judgement) => {
@@ -988,50 +1189,24 @@ impl Walker<'_, '_, '_> {
                     }
                     _ => ChallengerOutcome::Refused,
                 };
-                self.report.restarts.push(record);
+                self.report.starts.push(record);
                 return Ok(());
             }
         };
         // The start's exact measurement is the restart's judgement.
         self.report.judged += 1;
         record.start = Some(size);
-        let mut local = Incumbent {
+        let slot = self.report.starts.len();
+        self.report.starts.push(record);
+        let mut result = Incumbent {
             artifact,
             plan,
             size,
             qualified: Some(qualified),
             ..origin.clone()
         };
-        let index = self.report.restarts.len();
-        self.report.restarts.push(record);
-        self.passes(&mut local)?;
-        let wins = match local.qualified {
-            Some(qualified) => self.judge.wins(self.formations, local.artifact, qualified, best),
-            None => Ok(false),
-        };
-        let record = &mut self.report.restarts[index];
-        record.size = Some(local.size);
-        record.delta = Some(local.size as i64 - best.size as i64);
-        match wins {
-            Ok(true) => {
-                record.outcome = ChallengerOutcome::Kept;
-                self.replace(best, local);
-            }
-            Ok(false) => {
-                record.outcome = ChallengerOutcome::Rejected;
-                self.discard(local);
-            }
-            Err(error) if error.optional_memory_refusal() || resource(&error) => {
-                record.outcome = ChallengerOutcome::Stopped;
-                self.stopped = true;
-                self.discard(local);
-            }
-            Err(error) => {
-                self.discard(local);
-                return Err(error);
-            }
-        }
-        Ok(())
+        self.passes(&mut result)?;
+        self.settle(slot, result)
     }
 }
 
@@ -1088,176 +1263,65 @@ fn choice_schedule(sites: &[ChoiceSite]) -> Vec<Vec<(usize, crate::js::AltId)>> 
 }
 
 impl JavaScriptSearch<'_, '_> {
-    /// Run the terminal challenger stage on every requested objective's
-    /// winner, once; later calls return the same report. The winners it
-    /// replaces are the ones `winner_qualification` and `take_winner`
-    /// deliver. A resource refusal keeps the incumbent and is reported, never
-    /// an error: the search's admitted winners stay valid.
+    /// Walk every requested objective from its starts (AM2), once; later
+    /// calls return the same report. The winners it replaces are the ones
+    /// `winner_qualification` and `take_winner` deliver. A resource refusal
+    /// keeps the winner and is reported, never an error: the search's
+    /// admitted winners stay valid.
     pub fn challenge(
         &mut self,
         policy: &ResolvedPolicy,
         request: SearchRequest,
-        mut observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<&TerminalReport, SearchError> {
         if self.terminal.is_none() {
             let objective = policy.objective().ok_or(CandidateError::NotJavaScript)?;
             let mut report = TerminalReport::default();
-            for codec in request.objectives.iter() {
-                if let Some(trials) = self.challenge_objective(policy, objective, codec)? {
-                    report.objectives.push(trials);
+            let walked = request.objectives.iter().try_for_each(|codec| {
+                if let Some(stage) = self.walk_objective(policy, objective, codec)? {
+                    report.objectives.push(stage);
                 }
-            }
-            report.beam = self.beam_move(policy, objective, request, &mut observe)?;
-            if let (Some(beam), [walk]) = (&report.beam, report.objectives.as_mut_slice()) {
-                walk.after = beam.after;
-            }
+                Ok::<_, SearchError>(())
+            });
+            // The pinned level-0 artifact goes once every walk has run.
+            let mut budget =
+                AllocationBudget::new(Some((&mut self.compilation.ledger, WorkDomain::Optional)));
+            self.portfolio
+                .unpin(&mut self.compilation.artifacts, &mut budget);
+            walked?;
             self.terminal = Some(report);
         }
         Ok(self.terminal.as_ref().unwrap())
     }
 
-    /// The reserved beam move, the last of the walk's list: reached only at
-    /// the levels whose schedule reserves it (§13.4), after every unreserved
-    /// move, so a level that reaches it passes through the result of every
-    /// level that does not.
-    fn beam_move(
-        &mut self,
-        policy: &ResolvedPolicy,
-        objective: OptimizationObjective,
-        request: SearchRequest,
-        observe: &mut impl FnMut(SearchObservation<'_>),
-    ) -> Result<Option<BeamReport>, SearchError> {
-        if !objective.walk.tail {
-            return Ok(None);
-        }
-        let skipped = |reason| {
-            Ok(Some(BeamReport {
-                skipped: Some(reason),
-                proposals: 0,
-                structures: 0,
-                renders: 0,
-                codec_probes: 0,
-                before: 0,
-                after: 0,
-            }))
-        };
-        let Objectives::One(codec) = request.objectives else {
-            // Each objective's incumbent has its own tactics; one exploration
-            // cannot form every recipe with all of them.
-            return skipped("several objectives");
-        };
-        if self.stopped.is_some() {
-            return skipped("stopped");
-        }
-        let Some(position) = self.portfolio.selected[index(codec)] else {
-            return skipped("no incumbent");
-        };
-        let artifact = self.portfolio.entries.get(position).unwrap().artifact;
-        let arena = &self.compilation.artifacts;
-        let provenance = arena.provenance(artifact)?;
-        let plan = provenance.naming().clone();
-        let seed = BeamSeed {
-            tactics: provenance.description().output().clone(),
-            style: plan.style,
-            raw_spelling: plan.raw_spelling,
-        };
-        let before = arena
-            .with_artifact(artifact, |view| view.sizes.get(codec))?
-            .expect("an incumbent is measured under its codec");
-        let counted = self.counters;
-        self.beam = Some(seed);
-        let styles = [plan.style];
-        let exploration = self.explore(
-            policy,
-            objective,
-            request,
-            &styles,
-            self.baseline_renders,
-            observe,
-        );
-        // A proposal ceiling ends discovery, not already admitted scoring. A
-        // refused allocation ends discovery after its temporary owners
-        // unwind. Work and deadline failures do not receive a new allowance.
-        match exploration {
-            Ok(()) => {
-                self.stopped = self.drain_pending(policy, request.objectives, observe).err();
-            }
-            Err(SearchError::Limit(SearchLimit::Alternatives)) => {
-                self.stopped = Some(
-                    self.drain_pending(policy, request.objectives, observe)
-                        .err()
-                        .unwrap_or(SearchError::Limit(SearchLimit::Alternatives)),
-                );
-            }
-            Err(error) if error.optional_memory_refusal() => {
-                self.discovery_refusal = Some(error);
-                self.stopped = self
-                    .finish_discovery()
-                    .and_then(|()| self.drain_pending(policy, request.objectives, observe))
-                    .err();
-            }
-            Err(error) => self.stopped = Some(error),
-        }
-        self.abandon_pending();
-        self.beam = None;
-        let after = self.portfolio.selected[index(codec)]
-            .and_then(|position| self.portfolio.entries.get(position))
-            .map(|entry| entry.artifact)
-            .and_then(|artifact| {
-                self.compilation
-                    .artifacts
-                    .with_artifact(artifact, |view| view.sizes.get(codec))
-                    .ok()
-                    .flatten()
-            })
-            .unwrap_or(before);
-        Ok(Some(BeamReport {
-            skipped: None,
-            proposals: self.counters.proposals - counted.proposals,
-            structures: self.counters.structures - counted.structures,
-            renders: self.counters.renders - counted.renders,
-            codec_probes: self.counters.codec_probes - counted.codec_probes,
-            before,
-            after,
-        }))
-    }
-
-    /// The stage's report, once `challenge` has run.
+    /// The walk's report, once `challenge` has run.
     pub fn terminal_report(&self) -> Option<&TerminalReport> {
         self.terminal.as_ref()
     }
 
-    fn challenge_objective(
+    /// One objective's walks: from the structural search's winner, when
+    /// the search ran and selected something other than the level-0
+    /// artifact, then from the level-0 artifact with its restarts.
+    fn walk_objective(
         &mut self,
         policy: &ResolvedPolicy,
         objective: OptimizationObjective,
         codec: Objective,
     ) -> Result<Option<TerminalObjective>, SearchError> {
-        let i = index(codec);
-        let Some(position) = self.portfolio.selected[i] else {
+        let Some(winner) = self.portfolio.selected[index(codec)] else {
             return Ok(None);
         };
-        let entry = self.portfolio.entries.get(position).unwrap();
-        let (artifact, state) = (entry.artifact, entry.state);
-        let candidate = self.states[state]
-            .as_ref()
-            .expect("a selected entry pins its source state")
-            .candidate;
-        let arena = &self.compilation.artifacts;
-        let provenance = arena.provenance(artifact)?;
-        let plan = provenance.naming().clone();
-        let output = provenance.description().output().clone();
-        let before = arena
-            .with_artifact(artifact, |view| view.sizes.get(codec))?
-            .expect("a selected winner is measured under its codec");
-        let seed = Spelling {
-            families: output.families,
-            raw_spelling: plan.raw_spelling,
+        let level0 = self.portfolio.pinned.unwrap_or(winner);
+        let size = |search: &Self, position: usize| -> Result<usize, SearchError> {
+            let artifact = search.portfolio.entries.get(position).unwrap().artifact;
+            Ok(search
+                .compilation
+                .artifacts
+                .with_artifact(artifact, |view| view.sizes.get(codec))?
+                .expect("a selected entry is measured under its codec"))
         };
+        let before = size(self, level0)?;
+        let searched = size(self, winner)?;
         let walk = objective.walk;
-        let available = objective
-            .retained_candidate_bytes
-            .max(self.portfolio.baseline_capacity);
         let mut report = TerminalObjective {
             codec: codec_name(codec),
             prefix: walk.prefix,
@@ -1272,9 +1336,10 @@ impl JavaScriptSearch<'_, '_> {
             scored: 0,
             codec_probes: 0,
             before,
-            after: before,
-            spelling: spelling_names(seed),
-            style: format!("{:?}", plan.style),
+            searched,
+            after: searched,
+            spelling: Vec::new(),
+            style: String::new(),
             trials: Vec::with_capacity(Challenger::ORDER.len()),
             choices_tried: 0,
             choices_scored: 0,
@@ -1284,24 +1349,69 @@ impl JavaScriptSearch<'_, '_> {
             joints_tried: 0,
             joint_trials: Vec::new(),
             restarts_tried: 0,
-            restarts: Vec::new(),
-        };
-        let trial = |challenger: Challenger, outcome| ChallengerTrial {
-            challenger: challenger.name(),
-            pass: 1,
-            outcome,
-            size: None,
-            delta: None,
-            proxy: None,
+            starts: Vec::new(),
         };
         if walk.prefix == 0 {
-            report.trials.extend(
-                Challenger::ORDER
-                    .into_iter()
-                    .map(|challenger| trial(challenger, ChallengerOutcome::Budget)),
-            );
-            return Ok(Some(report));
+            report.trials.extend(Challenger::ORDER.into_iter().map(|challenger| {
+                ChallengerTrial {
+                    challenger: challenger.name(),
+                    pass: 1,
+                    outcome: ChallengerOutcome::Budget,
+                    size: None,
+                    delta: None,
+                    proxy: None,
+                }
+            }));
+        } else {
+            if level0 != winner {
+                self.walk_from(policy, objective, codec, "search", winner, false, &mut report)?;
+            }
+            self.walk_from(policy, objective, codec, "level-0", level0, walk.starts, &mut report)?;
         }
+        let delivered = self.portfolio.selected[index(codec)]
+            .expect("an objective keeps its winner");
+        report.after = size(self, delivered)?;
+        let artifact = self.portfolio.entries.get(delivered).unwrap().artifact;
+        let provenance = self.compilation.artifacts.provenance(artifact)?;
+        let plan = provenance.naming();
+        report.spelling = spelling_names(Spelling {
+            families: provenance.description().output().families,
+            raw_spelling: plan.raw_spelling,
+        });
+        report.style = format!("{:?}", plan.style);
+        debug_assert!(report.after <= report.searched);
+        Ok(Some(report))
+    }
+
+    /// Walk from the portfolio entry at `position` in its candidate's
+    /// formations, settle the result against the objective's winner, and
+    /// then, with `restarts`, restart from the same entry under each other
+    /// naming seed.
+    fn walk_from(
+        &mut self,
+        policy: &ResolvedPolicy,
+        objective: OptimizationObjective,
+        codec: Objective,
+        name: &str,
+        position: usize,
+        restarts: bool,
+        report: &mut TerminalObjective,
+    ) -> Result<(), SearchError> {
+        let (artifact, state) = {
+            let entry = self.portfolio.entries.get(position).unwrap();
+            (entry.artifact, entry.state)
+        };
+        let candidate = self.states[state]
+            .as_ref()
+            .expect("a portfolio entry pins its source state")
+            .candidate;
+        let arena = &self.compilation.artifacts;
+        let provenance = arena.provenance(artifact)?;
+        let plan = provenance.naming().clone();
+        let output = provenance.description().output().clone();
+        let size = arena
+            .with_artifact(artifact, |view| view.sizes.get(codec))?
+            .expect("a portfolio entry is measured under its codec");
         // The naming seeds the policy permits: whole-artifact moves after
         // every site move (architecture §9.5). A plan that retains source
         // names has none.
@@ -1310,22 +1420,27 @@ impl JavaScriptSearch<'_, '_> {
         } else {
             Vec::new()
         };
+        let origin = Incumbent {
+            artifact,
+            spelling: Spelling {
+                families: output.families,
+                raw_spelling: plan.raw_spelling,
+            },
+            choices: output.choices.clone(),
+            plan,
+            literals: output.literals,
+            size,
+            qualified: None,
+        };
+        let walk = objective.walk;
+        let available = objective
+            .retained_candidate_bytes
+            .max(self.portfolio.baseline_capacity);
         let Self {
             compilation,
             portfolio,
             ..
         } = self;
-        // The level-0 artifact: the portfolio's selected entry, which the
-        // walk never discards.
-        let origin = Incumbent {
-            artifact,
-            spelling: seed,
-            choices: output.choices.clone(),
-            plan,
-            literals: output.literals,
-            size: before,
-            qualified: None,
-        };
         let judge = Judge {
             policy,
             codec,
@@ -1340,65 +1455,49 @@ impl JavaScriptSearch<'_, '_> {
             output.dead_code_elimination,
             output.target_compaction,
             WorkDomain::Optional,
-            |formations| -> Result<Incumbent, SearchError> {
+            |formations| -> Result<(), SearchError> {
                 let mut walker = Walker {
                     formations,
+                    portfolio,
                     judge: &judge,
-                    report: &mut report,
+                    report: &mut *report,
                     walk,
                     codec,
+                    state,
                     output: &output,
                     naming: &naming,
                     choices_permitted: output.target_compaction,
                     stopped: false,
+                    memo: Vec::new(),
                 };
-                let mut best = origin.clone();
-                walker.passes(&mut best)?;
-                // The tail (from level 14): a restart under each other
-                // naming seed, in the policy's order.
-                if walk.tail {
-                    for &style in walker.naming {
+                walker.walk_start(name, origin.clone())?;
+                if restarts {
+                    for &style in &naming {
                         if style != origin.plan.style {
-                            walker.restart(&origin, &mut best, style)?;
+                            walker.restart(&origin, style)?;
                         }
                     }
                 }
-                // The walk's result becomes the objective's winner; a
-                // refusal to admit it keeps the level-0 artifact.
-                if let Some(qualified) = best.qualified {
-                    let promoted = walker.formations.with_arena(|arena, _, budget| {
-                        portfolio.promote_terminal(arena, budget, codec, best.artifact, qualified)
-                    });
-                    match promoted {
-                        Ok(_) => {}
-                        Err(error) if error.optional_memory_refusal() || resource(&error) => {
-                            walker.discard(best);
-                            return Ok(origin.clone());
-                        }
-                        Err(error) => return Err(error),
-                    }
-                }
-                Ok(best)
+                Ok(())
             },
         );
-        let delivered = match formed {
-            Ok(result) => result?,
+        match formed {
+            Ok(result) => result,
             // The candidate's demand could not be admitted: nothing formed.
             Err(error) if exhausted(&error) => {
-                report.trials.extend(
-                    Challenger::ORDER
-                        .into_iter()
-                        .map(|challenger| trial(challenger, ChallengerOutcome::Stopped)),
-                );
-                origin
+                report.starts.push(StartTrial {
+                    name: name.to_string(),
+                    pass: report.passes + 1,
+                    outcome: ChallengerOutcome::Stopped,
+                    start: Some(size),
+                    size: None,
+                    delta: None,
+                    proxy: None,
+                });
+                Ok(())
             }
-            Err(error) => return Err(error.into()),
-        };
-        report.after = delivered.size;
-        report.spelling = spelling_names(delivered.spelling);
-        report.style = format!("{:?}", delivered.plan.style);
-        debug_assert!(report.after <= report.before);
-        Ok(Some(report))
+            Err(error) => Err(error.into()),
+        }
     }
 }
 

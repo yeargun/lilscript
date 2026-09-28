@@ -534,9 +534,10 @@ pub struct OptimizationObjective {
     pub search: SearchSchedule,
 }
 
-/// The version of the effort schedule `WalkSchedule::at` states. Receipts
-/// carry it; a changed value is a changed schedule.
-pub const WALK_SCHEDULE_VERSION: u32 = 1;
+/// The version of the effort schedule `WalkSchedule::at` and
+/// `StructuralSchedule::at` state. Receipts carry it; a changed value is a
+/// changed schedule.
+pub const WALK_SCHEDULE_VERSION: u32 = 2;
 
 /// The walk's budget at one effort level (architecture §9.6, §13.3–§13.4;
 /// plan M3.5): budgets are counts (AM1), never the clock.
@@ -545,64 +546,67 @@ pub const WALK_SCHEDULE_VERSION: u32 = 1;
 /// - `exact`: the exact judgements it may make, e(L);
 /// - `margin`: a move whose proxy delta exceeds it is pruned without an
 ///   exact judgement, M (the proxy never keeps);
-/// - `passes`: the passes over the list it may make; a pass that keeps
-///   nothing ends the walk (the fixed point);
-/// - `tail`: whether the walk reaches the reserved tail of its list: a
-///   restart from the level-0 artifact under each other naming seed, then
-///   the beam move, the structural exploration.
+/// - `passes`: the passes over the list a walk may make; a pass that keeps
+///   nothing ends it (the fixed point);
+/// - `starts`: whether the objective walks several starts (AM2): the
+///   structural search's winner, the level-0 artifact, and the level-0
+///   artifact under each other naming seed.
 ///
 /// Every parameter is non-decreasing in the level and none reads the
-/// program, so the walk at level L+1 passes through level L's stopping
-/// point: size(L+1) ≤ size(L) by construction.
+/// program. Up to level 13 the walk from the level-0 artifact at level L+1
+/// passes through level L's stopping point, and every other start replaces
+/// the result only on a strict exact win: size(L+1) ≤ size(L) by
+/// construction. Above 13 the structural search widens with the level
+/// (`StructuralSchedule`), which is monotone in practice, not by
+/// construction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct WalkSchedule {
     pub prefix: usize,
     pub exact: usize,
     pub margin: usize,
     pub passes: usize,
-    pub tail: bool,
+    pub starts: bool,
 }
 
 impl WalkSchedule {
-    /// No walk and no beam: the level-0 artifact is delivered.
+    /// No walk: the level-0 artifact is delivered.
     pub const OFF: Self = Self {
         prefix: 0,
         exact: 0,
         margin: 0,
         passes: 0,
-        tail: false,
+        starts: false,
     };
 
-    /// Schedule version 1. The prefix tiers follow §13.4: rules only at 0,
-    /// short prefixes at 1–9, one pass over every unreserved move from 10,
-    /// and from 14 passes to the fixed point, then the tail. The exact budget
-    /// at 13 keeps every judgement the reference ports keep in an unbounded
-    /// pass (batch B1's calibration: the last one lands by the 14th). The
-    /// proxy margin prunes no move a walk without pruning keeps on the
+    /// Schedule version 2. Levels 1–12 are the fast tiers (§13.4): one pass
+    /// from the level-0 artifact, over short prefixes at 1–9 and every move
+    /// from 10, with exact budgets that keep what the reference ports keep
+    /// early in the pass (batch B1's calibration). From the default level 13
+    /// size comes first (AM2): several starts, each walked without an exact
+    /// budget in passes to its fixed point; above 13 the structural search
+    /// widens (`StructuralSchedule`).
+    /// The proxy margin prunes no move a walk without pruning keeps on the
     /// reference ports (B1); gzip and raw are their own proxies.
     pub fn at(level: u8, codec: CompressionCostModel) -> Self {
         let margin = match codec {
             CompressionCostModel::Brotli => 150,
             CompressionCostModel::Gzip | CompressionCostModel::Raw => 0,
         };
-        // Up to the default level the walk makes one pass; from level 14 it
-        // walks to the fixed point, then reaches the tail.
-        let (prefix, exact, passes, tail) = match level {
-            0 => (0, 0, 0, false),
-            1..=4 => (8, 2, 1, false),
-            5..=9 => (24, 4, 1, false),
-            10 => (usize::MAX, 6, 1, false),
-            11 => (usize::MAX, 8, 1, false),
-            12 => (usize::MAX, 12, 1, false),
-            13 => (usize::MAX, 16, 1, false),
-            _ => (usize::MAX, usize::MAX, usize::MAX, true),
+        let (prefix, exact, passes) = match level {
+            0 => (0, 0, 0),
+            1..=4 => (8, 2, 1),
+            5..=9 => (24, 4, 1),
+            10 => (usize::MAX, 6, 1),
+            11 => (usize::MAX, 8, 1),
+            12 => (usize::MAX, 12, 1),
+            _ => (usize::MAX, usize::MAX, usize::MAX),
         };
         Self {
             prefix,
             exact,
             margin: if prefix == 0 { 0 } else { margin },
             passes,
-            tail,
+            starts: level >= 13,
         }
     }
     /// The schedule as a receipt records it: an unbounded count is null.
@@ -610,7 +614,42 @@ impl WalkSchedule {
         let bound = |count: usize| (count != usize::MAX).then_some(count);
         serde_json::json!({"version": WALK_SCHEDULE_VERSION, "prefix": bound(self.prefix),
             "exact": bound(self.exact), "margin": self.margin, "passes": bound(self.passes),
-            "tail": self.tail})
+            "starts": self.starts})
+    }
+}
+
+/// The structural search's budget at one effort level (AM2): proposals,
+/// codec probes, retained candidates and bytes, and beam width. The search
+/// runs from level 13 (`WalkSchedule::starts`) and widens with the level; at
+/// each level it is at least what any reference port searched there before
+/// the per-project search keys were retired (batch B1b): the widest
+/// level-13 tier, and the widest level-15 beam and byte budget.
+/// Below 13 only `bytes` is read, as the bound a walk's artifact renders
+/// within.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct StructuralSchedule {
+    pub proposals: usize,
+    pub codec_probes: usize,
+    pub candidates: usize,
+    pub bytes: usize,
+    pub width: usize,
+}
+
+impl StructuralSchedule {
+    pub fn at(level: u8) -> Self {
+        let (proposals, codec_probes, candidates, bytes, width) = match level {
+            0..=13 => (1_024, 1_536, 1_024, 768 * 1024, 10),
+            14 => (1_024, 1_536, 1_024, 896 * 1024, 11),
+            15 => (1_536, 1_536, 1_536, 16 * 1024 * 1024, 24),
+            _ => (4_096, 4_096, 4_096, 64 * 1024 * 1024, 32),
+        };
+        Self {
+            proposals,
+            codec_probes,
+            candidates,
+            bytes,
+            width,
+        }
     }
 }
 

@@ -2,7 +2,7 @@
 // The effort schedule's monotonicity check (plan M3.5, architecture §9.6).
 //
 //   node scripts/monotone.mjs --compiler <lilscript> [--codec <lilscript-codec>]
-//        [--levels 0,1,5,10,11,12,13,14] [--lanes production/*/module]
+//        [--levels 0,1,5,10,11,12,13,14,15,16] [--lanes production/*/module]
 //        [--filter <spec>] [--jobs N] [--work DIR] [--json out.json]
 //
 // Every case is compiled and run (scripts/cases.mjs) at each level of the
@@ -67,7 +67,7 @@ async function main() {
     options: {
       compiler: { type: "string" },
       codec: { type: "string" },
-      levels: { type: "string", default: "0,1,5,10,11,12,13,14" },
+      levels: { type: "string", default: "0,1,5,10,11,12,13,14,15,16" },
       lanes: { type: "string", default: "production/*/module" },
       filter: { type: "string" },
       jobs: { type: "string" },

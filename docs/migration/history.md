@@ -914,7 +914,7 @@ Not in this batch: level 0 without a codec, codec settings as configuration, par
 - The beam serves one objective; a build with several objectives skips it (the product always builds one).
 - The beam's shape keys stay readable by direct deserialization for its unit tests.
 
-**Known cost, ledgered** (M3.5's size exit allows it with an owner): level 13 no longer reaches the beam's structural recipes. The case corpus pays +122 Brotli in the module lane, owned by M7.9 (scalar replacement) and M7.5's rest (inlining), and katexlil +8 on its compiler-built artifacts, owned by M9.1's rest. Level 14 recovers all of it.
+**Known cost, ledgered** (M3.5's size exit allows it with an owner; superseded the same day by batch B1b under amendment AM2, which runs the structural search at level 13 again): level 13 no longer reaches the beam's structural recipes. The case corpus pays +122 Brotli in the module lane, owned by M7.9 (scalar replacement) and M7.5's rest (inlining), and katexlil +8 on its compiler-built artifacts, owned by M9.1's rest. Level 14 recovers all of it.
 
 **Open.**
 - The time exit: katexlil at level 13 is 10.4 s against the 6.0 s ceiling. Formation is most of the rest after the exact judgements (M5.7), and the list order could put katexlil's late winners earlier.
@@ -951,6 +951,46 @@ Predicted:
 - **Level 13 and above at or below F3.** On the case corpus (every production lane), the ratchet (level 15, against `b1-6`'s baseline) and each reference port's delivered files in their own objective, apart from rare deviations of a byte or two. Level 13 holds F3's result as a candidate: the search's winner walked with F3's list order and no exact budget passes through F3's terminal stage. The proxy's pruning is the one exception, and it lost nothing in B1's calibration.
 - **Monotone.** From 0 to 13 by construction: level 13 walks A0 past level 12's stopping point. From 13 to 16 on the ports and all but a few cases.
 - **CPU time, reported (AM2).** Level 13 roughly doubles against F3 on katexlil (about 30–40 s against 18.1 s), because it walks both W and A0. Levels 1–12 keep B1's times.
+
+**Landed** (binary `~/lilscript-work/bin/b1b-1`, SHA-256 `81b8dd261c3e505a…`):
+- **Schedule version 2.** `WalkSchedule` sets p, e, M and the passes, plus `starts`: several starts from level 13. `StructuralSchedule` sets the structural search's budget for each level. Levels 1–12 are unchanged; from 13 every walk is unbounded and runs to its fixed point.
+- **Several starts.** From the default level the search runs its structural exploration again, from the policy's own tactics. The level-0 artifact stays pinned in the portfolio (`Portfolio::pin_selected`, `unpin`) until the walks end. Each objective walks, in order:
+  1. the search's winner, when it is not the level-0 artifact;
+  2. the level-0 artifact;
+  3. the level-0 artifact under each other naming seed.
+
+  Each start is walked in formations of its own and settled against the objective's winner: a strict exact win is promoted, with its own source state (`promote_terminal` now takes it), and anything else is discarded.
+- **The memo.** Within a start's formations, each judged assignment (spelling, choices, naming, literals) keeps its verdict. A repeat is `recalled` and not formed again.
+- **B1's beam from the incumbent's tactics is gone.** It has no budget left once the structural search runs first, and the wider search replaces it above 13. `BeamSeed` and `BeamReport` go with it, and so does `challenge`'s observer argument.
+- **Receipts.** `searched` (the search winner's size); `starts`, each with its name, first pass, start size, result and verdict; `recalled` moves. `--explain human` prints the starts kept.
+- **Docs.** Amendment AM2 is in the architecture (§13.2, §13.4, appendix A) and in M3.5's exit in the plan. `scripts/monotone.mjs` checks levels 0 to 16.
+
+**Evidence** (against F3's `f3-2` for the owner's comparison, and against B1's `b1-6` for the ratchet):
+- **Unit tests:** 1,582 pass.
+- **Case runner**, level 13 against F3. No case grows in any production lane:
+
+  | Lane | Brotli | gzip | raw | cases smaller |
+  |---|---:|---:|---:|---:|
+  | module | −152 | −30 | −114 | 44 / 17 / 4 |
+  | script | −179 | −40 | −106 | 48 / 24 / 4 |
+
+  B1 had been +122 to +183 in the same lanes.
+- **Monotone**, levels 0, 1, 5 and 10–16: no growth anywhere. Module-lane Brotli: 38,703 → 37,819 → 37,775 → 37,455 → 37,454 (11–12) → 37,180 (13–16). The level-13 total is below B1's level 14 (37,194). The small programs gain nothing from the wider searches of 14–16.
+- **Ratchet:** pass, with no item growing against `b1-6`'s tightened baseline.
+- **Frozen level-13 entries** against F3 (raw / gzip / Brotli):
+  - markedlil, zodlil, posthoglil, micromarklil and katexlil are byte-identical (katexlil at 60,119, where B1 had 60,166);
+  - jquerylil −630 / −50 / −30;
+  - motionlil −319 / −63 / −87.
+- **Reference ports:** all seven green. Delivered files against F3: raw −4,845, gzip −608, Brotli +133.
+  - katexlil −2,482 / −398 / −136, where B1 had +406 Brotli. jquerylil −2,890 / −176 / −7. micromarklil −22 Brotli. marked and zod are identical, posthoglil +2.
+  - The growths are in files the compiler does not judge. motionlil +296 over its 587 graph files, which `scripts/shared-graph.mjs` splits from the compiled `full` module with Terser's parser and reprints with esbuild; the split now makes one more file. The compiled module shrank (`full.bundle.js` −21, `motionlil.global.js` −31). The esbuild re-bundles of compiled output: katexlil's `.umd.js`, `.min.js` (+78 each) and `.cjs` (+40), jquerylil's `.umd.js` (+46) and motionlil's `full.cjs` (+49). posthoglil's `posthog.gzip.js` (+28 Brotli) is a gzip-objective build.
+- **CPU time** at level 13 against F3 (reported, AM2): markedlil ×1.28, zodlil ×1.31, posthoglil ×1.17, micromarklil ×1.04, katexlil ×2.30 (18.1 → 41.6 s), jquerylil ×1.14, motionlil ×1.69.
+
+**Findings.**
+- On katexlil the walk from the search's winner reproduces F3's level 13 exactly. The level-0 start, the passes and the restarts find nothing more for their 23 s. They are the price of the construction: level 13 passes through level 12's result, and any start can win.
+- The ports' derived files (esbuild re-bundles, motionlil's graph split) move with every change of the compiled module. M3.3e, M12.2 (compiler-written delivery) and M3.8a are where they become the compiler's own.
+
+**Open.** B1's open items carry over: the replay check, the audit lane, the count gates, level 0 without a codec, and deterministic `-j` scoring. `-j` scoring waits for M5.6's resource accounting, because the codec's scratch memory is still ledger-charged, and a thread count must not change a memory refusal.
 
 ---
 

@@ -93,12 +93,15 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
         .collect();
     assert_eq!(names, declared, "every declared challenger, in order, in the first pass");
     let before = stage["before"].as_i64().unwrap();
+    let searched = stage["searched"].as_i64().unwrap();
+    assert!(searched <= before, "the search never worsens the level-0 artifact");
     // One list (architecture §9.6), walked in passes: the choice moves
     // (M9.1), the declared challengers, then the joint moves, each from the
-    // incumbent before it. The tail's restarts each walk passes of their own
-    // from their start, and replace the best result only when smaller.
+    // incumbent before it. Each start (AM2) walks passes of its own from its
+    // size, and its result replaces the objective's winner, first the
+    // search's, only when smaller.
     let choice_trials = stage["choice_trials"].as_array().unwrap();
-    let restarts = stage["restarts"].as_array().unwrap();
+    let starts = stage["starts"].as_array().unwrap();
     let passes = stage["passes"].as_u64().unwrap();
     let in_pass = |list: &'static str, pass: u64| {
         stage[list]
@@ -113,49 +116,46 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
             .chain(in_pass("joint_trials", pass))
             .collect()
     };
-    // Each walk's passes: the main walk's, then each restart's.
-    let firsts: Vec<u64> = std::iter::once(1)
-        .chain(restarts.iter().map(|restart| restart["pass"].as_u64().unwrap()))
+    let firsts: Vec<u64> = starts
+        .iter()
+        .map(|start| start["pass"].as_u64().unwrap())
         .chain(std::iter::once(passes + 1))
         .collect();
     assert!(firsts.windows(2).all(|pair| pair[0] <= pair[1]), "{stage}");
-    let mut walk: Vec<&Value> = Vec::new();
-    let mut best = before;
-    for (segment, bounds) in firsts.windows(2).enumerate() {
-        let restart = segment.checked_sub(1).map(|index| &restarts[index]);
-        let mut incumbent = match restart {
-            None => before,
-            Some(restart) => {
-                walk.push(restart);
-                match restart["start"].as_i64() {
-                    Some(start) => start,
-                    None => {
-                        assert_eq!(bounds[0], bounds[1], "an unformed restart walks no pass");
-                        assert!(restart["size"].is_null() && restart["delta"].is_null());
-                        if outcome(restart) == "pruned" {
-                            assert!(restart["proxy"].as_i64().unwrap() > margin, "{restart}");
-                        }
-                        continue;
-                    }
-                }
+    assert!(
+        starts.is_empty() || firsts[0] == 1,
+        "the first start walks the first pass: {stage}"
+    );
+    // The walk in order; `true` marks a start's record.
+    let mut walk: Vec<(bool, &Value)> = Vec::new();
+    let mut best = searched;
+    for (index, start) in starts.iter().enumerate() {
+        walk.push((true, start));
+        let bounds = firsts[index]..firsts[index + 1];
+        let Some(from) = start["start"].as_i64() else {
+            assert!(bounds.is_empty(), "an unformed restart walks no pass");
+            assert!(start["size"].is_null() && start["delta"].is_null());
+            if outcome(start) == "pruned" {
+                assert!(start["proxy"].as_i64().unwrap() > margin, "{start}");
             }
+            continue;
         };
-        let segment_passes = bounds[0]..bounds[1];
         assert!(
-            (segment_passes.end - segment_passes.start) <= stage["pass_limit"].as_u64().unwrap_or(u64::MAX),
+            (bounds.end - bounds.start) <= stage["pass_limit"].as_u64().unwrap_or(u64::MAX),
             "{stage}"
         );
-        for pass in segment_passes.clone() {
+        let mut incumbent = from;
+        for pass in bounds.clone() {
             let trials = pass_trials(pass);
             // A pass follows only one that kept a move.
-            if pass + 1 < segment_passes.end {
+            if pass + 1 < bounds.end {
                 assert!(
                     trials.iter().any(|trial| outcome(trial) == "kept"),
                     "pass {pass} kept nothing, yet the walk went on: {stage}"
                 );
             }
             for trial in trials {
-                walk.push(trial);
+                walk.push((false, trial));
                 match outcome(trial) {
                     "kept" => {
                         let delta = trial["delta"].as_i64().unwrap();
@@ -168,6 +168,14 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
                         assert!(delta >= 0, "a smaller move is never rejected: {trial}");
                         assert_eq!(trial["size"].as_i64().unwrap(), incumbent + delta);
                     }
+                    // The walk's memo: an assignment judged before keeps its
+                    // verdict, never smaller than the incumbent.
+                    "recalled" => {
+                        if let Some(size) = trial["size"].as_i64() {
+                            assert!(size >= incumbent, "{trial}");
+                            assert_eq!(trial["delta"].as_i64().unwrap(), size - incumbent);
+                        }
+                    }
                     // The proxy judged it worse than the incumbent by more
                     // than the margin; the exact codec never ran.
                     "pruned" => {
@@ -178,56 +186,74 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
                 }
             }
         }
-        match restart {
-            None => best = incumbent,
-            Some(restart) => {
-                assert_eq!(restart["size"].as_i64().unwrap(), incumbent, "{restart}");
-                let delta = restart["delta"].as_i64().unwrap();
-                assert_eq!(delta, incumbent - best, "{restart}");
-                match outcome(restart) {
-                    "kept" => {
-                        assert!(delta < 0, "{restart}");
-                        best = incumbent;
-                    }
-                    other => assert_eq!((other, delta >= 0), ("rejected", true), "{restart}"),
-                }
+        assert_eq!(start["size"].as_i64().unwrap(), incumbent, "{start}");
+        let delta = start["delta"].as_i64().unwrap();
+        assert_eq!(delta, incumbent - best, "{start}");
+        match outcome(start) {
+            "kept" => {
+                assert!(delta < 0, "{start}");
+                best = incumbent;
             }
+            other => assert!(
+                matches!(other, "rejected" | "identical") && delta >= 0,
+                "{start}"
+            ),
         }
     }
     assert_eq!(
         walk.len(),
-        choice_trials.len() + trials(stage).len() + joint_trials(stage).len() + restarts.len(),
+        choice_trials.len() + trials(stage).len() + joint_trials(stage).len() + starts.len(),
         "every trial belongs to a pass the walk made: {stage}"
     );
     // Once the walk's prefix or exact budget closes, nothing after is
     // formed.
-    if let Some(first) = walk.iter().position(|trial| outcome(trial) == "budget") {
-        assert!(walk[first..].iter().all(|trial| outcome(trial) == "budget"));
+    if let Some(first) = walk.iter().position(|(_, trial)| outcome(trial) == "budget") {
+        assert!(walk[first..].iter().all(|(_, trial)| outcome(trial) == "budget"));
         assert!(
             stage["examined"] == stage["prefix"] || stage["judged"] == stage["exact"],
             "{stage}"
         );
     }
-    let all = |outcomes: &[&str]| {
+    let count = |starts: bool, outcomes: &[&str]| {
         walk.iter()
-            .filter(|trial| outcomes.contains(&outcome(trial)))
+            .filter(|(start, trial)| *start == starts && outcomes.contains(&outcome(trial)))
             .count()
     };
-    assert_eq!(all(&["stopped"]), 0, "nothing ran out: {stage}");
+    let restart = |trial: &Value| trial["name"].as_str().is_some_and(|name| name.starts_with("naming:"));
+    let restarts = |outcomes: &[&str]| {
+        walk.iter()
+            .filter(|(start, trial)| *start && restart(trial) && outcomes.contains(&outcome(trial)))
+            .count()
+    };
+    assert_eq!(count(false, &["stopped"]) + count(true, &["stopped"]), 0, "nothing ran out: {stage}");
+    // A move takes a position, and so does a restart's start; a start the
+    // portfolio holds does not.
+    let moves = walk.iter().filter(|(start, _)| !*start).count();
+    let restarted = walk.iter().filter(|(start, trial)| *start && restart(trial)).count();
     assert_eq!(
         stage["examined"].as_u64().unwrap() as usize,
-        walk.len() - all(&["budget"])
+        moves - count(false, &["budget"]) + restarted - restarts(&["budget"]),
+        "{stage}"
     );
     assert!(stage["examined"].as_u64().unwrap() <= bound("prefix"));
-    // A restart's start is measured exactly, one judgement.
+    // A judged move and a measured restart start are one exact judgement
+    // each; a recalled move is none.
+    let measured_restarts = walk
+        .iter()
+        .filter(|(start, trial)| *start && restart(trial) && trial["start"].is_i64())
+        .count();
     assert_eq!(
         stage["judged"].as_u64().unwrap() as usize,
-        all(&["kept", "rejected"])
+        count(false, &["kept", "rejected"]) + measured_restarts,
+        "{stage}"
     );
     assert!(stage["judged"].as_u64().unwrap() <= bound("exact"));
-    assert_eq!(stage["pruned"].as_u64().unwrap() as usize, all(&["pruned"]));
+    assert_eq!(
+        stage["pruned"].as_u64().unwrap() as usize,
+        count(false, &["pruned"]) + restarts(&["pruned"])
+    );
     assert_eq!(stage["after"].as_i64().unwrap(), best);
-    assert!(best <= before, "the walk never worsens the level-0 artifact");
+    assert!(best <= searched, "the walks never worsen the search's winner");
     assert_eq!(delivered(compiled, codec) as i64, best);
     let count = |outcomes: &[&str]| {
         trials(stage)

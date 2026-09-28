@@ -117,7 +117,7 @@ For every compiled (case, lane), the report records the artifact's byte size and
 
 ### The effort schedule's monotonicity (M3.5)
 
-`scripts/monotone.mjs --compiler <lilscript>` runs the case runner once per level of a list (by default `0,1,5,10,11,12,13,14`, one level per tier of the effort schedule) in the production JavaScript lanes (by default `production/*/module`), and compares each (case, lane) between consecutive levels under the lane's codec. A higher level walks the same list further and keeps a move only on a strict exact win, and the beam (level 14 and above) replaces the walk's result only on one, so an artifact that grows from one level to the next, or a lane that passes at one level and fails at the next, is a violation and exits 1. It prints each level's lane totals.
+`scripts/monotone.mjs --compiler <lilscript>` runs the case runner once per level of a list (by default `0,1,5,10,11,12,13,14,15,16`: one level per tier of the effort schedule, and every level from the default up) in the production JavaScript lanes (by default `production/*/module`), and compares each (case, lane) between consecutive levels under the lane's codec. Up to level 13 a higher level walks the same list further from the level-0 artifact and keeps a move only on a strict exact win, and every other start (the structural search's winner, the naming restarts; AM2) replaces the result only on one, so an artifact that grows from one level to the next, or a lane that passes at one level and fails at the next, is a violation and exits 1. Above 13 the structural search widens with the level, which is monotone in practice rather than by construction; a growth there is reported the same way. It prints each level's lane totals.
 
 ## The port runner
 

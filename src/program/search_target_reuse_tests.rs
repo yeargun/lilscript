@@ -445,10 +445,10 @@ fn public_service_transfers_winners_without_reforming_targets() {
         },
     )
     .unwrap();
-    // The search forms the level-0 artifact's target and prepared output;
-    // each move the walk forms, a challenger or a joint move, forms its own
-    // (from one shared head) and the handoff forms none. Level 13 does not
-    // reach the beam.
+    // The search forms one target and two prepared outputs (the level-0
+    // artifact's, then the naming continuation's); each move the walks form,
+    // a challenger, a joint move or a restart's start, forms its own (from
+    // one shared head per start), and the handoff forms none.
     let stages = output.report()["search"]["terminal"]["objectives"]
         .as_array()
         .unwrap();
@@ -456,13 +456,15 @@ fn public_service_transfers_winners_without_reforming_targets() {
         .iter()
         .map(|stage| {
             assert_eq!(stage["choices_tried"], 0, "no target compaction");
-            (stage["tried"].as_u64().unwrap() + stage["joints_tried"].as_u64().unwrap()) as usize
+            (stage["tried"].as_u64().unwrap()
+                + stage["joints_tried"].as_u64().unwrap()
+                + stage["restarts_tried"].as_u64().unwrap()) as usize
         })
         .sum();
     let after = counts();
     assert_eq!(
         (after.0 - before.0, after.1 - before.1),
-        (1 + moves, 1 + moves),
+        (1 + moves, 2 + moves),
         "{stages:?}"
     );
     for (codec, stage) in CODECS.into_iter().zip(stages) {

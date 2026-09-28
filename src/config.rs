@@ -74,14 +74,9 @@ const OLD_SEARCH: &str = "it bounded the old compiler's candidate search, which 
 /// The structural beam's one fixed schedule, whatever level reaches it
 /// (architecture §9.6: it "runs at one fixed schedule (today's level-13
 /// schedule)"): the level-13 production values of the ladders this replaced.
-const BEAM_PROPOSALS: usize = 384;
-const BEAM_CODEC_PROBES: usize = 384;
-const BEAM_CANDIDATES: usize = 384;
-const BEAM_CANDIDATE_BYTES: usize = 768 * 1024;
-const BEAM_WIDTH: usize = 10;
 
 const EFFORT_SCHEDULE: &str = "the effort level's versioned schedule budgets the walk and the \
-structural beam (architecture §13.4; `--print-policy` prints it); a per-project search budget \
+structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget \
 will be refused (Y7)";
 const OLD_INLINER: &str = "it bounded the old compiler's inliner, which was deleted";
 const SIBLING_LINE: &str = "it configured the `migration/target-tree` line of the compiler, \
@@ -734,10 +729,9 @@ impl ProjectConfig {
                     self.mangle.preserve_properties.clone().unwrap_or_default();
                 preserved_properties.sort();
                 preserved_properties.dedup();
-                // The walk's budget is the effort level's schedule (M3.5);
-                // `candidate_search = "off"` keeps its meaning, no walk. The
-                // beam, when a level reaches it, runs at the level-13
-                // production schedule whatever the level (architecture §9.6).
+                // The walk's budget and the structural search's are the
+                // effort level's schedule (M3.5, AM2); `candidate_search =
+                // "off"` keeps its meaning, no walk and no search.
                 let walk = if self.javascript.candidate_search == CandidateSearch::Off {
                     crate::compilation_policy::WalkSchedule::OFF
                 } else {
@@ -746,29 +740,37 @@ impl ProjectConfig {
                         self.javascript.cost_model,
                     )
                 };
+                let structural = crate::compilation_policy::StructuralSchedule::at(
+                    self.javascript.optimization_level,
+                );
                 let objective = OptimizationObjective {
                     codec: self.javascript.cost_model,
                     rank: ObjectiveRank {
                         priority: self.javascript.priority,
                     },
                     // Optional work exists whenever the walk does; whether
-                    // the beam runs is the walk's (`walk.tail`).
+                    // the structural search runs is the walk's
+                    // (`walk.starts`).
                     optional_alternatives: if walk == crate::compilation_policy::WalkSchedule::OFF {
                         0
                     } else {
-                        self.javascript.candidate_proposal_limit.unwrap_or(BEAM_PROPOSALS)
+                        self.javascript
+                            .candidate_proposal_limit
+                            .unwrap_or(structural.proposals)
                     },
                     optional_codec_probes: if walk == crate::compilation_policy::WalkSchedule::OFF {
                         0
                     } else {
-                        self.javascript.terminal_codec_probe_limit.unwrap_or(BEAM_CODEC_PROBES)
+                        self.javascript
+                            .terminal_codec_probe_limit
+                            .unwrap_or(structural.codec_probes)
                     },
-                    retained_candidates: self.javascript.candidate_limit.unwrap_or(BEAM_CANDIDATES),
+                    retained_candidates: self.javascript.candidate_limit.unwrap_or(structural.candidates),
                     retained_candidate_bytes: self
                         .javascript
                         .candidate_byte_budget
-                        .unwrap_or(BEAM_CANDIDATE_BYTES),
-                    beam_width: self.javascript.candidate_beam_width.unwrap_or(BEAM_WIDTH),
+                        .unwrap_or(structural.bytes),
+                    beam_width: self.javascript.candidate_beam_width.unwrap_or(structural.width),
                     walk,
                     search: policy.search,
                 };
@@ -1196,9 +1198,10 @@ pub struct JavaScriptConfig {
     /// Retired (M3.5), with `candidate_byte_budget`, `candidate_beam_width`,
     /// `candidate_proposal_limit` and `terminal_codec_probe_limit`: a product
     /// configuration drops these keys with a warning (`RETIRED_KEYS`), and
-    /// the beam runs at its fixed schedule. Only the structural beam's own
-    /// unit tests, which deserialize a configuration directly, set them to
-    /// shape the beam they test. They go with the beam (M9.1).
+    /// the structural search runs at the level's schedule
+    /// (`StructuralSchedule`). Only the structural search's own unit tests,
+    /// which deserialize a configuration directly, set them to shape the
+    /// search they test. They go with the beam (M9.1).
     pub candidate_limit: Option<usize>,
     pub candidate_byte_budget: Option<usize>,
     pub candidate_beam_width: Option<usize>,
@@ -2038,13 +2041,23 @@ mod tests {
                 let (low, high) = (WalkSchedule::at(level, codec), WalkSchedule::at(level + 1, codec));
                 assert!(low.prefix <= high.prefix, "{level} {codec:?}");
                 assert!(low.exact <= high.exact, "{level} {codec:?}");
-                assert!(!low.tail || high.tail, "{level} {codec:?}");
+                assert!(!low.starts || high.starts, "{level} {codec:?}");
                 assert!(low.passes <= high.passes, "{level} {codec:?}");
                 assert!(low.margin <= high.margin, "{level} {codec:?}");
             }
             assert_eq!(WalkSchedule::at(0, codec), WalkSchedule::OFF);
-            assert!(WalkSchedule::at(14, codec).tail);
-            assert!(!WalkSchedule::at(13, codec).tail);
+            assert!(WalkSchedule::at(13, codec).starts);
+            assert!(!WalkSchedule::at(12, codec).starts);
+        }
+        // The structural search only widens with the level (AM2).
+        use crate::compilation_policy::StructuralSchedule;
+        for level in 0..16u8 {
+            let (low, high) = (StructuralSchedule::at(level), StructuralSchedule::at(level + 1));
+            assert!(low.proposals <= high.proposals, "{level}");
+            assert!(low.codec_probes <= high.codec_probes, "{level}");
+            assert!(low.candidates <= high.candidates, "{level}");
+            assert!(low.bytes <= high.bytes, "{level}");
+            assert!(low.width <= high.width, "{level}");
         }
         // The per-project budgets are retired: each warns and changes nothing.
         for key in [
@@ -2060,7 +2073,7 @@ mod tests {
             assert_eq!(parsed.warnings.len(), 1, "{key}");
             assert!(parsed.warnings[0].contains("has no effect"), "{key}");
         }
-        // `off` keeps its meaning: no walk and no beam.
+        // `off` keeps its meaning: no walk and no structural search.
         let off = parse("[javascript]\ncandidate_search='off'\n");
         assert!(off.warnings.is_empty());
         assert_eq!(off.config.javascript.candidate_search, CandidateSearch::Off);

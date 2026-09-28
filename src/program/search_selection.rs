@@ -15,6 +15,9 @@ mod reuse_tests;
 pub(super) struct Portfolio {
     pub(super) entries: Entries,
     pub(super) selected: [Option<usize>; 3],
+    /// The level-0 artifact's entry, kept through the structural search so
+    /// the walk can start from it (AM2) whatever the search selects.
+    pub(super) pinned: Option<usize>,
     pub(super) baseline: [Option<usize>; 3],
     baseline_qualified: [Option<QualifiedArtifact>; 3],
     pub(super) baseline_capacity: usize,
@@ -28,6 +31,7 @@ impl Portfolio {
         Self {
             entries: Entries::new(owner),
             selected: [None; 3],
+            pinned: None,
             baseline: [None; 3],
             baseline_qualified: [None; 3],
             baseline_capacity: 0,
@@ -43,6 +47,26 @@ impl Portfolio {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<bool, AllocationError> {
         self.entries.pins(state, budget)
+    }
+    /// Whether an entry stays: selected by some objective, or pinned.
+    fn keeps(&self, position: usize) -> bool {
+        self.selected.contains(&Some(position)) || self.pinned == Some(position)
+    }
+    /// Pin the entry every requested objective selected (the level-0
+    /// artifact, right after its scoring).
+    pub(super) fn pin_selected(&mut self, objectives: Objectives) {
+        self.pinned = objectives
+            .iter()
+            .next()
+            .and_then(|codec| self.selected[index(codec)]);
+    }
+    /// Release the pin: the entry goes unless an objective selects it.
+    pub(super) fn unpin(&mut self, arena: &mut ArtifactArena, budget: &mut AllocationBudget<'_>) {
+        if let Some(position) = self.pinned.take() {
+            if !self.selected.contains(&Some(position)) && self.entries.get(position).is_some() {
+                self.discard_entry(position, arena, budget);
+            }
+        }
     }
     pub(super) fn stage(
         &mut self,
@@ -383,10 +407,7 @@ impl Portfolio {
         // A pressure score runs while a separately staged trial is provisional.
         // Only displaced incumbents belong to this promotion's cleanup set.
         for slot in old_selected.into_iter().flatten() {
-            if slot != position
-                && !self.selected.contains(&Some(slot))
-                && self.entries.get(slot).is_some()
-            {
+            if slot != position && !self.keeps(slot) && self.entries.get(slot).is_some() {
                 self.discard_entry(slot, arena, budget);
             }
         }
@@ -415,7 +436,7 @@ impl Portfolio {
                 baseline,
             })
         })?;
-        if !self.selected.contains(&Some(position)) {
+        if !self.keeps(position) {
             self.discard_entry(position, arena, budget);
         }
         Ok(())
@@ -437,7 +458,7 @@ impl Portfolio {
         budget: &mut AllocationBudget<'_>,
     ) {
         for position in 0..self.entries.capacity() {
-            if self.entries.get(position).is_some() && !self.selected.contains(&Some(position)) {
+            if self.entries.get(position).is_some() && !self.keeps(position) {
                 self.discard_entry(position, arena, budget);
             }
         }
@@ -452,7 +473,7 @@ impl Portfolio {
                 .entries
                 .get(position)
                 .is_some_and(|entry| !entry.pending)
-                && !self.selected.contains(&Some(position))
+                && !self.keeps(position)
             {
                 self.discard_entry(position, arena, budget);
             }
@@ -469,6 +490,7 @@ impl Portfolio {
             }
         }
         self.selected = [None; 3];
+        self.pinned = None;
         let entries = std::mem::replace(&mut self.entries, Entries::new(self.owner));
         budget.with_ledger(|ledger| entries.discard(self.owner, ledger.unwrap().0).unwrap());
     }
@@ -477,21 +499,22 @@ impl Portfolio {
     pub(super) fn baseline_qualification(&self, codec: Objective) -> Option<&QualifiedArtifact> {
         self.baseline_qualified[index(codec)].as_ref()
     }
-    /// A terminal challenger that beat `codec`'s incumbent becomes its
-    /// winner: a new entry of the same source state, admitted under `codec`
-    /// alone. The displaced incumbent goes unless another codec selects it.
-    /// Returns the new entry's position.
+    /// A walk's result that beat `codec`'s winner becomes it: a new entry of
+    /// the source state it was formed from (a walk may start from another
+    /// state than the winner's), admitted under `codec` alone. The displaced
+    /// winner goes unless another codec selects it or it is pinned. Returns
+    /// the new entry's position.
     pub(super) fn promote_terminal(
         &mut self,
         arena: &mut ArtifactArena,
         budget: &mut AllocationBudget<'_>,
         codec: Objective,
+        state: usize,
         artifact: ArtifactId,
         qualified: QualifiedArtifact,
     ) -> Result<usize, SearchError> {
         let i = index(codec);
-        let previous = self.selected[i].expect("a terminal challenger beats a selected incumbent");
-        let state = self.entries.get(previous).unwrap().state;
+        let previous = self.selected[i].expect("a walk's result beats a selected winner");
         let (capacity, raw) =
             arena.with_artifact(artifact, |view| (view.retained_capacity, view.sizes.raw))?;
         let ordinal = self
@@ -516,7 +539,7 @@ impl Portfolio {
         );
         self.ordinal = ordinal;
         self.selected[i] = Some(position);
-        if !self.selected.contains(&Some(previous)) {
+        if !self.keeps(previous) {
             self.discard_entry(previous, arena, budget);
         }
         Ok(position)

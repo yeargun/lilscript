@@ -12,12 +12,9 @@ const TEST: &str = "timing::tests::semantic_phase_timing_is_observational_and_co
 const ANSWER: &str = "export int answer(){return 17;}";
 const VALLEY: &str = include_str!("program/fixtures/search-structural-valley/entry.lil");
 
-/// With inlining, the structural beam (level 14, M3.5) weighs the helper
-/// proofs; without, the default level walks only.
 fn configuration(proposals: usize, inlining: bool) -> crate::config::ProjectConfig {
     toml::from_str(&format!(
-        "[javascript]\noptimization_level={}\ncost_model='brotli'\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=48\ncandidate_limit=8\ncandidate_beam_width=2\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'\ninlining='{}'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
-        if inlining { 14 } else { 13 },
+        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=48\ncandidate_limit=8\ncandidate_beam_width=2\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'\ninlining='{}'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
         if inlining { "on" } else { "off" },
     )).unwrap()
 }
@@ -33,12 +30,7 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
     let before = phase_counts();
     let phases_before = PHASE_BUCKETS.map(|bucket| bucket.snapshot().0);
     let started = Instant::now();
-    // The beam serves one objective; the walk serves each.
-    let objectives = if inlining {
-        Objectives::One(Objective::Brotli)
-    } else {
-        Objectives::All
-    };
+    let objectives = Objectives::All;
     let compiled = compile_source(
         source,
         &configuration(proposals, inlining),
@@ -75,10 +67,19 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             .iter()
             .map(|stage| stage["surveys"].as_u64().unwrap())
             .sum();
-        let heads = stages
+        // Each start the portfolio holds (the search's winner, the level-0
+        // artifact) is walked in formations of its own, from one head.
+        let heads: u64 = stages
             .iter()
-            .filter(|stage| formed(stage) + stage["surveys"].as_u64().unwrap() > 0)
-            .count() as u64;
+            .map(|stage| {
+                stage["starts"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|start| matches!(start["name"].as_str(), Some("search" | "level-0")))
+                    .count() as u64
+            })
+            .sum();
         let terminal_encodes: u64 = stages
             .iter()
             .map(|stage| stage["codec_probes"].as_u64().unwrap())
@@ -102,9 +103,11 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             "{label}"
         );
         if !inlining {
-            // The search forms the level-0 artifact only; the walk's moves
-            // are the rest.
-            let expected = [1; 7];
+            let expected = if proposals == 0 {
+                [1; 7]
+            } else {
+                [1, 1, 2, 2, 2, 3, 3]
+            };
             let terminal = [
                 heads,
                 heads + tried + surveys,

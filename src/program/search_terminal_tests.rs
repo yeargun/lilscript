@@ -114,7 +114,7 @@ fn search(policy: &ResolvedPolicy, objectives: Objectives, challenge: bool) -> R
             })
             .unwrap();
         let report = if challenge {
-            search.challenge(policy, request(objectives), |_| {}).unwrap().clone()
+            search.challenge(policy, request(objectives)).unwrap().clone()
         } else {
             TerminalReport::default()
         };
@@ -168,20 +168,20 @@ fn incumbents_never_worsen_within_a_search_or_its_terminal_stage() {
                 .find(|stage| stage.codec == codec)
                 .unwrap();
             assert_eq!(
-                stage.before, best,
-                "{codec}: the stage starts from the winner"
+                stage.searched, best,
+                "{codec}: the walks settle against the search's winner"
             );
             assert_eq!(stage.after, winner);
-            assert!(stage.after <= stage.before);
+            assert!(stage.after <= stage.searched);
             assert_eq!(replay(stage), stage.after);
         }
     }
 }
 
-/// The walk's result, replayed from its report: each walk (the main one,
-/// then each restart of the tail) from its start, through its kept moves in
-/// pass order; a restart replaces the best result only when it reports a
-/// strict win.
+/// The walks' result, replayed from the report: each start's walk from its
+/// start size, through its kept moves in pass order; a start's result
+/// replaces the objective's winner (first the search's) only when it
+/// reports a strict win.
 fn replay(stage: &TerminalObjective) -> usize {
     let kept = |pass: usize| -> Vec<(i64, usize)> {
         let choices = stage
@@ -212,18 +212,22 @@ fn replay(stage: &TerminalObjective) -> usize {
         }
         incumbent
     };
-    let firsts: Vec<usize> = std::iter::once(1)
-        .chain(stage.restarts.iter().map(|restart| restart.pass))
+    let firsts: Vec<usize> = stage
+        .starts
+        .iter()
+        .map(|start| start.pass)
         .chain(std::iter::once(stage.passes + 1))
         .collect();
-    let mut best = walk(firsts[0]..firsts[1], stage.before);
-    for (index, restart) in stage.restarts.iter().enumerate() {
-        let Some(start) = restart.start else {
+    let mut best = stage.searched;
+    for (index, start) in stage.starts.iter().enumerate() {
+        let Some(from) = start.start else {
+            assert_eq!(firsts[index], firsts[index + 1], "an unformed restart walks no pass");
             continue;
         };
-        let end = walk(firsts[index + 1]..firsts[index + 2], start);
-        assert_eq!(restart.size, Some(end));
-        if restart.outcome == ChallengerOutcome::Kept {
+        let end = walk(firsts[index]..firsts[index + 1], from);
+        assert_eq!(start.size, Some(end), "{start:?}");
+        assert_eq!(start.delta, Some(end as i64 - best as i64), "{start:?}");
+        if start.outcome == ChallengerOutcome::Kept {
             assert!(end < best);
             best = end;
         }

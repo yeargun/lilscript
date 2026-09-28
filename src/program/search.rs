@@ -225,19 +225,6 @@ pub struct JavaScriptSearch<'a, 'src> {
     discovery_refusal: Option<SearchError>,
     /// The walk's report, once it has run.
     terminal: Option<TerminalReport>,
-    /// While the beam move runs: the incumbent's output tactics and naming,
-    /// which every beam recipe is formed and rendered with (§9.6).
-    beam: Option<BeamSeed>,
-    /// Renders the baseline made, the beam's batch clock origin.
-    baseline_renders: usize,
-}
-
-/// What the beam move holds of the walk's incumbent.
-#[derive(Clone)]
-struct BeamSeed {
-    tactics: OutputTactics,
-    style: Style,
-    raw_spelling: bool,
 }
 
 impl<'src> Compilation<'src> {
@@ -251,9 +238,11 @@ impl<'src> Compilation<'src> {
     }
 
     /// The level-0 artifact A0 (architecture §9.6): the direct recipe at
-    /// every prior, rendered with the naming seed. Every other move is the
-    /// walk's (`JavaScriptSearch::challenge`), whose last reserved move is the
-    /// structural beam.
+    /// every prior, rendered with the naming seed. From the default level
+    /// (`WalkSchedule::starts`, AM2) the structural search follows with the
+    /// policy's own tactics, and A0 stays pinned so the walk can start from
+    /// it as well as from the search's winner. Every other move is the
+    /// walk's (`JavaScriptSearch::challenge`).
     pub fn search_javascript_observed<'a>(
         &'a mut self,
         source: SemanticId,
@@ -261,12 +250,14 @@ impl<'src> Compilation<'src> {
         request: SearchRequest,
         observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<JavaScriptSearch<'a, 'src>, SearchError> {
-        self.start_javascript_search(source, policy, request, observe, false)
+        let explore = policy
+            .objective()
+            .is_some_and(|objective| objective.walk.starts);
+        self.start_javascript_search(source, policy, request, observe, explore)
     }
 
-    /// The structural exploration run directly after A0, with the policy's
-    /// own tactics: how the beam's internals are exercised by their unit
-    /// tests. The product runs it only as the walk's beam move.
+    /// The structural exploration run directly after A0 at any level: how
+    /// the search's internals are exercised by their unit tests.
     #[cfg(test)]
     pub(crate) fn search_javascript_explored_observed<'a>(
         &'a mut self,
@@ -329,8 +320,6 @@ impl<'src> Compilation<'src> {
             stopped: None,
             discovery_refusal: None,
             terminal: None,
-            beam: None,
-            baseline_renders: 0,
         };
         search.grow_states(1, WorkDomain::Baseline)?;
         let direct = search
@@ -338,19 +327,18 @@ impl<'src> Compilation<'src> {
             .direct_javascript(source, policy, WorkDomain::Baseline)?;
         search.insert_state(direct, 0, WorkDomain::Baseline)?;
         if !explore {
-            let (baseline_renders, _) = search.evaluate_baseline(
+            let (_, continuation) = search.evaluate_baseline(
                 policy,
                 request.objectives,
                 &seeds[..1],
                 false,
                 &mut observe,
             )?;
-            search.baseline_renders = baseline_renders;
+            continuation?;
             return Ok(search);
         }
         let (baseline_renders, continuation) =
             search.evaluate_baseline(policy, request.objectives, seeds, true, &mut observe)?;
-        search.baseline_renders = baseline_renders;
         if objective.optional_alternatives == 0 {
             return Ok(search);
         }
@@ -622,13 +610,16 @@ impl JavaScriptSearch<'_, '_> {
                         objectives,
                         styles,
                         Evaluation::Baseline,
-                        None,
                         observe,
                     )
                 })??;
                 let baseline_renders = counters.renders;
                 // A0 is the one mandatory render; naming seeds and literal
-                // spellings are the walk's moves.
+                // spellings are the walk's moves. When the structural search
+                // follows, A0 stays pinned: the walk starts from it too.
+                if continue_optional {
+                    portfolio.pin_selected(objectives);
+                }
                 if !continue_optional
                     || objective.optional_alternatives == 0
                     || (styles.len() <= 1 && !alternative)
@@ -653,7 +644,6 @@ impl JavaScriptSearch<'_, '_> {
                             objectives,
                             styles,
                             Evaluation::ContinueBaseline,
-                            None,
                             observe,
                         )
                     })??;
@@ -693,22 +683,11 @@ impl JavaScriptSearch<'_, '_> {
             states,
             portfolio,
             counters,
-            beam,
             ..
         } = self;
-        // The beam move forms each recipe with the walk incumbent's tactics
-        // and renders it with its naming (architecture §9.6).
-        let tactics = beam
-            .as_ref()
-            .map_or_else(|| OutputTactics::from_policy(policy), |seed| seed.tactics.clone());
-        let styles = match beam.as_ref() {
-            Some(seed) => std::slice::from_ref(&seed.style),
-            None => styles,
-        };
-        compilation.with_javascript_output_choices_in(
+        compilation.with_javascript_output_in(
             candidate,
             policy,
-            tactics,
             WorkDomain::Optional,
             |output| {
                 Self::evaluate_output(
@@ -721,7 +700,6 @@ impl JavaScriptSearch<'_, '_> {
                     objectives,
                     styles,
                     Evaluation::Structural,
-                    beam.as_ref(),
                     observe,
                 )
             },
@@ -739,13 +717,11 @@ impl JavaScriptSearch<'_, '_> {
         objectives: Objectives,
         styles: &[Style],
         evaluation: Evaluation,
-        beam: Option<&BeamSeed>,
         observe: &mut impl FnMut(SearchObservation<'_>),
     ) -> Result<bool, SearchError> {
         let objective = policy.objective().unwrap();
         let baseline = evaluation == Evaluation::Baseline;
-        // A beam recipe renders once, with the incumbent's literal spelling.
-        let has_alternative = beam.is_none() && output.has_literal_alternative()?;
+        let has_alternative = output.has_literal_alternative()?;
         // One prepared Module/Basis serves every pair. The mandatory route
         // renders one default artifact. Optional work first visits the usual
         // default naming seeds, then Original spellings only for live clients.
@@ -756,8 +732,7 @@ impl JavaScriptSearch<'_, '_> {
             // Self-named functions trade raw bytes for repeated names, which a
             // codec compresses almost for free: the policy's own objective
             // decides, so the schedule is the same for every objective.
-            let raw_spelling =
-                beam.map_or(objective.codec == Objective::Raw, |seed| seed.raw_spelling);
+            let raw_spelling = objective.codec == Objective::Raw;
             for (ordinal, &style) in styles.iter().enumerate() {
                 if baseline && ordinal != 0 {
                     break;
