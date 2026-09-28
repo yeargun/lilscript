@@ -149,6 +149,7 @@ pub(crate) fn substitute_signature_with<'types, 'src: 'types, A: SubstitutionAdm
             ty,
             passing: parameter.passing,
             default,
+            rest: parameter.rest,
         });
     }
     let result = substitute_type_with(&signature.return_type, lookup, admission)?;

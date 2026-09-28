@@ -2321,10 +2321,10 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         &mut self,
     ) -> Result<&'arena [Param<'arena, 'src>], AdmittedParseError> {
         let params = self.parse_lambda_params_after_open()?;
-        if let Some(param) = params.iter().find(|param| param.role != ParamRole::Value) {
+        if let Some(param) = params.iter().find(|param| param.role == ParamRole::Receiver) {
             return Err(AdmittedParseError::new(
                 param.span,
-                "a receiver or rest parameter belongs to a lambda: `(this JsValue self, JsValue... rest) => …`",
+                "a receiver parameter belongs to a lambda: `(this JsValue self, …) => …`",
             ));
         }
         Ok(params)

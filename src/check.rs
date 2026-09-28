@@ -342,7 +342,10 @@ impl fmt::Display for Type<'_> {
                     if parameter.passing == ParameterPassing::MutableReference {
                         f.write_str("mutable-reference ")?;
                     }
-                    write!(f, "{}", parameter.ty)?;
+                    match (&parameter.ty, parameter.rest) {
+                        (Type::Array(element), true) => write!(f, "{element}...")?,
+                        (ty, _) => write!(f, "{ty}")?,
+                    }
                 }
                 write!(f, ") -> {}", signature.return_type)
             }
@@ -379,6 +382,9 @@ pub struct FunctionParameter<'src> {
     pub ty: Type<'src>,
     pub passing: ParameterPassing,
     pub default: Option<DefaultValue<'src>>,
+    /// A declared rest parameter (R7), the last: `ty` is the array `T[]` the
+    /// body sees, and a call supplies it from its trailing arguments.
+    pub rest: bool,
 }
 impl<'src> FunctionParameter<'src> {
     pub fn value(ty: Type<'src>) -> Self {
@@ -386,6 +392,7 @@ impl<'src> FunctionParameter<'src> {
             ty,
             passing: ParameterPassing::Value,
             default: None,
+            rest: false,
         }
     }
     pub fn defaulted(ty: Type<'src>, default: DefaultValue<'src>) -> Self {
@@ -393,6 +400,7 @@ impl<'src> FunctionParameter<'src> {
             ty,
             passing: ParameterPassing::Value,
             default: Some(default),
+            rest: false,
         }
     }
 }
@@ -440,12 +448,21 @@ impl FunctionType<'_> {
     pub fn required_params(&self) -> usize {
         self.params
             .iter()
-            .position(|parameter| parameter.default.is_some())
+            .position(|parameter| parameter.default.is_some() || parameter.rest)
             .unwrap_or(self.params.len())
     }
 
+    /// The parameters a call supplies one by one: all but a rest parameter.
+    pub fn fixed_params(&self) -> usize {
+        self.params.len() - usize::from(self.has_rest())
+    }
+
+    pub fn has_rest(&self) -> bool {
+        self.params.last().is_some_and(|parameter| parameter.rest)
+    }
+
     pub fn accepts_arity(&self, arity: usize) -> bool {
-        arity >= self.required_params() && arity <= self.params.len()
+        arity >= self.required_params() && (self.has_rest() || arity <= self.params.len())
     }
 }
 
@@ -2478,6 +2495,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 format!("class `{}` has more than one constructor", decl.name.name),
                             ));
                         }
+                        refuse_rest_parameter(constructor_decl.params)?;
                         let mut params = Vec::with_capacity(constructor_decl.params.len());
                         for param in constructor_decl.params {
                             params
@@ -2634,6 +2652,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 "a host constructor signature cannot declare parameter defaults",
                             ));
                         }
+                        refuse_rest_parameter(constructor.params)?;
                         let mut params = Vec::with_capacity(constructor.params.len());
                         for param in constructor.params {
                             params.push(self.resolve_parameter_type(
@@ -2983,6 +3002,18 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             params.push(self.resolve_parameter_type(&param.parameter, "parameter")?);
         }
         resolve_parameter_defaults(function.params, &mut params, &self.facts.type_bindings)?;
+        if !function.type_params.is_empty()
+            && function
+                .params
+                .last()
+                .is_some_and(|param| param.role == crate::ast::ParamRole::Rest)
+        {
+            return Err(AdmittedCheckError::new(
+                function.span,
+                "a generic function with a rest parameter is not supported yet",
+            ));
+        }
+        mark_rest_parameter(function.params, &mut params)?;
         let declared_return = self.resolve_type(function.return_type, true, "return type")?;
         let return_type = if function.is_async {
             Type::Task(Box::new(declared_return))
@@ -3014,6 +3045,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             params.push(self.resolve_parameter_type(&param.parameter, "extern parameter")?);
         }
         resolve_parameter_defaults(extern_decl.params, &mut params, &self.facts.type_bindings)?;
+        mark_rest_parameter(extern_decl.params, &mut params)?;
         let return_type = self.resolve_type(extern_decl.return_type, true, "extern return type")?;
         let signature = FunctionType::new(FunctionSignature {
             params,
@@ -6557,6 +6589,31 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok(())
     }
 
+    /// An argument for a declared rest parameter `T... name` (R7): a `T`, or
+    /// `...xs` over an array of `T`s.
+    fn analyze_rest_argument(
+        &mut self,
+        argument: &'ast Argument<'ast, 'src>,
+        array: &Type<'src>,
+    ) -> Result<(), AdmittedCheckError> {
+        let Type::Array(element) = array else {
+            unreachable!("a rest parameter is an array")
+        };
+        if argument.passing != ParameterPassing::Value {
+            return Err(AdmittedCheckError::new(
+                argument.span,
+                "a rest parameter receives values",
+            ));
+        }
+        if argument.spread {
+            let actual = self.analyze_expr(&argument.expression, Some(array))?;
+            self.require_assignable(array, &actual, argument.span)
+        } else {
+            let actual = self.analyze_value_argument(argument, Some(element))?;
+            self.require_assignable(element, &actual, argument.span)
+        }
+    }
+
     fn analyze_value_argument(
         &mut self,
         argument: &'ast Argument<'ast, 'src>,
@@ -6602,8 +6659,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             self.analyze_dynamic_arguments(args)?;
             return Ok(Type::Dynamic);
         }
-        if let Some(spread) = args.iter().find(|argument| argument.spread) {
-            return Err(spread_refusal(spread.span));
+        // A spread passes to a JavaScript function or to a declared rest
+        // parameter (R7).
+        if !matches!(callee, Type::Function(signature) if signature.has_rest()) {
+            if let Some(spread) = args.iter().find(|argument| argument.spread) {
+                return Err(spread_refusal(spread.span));
+            }
         }
         if let Type::GenericFunction(function) = callee {
             return self.analyze_generic_call(function, args, span, expected_return, call_node);
@@ -6673,7 +6734,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.require_omitted_defaults_in_scope(signature, args.len(), span)?;
         let outer_pending = self.pending_references;
         let result = (|| {
-            for (arg, parameter) in args.iter().zip(&signature.params) {
+            let fixed = signature.fixed_params();
+            for (index, arg) in args.iter().enumerate() {
+                if index >= fixed {
+                    self.analyze_rest_argument(arg, &signature.params[fixed].ty)?;
+                    continue;
+                }
+                let parameter = &signature.params[index];
                 if arg.passing != parameter.passing {
                     return Err(AdmittedCheckError::new(
                         arg.span,
@@ -7667,6 +7734,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ty,
                 passing: param.parameter.passing,
                 default: None,
+                rest: false,
             });
         }
 
@@ -7760,6 +7828,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             ty: self.resolve_value_type(parameter.ty, context)?,
             passing: parameter.passing,
             default: None,
+            rest: false,
         })
     }
 
@@ -8127,6 +8196,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         ty: self.resolve_value_type(param.ty, "function parameter")?,
                         passing: param.passing,
                         default: None,
+                        rest: false,
                     });
                 }
                 let return_type = self.resolve_type(*return_type, true, "function return")?;
@@ -10157,6 +10227,50 @@ fn spread_refusal(span: Span) -> AdmittedCheckError {
         span,
         "a spread argument passes to a JavaScript function; this callee's parameters are declared",
     )
+}
+
+/// A declared rest parameter (R7): `T... name`, the last, is `T[]` in the
+/// body and takes a call's trailing arguments. The parameters before it take
+/// no defaults, and it passes by value.
+fn mark_rest_parameter<'src>(
+    params: &[crate::ast::Param<'_, 'src>],
+    resolved: &mut [FunctionParameter<'src>],
+) -> Result<(), AdmittedCheckError> {
+    let Some(last) = params
+        .last()
+        .filter(|param| param.role == crate::ast::ParamRole::Rest)
+    else {
+        return Ok(());
+    };
+    if let Some(param) = params.iter().find(|param| param.default.is_some()) {
+        return Err(AdmittedCheckError::new(
+            param.span,
+            "a function with a rest parameter takes no parameter defaults",
+        ));
+    }
+    if last.parameter.passing != ParameterPassing::Value {
+        return Err(AdmittedCheckError::new(last.span, "a rest parameter passes by value"));
+    }
+    let parameter = resolved
+        .last_mut()
+        .expect("one resolved parameter per declared parameter");
+    parameter.ty = Type::Array(Box::new(std::mem::replace(&mut parameter.ty, Type::Void)));
+    parameter.rest = true;
+    Ok(())
+}
+
+/// A constructor's parameters are declared one by one for now.
+fn refuse_rest_parameter(params: &[crate::ast::Param<'_, '_>]) -> Result<(), AdmittedCheckError> {
+    match params
+        .iter()
+        .find(|param| param.role == crate::ast::ParamRole::Rest)
+    {
+        Some(param) => Err(AdmittedCheckError::new(
+            param.span,
+            "a constructor's rest parameter is not supported yet",
+        )),
+        None => Ok(()),
+    }
 }
 
 /// The adapter a lambda's parameter roles name (R7), if it has a receiver or

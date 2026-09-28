@@ -380,6 +380,7 @@ impl IntrinsicCallContract {
                     ty: ty.clone(),
                     passing: ParameterPassing::Value,
                     default: default.clone(),
+                    rest: false,
                 })
                 .collect(),
             return_type: Box::new(self.result.clone()),

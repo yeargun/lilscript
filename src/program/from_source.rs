@@ -5465,6 +5465,34 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         arguments: &'ast [ast::Argument<'ast, 'src>],
         preparation: Span,
     ) -> Result<(OperationKind, Vec<ValueId>, Option<ValueId>), ConversionError> {
+        let offset = usize::from(receiver.is_some());
+        // A declared rest parameter (R7): a LilScript callee receives the
+        // trailing arguments packed into a fresh array, so the call supplies
+        // every parameter once; a host callee takes them one by one.
+        let packed_rest = match (contract.defaults, contract.signature) {
+            (DefaultConvention::MaterializeAtCaller, Some(signature)) => {
+                match &self.program.types[signature.index()] {
+                    Type::Function(signature) if signature.has_rest() => {
+                        let fixed = signature.fixed_params();
+                        let parameters = signature.params.len();
+                        let array = signature.params[fixed].ty.clone();
+                        Some((fixed - offset, parameters, self.ty(&array)?))
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        let contract = match packed_rest {
+            Some((_, parameters, _)) => CallContract {
+                supplied: u32::try_from(parameters).map_err(|_| Unsupported {
+                    span: preparation,
+                    feature: "semantic call argument capacity",
+                })?,
+                ..contract
+            },
+            None => contract,
+        };
         let call = self.open_call(unit, region, target, contract, preparation)?;
         let mut values = self.budget.vector(Scratch, arguments.len() + 1)?;
         let mut receiver_value = None;
@@ -5473,8 +5501,16 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 .push(Scratch, &mut values, CallArgument::Value(receiver))?;
             receiver_value = Some(receiver);
         }
-        let offset = usize::from(receiver.is_some());
         for (index, argument) in arguments.iter().enumerate() {
+            if let Some((start, _, array)) = packed_rest {
+                if index == start {
+                    let packed =
+                        self.packed_rest(unit, region, &arguments[start..], array, preparation)?;
+                    self.budget
+                        .push(Scratch, &mut values, CallArgument::Value(packed))?;
+                    break;
+                }
+            }
             let position = index + offset;
             match argument.passing {
                 // `...xs` into a host call (R7): the iterable itself.
@@ -5506,6 +5542,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 }
             }
         }
+        if let Some((start, _, array)) = packed_rest {
+            if arguments.len() == start {
+                let packed = self.packed_rest(unit, region, &[], array, preparation)?;
+                self.budget
+                    .push(Scratch, &mut values, CallArgument::Value(packed))?;
+            }
+        }
         // A construction's instance exists once its explicit arguments are
         // evaluated and before its parameter defaults, as in JavaScript: a
         // class's fields are initialized on entry, ahead of the defaults.
@@ -5516,6 +5559,45 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         }
         self.close_call(unit, region, call, contract, values, preparation)?;
         Ok((OperationKind::Call(call), Vec::new(), receiver_value))
+    }
+    /// A call's trailing arguments for a declared rest parameter (R7),
+    /// packed into a fresh array: each value is copied, and a spread argument
+    /// is a spread element.
+    fn packed_rest(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        arguments: &'ast [ast::Argument<'ast, 'src>],
+        ty: TypeId,
+        span: Span,
+    ) -> Result<ValueId, ConversionError> {
+        let spread = arguments.iter().any(|argument| argument.spread);
+        let mut values = self.budget.vector(Scratch, arguments.len())?;
+        let mut flags = self
+            .budget
+            .vector(Retained, if spread { arguments.len() } else { 0 })?;
+        for argument in arguments {
+            let result = self.expression(unit, region, &argument.expression)?;
+            let value = if argument.spread {
+                result
+            } else {
+                self.copy_value(unit, region, result, argument.span)?
+            };
+            self.budget.push(Scratch, &mut values, value)?;
+            if spread {
+                self.budget.push(Retained, &mut flags, argument.spread)?;
+            }
+        }
+        let kind = if spread {
+            AllocationKind::SpreadArray(flags)
+        } else {
+            drop_vector(flags, Retained, self.budget)?;
+            AllocationKind::Array
+        };
+        let operation = self.allocation(unit, kind)?;
+        let packed = self.value(unit, region, operation, &values, ty, None, span)?;
+        drop_vector(values, Scratch, self.budget)?;
+        Ok(packed)
     }
     /// Omitted parameters with checked defaults are evaluated by the caller
     /// after every supplied argument, as the callee would evaluate them on
