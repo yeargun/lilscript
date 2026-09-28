@@ -890,7 +890,14 @@ fn verify_units(
                             if target.index() >= program.types.len() {
                                 return fail("type test has a dangling target");
                             }
-                            (Some(1), true)
+                            // An internal class's test reads its constructor.
+                            let internal = match &program.types[target.index()] {
+                                crate::check::Type::Class(declaration) => program
+                                    .class(declaration.identity)
+                                    .is_some_and(|class| !class.external),
+                                _ => false,
+                            };
+                            (Some(if internal { 2 } else { 1 }), true)
                         }
                         OperationKind::Template => {
                             if operands.is_empty() {
@@ -1728,7 +1735,8 @@ fn verify_types(
         OperationKind::TypeTest(target) => expect(
             matches!(result, Some(Type::Bool))
                 && !operand(0).is_void()
-                && crate::primitive::runtime_type_test(&program.types[target.index()]).is_some(),
+                && (crate::primitive::runtime_type_test(&program.types[target.index()]).is_some()
+                    || matches!(program.types[target.index()], Type::Class(_))),
         ),
         OperationKind::Template => {
             if !matches!(result, Some(Type::String)) {

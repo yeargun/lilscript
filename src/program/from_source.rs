@@ -4975,16 +4975,17 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             ExprKind::TypeCheck {
                 value, span: check, ..
             } => {
-                let target = self.semantics.type_check_type(*check).ok_or(Unsupported {
+                let checked = self.semantics.type_check_type(*check).ok_or(Unsupported {
                     span,
                     feature: "missing checked type-test target",
                 })?;
-                let target = self.ty(target)?;
+                let target = self.ty(checked)?;
                 let value = self.expression(unit, region, value)?;
-                (
-                    OperationKind::TypeTest(target),
-                    self.budget.copy_slice(Scratch, &[value])?,
-                )
+                let operands = match self.identity_test_constructor(unit, region, checked, span)? {
+                    Some(constructor) => self.budget.copy_slice(Scratch, &[value, constructor])?,
+                    None => self.budget.copy_slice(Scratch, &[value])?,
+                };
+                (OperationKind::TypeTest(target), operands)
             }
             ExprKind::Await { task, .. } => {
                 let task = self.expression(unit, region, task)?;
@@ -5098,18 +5099,27 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         origin: Option<ast::SourceNodeId>,
         span: Span,
     ) -> Result<ValueId, ConversionError> {
-        let target = self.semantics.type_check_type(check).ok_or(Unsupported {
+        let checked = self.semantics.type_check_type(check).ok_or(Unsupported {
             span,
             feature: "missing checked `as?` target",
         })?;
-        let target = self.ty(target)?;
+        let target = self.ty(checked)?;
         let value = self.expression(unit, region, value)?;
         let boolean = self.ty(&crate::check::Type::Bool)?;
+        let constructor = self.identity_test_constructor(unit, region, checked, span)?;
+        let with_constructor;
+        let operands: &[ValueId] = match constructor {
+            Some(constructor) => {
+                with_constructor = [value, constructor];
+                &with_constructor
+            }
+            None => std::slice::from_ref(&value),
+        };
         let test = self.value(
             unit,
             region,
             OperationKind::TypeTest(target),
-            &[value],
+            operands,
             boolean,
             None,
             span,
@@ -5145,6 +5155,28 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             origin,
             span,
         )
+    }
+    /// The constructor `instanceof` reads in an identity test on an internal
+    /// class, which the checker keeps (R13). A host class is named when the
+    /// test is printed, and a runtime category has no constructor.
+    fn identity_test_constructor(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        target: &crate::check::Type<'src>,
+        span: Span,
+    ) -> Result<Option<ValueId>, ConversionError> {
+        let crate::check::Type::Class(declaration) = target else {
+            return Ok(None);
+        };
+        let class = declaration.identity;
+        if self.class_info(class, span)?.external {
+            return Ok(None);
+        }
+        if !self.kept(class, span)? {
+            return self.unsupported(span, "an identity test on a class that does not keep its identity");
+        }
+        Ok(Some(self.kept_constructor(unit, region, class, span)?))
     }
     /// A lambda's unit, of callable type `ty`.
     fn closure(

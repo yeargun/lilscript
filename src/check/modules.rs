@@ -670,6 +670,8 @@ fn body_phase<'ast, 'src>(
             exports.sort_by_key(|export| export.span.start);
         }
     }
+    // Identity tests anywhere keep their classes (R13).
+    checked.declarations.mark_tested_classes();
     for &root in &checked.roots {
         for export in &checked.interfaces[root].exports {
             let InterfaceTarget::Value(symbol) = export.target else {

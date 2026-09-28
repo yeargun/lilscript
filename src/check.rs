@@ -879,6 +879,9 @@ struct DeclarationTables<'src> {
     /// Each nominal registry, indexed by `NominalId::index` of its kind.
     structs: Vec<StructInfo<'src>>,
     classes: Vec<ClassInfo<'src>>,
+    /// Classes an identity test names (`is`, `as?`; R13), which keep their
+    /// identity once every body is checked (`mark_tested_classes`).
+    tested_classes: AHashSet<NominalId>,
     nominal_members: Vec<MemberDefinition>,
     enums: Vec<EnumInfo<'src>>,
     symbol_modules: Vec<Option<crate::module::ModuleId>>,
@@ -1132,22 +1135,35 @@ impl<'src> DeclarationTables<'src> {
                 }
             }
         }
-        // Every class extending an observed class, to a fixed point.
-        loop {
-            let mut changed = false;
-            for index in 0..classes.len() {
-                if classes[index].observed || classes[index].external {
-                    continue;
+        observe_descendants(classes);
+        Ok(())
+    }
+
+    /// Marks the classes an identity test names (R13) once every body is
+    /// checked: `v is C` is `instanceof`, so `C`, its internal ancestors and
+    /// every class extending it stay JavaScript classes.
+    pub(super) fn mark_tested_classes(&mut self) {
+        let mut tested = self
+            .tested_classes
+            .iter()
+            .map(|class| class.index())
+            .collect::<Vec<_>>();
+        if tested.is_empty() {
+            return;
+        }
+        tested.sort_unstable();
+        let classes = &mut self.classes;
+        for index in tested {
+            let mut current = Some(index);
+            while let Some(class) = current {
+                if classes[class].external {
+                    break;
                 }
-                if base_of(classes, index).is_some_and(|base| classes[base].observed) {
-                    classes[index].observed = true;
-                    changed = true;
-                }
-            }
-            if !changed {
-                return Ok(());
+                classes[class].observed = true;
+                current = class_base_index(classes, class);
             }
         }
+        observe_descendants(classes);
     }
 
     #[cfg(any(test, debug_assertions))]
@@ -2050,6 +2066,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.declare_functions(program)?;
 
         self.analyze_items(program)?;
+        self.declarations.mark_tested_classes();
 
         self.finalize_parameter_default_bindings()?;
         for export in program.exports {
@@ -4683,7 +4700,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             } => {
                 let value_type = self.analyze_expr(value, None)?;
                 let target_type = self.resolve_value_type(*target, "type guard")?;
-                validate_type_guard(&value_type, &target_type, *span)?;
+                if !self.class_guard(&value_type, &target_type, *span)? {
+                    validate_type_guard(&value_type, &target_type, *span)?;
+                }
                 self.facts.type_check_types.insert(*span, target_type);
                 Type::Bool
             }
@@ -4904,16 +4923,19 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ..
             } => {
                 // `v as? T`: a test, then the value as `T` or null (R12). A
-                // `JsValue` narrows to the types `is` can test on it.
+                // `JsValue` narrows to the types `is` can test on it, and a
+                // value to a class extending its type (R13).
                 let source = self.analyze_expr(value, None)?;
-                if !is_js_value_or_nullable_js_value(&source) {
-                    return Err(AdmittedCheckError::new(
-                        *span,
-                        format!("`as?` narrows a `JsValue`, found `{source}`"),
-                    ));
-                }
                 let target = self.resolve_value_type(*target, "`as?` target")?;
-                validate_type_guard(&source, &target, *span)?;
+                if !self.class_guard(&source, &target, *span)? {
+                    if !is_js_value_or_nullable_js_value(&source) {
+                        return Err(AdmittedCheckError::new(
+                            *span,
+                            format!("`as?` narrows a `JsValue` or a class value, found `{source}`"),
+                        ));
+                    }
+                    validate_type_guard(&source, &target, *span)?;
+                }
                 self.facts.type_check_types.insert(*span, target.clone());
                 nullable_type(target)
             }
@@ -8178,6 +8200,52 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .expect("type parameter scope was pushed before it was popped");
     }
 
+    /// `v is C` and `v as? C` on a class (R13): `v` is a `JsValue`, or has
+    /// a member type that `C` is or extends. The test is `instanceof`, so an
+    /// internal class keeps its identity (`mark_tested_classes`). Returns
+    /// whether `target` is a class.
+    fn class_guard(
+        &mut self,
+        value: &Type<'src>,
+        target: &Type<'src>,
+        span: Span,
+    ) -> Result<bool, AdmittedCheckError> {
+        let Some((declaration, args)) = class_type_parts(target) else {
+            return Ok(false);
+        };
+        let info = &self.declarations.classes[declaration.identity.index()];
+        let (external, object, generic) =
+            (info.external, info.object, !args.is_empty() || !info.type_params.is_empty());
+        if generic {
+            return Err(AdmittedCheckError::new(
+                span,
+                format!("an identity test on the generic class `{target}` is not supported"),
+            ));
+        }
+        if object {
+            return Err(AdmittedCheckError::new(
+                span,
+                format!("`{target}` is an `object` with one instance: compare it with `===`"),
+            ));
+        }
+        let fits = is_js_value_or_nullable_js_value(value)
+            || runtime_guard_members(value)
+                .iter()
+                .any(|member| self.is_assignable(member, target));
+        if !fits {
+            return Err(AdmittedCheckError::new(
+                span,
+                format!("`{target}` is neither a `JsValue` test nor a class extending a member of `{value}`"),
+            ));
+        }
+        if !external {
+            self.declarations
+                .tested_classes
+                .insert(declaration.identity);
+        }
+        Ok(true)
+    }
+
     fn require_assignable(
         &self,
         expected: &Type<'src>,
@@ -9749,6 +9817,34 @@ fn statement_guarantees_return(statement: &Stmt<'_, '_>) -> bool {
                         .is_none_or(|clause| statements_guarantee_return(clause.body)))
         }
         _ => false,
+    }
+}
+
+/// The index of a class's base in the class table, if it has one.
+fn class_base_index(classes: &[ClassInfo<'_>], index: usize) -> Option<usize> {
+    classes[index]
+        .base
+        .as_ref()
+        .and_then(class_type_identity)
+        .map(NominalId::index)
+}
+
+/// Every class extending an observed class is observed, to a fixed point.
+fn observe_descendants(classes: &mut [ClassInfo<'_>]) {
+    loop {
+        let mut changed = false;
+        for index in 0..classes.len() {
+            if classes[index].observed || classes[index].external {
+                continue;
+            }
+            if class_base_index(classes, index).is_some_and(|base| classes[base].observed) {
+                classes[index].observed = true;
+                changed = true;
+            }
+        }
+        if !changed {
+            return;
+        }
     }
 }
 

@@ -4417,6 +4417,33 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 js::Expr::Construct { callee, arguments }
             }
+            OperationKind::TypeTest(target)
+                if matches!(self.program.types[target.index()], crate::check::Type::Class(_)) =>
+            {
+                // An identity test on a class (R13): `instanceof`, over the
+                // kept class's constructor, or the host class by its name.
+                let crate::check::Type::Class(declaration) = &self.program.types[target.index()]
+                else {
+                    unreachable!("matched a class target")
+                };
+                let class = declaration.identity;
+                let left = self.value(unit, operands[0])?;
+                let right = match operands.get(1) {
+                    Some(&constructor) => self.value(unit, constructor)?,
+                    None => {
+                        let definition = self.program.class(class).ok_or_else(|| {
+                            self.error(operation.span, "identity test on an undeclared class")
+                        })?;
+                        let name = self.text(&definition.name)?;
+                        self.expression(js::Expr::Host(name))?
+                    }
+                };
+                js::Expr::Binary {
+                    op: js::Binary::InstanceOf,
+                    left,
+                    right,
+                }
+            }
             OperationKind::TypeTest(target) => {
                 let value = self.value(unit, operands[0])?;
                 match crate::primitive::runtime_type_test(&self.program.types[target.index()]) {
