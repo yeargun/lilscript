@@ -25,6 +25,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-27 | [The tools, first part: M2.13, M2.5 and M2.14](#2026-09-27-the-tools-first-part-m213-m25-and-m214) | M2.13, M2.5, M2.14 | `m2-tools` |
 | 2026-09-28 | [Owner decisions: counted budgets, decide statically first, verify per batch](#2026-09-28-owner-decisions-counted-budgets-decide-statically-first-verify-per-batch) | AM1, L22, plan rules 3 and 8 | — |
 | 2026-09-28 | [Batch F1: the floor slice, first part](#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding) | M5.1, M6.4a, M7.8a | `m5-floor` |
+| 2026-09-28 | [Batch F2: the floor slice, second part](#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults) | M5.1, M7.5a, M7.3 | `m5-floor` |
 
 ---
 
@@ -659,6 +660,29 @@ Not in this batch: M7.3 and M7.5a (F2). `drop_unreferenced_functions` stays as a
 - The search-era rewrites `fold_literal_int_binary` and `drop_dead_value` stay for their lineage tests; production reaches them only for what the rules left.
 
 **Open.** M7.3 and M7.5a (F2); M6.4a's finite-set tier and `simplify::known`; the two findings (M9.1 and M9.5; Y5); folding what tree inlining exposes (`1+1|0`), which is M7.8's.
+
+
+## 2026-09-28 Batch F2: the floor slice, second part (graft, removal-only inlining, typed defaults)
+
+**Pre-registration** (written before the first build of the batch; base `e5bed423`, baseline binary `~/lilscript-work/bin/f1-6`).
+
+What the batch builds:
+- **M5.1, the kernel's graft.** One unit's body is copied into another: its regions, operations, values, places, calls and instantiations. The cells it declares are cloned into the receiving unit as synthetic cells, owned where the copy stands. The captures the copy needs are added along the receiver's creation chain.
+- **M7.5a, removal-only inlining.** A body whose call set is complete is inlined at every call and then retired, when the program's operation count does not grow. Each round inlines an independent set of bodies, callees first.
+  - Legality (v1): not recursive, not suspending, not a constructor; one exit (its only `return` ends its entry region, or it has none); no function created inside; no ambient `this` or `arguments`; value parameters only; no generic instantiation; caller and body in the same module.
+  - A body that is an expression may go anywhere. A body with statements goes only into a statement region, where no pending value crosses the call.
+  - A parameter the body never writes reads its argument directly; the others become local cells.
+- **M7.3, first rule: typed defaults.** When every caller is known and a parameter's type excludes `undefined`, its default never runs: `IsUndefined` of that parameter is false, and the default's branch folds.
+- **Storage facts.** The rules read whether a cell is written from the current program (`CellStorage`), not from conversion's `reassigned` flag, which goes stale as rules remove stores.
+
+Predicted:
+- `comparison/cases` module lanes: `functions/*` cases shrink, and the loss count against the competitor falls further. The script lanes barely move, since their root functions are globals (Y5).
+- Reference ports: 0 to −500 Brotli each. Single-call helpers and immediately invoked arrows leave, but formation's tree inliners already remove many of them, so the gain is smaller than the rule's reach. No port grows beyond noise; gzip and raw move the same way.
+- `comparison/apps` and `algorithms` (script lanes): nearly unchanged (Y5).
+- C: smaller, with fewer functions and closures.
+- Compile time: neutral or faster, since the search sees fewer units. Runtime: neutral or better, with fewer calls.
+
+Not in this batch: M7.3's signature edits (dropped and constant parameters, unused results) and deleting the tree twins, which is batch F3.
 
 ---
 
