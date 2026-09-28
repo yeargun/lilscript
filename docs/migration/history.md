@@ -1938,6 +1938,31 @@ Changes:
 
 Predicted: smaller in every codec wherever typed code reads an `int` or `string` element (the `|0` and `??""` go). The ratchet and the ports show the size. A spelling flip like the first run's minmax case is judged per case (AM2).
 
+## 2026-09-28 Batch K13: int32 hints, a codec-judged family (AM2 for R1, R10 and R11)
+
+**Pre-registration** (written before the first build of the batch; base: K12's last commit).
+
+Why: the second run's ratchet blocked on 27 items that grew 1 to 5 Brotli bytes (AM2). Each is strictly smaller raw: the only change is a `|0` that R1, R10 or R11 made redundant. For example, `edge-map-set-1-1-2` drops `b.size|0` for `b.size`: raw −2, Brotli +4. On a 60–180 byte artifact the codec's repeat matching prefers the repeated `|0` (memory: repetition is load-bearing). Keeping those `|0`s everywhere would give back what the batches gained on the ports (markedlil −129, motionlil −125). So the codec judges it per artifact.
+
+What the batch builds:
+- **`int32_hints`, an output family.** It prints the `|0` the compiler printed before R1, R10 and R11, by the same rules:
+  - after an `int` field, member or element read;
+  - after an `int` result of a host method or builtin call;
+  - after an integer method's result without pristine builtins.
+
+  An int32 is its own ToInt32, so the spelling means the same program.
+- **Decided at the head.** The `|0` nodes change what the head's passes do (operator simplification, forwarding), so the family is decided where the head is formed: `form_head` takes it. The terminal stage forms the head with the incumbent's value, and forms the other head, once, when the family's challenger first asks.
+- **Seed and schedule.** Every objective seeds it off, the new spelling. Its challenger is first in the declared schedule, so a searching level keeps the previous spelling wherever the codec says the artifact is smaller. A level that does not search keeps the new one (AM2 binds level 13 and above).
+
+Changes:
+- **C1.** The family, its challenger and the head's decision.
+- **C2.** A test, and the record.
+
+Predicted:
+- The ratchet's 27 growths close at level 13.
+- The ports keep their gains where the codec says they are gains (a fleet total no larger than the second run's).
+- CPU: one extra head formation per terminal stage that tries the family.
+
 ---
 
 ## Appendix: where milestones 001–014 went
