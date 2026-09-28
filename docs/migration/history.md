@@ -28,6 +28,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-28 | [Batch F2: the floor slice, second part](#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults) | M5.1, M7.5a, M7.3 | `m5-floor` |
 | 2026-09-28 | [Batch F3: the floor slice, third part](#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins) | M7.3, M5.1, M5.3b | `m5-floor` |
 | 2026-09-28 | [Batch B1: the counted walk](#2026-09-28-batch-b1-the-counted-walk-m35-first-part) | M3.5 | `m3-budget` |
+| 2026-09-28 | [Batch B1b: the upper levels try more](#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2) | M3.5, AM2 | `m3-budget` |
 
 ---
 
@@ -921,6 +922,35 @@ Not in this batch: level 0 without a codec, codec settings as configuration, par
 - An auditing lane that measures what pruning misses.
 - The per-batch count gates in the runners.
 - Level 0 without a codec, codec settings as configuration, parallel scoring (B2).
+
+## 2026-09-28 Batch B1b: the upper levels try more (M3.5, AM2)
+
+**Pre-registration** (written before the first build of the batch; base `e4a44a7b`, baseline binaries `~/lilscript-work/bin/f3-2` for the owner's comparison and `bin/b1-6` for the ratchet's).
+
+The owner's ruling of the same day (amendment AM2, [intent](../../finer/intent/2026-09-28.md)): size first, compile time second, the level trades them. Level 13 and above must not deliver more bytes than before a change, and from 13 up each level tries more. B1 broke the first part: level 13 no longer reached the structural search, and grew by +122 Brotli on the case corpus's module lane and +675 over the reference ports' files (katexlil +406, motionlil +296); most ports ship at level 15, where their retired search keys had asked for wider searches than B1's constants.
+
+What the batch builds:
+- **Schedule version 2.** Levels 0–12 keep version 1: one pass from A0, e = 2, 4, 6, 8, 12. From level 13, every walk is unbounded and runs in passes to its fixed point. The structural search runs from level 13, with a budget (proposals, retained candidates and bytes, beam width, codec probes) that grows with the level:
+  - 13: (1,024, 1,024, 768 KB, 10, 1,536);
+  - 14: (1,024, 1,024, 896 KB, 11, 1,536);
+  - 15: (1,536, 1,536, 16 MB, 24, 1,536);
+  - 16: (4,096, 4,096, 64 MB, 32, 4,096).
+
+  At each level this is at least what F3 searched there for the reference ports, with their now-retired keys: katexlil's level-13 `always` tier, and jquerylil's and posthoglil's level-15 widths and byte budgets.
+- **Several starts from level 13.** The search forms A0 and runs the structural search from the policy's default tactics, as F3 did; A0 stays pinned. The starts, in order:
+  1. the search's winner W, when it is not A0;
+  2. A0;
+  3. A0 under each other naming seed (the restarts, pruned by the proxy against A0);
+  4. from level 14, the beam from the incumbent's tactics (B1's tail move), whose winner is walked when it wins.
+
+  Each start is walked in passes to its fixed point. A walk's result replaces the objective's winner only on a strict exact win.
+- **The judged-assignment memo.** Within one start, the walk records each assignment it judged (spelling, choices, naming, literals), with its exact or proxy size and verdict. A repeated assignment is not formed again: a measured one is rejected when it is not smaller than the incumbent, a pruned one is pruned while its recorded proxy exceeds the margin, and a refused or identical one repeats its verdict. Repeats occur only across passes, where no budget binds, so no decision changes.
+- **Receipts.** Every start with its name, first pass, start size, result and verdict; the schedule with the structural budget.
+
+Predicted:
+- **Level 13 and above at or below F3.** On the case corpus (every production lane), the ratchet (level 15, against `b1-6`'s baseline) and each reference port's delivered files in their own objective, apart from rare deviations of a byte or two. Level 13 holds F3's result as a candidate: the search's winner walked with F3's list order and no exact budget passes through F3's terminal stage. The proxy's pruning is the one exception, and it lost nothing in B1's calibration.
+- **Monotone.** From 0 to 13 by construction: level 13 walks A0 past level 12's stopping point. From 13 to 16 on the ports and all but a few cases.
+- **CPU time, reported (AM2).** Level 13 roughly doubles against F3 on katexlil (about 30–40 s against 18.1 s), because it walks both W and A0. Levels 1–12 keep B1's times.
 
 ---
 

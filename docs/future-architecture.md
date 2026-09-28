@@ -1,6 +1,6 @@
 # LilScript: the design of the language and the compiler
 
-**Version 1.1, 2026-09-28** (version 1 of 2026-09-27 with the owner's amendment AM1, appendix A). This page is the design of the LilScript language and its one compiler, written as a whole in answer to the owner's brief of 2026-09-27 ([finer/intent/2026-09-27.md](../finer/intent/2026-09-27.md)). It changes only by an amendment the owner approves (§22). Three documents go with it:
+**Version 1.2, 2026-09-28** (version 1 of 2026-09-27 with the owner's amendments AM1 and AM2, appendix A). This page is the design of the LilScript language and its one compiler, written as a whole in answer to the owner's brief of 2026-09-27 ([finer/intent/2026-09-27.md](../finer/intent/2026-09-27.md)). It changes only by an amendment the owner approves (§22). Three documents go with it:
 - [migration/plan.md](migration/plan.md) is the only plan for reaching it; its progress is [migration/index.md](migration/index.md), and [migration/history.md](migration/history.md) records each batch and what version 1 changed against the 2026-09-23 page;
 - [language.md](language.md) is the target language contract (version 1), each clause tagged with the task that implements it;
 - [language-v0.1.md](language-v0.1.md) is what the compiler accepts today; a clause leaves it when its v1 replacement lands.
@@ -699,9 +699,10 @@ Measured single-threaded at level 13 (review-compile-time §2.2): katexlil 12.5 
 
 | What | Target | When |
 |---|---|---|
-| Level 13, per reference port main entry | ≤ the frozen baseline at `-j 4`, and ≤ 1.3× it single-threaded | M3.5's exit |
-| Level 13, single-threaded | ≤ the frozen baseline | M5.7's exit (incremental tail) |
-| Package build (`npm run build`), default level | katexlil ≤ KaTeX's own build (12.74 s frozen; 14.4 s in the release record); every other reference port ≤ its frozen pre-M1 package time | M3.5's exit |
+| Level 12, per reference port main entry | ≤ the frozen baseline at `-j 4`, and ≤ 1.3× it single-threaded (AM2: the fast tiers carry the time targets) | M3.5's exit |
+| Level 13 and above | Reported per batch and per release; never bought with bytes (AM2) | — |
+| Level 12, single-threaded | ≤ the frozen baseline | M5.7's exit (incremental tail) |
+| Package build (`npm run build`) | Reported per port at its configured level, with the level-12 package time beside it | M3.5's exit |
 | Package build, default level | ≤ upstream's own build for every port (release report column), with jquerylil (23.51 s pre-M1 and 22.01 s head against 3.12 s, frozen) ledgered until M7 turns its 161 structural proposals into rules | M12.4 |
 | Levels 1–4 | ≤ 2× Terser's time on the same input (Terser `-c -m` on upstream's bundled graph, frozen: katexlil 1.12 s, markedlil 0.36, zodlil 0.87, posthoglil 0.26, micromarklil 0.56, jquerylil 1.12, motionlil 1.02; M2.10 measures every port's bar lanes) | M3.5's exit |
 | Level 0 | ≤ today's 1.4 s on katexlil, with no codec | M3.5's exit |
@@ -726,11 +727,11 @@ Effort stays one published number, 0–16, with a versioned schedule printed in 
 | 0 | **rules** | 0 | 0 | ≤ 1.4 s on katexlil; no codec, estimated sizes in the receipt unless exact is requested or a manifest needs it |
 | 1–4 | **short** | the first classes of S | 1–2 | ≤ 2× Terser |
 | 5–9 | **finalists** | longer | 2–4 | ≤ 4× level 0 |
-| 10–13 (13 default) | **joint** | reaches the joint moves | 4–8, each family earning its share (B9) | §13.2 |
-| 14–15 | **whole list** | \|S\| without the tail | unbounded up to p | reported |
-| 16 | **maximum** | \|S\|, including the tail's beam over joint assignments | unbounded | reported |
+| 10–12 | **joint** | one pass, reaching the joint moves | 6–12, each family earning its share (B9) | §13.2 |
+| 13 (default) | **multi-start** (AM2) | from each start (the structural search's winner, A0, A0 under each other naming seed, the beam's winner), passes to the fixed point | unbounded | reported |
+| 14–16 | **wider** (AM2) | as 13, with the structural search's budget growing with the level | unbounded | reported |
 
-There is no diminishing-returns stop at or above the default level: the budget bounds the search, it is not a reason to stop early (owner, 2026-09-01). Below the default level the exact budget e(L) is the bound.
+There is no diminishing-returns stop at or above the default level: the budget bounds the search, it is not a reason to stop early (owner, 2026-09-01). Below the default level the exact budget e(L) is the bound. At and above it (AM2), size comes first: a level never delivers more bytes than the level below or than the compiler before a change, apart from rare, very small deviations of a heuristic search, and each level above tries more starts and a wider structural search. A start is a local optimum's seed; walking several to their fixed points and keeping the smallest is the multi-start answer to a search that is NP-hard in general.
 
 ### 13.5 Parallelism with deterministic output
 
@@ -1141,6 +1142,7 @@ Amendments to the laws, the decision procedure and §13 that the owner approved 
 | # | Date | Amendment | Evidence and the owner's words |
 |---|---|---|---|
 | AM1 | 2026-09-28 | **Counted budgets, and decide statically first.** Budgets are counts: a level sets the prefix length p(L), the exact-judgement count e(L) and the decision floor F (B1, B9, §9.6, §13.3–§13.7). The work-unit currency, its tariff, the exchange rate and the per-level work ceilings are dropped. Cross-objective checkpoint offers, the gzip shadow and the speculative parallel greedy are deferred; each returns only by amendment, with its bytes per exact judgement measured on the calibration corpus. New law L22. In the plan, M3.5 is slimmed and no longer waits for M2.15, and verification runs per batch (plan rules 3 and 8) | Exact Brotli-11 is 55–74% of every production compile; batches T and D bought −88..+7 bytes per port for 2.7× compile time; the search winner is byte-identical at levels 8, 13 and 15 on five of six ports. The owner, 2026-09-27: the budget model may be unnecessary over-engineering; the language is typed by design and everything is statically analyzable. 2026-09-28: approved, with verification after each batch of updates ([finer/intent/2026-09-28.md](../finer/intent/2026-09-28.md)) |
+| AM2 | 2026-09-28 | **Size first from the default level up.** Bundle size is the first priority and compile time the second; the effort level trades them. Levels 1–12 may be faster and a little larger. Level 13 and every level above never grow the delivered bytes because of a change, apart from rare, very small deviations of a heuristic search, and from 13 up each level tries more: several starts (the structural search's winner, A0, A0 under each other naming seed, the beam's winner), each walked in passes to its fixed point, the smallest kept, with the structural search's budget growing with the level (§13.4). The time targets of §13.2 move to the fast tiers; level 13 and above are reported | Batch B1 moved the structural beam out of level 13 for its time (katexlil 18.1 → 10.4 s) and level 13 grew: +122 Brotli on the case corpus's module lane, +675 on the reference ports' files. The owner, 2026-09-28: size is the top priority, levels control the trade-off, and 13+ must never degrade; from 13 to 15 and beyond the compiler should try more, toward the global optimum ([finer/intent/2026-09-28.md](../finer/intent/2026-09-28.md)) |
 
 ### D2 for value structs
 
