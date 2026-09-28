@@ -403,6 +403,8 @@ pub enum Stmt<'ast, 'src> {
     ForOf {
         element_type: TypeRef<'ast, 'src>,
         element: Ident<'src>,
+        /// `for (K k, V v of map)`: the entry's value binding (R14).
+        value: Option<(TypeRef<'ast, 'src>, Ident<'src>)>,
         iterable: Expr<'ast, 'src>,
         body: &'ast Stmt<'ast, 'src>,
         inline: bool,

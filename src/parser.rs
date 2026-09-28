@@ -1270,6 +1270,24 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     body,
                 });
             }
+            // `for (K k, V v of map)`: a map's key and value (R14).
+            let value = if self.check(|kind| matches!(kind, TokenKind::Comma))
+                && !inline
+                && self.looks_like_typed_binding_at(self.cursor + 1)?
+            {
+                self.advance();
+                let ty = self.parse_type()?;
+                let name = self.expect_ident("expected the value's name")?;
+                if !self.check(|kind| matches!(kind, TokenKind::Of)) {
+                    return Err(AdmittedParseError::new(
+                        name.span,
+                        "a key and a value iterate a map: `for (K k, V v of map)`",
+                    ));
+                }
+                Some((ty, name))
+            } else {
+                None
+            };
             if self.match_kind(|kind| matches!(kind, TokenKind::Of)) {
                 let iterable = self.parse_expression()?;
                 self.expect(
@@ -1280,6 +1298,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 return Ok(Stmt::ForOf {
                     element_type: ty,
                     element: name,
+                    value,
                     iterable,
                     inline,
                     span: start.merge(body.span()),
@@ -2474,6 +2493,17 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             admission.work(1)?;
         }
         Ok(self.tokens.get(index).map(|token| &token.kind))
+    }
+
+    /// Whether a type and then a name start at token `index`.
+    fn looks_like_typed_binding_at(&self, index: usize) -> Result<bool, AdmittedParseError> {
+        let Some(type_end) = self.scan_type_end(index)? else {
+            return Ok(false);
+        };
+        Ok(matches!(
+            self.lookahead_kind(type_end)?,
+            Some(TokenKind::Ident(_) | TokenKind::From)
+        ))
     }
 
     fn looks_like_typed_binding(&self) -> Result<bool, AdmittedParseError> {

@@ -1476,6 +1476,88 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             span,
         )
     }
+    /// `for (K key, V value of map)`: the map's entries in insertion order
+    /// (R14). The iterator protocol yields each entry, an array `[k, v]`; its
+    /// two elements are the bindings, viewed as the map's `K` and `V` with no
+    /// code (Y1).
+    #[allow(clippy::too_many_arguments)]
+    fn for_of_map(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        key: ast::Ident<'src>,
+        value: ast::Ident<'src>,
+        iterable: &ast::Expr<'ast, 'src>,
+        body: &Stmt<'ast, 'src>,
+        span: Span,
+    ) -> Result<(), ConversionError> {
+        let map = self.expression(unit, region, iterable)?;
+        let iteration = self.region(unit, region, span)?;
+        let dynamic = self.ty(&Type::Dynamic)?;
+        let int = self.ty(&Type::Int)?;
+        let entry = self.synthetic_cell(unit, iteration, key, "$for_of_entry", dynamic)?;
+        for (binding, position) in [(key, 0), (value, 1)] {
+            let cell = self.declare(unit, iteration, binding)?;
+            let receiver = self.load_cell(unit, iteration, entry, span)?;
+            let index = self.value(
+                unit,
+                iteration,
+                OperationKind::Constant(Constant::Integer(position)),
+                &[],
+                int,
+                None,
+                span,
+            )?;
+            let place = self.push_place(
+                unit,
+                Place::Index {
+                    receiver,
+                    key: index,
+                },
+            )?;
+            let element = self.value(
+                unit,
+                iteration,
+                OperationKind::Load(place),
+                &[],
+                dynamic,
+                None,
+                binding.span,
+            )?;
+            let ty = self.program.cells[cell.index()].ty;
+            let viewed = self.dynamic_call(
+                unit,
+                iteration,
+                BuiltinCall::JsAssume,
+                &[DynamicOperand::Value(element)],
+                ty,
+                None,
+                binding.span,
+            )?;
+            self.effect(
+                unit,
+                iteration,
+                OperationKind::Initialize(cell),
+                &[viewed],
+                binding.span,
+            )?;
+        }
+        if let Stmt::Block { body, .. } = body {
+            self.statements(unit, iteration, body)?;
+        } else {
+            self.statement(unit, iteration, body)?;
+        }
+        self.effect(
+            unit,
+            region,
+            OperationKind::ForOf {
+                item: entry,
+                body: iteration,
+            },
+            &[map],
+            span,
+        )
+    }
     /// `for (T element of array)`, including `inline for`, whose unrolling is
     /// an optimization rather than a meaning. The array is evaluated once; each
     /// iteration re-reads its length, then initializes a fresh element binding
@@ -3764,6 +3846,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 )?;
                 self.effect(unit, region, OperationKind::Block(scope), &[], *span)?;
             }
+            Stmt::ForOf {
+                element,
+                value: Some((_, value)),
+                iterable,
+                body,
+                span,
+                ..
+            } => self.for_of_map(unit, region, *element, *value, iterable, body, *span)?,
             Stmt::ForOf {
                 element,
                 iterable,

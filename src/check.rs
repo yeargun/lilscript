@@ -3653,6 +3653,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             Stmt::ForOf {
                 element_type,
                 element,
+                value,
                 iterable,
                 body,
                 inline,
@@ -3661,6 +3662,36 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 self.push_scope()?;
                 let declared = self.resolve_value_type(*element_type, "for-of element")?;
                 let iterable_type = self.analyze_expr(iterable, None)?;
+                // `for (K k, V v of map)`: a map's entries, in insertion order,
+                // as its key and its value (R14).
+                match (&iterable_type, value) {
+                    (Type::Map(key, entry_value), Some((value_type, value_name))) => {
+                        let declared_value =
+                            self.resolve_value_type(*value_type, "for-of map value")?;
+                        self.require_assignable(&declared, key, element_type.span)?;
+                        self.require_assignable(&declared_value, entry_value, value_type.span)?;
+                        self.declare(*element, declared)?;
+                        self.declare(*value_name, declared_value)?;
+                        self.loop_depth += 1;
+                        self.analyze_stmt(body)?;
+                        self.loop_depth -= 1;
+                        self.pop_scope();
+                        return Ok(());
+                    }
+                    (Type::Map(..), None) => {
+                        return Err(AdmittedCheckError::new(
+                            iterable.span(),
+                            "a map iterates as a key and a value: `for (K k, V v of map)`",
+                        ));
+                    }
+                    (_, Some((value_type, _))) => {
+                        return Err(AdmittedCheckError::new(
+                            value_type.span,
+                            format!("only a map iterates as a key and a value, found `{iterable_type}`"),
+                        ));
+                    }
+                    _ => {}
+                }
                 if *inline {
                     if iterable.const_list_literals().is_none() {
                         return Err(AdmittedCheckError::new(

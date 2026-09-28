@@ -1822,7 +1822,8 @@ fn verify_types(
             // What the iterator protocol yields (R14).
             let element = match operand(0) {
                 Type::Generator(element) | Type::Set(element) => element.as_ref(),
-                Type::Dynamic => &Type::Dynamic,
+                // A map's entry, `[k, v]`, which the loop's bindings read.
+                Type::Dynamic | Type::Map(..) => &Type::Dynamic,
                 _ => return Err(error()),
             };
             expect(class_assignable(
