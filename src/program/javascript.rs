@@ -4116,13 +4116,33 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 operation: ResolvedIntrinsic::Constructor(Intrinsic::RegexNew),
                 receiver: None,
             } => {
-                // A source constructor is an observable host lookup followed
-                // by construction, not proof of a pristine builtin or a fresh
-                // result. The common envelope leaves that lookup before every
-                // argument effect without introducing a temporary or .call.
-                let host = self.text("RegExp")?;
-                let callee = self.expression(js::Expr::Host(js::Host::new(host)))?;
-                js::Expr::Construct { callee, arguments }
+                // A typed construction means the original `RegExp` (R10): of
+                // literal strings in the proven subset it is the literal, a
+                // fresh object at each evaluation. Otherwise the lookup stays
+                // before every argument effect, without a temporary or .call.
+                let text = |id: &js::ExprId| match &self.module.expressions[id.index()] {
+                    js::Expr::Literal(js::Literal::String(value)) => value.as_unicode(),
+                    _ => None,
+                };
+                let literal = match arguments.as_slice() {
+                    [pattern] => text(pattern).map(|pattern| (pattern, "")),
+                    [pattern, flags] => text(pattern).zip(text(flags)),
+                    _ => None,
+                }
+                .and_then(|(pattern, flags)| {
+                    crate::js_regex::literal_from_decoded_checked(
+                        pattern,
+                        flags,
+                        self.contract.ecmascript.year() >= 2018,
+                    )
+                });
+                if let Some(regex) = literal {
+                    js::Expr::Regex(regex)
+                } else {
+                    let host = self.text("RegExp")?;
+                    let callee = self.expression(js::Expr::Host(js::Host::new(host)))?;
+                    js::Expr::Construct { callee, arguments }
+                }
             }
             _ => return Err(self.error(span, "semantic JavaScript call implementation")),
         };
