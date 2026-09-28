@@ -2833,6 +2833,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         host_constructor = Some(signature);
                     }
                     ExternClassMember::Field(field) => {
+                        if let Some(initializer) = &field.initializer {
+                            return Err(AdmittedCheckError::new(
+                                initializer.span(),
+                                "an extern class field is the host's: it takes no initializer",
+                            ));
+                        }
                         if fields.contains_key(field.name.name)
                             || methods.contains_key(field.name.name)
                         {
@@ -3252,7 +3258,23 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ClassMember::Constructor(constructor) => {
                     self.analyze_constructor(constructor, identity)?
                 }
-                ClassMember::Field(_) => {}
+                // A field's own initializer (R3): a value of its type, which
+                // every construction evaluates before `init`, where `this` is
+                // not yet readable.
+                ClassMember::Field(field) => {
+                    if let Some(initializer) = &field.initializer {
+                        let ty = self
+                            .view()
+                            .nominal_class(identity)
+                            .and_then(|class| class.fields.get(field.name.name))
+                            .map(|field| field.ty.clone())
+                            .ok_or_else(|| {
+                                AdmittedCheckError::new(field.name.span, "a field without a type")
+                            })?;
+                        let actual = self.analyze_expr(initializer, Some(&ty))?;
+                        self.require_assignable(&ty, &actual, initializer.span())?;
+                    }
+                }
             }
         }
         self.pop_type_params();
