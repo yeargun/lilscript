@@ -1754,6 +1754,26 @@ Changes:
 
 Predicted: the ports set `assume_pristine_builtins = true`, so they are byte-identical, with one exception. Where the fold used to push a new key, it still does, so the fold's output under pristine builtins is unchanged. Cases and ratchet items compiled without pristine builtins get smaller (regex literals, no `|0` on lengths, folded constructions).
 
+## 2026-09-28 Batch K8: the development-check lane (M10.9, first part; R11, R1)
+
+**Pre-registration** (written before the first build of the batch; base: K7's last commit). Its tests and ladder run with K5–K7's.
+
+Why first: a rule whose meaning change is silent must first run every port suite in the development-check lane (language.md §14). That covers R11's index precondition, which M10.9's second batch makes production semantics, and R1's trusted crossings, which K1 already made production semantics without the lane. The lane checks index reads now; crossings and trusted views join it as their own batch.
+
+What the batch builds:
+- **The `checks` contract axis.** `javascript.checks = "production" | "development"`, default production. It is part of the contract and of the policy's fingerprint, and independent of effort.
+- **Index reads under development.** A typed read `a[i]` of an array, a typed array or a string becomes `index_checked(a, i)`. That is one hoisted helper, formed once per module. It returns the element when `0 <= i < a.length` and throws a `RangeError` otherwise. The receiver and the index are evaluated once each, in the read's order. The absence recipes (`??""`, `??null`, `|0`) still apply to the element. A rest list spelled as formals has no array to check.
+- **The lane.** `scripts/ports.mjs --checks development` sets the key in every configuration of a port's workspace, so every compile of its build checks.
+- Not yet: native reads out of range still read 0, and trap only with batch 2. Crossing and view checks come later.
+
+Changes:
+- **C1.** The axis: contract, configuration, fingerprint.
+- **C2.** The checked index read.
+- **C3.** The port runner's lane.
+- **C4.** Tests and docs.
+
+Predicted: production builds are byte-identical (the policy JSON gains `"checks":"production"`). The lane's port runs show which suites read past an end.
+
 ---
 
 ## Appendix: where milestones 001–014 went
