@@ -19,6 +19,7 @@ use crate::program::{
 };
 use crate::span::Span;
 
+mod char_code;
 mod debug_class;
 mod implicit_default;
 mod js_builtin;
@@ -33,6 +34,7 @@ pub const RULES: &[&str] = &[
     js_builtin::RULE,
     implicit_default::RULE,
     debug_class::RULE,
+    char_code::RULE,
     "performance/allocation-in-loop",
     "performance/closure-allocation-in-loop",
     "performance/indirect-call-in-loop",
@@ -306,6 +308,7 @@ pub fn lint_checked_with_providers(
             js_builtin::lint(module, source, syntax, &view, &mut pending);
             implicit_default::lint(module, source, syntax, &view, &mut pending);
             debug_class::lint(module, syntax, &mut pending);
+            char_code::lint(module, syntax, &view, &mut pending);
         }
     }
     lint_unused_private_symbols(checked, &mut pending);
@@ -2384,6 +2387,29 @@ print(new Holder(true).kept);
                 .collect::<Vec<_>>(),
             [false]
         );
+    }
+
+    /// `migration/char-code`: a loop bounded by the string's length reads a
+    /// code unit; any other read keeps today's `int` with `| 0`.
+    #[test]
+    fn char_code_fixes_keep_todays_meaning() {
+        let scratch = Scratch::new("char-code");
+        let path = scratch.file("main.lil", "");
+        let original = "export int sum(string s) {\n    int total = 0;\n    for (int i = 0; i < s.length; i++) {\n        total = total + s.charCodeAt(i);\n    }\n    for (int j = 1; j < s.length; j++) {\n        s = s + \"\";\n        total = total + s.charCodeAt(j);\n    }\n    return total + s.charCodeAt(0) * 2;\n}\n";
+        let fixed = "export int sum(string s) {\n    int total = 0;\n    for (int i = 0; i < s.length; i++) {\n        total = total + s.codeUnitAt(i);\n    }\n    for (int j = 1; j < s.length; j++) {\n        s = s + \"\";\n        total = total + (s.charCodeAt(j) | 0);\n    }\n    return total + (s.charCodeAt(0) | 0) * 2;\n}\n";
+        let mut source = original.to_string();
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        let mut edits = diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.rule == "migration/char-code")
+            .filter_map(|diagnostic| diagnostic.fix.as_ref())
+            .flat_map(|fix| fix.edits.iter().cloned())
+            .collect::<Vec<_>>();
+        edits.sort_by_key(|edit| std::cmp::Reverse(edit.span.start));
+        for edit in edits {
+            source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
+        }
+        assert_eq!(source, fixed);
     }
 
     #[test]

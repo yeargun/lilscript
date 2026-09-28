@@ -23,7 +23,7 @@ use crate::ast::{
 use ahash::AHashSet;
 
 #[derive(Debug, Default)]
-pub(super) struct Assigned<'src> {
+pub(crate) struct Assigned<'src> {
     /// Names the body's own code assigns, outside the functions it nests.
     pub own: AHashSet<&'src str>,
     /// Names a function the body nests assigns.
@@ -33,7 +33,7 @@ pub(super) struct Assigned<'src> {
 impl<'src> Assigned<'src> {
     /// A module: its top-level statements are its own code; its functions,
     /// methods, constructors and field initializers are nested.
-    pub(super) fn module(program: &Program<'_, 'src>) -> Self {
+    pub(crate) fn module(program: &Program<'_, 'src>) -> Self {
         let mut assigned = Self::default();
         for item in program.items {
             match item {
@@ -72,7 +72,7 @@ impl<'src> Assigned<'src> {
     }
 
     /// A function's or a lambda's body, with its parameters' defaults.
-    pub(super) fn body(params: &[Param<'_, 'src>], body: &[Stmt<'_, 'src>]) -> Self {
+    pub(crate) fn body(params: &[Param<'_, 'src>], body: &[Stmt<'_, 'src>]) -> Self {
         let mut assigned = Self::default();
         for param in params {
             if let Some(default) = &param.default {
@@ -84,7 +84,7 @@ impl<'src> Assigned<'src> {
     }
 
     /// A lambda whose body is an expression.
-    pub(super) fn expression_body(params: &[Param<'_, 'src>], body: &Expr<'_, 'src>) -> Self {
+    pub(crate) fn expression_body(params: &[Param<'_, 'src>], body: &Expr<'_, 'src>) -> Self {
         let mut assigned = Self::body(params, &[]);
         assigned.expression(body, false);
         assigned

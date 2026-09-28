@@ -1902,7 +1902,7 @@ mod analyzer_admission_tests;
 #[path = "check/binary_admission_tests.rs"]
 mod binary_admission_tests;
 
-mod assignments;
+pub(crate) mod assignments;
 
 #[cfg(test)]
 #[path = "check/narrowing_admission_tests.rs"]
