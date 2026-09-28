@@ -1979,6 +1979,13 @@ struct Analyzer<'check, 'budget, 'ast, 'src> {
     loop_depth: usize,
     async_depth: usize,
     callable_depth: usize,
+    /// Locals declared without a value and not assigned on every path to
+    /// here (R3): a read of one is refused.
+    unassigned: Vec<SymbolId>,
+    /// Depth of expression parts that may not run: the right operands of
+    /// `&&`, `||` and `??`, a conditional's branches, a match's arms. An
+    /// assignment there does not count as definite (R3).
+    conditional_assignments: usize,
     reference_parameters: AHashMap<SymbolId, usize>,
     pending_references: bool,
     current_reference_formals: bool,
@@ -2003,6 +2010,8 @@ enum BinaryContinuation<'ast, 'src> {
         left: Type<'src>,
         left_narrowing: NarrowingInput<'ast, 'src>,
         narrowed_scope: bool,
+        /// `&&`, `||`, `??`: the right operand may not run (R3).
+        conditional: bool,
     },
 }
 
@@ -2187,6 +2196,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             loop_depth: 0,
             async_depth: 0,
             callable_depth: 0,
+            unassigned: Vec::new(),
+            conditional_assignments: 0,
             reference_parameters: AHashMap::default(),
             pending_references: false,
             current_reference_formals: false,
@@ -3698,11 +3709,17 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 finally,
                 ..
             } => {
+                // Definite assignment (R3): the catch and the finally may run
+                // before any of the body's assignments.
+                let before = self.unassigned.clone();
                 self.push_scope()?;
                 for statement in *body {
                     self.analyze_stmt(statement)?;
                 }
                 self.pop_scope();
+                let body_leaves = body.last().is_some_and(statement_leaves);
+                let after_body = std::mem::replace(&mut self.unassigned, before.clone());
+                let mut catch_leaves = false;
                 if let Some(clause) = catch {
                     self.push_scope()?;
                     if let Some(binding) = clause.binding {
@@ -3725,14 +3742,36 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         self.analyze_stmt(statement)?;
                     }
                     self.pop_scope();
+                    catch_leaves = clause.body.last().is_some_and(statement_leaves);
                 }
+                let after_catch = std::mem::replace(&mut self.unassigned, before.clone());
+                let mut joined = match (body_leaves, catch.is_some() && catch_leaves) {
+                    (true, true) => before.clone(),
+                    (true, false) if catch.is_some() => after_catch,
+                    (false, true) => after_body,
+                    _ => {
+                        let mut joined = after_body;
+                        if catch.is_some() {
+                            for symbol in after_catch {
+                                if !joined.contains(&symbol) {
+                                    joined.push(symbol);
+                                }
+                            }
+                        }
+                        joined
+                    }
+                };
                 if let Some(finally) = finally {
                     self.push_scope()?;
                     for statement in *finally {
                         self.analyze_stmt(statement)?;
                     }
                     self.pop_scope();
+                    // The finally's own assignments are definite afterwards.
+                    let after_finally = std::mem::take(&mut self.unassigned);
+                    joined.retain(|symbol| !before.contains(symbol) || after_finally.contains(symbol));
                 }
+                self.unassigned = joined;
                 Ok(())
             }
             Stmt::Block { body, .. } => {
@@ -3755,11 +3794,16 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let then_returns = statement_guarantees_return(then_branch);
                 let else_returns =
                     else_branch.is_some_and(|branch| statement_guarantees_return(branch));
+                // Definite assignment (R3): each branch starts here, and a
+                // local stays unassigned after the `if` when some branch that
+                // falls through leaves it so.
+                let before = self.unassigned.clone();
                 self.push_scope()?;
                 self.apply_narrowing(then_narrowing.clone());
                 self.analyze_stmt(then_branch)?;
                 let then_survives = self.current_scope_preserves(&then_narrowing);
                 self.pop_scope();
+                let after_then = std::mem::replace(&mut self.unassigned, before.clone());
                 let mut else_survives = else_branch.is_none() && !else_narrowing.is_empty();
                 if let Some(else_branch) = else_branch {
                     self.push_scope()?;
@@ -3768,6 +3812,24 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     else_survives = self.current_scope_preserves(&else_narrowing);
                     self.pop_scope();
                 }
+                let after_else = std::mem::take(&mut self.unassigned);
+                self.unassigned = match (
+                    statement_leaves(then_branch),
+                    else_branch.is_some_and(|branch| statement_leaves(branch)),
+                ) {
+                    (true, true) => before,
+                    (true, false) => after_else,
+                    (false, true) => after_then,
+                    (false, false) => {
+                        let mut joined = after_then;
+                        for symbol in after_else {
+                            if !joined.contains(&symbol) {
+                                joined.push(symbol);
+                            }
+                        }
+                        joined
+                    }
+                };
                 if then_returns && !else_returns && else_survives {
                     self.apply_narrowing(else_narrowing);
                 } else if else_returns && !then_returns && then_survives {
@@ -3781,12 +3843,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let condition_type = self.analyze_expr(condition, Some(&Type::Bool))?;
                 self.require_assignable(&Type::Bool, &condition_type, condition.span())?;
                 let (body_narrowing, _) = self.condition_narrowing(condition)?;
+                // A loop body may not run: its assignments do not count (R3).
+                let before = self.unassigned.clone();
                 self.loop_depth += 1;
                 self.push_scope()?;
                 self.apply_narrowing(body_narrowing);
                 self.analyze_stmt(body)?;
                 self.pop_scope();
                 self.loop_depth -= 1;
+                self.unassigned = before;
                 Ok(())
             }
             Stmt::For {
@@ -3813,7 +3878,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     self.analyze_expr(update, None)?;
                 }
                 self.loop_depth += 1;
-                self.analyze_stmt(body)?;
+                self.analyze_loop_body(body)?;
                 self.loop_depth -= 1;
                 self.pop_scope();
                 Ok(())
@@ -3844,7 +3909,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 self.declare(*key, Type::String)?;
                 self.loop_depth += 1;
-                self.analyze_stmt(body)?;
+                self.analyze_loop_body(body)?;
                 self.loop_depth -= 1;
                 self.pop_scope();
                 Ok(())
@@ -3872,7 +3937,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         self.declare(*element, declared)?;
                         self.declare(*value_name, declared_value)?;
                         self.loop_depth += 1;
-                        self.analyze_stmt(body)?;
+                        self.analyze_loop_body(body)?;
                         self.loop_depth -= 1;
                         self.pop_scope();
                         return Ok(());
@@ -3934,10 +3999,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 self.require_assignable(&declared, &actual, element_type.span)?;
                 self.declare(*element, declared)?;
                 if *inline {
-                    self.analyze_stmt(body)?;
+                    self.analyze_loop_body(body)?;
                 } else {
                     self.loop_depth += 1;
-                    self.analyze_stmt(body)?;
+                    self.analyze_loop_body(body)?;
                     self.loop_depth -= 1;
                 }
                 self.pop_scope();
@@ -4050,10 +4115,17 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         &mut self,
         decl: &'ast VarDecl<'ast, 'src>,
     ) -> Result<(), AdmittedCheckError> {
-        if decl.initializer.is_none() {
+        // A local may be declared without a value: every read must then be
+        // definitely assigned (R3). A module's own bindings keep their
+        // initializers until the initialization order proves reads (M6.5).
+        if decl.initializer.is_none() && (self.callable_depth == 0 || decl.ty.is_auto()) {
             return Err(AdmittedCheckError::new(
                 decl.span,
-                "variable declarations require an initializer",
+                if decl.ty.is_auto() {
+                    "`auto` declarations require an initializer"
+                } else {
+                    "a module-level variable declaration requires an initializer"
+                },
             ));
         }
         if decl.ty.is_auto() {
@@ -4119,7 +4191,68 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.initializing_symbols.pop();
         analyzed?;
         self.initialization.initialized.insert(id);
+        if decl.initializer.is_none() {
+            self.unassigned.push(id);
+        }
         Ok(())
+    }
+
+    /// A loop body may not run, or runs again: its assignments do not
+    /// count after it (R3).
+    fn analyze_loop_body(&mut self, body: &'ast Stmt<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+        let before = self.unassigned.clone();
+        let result = self.analyze_stmt(body);
+        self.unassigned = before;
+        result
+    }
+
+    /// A read of `symbol` must follow its assignment on every path (R3).
+    fn require_assigned(
+        &self,
+        symbol: SymbolId,
+        name: &str,
+        span: Span,
+    ) -> Result<(), AdmittedCheckError> {
+        if self.unassigned.contains(&symbol) {
+            return Err(AdmittedCheckError::new(
+                span,
+                format!("`{name}` is read before it is assigned on every path (R3)"),
+            ));
+        }
+        Ok(())
+    }
+
+    /// `x = e` assigns `x` definitely unless the assignment may not run.
+    fn assign_definitely(&mut self, target: &Expr<'ast, 'src>) {
+        if self.conditional_assignments != 0 {
+            return;
+        }
+        if let ExprKind::Ident(ident) = &target.kind {
+            if let Some(&symbol) = self.facts.identifier_symbols.get(&ident.span) {
+                self.unassigned.retain(|&candidate| candidate != symbol);
+            }
+        }
+    }
+
+    /// A compound assignment or update reads its target first.
+    fn require_assigned_target(&self, target: &Expr<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+        if let ExprKind::Ident(ident) = &target.kind {
+            if let Some(&symbol) = self.facts.identifier_symbols.get(&ident.span) {
+                return self.require_assigned(symbol, ident.name, ident.span);
+            }
+        }
+        Ok(())
+    }
+
+    /// Runs `analyze` where its assignments may not run.
+    fn conditionally<T>(
+        &mut self,
+        analyze: impl FnOnce(&mut Self) -> Result<T, AdmittedCheckError>,
+    ) -> Result<T, AdmittedCheckError> {
+        self.conditional_assignments += 1;
+        let result = analyze(self);
+        self.conditional_assignments -= 1;
+        result
     }
 
     fn analyze_return(
@@ -4246,6 +4379,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ..
             } => {
                 let (id, ty) = self.analyze_binding_read(ident, expr.id)?;
+                self.require_assigned(id, ident.name, ident.span)?;
                 self.facts.source_info[expr.id.index()].resolution =
                     ExpressionResolution::Binding(id);
                 ty
@@ -4981,11 +5115,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let (then_narrowing, else_narrowing) = self.condition_narrowing(condition)?;
                 self.push_scope()?;
                 self.apply_narrowing(then_narrowing);
-                let then_type = self.analyze_expr(then_value, expected)?;
+                let then_type = self.conditionally(|this| this.analyze_expr(then_value, expected))?;
                 self.pop_scope();
                 self.push_scope()?;
                 self.apply_narrowing(else_narrowing);
-                let else_type = self.analyze_expr(else_value, expected)?;
+                let else_type = self.conditionally(|this| this.analyze_expr(else_value, expected))?;
                 self.pop_scope();
                 common_type(&then_type, &else_type).ok_or_else(|| {
                     AdmittedCheckError::new(
@@ -4999,7 +5133,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             Expr {
                 kind: ExprKind::Match { value, arms, span },
                 ..
-            } => self.analyze_match(value, arms, expected, *span)?,
+            } => self.conditionally(|this| this.analyze_match(value, arms, expected, *span))?,
             Expr {
                 kind:
                     ExprKind::Assignment {
@@ -5017,6 +5151,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ));
                 }
                 let target_type = self.analyze_lvalue(target)?;
+                if *op != AssignmentOp::Assign {
+                    self.require_assigned_target(target)?;
+                }
                 if is_js_value(&target_type) && *op != AssignmentOp::Assign {
                     return self.analyze_dynamic_update(expr, *op, target, value, *span);
                 }
@@ -5047,6 +5184,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     target_type.clone()
                 };
                 self.invalidate_assigned_narrowing(target);
+                if *op == AssignmentOp::Assign {
+                    self.assign_definitely(target);
+                }
                 result_type
             }
             Expr {
@@ -5062,6 +5202,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ));
                 }
                 let target_type = self.analyze_lvalue(target)?;
+                self.require_assigned_target(target)?;
                 if !target_type.is_numeric() {
                     return Err(AdmittedCheckError::new(
                         *span,
@@ -5299,6 +5440,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         expected: Option<&Type<'src>>,
     ) -> Result<Type<'src>, AdmittedCheckError> {
         let original_scope_depth = self.scopes.len();
+        let original_conditional = self.conditional_assignments;
         let mut pending = Vec::new();
         let result = (|| {
             let mut next = expression;
@@ -5369,8 +5511,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                     left: ty,
                                     left_narrowing: narrowing,
                                     narrowed_scope,
+                                    conditional: matches!(
+                                        op,
+                                        BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish
+                                    ),
                                 },
                             )?;
+                            if matches!(op, BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish) {
+                                self.conditional_assignments += 1;
+                            }
                             next = rhs;
                             continue 'visit;
                         }
@@ -5379,9 +5528,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             left,
                             left_narrowing,
                             narrowed_scope,
+                            conditional,
                         }) => {
                             if narrowed_scope {
                                 self.pop_scope();
+                            }
+                            if conditional {
+                                self.conditional_assignments -= 1;
                             }
                             let ExprKind::Binary { op, span, .. } = &expression.kind else {
                                 unreachable!("binary continuation owns a binary expression")
@@ -5410,6 +5563,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         while self.scopes.len() > original_scope_depth {
             self.pop_scope();
         }
+        self.conditional_assignments = original_conditional;
         let bytes = pending
             .capacity()
             .checked_mul(std::mem::size_of::<BinaryContinuation<'_, '_>>())
@@ -7857,7 +8011,24 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok((*signature.return_type).clone())
     }
 
+    /// A lambda body is its own flow (R3): it reads an outer local only once
+    /// that local is assigned, and its assignments to outer locals do not
+    /// count after it, since it may run at any time or never.
     fn analyze_arrow(
+        &mut self,
+        params: &'ast [crate::ast::Param<'ast, 'src>],
+        body: &'ast ArrowBody<'ast, 'src>,
+        expected: Option<&Type<'src>>,
+    ) -> Result<Type<'src>, AdmittedCheckError> {
+        let outer = self.unassigned.clone();
+        let conditional = std::mem::replace(&mut self.conditional_assignments, 0);
+        let result = self.analyze_arrow_body(params, body, expected);
+        self.unassigned = outer;
+        self.conditional_assignments = conditional;
+        result
+    }
+
+    fn analyze_arrow_body(
         &mut self,
         params: &'ast [crate::ast::Param<'ast, 'src>],
         body: &'ast ArrowBody<'ast, 'src>,
@@ -10530,6 +10701,22 @@ fn crosses_by_conversion(ty: &Type<'_>) -> bool {
         Type::Struct(_) | Type::StructInstance { .. } => true,
         Type::Nullable(inner) | Type::Array(inner) => crosses_by_conversion(inner),
         Type::Union(members) => members.iter().any(crosses_by_conversion),
+        _ => false,
+    }
+}
+
+/// Whether a statement always leaves its block (R3's joins): `return`,
+/// `throw`, `break` or `continue`, a block ending in one, or an `if` whose two
+/// branches leave.
+fn statement_leaves(statement: &Stmt<'_, '_>) -> bool {
+    match statement {
+        Stmt::Return { .. } | Stmt::Throw { .. } | Stmt::Break(_) | Stmt::Continue(_) => true,
+        Stmt::Block { body, .. } => body.last().is_some_and(statement_leaves),
+        Stmt::If {
+            then_branch,
+            else_branch: Some(else_branch),
+            ..
+        } => statement_leaves(then_branch) && statement_leaves(else_branch),
         _ => false,
     }
 }
