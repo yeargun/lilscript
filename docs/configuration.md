@@ -151,7 +151,10 @@ Per-library configuration is contract, objective, effort and permission
   every function whose name some code could read.
 - The `assume_*` keys are contract assumptions about foreign values, each off
   by default because a library cannot know its callers:
-  `assume_pristine_builtins` (ambient constructors are the originals),
+  `assume_pristine_builtins` (the host's builtins are the originals where a
+  `JsValue` operation reaches them: a store that adds a key to a fresh object
+  literal, a method called through `.call`, a standard global read as inert;
+  typed operations mean the originals whatever it says, language rule R10),
   `assume_pure_property_reads` (a dynamic member read runs no getter, Terser's
   `pure_getters`), `assume_unconstructed_callbacks` (callers never construct a
   lambda the program hands them, Terser's `unsafe_arrows`). A port that sets one

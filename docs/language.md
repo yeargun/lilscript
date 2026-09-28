@@ -157,7 +157,7 @@ Two laws bind every rule: a typed form never costs more bytes **or time** than i
 
 - **Clause.** Typed operations (`a.push`, `m.get`, `s.slice`, `new Regex("lit")`, `Math.imul`) are defined by their semantics and spelled with the original built-ins, which the contract assumes unmodified. Operations on `JsValue` have host semantics and are effectful.
 - **Replaces.** `assume_pristine_builtins` for typed code; the regex-literal gate (v0.1:190-203).
-- **Status.** Target (M10.15), in the core.
+- **Status.** In force (batches K1 and K7, 2026-09-28): a typed call's or intrinsic's `int` result carries no `|0` where the original returns an int32; a literal `new Regex` is the regex literal; lengths are bounded; compiler-written decoders and the store fold of a key a fresh literal already has assume nothing. `assume_pristine_builtins` now covers `JsValue` operations only.
 
 ### R14 Iteration is semantic; its lowering is a choice
 

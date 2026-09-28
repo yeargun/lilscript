@@ -2331,3 +2331,25 @@ fn debug_declarations_parse_and_refuse() {
         assert!(format!("{error:?}").contains(message), "{source}: {error:?}");
     }
 }
+
+/// Typed operations mean ECMAScript's originals (R10), whatever
+/// `assume_pristine_builtins` says: a literal `Regex` construction is the
+/// regex literal, and a length is an int32 with no `|0`.
+#[test]
+fn typed_operations_mean_the_originals_without_pristine_builtins() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export int size(string s, int[] values) { return s.length * 2 + values.length; }
+        export bool digits(string s) { Regex pattern = new Regex("^[0-9]+$"); return pattern.test(s); }
+        show(size("abc", [1, 2]));
+        show(digits("123"));
+        show(digits("12a"));
+        "#,
+        "",
+    );
+    assert!(javascript.contains("/^[0-9]+$/"), "{javascript}");
+    assert!(!javascript.contains("RegExp"), "{javascript}");
+    assert!(!javascript.contains("length|0"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "8\ntrue\nfalse\n");
+}
