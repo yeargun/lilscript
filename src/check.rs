@@ -5447,6 +5447,18 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         args: &'ast [Argument<'ast, 'src>],
     ) -> Result<(), AdmittedCheckError> {
         for argument in args {
+            if argument.spread {
+                // `...xs` into a JavaScript call: an array's elements, or a
+                // `JsValue`'s by the iterator protocol (R7).
+                let spread = self.analyze_expr(&argument.expression, None)?;
+                if !matches!(spread, Type::Array(_)) && !is_js_value(&spread) {
+                    return Err(AdmittedCheckError::new(
+                        argument.span,
+                        format!("a spread argument is an array or a `JsValue`, found `{spread}`"),
+                    ));
+                }
+                continue;
+            }
             let actual = self.analyze_value_argument(argument, Some(&Type::Dynamic))?;
             self.require_assignable(&Type::Dynamic, &actual, argument.span)?;
         }
@@ -6521,6 +6533,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         argument: &'ast Argument<'ast, 'src>,
         expected: Option<&Type<'src>>,
     ) -> Result<Type<'src>, AdmittedCheckError> {
+        if argument.spread {
+            return Err(AdmittedCheckError::new(
+                argument.span,
+                "a spread argument passes to a JavaScript function; this callee's parameters are declared",
+            ));
+        }
         if argument.passing != ParameterPassing::Value {
             return Err(AdmittedCheckError::new(
                 argument.span,
@@ -6555,12 +6573,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         call_node: Option<SourceNodeId>,
     ) -> Result<Type<'src>, AdmittedCheckError> {
         if is_js_value(callee) {
-            let js = Type::Dynamic;
-            for arg in args {
-                let actual = self.analyze_value_argument(arg, Some(&js))?;
-                self.require_assignable(&js, &actual, arg.span)?;
-            }
-            return Ok(js);
+            self.analyze_dynamic_arguments(args)?;
+            return Ok(Type::Dynamic);
         }
         if let Type::GenericFunction(function) = callee {
             return self.analyze_generic_call(function, args, span, expected_return, call_node);
