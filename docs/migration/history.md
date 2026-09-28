@@ -1400,6 +1400,38 @@ Predicted:
 
 ---
 
+## 2026-09-28 Batch S6: identity tests, declared rest parameters, typed receivers (M10.7, M10.4)
+
+**Pre-registration** (written before the first build of the batch; base: S5's last commit, baseline binary `~/lilscript-work/bin/s5-1`). Its tests and ladder run with S7's (the refusal), at the owner's direction to test several changes together.
+
+What the batch builds (language.md R13 and R7):
+- **`v is C` and `v as? C` on classes.**
+  - Allowed where `v` is a `JsValue`, or has a member type that `C` is or extends; also for extern classes.
+  - Refused on a generic class and on an `object`.
+  - The test is `instanceof`. An internal class an identity test names keeps its identity: after every body is checked, it, its internal ancestors and every class extending it are marked observed, the second marking step S3 found missing.
+  - Lowering: a kept class's test reads the class's constructor, as a second operand of the IR's type test. A host class is named by its extern declaration when printed.
+  - Native refuses a class test for now (a class-id word comes with M11).
+- **Declared rest parameters.**
+  - `T... name`, last in a function, method or extern declaration. It is `T[]` in the body.
+  - A call to a LilScript function packs the trailing arguments into a fresh array, with a spread argument as a spread element, so the IR keeps one argument per parameter. Printing the packed call as JavaScript's rest syntax is a spelling for M9.3.
+  - A call to an extern passes the trailing arguments one by one.
+  - Parameters before a rest parameter take no defaults.
+- **Typed receivers and rest lambdas.** `(this T self, …) =>` and `(T... rest) =>` take any types, not only `JsValue`: the values the adapter passes are trusted views (Y1).
+
+Changes (one commit each):
+- **C1.** `is` and `as?` on classes: checker, second marking, lowering, printer, verifier.
+- **C2.** Declared rest parameters: parser, checker, lowering of calls.
+- **C3.** Typed receivers and rest lambdas.
+- **C4.** Tests.
+
+Not in this batch:
+- `unknown` (R12): about 150 sites match on the dynamic type, so it gets its own batch.
+- `?.` on a `JsValue`: M9.3's optional-chaining family, as S3 recorded.
+
+Predicted: unmodified programs byte-identical (no program uses the new forms); the new forms' outputs as written in C4's tests.
+
+---
+
 ## Appendix: where milestones 001–014 went
 
 | Old | Now |
