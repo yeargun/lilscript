@@ -1705,6 +1705,28 @@ Not in this batch (R3's second batch for fields, with the port releases, M12.4):
 
 Predicted: unmodified programs are byte-identical, since none writes a field initializer. A fixed port's output should match its unfixed output, since the fix writes the value the construction already stored.
 
+## 2026-09-28 Batch K6: the `debug` class (M10.11 core, R15)
+
+**Pre-registration** (written before the first build of the batch; base: K5's last commit). Its tests and ladder run with K5's.
+
+What the batch builds (language.md R15, first batch):
+- **`debug` declarations.** `debug void trace(string m) {…}` and `debug extern void invariant(bool ok, string m);`.
+  - `debug` is a modifier only before `void` or `extern void`, where an identifier could not stand, so `debug` stays usable as a name.
+  - Refused: with `pure` (the call has an effect), with `async` or `generator`, with a result, and on extern values and classes.
+- **Stripping.** Under `strip_debug`, a call whose source callee names a `debug` declaration goes, and its arguments' evaluation stays.
+  - Conversion decides it once, as a flag on the call, so a rewrite that exposes the callee (inlining a function that receives it as a value) never makes a call strippable.
+  - The IR inliner keeps a `debug` body a body.
+  - A call through a function value is not a direct call and runs.
+- **Migration.** The name-keyed `debugLog` rule stays until the ports declare it. `migration/debug-class` writes `debug` on an `extern` named `debugLog` (jquerylil declares one; 24 port configs set `strip_console`, which is now `strip_debug`). The rule's second batch, with the ports' releases (M12.4), removes the name.
+
+Changes:
+- **C1.** Syntax and the language server's keyword help.
+- **C2.** The IR: cells and calls carry `debug`; demand drops the calls; the inliner keeps the bodies.
+- **C3.** `migration/debug-class`, and the docs.
+- **C4.** Tests: parsing and refusals, the fix, and a case with a host prelude under `strip_debug`.
+
+Predicted: unmodified programs byte-identical, since none writes `debug`; jquerylil's fixed port byte-identical to its unfixed build, since `debugLog` was already dropped by its name.
+
 ---
 
 ## Appendix: where milestones 001–014 went
