@@ -1827,6 +1827,39 @@ Changes:
 
 Predicted: unmodified programs are byte-identical. The fixed ports' output changes only where `print` or `string` of an absent value would have printed "undefined".
 
+## 2026-09-28 Batch K11: crossings in the development-check lane (M10.12's lane, R1)
+
+**Pre-registration** (written before the first build of the batch; base: K10's last commit). Its tests and ladder run with the next batch's.
+
+Why: K1 made R1's trusted crossings production semantics before the development-check lane existed. This batch puts the crossings in the lane, so every port suite can run with them checked (language.md §14).
+
+What the batch builds, under `checks = "development"` only:
+- **Crossing checks.** A typed value that crosses into the program calls a hoisted helper, formed once per shape. The helper throws a `TypeError` where the host breaks the declared type. The crossings:
+  - an `extern` function's result;
+  - a host method's result (a call through a place);
+  - a trusted view's result (`v as T`, the `JS.assume` builtin);
+  - each read of a typed host binding (`extern T x;`).
+
+  The shapes and their tests:
+
+  | Shape | Test |
+  |---|---|
+  | `int` | a number that `x \| 0` keeps |
+  | `float` | a number |
+  | `string` | a string |
+  | `bool` | a boolean |
+  | array | `Array.isArray` |
+  | function | a function |
+
+  Each is also offered with absence allowed, for `T?`. A class, struct, map or `JsValue` has no cheap test and is not checked.
+- Not yet: export parameters. They join the lane when their function-entry hook is in place, a later increment.
+
+Changes:
+- **C1.** The helpers and the call and read hooks.
+- **C2.** A test, and docs.
+
+Predicted: production builds byte-identical. The lane's port runs show which host values break their declared types.
+
 ---
 
 ## Appendix: where milestones 001–014 went
