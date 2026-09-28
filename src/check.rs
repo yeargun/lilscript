@@ -5062,6 +5062,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 } else {
                                     Type::Bool
                                 })
+                            } else if *op == BinaryOp::Nullish && is_js_value(&ty) {
+                                // `v ?? x` on a `JsValue` yields either side.
+                                Some(Type::Dynamic)
                             } else if *op == BinaryOp::Nullish {
                                 nullish_present_type(&ty).cloned().or(expected)
                             } else {
@@ -5096,6 +5099,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 Some((builtin, result)) => {
                                     self.resolve_dynamic(expression.id, builtin);
                                     result
+                                }
+                                // JavaScript's nullish coalescing: the natural
+                                // short circuit, with either side's value.
+                                None if *op == BinaryOp::Nullish
+                                    && is_js_value(&left)
+                                    && !ty.is_void() =>
+                                {
+                                    Type::Dynamic
                                 }
                                 None => self.analyze_binary(*op, &left, &ty, *span)?,
                             };
