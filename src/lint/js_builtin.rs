@@ -41,6 +41,20 @@ pub(super) fn lint(
     let Ok(tokens) = lex(source) else {
         return;
     };
+    // A module that binds the name `undefined` (an import or a declaration)
+    // shadows JavaScript's; there `JS.undefined()` keeps its spelling.
+    let binds_undefined = syntax
+        .imports
+        .iter()
+        .flat_map(|import| import.specifiers.iter())
+        .any(|specifier| specifier.local.name == "undefined")
+        || syntax.items.iter().any(|item| match item {
+            Item::ExternGlobal(global) => global.name.name == "undefined",
+            Item::Extern(function) => function.name.name == "undefined",
+            Item::Function(function) => function.name.name == "undefined",
+            Item::Stmt(Stmt::VarDecl(declaration)) => declaration.name.name == "undefined",
+            _ => false,
+        });
     let mut walker = Walker {
         module,
         source,
@@ -48,6 +62,7 @@ pub(super) fn lint(
         view,
         pending,
         returns_dynamic: false,
+        binds_undefined,
     };
     for item in syntax.items {
         walker.item(item);
@@ -98,6 +113,8 @@ struct Walker<'a, 'view, 'ast, 'src> {
     pending: &'a mut Vec<PendingDiagnostic>,
     /// Whether the enclosing callable returns a `JsValue`.
     returns_dynamic: bool,
+    /// Whether the module binds the name `undefined`.
+    binds_undefined: bool,
 }
 
 impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
@@ -594,7 +611,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             ("typeOf", 1) => format!("typeof {}", text(0, precedence::UNARY)),
             ("string", 1) => format!("string({})", self.text(arg(0))),
             ("number", 1) => format!("float({})", self.text(arg(0))),
-            ("undefined", 0) => "undefined".to_string(),
+            ("undefined", 0) if !self.binds_undefined => "undefined".to_string(),
             ("object", count) if count % 2 == 0 => {
                 let mut entries = Vec::with_capacity(count / 2);
                 for pair in args.chunks_exact(2) {
