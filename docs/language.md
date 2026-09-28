@@ -75,7 +75,7 @@ Two laws bind every rule: a typed form never costs more bytes **or time** than i
   - **Crossings pin one spelling.** A boundary type states `T | null`, `T | undefined` or an optional key; the crossing normalizes once, only where the producer's spelling is not already the pinned one. Converting `T?` to `JsValue` is such a crossing.
 - **Replaces.** v0.1:77 (`T` or raw `null`), :145, :329-331 (`?? null`), :448-452.
 - **JS.** Bare operations. **Native.** One absent tag; the refused operations are refused on both targets, so they agree.
-- **Status.** Target (M10.9), in the core.
+- **Status.** First batch in force (K10, 2026-09-28): `T??` is `T?` wherever a type is built (substitution, destructuring); `migration/absence` warns at the operations that could observe the spelling and writes today's meaning where it has one spelling (`x ?? "null"` for `print` and `string`, `==` for `===` on typed operands). Open, the second batch: the refusals, the normalizations' removal (`??null`, `??""`), defaulted parameters of type `T` inside with the default on absence, `T?` keys and elements, and reflected nominals' missing keys.
 
 ---
 
