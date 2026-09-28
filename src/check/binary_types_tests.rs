@@ -15,6 +15,7 @@ fn function(passing: ParameterPassing, default: Option<DefaultValue<'static>>) -
             ty: Type::Int,
             passing,
             default,
+            rest: false,
         }],
         return_type: Box::new(Type::String),
     }))

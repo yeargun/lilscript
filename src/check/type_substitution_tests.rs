@@ -22,6 +22,7 @@ fn signature(parameters: Vec<Type<'static>>, result: Type<'static>) -> FunctionT
                     DefaultValue::String("literal-default"),
                     DefaultValue::Int(3),
                 ])),
+                rest: false,
             })
             .collect(),
         return_type: Box::new(result),
@@ -264,6 +265,7 @@ fn old_substitute_type<'src>(
                     ty: old_substitute_type(&parameter.ty, substitutions),
                     passing: parameter.passing,
                     default: parameter.default.clone(),
+                    rest: false,
                 })
                 .collect(),
             return_type: Box::new(old_substitute_type(&signature.return_type, substitutions)),
@@ -279,6 +281,7 @@ fn old_substitute_type<'src>(
                         ty: old_substitute_type(&parameter.ty, substitutions),
                         passing: parameter.passing,
                         default: parameter.default.clone(),
+                        rest: false,
                     })
                     .collect(),
                 return_type: Box::new(old_substitute_type(

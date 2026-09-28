@@ -243,6 +243,7 @@ fn well_formed_unused_reference_types_do_not_claim_executable_place_arguments() 
                 ty: Type::Int,
                 passing: ParameterPassing::MutableReference,
                 default: None,
+                rest: false,
             }],
             return_type: Box::new(Type::Int),
         }));

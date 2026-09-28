@@ -10601,7 +10601,8 @@ mod tests {
             FunctionParameter {
                 ty: Type::Struct(model.struct_type("Point").unwrap()),
                 passing: ParameterPassing::MutableReference,
-                default: None
+                default: None,
+                rest: false,
             }
         );
         let Item::Function(forward) = &source.items[2] else {
@@ -10807,6 +10808,7 @@ mod tests {
                     ty: Type::TypeParameter("T"),
                     passing: ParameterPassing::MutableReference,
                     default: None,
+                    rest: false,
                 },
                 FunctionParameter::defaulted(Type::Int, DefaultValue::Int(3)),
             ],

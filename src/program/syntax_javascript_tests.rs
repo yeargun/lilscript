@@ -1952,3 +1952,149 @@ fn a_typed_value_is_viewed_as_another_type_only_through_js_value() {
     let error = crate::analyze(&syntax).unwrap_err();
     assert!(format!("{error:?}").contains("x as JsValue as int"), "{error:?}");
 }
+
+/// `v is C` and `v as? C` on classes (R13): `instanceof` over a class the
+/// test keeps, and over a host class by its name.
+#[test]
+fn identity_tests_on_classes_are_instanceof() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        extern class Error { string message; init(string message); }
+        class Shape { float size; init(float size) { this.size = size; } }
+        class Circle extends Shape { init(float size) { super(size); } }
+        class Square extends Shape { init(float size) { super(size); } }
+        string kind(Shape s) {
+            if (s is Circle) { return "circle"; }
+            if (s is Square) { return "square"; }
+            return "shape";
+        }
+        export void f(JsValue error) {
+            show(kind(new Circle(1.0)));
+            show(kind(new Square(2.0)));
+            show(kind(new Shape(3.0)));
+            JsValue v = new Circle(4.0) as JsValue;
+            show(v is Circle);
+            Circle? c = v as? Circle;
+            show(c != null);
+            show(("x" as JsValue) is Circle);
+            Shape? none = ("x" as JsValue) as? Shape;
+            show(none == null);
+            show(error is Error);
+            show(v is Error);
+        }
+        f(new Error("boom") as JsValue);
+        "#,
+        PRISTINE,
+    );
+    assert!(javascript.contains("instanceof"), "{javascript}");
+    assert_eq!(
+        run(&javascript, SHOW),
+        "\"circle\"\n\"square\"\n\"shape\"\ntrue\ntrue\nfalse\ntrue\ntrue\nfalse\n"
+    );
+}
+
+/// An identity test names a class the value's type can hold.
+#[test]
+fn identity_tests_are_refused_outside_their_hierarchy() {
+    let arena = bumpalo::Bump::new();
+    for (source, message) in [
+        (
+            "class A { int x; init() { this.x = 1; } } class B { int y; init() { this.y = 2; } } bool f(A a) { return a is B; }",
+            "neither a `JsValue` test nor a class extending",
+        ),
+        (
+            "class Box<T> { T value; init(T value) { this.value = value; } } bool f(JsValue v) { return v is Box<int>; }",
+            "generic class",
+        ),
+    ] {
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        let error = crate::analyze(&syntax).unwrap_err();
+        assert!(format!("{error:?}").contains(message), "{source}: {error:?}");
+    }
+}
+
+/// A declared rest parameter (R7) takes the trailing arguments, one by one
+/// or spread from an array, in a function, a method and an extern.
+#[test]
+fn declared_rest_parameters_take_the_trailing_arguments() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        extern void showAll(JsValue... values);
+        int sum(int... values) {
+            int total = 0;
+            for (int value of values) { total = total + value; }
+            return total;
+        }
+        string join(string separator, string... parts) {
+            string out = "";
+            for (int i = 0; i < parts.length; i = i + 1) {
+                if (i > 0) { out = out + separator; }
+                out = out + parts[i];
+            }
+            return out;
+        }
+        class Bag {
+            int total;
+            init() { this.total = 0; }
+            void add(int... values) { for (int value of values) { this.total = this.total + value; } }
+        }
+        export void f() {
+            show(sum());
+            show(sum(1, 2, 3));
+            int[] more = [4, 5];
+            show(sum(...more));
+            show(sum(1, ...more));
+            show(join("-", "a", "b", "c"));
+            show(join("-"));
+            Bag bag = new Bag();
+            bag.add(1, 2);
+            bag.add();
+            bag.add(...more);
+            show(bag.total);
+            showAll(1, "two", 3);
+        }
+        f();
+        "#,
+        PRISTINE,
+    );
+    let host = "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.showAll=(...v)=>console.log(JSON.stringify(v));";
+    assert_eq!(
+        run(&javascript, host),
+        "0\n6\n9\n10\n\"a-b-c\"\n\"\"\n12\n[1,\"two\",3]\n"
+    );
+}
+
+/// A rest parameter is last and alone with no defaults before it.
+#[test]
+fn declared_rest_parameters_are_refused_with_defaults() {
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, "int f(int a = 1, int... rest) { return a; }").unwrap();
+    let error = crate::analyze(&syntax).unwrap_err();
+    assert!(format!("{error:?}").contains("takes no parameter defaults"), "{error:?}");
+}
+
+/// A method lambda's parameters may be typed (R7): trusted views of what
+/// JavaScript passes (Y1).
+#[test]
+fn method_lambdas_take_typed_parameters() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        class Counter { int count; init(int count) { this.count = count; } }
+        export void f(JsValue o) {
+            o["next"] = (this JsValue self, int by) => by + 1;
+            show(o.next(41));
+            Counter counter = new Counter(5);
+            JsValue view = counter as JsValue;
+            view["read"] = (this Counter self, int add) => self.count + add;
+            show(view.read(2));
+        }
+        f(object {});
+        "#,
+        PRISTINE,
+    );
+    assert_eq!(run(&javascript, SHOW), "42\n7\n");
+}
+

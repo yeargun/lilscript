@@ -67,6 +67,7 @@ fn signature_defaults_names_and_actual_vector_capacities_share_one_walk() {
         ty: Type::Record(Box::new(Type::Class(test_class("Stored")))),
         passing: ParameterPassing::Value,
         default: Some(DefaultValue::Array(defaults)),
+        rest: false,
     });
     let parameter_capacity = parameters.capacity();
     let signature = FunctionSignature {
@@ -116,6 +117,7 @@ fn admission_and_visitor_refusals_drop_branch_workspace_before_return() {
             ty: Type::Int,
             passing: ParameterPassing::MutableReference,
             default: Some(DefaultValue::Int(1)),
+            rest: false,
         }],
         return_type: Box::new(Type::Int),
     }));

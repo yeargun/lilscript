@@ -8,6 +8,7 @@ fn signature(default: Option<DefaultValue<'static>>) -> FunctionType<'static> {
             ty: Type::Int,
             passing: ParameterPassing::Value,
             default,
+            rest: false,
         }],
         return_type: Box::new(Type::Int),
     })
@@ -141,6 +142,7 @@ fn default_stripping_detaches_changed_ancestors_but_not_unaffected_siblings() {
                 ty: Type::Int,
                 passing: ParameterPassing::MutableReference,
                 default: None,
+                rest: false,
             },
             FunctionParameter::value(Type::Function(unchanged.clone())),
             FunctionParameter::value(Type::Nullable(Box::new(Type::Array(Box::new(

@@ -77,6 +77,7 @@ fn corpus() -> Vec<Type<'static>> {
                     ty: ty.clone(),
                     passing: ParameterPassing::Value,
                     default,
+                    rest: false,
                 }],
                 Type::Float,
             ));
@@ -86,6 +87,7 @@ fn corpus() -> Vec<Type<'static>> {
                 ty: ty.clone(),
                 passing: ParameterPassing::MutableReference,
                 default: None,
+                rest: false,
             }],
             Type::Int,
         ));
@@ -96,6 +98,7 @@ fn corpus() -> Vec<Type<'static>> {
                 ty,
                 passing: ParameterPassing::MutableReference,
                 default: Some(DefaultValue::Int(3)),
+                rest: false,
             }],
             Type::Int,
         ));
@@ -278,6 +281,7 @@ fn equal_invalid_signatures_keep_equality_shortcut_and_bit_defaults() {
                 ty: Type::Int,
                 passing: ParameterPassing::MutableReference,
                 default: Some(DefaultValue::Float(f64::NAN.to_bits())),
+                rest: false,
             }],
             Type::Int,
         )
@@ -301,6 +305,7 @@ fn admission_refusal_is_never_a_false_or_successful_type_result() {
             DefaultValue::String("payload"),
             DefaultValue::Float(f64::NAN.to_bits()),
         ])),
+        rest: false,
     };
     let (left, right) = reordered(2);
     let left = function(vec![parameter(left)], Type::Float);
