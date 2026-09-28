@@ -79,6 +79,7 @@ pub(crate) fn effect_class(operation: ResolvedIntrinsic) -> EffectClass {
         | I::FloatToInt
         | I::StringLength
         | I::StringCharCodeAt
+        | I::StringCodeUnitAt
         | I::StringCharAt
         | I::StringIncludes
         | I::StringIndexOf
@@ -261,6 +262,8 @@ pub(crate) fn intrinsic_recipe(operation: Intrinsic) -> Option<IntrinsicRecipe> 
     let (form, arguments, normalizes_i32) = match operation {
         Intrinsic::StringLength | Intrinsic::ArrayLength => (Property("length"), 0..=0, true),
         Intrinsic::StringCharCodeAt => (Method("charCodeAt"), 1..=1, true),
+        // In range by precondition (R11): a code unit, never NaN.
+        Intrinsic::StringCodeUnitAt => (Method("charCodeAt"), 1..=1, false),
         Intrinsic::StringCharAt => (Method("charAt"), 1..=1, false),
         Intrinsic::StringIndexOf => (Method("indexOf"), 1..=2, true),
         Intrinsic::StringSlice => (Method("slice"), 1..=2, false),

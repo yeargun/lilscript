@@ -91,14 +91,21 @@ pub(crate) fn checked_binary_type_with<'src, A: TypeConstructionAdmission>(
         {
             return Ok(common_numeric_type(lhs, rhs));
         }
-        BinaryOp::Mod
-        | BinaryOp::BitAnd
+        // `%` of an `int` pair wraps as `int`; with a `float` operand it is
+        // JavaScript's remainder, a `float` (R11).
+        BinaryOp::Mod if lhs.is_numeric() && rhs.is_numeric() => {
+            return Ok(common_numeric_type(lhs, rhs));
+        }
+        // A bitwise operator converts each operand to an int32 first, as
+        // JavaScript's ToInt32 does, so a `float` operand is one (R11:
+        // `s.charCodeAt(i) | 0`).
+        BinaryOp::BitAnd
         | BinaryOp::BitOr
         | BinaryOp::Xor
         | BinaryOp::ShiftLeft
         | BinaryOp::ShiftRight
         | BinaryOp::UnsignedShiftRight
-            if matches!(lhs, Type::Int) && matches!(rhs, Type::Int) =>
+            if lhs.is_numeric() && rhs.is_numeric() =>
         {
             return Ok(Type::Int);
         }

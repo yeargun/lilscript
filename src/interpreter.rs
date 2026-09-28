@@ -1111,6 +1111,21 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             (Sub, Value::Float(lhs), Value::Int(rhs)) => Ok(Value::Float(lhs - f64::from(rhs))),
             (Mul, Value::Float(lhs), Value::Int(rhs)) => Ok(Value::Float(lhs * f64::from(rhs))),
             (Div, Value::Float(lhs), Value::Int(rhs)) => Ok(Value::Float(lhs / f64::from(rhs))),
+            (Mod, Value::Float(lhs), Value::Float(rhs)) => Ok(Value::Float(lhs % rhs)),
+            (Mod, Value::Int(lhs), Value::Float(rhs)) => Ok(Value::Float(f64::from(lhs) % rhs)),
+            (Mod, Value::Float(lhs), Value::Int(rhs)) => Ok(Value::Float(lhs % f64::from(rhs))),
+            // A bitwise operator's `float` operand is ToInt32 of it (R11).
+            (
+                BitAnd | BitOr | Xor | ShiftLeft | ShiftRight | UnsignedShiftRight,
+                lhs @ (Value::Int(_) | Value::Float(_)),
+                rhs @ (Value::Int(_) | Value::Float(_)),
+            ) if matches!(lhs, Value::Float(_)) || matches!(rhs, Value::Float(_)) => {
+                let int = |value: Value| match value {
+                    Value::Float(value) => Value::Int(js_to_int32(value)),
+                    other => other,
+                };
+                self.evaluate_binary(op, int(lhs), int(rhs), expression, span)
+            }
             (Add, Value::String(lhs), Value::String(rhs)) => {
                 Ok(Value::String(format!("{lhs}{rhs}")))
             }
@@ -2626,6 +2641,18 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 };
                 Ok(Value::Int(i32::from(code)))
             }
+            // In range by precondition (R11): past the end is an error here,
+            // as an index read is.
+            "codeUnitAt" => {
+                let Value::Int(index) = arguments.first().cloned().unwrap_or(Value::Int(0)) else {
+                    return Err(InterpretError::new(span, "codeUnitAt requires an int index"));
+                };
+                usize::try_from(index)
+                    .ok()
+                    .and_then(|index| receiver.encode_utf16().nth(index))
+                    .map(|code| Value::Int(i32::from(code)))
+                    .ok_or_else(|| InterpretError::new(span, "string index is out of bounds"))
+            }
             "charAt" => {
                 let Value::Int(index) = arguments.first().cloned().unwrap_or(Value::Int(0)) else {
                     return Err(InterpretError::new(span, "charAt requires an int index"));
@@ -3249,4 +3276,13 @@ mod tests {
         .unwrap_err();
         assert!(error.message.contains("step limit"));
     }
+}
+
+/// JavaScript's ToInt32: a non-finite number is 0; otherwise the integer
+/// part, modulo 2^32, as a signed 32-bit value.
+fn js_to_int32(value: f64) -> i32 {
+    if !value.is_finite() {
+        return 0;
+    }
+    value.trunc().rem_euclid(4_294_967_296.0) as u32 as i32
 }

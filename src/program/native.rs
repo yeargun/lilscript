@@ -1230,6 +1230,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.value(unit, right)?;
             return self.text(").identity;\n");
         }
+        // A bitwise operand stored as a double converts with ToInt32 (R11).
+        let int32 = [left, right].map(|value| {
+            if matches!(values[value.index()], ValueStorage::Value(NativeType::F64)) {
+                format!("ls_to_i32(ls_v{})", value.index())
+            } else {
+                format!("ls_v{}", value.index())
+            }
+        });
         let (result, left, right) = (result.index(), left.index(), right.index());
         let token = match kind {
             BinaryOp::Add => "+",
@@ -1252,8 +1260,15 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     _ => Helper::UnsignedShiftRight,
                 };
                 return self.write(format_args!(
-                    "ls_v{result} = {}(ls_v{left},ls_v{right});\n",
-                    helper.name()
+                    "ls_v{result} = {}({},{});\n",
+                    helper.name(),
+                    int32[0],
+                    int32[1]
+                ));
+            }
+            BinaryOp::Mod => {
+                return self.write(format_args!(
+                    "ls_v{result} = ls_f64(fmod((double)ls_v{left},(double)ls_v{right}));\n"
                 ));
             }
             _ => unreachable!("native plan supported binary recipe"),
@@ -1265,7 +1280,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 ))
             }
             BinaryOp::BitAnd | BinaryOp::BitOr | BinaryOp::Xor => self.write(format_args!(
-                "ls_v{result} = ls_from_u32((uint32_t)ls_v{left} {token} (uint32_t)ls_v{right});\n"
+                "ls_v{result} = ls_from_u32((uint32_t){} {token} (uint32_t){});\n",
+                int32[0], int32[1]
             )),
             _ => self.write(format_args!(
                 "ls_v{result} = ls_v{left} {token} ls_v{right};\n"

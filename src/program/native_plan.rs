@@ -1521,7 +1521,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         receiver: Some(receiver),
                     } if values[receiver.index()] == ValueStorage::Value(NativeType::String) => {
                         match intrinsic {
-                            Intrinsic::StringCharCodeAt => {
+                            Intrinsic::StringCharCodeAt | Intrinsic::StringCodeUnitAt => {
                                 plan.helpers.require(Helper::CharCodeAt);
                                 PreparedTarget::CharCodeAt { receiver }
                             }
@@ -2397,7 +2397,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 Ok(())
             }
             OperationKind::Binary(kind) => match kind {
-                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div => {
+                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => {
                     expect(
                         numeric(operand(0)) && numeric(operand(1)) && result == Some(Stored(F64)),
                         "native floating binary recipe",
@@ -2411,12 +2411,14 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 | BinaryOp::ShiftLeft
                 | BinaryOp::ShiftRight
                 | BinaryOp::UnsignedShiftRight => {
+                    // A `float` operand converts with ToInt32 (R11).
                     expect(
-                        operand(0) == Stored(I32)
-                            && operand(1) == Stored(I32)
-                            && result == Some(Stored(I32)),
+                        numeric(operand(0)) && numeric(operand(1)) && result == Some(Stored(I32)),
                         "native bitwise recipe",
                     )?;
+                    if operand(0) == Stored(F64) || operand(1) == Stored(F64) {
+                        self.helpers.require(Helper::ToInt32);
+                    }
                     self.helpers.require(match kind {
                         BinaryOp::ShiftLeft => Helper::ShiftLeft,
                         BinaryOp::ShiftRight => Helper::ShiftRight,

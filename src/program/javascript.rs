@@ -4071,6 +4071,15 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 receiver: Some(receiver),
             } if js::supports_intrinsic_method(operation) => {
                 let mut receiver = self.value(unit, receiver)?;
+                let mut arguments = arguments;
+                // A development build checks the code unit's index (R11):
+                // `index_checked(s,i)` is the one-unit string at `i`.
+                if operation == Intrinsic::StringCodeUnitAt
+                    && self.contract.checks
+                        == crate::compilation_contract::PreconditionChecks::Development
+                {
+                    (receiver, arguments) = self.code_unit_check(receiver, arguments)?;
+                }
                 if operation == Intrinsic::IntToUnsignedString {
                     let zero = self.literal(js::Literal::Number(0.0))?;
                     receiver = self.expression(js::Expr::Binary {

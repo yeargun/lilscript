@@ -49,6 +49,32 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         })?)
     }
 
+    /// `s.codeUnitAt(i)` under development checks: the receiver
+    /// `index_checked(s, i)` and the argument 0.
+    pub(super) fn code_unit_check(
+        &mut self,
+        receiver: js::ExprId,
+        arguments: Vec<js::ExprId>,
+    ) -> Result<(js::ExprId, Vec<js::ExprId>), FormationError> {
+        let [index] = arguments[..] else {
+            return Err(self.error(Span::default(), "codeUnitAt takes one index"));
+        };
+        let helper = self.index_helper()?;
+        let callee = self.reference(helper)?;
+        let mut checked = self.budget.vector(AllocationClass::Retained, 2)?;
+        self.append(&mut checked, receiver)?;
+        self.append(&mut checked, index)?;
+        let unit = self.expression(js::Expr::Call {
+            callee,
+            arguments: checked,
+            invocation: Invocation::Value,
+        })?;
+        let zero = self.literal(js::Literal::Number(0.0))?;
+        let mut first = self.budget.vector(AllocationClass::Retained, 1)?;
+        self.append(&mut first, zero)?;
+        Ok((unit, first))
+    }
+
     /// The hoisted helper, formed once:
     /// `function index_checked(a,i){if(!(i>=0&&i<a.length))throw new RangeError("index out of range");return a[i]}`.
     fn index_helper(&mut self) -> Result<js::BindingId, FormationError> {
