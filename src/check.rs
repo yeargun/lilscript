@@ -957,6 +957,12 @@ struct DeclarationTables<'src> {
     /// Classes an identity test names (`is`, `as?`; R13), which keep their
     /// identity once every body is checked (`mark_tested_classes`).
     tested_classes: AHashSet<NominalId>,
+    /// The reflected set (R6, M10.14's checker half): nominals a crossing
+    /// shows the host, seeded as the bodies are checked (through a shared
+    /// borrow, hence the cell) and closed over fields, bases and type
+    /// arguments once they are (`close_reflected`). Property names, key
+    /// order and identity are observable only for these.
+    reflected: std::cell::RefCell<AHashSet<NominalId>>,
     nominal_members: Vec<MemberDefinition>,
     enums: Vec<EnumInfo<'src>>,
     symbol_modules: Vec<Option<crate::module::ModuleId>>,
@@ -1214,6 +1220,74 @@ impl<'src> DeclarationTables<'src> {
         Ok(())
     }
 
+    /// Seeds the reflected set with every nominal `ty` names (R6).
+    fn reflect(&self, ty: &Type<'_>) {
+        let mut found = Vec::new();
+        nominals_in(ty, &mut found);
+        if !found.is_empty() {
+            self.reflected.borrow_mut().extend(found);
+        }
+    }
+
+    /// Closes the reflected set (R6) once every body is checked. Published
+    /// classes and classes with a host ancestor are seeds; a reflected
+    /// class's base and field types, a struct's field types, and the type
+    /// arguments a seed names are reflected too.
+    pub(super) fn close_reflected(&mut self) {
+        let mut set = std::mem::take(self.reflected.get_mut());
+        for (index, class) in self.classes.iter().enumerate() {
+            let hosted = {
+                let mut current = class_base_index(&self.classes, index);
+                let mut hosted = false;
+                while let Some(base) = current {
+                    if self.classes[base].external {
+                        hosted = true;
+                        break;
+                    }
+                    current = class_base_index(&self.classes, base);
+                }
+                hosted
+            };
+            if !class.external && (class.published || hosted) {
+                set.insert(class.declaration.identity);
+            }
+        }
+        let mut pending = set.iter().copied().collect::<Vec<_>>();
+        pending.sort_unstable_by_key(|id| (id.kind() as u8, id.index()));
+        let mut found = Vec::new();
+        while let Some(nominal) = pending.pop() {
+            found.clear();
+            match nominal.kind() {
+                NominalKind::Class => {
+                    let Some(class) = self.classes.get(nominal.index()) else {
+                        continue;
+                    };
+                    if let Some(base) = &class.base {
+                        nominals_in(base, &mut found);
+                    }
+                    for field in class.fields.values() {
+                        nominals_in(&field.ty, &mut found);
+                    }
+                }
+                NominalKind::Struct => {
+                    let Some(info) = self.structs.get(nominal.index()) else {
+                        continue;
+                    };
+                    for field in info.fields.values() {
+                        nominals_in(&field.ty, &mut found);
+                    }
+                }
+                NominalKind::Enum => {}
+            }
+            for &reached in &found {
+                if set.insert(reached) {
+                    pending.push(reached);
+                }
+            }
+        }
+        *self.reflected.get_mut() = set;
+    }
+
     /// Marks the classes an identity test names (R13) once every body is
     /// checked: `v is C` is `instanceof`, so `C`, its internal ancestors and
     /// every class extending it stay JavaScript classes.
@@ -1394,6 +1468,11 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().struct_type(name)
     }
 
+    /// Whether a nominal is in the reflected set (R6).
+    pub fn is_reflected(&self, nominal: NominalId) -> bool {
+        self.view().is_reflected(nominal)
+    }
+
     pub fn export_target(&self, span: Span) -> Option<InterfaceTarget> {
         self.view().export_target(span)
     }
@@ -1541,6 +1620,13 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
 
     pub(crate) fn symbol_is_reassigned(&self, symbol: SymbolId) -> bool {
         self.declarations.assigned_symbols.contains(&symbol)
+    }
+
+    /// Whether a nominal is in the reflected set (R6): a crossing shows it
+    /// to the host, so its property names, key order and identity are
+    /// observable.
+    pub fn is_reflected(&self, nominal: NominalId) -> bool {
+        self.declarations.reflected.borrow().contains(&nominal)
     }
 
     /// Some occurrence of the binding may run before it is initialized: the
@@ -2179,6 +2265,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         ));
                     }
                     self.record_identifier(export.local.span, symbol);
+                    // An export's value crosses to its consumer (R6).
+                    self.declarations
+                        .reflect(&self.declarations.symbols[symbol.0 as usize].ty);
                 }
                 Some(InterfaceTarget::Type(identity)) => {
                     if let Some(ty) = self.view().nominal_type(identity) {
@@ -2190,6 +2279,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 None => {}
             }
         }
+        self.declarations.close_reflected();
         Ok(())
     }
 
@@ -3586,6 +3676,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             Stmt::Return { value, span } => self.analyze_return(value.as_ref(), *span),
             Stmt::Throw { value, .. } => {
                 let thrown = self.analyze_expr(value, None)?;
+                // A thrown value can reach host code (R6).
+                self.declarations.reflect(&thrown);
                 if thrown == Type::Void {
                     return Err(AdmittedCheckError::new(
                         value.span(),
@@ -5049,6 +5141,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 if source.is_void() {
                     return Err(AdmittedCheckError::new(*span, "`as` cannot view `void` as a value"));
+                }
+                if is_js_value_or_nullable_js_value(&target) {
+                    // An explicit view as `JsValue` crosses to the host (R6).
+                    self.declarations.reflect(&source);
                 }
                 if !is_js_value(&target) && !is_js_value_or_nullable_js_value(&source) {
                     return Err(AdmittedCheckError::new(
@@ -8446,6 +8542,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         actual: &Type<'src>,
         span: Span,
     ) -> Result<(), AdmittedCheckError> {
+        // A value widened to `JsValue` or `unknown` crosses to the host (R6).
+        if is_js_value_or_nullable_js_value(expected) {
+            self.declarations.reflect(actual);
+        }
         if self.is_assignable(expected, actual) {
             Ok(())
         } else {
@@ -8801,6 +8901,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         ty: Type<'src>,
         callable: bool,
     ) -> Result<SymbolId, AdmittedCheckError> {
+        // A host binding's parameters, result or value cross (R6).
+        self.declarations.reflect(&ty);
         if self.module.is_none() {
             let symbol = self.declare(ident, ty)?;
             self.declarations.symbols[symbol.0 as usize].origin = DeclarationOrigin::Foreign;
@@ -10013,6 +10115,50 @@ fn statement_guarantees_return(statement: &Stmt<'_, '_>) -> bool {
                         .is_none_or(|clause| statements_guarantee_return(clause.body)))
         }
         _ => false,
+    }
+}
+
+/// Every nominal a type names, syntactically: classes, structs and enums,
+/// their type arguments, and the types a function value's crossing carries.
+fn nominals_in(ty: &Type<'_>, out: &mut Vec<NominalId>) {
+    match ty {
+        Type::Class(declaration) | Type::Struct(declaration) | Type::Enum(declaration) => {
+            out.push(declaration.identity)
+        }
+        Type::ClassInstance { declaration, args } | Type::StructInstance { declaration, args } => {
+            out.push(declaration.identity);
+            for argument in args {
+                nominals_in(argument, out);
+            }
+        }
+        Type::Array(value)
+        | Type::Record(value)
+        | Type::Set(value)
+        | Type::Task(value)
+        | Type::Generator(value)
+        | Type::Nullable(value) => nominals_in(value, out),
+        Type::Map(key, value) => {
+            nominals_in(key, out);
+            nominals_in(value, out);
+        }
+        Type::Union(members) => {
+            for member in members {
+                nominals_in(member, out);
+            }
+        }
+        Type::Function(signature) => {
+            for parameter in &signature.params {
+                nominals_in(&parameter.ty, out);
+            }
+            nominals_in(&signature.return_type, out);
+        }
+        Type::GenericFunction(function) => {
+            for parameter in &function.signature.params {
+                nominals_in(&parameter.ty, out);
+            }
+            nominals_in(&function.signature.return_type, out);
+        }
+        _ => {}
     }
 }
 
@@ -12695,4 +12841,23 @@ mod tests {
         let returned = check("generator int values(){return 1;}").unwrap_err();
         assert!(returned.message.contains("expected return type `void`"));
     }
+    /// The reflected set (R6): a crossing reflects its operand's nominal and
+    /// every nominal its fields reach; a class that never crosses is not
+    /// reflected.
+    #[test]
+    fn crossings_reflect_their_nominals_and_what_they_reach() {
+        let arena = Bump::new();
+        let source = parse_source(
+            &arena,
+            "extern void show(JsValue value); class Inner { int x; init(int x) { this.x = x; } } class Outer { Inner inner; init() { this.inner = new Inner(1); } } class Private { int y; init() { this.y = 2; } } class Thrown { string why; init() { this.why = \"no\"; } } export void f() { Outer o = new Outer(); show(o); Private p = new Private(); show(p.y); } export void g() { throw new Thrown(); }",
+        )
+        .unwrap();
+        let model = analyze(&source).unwrap();
+        let class = |name| model.type_binding(name).unwrap();
+        assert!(model.is_reflected(class("Outer")));
+        assert!(model.is_reflected(class("Inner")));
+        assert!(model.is_reflected(class("Thrown")));
+        assert!(!model.is_reflected(class("Private")));
+    }
+
 }
