@@ -12,10 +12,10 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
   - Batches I, T, D, N, A1, F1, F2, F3, B1, B1b, B2 and B3, and M3.3a.
   - Three of the tools: M2.13, M2.5 and M2.14.
   - Of the plan's 13 steps, steps 1, 4, 5 and 6's critical path are done, and steps 2 and 3 are partly done.
-- **Next on the critical path:** step 7, language slice 1. Its first batch, L1, gives `JsValue` ordinary JavaScript syntax (M4.2 with M10.2), with a lint fix-it that rewrites `JS.*` calls in the ports. B3 closed step 6's critical path: `[objective]` with the codec settings and `[effort]` (schema v3), with the judge now the configured codec. Before it, B2 landed level 0 without a codec, the replay check, the audit lane (0 misses on the ports) and the counts. B1 landed the counted walk. Under the owner's amendment AM2 (size first from the default level up), B1b made level 13 walk several starts to their fixed points after the structural search. Level 13 now matches or beats F3 on every case and frozen entry, at up to 2.3× the CPU on katexlil.
+- **Next on the critical path:** step 7, language slice 1. Its first batch, S1, gives `JsValue` ordinary JavaScript syntax (M4.2 with M10.2), with a lint fix-it that rewrites `JS.*` calls in the ports. B3 closed step 6's critical path: `[objective]` with the codec settings and `[effort]` (schema v3), with the judge now the configured codec. Before it, B2 landed level 0 without a codec, the replay check, the audit lane (0 misses on the ports) and the counts. B1 landed the counted walk. Under the owner's amendment AM2 (size first from the default level up), B1b made level 13 walk several starts to their fixed points after the structural search. Level 13 now matches or beats F3 on every case and frozen entry, at up to 2.3× the CPU on katexlil.
 - **Also open, off the critical path:**
   - Step 2: the layout commit, then M3.3b with M3.8a, then motionlil compiler-written (M12.2).
-  - Step 6's rest: M3.4 (the public API and several codecs per objective) after L1; `-j` scoring after M5.6.
+  - Step 6's rest: M3.4 (the public API and several codecs per objective) after S1; `-j` scoring after M5.6.
   - Step 3: M2.10, M2.11, M2.12 and M2.15.
 - **Largest gaps:**
   - **Program rules are young.** F1 and F2 added DCE, folding and removal-only inlining on the Program IR: production module lanes −1,174 Brotli since A1, but `comparison/apps` is still 926 Brotli against 834 for Closure ADVANCED and 558 for the old route, because the ratchet's script lanes cannot seal their roots while every competitor treats top-level bindings as private: Y5.
@@ -39,8 +39,8 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] **3** Tools. Done: M2.5, M2.13, M2.14. Open: M2.10, M2.11, M2.12, M2.15, and M2.7; M2.4 starts here and then runs ahead of each fact
 - [x] **4** Batch A1, canonical formation without tree analysis: 2026-09-27
 - [x] **5** Floor slice: M5.1, M6.4a, M7.8a, M7.3, M7.5a: 2026-09-28 (batches F1–F3). Carried: M5.1's `UseIndex` and `drop_unreferenced_functions`, M6.4a's finite sets, the tree twins (measured, kept)
-- [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Critical path done 2026-09-28* (B1, B1b, B2, B3: M3.5's walk, AM2's upper levels, M3.1's first slice). Open: M3.4 after L1, `-j` scoring after M5.6
-- [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16. **In progress** (L1)
+- [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Critical path done 2026-09-28* (B1, B1b, B2, B3: M3.5's walk, AM2's upper levels, M3.1's first slice). Open: M3.4 after S1, `-j` scoring after M5.6
+- [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16. **In progress** (S1)
 - [ ] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half); M10.12 after Y1
 - [ ] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half)
 - [ ] **10** Facts and the rest of the floor: M6.4b, M6.6, M6.7, M6.8, then M7.1, M7.4, M7.5, M7.6, M7.7, M7.8, M7.9, M8.5, M7.10, with M5.3b; M5.7, M8.3 (second half); M4.5, M11.1, M11.11, and M11.5 right after M7
@@ -95,7 +95,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] M3.3c Facts and choices; its exit gates the consumer lanes: step 11
 - [ ] M3.3d Lazy effects and cycles: step 13
 - [ ] M3.3e Ports, with M12.2: step 2 for motionlil
-- [ ] M3.4 Public API and shared formation: step 6, after L1
+- [ ] M3.4 Public API and shared formation: step 6, after S1
 - [ ] M3.5 The budget model, counted (AM1): step 6. *Partly (B1, B1b, B2, B3): the proxy judge, schedule v2, one list walked in passes, several starts from level 13 (AM2), the memo, level 0 without a codec, the replay check, the audit lane, counts, `scripts/monotone.mjs`, the codec settings. Open: `-j` scoring (after M5.6)*
 - M3.6 Codec pool: merged into M3.5
 - [ ] M3.7 Environment variables: step 6

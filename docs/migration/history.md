@@ -31,6 +31,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-28 | [Batch B1b: the upper levels try more](#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2) | M3.5, AM2 | `m3-budget` |
 | 2026-09-28 | [Batch B2: level 0 without a codec, the replay check, the audit lane, the counts](#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35) | M3.5 | `m3-budget` |
 | 2026-09-28 | [Batch B3: the objective and effort axes](#2026-09-28-batch-b3-the-objective-and-effort-axes-m31-first-slice-m35-codec-settings) | M3.1, M3.5 | `m3-budget` |
+| 2026-09-28 | [Batch S1: the dynamic type's syntax](#2026-09-28-batch-s1-the-dynamic-types-syntax-m42-m102-first-part) | M4.2, M10.2 | `language-slice-1` |
 
 ---
 
@@ -1080,8 +1081,53 @@ Predicted:
 
 **Open.**
 - `[resources]` → M5.6, `[performance]` → M2.12, `[target.javascript] checks` → M10.9.
-- Several codecs in one objective, with the public API: M3.4. It is off the critical path and follows language slice 1's first batch.
+- Several codecs in one objective, with the public API: M3.4. It is off the critical path and follows language slice 1's first batch (S1).
 - `-j` scoring waits for M5.6.
+
+## 2026-09-28 Batch S1: the dynamic type's syntax (M4.2, M10.2 first part)
+
+**Pre-registration** (written before the first build of the batch; base `f2efdaef`, baseline binary `~/lilscript-work/bin/b3-1`).
+
+What the batch builds (language.md R12 and §14; plan M4.2, M10.2):
+- **The dynamic type is a type.** `Type::Dynamic` replaces `TypeParameter("$js")` at every site of the checker, the native plan and the effects (M4.2's representation half).
+- **Ordinary syntax on `JsValue`.** Each form lowers to the IR operation its `JS.*` spelling lowers to, so every dynamic operation has one IR form:
+
+  | Syntax (an operand is a `JsValue`) | Operation |
+  |---|---|
+  | `v.k`, `v[k]` | `JS.get` |
+  | `v.k = x`, `v[k] = x`; `+=` with a primitive key | `JS.set`; `JS.set` of `JS.add` of `JS.get` |
+  | `v.m(a)`, `v[k](a)` | `JS.invoke` |
+  | `v.call(t, a)`, `v.apply(t, a)` | `JS.call`, `JS.apply` |
+  | `f(a)` | `JS.call(f, undefined, a)` |
+  | `new C(a)` on a binding, a member chain or a parenthesized expression | `JS.construct` |
+  | `a + b` (neither a `string`), `%`, `<`, `<=`, `>`, `>=` | `JS.add`, `JS.mod`, the comparisons |
+  | `===`, `!==` (new tokens) | `JS.strictEqual`, `JS.strictNotEqual` |
+  | `a \|\| b`, `a && b` | `JS.or`, `JS.and` |
+  | `typeof v`, `k in v`, `delete v.k` | `JS.typeOf`, `JS.in`, `JS.delete` |
+  | `v instanceof C` | a new builtin, emitted `v instanceof C` |
+  | `v as T` | `JS.assume` |
+  | `string(v)`, `number(v)`, `float(v)` | `JS.string`, `JS.number` |
+  | `undefined` | `JS.undefined()` |
+  | `object { k: v }`; an array literal whose expected type is `JsValue` | `JS.object`; `JS.array` |
+
+  `==` and `!=` stay loose, as M1.9 made them.
+- **One IR.** The spellings that had another IR before this batch move to the builtins: `v[k]` as a place, `f(x)` as a value call, `v["m"](x)` as a reference call, `object {…}` as an allocation, and array literals in a `JsValue` context.
+- **The typed members keep their meaning in this batch.** `length`, `message`, `specifier`, `truthy()`, `isArray()` and `isObject()` on a `JsValue` are unchanged. The fix spells those names with brackets.
+- **The fix-it** (language.md §14, batch 1 of two). A lint rule, `migration/js-builtin`, warns at every `JS.*` call that has a syntax spelling. Its machine-applicable fix rewrites the call, innermost call first, parenthesizing by the parser's precedences. `lilscript-lint --fix` is run to a fixed point.
+  - Calls with no spelling yet stay: `JS.methodN`, `JS.methodRest` and `JS.staticRest` (M10.4); the array and string helpers such as `JS.push` and `JS.stringSlice` (the catalog, M10.17); `JS.box`, `JS.has` and `JS.encodeURI*`; and `JS.get`, `JS.set` and `JS.invoke` on a receiver that is not a `JsValue`.
+- **Port patches** in `~/lilscript-work/portwork/s1/`: each reference port is rewritten by the fix. Where a port has its own helper that only returns `JS.undefined()`, its calls are replaced by `JS.undefined()` first. Each port is built before and after the rewrite with the batch's binary, and its suite runs.
+
+Not in this batch (S2 and the rest of slice 1):
+- the refusal of the rewritten spellings, and the typed members' retirement;
+- `?.`, `?.()` and `??` on a `JsValue`; `-`, `*`, `/`, unary `-` and `!`, and truthiness;
+- `as?` and `unknown`;
+- spread in calls (M10.4), dynamic `for…of` (M10.16), and `is` on classes (M10.7).
+
+Predicted:
+- **Programs that do not use the new syntax:** the only IR changes are the spellings that move to the builtins. Case and port bytes change only where those appear, within noise, with no growth at level 13 and above.
+- **Rewritten ports:** each builds byte-identical to its unrewritten source under the batch's binary, and its suite passes.
+- **Census:** the `JS.*` mentions in the seven reference ports fall from 16,041 to about 1,000 (the method adapters, the helpers and the non-`JsValue` receivers).
+- **No bytes from new capabilities:** the new capabilities (`instanceof`, the `new` forms) yield bytes only when a port uses them, in their own patches.
 
 ---
 
