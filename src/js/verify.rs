@@ -164,7 +164,16 @@ pub(super) fn verify_in(
             }
         })?;
         expression_heights.push(height);
-        if let Expr::Array(elements) = expression {
+        if let Expr::Array(elements)
+        | Expr::Call {
+            arguments: elements,
+            ..
+        }
+        | Expr::Construct {
+            arguments: elements,
+            ..
+        } = expression
+        {
             for element in elements {
                 if matches!(module.expressions[element.index()], Expr::Spread(_)) {
                     spread_parents[element.index()] = true;
@@ -282,7 +291,7 @@ pub(super) fn verify_in(
         .enumerate()
         .any(|(index, expression)| matches!(expression, Expr::Spread(_)) && !spread_parents[index])
     {
-        return Err("spread outside an array literal".into());
+        return Err("spread outside an array literal or an argument list".into());
     }
     let mut walk = Walk {
         module,
