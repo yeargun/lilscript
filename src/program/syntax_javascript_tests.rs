@@ -2407,3 +2407,34 @@ fn float_remainder_bitwise_conversion_and_code_units() {
     let syntax = crate::parse_source(&arena, "int x = 5.5 % 2;").unwrap();
     assert!(crate::analyze(&syntax).is_err(), "a float remainder is a float");
 }
+
+/// Development checks at crossings (R1): an extern's result, a typed host
+/// binding and a trusted view throw a TypeError where the host breaks the
+/// declared type; well-typed values pass; a production build checks nothing.
+#[test]
+fn development_checks_crossings() {
+    let source = r#"
+        extern void show(JsValue value);
+        extern int count();
+        extern string? label;
+        extern JsValue raw();
+        export void run() {
+            try { show(count() + 1); } catch { show("count"); }
+            try { show(label ?? "none"); } catch { show("label"); }
+            try { int n = raw() as int; show(n); } catch { show("view"); }
+        }
+        run();
+    "#;
+    let development = compile_with(source, "[javascript]\nchecks = \"development\"\n");
+    let show = "globalThis.show=v=>console.log(JSON.stringify(v));";
+    assert_eq!(
+        run(&development, &format!("{show}globalThis.count=()=>'three';globalThis.label=7;globalThis.raw=()=>1.5;")),
+        "\"count\"\n\"label\"\n\"view\"\n"
+    );
+    assert_eq!(
+        run(&development, &format!("{show}globalThis.count=()=>3;globalThis.label=undefined;globalThis.raw=()=>2;")),
+        "4\n\"none\"\n2\n"
+    );
+    let production = compile_with(source, "");
+    assert!(!production.contains("TypeError"), "{production}");
+}
