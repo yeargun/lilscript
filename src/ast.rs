@@ -38,6 +38,10 @@ impl<'ast, 'src> TypeRef<'ast, 'src> {
         matches!(self.kind, TypeKind::Auto)
     }
 
+    pub const fn is_void(self) -> bool {
+        matches!(self.kind, TypeKind::Void)
+    }
+
     pub const fn named(name: &'src str, span: Span) -> Self {
         Self {
             kind: TypeKind::Named { name, args: &[] },
@@ -260,6 +264,9 @@ impl RegionPolicy {
 pub struct FunctionDecl<'ast, 'src> {
     pub region: RegionPolicy,
     pub declared_pure: bool,
+    /// `debug void f(...)` (R15): its calls are strippable logging or
+    /// assertions, which `strip_debug` drops.
+    pub declared_debug: bool,
     pub is_async: bool,
     pub is_generator: bool,
     pub return_type: TypeRef<'ast, 'src>,
@@ -273,6 +280,8 @@ pub struct FunctionDecl<'ast, 'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExternDecl<'ast, 'src> {
     pub declared_pure: bool,
+    /// `debug extern void f(...)` (R15), as for a function.
+    pub declared_debug: bool,
     pub return_type: TypeRef<'ast, 'src>,
     pub name: Ident<'src>,
     pub type_params: &'ast [Ident<'src>],

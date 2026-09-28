@@ -384,6 +384,24 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         if declared_pure && (is_async || is_generator) {
             return Err(self.error_here("async and generator functions cannot be declared `pure`"));
         }
+        // `debug` (R15) is a contextual modifier: only before `extern` or
+        // `void` is it one, where an identifier could not stand.
+        let declared_debug = matches!(self.peek_kind(), Some(TokenKind::Ident("debug")))
+            && matches!(
+                self.lookahead_kind(self.cursor + 1)?,
+                Some(TokenKind::Extern | TokenKind::Void)
+            );
+        if declared_debug {
+            self.advance();
+            if declared_pure {
+                return Err(self.error_here(
+                    "a `debug` function has an effect, which `strip_debug` removes: it cannot be `pure`",
+                ));
+            }
+            if is_async || is_generator {
+                return Err(self.error_here("a `debug` function runs to completion when called"));
+            }
+        }
         if self.match_kind(|kind| matches!(kind, TokenKind::Extern)) {
             if is_async || is_generator {
                 return Err(self.error_here("externs must declare deferred return types directly"));
@@ -392,11 +410,51 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 if declared_pure {
                     return Err(self.error_here("`pure` cannot modify an extern class declaration"));
                 }
+                if declared_debug {
+                    return Err(self.error_here("`debug` modifies extern functions, not classes"));
+                }
                 return self
                     .parse_extern_class_after_keyword()
                     .map(Item::ExternClass);
             }
-            return self.parse_extern_after_keyword(declared_pure);
+            let item = self.parse_extern_after_keyword(declared_pure)?;
+            return match item {
+                Item::Extern(mut declaration) => {
+                    if declared_debug && !declaration.return_type.is_void() {
+                        return Err(AdmittedParseError::new(
+                            declaration.return_type.span,
+                            "a `debug` function returns `void`",
+                        ));
+                    }
+                    declaration.declared_debug = declared_debug;
+                    Ok(Item::Extern(declaration))
+                }
+                Item::ExternGlobal(global) if declared_debug => Err(AdmittedParseError::new(
+                    global.name.span,
+                    "`debug` modifies extern functions, not values",
+                )),
+                item => Ok(item),
+            };
+        }
+        if declared_debug {
+            let ty = self.parse_type()?;
+            let name = self.expect_ident("expected `debug` function name")?;
+            let type_params = self.parse_type_params()?;
+            self.expect(
+                |kind| matches!(kind, TokenKind::LParen),
+                "expected `(`: `debug` modifies functions",
+            )?;
+            let mut function = self.parse_function_after_signature(
+                ty,
+                name,
+                type_params,
+                region,
+                false,
+                false,
+                false,
+            )?;
+            function.declared_debug = true;
+            return Ok(Item::Function(function));
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::Struct)) {
@@ -489,6 +547,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             let semi = self.expect_semicolon()?;
             return Ok(Item::Extern(ExternDecl {
                 declared_pure,
+                declared_debug: false,
                 return_type: ty,
                 name,
                 type_params,
@@ -571,6 +630,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 let semi = self.expect_semicolon()?;
                 members.push(ExternClassMember::Method(ExternDecl {
                     declared_pure,
+                    declared_debug: false,
                     return_type: ty,
                     name: member_name,
                     type_params: member_type_params,
@@ -1145,6 +1205,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         Ok(FunctionDecl {
             region,
             declared_pure,
+            declared_debug: false,
             is_async,
             is_generator,
             return_type,
