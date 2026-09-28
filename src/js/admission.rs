@@ -249,7 +249,8 @@ impl Walk<'_> {
             }
             Expr::Literal(_) => Canon::Lit,
             Expr::Binding(_) => Canon::Ident,
-            Expr::Host(name) => name
+            Expr::Host(host) => host
+                .name
                 .split('.')
                 .skip(1)
                 .fold(Canon::Ident, |object, _| Canon::member(object, None)),

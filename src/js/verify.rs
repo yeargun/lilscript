@@ -198,9 +198,9 @@ pub(super) fn verify_in(
             {
                 return Err("unsupported intrinsic or invalid operand count".into());
             }
-            Expr::Host(name) => {
-                budget.work(WorkKind::Analysis, name.len() as u64)?;
-                if !identifier(name) {
+            Expr::Host(host) => {
+                budget.work(WorkKind::Analysis, host.name.len() as u64)?;
+                if !identifier(&host.name) {
                     return Err("invalid external identifier".into());
                 }
             }
@@ -246,7 +246,7 @@ pub(super) fn verify_in(
                     {
                         return Err("reference call requires a reference".into());
                     }
-                    Invocation::Reference if matches!(callee, Expr::Host(name) if name == "eval") =>
+                    Invocation::Reference if matches!(callee, Expr::Host(host) if host.kind == crate::catalog::HostKind::Eval) =>
                     {
                         return Err("eval call needs an explicit direct/value convention".into());
                     }
@@ -254,7 +254,7 @@ pub(super) fn verify_in(
                     {
                         return Err("eval binding needs an explicit call convention".into());
                     }
-                    Invocation::DirectEval if !matches!(callee, Expr::Host(name) if name == "eval") =>
+                    Invocation::DirectEval if !matches!(callee, Expr::Host(host) if host.kind == crate::catalog::HostKind::Eval) =>
                     {
                         return Err("direct eval requires the eval reference".into());
                     }

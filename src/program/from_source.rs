@@ -824,7 +824,9 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         let semantics = self.semantics;
         for symbol in semantics.symbols() {
             self.work(1)?;
-            if symbol.is_foreign() && symbol.name == "eval" {
+            if symbol.is_foreign()
+                && crate::catalog::host_kind(symbol.name) == crate::catalog::HostKind::Eval
+            {
                 return self.unsupported(symbol.span, "source eval contract");
             }
             let module = owner(symbol.id)

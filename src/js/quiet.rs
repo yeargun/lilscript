@@ -501,7 +501,7 @@ impl Module {
             // it would then be found nowhere, which fails the search.
             Expr::Literal(_) | Expr::Regex(_) | Expr::Function(_) | Expr::This => Walk::Quiet,
             Expr::Host(name) => {
-                if self.pristine_builtins && inline::is_standard_global(name) {
+                if self.pristine_builtins && matches!(name.kind, crate::catalog::HostKind::Standard(_)) {
                     Walk::Quiet
                 } else {
                     Walk::Stop
@@ -763,7 +763,7 @@ impl Module {
                 | Expr::Member { .. }
                 | Expr::Conditional { .. }
                 | Expr::Sequence(_) => true,
-                Expr::Host(name) => self.pristine_builtins && inline::is_standard_global(name),
+                Expr::Host(host) => self.pristine_builtins && matches!(host.kind, crate::catalog::HostKind::Standard(_)),
                 Expr::Array(items) => items
                     .iter()
                     .all(|item| !matches!(self.expressions[item.index()], Expr::Spread(_))),
@@ -800,7 +800,7 @@ impl Module {
     /// `Math.max` under pristine builtins: a named path into a standard global.
     pub(super) fn standard_member(&self, id: ExprId) -> bool {
         match &self.expressions[id.index()] {
-            Expr::Host(name) => inline::is_standard_global(name),
+            Expr::Host(host) => matches!(host.kind, crate::catalog::HostKind::Standard(_)),
             Expr::Member {
                 object,
                 property: Property::Named(_),

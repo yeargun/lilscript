@@ -1942,7 +1942,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     fn ambient_node(&mut self, ambient: Ambient) -> Result<js::Expr, FormationError> {
         Ok(match ambient {
             Ambient::This => js::Expr::This,
-            Ambient::Arguments => js::Expr::Host(self.text("arguments")?),
+            Ambient::Arguments => js::Expr::Host(js::Host::new(self.text("arguments")?)),
         })
     }
 
@@ -2734,7 +2734,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 return self.ambient(unit, ambient, cell.declaration);
             }
             Ok({
-                let node = js::Expr::Host(self.text(&cell.name)?);
+                let node = js::Expr::Host(js::Host::new(self.text(&cell.name)?));
                 self.expression(node)
             }?)
         } else if references::is_reference(self.program, cell) {
@@ -3853,7 +3853,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     ("Math", "imul")
                 };
                 let object = {
-                    let node = js::Expr::Host(self.text(host)?);
+                    let node = js::Expr::Host(js::Host::new(self.text(host)?));
                     self.expression(node)
                 }?;
                 let property = js::Property::Named(self.text(method)?);
@@ -4093,7 +4093,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             } => {
                 // `Symbol` is called, never constructed.
                 let host = self.text("Symbol")?;
-                let callee = self.expression(js::Expr::Host(host))?;
+                let callee = self.expression(js::Expr::Host(js::Host::new(host)))?;
                 js::Expr::Call {
                     callee,
                     arguments,
@@ -4109,7 +4109,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 // result. The common envelope leaves that lookup before every
                 // argument effect without introducing a temporary or .call.
                 let host = self.text("RegExp")?;
-                let callee = self.expression(js::Expr::Host(host))?;
+                let callee = self.expression(js::Expr::Host(js::Host::new(host)))?;
                 js::Expr::Construct { callee, arguments }
             }
             _ => return Err(self.error(span, "semantic JavaScript call implementation")),
@@ -4136,7 +4136,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     /// followed by ordinary member reads, each observable in order.
     fn host_path(&mut self, path: &[&str]) -> Result<js::ExprId, FormationError> {
         let root = self.text(path[0])?;
-        let mut callee = self.expression(js::Expr::Host(root))?;
+        let mut callee = self.expression(js::Expr::Host(js::Host::new(root)))?;
         for member in &path[1..] {
             self.work(1)?;
             let property = js::Property::Named(self.text(member)?);
@@ -4411,7 +4411,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             self.error(operation.span, "identity test on an undeclared class")
                         })?;
                         let name = self.text(&definition.name)?;
-                        self.expression(js::Expr::Host(name))?
+                        self.expression(js::Expr::Host(js::Host::new(name)))?
                     }
                 };
                 js::Expr::Binary {
@@ -4976,7 +4976,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     .ok_or_else(|| self.error(span, "kept class with an undeclared base"))?;
                 Some(if base.external {
                     let name = self.text(&base.name)?;
-                    self.expression(js::Expr::Host(name))?
+                    self.expression(js::Expr::Host(js::Host::new(name)))?
                 } else {
                     let cell = base
                         .value

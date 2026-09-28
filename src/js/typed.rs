@@ -180,7 +180,7 @@ impl Module {
         for export in &self.exports {
             arrays[export.binding.index()] = None;
         }
-        let host = |module: &Self, id: ExprId, name: &str| matches!(&module.expressions[id.index()], Expr::Host(found) if found == name);
+        let host = |module: &Self, id: ExprId, global: crate::catalog::Global| matches!(&module.expressions[id.index()], Expr::Host(found) if found.kind == crate::catalog::HostKind::Standard(global));
         let named = |module: &Self, id: ExprId| match &module.expressions[id.index()] {
             Expr::Member {
                 object,
@@ -212,7 +212,7 @@ impl Module {
             let Some((array_node, prototype)) = named(self, prototype_node) else {
                 continue;
             };
-            if prototype != "prototype" || !host(self, array_node, "Array") {
+            if prototype != "prototype" || !host(self, array_node, crate::catalog::Global::Array) {
                 continue;
             }
             let Some(&receiver) = arguments.first() else {

@@ -442,3 +442,96 @@ pub(crate) fn builtin_effect(builtin: crate::check::BuiltinCall) -> BuiltinEffec
         _ => BuiltinEffect::Host,
     }
 }
+
+/// A standard global whose value and properties pristine builtins fix
+/// (R10): its identity in the catalog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Global {
+    Array,
+    Boolean,
+    Date,
+    Error,
+    Infinity,
+    Json,
+    Map,
+    Math,
+    NotANumber,
+    Number,
+    Object,
+    Promise,
+    RangeError,
+    Reflect,
+    RegExp,
+    Set,
+    String,
+    Symbol,
+    SyntaxError,
+    TypeError,
+    WeakMap,
+    WeakSet,
+    DecodeUriComponent,
+    EncodeUri,
+    EncodeUriComponent,
+    IsFinite,
+    IsNaN,
+    ParseFloat,
+    ParseInt,
+}
+
+/// The standard globals by their platform spelling.
+const STANDARD_GLOBALS: &[(&str, Global)] = &[
+    ("Array", Global::Array),
+    ("Boolean", Global::Boolean),
+    ("Date", Global::Date),
+    ("Error", Global::Error),
+    ("Infinity", Global::Infinity),
+    ("JSON", Global::Json),
+    ("Map", Global::Map),
+    ("Math", Global::Math),
+    ("NaN", Global::NotANumber),
+    ("Number", Global::Number),
+    ("Object", Global::Object),
+    ("Promise", Global::Promise),
+    ("RangeError", Global::RangeError),
+    ("Reflect", Global::Reflect),
+    ("RegExp", Global::RegExp),
+    ("Set", Global::Set),
+    ("String", Global::String),
+    ("Symbol", Global::Symbol),
+    ("SyntaxError", Global::SyntaxError),
+    ("TypeError", Global::TypeError),
+    ("WeakMap", Global::WeakMap),
+    ("WeakSet", Global::WeakSet),
+    ("decodeURIComponent", Global::DecodeUriComponent),
+    ("encodeURI", Global::EncodeUri),
+    ("encodeURIComponent", Global::EncodeUriComponent),
+    ("isFinite", Global::IsFinite),
+    ("isNaN", Global::IsNaN),
+    ("parseFloat", Global::ParseFloat),
+    ("parseInt", Global::ParseInt),
+];
+
+/// What a host name is (M4.6): the catalog classifies it once, where the
+/// JavaScript tree creates the node, and every later test reads the kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HostKind {
+    /// A standard global whose value and properties pristine builtins fix.
+    Standard(Global),
+    /// `eval`: a direct call runs in its caller's scope.
+    Eval,
+    /// `arguments`: the running function's arguments object.
+    Arguments,
+    /// Any other host name an extern declares.
+    Declared,
+}
+
+pub fn host_kind(name: &str) -> HostKind {
+    match name {
+        "eval" => HostKind::Eval,
+        "arguments" => HostKind::Arguments,
+        name => STANDARD_GLOBALS
+            .iter()
+            .find(|(spelling, _)| *spelling == name)
+            .map_or(HostKind::Declared, |&(_, global)| HostKind::Standard(global)),
+    }
+}

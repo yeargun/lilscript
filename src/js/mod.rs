@@ -181,12 +181,41 @@ pub enum TemplatePart {
 
 pub use crate::primitive::Invocation;
 
+/// A host identifier and its catalog kind (M4.6): tests read the kind, never
+/// the spelling.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Host {
+    pub name: String,
+    pub kind: crate::catalog::HostKind,
+}
+
+impl Host {
+    pub fn new(name: impl Into<String>) -> Self {
+        let name = name.into();
+        let kind = crate::catalog::host_kind(&name);
+        Self { name, kind }
+    }
+}
+
+impl From<&str> for Host {
+    fn from(name: &str) -> Self {
+        Self::new(name)
+    }
+}
+
+impl From<String> for Host {
+    fn from(name: String) -> Self {
+        Self::new(name)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Literal(Literal),
     Binding(BindingId),
-    /// An external identifier, checked as an identifier rather than code.
-    Host(String),
+    /// An external identifier, checked as an identifier rather than code,
+    /// with the kind the catalog gives its name.
+    Host(Host),
     This,
     Unary {
         op: Unary,
@@ -2238,7 +2267,7 @@ impl Module {
     pub(crate) fn frame_free(&self, function: FunctionId) -> bool {
         !self.frame_reads(function, |expression| match expression {
             Expr::This | Expr::SuperCall { .. } => true,
-            Expr::Host(name) => name == "arguments" || name == "eval",
+            Expr::Host(host) => matches!(host.kind, crate::catalog::HostKind::Arguments | crate::catalog::HostKind::Eval),
             Expr::Call { invocation, .. } => *invocation == Invocation::DirectEval,
             _ => false,
         })
@@ -2250,7 +2279,7 @@ impl Module {
     fn reads_arguments(&self, function: FunctionId) -> bool {
         self.frame_reads(
             function,
-            |expression| matches!(expression, Expr::Host(name) if name == "arguments"),
+            |expression| matches!(expression, Expr::Host(host) if host.kind == crate::catalog::HostKind::Arguments),
         )
     }
 
@@ -2259,7 +2288,7 @@ impl Module {
     /// the body can see (it would unmap a sloppy frame's `arguments`).
     pub(crate) fn arguments_free(&self, function: FunctionId) -> bool {
         !self.frame_reads(function, |expression| match expression {
-            Expr::Host(name) => name == "arguments" || name == "eval",
+            Expr::Host(host) => matches!(host.kind, crate::catalog::HostKind::Arguments | crate::catalog::HostKind::Eval),
             Expr::Call { invocation, .. } => *invocation == Invocation::DirectEval,
             _ => false,
         })
@@ -3420,7 +3449,7 @@ impl Module {
     /// declaration with that required spelling would capture it.
     pub(crate) fn references_host(&self, name: &str) -> bool {
         self.expressions.iter().any(|expression| match expression {
-            Expr::Host(host) => host == name,
+            Expr::Host(host) => host.name == name,
             Expr::ConstructIntrinsic { operation, .. } => {
                 native_constructor(*operation).is_some_and(|native| native.name == name)
             }

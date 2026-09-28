@@ -984,7 +984,7 @@ impl<'a> Printer<'a, '_, '_> {
                 Literal::Undefined => self.text("void 0"),
             },
             Expr::Binding(symbol) => self.text(self.names.get(*symbol)),
-            Expr::Host(name) => self.text(name),
+            Expr::Host(host) => self.text(&host.name),
             Expr::Regex(literal) => {
                 // `a/ /x/`: a division before the literal would otherwise
                 // open a comment.
@@ -1092,7 +1092,7 @@ impl<'a> Printer<'a, '_, '_> {
                 let unbind = *invocation == Invocation::Value
                     && match callee_node {
                         Expr::Member { .. } => true,
-                        Expr::Host(name) => name == "eval",
+                        Expr::Host(host) => host.kind == crate::catalog::HostKind::Eval,
                         Expr::Binding(symbol) => self.names.get(*symbol) == "eval",
                         _ => false,
                     };
@@ -1157,7 +1157,7 @@ impl<'a> Printer<'a, '_, '_> {
                 self.text("=");
                 let inferred = match &self.module.expressions[target.index()] {
                     Expr::Binding(binding) => InferredName::Known(self.names.get(*binding)),
-                    Expr::Host(name) => InferredName::Known(name),
+                    Expr::Host(host) => InferredName::Known(&host.name),
                     _ => InferredName::None,
                 };
                 self.expression_with_name(*value, 2, inferred);
@@ -1289,7 +1289,7 @@ impl<'a> Printer<'a, '_, '_> {
                     let shorthand =
                         spelled.is_some_and(|name| match &self.module.expressions[value.index()] {
                             Expr::Binding(binding) => self.names.get(*binding) == name,
-                            Expr::Host(host) => host == name,
+                            Expr::Host(host) => host.name == *name,
                             _ => false,
                         });
                     if shorthand {

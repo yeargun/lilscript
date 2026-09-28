@@ -91,7 +91,7 @@ impl Formation<'_, '_, '_, '_, '_> {
         }
         if rest {
             let arguments = self.text("arguments")?;
-            let arguments = self.expression(js::Expr::Host(arguments))?;
+            let arguments = self.expression(js::Expr::Host(js::Host::new(arguments)))?;
             self.append(&mut forwarded, arguments)?;
         }
         let callee = self.reference(target)?;

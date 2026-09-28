@@ -66,7 +66,7 @@ fn module_storage(module: &js::Module) -> u64 {
     for expression in &module.expressions {
         total += match expression {
             js::Expr::Literal(js::Literal::String(value)) => value.capacity_bytes() as u64,
-            js::Expr::Host(name) => name.capacity() as u64,
+            js::Expr::Host(host) => host.name.capacity() as u64,
             js::Expr::Call { arguments, .. }
             | js::Expr::Construct { arguments, .. }
             | js::Expr::Intrinsic { arguments, .. }
