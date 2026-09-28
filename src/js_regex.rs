@@ -456,6 +456,10 @@ fn serialize_literal_body(pattern: &str) -> String {
 
     let mut body = String::with_capacity(pattern.len());
     let mut escaped = false;
+    // Inside a character class a `/` needs no escape, and the constructor's
+    // `source` keeps it bare there (it escapes a `/` only outside one), so
+    // the literal leaves it bare: `source` stays what the program reads.
+    let mut class = false;
     for character in pattern.chars() {
         if escaped {
             body.push(character);
@@ -467,6 +471,15 @@ fn serialize_literal_body(pattern: &str) -> String {
                 body.push('\\');
                 escaped = true;
             }
+            '[' if !class => {
+                class = true;
+                body.push('[');
+            }
+            ']' if class => {
+                class = false;
+                body.push(']');
+            }
+            '/' if class => body.push('/'),
             '/' => body.push_str(r"\/"),
             '\n' => body.push_str(r"\n"),
             '\r' => body.push_str(r"\r"),
@@ -482,6 +495,20 @@ fn serialize_literal_body(pattern: &str) -> String {
 mod tests {
     use super::literal_from_decoded;
     use super::literal_from_decoded_checked;
+
+    /// A literal's `source` is the constructor's: a `/` is escaped outside a
+    /// character class and left bare inside one.
+    #[test]
+    fn a_slash_is_escaped_only_outside_a_class() {
+        assert_eq!(
+            literal_from_decoded("a/b[+/=]c", "").as_deref(),
+            Some(r"/a\/b[+/=]c/")
+        );
+        assert_eq!(
+            literal_from_decoded(r"[\]/]/", "").as_deref(),
+            Some(r"/[\]/]\//")
+        );
+    }
 
     #[test]
     fn the_checked_form_accepts_es2018_grammar_and_refuses_invalid_patterns() {
