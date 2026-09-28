@@ -27,6 +27,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-28 | [Batch F1: the floor slice, first part](#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding) | M5.1, M6.4a, M7.8a | `m5-floor` |
 | 2026-09-28 | [Batch F2: the floor slice, second part](#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults) | M5.1, M7.5a, M7.3 | `m5-floor` |
 | 2026-09-28 | [Batch F3: the floor slice, third part](#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins) | M7.3, M5.1, M5.3b | `m5-floor` |
+| 2026-09-28 | [Batch B1: the counted walk](#2026-09-28-batch-b1-the-counted-walk-m35-first-part) | M3.5 | `m3-budget` |
 
 ---
 
@@ -816,6 +817,35 @@ Predicted:
 **Deviations.** Constant parameters apply only to functions whose signature is their own. Class-wide constants, where every member passes the same value, are M9's coupled choices. The tree twins stay, as measured above.
 
 **Open.** Step 5 is done except its carried items: the twins, which go with Y5 and M7.3's remaining cases; M7.9's two growths; M7.5's rest.
+
+## 2026-09-28 Batch B1: the counted walk (M3.5, first part)
+
+**Pre-registration** (written before the first build of the batch; base `e0f03613`, baseline binary `~/lilscript-work/bin/f3-2`).
+
+Measured before the batch, at level 13 on M2.14's frozen entries:
+- **katexlil** takes 17.8 s of CPU, of which 32 exact Brotli-11 scores take 12.9 s. Its terminal stage judges 26 moves exactly and buys −1,210; five of the rejected moves lose by more than 1,000 bytes.
+- **The structural beam** buys 0 bytes on markedlil, −47 Brotli on katexlil for 3.2 s, and −13 Brotli on jquerylil for 22.6 s. On jquerylil it also costs +543 raw.
+
+What the batch builds (architecture §9.6, §13.3–§13.4, B1–B4, B9):
+- **The proxy judge.** Brotli at quality 5 on the whole candidate, and gzip and raw as their own proxies. A move whose proxy delta exceeds the margin M is pruned without an exact judgement. The proxy never keeps.
+- **The effort schedule, version 1.** Each level sets the prefix p(L), the exact budget e(L) and whether the beam is reached:
+  - level 0: no moves;
+  - levels 1–4 and 5–9: short prefixes;
+  - levels 10–13: every unreserved move, with e(13) calibrated so no reference port or case loses bytes;
+  - levels 14–16: unbounded, with the beam.
+
+  The seven ladders stop deciding anything. The port-level search keys (`candidate_*`, `terminal_codec_probe_limit`) warn that they have no effect, except `candidate_search = "off"`, which keeps its meaning: no walk and no beam.
+- **One walk from A0.** Each objective's list, in a fixed order that does not depend on the level: the choice sites of A0 by stake, the declared challengers, then the naming seeds (global, source) as whole-artifact moves. The walk examines at most p(L) positions and judges at most e(L) exactly, keeping a move only on a strict exact win.
+- **The beam as one reserved late move.** From level 14, structural exploration runs at its level-13 schedule, forming each recipe with the incumbent's spelling, choices and naming. A beam artifact replaces the incumbent only on a strict exact win, so level 14 passes through level 13's result.
+- **Receipts.** For each objective: positions examined, exact judgements, prunings, and each move's proxy and exact deltas. `--print-policy` prints p, e, M and the beam tier.
+
+Predicted:
+- Level 13 CPU: katexlil 17.8 s to 8–12 s, jquerylil 24.6 s to 2–4 s, markedlil 0.83 s to about 0.5 s.
+- Level-13 bytes: equal to F3's on the reference ports within noise. jquerylil and katexlil lose the beam's −13 and −47, within the ±100 band.
+- Monotone: size(L+1) ≤ size(L) across the tier boundaries on the case corpus and the ports, checked by a new test script.
+- Levels 14–15 at or below level 13 by construction.
+
+Not in this batch: level 0 without a codec, codec settings as configuration, parallel scoring (B2); schema v3 and the public API (B3).
 
 ---
 
