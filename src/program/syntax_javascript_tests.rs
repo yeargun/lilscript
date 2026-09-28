@@ -2294,3 +2294,37 @@ fn field_initializers_are_checked_and_refused_where_they_mean_nothing() {
     let error = crate::parse_source(&arena, "struct P { int x = 1; } print(1);").unwrap_err();
     assert!(format!("{error:?}").contains("construction literal"), "{error:?}");
 }
+
+/// `debug` (R15) is a modifier only before `void` or `extern void`; it
+/// refuses `pure`, suspension, a result, and values and classes, and `debug`
+/// stays an identifier everywhere else.
+#[test]
+fn debug_declarations_parse_and_refuse() {
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(
+        &arena,
+        "debug void trace(string m) { print(m); }\ndebug extern void invariant(bool ok, string m);\nint debug = 3;\nprint(debug);\n",
+    )
+    .unwrap();
+    let debug = syntax
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            crate::ast::Item::Function(function) => Some(function.declared_debug),
+            crate::ast::Item::Extern(declaration) => Some(declaration.declared_debug),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(debug, [true, true]);
+    crate::analyze(&syntax).unwrap();
+    for (source, message) in [
+        ("pure debug void f() { }", "cannot be `pure`"),
+        ("async debug void f() { }", "runs to completion"),
+        ("debug extern int f();", "returns `void`"),
+        ("debug extern JsValue x;", "not values"),
+        ("debug extern class C { }", "not classes"),
+    ] {
+        let error = crate::parse_source(&arena, source).expect_err(source);
+        assert!(format!("{error:?}").contains(message), "{source}: {error:?}");
+    }
+}
