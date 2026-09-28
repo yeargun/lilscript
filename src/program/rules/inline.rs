@@ -152,6 +152,7 @@ fn statement(kind: &OperationKind) -> bool {
     matches!(
         kind,
         OperationKind::Initialize(_)
+            | OperationKind::Declare(_)
             | OperationKind::Store(_)
             | OperationKind::CheckPlace(_)
             | OperationKind::If { .. }
@@ -609,7 +610,7 @@ fn arguments_evaluation(data: &UnitData, region: RegionId, site: &Site) -> Vec<O
     let mut stack = evaluation.clone();
     while let Some(op) = stack.pop() {
         let operation = &data.operations[op.index()];
-        if matches!(operation.kind, OperationKind::Initialize(_)) {
+        if matches!(operation.kind, OperationKind::Initialize(_) | OperationKind::Declare(_)) {
             return Vec::new();
         }
         defined.extend(operation.result);

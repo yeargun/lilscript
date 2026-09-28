@@ -354,6 +354,7 @@ impl Remaps {
                 body: self.region(*body)?,
             },
             Op::Initialize(cell) => Op::Initialize(self.cell(*cell)),
+            Op::Declare(cell) => Op::Declare(self.cell(*cell)),
             Op::Allocate { identity, kind } => Op::Allocate {
                 identity: self.allocations.get(identity).copied().unwrap_or(*identity),
                 kind: kind.clone(),

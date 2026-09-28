@@ -471,10 +471,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.parameter_owners(id)?;
         }
         // Initialize sites are unique by plan validation. This visits only this
-        // unit's operations, never all program cells for each function.
+        // unit's operations, never all program cells for each function. A
+        // declared local (`let x;`, R3) is declared here too.
         for operation in &unit.operations {
             self.budget.work(WorkKind::Render, 1)?;
-            if let OperationKind::Initialize(cell) = operation.kind {
+            if let OperationKind::Initialize(cell) | OperationKind::Declare(cell) = operation.kind {
                 if self.plan.global_cell(cell) {
                     continue;
                 }
@@ -666,8 +667,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     _ => unreachable!("native plan rejects unsupported constants"),
                 }
             }
-            // `let x;`: the C local is declared with its function; its first
-            // store gives it a value (R3).
+            // `let x;`: the C local is declared at the function's start (see
+            // `unit`); its first store gives it a value (R3).
             OperationKind::Declare(_) => {}
             OperationKind::Initialize(cell) => {
                 if self.plan.boxed_cell(*cell) {
