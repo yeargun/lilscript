@@ -2958,10 +2958,12 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             return;
         }
         let definition = self.units[unit.index()].values[value.index()].definition;
+        // A method lambda's value is its adapter's result: like its
+        // `JS.method<N>(lambda)` spelling, it takes no inferred name (R7).
         let OperationKind::Closure(child) =
             self.units[unit.index()].operations[definition.index()].kind
         else {
-            unreachable!()
+            return;
         };
         self.units[child.index()].function_name = Some(name);
     }
