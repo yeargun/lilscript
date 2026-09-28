@@ -1714,6 +1714,7 @@ impl Module {
     /// Returns the number of folded stores.
     pub(crate) fn fold_object_stores(
         &mut self,
+        new_keys: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
@@ -1796,9 +1797,14 @@ impl Module {
                         }
                         _ => None,
                     };
+                    // A store to a key the literal has updates an own data
+                    // property, which shadows anything inherited; a new key
+                    // could meet an inherited setter, which only pristine
+                    // builtins rule out.
                     match replaced {
                         Some(position) => entries[position].1 = value,
-                        None => entries.push((property, value)),
+                        None if new_keys => entries.push((property, value)),
+                        None => break,
                     }
                     end += 1;
                 }

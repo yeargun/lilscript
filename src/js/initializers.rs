@@ -21,9 +21,9 @@
 //!   call is rewritten on its own; other uses keep calling the function,
 //!   which its binding (never assigned) always holds.
 //!
-//! The store fold needs pristine builtins (a literal key defines a property
-//! where a store could run an inherited setter), so the caller applies this
-//! only under them.
+//! The stores target keys the object's literal already has: an own data
+//! property shadows any inherited setter, so the fold that takes them needs
+//! no assumption about the builtins (R10).
 use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 

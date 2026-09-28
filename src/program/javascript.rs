@@ -961,17 +961,17 @@ fn form_head(
                 formation
                     .module
                     .drop_typed_default_checks(formation.budget)?;
-                // Field initializers become their stores, for the fold to take.
-                if pristine {
-                    formation.module.inline_initializers(formation.budget)?;
-                }
-                if pristine {
-                    fold_stores(
-                        &mut formation.module,
-                        &mut formation.literal_alternatives,
-                        formation.budget,
-                    )?;
-                }
+                // Field initializers become their stores, for the fold to
+                // take: stores to the instance literal's own keys, which no
+                // inherited setter sees (R10: nothing here assumes pristine
+                // builtins).
+                formation.module.inline_initializers(formation.budget)?;
+                fold_stores(
+                    &mut formation.module,
+                    &mut formation.literal_alternatives,
+                    pristine,
+                    formation.budget,
+                )?;
                 // Stores folded into their literals no longer run before the
                 // constants declared after them.
                 let protected: Vec<js::ExprId> = formation
@@ -1170,13 +1170,12 @@ impl Tail<'_, '_> {
                 && families.statements != js::StatementSpellings::NONE
             {
                 // A store of a conditional is a store the fold can take.
-                if pristine {
-                    fold_stores(
-                        formation.module,
-                        formation.literal_alternatives,
-                        formation.budget,
-                    )?;
-                }
+                fold_stores(
+                    formation.module,
+                    formation.literal_alternatives,
+                    pristine,
+                    formation.budget,
+                )?;
                 // Conditionals built from statements meet the operator
                 // rules for the first time (`x===void 0?null:x`).
                 let protected: Vec<js::ExprId> = formation
@@ -1306,13 +1305,16 @@ fn value_class(ty: &Type<'_>) -> Option<js::ValueClass> {
 /// as the value of its parent's store, it leaves that store next to the
 /// parent's others: a few rounds fold a tree of objects built by stores into
 /// one literal.
+/// Without pristine builtins only stores to keys a literal already has fold
+/// (`new_keys`).
 fn fold_stores(
     module: &mut js::Module,
     alternatives: &mut Vec<js::LiteralAlternative>,
+    new_keys: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), AllocationError> {
     for _ in 0..4 {
-        if module.fold_object_stores(budget)? == 0 {
+        if module.fold_object_stores(new_keys, budget)? == 0 {
             break;
         }
         let (forwarded, map) = module.forward_single_uses(budget)?;
