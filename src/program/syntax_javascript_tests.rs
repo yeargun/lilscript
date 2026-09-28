@@ -1920,3 +1920,35 @@ fn a_spread_into_a_lilscript_function_is_refused() {
     let error = crate::analyze(&syntax).unwrap_err();
     assert!(format!("{error:?}").contains("spread argument"), "{error:?}");
 }
+
+/// `x as JsValue` views a typed value as the dynamic type with no code
+/// (R12): the dynamic operations on it are JavaScript's.
+#[test]
+fn a_typed_value_viewed_as_js_value_keeps_its_operation() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        float half(float v) { return v / 2.0; }
+        export void f(string text) {
+            show((text as JsValue).slice(1));
+            show((text as JsValue)["length"]);
+            show((half as JsValue)(3));
+            JsValue view = text as JsValue;
+            string back = view as string;
+            show(back + "!");
+        }
+        f("hello");
+        "#,
+        PRISTINE,
+    );
+    assert_eq!(run(&javascript, SHOW), "ello\n5\n1.5\nhello!\n");
+}
+
+/// A typed value is viewed as another type only through `JsValue`.
+#[test]
+fn a_typed_value_is_viewed_as_another_type_only_through_js_value() {
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, "string s = \"a\"; int n = s as int;").unwrap();
+    let error = crate::analyze(&syntax).unwrap_err();
+    assert!(format!("{error:?}").contains("x as JsValue as int"), "{error:?}");
+}

@@ -2164,7 +2164,7 @@ mod tests {
     #[test]
     fn js_builtin_fixes_reach_a_fixed_point() {
         let scratch = Scratch::new("js-builtin");
-        let header = "extern void show(JsValue value);\nextern JsValue Map;\n";
+        let header = "extern void show(JsValue value);\nextern JsValue Map;\nfloat half(float v) { return v / 2.0; }\n";
         let original = r#"export JsValue f(JsValue o, JsValue x, string text) {
     JS.set(o, "total", JS.add(JS.get(o, "total"), JS.invoke(x, "size")));
     show(JS.call(JS.get(o, "handler"), JS.undefined(), JS.strictEqual(JS.typeOf(x), "string")));
@@ -2184,6 +2184,13 @@ mod tests {
     show(JS.isNullish(x) || JS.isUndefined(o) || JS.isFalse(x));
     show(x.truthy());
     show((if (text == "") { x } else { o }).truthy());
+    show(JS.add(JS.add("a", text), 1));
+    show(JS.add(text, "y")["length"]);
+    show(JS.invoke(text, "slice", 1));
+    show(JS.get(text, "length"));
+    show(JS.call(half, JS.undefined(), x));
+    float h = JS.assume(half(3.0));
+    int n = JS.assume(text);
     return JS.invoke(o, "call", s);
 }
 "#;
@@ -2194,7 +2201,7 @@ mod tests {
     show(o.a || [1, x]);
     show(new o.Ctor(object { k: x, "data-x": 2 }));
     string s = o.name as string;
-    show(JS.add(text, x));
+    show(text + x);
     auto list = JS.array(x);
     show(list);
     show(o.floor((text.length - 1) / 2.0));
@@ -2206,6 +2213,13 @@ mod tests {
     show(x == null || o === undefined || x === false);
     show(bool(x));
     show(bool(if (text == "") { x } else { o }));
+    show("a" + text + 1);
+    show(JS.add(text, "y")["length"]);
+    show((text as JsValue).slice(1));
+    show((text as JsValue)["length"]);
+    show((half as JsValue)(x));
+    float h = half(3.0);
+    int n = text as JsValue as int;
     return o["call"](s);
 }
 "#;
@@ -2229,8 +2243,8 @@ mod tests {
             }
         }
         assert_eq!(source, format!("{header}{fixed}"));
-        // What stays is reported without a fix: `+` of a typed string is
-        // concatenation, and an `auto` binding expects no `JsValue`.
+        // What stays is reported without a fix: a typed concatenation as a
+        // receiver, and an `auto` binding expects no `JsValue`.
         let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
         assert_eq!(
             diagnostics
@@ -2238,7 +2252,7 @@ mod tests {
                 .filter(|diagnostic| diagnostic.rule == "migration/js-builtin")
                 .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
                 .collect::<Vec<_>>(),
-            [(false, "JS.add(text, x)"), (false, "JS.array(x)"), (false, "JS.array()")]
+            [(false, "JS.array(x)"), (false, "JS.array()"), (false, "JS.add(text, \"y\")")]
         );
     }
 
