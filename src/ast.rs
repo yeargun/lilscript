@@ -289,7 +289,20 @@ pub struct Param<'ast, 'src> {
     pub parameter: ParameterType<'ast, 'src>,
     pub name: Ident<'src>,
     pub default: Option<Expr<'ast, 'src>>,
+    pub role: ParamRole,
     pub span: Span,
+}
+
+/// What a lambda's parameter receives (R7): an argument, the receiver (the
+/// call's `this`), or the rest of the arguments as a list.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ParamRole {
+    #[default]
+    Value,
+    /// `(this JsValue self, …)`: the first parameter only.
+    Receiver,
+    /// `(…, JsValue... rest)`: the last parameter only.
+    Rest,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

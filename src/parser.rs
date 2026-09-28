@@ -4,7 +4,7 @@ use bumpalo::Bump;
 
 use crate::ast::{
     Argument, ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, CatchBinding,
-    precedence, DynamicBinaryOp, DynamicUnaryOp,
+    precedence, DynamicBinaryOp, DynamicUnaryOp, ParamRole,
     CatchClause, ClassDecl, ClassMember, ConstructorDecl, EnumDecl, ExportDecl, ExportKind, Expr,
     ExternClassDecl, ExternClassMember, ExternConstructorDecl, ExternDecl, ExternGlobalDecl,
     FieldDecl, ForInitializer, ForeignImportDecl, FunctionDecl, Ident, ImportDecl, ImportSpecifier,
@@ -2299,8 +2299,34 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let mut saw_default = false;
         if !self.check(|kind| matches!(kind, TokenKind::RParen)) {
             loop {
+                // `this T name` names the receiver (R7): the word, then a
+                // parameter, first in the list.
+                let receiver = params.is_empty()
+                    && matches!(self.peek_kind(), Some(TokenKind::Ident("this")))
+                    && !self.check_next(|kind| {
+                        matches!(kind, TokenKind::Comma | TokenKind::RParen | TokenKind::Eq)
+                    });
+                let marker = receiver.then(|| self.advance().expect("peeked `this`").span);
                 let parameter = self.parse_parameter_type(true)?;
+                let rest = self.match_kind(|kind| matches!(kind, TokenKind::Ellipsis));
+                let role = match (receiver, rest) {
+                    (true, true) => {
+                        return Err(AdmittedParseError::new(
+                            parameter.span,
+                            "a parameter is the receiver or the rest, not both",
+                        ))
+                    }
+                    (true, false) => ParamRole::Receiver,
+                    (false, true) => ParamRole::Rest,
+                    (false, false) => ParamRole::Value,
+                };
                 let name = self.expect_ident("expected parameter name")?;
+                if rest && self.check(|kind| matches!(kind, TokenKind::Comma | TokenKind::Eq)) {
+                    return Err(AdmittedParseError::new(
+                        name.span,
+                        "a rest parameter is the last and has no default",
+                    ));
+                }
                 let default = if self.match_kind(|kind| matches!(kind, TokenKind::Eq)) {
                     saw_default = true;
                     Some(self.parse_expression()?)
@@ -2313,15 +2339,15 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     }
                     None
                 };
+                let start = marker.unwrap_or(parameter.span);
                 let span = default
                     .as_ref()
-                    .map_or(parameter.span.merge(name.span), |value| {
-                        parameter.span.merge(value.span())
-                    });
+                    .map_or(start.merge(name.span), |value| start.merge(value.span()));
                 params.push(Param {
                     parameter,
                     name,
                     default,
+                    role,
                     span,
                 })?;
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
