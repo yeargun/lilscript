@@ -3623,32 +3623,44 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         {
             return None;
         }
-        let mut loaded = 0;
-        let mut forwarded: Option<(CallId, ValueId)> = None;
+        // The body: its parameters' loads, in order, then one operation over
+        // them whose result it returns. A builtin call is that builtin. A
+        // natural form is the builtin it is operand for operand: a reference
+        // call on `p0[p1]` with the rest as arguments is `JS.invoke`, a load of
+        // `p0[p1]` is `JS.get`, an empty object literal is `JS.object()` and an
+        // array literal of the parameters is `JS.array` (R12: syntax keeps its
+        // natural IR, so a wrapper written in syntax forwards as its spelling
+        // did).
+        let mut loads: Vec<ValueId> = Vec::new();
+        let mut forwarded: Option<(&Operation, ValueId)> = None;
         let mut returned = false;
         for &operation in &function.regions[function.entry.index()].operations {
             let operation = &function.operations[operation.index()];
             match operation.kind {
                 OperationKind::PrepareCall(call)
-                    if matches!(function.calls[call.index()].target, CallTarget::Builtin(_)) => {}
-                OperationKind::Load(place) if forwarded.is_none() => {
+                    if matches!(
+                        function.calls[call.index()].target,
+                        CallTarget::Builtin(_) | CallTarget::Reference { .. }
+                    ) => {}
+                OperationKind::Load(place)
+                    if forwarded.is_none() && loads.len() < function.parameters.len() =>
+                {
                     let Place::Cell(cell) = function.places[place.index()] else {
                         return None;
                     };
-                    if function.parameters.get(loaded) != Some(&cell) || operation.result.is_none()
-                    {
+                    if function.parameters.get(loads.len()) != Some(&cell) {
                         return None;
                     }
-                    loaded += 1;
+                    loads.push(operation.result?);
                 }
-                OperationKind::Call(call)
-                    if forwarded.is_none() && loaded == function.parameters.len() =>
+                OperationKind::Call(_) | OperationKind::Load(_) | OperationKind::Allocate { .. }
+                    if forwarded.is_none() && loads.len() == function.parameters.len() =>
                 {
-                    forwarded = Some((call, operation.result?));
+                    forwarded = Some((operation, operation.result?));
                 }
                 OperationKind::Return if !returned => {
-                    let (_, result) = forwarded?;
-                    if function.operands(operation.operands)? != [result] {
+                    let (_, result) = forwarded.as_ref()?;
+                    if function.operands(operation.operands)? != [*result] {
                         return None;
                     }
                     returned = true;
@@ -3656,28 +3668,71 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 _ => return None,
             }
         }
-        let (call, result) = forwarded.filter(|_| returned)?;
-        let CallTarget::Builtin(builtin) = function.calls[call.index()].target else {
-            return None;
+        let (operation, result) = forwarded.filter(|_| returned)?;
+        let loaded = |values: &[CallArgument]| {
+            values.len() == loads.len()
+                && values
+                    .iter()
+                    .zip(&loads)
+                    .all(|(value, load)| *value == CallArgument::Value(*load))
         };
-        // Each builtin operand is its parameter's load, in order.
-        let operands = function.arguments(function.calls[call.index()].arguments)?;
-        let mut position = 0;
-        for &operation in &function.regions[function.entry.index()].operations {
-            let operation = &function.operations[operation.index()];
-            if let OperationKind::Load(_) = operation.kind {
-                if operands.get(position) != Some(&CallArgument::Value(operation.result?)) {
+        let builtin = match &operation.kind {
+            &OperationKind::Call(call) => {
+                let site = &function.calls[call.index()];
+                let operands = function.arguments(site.arguments)?;
+                match site.target {
+                    // Each builtin operand is its parameter's load, in order.
+                    CallTarget::Builtin(builtin) if loaded(operands) => builtin,
+                    CallTarget::Reference { place } => {
+                        let Place::Index { receiver, key } = function.places[place.index()] else {
+                            return None;
+                        };
+                        let [first, second, rest @ ..] = loads.as_slice() else {
+                            return None;
+                        };
+                        if (receiver, key) != (*first, *second)
+                            || operands.len() != rest.len()
+                            || operands
+                                .iter()
+                                .zip(rest)
+                                .any(|(operand, load)| *operand != CallArgument::Value(*load))
+                        {
+                            return None;
+                        }
+                        BuiltinCall::JsInvoke
+                    }
+                    _ => return None,
+                }
+            }
+            &OperationKind::Load(place) => {
+                let Place::Index { receiver, key } = function.places[place.index()] else {
+                    return None;
+                };
+                if loads.as_slice() != [receiver, key] {
                     return None;
                 }
-                position += 1;
+                BuiltinCall::JsGet
             }
-        }
+            OperationKind::Allocate {
+                kind: AllocationKind::Object(keys),
+                ..
+            } if keys.is_empty() && loads.is_empty() => BuiltinCall::JsObject,
+            OperationKind::Allocate {
+                kind: AllocationKind::Array,
+                ..
+            } => {
+                if function.operands(operation.operands)? != loads.as_slice() {
+                    return None;
+                }
+                BuiltinCall::JsArray
+            }
+            _ => return None,
+        };
         // An integer result would owe the builtin's own normalization.
-        (position == operands.len()
-            && !matches!(
-                program.types[function.values[result.index()].ty.index()],
-                Type::Int
-            ))
+        (!matches!(
+            program.types[function.values[result.index()].ty.index()],
+            Type::Int
+        ))
         .then_some(builtin)
     }
 
