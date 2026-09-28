@@ -52,7 +52,7 @@ Two laws bind every rule: a typed form never costs more bytes **or time** than i
 - **Replaces.** v0.1:76, :385-446 (the "narrow escape hatch", `JS.construct` with at most six arguments, dynamic equality as the M1.9 fix left it); 63 name-resolved `JS.*` builtins (`src/check.rs:43-118`).
 - **JS.** Exactly the source syntax. **Native.** Refused by the checker with a span; a module that mentions `JsValue` or `unknown` is JavaScript-only.
 - **Migration.** A mechanical script rewrites `JS.*` calls to syntax per port; source text keeps its meaning, so no `==` changes meaning.
-- **Status.** Target (M4.2 with M10.2), in language slice 1.
+- **Status.** Partly in force (batch S1, 2026-09-28): member, index, call, `new`, `||`, `&&`, `+`, `%`, the comparisons, `===`, `!==`, `typeof`, `in`, `instanceof`, `delete`, `v as T`, `string(v)`/`float(v)`, `undefined`, and `migration/js-builtin`'s fix-it for the `JS.*` spellings. Open: `?.`, `?.()`, `??`, the other arithmetic, truthiness, `as?`, `unknown`, and the refusal of the spellings (M4.2 with M10.2), in language slice 1.
 
 ### R13 Type tests on identity
 

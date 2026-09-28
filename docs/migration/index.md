@@ -9,10 +9,10 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
 - **Done:**
   - M0 and M1: there has been one compiler since 2026-09-24.
   - The interim release.
-  - Batches I, T, D, N, A1, F1, F2, F3, B1, B1b, B2 and B3, and M3.3a.
+  - Batches I, T, D, N, A1, F1, F2, F3, B1, B1b, B2, B3 and S1, and M3.3a.
   - Three of the tools: M2.13, M2.5 and M2.14.
   - Of the plan's 13 steps, steps 1, 4, 5 and 6's critical path are done, and steps 2 and 3 are partly done.
-- **Next on the critical path:** step 7, language slice 1. Its first batch, S1, gives `JsValue` ordinary JavaScript syntax (M4.2 with M10.2), with a lint fix-it that rewrites `JS.*` calls in the ports. B3 closed step 6's critical path: `[objective]` with the codec settings and `[effort]` (schema v3), with the judge now the configured codec. Before it, B2 landed level 0 without a codec, the replay check, the audit lane (0 misses on the ports) and the counts. B1 landed the counted walk. Under the owner's amendment AM2 (size first from the default level up), B1b made level 13 walk several starts to their fixed points after the structural search. Level 13 now matches or beats F3 on every case and frozen entry, at up to 2.3× the CPU on katexlil.
+- **Next on the critical path:** step 7, language slice 1. S1 landed `JsValue`'s ordinary syntax and the `migration/js-builtin` fix-it (the seven ports' `JS.*` mentions −85%, suites green). S2 is next: M10.4's receiver and rest lambdas, and forwarding any single host operation (the rewrite's zodlil loss). B3 closed step 6's critical path: `[objective]` with the codec settings and `[effort]` (schema v3), with the judge now the configured codec. Before it, B2 landed level 0 without a codec, the replay check, the audit lane (0 misses on the ports) and the counts. B1 landed the counted walk. Under the owner's amendment AM2 (size first from the default level up), B1b made level 13 walk several starts to their fixed points after the structural search. Level 13 now matches or beats F3 on every case and frozen entry, at up to 2.3× the CPU on katexlil.
 - **Also open, off the critical path:**
   - Step 2: the layout commit, then M3.3b with M3.8a, then motionlil compiler-written (M12.2).
   - Step 6's rest: M3.4 (the public API and several codecs per objective) after S1; `-j` scoring after M5.6.
@@ -30,7 +30,7 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
   - Amendment AM2: size first from the default level up. Levels 1–12 may be faster and a little larger; 13 and above never grow because of a change, and each level above tries more.
   - Amendment AM3: compile time has no target in seconds, since programs grow. It is judged by how each phase's work scales with the program, by its cost per unit of program against the previous binary, and by the bytes the work buys.
   - Test about every 20 minutes of work or after a critical part, not after each change. Each batch lists its changes (C1, C2, …) and commits them one by one, so a surprise is bisected to its change (plan rules 5 and 8).
-- **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding), [F2](history.md#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults), [F3](history.md#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins), [B1](history.md#2026-09-28-batch-b1-the-counted-walk-m35-first-part), [B1b](history.md#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2), [B2](history.md#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35), [B3](history.md#2026-09-28-batch-b3-the-objective-and-effort-axes-m31-first-slice-m35-codec-settings).
+- **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding), [F2](history.md#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults), [F3](history.md#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins), [B1](history.md#2026-09-28-batch-b1-the-counted-walk-m35-first-part), [B1b](history.md#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2), [B2](history.md#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35), [B3](history.md#2026-09-28-batch-b3-the-objective-and-effort-axes-m31-first-slice-m35-codec-settings), [S1](history.md#2026-09-28-batch-s1-the-dynamic-types-syntax-m42-m102-first-part).
 
 ## Steps
 
@@ -42,7 +42,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [x] **4** Batch A1, canonical formation without tree analysis: 2026-09-27
 - [x] **5** Floor slice: M5.1, M6.4a, M7.8a, M7.3, M7.5a: 2026-09-28 (batches F1–F3). Carried: M5.1's `UseIndex` and `drop_unreferenced_functions`, M6.4a's finite sets, the tree twins (measured, kept)
 - [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Critical path done 2026-09-28* (B1, B1b, B2, B3: M3.5's walk, AM2's upper levels, M3.1's first slice). Open: M3.4 after S1, `-j` scoring after M5.6
-- [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16. **In progress** (S1)
+- [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16. **In progress**: S1 landed 2026-09-28 (the dynamic type's syntax and its fix-it); S2 next (M10.4, first part)
 - [ ] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half), M10.12 (Y1 answered yes 2026-09-28)
 - [ ] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half)
 - [ ] **10** Facts and the rest of the floor: M6.4b, M6.6, M6.7, M6.8, then M7.1, M7.4, M7.5, M7.6, M7.7, M7.8, M7.9, M8.5, M7.10, with M5.3b; M5.7, M8.3 (second half); M4.5, M11.1, M11.11, and M11.5 right after M7
@@ -108,7 +108,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 ### M4 Checker identities and checker-owned facts: 1 of 6 · [plan](plan.md#m4-checker-identities-and-checker-owned-facts)
 
 - [x] M4.1 Nominal identity: 2026-09-27 (batch N)
-- [ ] M4.2 The dynamic type, with M10.2: step 7
+- [ ] M4.2 The dynamic type, with M10.2: step 7. *Partly (S1):* `Type::Dynamic` is a type. Open: `unknown`, type parameters by id, interned types
 - [ ] M4.3 Checker facts transported. *Partly:* `assigned` split into `reassigned` and `observable_before_initialization`, with `ReadInitialization` (batch I). The rest is step 9
 - [ ] M4.4 Node ids: step 9
 - [ ] M4.5 Contracts and capabilities at check time: step 10
@@ -181,7 +181,7 @@ A fact counts as landed only once its re-derivations are deleted (plan rule 2).
 
 ### M10 The final language: 0 of 19 · [plan](plan.md#m10-the-final-language-r1r18)
 
-- [ ] M10.2 The dynamic type (R12), with M4.2: step 7
+- [ ] M10.2 The dynamic type (R12), with M4.2: step 7. *Partly (S1):* member, index, call, `new`, `||`, `&&`, `+`, `%`, comparisons, `===`, `!==`, `typeof`, `in`, `instanceof`, `delete`, `as`, `string()`/`float()`, `undefined`; the `migration/js-builtin` fix-it (ports −85% `JS.*`). Open: `?.`, `??`, arithmetic, truthiness, `as?`, `unknown`, the refusal
 - [ ] M10.4 Receivers and variadics (R7): step 7
 - [ ] M10.7 Identity tests (R13): step 7
 - [ ] M10.16 Iteration (R14): step 7

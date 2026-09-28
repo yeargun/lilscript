@@ -1130,6 +1130,77 @@ Predicted:
 - **Census:** the `JS.*` mentions in the seven reference ports fall from 16,041 to about 1,000 (the method adapters, the helpers and the non-`JsValue` receivers).
 - **No bytes from new capabilities:** the new capabilities (`instanceof`, the `new` forms) yield bytes only when a port uses them, in their own patches.
 
+**Landed** (binary `~/lilscript-work/bin/s1-1`, SHA-256 `4fb1870b726a1bd4…`; the fix-it as rebuilt for the port rounds, `s1-3/lilscript-lint`).
+
+**Changes** (listed after the fact; the rule of one commit per change came during this batch and applies from S2):
+- **C1. The dynamic type is a type (M4.2's representation half).** `Type::Dynamic` replaces `TypeParameter("$js")` in the checker, the native plan, the effects and the product families; `JsValue` prints as itself.
+- **C2. Syntax.** Tokens `===` and `!==`. AST nodes `Cast` (`v as T`), `Convert` (`string(v)`, `float(v)`, `number(v)`), `Construct` (`new a.b.C(x)`, `new (f())(x)`), `DynamicBinary` (`===`, `!==`, `in`, `instanceof`) and `DynamicUnary` (`typeof`, `delete`). Those operators get their own enums (`DynamicBinaryOp`, `DynamicUnaryOp`), because the IR shares `ast::BinaryOp` and never sees them. `typeof`, `delete` and `instanceof` are contextual. The parser's precedences become one table (`ast::precedence`, `BinaryOp::precedence`), which the fix-it shares. Every AST walker learns the new nodes.
+- **C3. The checker.**
+  - Members, indexes, method calls and calls of a `JsValue` type as JavaScript's, with any property name; the six typed members keep their meaning.
+  - Operators with a `JsValue` operand resolve to `ExpressionResolution::Dynamic(builtin)`: `+` (unless a `string` operand makes it concatenation), `%`, the comparisons, `||` and `&&`, `===`, `!==`, `in`, `instanceof`, `typeof`, `delete`, `v as T`, the conversions, `new` of a `JsValue` binding or value, `v.call(t, a)`, `v.apply(t, a)` and `undefined`.
+  - `v += x` on a `JsValue` place is the dynamic add.
+  - An array literal where a `JsValue` is expected holds `JsValue`s, so `[]` is legal there.
+  - `undefined` is a parameter default like `JS.undefined()`.
+  - Reading a binding moves into `analyze_binding_read`, which `new C(a)` shares.
+- **C4. The lowering.** A `Dynamic(builtin)` node lowers through `dynamic_expression`: one call site, its `PrepareCall`, then the node's operands in order, exactly as `JS.name(operands)` lowers. `prepare_call_with_receiver` and `prepare_call_values` share `open_call` and `close_call`. Member access, indexes, method calls, calls and object and array literals keep their natural IR (places, reference and value calls, allocations).
+- **C5. `instanceof`.** `BuiltinCall::JsInstanceOf`, emitted `v instanceof C`, an operator over its operands (`operands_first`).
+- **C6. The fix-it.** `migration/js-builtin` (`src/lint/js_builtin.rs`) reports every `JS.*` call with a spelling and fixes the innermost ones. It parenthesizes by the shared precedences and offers no fix where the syntax would mean another operation. `lilscript-lint --fix` now applies identical edits once and skips overlapping ones, since shared modules are linted once per entry graph.
+- **C7. Tools and docs.** `scripts/ports.mjs --patches DIR`; `~/lilscript-work/tools/s1-port-rewrite.sh`; configuration and lint docs; `types-not-glue.md`.
+
+**Found by the unit tests, and the design change it made.** The first build lowered all syntax onto the `JS.*` builtins, so that rewritten ports would be byte-identical. Five unit tests failed. Two of them run programs that observe evaluation order: a getter on the method, and an argument that redefines it. `JS.invoke`'s builtin form evaluates the method lookup after the arguments, so the emitter hoists effectful arguments ahead of the lookup: `(c=value,e=argument(),c).go(e)` where JavaScript reads `value.go` first. That is wrong when an argument changes the method, and longer besides. The natural IR, a reference call whose preparation is the lookup, is correct, and object literals as allocations carry facts the builtin lacks. So syntax that has a natural IR form keeps it, and only the operators use the builtins. The `JS.*` spellings keep their lowering until the refusal batch deletes them, and each port's rewrite carries its IR change, measured per port.
+
+**Evidence:**
+- **Unit tests:** 1,588 pass at `s1-1`, and 1,589 at the next checkpoint, which adds the fix's regressions below to its fixed-point test.
+- **Case runner** against `b3-1`: no artifact changes in any of the 18 lanes.
+- **Monotone and replay:** pass, with all 45,162 stops replayed.
+- **Ratchet:** pass, no change.
+- **Reference ports, unpatched:** all seven green, and all 681 delivered files byte-identical to B3's. The batch changes nothing for a program that does not use the new syntax.
+- **CPU pairs** against `b3-1`: ×1.00–×1.02, with identical bytes and judgement counts.
+- **The rewrite** (`migration/js-builtin`, run to a fixed point per port; patches in `~/lilscript-work/portwork/s1/fix/`). All seven suites pass on the rewritten sources. `JS.*` mentions in the seven ports' `src/`:
+
+  | Port | Before | After |
+  |---|---:|---:|
+  | markedlil | 30 | 13 |
+  | zodlil | 726 | 108 |
+  | posthoglil | 698 | 127 |
+  | micromarklil | 3,459 | 428 |
+  | katexlil | 5,793 | 506 |
+  | jquerylil | 2,028 | 498 |
+  | motionlil | 1,601 | 476 |
+  | total | 14,335 | 2,156 (−85%) |
+
+  What remains is mostly the method adapters (M10.4), the array and string helpers (the catalog), `JS.isNullish`, `JS.isUndefined` and `JS.isFalse`, `JS.has` and `JS.box`, and calls whose receiver is not a `JsValue`.
+- **Bytes of the rewrite** against the unpatched ports (the S1 binary on both):
+  - jquerylil, markedlil and posthoglil: byte-identical;
+  - motionlil: −68 Brotli (+1,097 raw), 571 of 617 files (its graph split);
+  - micromarklil: +37 Brotli over 8 files;
+  - katexlil: +646 Brotli over 10 files, one program seen ten times (+65 per file). At level 0 the difference is +16 Brotli, so most of it is the level-13 search's sensitivity. The rest is the forwarding gap below;
+  - zodlil: +331 Brotli over 2 files. At level 0 it is +105, all of it the forwarding gap.
+- **The first port use of `instanceof`:** katexlil's `instanceOf(value, ctor)` helper calls, spelled `value instanceof ctor` as upstream KaTeX writes them (31 sites), cost −184 Brotli and +8,423 raw over its 10 files, on top of the rewrite.
+
+**Findings.**
+- **The forwarding gap.** A port's wrapper that forwards its parameters into one host call (`invoke1(o, m, a)` returning `JS.invoke(o, m, a)`) compiled to its call sites because formation replaces a forwarding wrapper of a *builtin* with the builtin. Rewritten as `o[m](a)`, it is a natural reference call, and the wrapper stays: zodlil's level 0 prints `w(b,"concat",c.checks)` where it printed `b.concat(c.checks)`. The rule must forward any single host operation, not only a builtin; batch S2 takes it as change C7.
+- **A port's `undef()` helper is a size lever the compiler lacks.** Replacing `undef()` with `JS.undefined()` cost katexlil +92 to +192 Brotli per file (+2,362 raw), since `u()` is 3 bytes against `void 0`'s 6. Level 0 is identical, so the level-13 search keeps the helper as a short alias. An undefined alias (an unassigned compiler-owned binding, 1 byte per use) belongs to M9.3's spelling families; until it lands, ports keep their helpers, and the rewrite leaves them alone.
+- **The fix-it's first rounds broke four ways**, each now a regression line in its fixed-point test:
+  - the parser drops parentheses from spans, so an operand's text is widened to balanced parentheses from the tokens;
+  - `Map` and the other builtin constructor names need `new (Map)(…)`;
+  - an arrow's result type is inferred, so its results expect nothing;
+  - a module that binds `undefined` (katexlil's and zodlil's `extern JsValue undefined`) keeps `JS.undefined()`. Spelling it `undefined` there read the host global, and the compiler lost that `undef()` returns undefined: +16,759 Brotli on katexlil.
+  - Linting each port's graph roots one by one keeps a source the build never compiles from stopping the rest.
+- **The owner's statement on runtime casts** answers Y1 (architecture §21.1): no conversion the source did not write. S1's forms follow it: `as` emits nothing, `instanceof` and `typeof` are the explicit tests, `string(v)` and `float(v)` the explicit conversions.
+
+**Deviations.**
+- **One IR per operation:** only the operators are one IR with their spellings. Member access, calls and literals keep their natural IR, and the `JS.*` spellings keep theirs until the refusal batch. So the rewrite is not byte-identical: its bytes are measured per port above.
+- **Census:** it fell to 2,156, not about 1,000, because the adapters and the `JsValue` tests stay for S2 and later.
+- **Loss gate:** the rewrite loses Brotli on katexlil (within the search's noise at level 13, +16 deterministic at level 0) and on zodlil (+331, the forwarding gap). The patches are kept in `portwork` and not counted as landed port changes until S2's C7 closes the gap.
+
+**Open.**
+- S2: M10.4's first part, with C7 (forwarding any single host operation).
+- The refusal batch for the rewritten spellings, when every reference port's patches are loss-free and the test sources are rewritten.
+- `?.`, `??`, arithmetic and truthiness on `JsValue`; `as?` and `unknown`; `JS.isNullish`, `JS.isUndefined` and `JS.isFalse` as syntax.
+- M9.3: an undefined alias.
+- M10.12 (Y1 answered yes).
+
 ## 2026-09-28 Owner decisions: compile time scales, test on a clock, track each change
 
 The owner's message, during batch S1, is in [finer/intent/2026-09-28.md](../../finer/intent/2026-09-28.md).
