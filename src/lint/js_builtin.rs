@@ -290,6 +290,9 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             }
             return;
         }
+        if let Some(object) = self.truthy_call(expression) {
+            self.report_truthy(expression, object);
+        }
         let dynamic_operation = self.view.dynamic_operation(expression.id).is_some();
         match &expression.kind {
             ExprKind::Binary { op, lhs, rhs, .. } => {
@@ -469,6 +472,43 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             .then_some((property.name, *args))
     }
 
+    /// `v.truthy()` on a `JsValue`: v0.1's truthiness, now `bool(v)` (R12).
+    fn truthy_call<'e>(&self, expression: &'e Expr<'ast, 'src>) -> Option<&'e Expr<'ast, 'src>> {
+        let ExprKind::Call { callee, args, .. } = &expression.kind else {
+            return None;
+        };
+        let ExprKind::Member {
+            object, property, ..
+        } = &callee.kind
+        else {
+            return None;
+        };
+        (property.name == "truthy" && args.is_empty() && self.is_dynamic(object)).then_some(*object)
+    }
+
+    fn report_truthy(&mut self, call: &Expr<'ast, 'src>, object: &Expr<'ast, 'src>) {
+        if !fix_enabled("truthy") {
+            return;
+        }
+        let span = call.span();
+        let replacement = format!("bool({})", self.text(object));
+        self.pending.push(PendingDiagnostic {
+            module: self.module,
+            span,
+            rule: RULE,
+            message: format!("`.truthy()` is spelled `{replacement}` (R12)"),
+            evidence: None,
+            help: Some(
+                "`lilscript-lint --fix`, run until nothing changes, rewrites every such call"
+                    .to_string(),
+            ),
+            fix: Some(LintFix {
+                applicability: "machine-applicable",
+                edits: vec![LintEdit { span, replacement }],
+            }),
+        });
+    }
+
     fn contains_js_call(&self, expression: &Expr<'ast, 'src>) -> bool {
         let mut found = false;
         let mut stack = vec![expression];
@@ -613,6 +653,15 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             ("strictNotEqual", 2) => binary("!==", 6, 7),
             ("in", 2) => binary("in", 7, 8),
             ("typeOf", 1) => format!("typeof {}", text(0, precedence::UNARY)),
+            // Loose equality with null is the nullish test on a `JsValue`
+            // (M1.9); strict equality spells the other two.
+            ("isNullish", 1) if self.dynamic_or_nullable(arg(0)) => {
+                format!("{} == null", text(0, 6))
+            }
+            ("isUndefined", 1) if !self.binds_undefined => {
+                format!("{} === undefined", text(0, 6))
+            }
+            ("isFalse", 1) => format!("{} === false", text(0, 6)),
             ("string", 1) => format!("string({})", self.text(arg(0))),
             ("number", 1) => format!("float({})", self.text(arg(0))),
             ("undefined", 0) if !self.binds_undefined => "undefined".to_string(),
@@ -871,7 +920,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
 }
 
 /// The `JS.*` builtins with a syntax spelling in this batch.
-const SPELLED: [&str; 38] = [
+const SPELLED: [&str; 41] = [
     "get",
     "set",
     "delete",
@@ -910,6 +959,9 @@ const SPELLED: [&str; 38] = [
     "method10",
     "methodRest",
     "staticRest",
+    "isNullish",
+    "isUndefined",
+    "isFalse",
 ];
 
 /// `LILSCRIPT_JS_FIX_ONLY=get,set,…`, a diagnostic knob: only those `JS.*`
@@ -933,6 +985,7 @@ const METHOD_WORDS: [&str; 5] = ["truthy", "isArray", "isObject", "call", "apply
 fn precedence_of(name: &str) -> u8 {
     match name {
         "set" => precedence::LOWEST,
+        "isNullish" | "isUndefined" | "isFalse" => 6,
         name if name.starts_with("method") || name == "staticRest" => precedence::LOWEST,
         "or" => 1,
         "and" => 2,
