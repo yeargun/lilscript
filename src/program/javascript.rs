@@ -48,12 +48,12 @@ mod struct_boundaries;
 mod structs;
 
 /// The operation's selected result recipe, shared by formation and domain
-/// evidence. The source signature alone never supplies a runtime domain.
+/// evidence. A typed result is its type's by R1 (trusted crossings): an
+/// `int` result is an int32 with no code.
 #[derive(Clone, Copy)]
 enum CallResultRecipe {
     Raw,
     Void,
-    NormalizeInteger,
     IntrinsicInteger,
 }
 fn call_result_recipe(
@@ -64,17 +64,9 @@ fn call_result_recipe(
     let OperationKind::Call(call) = operation.kind else {
         return CallResultRecipe::Raw;
     };
-    let integer = operation.result.is_some_and(|result| {
-        matches!(
-            program.types[unit.values[result.index()].ty.index()],
-            Type::Int
-        )
-    });
+    let _ = program;
     match unit.calls[call.index()].target {
         CallTarget::Builtin(BuiltinCall::Print) => CallResultRecipe::Void,
-        CallTarget::Reference { .. } | CallTarget::Builtin(_) if integer => {
-            CallResultRecipe::NormalizeInteger
-        }
         CallTarget::Intrinsic {
             operation: ResolvedIntrinsic::Method(method),
             ..
@@ -83,12 +75,15 @@ fn call_result_recipe(
     }
 }
 
+/// A load's result recipe. A typed load is its type's by R1: an `int` needs no
+/// `|0`. Absence past an array's or a string's end and on a record's missing
+/// key reads as the language's null or empty string until R11's index
+/// precondition and R2's absence land (M10.9).
 #[derive(Clone, Copy)]
 enum LoadResultRecipe {
     Raw,
     NullishNull,
     NullishEmptyString,
-    NormalizeInteger,
 }
 fn load_result_recipe(
     program: &Program<'_>,
@@ -98,16 +93,7 @@ fn load_result_recipe(
 ) -> LoadResultRecipe {
     let receiver = match unit.places[place.index()] {
         Place::Cell(_) | Place::Value(_) => return LoadResultRecipe::Raw,
-        Place::Field { .. } => {
-            // A private layout is not evidence for a primitive host payload.
-            // Preserve the nominal integer-load contract until producer facts
-            // establish that this normalization is redundant.
-            return if matches!(program.types[ty.index()], Type::Int) {
-                LoadResultRecipe::NormalizeInteger
-            } else {
-                LoadResultRecipe::Raw
-            };
-        }
+        Place::Field { .. } => return LoadResultRecipe::Raw,
         Place::Member { receiver, .. }
         | Place::ClassField { receiver, .. }
         | Place::Index { receiver, .. } => receiver,
@@ -126,8 +112,6 @@ fn load_result_recipe(
         && matches!(result_ty, Type::String)
     {
         LoadResultRecipe::NullishEmptyString
-    } else if matches!(result_ty, Type::Int) {
-        LoadResultRecipe::NormalizeInteger
     } else {
         LoadResultRecipe::Raw
     }
@@ -144,21 +128,20 @@ impl super::raw_domains::Recipes for JavaScriptRecipes {
         use super::raw_domains::ResultRecipe;
         let data = program.unit(unit).unwrap();
         let operation = &data.operations[operation.index()];
+        // An `int` result is an int32 by type (R1), with no code.
+        let typed_int = operation.result.is_some_and(|value| {
+            matches!(program.types[data.values[value.index()].ty.index()], Type::Int)
+        });
         match operation.kind {
             OperationKind::Call(_) => match call_result_recipe(program, data, operation) {
                 CallResultRecipe::Void => ResultRecipe::Undefined,
-                CallResultRecipe::NormalizeInteger | CallResultRecipe::IntrinsicInteger => {
-                    ResultRecipe::NormalizedI32
-                }
+                CallResultRecipe::IntrinsicInteger => ResultRecipe::NormalizedI32,
+                CallResultRecipe::Raw if typed_int => ResultRecipe::NormalizedI32,
                 CallResultRecipe::Raw => ResultRecipe::Source,
             },
             OperationKind::Load(place)
-                if operation.result.is_some_and(|value| {
-                    matches!(
-                        load_result_recipe(program, data, place, data.values[value.index()].ty),
-                        LoadResultRecipe::NormalizeInteger
-                    )
-                }) =>
+                if typed_int
+                    && !matches!(data.places[place.index()], Place::Cell(_) | Place::Value(_)) =>
             {
                 ResultRecipe::NormalizedI32
             }
@@ -2981,10 +2964,6 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 let right = self.literal(absent)?;
                 Ok(self.save_nullish(unit, operation, raw, right)?)
             }
-            LoadResultRecipe::NormalizeInteger => {
-                let value = self.expression(js::Expr::ToInt32(raw))?;
-                Ok(self.save(unit, operation, value)?)
-            }
             LoadResultRecipe::Raw => Ok(self.save(unit, operation, raw)?),
         }
     }
@@ -3400,9 +3379,6 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             op: js::Unary::Void,
                             value: expression,
                         })?,
-                        CallResultRecipe::NormalizeInteger => {
-                            self.expression(js::Expr::ToInt32(expression))?
-                        }
                         CallResultRecipe::Raw | CallResultRecipe::IntrinsicInteger => expression,
                     };
                 if !before.is_empty() {
