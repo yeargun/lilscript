@@ -5562,6 +5562,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         adapter: BuiltinCall,
         span: Span,
     ) -> Result<Type<'src>, AdmittedCheckError> {
+        // The adapter passes JavaScript's receiver and arguments as they are:
+        // a typed parameter is a trusted view of its value (R7, Y1), which
+        // needs no code for any type but a struct. The rest parameter of a
+        // lambda is the arguments array, a `JsValue`; a function declares a
+        // typed one.
+        let mut typed = false;
         for param in params {
             if let Some(default) = &param.default {
                 return Err(AdmittedCheckError::new(
@@ -5570,19 +5576,45 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ));
             }
             let ty = self.resolve_value_type(param.parameter.ty, "method parameter")?;
-            if !is_js_value(&ty) {
+            if param.role == crate::ast::ParamRole::Rest && !is_js_value(&ty) {
                 return Err(AdmittedCheckError::new(
                     param.parameter.ty.span,
-                    format!("a method's parameters are `JsValue`s, found `{ty}`"),
+                    format!(
+                        "a lambda's rest parameter is the arguments array, a `JsValue`, found `{ty}`; a function declares a typed one: `T... name`"
+                    ),
                 ));
             }
+            if crosses_by_conversion(&ty) {
+                return Err(AdmittedCheckError::new(
+                    param.parameter.ty.span,
+                    format!("a method's parameter crossing from JavaScript cannot be `{ty}` yet"),
+                ));
+            }
+            typed |= !is_js_value(&ty);
         }
-        let callback = Type::Function(FunctionType::new(FunctionSignature {
-            params: vec![FunctionParameter::value(Type::Dynamic); params.len()],
-            return_type: Box::new(Type::Dynamic),
-        }));
-        let actual = self.analyze_arrow(params, body, Some(&callback))?;
-        self.require_assignable(&callback, &actual, span)?;
+        let actual = if typed {
+            let actual = self.analyze_arrow(params, body, None)?;
+            if let Type::Function(signature) = &actual {
+                if crosses_by_conversion(&signature.return_type) {
+                    return Err(AdmittedCheckError::new(
+                        span,
+                        format!(
+                            "a method's result crossing to JavaScript cannot be `{}` yet",
+                            signature.return_type
+                        ),
+                    ));
+                }
+            }
+            actual
+        } else {
+            let callback = Type::Function(FunctionType::new(FunctionSignature {
+                params: vec![FunctionParameter::value(Type::Dynamic); params.len()],
+                return_type: Box::new(Type::Dynamic),
+            }));
+            let actual = self.analyze_arrow(params, body, Some(&callback))?;
+            self.require_assignable(&callback, &actual, span)?;
+            actual
+        };
         self.resolve_dynamic(expression.id, adapter);
         self.facts.expression_types[expression.id.index()] = Some(actual);
         Ok(Type::Dynamic)
@@ -10227,6 +10259,17 @@ fn spread_refusal(span: Span) -> AdmittedCheckError {
         span,
         "a spread argument passes to a JavaScript function; this callee's parameters are declared",
     )
+}
+
+/// Whether a value of `ty` crossing between JavaScript and typed code needs a
+/// conversion: a struct is a value the program lays out itself.
+fn crosses_by_conversion(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Struct(_) | Type::StructInstance { .. } => true,
+        Type::Nullable(inner) | Type::Array(inner) => crosses_by_conversion(inner),
+        Type::Union(members) => members.iter().any(crosses_by_conversion),
+        _ => false,
+    }
 }
 
 /// A declared rest parameter (R7): `T... name`, the last, is `T[]` in the
