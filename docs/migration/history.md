@@ -1919,6 +1919,25 @@ The five batches ran together (binary `k4-1`, ladder against `s7-1`). The run fo
 - **K1, retired tests:** where a property survives, the test keeps it with a well-typed host. Where none does, the test goes. The regression case became `effects-a_discarded_pure_call_keeps_its_arguments_host_call`.
 - **K7 (found in the second run):** a regex literal leaves a `/` bare inside a character class, so its `source` is the constructor's (marked's `autolink`, `escapeRe` and `htmlPed`).
 
+## 2026-09-28 Batch K12: R11's index precondition in production (M10.9, second batch, first part)
+
+**Pre-registration** (written before the first build of the batch; base: K11's last commit and the fix-ups). It lands only if the development-check lane's port runs (K8, K11) are green: an index read past an end would throw there.
+
+What the batch builds (language.md R11):
+- **An element read is the plain read.** An `int` element (array or typed array) carries no `|0`, and a `string` element (a `string[]` or `s[i]`) no `??""`. In range by precondition, each is its type's value. A `Uint32Array` element keeps its conversion, since a uint32 is not an int32.
+- **Absence stays for R2's second batch.** A record's missing key, a `T?` element and `Map.get` keep `??null`. Dropping those needs the crossing normalization R2 describes: a `T?` that reaches a `JsValue` or a print is pinned to one spelling. That in turn needs the use analysis through locals (the cell-SSA view, step 9). The draft of those refusals is kept in `~/lilscript-work/portwork/k12-r2-draft.patch`.
+- **Tests stop reading past an end.** In production that is a precondition violation, whose result is unspecified.
+
+Not in this batch:
+- `charCodeAt` returning a number. That refuses `int c = s.charCodeAt(i)`, which the unpatched ports write, so it waits for their releases (M12.4).
+- Native's trap past an end. Native returns a memory-safe default today.
+
+Changes:
+- **C1.** The load recipe.
+- **C2.** Tests and docs.
+
+Predicted: smaller in every codec wherever typed code reads an `int` or `string` element (the `|0` and `??""` go). The ratchet and the ports show the size. A spelling flip like the first run's minmax case is judged per case (AM2).
+
 ---
 
 ## Appendix: where milestones 001–014 went
