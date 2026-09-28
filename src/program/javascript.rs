@@ -606,6 +606,7 @@ fn form_head(
         reference_plan,
         host_factories: Vec::new(),
         index_check: None,
+        crossing_checks: Vec::new(),
         unit_functions: Vec::new(),
         foreign_bindings: Vec::new(),
         stable_cells: Vec::new(),
@@ -1396,6 +1397,8 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     host_factories: Vec<(u8, js::BindingId)>,
     /// The hoisted index-read check (`checks = "development"`), once formed.
     index_check: Option<js::BindingId>,
+    /// The hoisted crossing checks, one per shape and absence.
+    crossing_checks: Vec<((checks::Crossing, bool), js::BindingId)>,
     /// Each formed function unit's target function, for export reflection.
     unit_functions: Vec<(UnitId, js::FunctionId)>,
     /// One ES import binding per foreign cell with an `import extern` source.
@@ -2975,6 +2978,16 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 raw = projected;
             }
         }
+        // A typed host binding's value crosses in at each read (R1): a
+        // development build checks it. An extern function crosses where its
+        // calls return.
+        if let Place::Cell(cell) = self.data(unit).places[place.index()] {
+            if self.program.cells[cell.index()].binding == CellBinding::Foreign
+                && !matches!(self.program.types[ty.index()], Type::Function(_))
+            {
+                raw = self.crossing_check(ty, raw)?;
+            }
+        }
         // Language absence and integer obligations are distinct from the raw
         // JavaScript property load, including loads from foreign containers.
         match load_result_recipe(self.program, self.data(unit), place, ty) {
@@ -3407,6 +3420,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         })?,
                         CallResultRecipe::Raw | CallResultRecipe::IntrinsicInteger => expression,
                     };
+                // A development build checks what crosses in (R1).
+                if self.crossing_call(unit, call) {
+                    if let Some(result) = operation.result {
+                        let ty = self.data(unit).values[result.index()].ty;
+                        expression = self.crossing_check(ty, expression)?;
+                    }
+                }
                 if !before.is_empty() {
                     self.append(&mut before, expression)?;
                     expression = self.sequence(before)?.unwrap();

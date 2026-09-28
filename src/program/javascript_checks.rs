@@ -167,3 +167,237 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         Ok(binding)
     }
 }
+
+/// A crossing's checkable shape (R1): what `typeof` or `Array.isArray` tells.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum Crossing {
+    Int,
+    Float,
+    String,
+    Bool,
+    Array,
+    Function,
+}
+
+impl Crossing {
+    /// The shape of a value of `ty`, and whether absence is one, or none
+    /// where no cheap test tells (a class, a struct, a map, a `JsValue`).
+    fn of(ty: &Type<'_>) -> Option<(Self, bool)> {
+        Some(match ty {
+            Type::Int => (Self::Int, false),
+            Type::Float => (Self::Float, false),
+            Type::String => (Self::String, false),
+            Type::Bool => (Self::Bool, false),
+            Type::Array(_) => (Self::Array, false),
+            Type::Function(_) => (Self::Function, false),
+            Type::Nullable(inner) => (Self::of(inner)?.0, true),
+            _ => return None,
+        })
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Int => "int",
+            Self::Float => "float",
+            Self::String => "string",
+            Self::Bool => "bool",
+            Self::Array => "array",
+            Self::Function => "function",
+        }
+    }
+}
+
+impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
+    /// Whether this call's result crosses into the program (R1): a call of an
+    /// `extern` function, a method call on a host object, or a trusted view
+    /// (`v as T`).
+    pub(super) fn crossing_call(&self, unit: ContextId, call: CallId) -> bool {
+        if self.contract.checks != PreconditionChecks::Development {
+            return false;
+        }
+        let data = self.data(unit);
+        match data.calls[call.index()].target {
+            CallTarget::Value { callee, .. } => {
+                let OperationKind::Load(place) =
+                    data.operations[data.values[callee.index()].definition.index()].kind
+                else {
+                    return false;
+                };
+                matches!(data.places[place.index()], Place::Cell(cell)
+                    if self.program.cells[cell.index()].binding == CellBinding::Foreign)
+            }
+            CallTarget::Reference { .. } | CallTarget::Builtin(BuiltinCall::JsAssume) => true,
+            _ => false,
+        }
+    }
+
+    /// `value` checked against `ty` where a value crosses into the program
+    /// under development checks, else `value`.
+    pub(super) fn crossing_check(
+        &mut self,
+        ty: TypeId,
+        value: js::ExprId,
+    ) -> Result<js::ExprId, FormationError> {
+        if self.contract.checks != PreconditionChecks::Development {
+            return Ok(value);
+        }
+        let Some((kind, absent)) = Crossing::of(&self.program.types[ty.index()]) else {
+            return Ok(value);
+        };
+        let helper = self.crossing_helper(kind, absent)?;
+        let callee = self.reference(helper)?;
+        let mut arguments = self.budget.vector(AllocationClass::Retained, 1)?;
+        self.append(&mut arguments, value)?;
+        Ok(self.expression(js::Expr::Call {
+            callee,
+            arguments,
+            invocation: Invocation::Value,
+        })?)
+    }
+
+    /// `function string_checked(v){if(!(typeof v==="string"))throw new
+    /// TypeError(…);return v}`, formed once per shape, absence allowed or not.
+    fn crossing_helper(
+        &mut self,
+        kind: Crossing,
+        absent: bool,
+    ) -> Result<js::BindingId, FormationError> {
+        if let Some(&(_, binding)) = self
+            .crossing_checks
+            .iter()
+            .find(|(key, _)| *key == (kind, absent))
+        {
+            return Ok(binding);
+        }
+        let root = self.module.root;
+        let scope = self.module.regions[root.index()].scope;
+        let body = self.module.region_in(scope, self.budget)?;
+        let body_scope = self.module.regions[body.index()].scope;
+        let value = self.fresh_binding(body_scope, "value")?;
+        let typeof_is = |this: &mut Self, name: &str| -> Result<js::ExprId, FormationError> {
+            let read = this.reference(value)?;
+            let kind = this.expression(js::Expr::Unary {
+                op: js::Unary::TypeOf,
+                value: read,
+            })?;
+            let name = this.string(&crate::literal::StringValue::from(name))?;
+            let name = this.literal(js::Literal::String(name))?;
+            Ok(this.expression(js::Expr::Binary {
+                op: js::Binary::StrictEqual,
+                left: kind,
+                right: name,
+            })?)
+        };
+        let mut test = match kind {
+            Crossing::Int => {
+                let number = typeof_is(self, "number")?;
+                let read = self.reference(value)?;
+                let zero = self.literal(js::Literal::Number(0.0))?;
+                let truncated = self.expression(js::Expr::Binary {
+                    op: js::Binary::BitOr,
+                    left: read,
+                    right: zero,
+                })?;
+                let read = self.reference(value)?;
+                let int32 = self.expression(js::Expr::Binary {
+                    op: js::Binary::StrictEqual,
+                    left: truncated,
+                    right: read,
+                })?;
+                self.expression(js::Expr::Binary {
+                    op: js::Binary::And,
+                    left: number,
+                    right: int32,
+                })?
+            }
+            Crossing::Float => typeof_is(self, "number")?,
+            Crossing::String => typeof_is(self, "string")?,
+            Crossing::Bool => typeof_is(self, "boolean")?,
+            Crossing::Function => typeof_is(self, "function")?,
+            Crossing::Array => {
+                let array = self.text("Array")?;
+                let array = self.expression(js::Expr::Host(js::Host::new(array)))?;
+                let is_array = self.text("isArray")?;
+                let callee = self.expression(js::Expr::Member {
+                    object: array,
+                    property: js::Property::Named(is_array),
+                })?;
+                let read = self.reference(value)?;
+                let mut arguments = self.budget.vector(AllocationClass::Retained, 1)?;
+                self.append(&mut arguments, read)?;
+                self.expression(js::Expr::Call {
+                    callee,
+                    arguments,
+                    invocation: Invocation::Reference,
+                })?
+            }
+        };
+        if absent {
+            let read = self.reference(value)?;
+            let null = self.literal(js::Literal::Null)?;
+            let missing = self.expression(js::Expr::Binary {
+                op: js::Binary::Equal,
+                left: read,
+                right: null,
+            })?;
+            test = self.expression(js::Expr::Binary {
+                op: js::Binary::Or,
+                left: missing,
+                right: test,
+            })?;
+        }
+        let wrong = self.expression(js::Expr::Unary {
+            op: js::Unary::Not,
+            value: test,
+        })?;
+        let fail = self.module.region_in(body_scope, self.budget)?;
+        let error = self.text("TypeError")?;
+        let error = self.expression(js::Expr::Host(js::Host::new(error)))?;
+        let message = format!(
+            "a value crosses into the program as {}{} and is not one",
+            kind.name(),
+            if absent { "?" } else { "" }
+        );
+        let message = self.string(&crate::literal::StringValue::from(message.as_str()))?;
+        let message = self.literal(js::Literal::String(message))?;
+        let mut error_arguments = self.budget.vector(AllocationClass::Retained, 1)?;
+        self.append(&mut error_arguments, message)?;
+        let thrown = self.expression(js::Expr::Construct {
+            callee: error,
+            arguments: error_arguments,
+        })?;
+        self.statement(fail, js::Statement::Throw(thrown))?;
+        self.statement(
+            body,
+            js::Statement::If {
+                condition: wrong,
+                yes: fail,
+                no: None,
+            },
+        )?;
+        let returned = self.reference(value)?;
+        self.statement(body, js::Statement::Return(Some(returned)))?;
+        let mut parameters = self.budget.vector(AllocationClass::Retained, 1)?;
+        self.append(&mut parameters, value)?;
+        let function = js::FunctionId::try_new(self.module.functions.len())
+            .ok_or(AllocationError::Capacity)?;
+        self.budget.push(
+            AllocationClass::Retained,
+            &mut self.module.functions,
+            js::Function {
+                parameters,
+                body,
+                arrow: false,
+                name: js::FunctionName::Unobserved,
+                strict: false,
+                length: None,
+                suspension: crate::js::Suspension::None,
+            },
+        )?;
+        let binding = self.fresh_binding(scope, &format!("{}_checked", kind.name()))?;
+        self.helper_statement(root, js::Statement::Function { binding, function })?;
+        self.budget
+            .push(AllocationClass::Scratch, &mut self.crossing_checks, ((kind, absent), binding))?;
+        Ok(binding)
+    }
+}
