@@ -1368,6 +1368,8 @@ Predicted:
 - Unmodified programs, cases and ports: byte-identical.
 - No census change: `JS.apply` sites could become spreads, but `apply` passes an array-like where a spread iterates, so the fix-it leaves them.
 
+**Status (2026-09-28, evening).** Pushed before its ladder at the owner's request ("commit and push everything"). The unit suite passes: 1,593 tests, 9 ignored. Its first runs found four things, each fixed in its own commit: a test constructed `Argument` without `spread`; the arity error hid the spread refusal; the demand walk had no arm for a spread argument; and the JavaScript tree's verifier admitted a spread only inside an array literal. The ladder against `s3-1` and the record follow.
+
 ---
 
 ## Appendix: where milestones 001–014 went
