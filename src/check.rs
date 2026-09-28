@@ -4893,6 +4893,17 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     },
                 ..
             } => {
+                // `bool(v)`: JavaScript's truthiness, the `truthy()` intrinsic
+                // on a `JsValue` (R12; a condition stays a `bool`).
+                if matches!(target.kind, TypeKind::Bool) {
+                    self.analyze_dynamic_operand(value)?;
+                    self.facts.source_info[expr.id.index()].resolution =
+                        ExpressionResolution::Primitive(crate::primitive::ResolvedIntrinsic::Method(
+                            crate::primitive::Intrinsic::JsTruthy,
+                        ));
+                    self.facts.expression_types[expr.id.index()] = Some(Type::Bool);
+                    return Ok(Type::Bool);
+                }
                 // `string(v)` is `JS.string(v)`; `float(v)` and `number(v)` are
                 // `JS.number(v)` (R12).
                 let (builtin, result) = match target.kind {
@@ -4901,7 +4912,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     _ => {
                         return Err(AdmittedCheckError::new(
                             *span,
-                            "a conversion is `string(v)`, `float(v)` or `number(v)`",
+                            "a conversion is `string(v)`, `float(v)`, `number(v)` or `bool(v)`",
                         ))
                     }
                 };

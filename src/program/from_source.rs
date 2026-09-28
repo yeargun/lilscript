@@ -4833,6 +4833,46 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span: check,
                 ..
             } => return self.checked_cast(unit, region, value, *check, ty, origin, span),
+            // `bool(v)`: the truthiness intrinsic on its operand, as
+            // `v.truthy()` calls it.
+            ExprKind::Convert { value, .. } => {
+                let ExpressionResolution::Primitive(
+                    operation @ ResolvedIntrinsic::Method(_),
+                ) = self.semantics.expression_resolution(expr.id)
+                else {
+                    return self.unsupported(span, "conversion without a checked operation");
+                };
+                let receiver = Some(self.expression(unit, region, value)?);
+                let contract = crate::primitive::intrinsic_call_contract(operation).ok_or(
+                    Unsupported {
+                        span,
+                        feature: "conversion call contract",
+                    },
+                )?;
+                let signature =
+                    self.ty(&crate::check::Type::Function(contract.signature()))?;
+                let defaults = operation.call_default_convention().ok_or(Unsupported {
+                    span,
+                    feature: "prepared intrinsic call convention",
+                })?;
+                let contract = CallContract {
+                    signature: Some(signature),
+                    instantiation: None,
+                    supplied: 0,
+                    defaults,
+                };
+                self.prepare_call(
+                    unit,
+                    region,
+                    CallTarget::Intrinsic {
+                        operation,
+                        receiver,
+                    },
+                    contract,
+                    &[],
+                    span,
+                )?
+            }
             ExprKind::TypeCheck {
                 value, span: check, ..
             } => {

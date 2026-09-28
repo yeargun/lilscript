@@ -1914,15 +1914,16 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 Ok(expr)
             }
             TokenKind::LBracket => self.parse_array_literal_after_open(token.span),
-            // `string(v)`, `float(v)`, `number(v)`: explicit conversions (R12).
-            TokenKind::String | TokenKind::Float | TokenKind::Number
+            // `string(v)`, `float(v)`, `number(v)`, `bool(v)`: explicit
+            // conversions (R12).
+            TokenKind::String | TokenKind::Float | TokenKind::Number | TokenKind::Bool
                 if self.check(|kind| matches!(kind, TokenKind::LParen)) =>
             {
                 let target = TypeRef {
-                    kind: if matches!(token.kind, TokenKind::String) {
-                        TypeKind::String
-                    } else {
-                        TypeKind::Float
+                    kind: match token.kind {
+                        TokenKind::String => TypeKind::String,
+                        TokenKind::Bool => TypeKind::Bool,
+                        _ => TypeKind::Float,
                     },
                     span: token.span,
                 };
@@ -2889,6 +2890,7 @@ fn starts_operand(kind: &TokenKind<'_>) -> bool {
             | TokenKind::String
             | TokenKind::Float
             | TokenKind::Number
+            | TokenKind::Bool
     )
 }
 
