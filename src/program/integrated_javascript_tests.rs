@@ -676,8 +676,17 @@ fn assert_combined_descriptor(words: &[u32], target: &Targets, inline_product: b
 
 #[test]
 fn public_factory_qualifies_combined_recipes_with_exact_scores_and_original_observations() {
-    use crate::build::{with_checked_path, ServiceOptions};
+    use crate::build::{with_checked_path, ServiceOptions, SKIP_PROGRAM_INLINING};
 
+    // The fixture's helpers are what formation's helper inlining qualifies.
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            SKIP_PROGRAM_INLINING.with(|skip| skip.set(false));
+        }
+    }
+    SKIP_PROGRAM_INLINING.with(|skip| skip.set(true));
+    let _restore = Restore;
     verify_archives();
     let mut config = configuration(true);
     // The service's ordinary baseline lifecycle seals the ledger. The bounded

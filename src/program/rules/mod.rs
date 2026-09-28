@@ -1,9 +1,11 @@
-//! Program rules (plan M5.1, M6.4a, M7.8a; architecture §8.2–§8.4): exact,
+//! Program rules (plan M5.1, M6.4a, M7.3, M7.5a, M7.8a; architecture §8.2–§8.4): exact,
 //! target-neutral rewrites of the owned program, run once per build after
 //! conversion and before any target forms it, to their fixed point.
 //! JavaScript, native and every search candidate start from the result.
 //!
-//! A rule removes operations and never duplicates a body (L3). Rules read the
+//! A rule never grows the program (L3): it removes operations, and inlining
+//! copies a body only where the copies take no more operations than the body
+//! and the calls they replace. Rules read the
 //! program's facts (effects and the call graph, initialization order) and the
 //! exact values of `values.rs`. They never read a codec, a name plan, a
 //! target or the effort level, so the base they leave is the same at every
@@ -18,6 +20,7 @@
 mod dce;
 mod edit;
 mod fold;
+mod inline;
 mod values;
 
 #[cfg(test)]
@@ -35,6 +38,9 @@ pub(crate) struct RuleRequest {
     pub(crate) fold: bool,
     /// Dead operations, dead stores and dead named functions (M5.1).
     pub(crate) dead_code: bool,
+    /// Removal-only inlining (M7.5a). It retires what it copies, so it runs
+    /// only with `dead_code`.
+    pub(crate) inline: bool,
     /// Root storage is sealed only in module execution: a script's root
     /// bindings are globals other scripts may read and write.
     pub(crate) seal: Seal,
@@ -43,6 +49,10 @@ pub(crate) struct RuleRequest {
 impl RuleRequest {
     pub(crate) fn any(self) -> bool {
         self.fold || self.dead_code
+    }
+
+    fn inlining(self) -> bool {
+        self.inline && self.dead_code
     }
 }
 
@@ -57,6 +67,9 @@ pub(crate) struct RuleReceipt {
     pub(crate) retired_functions: u32,
     /// Bodies nothing creates any more, emptied: they use nothing.
     pub(crate) emptied_units: u32,
+    /// Calls replaced by a copy of their body, and the bodies copied.
+    pub(crate) inlined_calls: u32,
+    pub(crate) inlined_bodies: u32,
 }
 
 impl RuleReceipt {
@@ -69,13 +82,17 @@ impl RuleReceipt {
             "removed_stores": self.removed_stores,
             "retired_functions": self.retired_functions,
             "emptied_units": self.emptied_units,
+            "inlined_calls": self.inlined_calls,
+            "inlined_bodies": self.inlined_bodies,
         })
     }
 }
 
-/// A rule edit strictly removes operations, so rounds are bounded by the
-/// program's size; this ceiling only catches a rule that does not.
-const ROUND_CEILING: u32 = 64;
+/// Every round removes operations or calls and adds no operation, so rounds
+/// are bounded by the program's size; inlining a chain of calls takes a
+/// round per independent set, logarithmic in its depth. This ceiling only
+/// catches a rule that does not converge.
+const ROUND_CEILING: u32 = 128;
 
 /// Runs the permitted rules to their fixed point. The result is verified: a
 /// rule that leaves an invalid program is a compiler bug, reported as an
@@ -99,6 +116,12 @@ pub(crate) fn optimize<'src>(
             let effects = editor.program().effects(request.seal);
             let values = values::ProgramValues::compute(editor.program(), &effects, request.seal);
             changed |= fold::apply(&mut editor, &values, &effects, &mut receipt);
+            editor.commit()?;
+        }
+        if request.inlining() {
+            let effects = editor.program().effects(request.seal);
+            changed |= inline::apply(&mut editor, &effects, &mut receipt)
+                .map_err(|error| format!("program rules, inlining: {error}"))?;
             editor.commit()?;
         }
         if request.dead_code {

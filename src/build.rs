@@ -274,6 +274,10 @@ thread_local! {
     /// published program whose literals the rules have not already folded.
     pub(crate) static SKIP_PROGRAM_RULES: std::cell::Cell<bool> =
         const { std::cell::Cell::new(false) };
+    /// Set by tests of formation's helper inlining (retired by M9.1), whose
+    /// fixtures need the helpers the program's inlining rule would remove.
+    pub(crate) static SKIP_PROGRAM_INLINING: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
 }
 
 impl Frontend {
@@ -301,9 +305,15 @@ impl Frontend {
             .map_or(Seal::Module, |contract| {
                 Seal::from_execution(contract.execution)
             });
+        #[cfg(test)]
+        let permitted_inlining =
+            permitted(TacticId::Inlining) && !SKIP_PROGRAM_INLINING.with(std::cell::Cell::get);
+        #[cfg(not(test))]
+        let permitted_inlining = permitted(TacticId::Inlining);
         Some(RuleRequest {
             fold: permitted(TacticId::ConstantFolding),
             dead_code: permitted(TacticId::DeadCodeElimination),
+            inline: permitted_inlining,
             seal,
         })
     }

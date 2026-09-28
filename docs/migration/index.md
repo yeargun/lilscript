@@ -2,22 +2,22 @@
 
 The one-compiler migration as a to-do list. [plan.md](plan.md) says what each task is and the order the work goes in. [history.md](history.md) records what each batch landed, measured and left open.
 
-**Updated 2026-09-28**, at batch F1 on `finer/059-idiom-directed-naming`. Every batch branch is merged there.
+**Updated 2026-09-28**, at batch F2 on `finer/059-idiom-directed-naming`. Every batch branch is merged there.
 
 ## Where we are
 
 - **Done:**
   - M0 and M1: there has been one compiler since 2026-09-24.
   - The interim release.
-  - Batches I, T, D, N, A1 and F1, and M3.3a.
+  - Batches I, T, D, N, A1, F1 and F2, and M3.3a.
   - Three of the tools: M2.13, M2.5 and M2.14.
   - Of the plan's 13 steps, steps 1 and 4 are done and steps 2 and 3 are partly done.
-- **Next on the critical path:** step 5 continues with batch F2: M7.3 and M7.5a, with the kernel's graft and signature edits (M5.1). Batch F1 landed the rule phase, DCE on both targets, exact values and folding.
+- **Next on the critical path:** step 5 closes with batch F3: M7.3's signature edits (dropped and constant parameters, unused results) and the measured deletion of the tree twins. Batch F1 landed the rule phase, DCE, exact values and folding; batch F2 the graft, removal-only inlining and typed defaults.
 - **Also open, off the critical path:**
   - Step 2: the layout commit, then M3.3b with M3.8a, then motionlil compiler-written (M12.2).
   - Step 3: M2.10, M2.11, M2.12 and M2.15.
 - **Largest gaps:**
-  - **Program rules are young.** F1 added DCE and folding on the Program IR: `comparison/apps` is 926 Brotli (945 before F1), against 834 for Closure ADVANCED and 558 for the old route. Inlining and parameter rules (F2) come next. The ratchet's script lanes cannot seal their roots while every competitor treats top-level bindings as private: Y5.
+  - **Program rules are young.** F1 and F2 added DCE, folding and removal-only inlining on the Program IR: production module lanes −1,174 Brotli since A1, but `comparison/apps` is still 926 Brotli against 834 for Closure ADVANCED and 558 for the old route, because the ratchet's script lanes cannot seal their roots while every competitor treats top-level bindings as private: Y5.
   - **Compile time.** Level 13 takes 1.06–3.81× the frozen pre-M1 time (katexlil 17.6 s against 4.62 s, measured on head `d1d48c4c` for M2.14). Step 6's exit (M3.5) brings it back.
   - **Runtime.** katexlil's steady state in Node is 1.047× upstream KaTeX (after A1). M2.12's runtime ledger will track every port.
 - **Owner rulings pending:** Y1–Y7 (architecture §21.1). None of them blocks the critical path.
@@ -26,7 +26,7 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
   - Amendment AM1: budgets are counts, and the work-unit tariff and its machinery are dropped.
   - Law L22: decide statically first.
   - Implement the whole plan.
-- **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding).
+- **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding), [F2](history.md#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults).
 
 ## Steps
 
@@ -36,7 +36,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] **2** Delivery contract and motionlil. Done: M3.3a. Open: the layout commit (architecture §15), then M3.3b with M3.8a, then motionlil (M3.3e, M12.2)
 - [ ] **3** Tools. Done: M2.5, M2.13, M2.14. Open: M2.10, M2.11, M2.12, M2.15, and M2.7; M2.4 starts here and then runs ahead of each fact
 - [x] **4** Batch A1, canonical formation without tree analysis: 2026-09-27
-- [ ] **5** Floor slice: M5.1, M6.4a, M7.8a, M7.3, M7.5a. Done: M7.8a, and M5.1's and M6.4a's first parts (batch F1). Open: M7.3, M7.5a (F2). **Next on the critical path**
+- [ ] **5** Floor slice: M5.1, M6.4a, M7.8a, M7.3, M7.5a. Done: M7.8a, M7.5a's first version, and first parts of M5.1, M6.4a and M7.3 (batches F1, F2). Open: M7.3's signature edits and the tree twins (F3). **Next on the critical path**
 - [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed
 - [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16
 - [ ] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half); M10.12 after Y1
@@ -112,7 +112,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 
 ### M5 The machinery: 1 of 8 · [plan](plan.md#m5-the-machinery)
 
-- [ ] M5.1 Program edit kernel, DCE on both targets: step 5. *F1: DCE on both targets and the kernel's first part. Open: graft, signature changes, `UseIndex`, deleting `drop_unreferenced_functions`*
+- [ ] M5.1 Program edit kernel, DCE on both targets: step 5. *F1: DCE on both targets and the kernel's first part; F2: the graft. Open: signature changes (F3), `UseIndex`, deleting `drop_unreferenced_functions`*
 - [ ] M5.2 Tree annotations and journal (absorbs M8.1): step 9
 - [ ] M5.3a Scheduler: step 9
 - [ ] M5.3b Transitional rules deleted: steps 10–12, each with its replacement
@@ -139,9 +139,9 @@ A fact counts as landed only once its re-derivations are deleted (plan rule 2).
 
 - [ ] M7.1 Removal: step 10
 - [x] M7.2 Discarded effect-free calls: 2026-09-24 (batch I)
-- [ ] M7.3 Parameters and returns: step 5
+- [ ] M7.3 Parameters and returns: step 5. *F2: typed defaults. Open: dropped and constant parameters, unused results, and the three default passes (F3)*
 - [ ] M7.4 Root constants, defines, forwarding: step 10
-- [ ] M7.5a Removal-only inlining: step 5
+- [ ] M7.5a Removal-only inlining: step 5. *F2: first version (one exit, no function created inside, one module). Open: the tree twins' deletion, measured (F3); tail returns go to M7.5*
 - [ ] M7.5 Inlining, the rest: step 10
 - [ ] M7.6 Namespaces and emulated methods: step 10
 - [ ] M7.7 Fields: step 10
@@ -245,6 +245,8 @@ Open items that the batch records left, grouped by the task that owns them. An i
 - **M8.5 and M3.3:** table decoders are declared at the first module's root. They move to prelude code (M8.5) and are placed per chunk (M3.3).
 - **M8.7:** NO3's second half, thresholds without a policy source, is not checked yet.
 - **M9.1 and M9.5:** the search scores a render the terminal stage then re-spells, so a tie between naming plans can land on the worse delivered text; `Style`'s derived order keeps `Global` on a tie (batch F1: two cases +6 and +7 Brotli).
+- **M7.9:** a parameter written through a field inlines as a cell (`{let e=d;…}`, +9 raw), and a struct copy for an argument makes formation hold a waiting operand (+6 raw) (batch F2).
+- **M7.5's rest:** tail-return bodies need a result declared without a value; closures created inside a body; bodies across modules (batch F2).
 - **M9.3 and M10.4:**
   - mobxlil +72 Brotli after A1, law P1's price;
   - callbacks that are not private still get the shared factory;

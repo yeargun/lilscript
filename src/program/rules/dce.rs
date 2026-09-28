@@ -182,7 +182,7 @@ fn cell_usage(program: &Program<'_>, created: &[bool], seal: Seal) -> CellUsage 
 
 /// The values an operation reads: its operands, the values its places and
 /// call name, and the results of the regions it owns.
-fn reads(data: &UnitData, operation: &Operation, out: &mut Vec<ValueId>) {
+pub(super) fn reads(data: &UnitData, operation: &Operation, out: &mut Vec<ValueId>) {
     out.clear();
     out.extend_from_slice(data.operands(operation.operands).unwrap_or(&[]));
     let place_values = |place: PlaceId, out: &mut Vec<ValueId>| {

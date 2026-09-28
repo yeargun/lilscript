@@ -11,6 +11,7 @@
 use super::super::ids::RevisionId;
 use super::super::views::ProgramViews;
 use super::super::*;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub(super) struct Editor<'src> {
@@ -92,6 +93,19 @@ impl<'src> Editor<'src> {
         }
         self.program.views = ProgramViews::default();
         Ok(())
+    }
+
+    /// A unit's current revision, to read while another unit is edited.
+    pub(super) fn handle(&self, unit: UnitId) -> FrozenUnit {
+        self.program.units[unit.index()].clone()
+    }
+
+    /// Adds a synthetic cell; synthetic cells follow every checked one.
+    pub(super) fn add_cell(&mut self, cell: Cell) -> Result<CellId, &'static str> {
+        let cells = Arc::make_mut(&mut self.program.cells);
+        let id = CellId::from_index(cells.len()).ok_or("cell capacity")?;
+        cells.push(cell);
+        Ok(id)
     }
 
     pub(super) fn finish(mut self) -> Result<Program<'src>, &'static str> {
@@ -239,6 +253,13 @@ struct Remaps {
     places: Vec<Option<PlaceId>>,
     calls: Vec<Option<CallId>>,
     instantiations: Vec<Option<CallInstantiationId>>,
+    /// A graft's cells: what the copied body declared, cloned for the copy.
+    cells: HashMap<CellId, CellId>,
+    /// A graft's parameters that read their argument: a place naming one
+    /// reads the argument value.
+    forwards: HashMap<CellId, ValueId>,
+    /// A graft's allocation sites, renumbered past the receiver's own.
+    allocations: HashMap<AllocationId, AllocationId>,
 }
 
 impl Remaps {
@@ -260,6 +281,9 @@ impl Remaps {
     }
     fn call(&self, id: CallId) -> Result<CallId, &'static str> {
         self.calls[id.index()].ok_or("a kept operation prepares a removed call")
+    }
+    fn cell(&self, id: CellId) -> CellId {
+        self.cells.get(&id).copied().unwrap_or(id)
     }
 
     fn kind(&self, kind: &OperationKind) -> Result<OperationKind, &'static str> {
@@ -298,18 +322,26 @@ impl Remaps {
             } => Op::Try {
                 body: self.region(*body)?,
                 catch: catch
-                    .map(|(cell, region)| self.region(region).map(|region| (cell, region)))
+                    .map(|(cell, region)| {
+                        self.region(region)
+                            .map(|region| (cell.map(|cell| self.cell(cell)), region))
+                    })
                     .transpose()?,
                 finally: finally.map(|region| self.region(region)).transpose()?,
             },
             Op::Block(region) => Op::Block(self.region(*region)?),
             Op::ForIn { key, body } => Op::ForIn {
-                key: *key,
+                key: self.cell(*key),
                 body: self.region(*body)?,
             },
             Op::ForOf { item, body } => Op::ForOf {
-                item: *item,
+                item: self.cell(*item),
                 body: self.region(*body)?,
+            },
+            Op::Initialize(cell) => Op::Initialize(self.cell(*cell)),
+            Op::Allocate { identity, kind } => Op::Allocate {
+                identity: self.allocations.get(identity).copied().unwrap_or(*identity),
+                kind: kind.clone(),
             },
             other => other.clone(),
         })
@@ -317,7 +349,10 @@ impl Remaps {
 
     fn place_payload(&self, place: &Place) -> Result<Place, &'static str> {
         Ok(match place {
-            Place::Cell(cell) => Place::Cell(*cell),
+            Place::Cell(cell) => match self.forwards.get(cell) {
+                Some(value) => Place::Value(*value),
+                None => Place::Cell(self.cell(*cell)),
+            },
             Place::Value(value) => Place::Value(self.value(*value)?),
             Place::Field { base, field } => Place::Field {
                 base: self.place(*base)?,
@@ -366,12 +401,22 @@ impl Remaps {
     }
 }
 
-/// Drops the storage the entry region no longer owns: operations, their
-/// values, regions, calls with their arguments and instantiations, and
-/// places. What is kept keeps its order and is renumbered densely.
-pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> {
-    // Ownership: the entry region, the operations its regions list and the
-    // child regions those operations own.
+/// What a unit's entry region owns: its regions, the operations they list
+/// (less those `skip` leaves out, with the regions they own), and the values,
+/// calls, instantiations and places those operations use.
+struct Keep {
+    regions: Vec<bool>,
+    operations: Vec<bool>,
+    calls: Vec<bool>,
+    places: Vec<bool>,
+    instantiations: Vec<bool>,
+    values: Vec<bool>,
+}
+
+fn ownership(
+    data: &UnitData,
+    mut skip: impl FnMut(OpId, &Operation) -> bool,
+) -> Result<Keep, &'static str> {
     let mut region_keep = vec![false; data.regions.len()];
     let mut op_keep = vec![false; data.operations.len()];
     let mut stack = vec![data.entry];
@@ -382,12 +427,16 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
         if std::mem::replace(seen, true) {
             return Err("a region has two owners");
         }
-        for op in &data.regions[region.index()].operations {
-            let kept = op_keep
-                .get_mut(op.index())
+        for &op in &data.regions[region.index()].operations {
+            let operation = data
+                .operations
+                .get(op.index())
                 .ok_or("a region lists a missing operation")?;
-            *kept = true;
-            stack.extend(data.operations[op.index()].kind.child_regions());
+            if skip(op, operation) {
+                continue;
+            }
+            op_keep[op.index()] = true;
+            stack.extend(operation.kind.child_regions());
         }
     }
     let mut call_keep = vec![false; data.calls.len()];
@@ -446,6 +495,28 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
             value_keep[result.index()] = true;
         }
     }
+    Ok(Keep {
+        regions: region_keep,
+        operations: op_keep,
+        calls: call_keep,
+        places: place_keep,
+        instantiations: instantiation_keep,
+        values: value_keep,
+    })
+}
+
+/// Drops the storage the entry region no longer owns: operations, their
+/// values, regions, calls with their arguments and instantiations, and
+/// places. What is kept keeps its order and is renumbered densely.
+pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> {
+    let Keep {
+        regions: region_keep,
+        operations: op_keep,
+        calls: call_keep,
+        places: place_keep,
+        instantiations: instantiation_keep,
+        values: value_keep,
+    } = ownership(data, |_, _| false)?;
     let everything = |keep: &[bool]| keep.iter().all(|kept| *kept);
     if everything(&op_keep)
         && everything(&region_keep)
@@ -466,6 +537,9 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
         places: renumber(&place_keep, PlaceId::from_index),
         calls: renumber(&call_keep, CallId::from_index),
         instantiations: renumber(&instantiation_keep, CallInstantiationId::from_index),
+        cells: HashMap::new(),
+        forwards: HashMap::new(),
+        allocations: HashMap::new(),
     };
 
     let mut operands = Vec::with_capacity(data.operands.len());
@@ -591,4 +665,274 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
     data.call_arguments = call_arguments;
     data.call_instantiations = call_instantiations;
     Ok(RegionRemap { map, moved: true })
+}
+
+/// What a graft copies from a body, and how.
+pub(super) struct GraftPlan<'a> {
+    /// The body's own cells, cloned for this copy.
+    pub(super) cells: &'a HashMap<CellId, CellId>,
+    /// Parameters that read their argument: their plain loads are not
+    /// copied, and a place naming one reads the argument value.
+    pub(super) forwards: &'a HashMap<CellId, ValueId>,
+    /// The body's final `return`, which is not copied: its operand is the
+    /// copy's result.
+    pub(super) exit: Option<OpId>,
+}
+
+/// What a graft placed.
+pub(super) struct Grafted {
+    /// The copied entry operations, in order, for the caller to splice.
+    pub(super) operations: Vec<OpId>,
+    /// What the exit returned, as a value of the target.
+    pub(super) result: Option<ValueId>,
+}
+
+/// Where a graft of `source` into a target with `regions` regions puts each
+/// source region: the entry becomes `parent`, and every other region the
+/// entry owns is appended in source order. A graft skips only operations
+/// that own no region, so this is also where `graft` puts them.
+pub(super) fn graft_regions(
+    source: &UnitData,
+    regions: usize,
+    parent: RegionId,
+) -> Result<Vec<Option<RegionId>>, &'static str> {
+    let owned = ownership(source, |_, _| false)?;
+    let mut next = regions;
+    owned
+        .regions
+        .iter()
+        .enumerate()
+        .map(|(index, &kept)| {
+            if index == source.entry.index() {
+                return Ok(Some(parent));
+            }
+            if !kept {
+                return Ok(None);
+            }
+            let id = RegionId::from_index(next).ok_or("region capacity")?;
+            next += 1;
+            Ok(Some(id))
+        })
+        .collect()
+}
+
+fn appended<T>(
+    keep: &[bool],
+    base: usize,
+    id: impl Fn(usize) -> Option<T>,
+) -> Result<Vec<Option<T>>, &'static str> {
+    let mut next = base;
+    keep.iter()
+        .map(|&kept| {
+            if !kept {
+                return Ok(None);
+            }
+            let value = id(next).ok_or("graft capacity")?;
+            next += 1;
+            Ok(Some(value))
+        })
+        .collect()
+}
+
+/// Copies `source`'s body into `target`, its regions hanging from `parent`:
+/// every region, operation, value, place, call and instantiation its entry
+/// owns, except the exit and the plain loads of forwarded parameters, whose
+/// results are the arguments. The copied entry operations are returned, not
+/// placed. Allocation sites are renumbered past the target's own, since a
+/// site's identity is local to its unit.
+pub(super) fn graft(
+    source: &UnitData,
+    target: &mut UnitData,
+    parent: RegionId,
+    plan: &GraftPlan<'_>,
+) -> Result<Grafted, &'static str> {
+    let mut forwarded: Vec<(ValueId, ValueId)> = Vec::new();
+    let keep = ownership(source, |op, operation| {
+        if Some(op) == plan.exit {
+            return true;
+        }
+        if let (OperationKind::Load(place), Some(result)) = (&operation.kind, operation.result) {
+            if let Some(Place::Cell(cell)) = source.places.get(place.index()) {
+                if let Some(&value) = plan.forwards.get(cell) {
+                    forwarded.push((result, value));
+                    return true;
+                }
+            }
+        }
+        false
+    })?;
+    let mut values = appended(&keep.values, target.values.len(), ValueId::from_index)?;
+    for (from, to) in forwarded {
+        values[from.index()] = Some(to);
+    }
+    let mut next_site = target
+        .operations
+        .iter()
+        .filter_map(|operation| match operation.kind {
+            OperationKind::Allocate { identity, .. } => Some(identity.index() + 1),
+            _ => None,
+        })
+        .max()
+        .unwrap_or(0);
+    let mut allocations = HashMap::new();
+    for (index, operation) in source.operations.iter().enumerate() {
+        if let (true, OperationKind::Allocate { identity, .. }) =
+            (keep.operations[index], &operation.kind)
+        {
+            let fresh = AllocationId::from_index(next_site).ok_or("allocation capacity")?;
+            allocations.insert(*identity, fresh);
+            next_site += 1;
+        }
+    }
+    let remaps = Remaps {
+        operations: appended(&keep.operations, target.operations.len(), OpId::from_index)?,
+        values,
+        regions: graft_regions(source, target.regions.len(), parent)?,
+        places: appended(&keep.places, target.places.len(), PlaceId::from_index)?,
+        calls: appended(&keep.calls, target.calls.len(), CallId::from_index)?,
+        instantiations: appended(
+            &keep.instantiations,
+            target.call_instantiations.len(),
+            CallInstantiationId::from_index,
+        )?,
+        cells: plan.cells.clone(),
+        forwards: plan.forwards.clone(),
+        allocations,
+    };
+    for (index, operation) in source.operations.iter().enumerate() {
+        if !keep.operations[index] {
+            continue;
+        }
+        let start = target.operands.len();
+        for value in source
+            .operands(operation.operands)
+            .ok_or("invalid operand range")?
+        {
+            target.operands.push(remaps.value(*value)?);
+        }
+        target.operations.push(Operation {
+            kind: remaps.kind(&operation.kind)?,
+            operands: OperandRange {
+                start: u32::try_from(start).map_err(|_| "operand capacity")?,
+                len: operation.operands.len,
+            },
+            result: operation
+                .result
+                .map(|value| remaps.value(value))
+                .transpose()?,
+            region: remaps.region(operation.region)?,
+            origin: operation.origin,
+            span: operation.span,
+        });
+    }
+    for (index, value) in source.values.iter().enumerate() {
+        if keep.values[index] {
+            target.values.push(Value {
+                ty: value.ty,
+                definition: remaps.op(value.definition)?,
+            });
+        }
+    }
+    let listed = |region: &Region| -> Result<Vec<OpId>, &'static str> {
+        region
+            .operations
+            .iter()
+            .filter(|op| keep.operations[op.index()])
+            .map(|op| remaps.op(*op))
+            .collect()
+    };
+    for (index, region) in source.regions.iter().enumerate() {
+        if !keep.regions[index] || index == source.entry.index() {
+            continue;
+        }
+        target.regions.push(Region {
+            parent: region
+                .parent
+                .map(|parent| remaps.region(parent))
+                .transpose()?,
+            operations: listed(region)?,
+            result: region.result.map(|value| remaps.value(value)).transpose()?,
+            span: region.span,
+        });
+    }
+    for (index, place) in source.places.iter().enumerate() {
+        if keep.places[index] {
+            target.places.push(remaps.place_payload(place)?);
+        }
+    }
+    for (index, call) in source.calls.iter().enumerate() {
+        if !keep.calls[index] {
+            continue;
+        }
+        let start = target.call_arguments.len();
+        for argument in source
+            .arguments(call.arguments)
+            .ok_or("invalid argument range")?
+        {
+            target.call_arguments.push(remaps.argument(argument)?);
+        }
+        let mut contract = call.contract;
+        contract.instantiation = contract
+            .instantiation
+            .map(|id| remaps.instantiations[id.index()].ok_or("a kept call lost its instantiation"))
+            .transpose()?;
+        target.calls.push(CallSite {
+            target: remaps.target(&call.target)?,
+            contract,
+            arguments: ArgumentRange {
+                start: u32::try_from(start).map_err(|_| "argument capacity")?,
+                len: call.arguments.len,
+            },
+        });
+    }
+    for (index, instantiation) in source.call_instantiations.iter().enumerate() {
+        if keep.instantiations[index] {
+            target.call_instantiations.push(instantiation.clone());
+        }
+    }
+    let operations = listed(&source.regions[source.entry.index()])?;
+    let result = match plan.exit {
+        Some(exit) => source
+            .operands(source.operations[exit.index()].operands)
+            .and_then(|operands| operands.first().copied())
+            .map(|value| remaps.value(value))
+            .transpose()?,
+        None => None,
+    };
+    Ok(Grafted { operations, result })
+}
+
+/// Appends an operation to `region`'s arena storage (not to its list) and
+/// returns it with its result, if it has one.
+pub(super) fn push_operation(
+    data: &mut UnitData,
+    kind: OperationKind,
+    operands: &[ValueId],
+    result: Option<TypeId>,
+    region: RegionId,
+    span: Span,
+) -> Result<(OpId, Option<ValueId>), &'static str> {
+    let op = OpId::from_index(data.operations.len()).ok_or("operation capacity")?;
+    let start = u32::try_from(data.operands.len()).map_err(|_| "operand capacity")?;
+    data.operands.extend_from_slice(operands);
+    let value = match result {
+        Some(ty) => {
+            let value = ValueId::from_index(data.values.len()).ok_or("value capacity")?;
+            data.values.push(Value { ty, definition: op });
+            Some(value)
+        }
+        None => None,
+    };
+    data.operations.push(Operation {
+        kind,
+        operands: OperandRange {
+            start,
+            len: u32::try_from(operands.len()).map_err(|_| "operand capacity")?,
+        },
+        result: value,
+        region,
+        origin: None,
+        span,
+    });
+    Ok((op, value))
 }

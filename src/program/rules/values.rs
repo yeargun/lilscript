@@ -11,7 +11,7 @@
 //! conditional constant propagation, so a value is exact when every run that
 //! computes it computes that one value.
 
-use super::super::call_graph::{Callee, Seal};
+use super::super::call_graph::{CallGraph, Callee, Seal};
 use super::super::effects::ProgramEffects;
 use super::super::facts::{exact, StoredExact, StoredKnowledge, UnknownReason, Work};
 use super::super::*;
@@ -110,7 +110,9 @@ impl ProgramValues {
             .collect();
         let mut results = vec![Know::Bottom; count];
 
-        // Cells initialized once, never reassigned, of a primitive type. A
+        // Cells initialized once, never written after, of a primitive type.
+        // Writes are read from the current program, not from conversion's
+        // `reassigned` flag, which goes stale as rules remove stores. A
         // script's root bindings are globals: other scripts may write them.
         let mut cells = vec![Know::Top; program.cells.len()];
         let mut settled: Vec<Option<(UnitId, ValueId)>> = vec![None; program.cells.len()];
@@ -121,7 +123,7 @@ impl ProgramValues {
                 .unit(cell.owner)
                 .is_some_and(|owner| owner.kind == UnitKind::ModuleInitialization);
             if cell.binding != CellBinding::Local
-                || cell.reassigned
+                || written(graph, id)
                 || cell.synthetic
                 || (root && seal != Seal::Module)
                 || !primitive(program, cell.ty)
@@ -274,6 +276,74 @@ impl ProgramValues {
     }
 }
 
+/// Whether a store or a reference argument writes the cell after its
+/// initialization, anywhere in the program as it now stands.
+fn written(graph: &CallGraph, cell: CellId) -> bool {
+    let storage = graph.storage(cell);
+    storage.stored || storage.referenced
+}
+
+/// Whether `value` reads a parameter that always holds a value of its type:
+/// every caller is known, typed and passes an argument in its position, and
+/// the type excludes `undefined`, so a default that only an omitted or
+/// `undefined` argument triggers never runs. Typed callers evaluate every
+/// default they can (`DefaultConvention::MaterializeAtCaller`) and omit only
+/// trailing arrows, and every store into the parameter is typed too.
+/// Formation's `defined_parameters` states the same fact on the target tree.
+fn typed_argument(
+    program: &Program<'_>,
+    graph: &CallGraph,
+    unit: UnitId,
+    data: &UnitData,
+    value: ValueId,
+) -> bool {
+    let definition = &data.operations[data.values[value.index()].definition.index()];
+    let OperationKind::Load(place) = definition.kind else {
+        return false;
+    };
+    let Some(&Place::Cell(cell)) = data.places.get(place.index()) else {
+        return false;
+    };
+    let storage = &program.cells[cell.index()];
+    let CellBinding::Parameter(position) = storage.binding else {
+        return false;
+    };
+    // A caller omits a trailing default only the callee can build (an
+    // arrow); then the argument is `undefined` and the default applies.
+    let supplied = |edge: &super::super::call_graph::CallEdge| {
+        program.unit(edge.caller).is_some_and(|caller| {
+            caller
+                .arguments(caller.calls[edge.call.index()].arguments)
+                .is_some_and(|arguments| arguments.len() > position as usize)
+        })
+    };
+    storage.owner == unit
+        && !program.is_reference_parameter(cell)
+        && graph
+            .complete_callers(unit)
+            .is_some_and(|edges| edges.iter().all(supplied))
+        && matches!(
+            program.ty(storage.ty),
+            Some(
+                crate::check::Type::Int
+                    | crate::check::Type::Float
+                    | crate::check::Type::Bool
+                    | crate::check::Type::String
+                    | crate::check::Type::Enum(_)
+                    | crate::check::Type::Array(_)
+                    | crate::check::Type::Record(_)
+                    | crate::check::Type::Map(_, _)
+                    | crate::check::Type::Set(_)
+                    | crate::check::Type::Regex
+                    | crate::check::Type::Struct(_)
+                    | crate::check::Type::Class(_)
+                    | crate::check::Type::StructInstance { .. }
+                    | crate::check::Type::ClassInstance { .. }
+                    | crate::check::Type::Function(_)
+            )
+        )
+}
+
 fn primitive(program: &Program<'_>, ty: TypeId) -> bool {
     matches!(
         program.ty(ty),
@@ -338,7 +408,7 @@ fn evaluate(
                 Some(&Place::Cell(cell)) => {
                     let storage = &program.cells[cell.index()];
                     match storage.binding {
-                        CellBinding::Parameter(position) if !storage.reassigned => channels
+                        CellBinding::Parameter(position) if !written(graph, cell) => channels
                             .formals
                             .get(storage.owner.index())
                             .and_then(|formals| formals.get(position as usize))
@@ -360,6 +430,13 @@ fn evaluate(
                 }
                 _ => Know::Top,
             },
+            OperationKind::IsUndefined
+                if operands
+                    .first()
+                    .is_some_and(|value| typed_argument(program, graph, unit, data, *value)) =>
+            {
+                Know::Exact(StoredExact::Boolean(false))
+            }
             OperationKind::Call(call) => match graph.callee(unit, *call) {
                 Callee::Unit(callee)
                     if program

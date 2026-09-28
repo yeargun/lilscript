@@ -10,12 +10,19 @@ use std::process::Command;
 const MODULE: RuleRequest = RuleRequest {
     fold: true,
     dead_code: true,
+    inline: true,
     seal: Seal::Module,
 };
 const SCRIPT: RuleRequest = RuleRequest {
     fold: true,
     dead_code: true,
+    inline: true,
     seal: Seal::StructuralOnly,
+};
+/// F1's rules alone, for the tests that inspect what folding keeps.
+const FOLD_ONLY: RuleRequest = RuleRequest {
+    inline: false,
+    ..MODULE
 };
 
 fn optimized<T>(
@@ -181,9 +188,10 @@ fn a_fold_counts_what_the_output_may_name_at_one_character() {
 #[test]
 fn effects_and_their_order_stay() {
     let source = "int count = 0;\nint bump() { count = count + 1; return count; }\nbump();\nint seen = bump();\nprint(count);\nprint(seen);\n";
-    optimized(source, MODULE, |program, _| {
+    optimized(source, FOLD_ONLY, |program, _| {
         assert!(instantiated(program, "bump"));
     });
+    optimized(source, MODULE, |_, _| {});
 }
 
 #[test]
@@ -211,5 +219,150 @@ fn nested_constant_structures_fold_over_rounds() {
     let source = "int choose(int a) {\n  if (a > 3) {\n    if (a > 10) { return 1; }\n    if (a > 4) { return 2; }\n    return 3;\n  }\n  return 4;\n}\nprint(choose(5));\n";
     optimized(source, MODULE, |program, receipt| {
         assert!(constant(program, 2), "{receipt:?}");
+    });
+}
+
+#[test]
+fn a_function_called_once_moves_into_its_caller() {
+    let source = "void report(int value) {\n  int doubled = value * 2;\n  print(doubled + 1);\n}\nfor (int i = 0; i < 3; i++) { report(i); }\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(!instantiated(program, "report"), "{receipt:?}");
+        assert!(receipt.inlined_calls >= 1, "{receipt:?}");
+        // The copy keeps its scope: its local lives in a block.
+        assert!(count(program, |kind| matches!(kind, OperationKind::Block(_))) >= 1);
+    });
+}
+
+#[test]
+fn a_small_body_is_copied_to_each_call_when_the_program_does_not_grow() {
+    let source = "int inc(int value) { return value + 1; }\nfor (int i = 0; i < 2; i++) {\n  print(inc(i));\n  print(inc(i * 10));\n}\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(!instantiated(program, "inc"), "{receipt:?}");
+        assert_eq!(receipt.inlined_calls, 2, "{receipt:?}");
+    });
+}
+
+#[test]
+fn recursion_and_early_returns_stay_calls() {
+    let source = "int fact(int n) {\n  if (n < 2) { return 1; }\n  return n * fact(n - 1);\n}\nint sign(int n) {\n  if (n < 0) { return -1; }\n  return 1;\n}\nfor (int i = 3; i < 5; i++) {\n  print(fact(i));\n  print(sign(i - 4));\n}\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(instantiated(program, "fact"), "{receipt:?}");
+        assert!(instantiated(program, "sign"), "{receipt:?}");
+    });
+}
+
+#[test]
+fn statements_never_enter_another_calls_arguments() {
+    let source = "int twice(int value) {\n  int doubled = value * 2;\n  return doubled + 1;\n}\nfor (int i = 0; i < 3; i++) { print(twice(i)); }\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(instantiated(program, "twice"), "{receipt:?}");
+    });
+}
+
+#[test]
+fn statements_never_split_an_expression_that_is_still_waiting() {
+    // `tick()` is evaluated before `stepped(i)` and added after it: a copy
+    // of `stepped`'s statements between them would hold its value.
+    let source = "int count = 0;\nint tick() {\n  count = count + 1;\n  return count;\n}\nint stepped(int value) {\n  int next = value + 1;\n  return next;\n}\nfor (int i = 0; i < 2; i++) { print(tick() + stepped(i)); }\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(instantiated(program, "stepped"), "{receipt:?}");
+    });
+}
+
+#[test]
+fn a_typed_caller_never_triggers_a_default() {
+    let source = "int scale(int value, int factor = 3) { return value * factor; }\nfor (int i = 0; i < 2; i++) {\n  print(scale(i));\n  print(scale(i, 5));\n}\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert_eq!(
+            count(program, |kind| matches!(kind, OperationKind::IsUndefined)),
+            0,
+            "{receipt:?}"
+        );
+        assert!(!instantiated(program, "scale"), "{receipt:?}");
+    });
+}
+
+#[test]
+fn a_copied_body_reads_the_storage_its_function_captured() {
+    let source = "int base = 10;\nint addBase(int value) { return value + base; }\nint outer(int value) { return addBase(value) * 2; }\nbase = 11;\nfor (int i = 0; i < 2; i++) { print(outer(i)); }\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(!instantiated(program, "addBase"), "{receipt:?}");
+    });
+}
+
+#[test]
+fn an_arrow_held_in_a_local_is_inlined_at_its_calls() {
+    let source = "void main() {\n  auto scale = (int value) => value * 3;\n  for (int i = 0; i < 2; i++) { print(scale(i)); }\n}\nmain();\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(receipt.inlined_calls >= 1, "{receipt:?}");
+        assert_eq!(
+            count(program, |kind| matches!(kind, OperationKind::Closure(_))),
+            0,
+            "{receipt:?}"
+        );
+    });
+}
+
+#[test]
+fn a_default_only_the_callee_builds_still_applies() {
+    // Callers omit a trailing arrow default: the callee creates it.
+    let source = "int offset = 2;\nint apply(int value, func(int)->int transform = (int current) => current + offset) {\n  return transform(value);\n}\nprint(apply(5));\nprint(apply(5, (int current) => current - 1));\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert_eq!(
+            count(program, |kind| matches!(kind, OperationKind::IsUndefined)),
+            1,
+            "{receipt:?}"
+        );
+    });
+}
+
+#[test]
+fn a_parameter_cell_is_a_statement() {
+    // `int` arguments to an `int?` parameter: the copy initializes a cell,
+    // which cannot stand inside `print`'s arguments.
+    let source = "func(int?)->int? echo = (int? value) => value;\nprint(echo(12) == 12);\nprint(echo(null) == null);\n";
+    optimized(source, MODULE, |_, _| {});
+}
+
+#[test]
+fn a_duplicate_that_reads_its_argument_twice_stays_a_call() {
+    // Each copy would have to name its argument: `(t=a[0]|0,t^t<<t)`.
+    let source = "int mix(int value) { return value ^ value << value; }\nint[] values = [1, 2, 3];\nprint(mix(values[0]));\nprint(mix(values[1]));\nprint(mix(values[2]));\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(instantiated(program, "mix"), "{receipt:?}");
+    });
+}
+
+#[test]
+fn an_argument_is_not_read_after_something_observable() {
+    // `run`'s copy would load `choose` after its arguments were evaluated,
+    // which the target can spell only by holding them in temporaries.
+    let source = "int counter = 0;\nint next() {\n  counter = counter + 1;\n  return counter;\n}\nbool choose(int value, bool enabled) {\n  if (enabled) { return value == 1; }\n  return false;\n}\nbool run(int value, bool enabled) { return choose(value, enabled); }\nprint(run(next(), true));\nprint(run(next(), false));\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(instantiated(program, "run"), "{receipt:?}");
+    });
+}
+
+#[test]
+fn a_result_cannot_leave_a_scoped_copy() {
+    // `items` owns storage, so it is scoped to the copy, which then cannot
+    // yield `result`; `doubled` owns nothing, so its copy needs no scope.
+    let source = "int count(int value) {\n  int[] items = [value, value];\n  return items.length;\n}\nint twice(int value) {\n  int doubled = value * 2;\n  return doubled + 1;\n}\nfor (int i = 0; i < 3; i++) {\n  int result = count(i) + twice(i);\n  print(result);\n}\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(instantiated(program, "count"), "{receipt:?}");
+    });
+    let source = "int twice(int value) {\n  int doubled = value * 2;\n  return doubled + 1;\n}\nfor (int i = 0; i < 3; i++) {\n  int result = twice(i);\n  print(result);\n}\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(!instantiated(program, "twice"), "{receipt:?}");
+    });
+}
+
+#[test]
+fn a_duplicate_with_typed_arithmetic_between_its_reads_is_free() {
+    // `(left + right) + extra` adds before reading `extra`: typed ints run
+    // no user code, so each copy is the expression the call stood for.
+    let source = "int add(int left, int right = 1, int extra = 0) {\n  return left + right + extra;\n}\nfor (int i = 0; i < 2; i++) {\n  print(add(i));\n  print(add(i, 2));\n  print(add(i, 2, 3));\n}\n";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(!instantiated(program, "add"), "{receipt:?}");
     });
 }

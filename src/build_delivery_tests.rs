@@ -745,7 +745,9 @@ fn unread_exceptions_and_argumentless_constructions_print_short() {
 }
 
 /// `JS.call(f, undef(), ...)` whose `undef` only returns undefined is the
-/// plain call `f(...)`; a receiver helper with an effect keeps its call.
+/// plain call `f(...)`; a receiver helper with an effect keeps its effect,
+/// before the call (the program rules inline it, and its `undefined` makes
+/// that call plain too).
 #[test]
 fn js_call_with_an_undefined_receiver_is_a_plain_call() {
     let source = "extern JsValue target;JsValue undef(){return JS.undefined();}\
@@ -759,7 +761,7 @@ fn js_call_with_an_undefined_receiver_is_a_plain_call() {
         .javascript()
         .to_string();
     assert!(text.contains("target(1)"), "{text}");
-    assert_eq!(text.matches(".call(").count(), 1, "{text}");
+    assert!(text.contains("\"receiver\""), "{text}");
     let output = Command::new("node")
         .args([
             "--input-type=module",

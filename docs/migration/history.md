@@ -684,6 +684,78 @@ Predicted:
 
 Not in this batch: M7.3's signature edits (dropped and constant parameters, unused results) and deleting the tree twins, which is batch F3.
 
+**What landed** (M5.1's graft, M7.5a's first version, M7.3's first rule; branch `m5-floor` on `c69ad2f0`).
+- **The kernel's graft** (`rules/edit.rs`). One unit's body is copied into another:
+  - `ownership`, the walk compaction uses, decides what is copied;
+  - `graft_regions` places the copied regions, so cloned cells know their regions before the copy is made;
+  - `Remaps` maps cells, forwarded parameters and allocation sites (renumbered past the receiver's own, since a site's identity is local to its unit);
+  - `Editor::add_cell` and `Editor::handle` let a body be read while another unit is edited.
+- **Removal-only inlining** (`rules/inline.rs`, M7.5a). Legality:
+  - every call is known, direct and in the same module, with value arguments and no generic instantiation;
+  - the body is not recursive, does not suspend, is no constructor, creates no function and reads no ambient `this` or `arguments`, and has one exit.
+
+  How much it copies:
+  - A body with one call moves.
+  - A body with several calls is copied only where each copy is free: an expression that reads each argument at most once, in no more operations than the call. A larger duplicate is the inline-or-share choice (M9.1).
+
+  Where a copy may stand:
+  - An expression stands anywhere when it reads its arguments in their evaluation order with nothing observable before the last read. This is the tree inliner's condition, widened to typed arithmetic when every argument is a constant or a cell's value.
+  - A body with statements stands only in a statement region, outside other calls' arguments and with no value waiting across the call.
+
+  Parameters and scope:
+  - A parameter nothing writes, whose argument has its exact type, reads the argument. Every other cell is cloned.
+  - A copy that declares storage of an owned type keeps its own block: native releases owned storage at scope end. The call's argument evaluation moves into that block. Such a copy cannot yield a value.
+  - Each round inlines an independent set of bodies, callees first. A copy's captures are added along the receiver's creation chain.
+- **Typed defaults** (M7.3's first rule, `rules/values.rs`). When every caller is known and passes an argument in the parameter's position, and the type excludes `undefined`, `IsUndefined` of the parameter is false, and its default's branch folds. Callers omit only trailing arrow defaults, which the callee builds.
+- **Storage facts.** Whether a cell is written is read from the current program (`CellStorage`), not from conversion's `reassigned` flag.
+- **Tests and receipt:**
+  - The round ceiling is 128, and the receipt counts `inlined_calls` and `inlined_bodies`.
+  - 14 new rule tests.
+  - Four tests adjusted:
+    - the budget fixture's helper now has two calls;
+    - the `JS.call` test checks that the receiver's effect survives: its helper is inlined, and the call becomes plain;
+    - formation's helper-inlining test sets a test-only `SKIP_PROGRAM_INLINING`, since its fixture's helpers are what that machinery (retired by M9.1) qualifies;
+    - F1's effects test runs F1's rules alone.
+
+**What the ladder caught** (ten binaries, `f2-1` to `f2-10`; each fixed within the batch):
+- **A callee-built default.** Callers omit a trailing arrow default and the callee builds it. The typed-default fold must therefore require the argument (`callable_defaults`: a wrong program in `f2-1`).
+- **Exact types.** `CopyValue` needs identical types, so forwarding and substituted results need exact types (two cases refused).
+- **Statement sites.** Formation cannot place statements inside another call's arguments or across a waiting value, and a parameter's cell is a statement (`35_nullable`).
+- **Duplicates.** A copy that reads an argument twice needs a temporary per copy (`ir_inlining_variant` +68 raw), so several calls take free copies only.
+- **Evaluation order.** An expression that evaluates something observable before its last argument read makes the target hold the arguments in temporaries (`dynamic_js_coercion` +18).
+- **Scope.** Copying a body's locals into the module scope kept native storage alive to the end of the program; the `factories` native test counted three live owners. Hence scoped copies. Scalars and host values own nothing a scope releases.
+
+**Evidence (binary `~/lilscript-work/bin/f2-10`, SHA-256 `4a7d57ee4b87bfaf…`, against F1's `f1-6`).**
+- Unit tests: 1,578 pass, 9 ignored.
+- Case runner, 395 cases × 18 lanes: no failure outside the ledger. Production, against F1 (in brackets, against the A1 baseline, both batches together):
+
+  | Lane | Brotli | gzip | raw |
+  |---|---:|---:|---:|
+  | module | −598 (−1,174) | −592 (−1,143) | −1,150 (−2,026) |
+  | script | −223 (−316) | −218 (−307) | −355 (−547) |
+
+  - C: production 2,140,652 → 2,103,391 bytes (−37,261; −111,846 since A1).
+  - Five cases grow in raw module (+21 in total), all from struct copies (findings).
+- Ratchet: pass, with 271 improvements.
+  - `comparison/cases` Brotli 48,746 → 48,725. Losses to the competitor: raw 375 → 368, gzip 378 → 372.
+  - Apps and algorithms are unchanged: they compile as scripts, whose root functions are globals (Y5).
+- Reference ports: all seven green, with identical tests.
+  - Against F1: Brotli −696, gzip −316, raw +10,820. Against A1: Brotli −2,540, gzip −1,749, raw −4,139.
+  - Per port against F1 (raw/gzip/Brotli): markedlil −1,245/−228/−140; micromarklil −107/−55/−133; katexlil +4,625/+187/−270; jquerylil +5,950/+91/−234; zodlil +1,522/+168/+12; posthoglil +46/+16/+9; motionlil +29/−495/+60.
+  - The raw growth is in Brotli-objective builds: jquerylil's (all its artifacts use `cost_model = "brotli"`), katexlil's `.closed/.esm/.mjs` and zodlil's `index.cjs`. After inlining, the search prefers `if(c)e` to `c&&e` there, and Brotli falls (jquerylil's `jquery.raw.js` +1,190 raw, −23 Brotli). Builds made for raw shrink (marked's, katex's `.min.js`).
+- CPU time at level 13 against F1 (`cpu-pairs.py`, the frozen entries): markedlil ×0.696, zodlil ×0.975, posthoglil ×1.021, micromarklil ×0.990, katexlil ×0.997, motionlil ×0.989, and jquerylil ×1.098, where the search lands on a different result (its frozen entry 76,673 → 76,478 raw).
+
+**Findings.**
+- **M7.9's residual growth.** A parameter written through a field is a cell, which formation prints as `{let e=d;…}` where the tree inliner read the argument (+9 raw). A struct copy made for an argument makes formation hold the waiting operand (`interprocedural_values` +6).
+- **Tail returns** need a result declared without a value, which the IR has no form for. So formation's block inliner (`src/js/blocks.rs`), which spells `let x;…x=v`, stays until M7.5's rest.
+
+**Deviations.**
+- M7.5a is a first version: one exit, no function created inside, one module.
+- The tree inliners' removing half, `drop_unreferenced_functions` and the limit 6 are not deleted. The program rule does not yet cover tail returns or the helpers formation creates, so deleting them is batch F3's measured decision, or M7.5's rest.
+- M7.3 lands only its typed-default rule. Its signature edits and deleting `drop_typed_default_checks`, `drop_default_arguments` and `native_default_lengths` are batch F3.
+
+**Open.** Batch F3 (M7.3's signature edits and the tree twins' deletion, measured); M7.9's two growths; M7.5's rest (tail returns, closures inside bodies, across modules).
+
 ---
 
 ## Appendix: where milestones 001–014 went
