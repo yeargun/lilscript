@@ -1902,6 +1902,8 @@ mod analyzer_admission_tests;
 #[path = "check/binary_admission_tests.rs"]
 mod binary_admission_tests;
 
+mod assignments;
+
 #[cfg(test)]
 #[path = "check/narrowing_admission_tests.rs"]
 mod narrowing_admission_tests;
@@ -1979,6 +1981,12 @@ struct Analyzer<'check, 'budget, 'ast, 'src> {
     loop_depth: usize,
     async_depth: usize,
     callable_depth: usize,
+    /// The bodies being analyzed, outermost (the module) first, with the
+    /// names each assigns: a narrowing holds only where no code the flow
+    /// does not see can assign its binding (R1, `check/assignments.rs`).
+    bodies: Vec<assignments::Assigned<'src>>,
+    /// The body that declares each source binding, as an index into `bodies`.
+    symbol_bodies: AHashMap<SymbolId, usize>,
     /// Locals declared without a value and not assigned on every path to
     /// here (R3): a read of one is refused.
     unassigned: Vec<SymbolId>,
@@ -2196,6 +2204,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             loop_depth: 0,
             async_depth: 0,
             callable_depth: 0,
+            bodies: Vec::new(),
+            symbol_bodies: AHashMap::default(),
             unassigned: Vec::new(),
             conditional_assignments: 0,
             reference_parameters: AHashMap::default(),
@@ -2295,6 +2305,16 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     }
 
     fn analyze_items(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+        self.enter_body(assignments::Assigned::module(program))?;
+        let result = self.analyze_module_items(program);
+        self.bodies.pop();
+        result
+    }
+
+    fn analyze_module_items(
+        &mut self,
+        program: &Program<'ast, 'src>,
+    ) -> Result<(), AdmittedCheckError> {
         for item in program.items {
             match item {
                 Item::Enum(_) => {}
@@ -3328,6 +3348,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .map(|param| self.resolve_parameter_type(&param.parameter, "parameter"))
             .collect::<Result<Vec<_>, _>>()?;
         self.callable_depth += 1;
+        self.enter_body(assignments::Assigned::body(constructor.params, constructor.body))?;
         self.analyze_parameter_defaults(constructor.params, &parameters)?;
         self.push_scope()?;
         let class_info = &self.declarations.classes[class.index()];
@@ -3364,6 +3385,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.constructor_classes.pop();
         self.return_contexts.pop();
         self.pop_scope();
+        self.bodies.pop();
         self.callable_depth -= 1;
         Ok(())
     }
@@ -3387,6 +3409,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 .any(|parameter| parameter.passing == ParameterPassing::MutableReference),
         );
         self.callable_depth += 1;
+        self.enter_body(assignments::Assigned::body(function.params, function.body))?;
         self.analyze_parameter_defaults(function.params, &signature.params)?;
         self.push_scope()?;
 
@@ -3452,6 +3475,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .pop()
             .expect("function analysis pushed a return context");
         self.pop_scope();
+        self.bodies.pop();
         self.callable_depth -= 1;
         self.pending_references = outer_pending;
         self.current_reference_formals = outer_formals;
@@ -8044,7 +8068,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     ) -> Result<Type<'src>, AdmittedCheckError> {
         let outer = self.unassigned.clone();
         let conditional = std::mem::replace(&mut self.conditional_assignments, 0);
+        self.enter_body(match body {
+            ArrowBody::Expr(expression) => assignments::Assigned::expression_body(params, expression),
+            ArrowBody::Block(statements) => assignments::Assigned::body(params, statements),
+        })?;
         let result = self.analyze_arrow_body(params, body, expected);
+        self.bodies.pop();
         self.unassigned = outer;
         self.conditional_assignments = conditional;
         result
@@ -9034,6 +9063,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         if narrowing.is_empty() {
             return;
         }
+        let narrowing = narrowing
+            .into_iter()
+            .filter(|(symbol, _)| self.narrowable(*symbol))
+            .collect::<Vec<_>>();
         let scope = self
             .narrowings
             .last_mut()
@@ -9041,6 +9074,36 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         for (symbol, ty) in narrowing {
             scope.insert(symbol, ty);
         }
+    }
+
+    /// Whether a test narrows `symbol` here (R1: a narrowed value inhabits
+    /// its narrowed type). Code the flow does not see must not assign it: no
+    /// function nested in its declaring body does, and, read from such a
+    /// function, its declaring body does not either. A host binding is read
+    /// anew at each use, so it is never narrowed.
+    fn narrowable(&self, symbol: SymbolId) -> bool {
+        let Some(&declared) = self.symbol_bodies.get(&symbol) else {
+            return !self.declarations.symbols[symbol.0 as usize].is_foreign();
+        };
+        let Some(body) = self.bodies.get(declared) else {
+            return true;
+        };
+        let name = self.declarations.symbols[symbol.0 as usize].name;
+        !body.nested.contains(name)
+            && (declared + 1 >= self.bodies.len() || !body.own.contains(name))
+    }
+
+    /// Enters a function's, lambda's or module's body.
+    fn enter_body(
+        &mut self,
+        assigned: assignments::Assigned<'src>,
+    ) -> Result<(), AdmittedCheckError> {
+        self.budget.work(
+            crate::compilation_policy::WorkKind::Analysis,
+            (assigned.own.len() + assigned.nested.len()) as u64 + 1,
+        )?;
+        self.bodies.push(assigned);
+        Ok(())
     }
 
     fn current_scope_preserves(&self, narrowing: &Narrowing<'src>) -> bool {
@@ -9056,6 +9119,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     }
 
     fn narrowed_type(&self, symbol: SymbolId) -> Option<&Type<'src>> {
+        if !self.narrowable(symbol) {
+            return None;
+        }
         self.narrowings
             .iter()
             .rev()
@@ -9162,6 +9228,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         scope.insert(ident.name, id);
         if self.scopes.len() == 1 && self.callable_depth == 0 {
             self.declarations.module_bindings.insert(id);
+        }
+        if let Some(body) = self.bodies.len().checked_sub(1) {
+            self.symbol_bodies.insert(id, body);
         }
         self.facts
             .binding_types
@@ -12870,12 +12939,49 @@ mod tests {
 
     #[test]
     fn rejects_uninitialized_variables() {
+        // A module's own binding keeps its initializer (R3): only a
+        // function's local may be declared bare.
         let arena = Bump::new();
         let program = parse_source(&arena, "int value;").unwrap();
         assert!(analyze(&program)
             .unwrap_err()
             .message
-            .contains("require an initializer"));
+            .contains("requires an initializer"));
+    }
+
+    /// A narrowing holds only where no code the flow does not see can assign
+    /// its binding (R1): the facts trust a narrowed type.
+    #[test]
+    fn narrowing_holds_only_where_no_unseen_code_assigns_the_binding() {
+        let accepted = [
+            // Captured, never assigned again: the lambda sees the narrowing.
+            "string? v = \"a\"; if (v != null) { auto f = () => v.length; print(f()); }",
+            // Assigned only by the flow that narrows it.
+            "int f(string? s) { string? v = s; if (v != null) { int n = v.length; v = null; return n; } return 0; } print(f(\"ab\"));",
+            // A lambda's own local, narrowed inside it.
+            "auto f = (string? s) => { string? v = s; if (v != null) { return v.length; } return 0; }; print(f(\"ab\"));",
+        ];
+        for source in accepted {
+            let arena = Bump::new();
+            let program = parse_source(&arena, source).unwrap();
+            analyze(&program).unwrap_or_else(|error| panic!("{source}: {error:?}"));
+        }
+        let refused = [
+            // Captured and assigned after the lambda's creation.
+            "func()->int make(){string? value=\"ok\"; if(value!=null){auto read=()=>{return value.length;};value=null;return read;} return ()=>0;} print(make()());",
+            "int? value=1;if(value!=null){auto read=()=>value+2;value=null;print(read());}",
+            // Assigned by a lambda: a call may run it between test and use.
+            "string? v = \"a\"; auto reset = () => { v = null; }; if (v != null) { reset(); print(v.length); }",
+            // A module binding a function assigns.
+            "string? g = \"a\"; void clear() { g = null; } if (g != null) { clear(); print(g.length); }",
+            // A host binding is read anew at each use.
+            "extern string? host; if (host != null) { print(host.length); }",
+        ];
+        for source in refused {
+            let arena = Bump::new();
+            let program = parse_source(&arena, source).unwrap();
+            assert!(analyze(&program).is_err(), "{source}");
+        }
     }
 
     #[test]
