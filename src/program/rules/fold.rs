@@ -5,6 +5,7 @@
 //!   required becomes that constant: arithmetic, comparisons, copies and
 //!   discardable calls. A plain load is left to root-constant forwarding
 //!   (M7.4); its consumers fold here.
+//! - `x | 0` of an `int` is `x`, and the other bitwise identities with 0.
 //! - `if` with an exact condition keeps the branch that runs, as a block (its
 //!   lexical scope is kept); `?:` and a short circuit with an exact left
 //!   operand keep the operand that runs; a loop whose test is exactly false
@@ -266,6 +267,32 @@ fn structural(
                     result,
                     with: left,
                 }
+            })
+        }
+        // An `int` is its own ToInt32: `x | 0`, `x ^ 0`, `x << 0` and
+        // `x >> 0` are `x`, as are `0 | x` and `0 ^ x`. Evaluating an `int`
+        // runs nothing (R1), so the operation needs no evaluation of its own.
+        OperationKind::Binary(
+            kind @ (BinaryOp::BitOr | BinaryOp::Xor | BinaryOp::ShiftLeft | BinaryOp::ShiftRight),
+        ) => {
+            let [left, right] = operands[..] else {
+                return None;
+            };
+            let int = |value: ValueId| {
+                matches!(program.types[data.values[value.index()].ty.index()], Type::Int)
+            };
+            let zero = |value: ValueId| values.exact(unit, value) == Some(&StoredExact::Integer(0));
+            let with = if zero(right) && int(left) {
+                left
+            } else if matches!(kind, BinaryOp::BitOr | BinaryOp::Xor) && zero(left) && int(right) {
+                right
+            } else {
+                return None;
+            };
+            Some(Fold::Replace {
+                op,
+                result: operation.result?,
+                with,
             })
         }
         OperationKind::Loop { test, .. } => {
