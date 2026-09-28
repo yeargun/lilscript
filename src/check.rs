@@ -4557,9 +4557,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
             }
             Expr {
-                kind: ExprKind::ArrowFunction { params, body, .. },
+                kind: ExprKind::ArrowFunction { params, body, span },
                 ..
-            } => self.analyze_arrow(params, body, expected)?,
+            } => match method_adapter(params)? {
+                Some(adapter) => {
+                    return self.analyze_method_arrow(expr, params, body, adapter, *span);
+                }
+                None => self.analyze_arrow(params, body, expected)?,
+            },
             Expr {
                 kind: ExprKind::Unary { op, expr, span },
                 ..
@@ -5371,6 +5376,45 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             _ => {}
         }
         self.facts.expression_types[member.id.index()] = Some(Type::Dynamic);
+        Ok(Type::Dynamic)
+    }
+
+    /// A lambda with a receiver or rest parameter is the method its adapter
+    /// makes (R7): `(this JsValue self, JsValue a) => …` is
+    /// `JS.method1((JsValue self, JsValue a) => …)`. Its parameters and result
+    /// are `JsValue`s, as the adapter's callback's are. The node's recorded
+    /// type is the callback's; its value is the method, a `JsValue`.
+    fn analyze_method_arrow(
+        &mut self,
+        expression: &'ast Expr<'ast, 'src>,
+        params: &'ast [crate::ast::Param<'ast, 'src>],
+        body: &'ast ArrowBody<'ast, 'src>,
+        adapter: BuiltinCall,
+        span: Span,
+    ) -> Result<Type<'src>, AdmittedCheckError> {
+        for param in params {
+            if let Some(default) = &param.default {
+                return Err(AdmittedCheckError::new(
+                    default.span(),
+                    "a method's parameters take no defaults",
+                ));
+            }
+            let ty = self.resolve_value_type(param.parameter.ty, "method parameter")?;
+            if !is_js_value(&ty) {
+                return Err(AdmittedCheckError::new(
+                    param.parameter.ty.span,
+                    format!("a method's parameters are `JsValue`s, found `{ty}`"),
+                ));
+            }
+        }
+        let callback = Type::Function(FunctionType::new(FunctionSignature {
+            params: vec![FunctionParameter::value(Type::Dynamic); params.len()],
+            return_type: Box::new(Type::Dynamic),
+        }));
+        let actual = self.analyze_arrow(params, body, Some(&callback))?;
+        self.require_assignable(&callback, &actual, span)?;
+        self.resolve_dynamic(expression.id, adapter);
+        self.facts.expression_types[expression.id.index()] = Some(actual);
         Ok(Type::Dynamic)
     }
 
@@ -9887,6 +9931,51 @@ fn dynamic_binary<'src>(
         BinaryOp::Or => (BuiltinCall::JsOr, Type::Dynamic),
         _ => return None,
     })
+}
+
+/// The adapter a lambda's parameter roles name (R7), if it has a receiver or
+/// a rest parameter: `JS.method<N>` for a receiver and `N` arguments,
+/// `JS.methodRest` for a receiver and the rest, `JS.staticRest` for the rest
+/// alone.
+fn method_adapter(params: &[crate::ast::Param<'_, '_>]) -> Result<Option<BuiltinCall>, CheckError> {
+    use crate::ast::ParamRole;
+    let receiver = params.first().is_some_and(|param| param.role == ParamRole::Receiver);
+    let rest = params.last().is_some_and(|param| param.role == ParamRole::Rest);
+    if let Some(misplaced) = params.iter().enumerate().find(|(index, param)| match param.role {
+        ParamRole::Value => false,
+        ParamRole::Receiver => *index != 0,
+        ParamRole::Rest => *index + 1 != params.len(),
+    }) {
+        return Err(CheckError::new(
+            misplaced.1.span,
+            "the receiver is the first parameter and the rest the last",
+        ));
+    }
+    let adapter = match (receiver, rest, params.len()) {
+        (false, false, _) => return Ok(None),
+        (true, true, 2) => BuiltinCall::JsMethodRest,
+        (false, true, 1) => BuiltinCall::JsStaticRest,
+        (true, false, count) if count <= 11 => match count - 1 {
+            0 => BuiltinCall::JsMethod0,
+            1 => BuiltinCall::JsMethod1,
+            2 => BuiltinCall::JsMethod2,
+            3 => BuiltinCall::JsMethod3,
+            4 => BuiltinCall::JsMethod4,
+            5 => BuiltinCall::JsMethod5,
+            6 => BuiltinCall::JsMethod6,
+            7 => BuiltinCall::JsMethod7,
+            8 => BuiltinCall::JsMethod8,
+            9 => BuiltinCall::JsMethod9,
+            _ => BuiltinCall::JsMethod10,
+        },
+        _ => {
+            return Err(CheckError::new(
+                params[0].span,
+                "a method takes a receiver and up to ten arguments, or a receiver and the rest, or the rest alone",
+            ))
+        }
+    };
+    Ok(Some(adapter))
 }
 
 /// The names `new` constructs as builtin types before any binding:
