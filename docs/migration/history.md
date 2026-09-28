@@ -35,6 +35,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-28 | [Owner decisions: compile time scales, test on a clock, track each change](#2026-09-28-owner-decisions-compile-time-scales-test-on-a-clock-track-each-change) | AM3, plan rules 3, 5 and 8 | — |
 | 2026-09-28 | [Batch S2: receivers and rest parameters](#2026-09-28-batch-s2-receivers-and-rest-parameters-m104-first-part) | M10.4 | `language-slice-1` |
 | 2026-09-28 | [Batch S3: the dynamic type's tests and conversions](#2026-09-28-batch-s3-the-dynamic-types-tests-and-conversions-m102-second-part) | M10.2 | `language-slice-1` |
+| 2026-09-28 | [Batch S4: iteration and spread](#2026-09-28-batch-s4-iteration-and-spread-m1016-m104-second-part) | M10.16, M10.4 | `language-slice-1` |
 
 ---
 
@@ -1345,6 +1346,27 @@ Changes: C1–C6 as pre-registered, with three fix-ups found on the way:
 - `is` and `as?` on classes (M10.7). Classes are observed today only when published or host-derived, and marking runs before bodies are checked, so a tested class needs a second marking step.
 - The typed-`string` `+` rewrite: its result type becomes `string`.
 - The refusal batch.
+
+## 2026-09-28 Batch S4: iteration and spread (M10.16, M10.4 second part)
+
+**Pre-registration** (written before the first build of the batch; base `ec9e45b2`, baseline binary `~/lilscript-work/bin/s3-1`).
+
+What the batch builds (language.md R14 and R7):
+- **Iteration.** `for (T x of set)` over a `Set<T>`, and `for (K k, V v of map)` over a `Map<K, V>`, each in insertion order. `for (JsValue x of v)` iterates a `JsValue` by JavaScript's iterator protocol. Each runs the IR's `for…of`, which generators already use. Arrays keep their index loop until M9.12's codec-judged choice (C5). A map's entry `[k, v]` is read into its two bindings, viewed as `K` and `V` with no code (Y1).
+- **Spread arguments.** `f(...xs)`, `o.m(...xs)`, `new C(...xs)` and `f.call(t, ...xs)` spread an array or a `JsValue` iterable into a JavaScript call, and so do `JS.*` calls with a `JsValue` rest. A call to a LilScript function takes no spread, since its parameters are typed and declared rest parameters come later. The IR gains `CallArgument::Spread`, legal only in a host call and printed `...xs`.
+
+Changes (one commit each):
+- **C1** (`f1263c51`). `for…of` over a `Set<T>` and over a `JsValue`.
+- **C2** (`bf094894`). `for (K k, V v of map)`: the parser's value binding, the checker's map rule, the lowering through a synthetic entry, the verifier's map element.
+- **C3** (`52a3f20d`). A test of set, map and `JsValue` iteration, with `break`.
+- **C4.** The parser's spread argument and `Argument::spread`.
+- **C5.** The checker: a spread argument only in a host call, over an array or a `JsValue`.
+- **C6.** The IR's `CallArgument::Spread`: the lowering, the passes (a spread is a use of its value and is never inlined into a LilScript callee), the verifier (host calls only) and the JavaScript printer (`...value`).
+- **C7.** Tests: spread's meaning, run.
+
+Predicted:
+- Unmodified programs, cases and ports: byte-identical.
+- No census change: `JS.apply` sites could become spreads, but `apply` passes an array-like where a spread iterates, so the fix-it leaves them.
 
 ---
 
