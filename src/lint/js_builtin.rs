@@ -703,7 +703,10 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             }
             ("array", _) if at.dynamic => format!("[{}]", rest(0)),
             (adapter, 1) if adapter.starts_with("method") || adapter == "staticRest" => {
-                self.method_lambda(adapter, arg(0))?
+                match &arg(0).kind {
+                    ExprKind::Ident(name) => self.forwarding_lambda(adapter, name)?,
+                    _ => self.method_lambda(adapter, arg(0))?,
+                }
             }
             ("assume", 1) if self.dynamic_or_nullable(arg(0)) => {
                 // The type the call was checked to produce, spelled as this
@@ -781,6 +784,54 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
         }
         text.push_str(&self.source[at..span.end]);
         Some(text)
+    }
+
+    /// `JS.method<N>(f)`, `JS.methodRest(f)` and `JS.staticRest(f)` over a
+    /// binding that is never reassigned: the lambda that forwards to `f`,
+    /// which is what the adapter calls (R7). The adapter reads a reassigned
+    /// binding once and a lambda on every call, so that one keeps its
+    /// spelling.
+    fn forwarding_lambda(&self, adapter: &str, name: &ast::Ident<'src>) -> Option<String> {
+        let symbol = self.view.identifier_symbol(name.span)?;
+        if self.view.symbol_is_reassigned(symbol) {
+            return None;
+        }
+        let (receiver, rest, count) = match adapter {
+            "methodRest" => (true, true, 0),
+            "staticRest" => (false, true, 0),
+            adapter => (true, false, adapter.strip_prefix("method")?.parse::<usize>().ok()?),
+        };
+        // Parameter names the forwarded name does not use.
+        let fresh = |base: String| {
+            let mut spelled = base;
+            while spelled == name.name {
+                spelled.push('_');
+            }
+            spelled
+        };
+        let mut params = Vec::new();
+        let mut arguments = Vec::new();
+        if receiver {
+            let spelled = fresh("self".to_string());
+            params.push(format!("this JsValue {spelled}"));
+            arguments.push(spelled);
+        }
+        for index in 0..count {
+            let spelled = fresh(format!("a{index}"));
+            params.push(format!("JsValue {spelled}"));
+            arguments.push(spelled);
+        }
+        if rest {
+            let spelled = fresh("rest".to_string());
+            params.push(format!("JsValue... {spelled}"));
+            arguments.push(spelled);
+        }
+        Some(format!(
+            "({}) => {}({})",
+            params.join(", "),
+            name.name,
+            arguments.join(", ")
+        ))
     }
 
     /// A checked type in source syntax, where this module's names spell it.
