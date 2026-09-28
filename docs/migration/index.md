@@ -2,19 +2,20 @@
 
 The one-compiler migration as a to-do list. [plan.md](plan.md) says what each task is and the order the work goes in. [history.md](history.md) records what each batch landed, measured and left open.
 
-**Updated 2026-09-28**, at batch B2 on `finer/059-idiom-directed-naming`. Every batch branch is merged there.
+**Updated 2026-09-28**, at batch B3 on `finer/059-idiom-directed-naming`. Every batch branch is merged there.
 
 ## Where we are
 
 - **Done:**
   - M0 and M1: there has been one compiler since 2026-09-24.
   - The interim release.
-  - Batches I, T, D, N, A1, F1, F2, F3, B1, B1b and B2, and M3.3a.
+  - Batches I, T, D, N, A1, F1, F2, F3, B1, B1b, B2 and B3, and M3.3a.
   - Three of the tools: M2.13, M2.5 and M2.14.
-  - Of the plan's 13 steps, steps 1, 4 and 5 are done and steps 2 and 3 are partly done.
-- **Next on the critical path:** step 6's last batch, B3: M3.1's first slice with the codec settings, meaning `[objective]` and `[effort]`. M3.4's API and CLI follow; it is off the critical path. Then step 7. B2 landed level 0 without a codec, the replay check, which found and removed two effort-gated tactics, the audit lane (0 misses on the ports) and the counts. B1 landed the counted walk. Under the owner's amendment AM2 (size first from the default level up), B1b made level 13 walk several starts to their fixed points after the structural search. Level 13 now matches or beats F3 on every case and frozen entry, at up to 2.3× the CPU on katexlil.
+  - Of the plan's 13 steps, steps 1, 4, 5 and 6's critical path are done, and steps 2 and 3 are partly done.
+- **Next on the critical path:** step 7, language slice 1. Its first batch, L1, gives `JsValue` ordinary JavaScript syntax (M4.2 with M10.2), with a lint fix-it that rewrites `JS.*` calls in the ports. B3 closed step 6's critical path: `[objective]` with the codec settings and `[effort]` (schema v3), with the judge now the configured codec. Before it, B2 landed level 0 without a codec, the replay check, the audit lane (0 misses on the ports) and the counts. B1 landed the counted walk. Under the owner's amendment AM2 (size first from the default level up), B1b made level 13 walk several starts to their fixed points after the structural search. Level 13 now matches or beats F3 on every case and frozen entry, at up to 2.3× the CPU on katexlil.
 - **Also open, off the critical path:**
   - Step 2: the layout commit, then M3.3b with M3.8a, then motionlil compiler-written (M12.2).
+  - Step 6's rest: M3.4 (the public API and several codecs per objective) after L1; `-j` scoring after M5.6.
   - Step 3: M2.10, M2.11, M2.12 and M2.15.
 - **Largest gaps:**
   - **Program rules are young.** F1 and F2 added DCE, folding and removal-only inlining on the Program IR: production module lanes −1,174 Brotli since A1, but `comparison/apps` is still 926 Brotli against 834 for Closure ADVANCED and 558 for the old route, because the ratchet's script lanes cannot seal their roots while every competitor treats top-level bindings as private: Y5.
@@ -27,7 +28,7 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
   - Law L22: decide statically first.
   - Implement the whole plan.
   - Amendment AM2: size first from the default level up. Levels 1–12 may be faster and a little larger; 13 and above never grow because of a change, and each level above tries more.
-- **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding), [F2](history.md#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults), [F3](history.md#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins), [B1](history.md#2026-09-28-batch-b1-the-counted-walk-m35-first-part), [B1b](history.md#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2), [B2](history.md#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35).
+- **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding), [F2](history.md#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults), [F3](history.md#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins), [B1](history.md#2026-09-28-batch-b1-the-counted-walk-m35-first-part), [B1b](history.md#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2), [B2](history.md#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35), [B3](history.md#2026-09-28-batch-b3-the-objective-and-effort-axes-m31-first-slice-m35-codec-settings).
 
 ## Steps
 
@@ -38,8 +39,8 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] **3** Tools. Done: M2.5, M2.13, M2.14. Open: M2.10, M2.11, M2.12, M2.15, and M2.7; M2.4 starts here and then runs ahead of each fact
 - [x] **4** Batch A1, canonical formation without tree analysis: 2026-09-27
 - [x] **5** Floor slice: M5.1, M6.4a, M7.8a, M7.3, M7.5a: 2026-09-28 (batches F1–F3). Carried: M5.1's `UseIndex` and `drop_unreferenced_functions`, M6.4a's finite sets, the tree twins (measured, kept)
-- [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Partly:* B1 and B1b (M3.5's walk and AM2's upper levels, 2026-09-28). **In progress**
-- [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16
+- [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Critical path done 2026-09-28* (B1, B1b, B2, B3: M3.5's walk, AM2's upper levels, M3.1's first slice). Open: M3.4 after L1, `-j` scoring after M5.6
+- [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16. **In progress** (L1)
 - [ ] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half); M10.12 after Y1
 - [ ] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half)
 - [ ] **10** Facts and the rest of the floor: M6.4b, M6.6, M6.7, M6.8, then M7.1, M7.4, M7.5, M7.6, M7.7, M7.8, M7.9, M8.5, M7.10, with M5.3b; M5.7, M8.3 (second half); M4.5, M11.1, M11.11, and M11.5 right after M7
@@ -87,15 +88,15 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 
 ### M3 Configuration, public API, delivery contract, budget model: 1 of 13 · [plan](plan.md#m3-honest-configuration-one-public-api-delivery-contract-the-budget-model)
 
-- [ ] M3.1 Schema v3. *Partly:* `[target.javascript] format` (`esm` only) and `[delivery]` with the `[bundle]` translator came with M3.3a. The first slice is due at step 6, `format` with M3.3b
+- [ ] M3.1 Schema v3. *Partly:* `[target.javascript] format` (`esm` only) and `[delivery]` with the `[bundle]` translator came with M3.3a; the first slice (`[objective]` with codec settings, `[effort]`, the renames) with B3, 2026-09-28. Open: `format` with M3.3b, `[resources]` with M5.6, `[performance]` with M2.12, `checks` with M10.9
 - [ ] M3.2 Family registry: step 6
 - [x] M3.3a Delivery, first slice (several entries, preserve-modules, lazy files, plan verifier, manifest v3): 2026-09-27
 - [ ] M3.3b Formats: step 2. Work in progress is saved as `~/lilscript-work/portwork/m3.3b-wip.patch`
 - [ ] M3.3c Facts and choices; its exit gates the consumer lanes: step 11
 - [ ] M3.3d Lazy effects and cycles: step 13
 - [ ] M3.3e Ports, with M12.2: step 2 for motionlil
-- [ ] M3.4 Public API and shared formation: step 6
-- [ ] M3.5 The budget model, counted (AM1): step 6. *Partly (B1, B1b, B2): the proxy judge, schedule v2, one list walked in passes, several starts from level 13 (AM2), the memo, level 0 without a codec, the replay check, the audit lane, counts, `scripts/monotone.mjs`. Open: codec settings (B3), `-j` scoring (after M5.6)*
+- [ ] M3.4 Public API and shared formation: step 6, after L1
+- [ ] M3.5 The budget model, counted (AM1): step 6. *Partly (B1, B1b, B2, B3): the proxy judge, schedule v2, one list walked in passes, several starts from level 13 (AM2), the memo, level 0 without a codec, the replay check, the audit lane, counts, `scripts/monotone.mjs`, the codec settings. Open: `-j` scoring (after M5.6)*
 - M3.6 Codec pool: merged into M3.5
 - [ ] M3.7 Environment variables: step 6
 - [ ] M3.8a Consumer-shakeable delivery, first half: step 2, with M3.3b

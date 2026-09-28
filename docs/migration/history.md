@@ -1061,6 +1061,28 @@ Predicted:
 - A configuration with `quality = 9` compiles faster and is judged, reported and fingerprinted at quality 9.
 - Every existing configuration keeps building, with the warnings above.
 
+**Landed** (binary `~/lilscript-work/bin/b3-1`, SHA-256 `0ea18239ce89f1e8…`):
+- **Configuration.** `ProjectConfig` has `objective: ObjectiveConfig { codecs, brotli, gzip }` and `effort: EffortConfig { level }`. `codecs` takes a string or an array. Validation covers the level (0–16), exactly one codec until M3.4, and each codec's ranges. `resolve_policy` reads the level, the codec and the settings from the new tables. The retired keys are translator entries: `javascript.cost_model` and `javascript.optimization_level` are renamed with a warning, and the beam keys have no effect and warn (`EFFORT_SCHEDULE`).
+- **Codec settings** (`compression.rs`): `CodecSettings { brotli: BrotliSettings { quality, window, mode }, gzip: GzipSettings { level, window } }`, with `CANONICAL` and `validate`. `measure_admitted_with` and `measure_proxy_admitted` take the settings.
+- **The judge is the configured codec.** The artifact arena is bound to the objective's settings once per compilation, in `prepare_javascript_contract`. Every record's measurement, proxy and cached size uses them, and the staging arena inherits them. The receipt prints `codec_settings`, and the settings are part of the policy fingerprint. `lilscript-codec` and the benchmark contract stay canonical.
+- **The repository moves to the new keys.** 94 configurations (benchmarks, comparison configurations, `tests/config`, the fixture) and about 60 test strings were rewritten. The case runner writes `[objective] codecs` and `[effort] level`, and `scripts/ports.mjs` rewrites both spellings. `docs/configuration.md` is rewritten, and `docs/knowledge/config/schema.md` is regenerated from `finer/tools/config-schema.mjs`.
+
+**Evidence:**
+- **Unit tests:** 1,584 pass, 2 of them new: the old keys are renamed into the tables, and the objective's codec settings judge, report and fingerprint the build.
+- **Case runner** against `b2-2`: no artifact changes in any of the 18 lanes. No case configuration warns (BC12).
+- **Monotone and replay** (levels 0, 1, 5 and 10–16): no growth, and all 45,162 recorded stops replay.
+- **Ratchet:** pass, no change.
+- **Reference ports:** all seven green. All 681 delivered files are byte-identical to `b2-1` (by SHA-256). The ports' configurations warn about the renamed keys, as designed.
+- **Frozen level-13 entries:** bytes and exact-judgement counts are identical; CPU is ×0.97–×1.03.
+- **Quality 9** (katexlil's frozen level-13 entry with `[objective.brotli] quality = 9`): 24.1 s against 43.0 s at quality 11. Its output is 262,047 / 72,065 / 60,024 (raw / gzip / Brotli-11), against 262,880 / 60,119 at quality 11. The plan search is chaotically sensitive to its judge, so one entry does not make quality 9 a better judge. It does make it the effort axis's cheapest lever above level 12, to be measured on the calibration corpus (M2.15).
+
+**Deviations.** None.
+
+**Open.**
+- `[resources]` → M5.6, `[performance]` → M2.12, `[target.javascript] checks` → M10.9.
+- Several codecs in one objective, with the public API: M3.4. It is off the critical path and follows language slice 1's first batch.
+- `-j` scoring waits for M5.6.
+
 ---
 
 ## Appendix: where milestones 001–014 went
