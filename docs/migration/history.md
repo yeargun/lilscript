@@ -1861,6 +1861,64 @@ Changes:
 
 Predicted: production builds byte-identical. The lane's port runs show which host values break their declared types.
 
+## 2026-09-28 Batches K1–K4 and B4: the first run and its fix-ups
+
+The five batches ran together (binary `k4-1`, ladder against `s7-1`). The run found bugs in K1 and K4 and tests that asserted the retired posture. The fix-ups are separate commits at the tip; the second run (below, with K5–K11) is the landing evidence.
+
+**First run, what it found:**
+- **Unit tests:** 1,573 passed, 33 failed.
+  - K4 (2):
+    - the rules' editor copied `Declare(cell)` with its cell unmapped, so an edited unit declared a stale binding and JavaScript refused the output;
+    - a checker test read the old message.
+  - K1, index reads: K1 removed the `|0` after every typed `int` load. For fields, class fields and members that is R1's. An element read is R11's business:
+    - past the end it became `undefined`, where it reads 0 until the index precondition lands with M10.9's development-check lane;
+    - a `Uint32Array` element stayed a uint32.
+  - K1, narrowing (2): two facts tests exposed an unsound narrowing. A captured `T?` was narrowed inside a lambda that ran after the binding was set to null, and the facts, which now trust types, called its `.length` total.
+  - K1, retired posture (25): the tests asserted "types are hints". Their host passed objects with conversion hooks, symbols or bigints through `int` and `string` crossings, or replaced a typed builtin.
+- **Cases:** 3 changed state.
+  - `definite_assignment` (new) was refused in production JavaScript (the editor) and rejected by the C compiler (native never declared the local).
+  - `effects-raw_argument_conversion_in_a_discarded_call_still_runs` asserted the retired D2 posture.
+  - `typed_arrays`: a `Uint32Array` read of `-1` gave `4294967295`.
+- **Monotone and replay:** pass.
+- **Ratchet:** verdict fail on AM2 growths only, +1 to +6 Brotli on struct, loop, nullish and min/max items. The 36 failures are S7's, unchanged. Totals improved:
+
+  | Corpus | Brotli before | Brotli after |
+  |---|---:|---:|
+  | cases | 48,573 | 48,161 |
+  | apps | 920 | 903 |
+  | algorithms | 3,233 | 3,224 |
+
+  The growth mechanism, seen on `minmax-scan-10-20-30-40`: with no `|0` on the index reads the text is 12 bytes shorter raw, and the statement spelling flips from `if` to `&&`, which costs 6 bytes of Brotli.
+- **Unpatched ports:** all green. Against `s7-1`:
+
+  | Port | Raw | Brotli |
+  |---|---:|---:|
+  | markedlil | | −129 |
+  | zodlil | | −49 |
+  | katexlil | −3,468 | +41 |
+  | jquerylil | +3,160 | +138 |
+  | posthoglil | +944 | +60 |
+  | motionlil | | −125 |
+  | **total** | +1,326 (gzip +377) | **−64** |
+- **Fix-patched ports:** all green. katexlil's main artifacts moved raw +7.3 kB (+2.9%), gzip −1.9 kB and Brotli −1.2 kB each (60,151 for `katex.mjs`): B4's walk now runs and chooses for katexlil's Brotli objective. Totals: raw +73,951, gzip −19,346, Brotli −12,614.
+- **katexlil's S5 snapshot (B4's evidence):** Brotli 61,213 → 60,072 (−1,141), in 281 s instead of 524 s.
+  - The search stops at the walk's reserve.
+  - The walk then runs 4 passes over 118 candidates, keeping conditional values −7, exit points −104 and start search −1,106.
+
+  S5's katexlil regression is resolved.
+- **CPU pairs:** my type checks overlapped them (load 3.7). They are not evidence; the second run's are.
+
+**Fix-ups (commits at the tip):**
+- **K4:** the rules' editor remaps a declared local; native declares it at its function's start; a declared local in an inlined body is a `let` there.
+- **K1, index reads:** an `int` element read keeps its int32 conversion (`LoadResultRecipe::IndexInteger`), R11's until M10.9.
+- **K1, narrowing is sound** (`check/assignments.rs`, after Kotlin's smart casts and TypeScript's `isSymbolAssigned`). A narrowing holds only where no code the flow does not see can assign the binding:
+  - never for a binding a nested function assigns;
+  - never inside a nested function for a binding its body assigns;
+  - never for another module's binding;
+  - for a host binding, until code runs: a call, a construction, an await or a yield ends it.
+- **K1, retired tests:** where a property survives, the test keeps it with a well-typed host. Where none does, the test goes. The regression case became `effects-a_discarded_pure_call_keeps_its_arguments_host_call`.
+- **K7 (found in the second run):** a regex literal leaves a `/` bare inside a character class, so its `source` is the constructor's (marked's `autolink`, `escapeRe` and `htmlPed`).
+
 ---
 
 ## Appendix: where milestones 001–014 went
