@@ -26,6 +26,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-28 | [Owner decisions: counted budgets, decide statically first, verify per batch](#2026-09-28-owner-decisions-counted-budgets-decide-statically-first-verify-per-batch) | AM1, L22, plan rules 3 and 8 | — |
 | 2026-09-28 | [Batch F1: the floor slice, first part](#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding) | M5.1, M6.4a, M7.8a | `m5-floor` |
 | 2026-09-28 | [Batch F2: the floor slice, second part](#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults) | M5.1, M7.5a, M7.3 | `m5-floor` |
+| 2026-09-28 | [Batch F3: the floor slice, third part](#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins) | M7.3, M5.1, M5.3b | `m5-floor` |
 
 ---
 
@@ -755,6 +756,25 @@ Not in this batch: M7.3's signature edits (dropped and constant parameters, unus
 - M7.3 lands only its typed-default rule. Its signature edits and deleting `drop_typed_default_checks`, `drop_default_arguments` and `native_default_lengths` are batch F3.
 
 **Open.** Batch F3 (M7.3's signature edits and the tree twins' deletion, measured); M7.9's two growths; M7.5's rest (tail returns, closures inside bodies, across modules).
+
+## 2026-09-28 Batch F3: the floor slice, third part (parameters and returns, the tree twins)
+
+**Pre-registration** (written before the first build of the batch; base `996713a6`, baseline binary `~/lilscript-work/bin/f2-10`).
+
+What the batch builds:
+- **M7.3, parameters and returns**, on bodies whose calls are all known and direct:
+  - a parameter the body never reads leaves the signature and every call, and the call still evaluates its argument;
+  - a parameter every call passes the same exact value becomes that constant, where the literal costs no more than the arguments it removes, and then leaves;
+  - a result no call uses leaves: the body returns nothing, and its calls yield nothing.
+  - Exclusions: ambient `arguments`, reference parameters, generic instantiations, defaults that name another parameter, and a callee value that reaches its calls through a copy.
+- **M5.1, signature edits:** a function type added to the program's type table (interned by equality); parameter cells renumbered; the holding cell, the callee values and the call contracts retyped; argument lists rebuilt.
+- **The tree twins, measured.** A binary with `drop_typed_default_checks`, `drop_default_arguments`, `native_default_lengths` and the removing half of the tree inliners turned off is compared byte for byte with one that runs them, on the case corpus and the reference ports. What changes nothing is deleted. What still acts stays, with its owner and its measured effect.
+
+Predicted:
+- Module lanes: −100 to −400 Brotli from unused parameters and results. Script lanes and apps barely move (Y5).
+- Reference ports: 0 to −300 Brotli each. No port grows beyond noise.
+- The twins: `drop_typed_default_checks` changes nothing after F2's typed defaults. The others may still act where callers omit a callee-built default.
+- Compile time: neutral.
 
 ---
 
