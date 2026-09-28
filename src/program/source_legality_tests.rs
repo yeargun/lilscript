@@ -1244,6 +1244,7 @@ fn source_operations_with_one_diagnostic_span_keep_distinct_resolution() {
                 span: expression.span(),
                 expression,
                 passing: crate::primitive::ParameterPassing::Value,
+                spread: false,
             },
         )),
         span,
@@ -1256,6 +1257,7 @@ fn source_operations_with_one_diagnostic_span_keep_distinct_resolution() {
                 span: expression.span(),
                 expression,
                 passing: crate::primitive::ParameterPassing::Value,
+                spread: false,
             }
         })),
         span,
