@@ -29,6 +29,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-28 | [Batch F3: the floor slice, third part](#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins) | M7.3, M5.1, M5.3b | `m5-floor` |
 | 2026-09-28 | [Batch B1: the counted walk](#2026-09-28-batch-b1-the-counted-walk-m35-first-part) | M3.5 | `m3-budget` |
 | 2026-09-28 | [Batch B1b: the upper levels try more](#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2) | M3.5, AM2 | `m3-budget` |
+| 2026-09-28 | [Batch B2: level 0 without a codec, the replay check, the audit lane, the counts](#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35) | M3.5 | `m3-budget` |
 
 ---
 
@@ -991,6 +992,26 @@ Predicted:
 - The ports' derived files (esbuild re-bundles, motionlil's graph split) move with every change of the compiled module. M3.3e, M12.2 (compiler-written delivery) and M3.8a are where they become the compiler's own.
 
 **Open.** B1's open items carry over: the replay check, the audit lane, the count gates, level 0 without a codec, and deterministic `-j` scoring. `-j` scoring waits for M5.6's resource accounting, because the codec's scratch memory is still ledger-charged, and a thread count must not change a memory refusal.
+
+## 2026-09-28 Batch B2: level 0 without a codec, the replay check, the audit lane, the counts (M3.5)
+
+**Pre-registration** (written before the first build of the batch; base `e5800392`, baseline binary `~/lilscript-work/bin/b1b-1`).
+
+What the batch builds (architecture §9.6, §13.3–§13.4; plan M3.5):
+- **Level 0 measures no codec.** When the walk is off (level 0, or `candidate_search = "off"` in development mode), the level-0 artifact is admitted on its raw bytes, and its gzip and Brotli sizes stay unmeasured. The receipt says so and shows no walk. The CLI measures them only when it writes a manifest, which needs exact sizes.
+- **The replay check** (§9.6). The level-0 start's walk records the incumbent's size and SHA-256 wherever a lower one-pass level would have stopped (levels 0–12), in the receipt's `stops`. `scripts/monotone.mjs` then checks, byte for byte, that each lower level's own build delivers the recorded stop. That is the monotone construction, tested directly.
+- **The audit lane.** `LILSCRIPT_WALK_AUDIT=1`, a diagnostic that changes no output, also measures each pruned move exactly and records its exact delta. A pruned move whose exact delta is negative is a miss of the proxy.
+- **Counts per batch** (§13.7 (a)). `scripts/cases.mjs` records each production artifact's walk counts: positions examined, exact judgements, prunings and starts. `--compare` prints them per lane against the previous report, with the bytes they bought (B9). `~/lilscript-work/tools/cpu-pairs.py` records them for the frozen entries.
+
+Not in this batch:
+- Deterministic `-j` scoring waits for M5.6. The codec's scratch memory is still charged to the ledger, and a thread count must not change a memory refusal.
+- Codec settings as objective configuration go with M3.1's first slice (B3).
+
+Predicted:
+- No output byte changes at any level.
+- Level 0 saves one Brotli-11 and one gzip encode: about 0.45 s of katexlil's ~1.9 s.
+- The replay check passes on every case at every recorded stop.
+- The audit lane finds no miss on the reference ports at level 13, as B1's no-prune calibration found.
 
 ---
 
