@@ -876,6 +876,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     },
                     synthetic: false,
                     declared_pure: false,
+                    debug: false,
                 },
             )?;
         }
@@ -901,14 +902,16 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     let data = &mut building_table(&mut self.program.cells)[cell.index()];
                     data.binding = CellBinding::Function(id);
                     data.declared_pure = function.declared_pure;
+                    data.debug = function.declared_debug;
                 }
                 // The shared declaration owner already classified these
                 // cells; foreign declarations have no source body to register.
                 // A `pure extern` is a trusted declaration attribute.
                 Item::Extern(declaration) => {
                     let cell = self.cell(declaration.name)?;
-                    building_table(&mut self.program.cells)[cell.index()].declared_pure =
-                        declaration.declared_pure;
+                    let data = &mut building_table(&mut self.program.cells)[cell.index()];
+                    data.declared_pure = declaration.declared_pure;
+                    data.debug = declaration.declared_debug;
                 }
                 Item::ExternGlobal(_) => {}
                 Item::Struct(declaration) => {
@@ -1474,6 +1477,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 binding: CellBinding::Local,
                 synthetic: true,
                 declared_pure: false,
+                debug: false,
             },
         )?;
         Ok(id)
@@ -5152,6 +5156,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             span: preparation,
             feature: "semantic call capacity",
         })?;
+        let debug = self.debug_callee(unit, &target);
         self.budget.push(
             Retained,
             &mut self.units[unit.index()].calls,
@@ -5159,6 +5164,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 target,
                 contract,
                 arguments: ArgumentRange { start: 0, len: 0 },
+                debug,
             },
         )?;
         self.effect(
@@ -5169,6 +5175,28 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             preparation,
         )?;
         Ok(call)
+    }
+    /// A callee that reads a `debug` declaration's own binding: the source
+    /// names it (R15).
+    fn debug_callee(&self, unit: UnitId, target: &CallTarget) -> bool {
+        let CallTarget::Value {
+            callee,
+            invocation: Invocation::Value,
+        } = *target
+        else {
+            return false;
+        };
+        let data = &self.units[unit.index()];
+        let Some(value) = data.values.get(callee.index()) else {
+            return false;
+        };
+        let OperationKind::Load(place) = data.operations[value.definition.index()].kind else {
+            return false;
+        };
+        let Place::Cell(cell) = data.places[place.index()] else {
+            return false;
+        };
+        self.program.cells[cell.index()].debug
     }
     /// `v as? T`: the test `v is T`, then `v` viewed as `T` (`JS.assume`, no
     /// code) or null. `ty` is `T?`.

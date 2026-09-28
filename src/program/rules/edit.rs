@@ -659,6 +659,7 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
                 start: u32::try_from(start).map_err(|_| "argument capacity")?,
                 len: call.arguments.len,
             },
+            debug: call.debug,
         });
     }
     let call_instantiations = data
@@ -913,6 +914,7 @@ pub(super) fn graft(
                 start: u32::try_from(start).map_err(|_| "argument capacity")?,
                 len: call.arguments.len,
             },
+            debug: call.debug,
         });
     }
     for (index, instantiation) in source.call_instantiations.iter().enumerate() {
