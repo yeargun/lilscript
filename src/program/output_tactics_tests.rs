@@ -293,3 +293,37 @@ fn output_permission_checks_do_not_fabricate_runtime_evidence_for_rank_policy() 
         },
     );
 }
+
+/// The `int32_hints` family prints the `|0` the compiler printed before R1:
+/// after an `int` field read. The same program otherwise.
+#[test]
+fn int32_hints_restore_the_previous_normalizations() {
+    let source = "class Counter { int count; init(int c) { this.count = c; } }\nexport int read(Counter c) { return c.count; }\n";
+    let resolved = enabled();
+    with_candidate(source, &resolved, |compiler, candidate| {
+        let mut render = |hints: bool| {
+            emit(
+                compiler,
+                candidate,
+                &resolved,
+                OutputTactics {
+                    literals: LiteralOutput::Original,
+                    dead_code_elimination: true,
+                    target_compaction: true,
+                    families: crate::js::OutputFamilies {
+                        int32_hints: hints,
+                        ..crate::js::OutputFamilies::NONE
+                    },
+                    choices: crate::js::ChoiceMap::SEEDS,
+                },
+            )
+        };
+        let plain = render(false);
+        let hinted = render(true);
+        assert_eq!(
+            hinted.matches("|0").count(),
+            plain.matches("|0").count() + 1,
+            "{plain}\n{hinted}"
+        );
+    });
+}
