@@ -1013,6 +1013,31 @@ Predicted:
 - The replay check passes on every case at every recorded stop.
 - The audit lane finds no miss on the reference ports at level 13, as B1's no-prune calibration found.
 
+**Landed** (binary `~/lilscript-work/bin/b2-2`, SHA-256 `59279e91cf4fbf94…`):
+- **Level 0 measures no codec.** Without a walk (level 0, or `candidate_search = "off"`), the portfolio scores the level-0 artifact without a codec, and admission qualifies it on its raw bytes (`ArtifactArena::qualify_unmeasured`; `QualifiedArtifact::exact` is false). The gzip and Brotli sizes stay `None`: the receipt has no walk, `--explain` prints `-`, and the manifest reports `null`, as manifest v3 already does for a codec the objective never scored. On katexlil at level 0 with the Brotli objective the output is identical, and time falls from 1.52–1.56 s to 1.24–1.31 s.
+- **The replay check.** The walk from the level-0 artifact records, in the receipt's `stops`, the size and SHA-256 of the incumbent where each lower one-pass level (0–12) would stop. It records them at the first position that level's prefix or exact budget would not examine, and otherwise at the end of the first pass. The case runner keeps each production build's counts and stops from `--explain json`. `scripts/monotone.mjs` checks every stop against its level's own build, and the unit test checks levels 0–15 of the terminal fixture. The walk's render bound is now the same at every level (`RENDER_BOUND`, 768 KB or the level-0 artifact's capacity); B1b had tied it to the structural budget.
+- **The effort gates are gone.** The replay check's first run (`b2-1`) failed at level 5 on 77 case-lanes, 539 stops in all. `naming-search` needed effort 8 and `call-specialization` effort 11, so level 5 walked a list without the naming seeds that the levels above replay. Both gates are removed; effort is a work budget and grants no permission (§13.4, law B5). Level 16's startup-risk grant stays, by decision D5.
+- **The audit lane.** `LILSCRIPT_WALK_AUDIT=1` also measures each pruned move exactly and records the delta in `audit`; the output does not change. `walk-calibrate.py` counts misses.
+- **Counts per batch.** `--compare` prints each lane's exact judgements and examined positions against the previous report (B9), and `cpu-pairs.py` prints them for the frozen entries.
+
+**Evidence:**
+- Unit tests: 1,582 pass. The runner tests pass, with a new test for the explain parser.
+- Case runner, `b2-1` and `b2-2` against `b1b-1`: no artifact changes in any of the 18 lanes. Level 13 is untouched.
+- Monotone and replay (`b2-2`, levels 0, 1, 5 and 10–16): no growth at any step, and all 45,162 recorded stops replay byte for byte. Module-lane Brotli: 38,703 (level 0) → 37,819 (1) → 37,501 (5; 37,775 before the gates went) → 37,455 (10) → 37,454 (11–12) → 37,180 (13–16).
+- Ratchet (`b2-1`): pass, no change.
+- Reference ports (`b2-1`): all seven green.
+- Frozen level-13 entries: bytes and exact-judgement counts are identical, and CPU is ×0.97–×1.02 against `b1b-1`. `b2-2` delivers katexlil's, markedlil's and jquerylil's level-13 entries byte-identical to `b2-1`. Level-13 exact judgements: markedlil 9, zodlil 9, posthoglil 11, micromarklil 11, katexlil 66, jquerylil 29, motionlil 31.
+- Audit lane (level 14, every pruned move measured exactly): markedlil 4 audited, zodlil 6, posthoglil 4, micromarklil 8, katexlil 19, jquerylil 11, motionlil 19. There are **0 misses**, so the 150-byte margin has never pruned a winning move on the reference ports.
+
+**Deviations.**
+- The effort gates' removal changes levels 1–7: the naming seeds can now be walked there. It was not predicted, and the replay check found it.
+- Deterministic `-j` waits for M5.6.
+- The codec settings go with M3.1's first slice (B3).
+
+**Open.**
+- katexlil's level 13 makes 66 exact judgements across its starts. The memo recalls repeats within a start only, because W's and A0's candidates differ.
+- M3.1's first slice and the codec settings (B3); M3.4.
+
 ---
 
 ## Appendix: where milestones 001–014 went

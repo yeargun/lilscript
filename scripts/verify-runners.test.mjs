@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { codeOnly, composeConfig, LANES, parseTomlTables, selectLanes } from "./cases.mjs";
+import { codeOnly, composeConfig, LANES, parseTomlTables, selectLanes, walkCounts } from "./cases.mjs";
 import { diffAgainstLedger, failingTests, rewriteObjective, suiteRan, testTotals } from "./ports.mjs";
 import { applyLedger, catalogId, compareWithBaseline, countLosses, lossRows, selectItems, validateLedger } from "./ratchet.mjs";
 import { validateIdiomDebt } from "./lib/idiom-debt.mjs";
@@ -179,4 +179,21 @@ test("ratchet: a lane that starts compiling may lose without growth; its losses 
   assert.equal(result.fixed.length, 3);
   const { unledgeredLosses } = applyLedger({ entries: [] }, lossRows(now, bars), []);
   assert.equal(unledgeredLosses.length, 3);
+});
+
+test("the case runner reads a build's walk counts and stops from its explain report", () => {
+  const report = {
+    search: { codec_probes: 3, structures: 2, terminal: { objectives: [{
+      examined: 9, judged: 4, pruned: 2, passes: 2, starts: [{ name: "level-0" }],
+      stops: [{ level: 0, size: 120, sha256: "aa" }, { level: 1, size: 110, sha256: "bb" }],
+    }] } },
+  };
+  const stderr = `warning: a retired key\n${JSON.stringify(report, null, 2)}\n`;
+  assert.deepEqual(walkCounts(stderr), {
+    searchProbes: 3, structures: 2, examined: 9, judged: 4, pruned: 2, passes: 2, starts: 1,
+    stops: [{ level: 0, size: 120, sha256: "aa" }, { level: 1, size: 110, sha256: "bb" }],
+  });
+  assert.equal(walkCounts("no report"), null);
+  // A level-0 build has no walk: its counts are zero.
+  assert.equal(walkCounts(JSON.stringify({ search: { terminal: { objectives: [] } } }, null, 2)).judged, 0);
 });

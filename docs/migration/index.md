@@ -2,17 +2,17 @@
 
 The one-compiler migration as a to-do list. [plan.md](plan.md) says what each task is and the order the work goes in. [history.md](history.md) records what each batch landed, measured and left open.
 
-**Updated 2026-09-28**, at batch B1b on `finer/059-idiom-directed-naming`. Every batch branch is merged there.
+**Updated 2026-09-28**, at batch B2 on `finer/059-idiom-directed-naming`. Every batch branch is merged there.
 
 ## Where we are
 
 - **Done:**
   - M0 and M1: there has been one compiler since 2026-09-24.
   - The interim release.
-  - Batches I, T, D, N, A1, F1, F2, F3, B1 and B1b, and M3.3a.
+  - Batches I, T, D, N, A1, F1, F2, F3, B1, B1b and B2, and M3.3a.
   - Three of the tools: M2.13, M2.5 and M2.14.
   - Of the plan's 13 steps, steps 1, 4 and 5 are done and steps 2 and 3 are partly done.
-- **Next on the critical path:** step 6 continues with batch B2: level 0 without a codec, the replay check, the audit lane and the count gates. Then M3.1's first slice with codec settings, and M3.4. B1 landed the counted walk. Under the owner's amendment AM2 (size first from the default level up), B1b made level 13 walk several starts to their fixed points after the structural search. Level 13 now matches or beats F3 on every case and frozen entry, at up to 2.3× the CPU on katexlil.
+- **Next on the critical path:** step 6's last batch, B3: M3.1's first slice with the codec settings, meaning `[objective]` and `[effort]`. M3.4's API and CLI follow; it is off the critical path. Then step 7. B2 landed level 0 without a codec, the replay check, which found and removed two effort-gated tactics, the audit lane (0 misses on the ports) and the counts. B1 landed the counted walk. Under the owner's amendment AM2 (size first from the default level up), B1b made level 13 walk several starts to their fixed points after the structural search. Level 13 now matches or beats F3 on every case and frozen entry, at up to 2.3× the CPU on katexlil.
 - **Also open, off the critical path:**
   - Step 2: the layout commit, then M3.3b with M3.8a, then motionlil compiler-written (M12.2).
   - Step 3: M2.10, M2.11, M2.12 and M2.15.
@@ -27,7 +27,7 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
   - Law L22: decide statically first.
   - Implement the whole plan.
   - Amendment AM2: size first from the default level up. Levels 1–12 may be faster and a little larger; 13 and above never grow because of a change, and each level above tries more.
-- **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding), [F2](history.md#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults), [F3](history.md#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins), [B1](history.md#2026-09-28-batch-b1-the-counted-walk-m35-first-part), [B1b](history.md#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2).
+- **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding), [F2](history.md#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults), [F3](history.md#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins), [B1](history.md#2026-09-28-batch-b1-the-counted-walk-m35-first-part), [B1b](history.md#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2), [B2](history.md#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35).
 
 ## Steps
 
@@ -95,7 +95,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] M3.3d Lazy effects and cycles: step 13
 - [ ] M3.3e Ports, with M12.2: step 2 for motionlil
 - [ ] M3.4 Public API and shared formation: step 6
-- [ ] M3.5 The budget model, counted (AM1): step 6. *Partly (B1, B1b): the proxy judge, schedule v2, one list walked in passes, several starts from level 13 (AM2), the memo, receipts, `scripts/monotone.mjs`. Open: level 0 without a codec, codec settings, `-j` scoring (after M5.6), count gates, the replay check, the audit lane*
+- [ ] M3.5 The budget model, counted (AM1): step 6. *Partly (B1, B1b, B2): the proxy judge, schedule v2, one list walked in passes, several starts from level 13 (AM2), the memo, level 0 without a codec, the replay check, the audit lane, counts, `scripts/monotone.mjs`. Open: codec settings (B3), `-j` scoring (after M5.6)*
 - M3.6 Codec pool: merged into M3.5
 - [ ] M3.7 Environment variables: step 6
 - [ ] M3.8a Consumer-shakeable delivery, first half: step 2, with M3.3b

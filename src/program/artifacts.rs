@@ -70,6 +70,10 @@ pub struct QualifiedArtifact {
     meaning: RevisionId,
     codec: CompressionCostModel,
     cost: CandidateCostEvidence,
+    /// Whether `cost` carries the codec's exact size. Without a walk (level
+    /// 0) no codec runs, and the artifact is admitted on its raw bytes
+    /// (M3.5).
+    exact: bool,
     policy_fingerprint: [u8; 32],
 }
 impl QualifiedArtifact {
@@ -81,6 +85,9 @@ impl QualifiedArtifact {
     }
     pub fn cost(self) -> CandidateCostEvidence {
         self.cost
+    }
+    pub fn exact(self) -> bool {
+        self.exact
     }
     pub fn policy_fingerprint(self) -> [u8; 32] {
         self.policy_fingerprint
@@ -764,6 +771,37 @@ impl ArtifactArena {
         baseline: Option<&QualifiedArtifact>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<QualifiedArtifact, CandidateError> {
+        self.qualify_with(id, formation_contract, policy, codec, runtime, baseline, true, budget)
+    }
+
+    /// Admission without the codec (M3.5): the artifact is qualified on its
+    /// raw bytes, which stand in for the codec's size. Only the level-0
+    /// artifact of a build without a walk is admitted so; nothing compares
+    /// it with another artifact.
+    pub(super) fn qualify_unmeasured(
+        &self,
+        id: ArtifactId,
+        formation_contract: &CompilationContract,
+        policy: &ResolvedPolicy,
+        codec: CompressionCostModel,
+        runtime: ArtifactRuntimeEvidence,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<QualifiedArtifact, CandidateError> {
+        self.qualify_with(id, formation_contract, policy, codec, runtime, None, false, budget)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn qualify_with(
+        &self,
+        id: ArtifactId,
+        formation_contract: &CompilationContract,
+        policy: &ResolvedPolicy,
+        codec: CompressionCostModel,
+        runtime: ArtifactRuntimeEvidence,
+        baseline: Option<&QualifiedArtifact>,
+        exact: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<QualifiedArtifact, CandidateError> {
         budget.work(WorkKind::Analysis, 1)?;
         for contract in [formation_contract, policy.contract()] {
             if let CompilationContract::JavaScript {
@@ -789,12 +827,16 @@ impl ArtifactArena {
         }
         let record = self.get(id.0)?;
         record.admit_parse(budget)?;
-        let size = record
-            .sizes
-            .measured(codec)
-            .ok_or(CandidateError::Artifact(
-                "requested artifact codec is unmeasured",
-            ))?;
+        let size = if exact {
+            record
+                .sizes
+                .measured(codec)
+                .ok_or(CandidateError::Artifact(
+                    "requested artifact codec is unmeasured",
+                ))?
+        } else {
+            record.sizes.raw
+        };
         let cost = runtime.cost(size)?;
         let base = if let Some(baseline) = baseline {
             if baseline.artifact.0.arena != self.identity
@@ -819,6 +861,7 @@ impl ArtifactArena {
             meaning: record.identity.meaning(),
             codec,
             cost,
+            exact,
             policy_fingerprint: policy.fingerprint(),
         })
     }
@@ -828,13 +871,14 @@ impl ArtifactArena {
         qualified: &QualifiedArtifact,
     ) -> Result<(), CandidateError> {
         let record = self.get(qualified.artifact.0)?;
+        let size = if qualified.exact {
+            record.sizes.measured(qualified.codec)
+        } else {
+            Some(record.sizes.raw)
+        };
         if record.identity.snapshot() != qualified.snapshot
             || record.identity.meaning() != qualified.meaning
-            || record
-                .sizes
-                .measured(qualified.codec)
-                .and_then(|size| u64::try_from(size).ok())
-                != Some(qualified.cost.transfer_bytes)
+            || size.and_then(|size| u64::try_from(size).ok()) != Some(qualified.cost.transfer_bytes)
         {
             return Err(CandidateError::Artifact(
                 "qualified artifact identity changed",

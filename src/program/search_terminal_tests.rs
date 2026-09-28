@@ -118,9 +118,13 @@ fn search(policy: &ResolvedPolicy, objectives: Objectives, challenge: bool) -> R
         } else {
             TerminalReport::default()
         };
+        // Level 0 measures no codec (M3.5): its size is taken here.
         let winners = [Objective::Raw, Objective::Gzip, Objective::Brotli].map(|codec| {
             search.with_winner(codec, |view, _| {
-                (view.sizes.get(codec).unwrap(), view.javascript.to_string())
+                let size = view.sizes.get(codec).unwrap_or_else(|| {
+                    crate::compression::measure(view.javascript.as_bytes(), codec).unwrap()
+                });
+                (size, view.javascript.to_string())
             })
         });
         (winners, report)

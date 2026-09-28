@@ -119,6 +119,10 @@ For every compiled (case, lane), the report records the artifact's byte size and
 
 `scripts/monotone.mjs --compiler <lilscript>` runs the case runner once per level of a list (by default `0,1,5,10,11,12,13,14,15,16`: one level per tier of the effort schedule, and every level from the default up) in the production JavaScript lanes (by default `production/*/module`), and compares each (case, lane) between consecutive levels under the lane's codec. Up to level 13 a higher level walks the same list further from the level-0 artifact and keeps a move only on a strict exact win, and every other start (the structural search's winner, the naming restarts; AM2) replaces the result only on one, so an artifact that grows from one level to the next, or a lane that passes at one level and fails at the next, is a violation and exits 1. Above 13 the structural search widens with the level, which is monotone in practice rather than by construction; a growth there is reported the same way. It prints each level's lane totals.
 
+It also runs the replay check of architecture §9.6. A production build's walk from the level-0 artifact records, in its receipt's `stops`, the size and SHA-256 of the incumbent wherever a lower one-pass level (0–12) would have stopped. The case runner keeps them from `--explain json`. Every recorded stop of a listed level must be the artifact that level's own build delivered, byte for byte; a mismatch is a `REPLAY` violation.
+
+**The audit lane.** `LILSCRIPT_WALK_AUDIT=1` is a diagnostic that changes no output. It makes the walk also measure each pruned move exactly, and records the exact delta in the move's `audit` field. A pruned move with a negative exact delta is a miss of the proxy (M3.5's no-prune lane). `~/lilscript-work/tools/walk-calibrate.py` counts the misses.
+
 ## The port runner
 
 ```sh

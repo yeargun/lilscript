@@ -439,7 +439,10 @@ export async function runCases(options) {
     }
     const artifact = `${base}.${target.extension}`;
     rmSync(artifact, { force: true });
-    const compile = await run(compiler.path, [item.source, "--target", target.flag, "--config", config, "--output", artifact], {
+    // A production JavaScript build reports its walk (M3.5): the counts per
+    // batch (architecture §13.7) and the replay check's stops.
+    const explain = lane.mode === "production" && target.javascript;
+    const compile = await run(compiler.path, [item.source, "--target", target.flag, "--config", config, "--output", artifact, ...(explain ? ["--explain", "json"] : [])], {
       env: compilerEnv, cwd: repository, timeoutMs: 300_000,
     });
     row.compileMs = compile.ms;
@@ -451,6 +454,7 @@ export async function runCases(options) {
     if (!existsSync(artifact)) return { ...row, state: "refused", detail: "the compiler exited 0 without writing the artifact" };
     const bytes = readFileSync(artifact);
     row.artifact = { path: relative(work, artifact), bytes: bytes.length, sha256: sha256(bytes) };
+    if (explain) row.walk = walkCounts(compile.stderr);
 
     const expected = readFileSync(item.expected, "utf8");
     let execution;
@@ -575,6 +579,32 @@ export async function runCases(options) {
 
 // Byte changes against an earlier report, per case and lane. Evidence only:
 // a change never fails the run.
+// The walk's counts and stops from a build's `--explain json` report on
+// stderr (pretty-printed after any warnings; its closing brace is the one
+// line that is only "}"). One objective per production lane.
+export function walkCounts(stderr) {
+  const match = /^\{[\s\S]*?^\}$/m.exec(stderr);
+  if (!match) return null;
+  let report;
+  try {
+    report = JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
+  const search = report.search ?? {};
+  const stage = search.terminal?.objectives?.[0];
+  return {
+    searchProbes: search.codec_probes ?? 0,
+    structures: search.structures ?? 0,
+    examined: stage?.examined ?? 0,
+    judged: stage?.judged ?? 0,
+    pruned: stage?.pruned ?? 0,
+    passes: stage?.passes ?? 0,
+    starts: stage?.starts?.length ?? 0,
+    stops: (stage?.stops ?? []).map(({ level, size, sha256 }) => ({ level, size, sha256 })),
+  };
+}
+
 export function compareReports(previous, current, label) {
   const index = new Map(previous.results.map((row) => [`${row.case}\t${row.lane}`, row]));
   const lanes = {};
@@ -587,8 +617,14 @@ export function compareReports(previous, current, label) {
     if (!before.artifact || !row.artifact) continue;
     const codec = row.lane.split("/")[1];
     const metric = { brotli: "brotli11", gzip: "gzip9", raw: "raw" }[codec];
-    const lane = (lanes[row.lane] ??= { compared: 0, changed: 0, bytesBefore: 0, bytesAfter: 0, metric, metricBefore: 0, metricAfter: 0, metricComplete: true });
+    const lane = (lanes[row.lane] ??= { compared: 0, changed: 0, bytesBefore: 0, bytesAfter: 0, metric, metricBefore: 0, metricAfter: 0, metricComplete: true, walk: { complete: true, judgedBefore: 0, judgedAfter: 0, examinedBefore: 0, examinedAfter: 0 } });
     lane.compared += 1;
+    if (before.walk && row.walk) {
+      lane.walk.judgedBefore += before.walk.judged;
+      lane.walk.judgedAfter += row.walk.judged;
+      lane.walk.examinedBefore += before.walk.examined;
+      lane.walk.examinedAfter += row.walk.examined;
+    } else lane.walk.complete = false;
     lane.bytesBefore += before.artifact.bytes;
     lane.bytesAfter += row.artifact.bytes;
     if (before.artifact[metric] !== undefined && row.artifact[metric] !== undefined) {
@@ -678,7 +714,10 @@ function printReport(report, selected, { verbose }) {
     out(`compared with ${compare.previous}${compare.sameCompiler ? " (same compiler digest)" : ""}:`);
     for (const [lane, row] of Object.entries(compare.lanes)) {
       const metric = row.metricComplete ? `, ${row.metric} ${row.metricBefore} -> ${row.metricAfter} (${row.metricAfter - row.metricBefore >= 0 ? "+" : ""}${row.metricAfter - row.metricBefore})` : "";
-      out(`  ${lane.padEnd(width)} ${row.changed}/${row.compared} artifacts changed, bytes ${row.bytesBefore} -> ${row.bytesAfter}${metric}`);
+      // The bytes the walk's exact judgements bought (B9).
+      const walk = row.walk?.complete && row.walk.examinedBefore + row.walk.examinedAfter > 0
+        ? `; walk judged ${row.walk.judgedBefore} -> ${row.walk.judgedAfter}, examined ${row.walk.examinedBefore} -> ${row.walk.examinedAfter}` : "";
+      out(`  ${lane.padEnd(width)} ${row.changed}/${row.compared} artifacts changed, bytes ${row.bytesBefore} -> ${row.bytesAfter}${metric}${walk}`);
     }
     for (const change of compare.stateChanges.slice(0, 40)) out(`  state ${change.case} ${change.lane}: ${change.before} -> ${change.after}`);
     const largest = [...compare.changes].sort((a, b) => Math.abs(b.bytes) - Math.abs(a.bytes)).slice(0, 15);

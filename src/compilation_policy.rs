@@ -181,6 +181,12 @@ pub struct TacticSpec {
     pub javascript_only: bool,
     /// The lowest JavaScript effort level at which `auto` enables the
     /// tactic. Native requests have no effort schedule and are not gated.
+    /// Effort is a work budget and grants no permission (architecture
+    /// §13.4, law B5): every tactic's is 0 except startup reconstruction's,
+    /// which level 16 grants by the owner's decision D5. Batch B2's replay
+    /// check found the other two gates (naming search at 8, call
+    /// specialization at 11): a lower level walked a shorter list than the
+    /// levels above replay.
     pub minimum_effort: u8,
     pub startup_at_level_16: bool,
     /// Declaring an analysis requirement never makes the analysis itself
@@ -234,7 +240,7 @@ impl TacticId {
                 T::CallSpecialization => (
                     "call-specialization",
                     false,
-                    11,
+                    0,
                     false,
                     A::CallsAndCaptures,
                     D::Preset,
@@ -284,7 +290,7 @@ impl TacticId {
                     A::Values,
                     D::Off,
                 ),
-                T::NamingSearch => ("naming-search", true, 8, false, A::NamesAndBoundary, D::On),
+                T::NamingSearch => ("naming-search", true, 0, false, A::NamesAndBoundary, D::On),
             };
         TacticSpec {
             id: self,

@@ -361,7 +361,10 @@ fn the_objective_seeds_the_families_and_its_codec_judges_them() {
 
 #[test]
 fn the_effort_sets_the_schedule_prefix_and_a_longer_one_never_ends_larger() {
+    use sha2::{Digest, Sha256};
     let mut previous: Option<(i64, i64)> = None;
+    let mut digests = std::collections::BTreeMap::new();
+    let mut stops = Vec::new();
     for level in 1..=15u8 {
         let compiled = compile("brotli", &format!("optimization_level={level}"));
         check_spellings(&compiled, "brotli");
@@ -390,14 +393,45 @@ fn the_effort_sets_the_schedule_prefix_and_a_longer_one_never_ends_larger() {
             );
         }
         previous = Some((before, after));
+        let javascript = compiled.javascript(Objective::Brotli).unwrap().javascript();
+        digests.insert(level, format!("{:x}", Sha256::digest(javascript.as_bytes())));
+        stops.extend(
+            stage["stops"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|stop| (level, stop.clone())),
+        );
     }
-    // Level 0 delivers the level-0 artifact: no walk.
+    // Level 0 delivers the level-0 artifact: no walk and no codec.
     let off = compile("brotli", "optimization_level=0");
-    let stage = stage(&off);
-    assert_eq!(stage["prefix"], 0);
-    assert_eq!(stage["tried"], 0);
-    assert!(trials(stage).iter().all(|trial| outcome(trial) == "budget"));
-    assert_eq!(stage["before"], stage["after"]);
+    assert!(off.report()["search"]["terminal"]["objectives"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    let artifact = off.javascript(Objective::Brotli).unwrap();
+    assert_eq!(artifact.sizes().get(Objective::Brotli), None, "level 0 measures no codec");
+    digests.insert(0, format!("{:x}", Sha256::digest(artifact.javascript().as_bytes())));
+    // The replay check (§9.6): wherever a walk from the level-0 artifact
+    // passed a lower one-pass level's stopping point, that level's build
+    // delivers exactly the recorded bytes.
+    assert!(!stops.is_empty());
+    for (level, stop) in &stops {
+        let lower = stop["level"].as_u64().unwrap() as u8;
+        assert!(lower < *level && lower <= 12, "{level}: {stop}");
+        assert_eq!(
+            stop["sha256"].as_str().unwrap(),
+            digests[&lower],
+            "the level-{level} walk's stop for level {lower}"
+        );
+    }
+    // Level 13 records every lower level's stop.
+    let recorded: std::collections::BTreeSet<u64> = stops
+        .iter()
+        .filter(|(level, _)| *level == 13)
+        .map(|(_, stop)| stop["level"].as_u64().unwrap())
+        .collect();
+    assert_eq!(recorded, (0..=12).collect());
 }
 
 #[test]
@@ -510,7 +544,8 @@ fn every_objective_judges_the_data_tables_and_delivers_them_exactly() {
     )
     .unwrap();
     let compiled = compile_source(TABLES, &config, ServiceOptions::default()).unwrap();
-    let stage = stage(&compiled);
-    assert_eq!(stage["prefix"], 0);
-    assert!(stage["choice_trials"].as_array().unwrap().is_empty());
+    assert!(compiled.report()["search"]["terminal"]["objectives"]
+        .as_array()
+        .unwrap()
+        .is_empty());
 }

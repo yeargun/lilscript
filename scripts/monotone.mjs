@@ -10,7 +10,13 @@
 // codec. A level keeps the walk of every level below it and judges more, so
 // a case-lane whose artifact grows from one listed level to the next fails
 // the check; so does one that passes at a level and fails at the next. The
-// default list is the schedule's tier boundaries: one level per tier.
+// default list is the schedule's tier boundaries and every level from the
+// default up.
+//
+// The replay check (architecture §9.6): a build's walk from the level-0
+// artifact records where each lower one-pass level would have stopped (the
+// receipt's `stops`); each recorded stop of a listed level must be, byte
+// for byte (SHA-256), what that level's own build delivered.
 //
 // See docs/testing.md.
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -41,6 +47,21 @@ export async function checkMonotone(options) {
     }
     totals.push({ level, lanes: total });
   }
+  // The replay check: every recorded stop against its level's build.
+  const byLevel = new Map(levels.map(({ level, report }) => [level, new Map(report.results.map((row) => [key(row), row]))]));
+  let replayed = 0;
+  for (const { level, report } of levels) {
+    for (const row of report.results) {
+      for (const stop of row.walk?.stops ?? []) {
+        const built = byLevel.get(stop.level)?.get(key(row));
+        if (!built?.artifact || built.state !== "pass") continue;
+        replayed += 1;
+        if (built.artifact.sha256 !== stop.sha256) {
+          violations.push({ case: row.case, lane: row.lane, from: stop.level, to: level, kind: "replay", before: built.artifact.sha256, after: stop.sha256 });
+        }
+      }
+    }
+  }
   for (let index = 1; index < levels.length; index += 1) {
     const lower = new Map(levels[index - 1].report.results.map((row) => [key(row), row]));
     for (const row of levels[index].report.results) {
@@ -59,7 +80,7 @@ export async function checkMonotone(options) {
       if (after > before) violations.push({ ...at, kind: "size", metric, before, after });
     }
   }
-  return { schema: 1, kind: "lilscript-monotone", levels: options.levels, totals, violations };
+  return { schema: 1, kind: "lilscript-monotone", levels: options.levels, totals, replayed, violations };
 }
 
 async function main() {
@@ -110,9 +131,12 @@ async function main() {
   for (const violation of result.violations) {
     process.stdout.write(violation.kind === "size"
       ? `GROWS ${violation.case} ${violation.lane}: level ${violation.from} ${violation.before} -> level ${violation.to} ${violation.after} ${violation.metric}\n`
-      : `STATE ${violation.case} ${violation.lane}: level ${violation.from} ${violation.before} -> level ${violation.to} ${violation.after}\n`);
+      : violation.kind === "replay"
+        ? `REPLAY ${violation.case} ${violation.lane}: the level-${violation.to} walk's stop for level ${violation.from} is not that level's build\n`
+        : `STATE ${violation.case} ${violation.lane}: level ${violation.from} ${violation.before} -> level ${violation.to} ${violation.after}\n`);
   }
-  process.stdout.write(result.violations.length ? `FAIL: ${result.violations.length} violations\n` : "OK: monotone at every listed level\n");
+  process.stdout.write(`replay: ${result.replayed} recorded stops compared with their levels' builds\n`);
+  process.stdout.write(result.violations.length ? `FAIL: ${result.violations.length} violations\n` : "OK: monotone at every listed level, every stop replayed\n");
   process.stdout.write(`report: ${destination}\n`);
   process.exitCode = result.violations.length ? 1 : 0;
 }

@@ -31,10 +31,17 @@ fn execute_javascript(javascript: &str, setup: &str, body: &str) -> String {
 fn check_scores(compiled: &ServiceCompilation) {
     for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
         if let Some(artifact) = compiled.javascript(codec) {
-            assert_eq!(
-                artifact.sizes().get(codec).unwrap(),
-                crate::compression::measure(artifact.javascript().as_bytes(), codec).unwrap()
-            );
+            match artifact.sizes().get(codec) {
+                Some(size) => assert_eq!(
+                    size,
+                    crate::compression::measure(artifact.javascript().as_bytes(), codec).unwrap()
+                ),
+                // Only a build without a walk leaves a codec unmeasured
+                // (M3.5).
+                None => assert!(compiled.report()["search"]["terminal"]["objectives"]
+                    .as_array()
+                    .is_none_or(Vec::is_empty)),
+            }
             assert_eq!(artifact.sha256(), digest(artifact.javascript().as_bytes()));
         }
     }

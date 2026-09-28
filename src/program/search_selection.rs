@@ -308,11 +308,17 @@ impl Portfolio {
         {
             return Err(SearchError::Limit(SearchLimit::CodecProbes));
         }
+        // Without a walk (level 0, M3.5) nothing compares the baseline with
+        // another artifact: no codec runs, and it is admitted on its raw
+        // bytes.
+        let measured = !(baseline && objective.walk == crate::compilation_policy::WalkSchedule::OFF);
         for codec in objectives.iter() {
             if !baseline && known.get(codec).is_none() {
                 counters.codec_probes += 1;
             }
-            arena.measure(artifact, codec, budget)?;
+            if measured {
+                arena.measure(artifact, codec, budget)?;
+            }
         }
         let sizes = arena.with_artifact(artifact, |view| view.sizes)?;
         let entry = self.entries.get(position).unwrap();
@@ -321,15 +327,26 @@ impl Portfolio {
         let mut qualified = [None; 3];
         for codec in objectives.iter() {
             let i = index(codec);
-            let admission = arena.qualify(
-                artifact,
-                formation_contract,
-                policy,
-                codec,
-                ArtifactRuntimeEvidence::default(),
-                self.baseline_qualified[i].as_ref(),
-                budget,
-            )?;
+            let admission = if measured {
+                arena.qualify(
+                    artifact,
+                    formation_contract,
+                    policy,
+                    codec,
+                    ArtifactRuntimeEvidence::default(),
+                    self.baseline_qualified[i].as_ref(),
+                    budget,
+                )?
+            } else {
+                arena.qualify_unmeasured(
+                    artifact,
+                    formation_contract,
+                    policy,
+                    codec,
+                    ArtifactRuntimeEvidence::default(),
+                    budget,
+                )?
+            };
             let cost = admission.cost();
             let base = self.baseline_qualified[i].map_or(cost, |baseline| baseline.cost());
             qualified[i] = Some(admission);
@@ -366,7 +383,8 @@ impl Portfolio {
                 objectives
                     .iter()
                     .any(|codec| index(codec) == i)
-                    .then(|| sizes.get(codec(i)).unwrap())
+                    .then(|| sizes.get(codec(i)))
+                    .flatten()
             });
             self.baseline_qualified = qualified;
         }
@@ -413,8 +431,9 @@ impl Portfolio {
         }
         for codec in objectives.iter() {
             let best = &mut states[state].as_mut().unwrap().best[index(codec)];
-            let value = sizes.get(codec).unwrap();
-            *best = Some(best.map_or(value, |previous| previous.min(value)));
+            if let Some(value) = sizes.get(codec) {
+                *best = Some(best.map_or(value, |previous| previous.min(value)));
+            }
         }
         counters.admitted_artifacts += 1;
         if !baseline {

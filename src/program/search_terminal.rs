@@ -77,6 +77,9 @@ pub struct ChallengerTrial {
     pub delta: Option<i64>,
     /// The proxy judge's delta against the incumbent, when it judged.
     pub proxy: Option<i64>,
+    /// The audit lane's exact delta of a pruned move.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audit: Option<i64>,
 }
 
 /// One whole-artifact joint move's trial (architecture §9.5), after the
@@ -89,6 +92,9 @@ pub struct JointTrial {
     pub size: Option<usize>,
     pub delta: Option<i64>,
     pub proxy: Option<i64>,
+    /// The audit lane's exact delta of a pruned move.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audit: Option<i64>,
 }
 
 /// One choice alternative's trial (M9.1): a site of a choice family, by its
@@ -106,6 +112,9 @@ pub struct ChoiceTrial {
     pub size: Option<usize>,
     pub delta: Option<i64>,
     pub proxy: Option<i64>,
+    /// The audit lane's exact delta of a pruned move.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audit: Option<i64>,
 }
 
 /// A choice site of the delivered artifact and the alternative it took.
@@ -182,9 +191,52 @@ pub struct TerminalObjective {
     /// Restarts formed.
     pub restarts_tried: usize,
     /// Every start the objective walked, in order (AM2): the structural
-    /// search's winner, the level-0 artifact, the level-0 artifact under
-    /// each other naming seed (a restart), and the beam's winner.
+    /// search's winner, the level-0 artifact, and the level-0 artifact under
+    /// each other naming seed (a restart).
     pub starts: Vec<StartTrial>,
+    /// Where each lower one-pass level would have stopped, as the walk from
+    /// the level-0 artifact passed it (the replay check, §9.6).
+    pub stops: Vec<Stop>,
+}
+
+/// A lower level's stopping point on the walk from the level-0 artifact:
+/// that level's build delivers exactly these bytes.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Stop {
+    pub level: u8,
+    pub size: usize,
+    /// The delivered text's SHA-256: one file's, or for several files, the
+    /// digest of their names and digests in plan order.
+    pub sha256: String,
+}
+
+/// A walk's move renders within the larger of this and the level-0
+/// artifact's capacity. It does not depend on the level, so neither does
+/// the walk.
+const RENDER_BOUND: usize = 768 * 1024;
+
+/// The digest a stop records of an artifact's delivered files.
+fn delivered_digest(view: &ArtifactView<'_>) -> String {
+    use sha2::{Digest, Sha256};
+    if view.files.is_empty() {
+        return format!("{:x}", Sha256::digest(view.javascript.as_bytes()));
+    }
+    let mut all = String::new();
+    for file in view.files {
+        all.push_str(&file.name);
+        all.push('\0');
+        all.push_str(&format!("{:x}", Sha256::digest(file.code.as_bytes())));
+        all.push('\n');
+    }
+    format!("{:x}", Sha256::digest(all.as_bytes()))
+}
+
+/// The lower one-pass levels a walk from the level-0 artifact passes, with
+/// that walk's counts when it began.
+struct Replay {
+    pending: Vec<(u8, crate::compilation_policy::WalkSchedule)>,
+    examined: usize,
+    judged: usize,
 }
 
 /// One start of an objective's walks: `search` (the structural search's
@@ -207,6 +259,9 @@ pub struct StartTrial {
     pub delta: Option<i64>,
     /// A restart's proxy delta against the level-0 artifact.
     pub proxy: Option<i64>,
+    /// The audit lane's exact delta of a pruned move.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audit: Option<i64>,
 }
 
 /// Every requested objective's walks, bounded by the level's schedule.
@@ -317,6 +372,9 @@ struct Judge<'a> {
     margin: i64,
     /// The search baseline's qualification, the base of every comparison.
     baseline: Option<QualifiedArtifact>,
+    /// The audit lane (`LILSCRIPT_WALK_AUDIT`, a diagnostic): each pruned
+    /// move is also measured exactly. No decision reads it.
+    audit: bool,
 }
 
 /// The proxy judge's reading of one move: its delta against the reference
@@ -325,6 +383,9 @@ struct Judge<'a> {
 struct Proxy {
     delta: i64,
     size: usize,
+    /// With `LILSCRIPT_WALK_AUDIT`, a pruned move's exact delta against the
+    /// reference: a negative one is a miss of the proxy.
+    audit: Option<i64>,
 }
 
 impl Judge<'_> {
@@ -352,6 +413,7 @@ impl Judge<'_> {
             available,
             margin,
             baseline,
+            audit,
         } = *self;
         let tactics = OutputTactics {
             families: spelling.families,
@@ -388,10 +450,15 @@ impl Judge<'_> {
                 let exact = exact_proxy && arena.proxy_is_exact(challenged, codec)?;
                 let challenger = arena.measure_proxy(challenged, codec, budget)?;
                 let held = arena.measure_proxy(reference.artifact, codec, budget)?;
-                let proxy = Proxy {
+                let mut proxy = Proxy {
                     delta: challenger as i64 - held as i64,
                     size: challenger,
+                    audit: None,
                 };
+                if audit && proxy.delta > margin {
+                    let exact = arena.measure(challenged, codec, budget)?;
+                    proxy.audit = Some(exact as i64 - reference.size as i64);
+                }
                 Ok(Some((proxy, exact)))
             })();
             let prune = match &result {
@@ -578,12 +645,64 @@ struct Walker<'w, 'scope, 'src> {
     /// only fall along a walk, so a measured assignment that was not smaller
     /// then is not smaller now; a repeat is not formed again.
     memo: Vec<(Assignment, Recall)>,
+    /// On the walk from the level-0 artifact: the lower levels whose
+    /// stopping points it records.
+    replay: Option<Replay>,
 }
 
 impl Walker<'_, '_, '_> {
     /// Whether the walk may examine one more position.
     fn open(&self) -> bool {
         self.report.examined < self.walk.prefix && self.report.judged < self.walk.exact
+    }
+
+    /// Record the stopping point of every lower level whose walk would not
+    /// examine the next position: its prefix or exact budget is spent.
+    fn replay(&mut self, incumbent: &Incumbent) -> Result<(), SearchError> {
+        let Some(replay) = &self.replay else {
+            return Ok(());
+        };
+        let examined = self.report.examined - replay.examined;
+        let judged = self.report.judged - replay.judged;
+        let stopping: Vec<u8> = replay
+            .pending
+            .iter()
+            .filter(|(_, schedule)| examined >= schedule.prefix || judged >= schedule.exact)
+            .map(|&(level, _)| level)
+            .collect();
+        self.record_stops(&stopping, incumbent)
+    }
+
+    /// The walk from the level-0 artifact finished its first pass: every
+    /// lower one-pass level still pending stops here.
+    fn finish_replay(&mut self, incumbent: &Incumbent) -> Result<(), SearchError> {
+        let Some(replay) = &self.replay else {
+            return Ok(());
+        };
+        let levels: Vec<u8> = replay.pending.iter().map(|&(level, _)| level).collect();
+        self.record_stops(&levels, incumbent)?;
+        self.replay = None;
+        Ok(())
+    }
+
+    fn record_stops(&mut self, levels: &[u8], incumbent: &Incumbent) -> Result<(), SearchError> {
+        if levels.is_empty() {
+            return Ok(());
+        }
+        let sha256 = self
+            .formations
+            .with_arena(|arena, _, _| arena.with_artifact(incumbent.artifact, |view| delivered_digest(&view)))?;
+        for &level in levels {
+            self.report.stops.push(Stop {
+                level,
+                size: incumbent.size,
+                sha256: sha256.clone(),
+            });
+        }
+        if let Some(replay) = &mut self.replay {
+            replay.pending.retain(|(level, _)| !levels.contains(level));
+        }
+        Ok(())
     }
 
     /// Record one judged move in the counts.
@@ -653,7 +772,11 @@ impl Walker<'_, '_, '_> {
                 })?;
                 let delta = size as i64 - held as i64;
                 if delta > self.judge.margin {
-                    let proxy = Proxy { delta, size };
+                    let proxy = Proxy {
+                        delta,
+                        size,
+                        audit: None,
+                    };
                     return Ok((Judgement::Recalled { size: None }, Some(proxy), false));
                 }
             }
@@ -692,11 +815,16 @@ impl Walker<'_, '_, '_> {
             let kept = self.choice_moves(incumbent, pass)?
                 | self.challengers(incumbent, pass)?
                 | self.joint_moves(incumbent, pass)?;
+            if passes == 1 {
+                self.finish_replay(incumbent)?;
+            }
             if !kept {
                 break;
             }
         }
-        Ok(())
+        // A walk whose budget closed before its first pass began stops at
+        // its start.
+        self.finish_replay(incumbent)
     }
 
     /// The choice moves (M9.1): the incumbent's choice sites, surveyed, in
@@ -721,6 +849,7 @@ impl Walker<'_, '_, '_> {
         };
         let mut kept = false;
         for moves in choice_schedule(&sites) {
+            self.replay(incumbent)?;
             let (site, alternative) = moves[0];
             let estimate = moves
                 .iter()
@@ -751,6 +880,7 @@ impl Walker<'_, '_, '_> {
                 size: None,
                 delta: None,
                 proxy: None,
+            audit: None,
             };
             let moved: Vec<(usize, crate::js::AltId)> = moves
                 .iter()
@@ -784,6 +914,7 @@ impl Walker<'_, '_, '_> {
                     self.report.choices_tried += 1;
                 }
                 record.proxy = proxy.map(|proxy| proxy.delta);
+                record.audit = proxy.and_then(|proxy| proxy.audit);
                 match judgement {
                     Judgement::Kept {
                         artifact,
@@ -856,10 +987,12 @@ impl Walker<'_, '_, '_> {
             size: None,
             delta: None,
             proxy: None,
+        audit: None,
         };
         let mut kept = false;
         let mut seen = vec![incumbent.spelling.effective()];
         for challenger in Challenger::ORDER {
+            self.replay(incumbent)?;
             if self.stopped {
                 self.report
                     .trials
@@ -948,6 +1081,7 @@ impl Walker<'_, '_, '_> {
                 size,
                 delta,
                 proxy: proxy.map(|proxy| proxy.delta),
+                audit: proxy.and_then(|proxy| proxy.audit),
             });
         }
         Ok(kept)
@@ -974,6 +1108,7 @@ impl Walker<'_, '_, '_> {
         }
         let mut kept = false;
         for (name, style) in joints {
+            self.replay(incumbent)?;
             let mut record = JointTrial {
                 name,
                 pass,
@@ -981,6 +1116,7 @@ impl Walker<'_, '_, '_> {
                 size: None,
                 delta: None,
                 proxy: None,
+            audit: None,
             };
             if self.stopped {
                 record.outcome = ChallengerOutcome::Stopped;
@@ -1013,6 +1149,7 @@ impl Walker<'_, '_, '_> {
                     self.report.joints_tried += 1;
                 }
                 record.proxy = proxy.map(|proxy| proxy.delta);
+                record.audit = proxy.and_then(|proxy| proxy.audit);
                 record.outcome = match judgement {
                     Judgement::Kept {
                         artifact,
@@ -1126,6 +1263,7 @@ impl Walker<'_, '_, '_> {
             size: None,
             delta: None,
             proxy: None,
+        audit: None,
         });
         let mut result = start;
         self.passes(&mut result)?;
@@ -1146,6 +1284,7 @@ impl Walker<'_, '_, '_> {
             size: None,
             delta: None,
             proxy: None,
+        audit: None,
         };
         if self.stopped {
             record.outcome = ChallengerOutcome::Stopped;
@@ -1173,6 +1312,7 @@ impl Walker<'_, '_, '_> {
         )?;
         self.report.codec_probes += usize::from(probed);
         record.proxy = proxy.map(|proxy| proxy.delta);
+        record.audit = proxy.and_then(|proxy| proxy.audit);
         let (artifact, size, qualified) = match measured {
             Ok(measured) => measured,
             Err(judgement) => {
@@ -1310,6 +1450,11 @@ impl JavaScriptSearch<'_, '_> {
         let Some(winner) = self.portfolio.selected[index(codec)] else {
             return Ok(None);
         };
+        // Without a walk the level-0 artifact is delivered as it is, and no
+        // codec measured it (M3.5).
+        if objective.walk.prefix == 0 {
+            return Ok(None);
+        }
         let level0 = self.portfolio.pinned.unwrap_or(winner);
         let size = |search: &Self, position: usize| -> Result<usize, SearchError> {
             let artifact = search.portfolio.entries.get(position).unwrap().artifact;
@@ -1350,24 +1495,12 @@ impl JavaScriptSearch<'_, '_> {
             joint_trials: Vec::new(),
             restarts_tried: 0,
             starts: Vec::new(),
+            stops: Vec::new(),
         };
-        if walk.prefix == 0 {
-            report.trials.extend(Challenger::ORDER.into_iter().map(|challenger| {
-                ChallengerTrial {
-                    challenger: challenger.name(),
-                    pass: 1,
-                    outcome: ChallengerOutcome::Budget,
-                    size: None,
-                    delta: None,
-                    proxy: None,
-                }
-            }));
-        } else {
-            if level0 != winner {
-                self.walk_from(policy, objective, codec, "search", winner, false, &mut report)?;
-            }
-            self.walk_from(policy, objective, codec, "level-0", level0, walk.starts, &mut report)?;
+        if level0 != winner {
+            self.walk_from(policy, objective, codec, "search", winner, false, &mut report)?;
         }
+        self.walk_from(policy, objective, codec, "level-0", level0, walk.starts, &mut report)?;
         let delivered = self.portfolio.selected[index(codec)]
             .expect("an objective keeps its winner");
         report.after = size(self, delivered)?;
@@ -1433,9 +1566,17 @@ impl JavaScriptSearch<'_, '_> {
             qualified: None,
         };
         let walk = objective.walk;
-        let available = objective
-            .retained_candidate_bytes
-            .max(self.portfolio.baseline_capacity);
+        let available = RENDER_BOUND.max(self.portfolio.baseline_capacity);
+        // The walk from the level-0 artifact passes every lower one-pass
+        // level's stopping point (levels 0 to 12, below this one).
+        let replay = (name == "level-0").then(|| Replay {
+            pending: (0..policy.effort())
+                .map(|level| (level, crate::compilation_policy::WalkSchedule::at(level, codec)))
+                .filter(|(_, schedule)| schedule.passes <= 1)
+                .collect(),
+            examined: report.examined,
+            judged: report.judged,
+        });
         let Self {
             compilation,
             portfolio,
@@ -1448,6 +1589,7 @@ impl JavaScriptSearch<'_, '_> {
             available,
             margin: i64::try_from(walk.margin).unwrap_or(i64::MAX),
             baseline: portfolio.baseline_qualification(codec).copied(),
+            audit: std::env::var_os("LILSCRIPT_WALK_AUDIT").is_some(),
         };
         let formed = compilation.with_javascript_formations_in(
             candidate,
@@ -1469,6 +1611,7 @@ impl JavaScriptSearch<'_, '_> {
                     choices_permitted: output.target_compaction,
                     stopped: false,
                     memo: Vec::new(),
+                    replay,
                 };
                 walker.walk_start(name, origin.clone())?;
                 if restarts {
@@ -1493,6 +1636,7 @@ impl JavaScriptSearch<'_, '_> {
                     size: None,
                     delta: None,
                     proxy: None,
+                audit: None,
                 });
                 Ok(())
             }

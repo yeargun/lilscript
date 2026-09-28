@@ -422,15 +422,30 @@ fn identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes(
 fn zero_optional_work_seals_a_completely_scored_direct_baseline() {
     for settings in ["candidate_proposal_limit=0", "candidate_search='off'"] {
         let policy = byte_policy(settings);
+        // Without a walk (`off`), no codec runs: the baseline is admitted on
+        // its raw bytes (M3.5).
+        let walks = settings != "candidate_search='off'";
         with_source(BYTE, true, WORK, MEMORY, |compiler, source| {
             let mut measured = Vec::new();
+            let mut unmeasured = Vec::new();
             let search = compiler
                 .search_javascript_explored_observed(source, &policy, request(), |entry| {
-                    measured.push(observe(entry))
+                    if walks {
+                        measured.push(observe(entry));
+                    } else {
+                        assert!(entry.baseline);
+                        assert_eq!(entry.sizes.raw, entry.javascript.len());
+                        assert_eq!((entry.sizes.gzip9, entry.sizes.brotli11), (None, None));
+                        unmeasured.push(entry.javascript.to_string());
+                    }
                 })
                 .unwrap();
-            assert_eq!(measured.len(), 1);
-            assert!(measured[0].baseline);
+            assert_eq!(measured.len() + unmeasured.len(), 1);
+            assert!(measured.iter().all(|entry| entry.baseline));
+            for codec in CODECS {
+                let qualified = search.winner_qualification(codec).unwrap();
+                assert_eq!(qualified.exact(), walks, "{codec:?}");
+            }
             assert_eq!(search.counters().proposals, 0);
             assert_eq!(search.counters().proof_queries, 0);
             assert_eq!(search.counters().codec_probes, 0);
@@ -444,8 +459,12 @@ fn zero_optional_work_seals_a_completely_scored_direct_baseline() {
                 seal.baseline_work,
                 search.ledger().work_used(WorkDomain::Baseline)
             );
-            for winner in winners(&search, &measured) {
-                run_byte(&winner.javascript);
+            if walks {
+                for winner in winners(&search, &measured) {
+                    run_byte(&winner.javascript);
+                }
+            } else {
+                run_byte(&unmeasured[0]);
             }
         });
     }
