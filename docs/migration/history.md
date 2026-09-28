@@ -1432,6 +1432,28 @@ Predicted: unmodified programs byte-identical (no program uses the new forms); t
 
 ---
 
+## 2026-09-28 Batch S7: `unknown`, and the fix-it's last family (M4.2, M10.2, M10.4)
+
+**Pre-registration** (written before the first build of the batch; base: S6's last commit, baseline binary `~/lilscript-work/bin/s5-1`). Its tests and ladder run with S6's.
+
+What the batch builds (language.md R12, R7):
+- **`unknown`**: a dynamic type on which only the tests and the ways out apply until it is narrowed:
+  - allowed: `==`, `!=`, `===`, `!==`, `typeof`, `instanceof`, `is`, `as T`, `as? T`, and the conversions `string(u)`, `float(u)`, `bool(u)`;
+  - every value is assignable to `unknown`; `unknown` is assignable to nothing but itself, so leaving it, even to `JsValue`, is written;
+  - it lowers as `JsValue` does, and a module that mentions it is JavaScript-only.
+- **Function-reference adapters.** The fix-it writes `JS.method<N>(f)`, `JS.methodRest(f)` and `JS.staticRest(f)` over a function reference as the lambda that forwards to it, `(this JsValue self, JsValue a) => f(self, a)`, which is what the adapter calls. These are the 73 adapter mentions S2 left.
+
+**Order change (recorded here, plan rule for re-ordering):** the refusal of the `JS.*` spellings, R12's second batch, lands with each port's next release (M12.4). Port repositories change only at release, and until then the unpatched ports must build. Step 7 closes with the fix-it complete and the patches in `~/lilscript-work/portwork/`.
+
+Changes (one commit each):
+- **C1.** `unknown`: the type, its relations and operations, lowering as the dynamic type.
+- **C2.** The fix-it: function-reference adapters.
+- **C3.** Tests.
+
+Predicted: unmodified programs byte-identical; the census's adapter mentions fall to the ones a function reference cannot be forwarded from (none expected).
+
+---
+
 ## Appendix: where milestones 001–014 went
 
 | Old | Now |
