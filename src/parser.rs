@@ -2403,7 +2403,11 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let mut args = BumpVec::new_in(self.arena, self.admission);
         if !self.check(|kind| matches!(kind, TokenKind::RParen)) {
             loop {
-                let modifier = if matches!(self.peek_kind(), Some(TokenKind::Ident("ref")))
+                let spread = self
+                    .match_kind(|kind| matches!(kind, TokenKind::Ellipsis))
+                    .then(|| self.previous_span());
+                let modifier = if spread.is_none()
+                    && matches!(self.peek_kind(), Some(TokenKind::Ident("ref")))
                     && self.check_next(|kind| matches!(kind, TokenKind::Ident(_) | TokenKind::From))
                 {
                     Some(self.advance().expect("checked reference modifier").span)
@@ -2411,7 +2415,9 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     None
                 };
                 let expression = self.parse_expression()?;
-                let span = modifier.map_or(expression.span(), |span| span.merge(expression.span()));
+                let span = modifier
+                    .or(spread)
+                    .map_or(expression.span(), |span| span.merge(expression.span()));
                 args.push(Argument {
                     expression,
                     passing: if modifier.is_some() {
@@ -2419,6 +2425,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     } else {
                         ParameterPassing::Value
                     },
+                    spread: spread.is_some(),
                     span,
                 })?;
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {

@@ -316,6 +316,8 @@ pub struct ParameterType<'ast, 'src> {
 pub struct Argument<'ast, 'src> {
     pub expression: Expr<'ast, 'src>,
     pub passing: crate::primitive::ParameterPassing,
+    /// `...xs`: the argument spreads an iterable into a JavaScript call (R7).
+    pub spread: bool,
     pub span: Span,
 }
 
