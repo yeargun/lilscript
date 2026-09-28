@@ -2414,6 +2414,9 @@ print(new Holder(true).kept);
             source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
         }
         assert_eq!(source, fixed);
+        // A fixed source has nothing left to fix.
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        assert!(!diagnostics.iter().any(|diagnostic| diagnostic.rule == "migration/char-code"));
     }
 
     /// `migration/absence`: operations that tell the spellings of absence

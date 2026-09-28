@@ -267,6 +267,24 @@ impl<'src> Walk<'_, '_, 'src> {
             ExprKind::Unary { expr, .. }
             | ExprKind::DynamicUnary { expr, .. }
             | ExprKind::Await { task: expr, .. } => self.expression(expr),
+            // `s.charCodeAt(i) | 0` is already today's `int`: the fix wrote it,
+            // or the author did. Its call is not reported again.
+            ExprKind::Binary {
+                op: BinaryOp::BitOr,
+                lhs,
+                rhs,
+                ..
+            } if matches!(rhs.kind, ExprKind::Int(0, _))
+                && matches!(&lhs.kind, ExprKind::Call { callee, .. }
+                    if matches!(&callee.kind, ExprKind::Member { property, .. } if property.name == "charCodeAt")) =>
+            {
+                if let ExprKind::Call { callee, args, .. } = &lhs.kind {
+                    self.expression(callee);
+                    for argument in *args {
+                        self.expression(&argument.expression);
+                    }
+                }
+            }
             ExprKind::Binary { lhs, rhs, .. } | ExprKind::DynamicBinary { lhs, rhs, .. } => {
                 self.expression(lhs);
                 self.expression(rhs);
