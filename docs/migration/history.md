@@ -1560,6 +1560,17 @@ Changes:
   - typed-string `JS.add` in declined positions (22);
   - `JS.undefined()` where a module binds `undefined` (18);
   - `JS.array` in `auto` contexts (17).
+- **Fix-patched ports** (S1–S7's rewrite applied, `s7-1`): all seven green, 4,653 of 4,653 tests. Against S5's fix-patched run (so the delta mixes S6–S7's patches with S6–S7's compiler):
+
+  | Port | Files changed | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|---:|
+  | markedlil | 7 of 7 | −272 | −78 | −97 |
+  | jquerylil | 5 of 5 | +90 | −163 | +15 |
+  | motionlil | 567 of 617 | +1,636 | +590 | +46 |
+  | the other four | 0 | 0 | 0 | 0 |
+  | **total** | 579 of 677 | +1,454 | +349 | **−36** |
+
+  motionlil's 567 files are the delivery graph's parts: the partition moved code between parts (part-288 −10,639 raw, part-292 +10,588), and the sum over its 112 kB moved +46 Brotli. The patches are not in the port repositories yet (M12.4); their costs are recorded here for that release.
 - **Step 7 closes** with the language slice built and the fix-it complete: R12, R7, R13 and R14 are in force on the one compiler.
   - The refusal of the spellings lands with each port's release (M12.4).
   - M4.2's remaining items move to step 9 with M4.4's node ids: type parameters by id, and interned types without source lifetimes.
