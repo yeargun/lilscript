@@ -2149,8 +2149,8 @@ fn unknown_refuses_other_operations() {
 }
 
 /// Trusted crossings (R1): a typed `int` field is an int32 by type, so no
-/// `|0` normalizes its load; arithmetic still wraps. An element read past the
-/// end reads 0 until R11's index precondition lands (M10.9).
+/// `|0` normalizes its load; arithmetic still wraps. An element read is in
+/// range by R11's precondition, so it carries none either.
 #[test]
 fn typed_int_loads_are_not_normalized() {
     let javascript = compile_with(
@@ -2161,7 +2161,6 @@ fn typed_int_loads_are_not_normalized() {
         export int next(int[] values, int i) { return values[i] + 1; }
         show(read(new Counter(41)));
         show(next([1, 2, 3], 1));
-        show(next([1, 2, 3], 7));
         "#,
         PRISTINE,
     );
@@ -2173,7 +2172,15 @@ fn typed_int_loads_are_not_normalized() {
         .next()
         .unwrap_or_default();
     assert!(read.contains("return") && !read.contains("|0"), "{javascript}");
-    assert_eq!(run(&javascript, SHOW), "41\n3\n1\n");
+    let next = javascript
+        .split("next=function")
+        .nth(1)
+        .unwrap_or_default()
+        .split('}')
+        .next()
+        .unwrap_or_default();
+    assert_eq!(next.matches("|0").count(), 1, "the sum's wrap alone: {javascript}");
+    assert_eq!(run(&javascript, SHOW), "41\n3\n");
 }
 
 /// Definite assignment (R3): a local declared without a value is read only
@@ -2371,9 +2378,11 @@ fn development_checks_index_reads() {
     let development = compile_with(source, "[javascript]\nchecks = \"development\"\n");
     assert_eq!(development.matches("RangeError").count(), 1, "{development}");
     assert_eq!(run(&development, SHOW), "5\n\"range\"\n\"range\"\n\"a\"\n");
+    // Production checks nothing: past the end is unspecified (R11), and an
+    // element read is the plain read.
     let production = compile_with(source, "");
     assert!(!production.contains("RangeError"), "{production}");
-    assert_eq!(run(&production, SHOW), "5\n0\n\"\"\n\"a\"\n");
+    assert!(!production.contains("??\"\""), "{production}");
 }
 
 /// R11: `%` with a `float` operand is a `float`; a bitwise operator takes a

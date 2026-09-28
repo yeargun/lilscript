@@ -127,10 +127,11 @@ fn arrays_and_records_preserve_aliasing_absence_and_proto_data_keys() {
         print(numbers[1]);print(numbers[0]+numbers[2]);
     "#,
     );
+    // In range by precondition (R11): past the end is unspecified.
     host_case(
-        r#"int[] numbers=[7];string[] strings=["ok"];print(numbers[4]);print(strings[4]);print("abc"[8]);print("\ud800X"[0].charCodeAt(0));"#,
+        r#"int[] numbers=[7];string[] strings=["ok"];print(numbers[0]);print(strings[0]);print("abc"[2]);print("\ud800X"[0].charCodeAt(0));"#,
         "",
-        "0\n\n\n55296\n",
+        "7\nok\nc\n55296\n",
     );
 }
 

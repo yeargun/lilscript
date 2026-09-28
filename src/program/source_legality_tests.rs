@@ -421,15 +421,16 @@ fn source_records_and_arrays_preserve_aliases_keys_and_absent_values() {
         shared[1]=11;print(array[1]);print(array[0]+array[2]);
     "#,
     );
-    // The reference interpreter rejects these out-of-range element reads.
-    // The JavaScript contract uses signed normalization and the empty string.
+    // An element read is in range by precondition (R11): past the end is a
+    // precondition violation, unspecified in production. In range, a lone
+    // surrogate reads as itself.
     compare_source_output(
         r#"
         int[] numbers=[7];string[] strings=["ok"];
-        print(numbers[4]);print(strings[4]);print("abc"[8]);
+        print(numbers[0]);print(strings[0]);print("abc"[2]);
         print("\ud800X"[0].charCodeAt(0));
     "#,
-        "0\n\n\n55296\n",
+        "7\nok\nc\n55296\n",
     );
 }
 
