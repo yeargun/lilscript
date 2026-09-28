@@ -792,8 +792,11 @@ fn module_graph_schedule_and_late_interface_work_refusals_keep_actual_attributio
     // Root's one binary expression adds three visits, three continuation
     // probes, two pushes and one first allocation, all during body checking.
     let binary_work = 3 + 3 + 2 + 1;
-    let analyzer_work = 4 * 3 * 4 + 2 * 2 + 2 * (2 + 6 + 2 + 2) + binary_work;
-    let body_work = 3 * 4 + 2 * (2 + 6 + 2 + 2) + binary_work;
+    // Entering a body costs 1 more than the names it assigns (none here):
+    // three module bodies and two function bodies (R1's narrowing scan).
+    let scan_work = 3 + 2;
+    let analyzer_work = 4 * 3 * 4 + 2 * 2 + 2 * (2 + 6 + 2 + 2) + binary_work + scan_work;
+    let body_work = 3 * 4 + 2 * (2 + 6 + 2 + 2) + binary_work + scan_work;
     let registration_peak = storage.schedule_peak().max(
         storage.checked_live()
             + base_scope_bytes()

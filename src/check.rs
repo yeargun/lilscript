@@ -3748,7 +3748,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 value,
                 delegate,
                 span,
-            } => self.analyze_yield(value, *delegate, *span),
+            } => {
+                self.analyze_yield(value, *delegate, *span)?;
+                // Other code runs while the generator is suspended.
+                self.invalidate_host_narrowings();
+                Ok(())
+            }
             Stmt::Try {
                 body,
                 catch,
@@ -5471,9 +5476,29 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 Type::Void
             }
         };
+        // A call, a construction or a suspension runs code that can assign a
+        // host binding: its narrowings end here (R1).
+        if matches!(
+            expr.kind,
+            ExprKind::Call { .. }
+                | ExprKind::New { .. }
+                | ExprKind::Construct { .. }
+                | ExprKind::Await { .. }
+        ) {
+            self.invalidate_host_narrowings();
+        }
 
         self.facts.expression_types[expr.id.index()] = Some(ty.clone());
         Ok(ty)
+    }
+
+    /// Ends every narrowing of a host binding: code that ran may have
+    /// assigned it.
+    fn invalidate_host_narrowings(&mut self) {
+        let symbols = &self.declarations.symbols;
+        for scope in &mut self.narrowings {
+            scope.retain(|symbol, _| !symbols[symbol.0 as usize].is_foreign());
+        }
     }
 
     /// Binary trees are common even in flat source such as `a + b + c`.
@@ -9079,11 +9104,31 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     /// Whether a test narrows `symbol` here (R1: a narrowed value inhabits
     /// its narrowed type). Code the flow does not see must not assign it: no
     /// function nested in its declaring body does, and, read from such a
-    /// function, its declaring body does not either. A host binding is read
-    /// anew at each use, so it is never narrowed.
+    /// function, its declaring body does not either. A host binding changes
+    /// only while code runs, so its narrowing ends at the next call.
     fn narrowable(&self, symbol: SymbolId) -> bool {
-        let Some(&declared) = self.symbol_bodies.get(&symbol) else {
-            return !self.declarations.symbols[symbol.0 as usize].is_foreign();
+        // A module's own binding may be declared before its body is entered
+        // (the module's bindings are declared first): its body is the
+        // module's, the outermost.
+        let declared = match self.symbol_bodies.get(&symbol) {
+            Some(&declared) => declared,
+            // Another module's binding is assigned by code this one does not
+            // see: it is never narrowed here.
+            None if self
+                .declarations
+                .symbol_modules
+                .get(symbol.0 as usize)
+                .copied()
+                .flatten()
+                .is_some_and(|module| Some(module) != self.module) =>
+            {
+                return false;
+            }
+            None if self.declarations.module_bindings.contains(&symbol) => 0,
+            // A host binding is narrowed until code runs: a call, a
+            // construction or a suspension ends it
+            // (`invalidate_host_narrowings`).
+            None => return true,
         };
         let Some(body) = self.bodies.get(declared) else {
             return true;
@@ -12795,8 +12840,11 @@ mod tests {
     fn treats_number_as_non_wrapping_binary64() {
         check("number value=1;number next=value*3+0.5;number step(number input){return input+1;}")
             .unwrap();
-        let bitwise = check("number value=1;number shifted=value<<1;").unwrap_err();
-        assert!(bitwise.message.contains("cannot be applied"), "{bitwise}");
+        // R11: a bitwise operator takes a float operand through ToInt32 and
+        // gives an `int`; `%` of floats is a float.
+        check("number value=1.5;int shifted=value<<1;number rest=value%1;").unwrap();
+        let narrowed = check("number value=1.5;int rest=value%1;").unwrap_err();
+        assert!(narrowed.message.contains("expected `int`"), "{narrowed}");
     }
 
     #[test]
@@ -12960,6 +13008,8 @@ mod tests {
             "int f(string? s) { string? v = s; if (v != null) { int n = v.length; v = null; return n; } return 0; } print(f(\"ab\"));",
             // A lambda's own local, narrowed inside it.
             "auto f = (string? s) => { string? v = s; if (v != null) { return v.length; } return 0; }; print(f(\"ab\"));",
+            // A host binding until code runs.
+            "extern string? host; if (host != null) { print(host.length); }",
         ];
         for source in accepted {
             let arena = Bump::new();
@@ -12974,8 +13024,8 @@ mod tests {
             "string? v = \"a\"; auto reset = () => { v = null; }; if (v != null) { reset(); print(v.length); }",
             // A module binding a function assigns.
             "string? g = \"a\"; void clear() { g = null; } if (g != null) { clear(); print(g.length); }",
-            // A host binding is read anew at each use.
-            "extern string? host; if (host != null) { print(host.length); }",
+            // A host binding after a call: the call may have assigned it.
+            "extern string? host; extern void tick(); if (host != null) { tick(); print(host.length); }",
         ];
         for source in refused {
             let arena = Bump::new();
