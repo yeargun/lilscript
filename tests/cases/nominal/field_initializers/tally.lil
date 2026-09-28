@@ -1,0 +1,28 @@
+// A class whose field initializers read and change this module's private
+// state.
+int unit = 7;
+int made = 0;
+
+int nextSerial() {
+  made = made + 1;
+  return made;
+}
+
+export class Tally {
+  int count = unit * 2;
+  int serial = nextSerial();
+  int[] marks = [unit];
+  string label = "tally";
+  float ratio = 0.5;
+  int later;
+  init(int start) {
+    this.later = this.count + start;
+  }
+  void mark(int value) {
+    this.marks.push(value);
+  }
+}
+
+export int madeSoFar() {
+  return made;
+}

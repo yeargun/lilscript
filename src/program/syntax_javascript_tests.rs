@@ -2229,3 +2229,68 @@ fn declared_locals_run() {
     assert_eq!(run(&javascript, SHOW), "17\n21\n");
 }
 
+
+/// Field initializers (R3): each construction evaluates a field's own
+/// initializer before `init`, a fresh value every time and the base's first,
+/// for a generic class, a derived class and a class kept as JavaScript's.
+#[test]
+fn field_initializers_run_at_construction() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        int made = 0;
+        int serial() { made = made + 1; return made; }
+        class Bag<T> {
+            T[] items = [];
+            int limit = 3;
+        }
+        export class Base {
+            int base = 40 + 2;
+            string[] names = ["a"];
+            int id = serial();
+            init() { }
+        }
+        export class Counter extends Base {
+            int count = 5;
+            int later;
+            init(int start) {
+                super();
+                this.later = this.count + start;
+            }
+        }
+        export int total(int start) {
+            Counter c = new Counter(start);
+            c.names.push("b");
+            Counter d = new Counter(1);
+            Bag<int> bag = new Bag<int>();
+            bag.items.push(start);
+            Bag<int> other = new Bag<int>();
+            return c.base + c.count + c.later + c.names.length * 100 + d.names.length * 1000
+                + bag.items.length * 10000 + other.items.length * 100000 + bag.limit * 1000000
+                + (c.id * 10 + d.id) * 10000000;
+        }
+        show(total(3));
+        show(made);
+        "#,
+        PRISTINE,
+    );
+    assert_eq!(run(&javascript, SHOW), "123011255\n2\n");
+}
+
+/// A field initializer is a value of the field's type; an extern class's
+/// field is the host's and a struct's comes from its literal, so neither
+/// takes one.
+#[test]
+fn field_initializers_are_checked_and_refused_where_they_mean_nothing() {
+    let arena = bumpalo::Bump::new();
+    let syntax =
+        crate::parse_source(&arena, "class C { int n = \"one\"; } C c = new C(); print(c.n);")
+            .unwrap();
+    let error = crate::analyze(&syntax).unwrap_err();
+    assert!(format!("{error:?}").contains("string"), "{error:?}");
+    let syntax = crate::parse_source(&arena, "extern class Host { int n = 1; } print(1);").unwrap();
+    let error = crate::analyze(&syntax).unwrap_err();
+    assert!(format!("{error:?}").contains("the host's"), "{error:?}");
+    let error = crate::parse_source(&arena, "struct P { int x = 1; } print(1);").unwrap_err();
+    assert!(format!("{error:?}").contains("construction literal"), "{error:?}");
+}

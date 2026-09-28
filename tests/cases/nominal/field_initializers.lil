@@ -1,0 +1,33 @@
+// Field initializers (R3): each construction evaluates a field's own
+// initializer before `init`, in the module that declares the class, even
+// when the construction is in another module; a derived class's construction
+// runs its base's initializers first. Each construction gets a fresh array.
+import { Tally, madeSoFar } from "./field_initializers/tally";
+
+class Scored extends Tally {
+  int bonus = 100;
+  string note;
+  init(int start) {
+    super(start);
+    this.note = this.label + "!";
+  }
+}
+
+Tally first = new Tally(3);
+first.mark(9);
+Tally second = new Tally(1);
+print(first.count);
+print(first.later);
+print(first.marks.length);
+print(second.marks.length);
+print(first.serial);
+print(second.serial);
+print(first.label);
+if (first.ratio == 0.5) {
+  print("half");
+}
+Scored scored = new Scored(10);
+print(scored.bonus + scored.later);
+print(scored.note);
+print(scored.serial);
+print(madeSoFar());
