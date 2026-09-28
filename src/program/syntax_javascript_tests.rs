@@ -1961,6 +1961,7 @@ fn identity_tests_on_classes_are_instanceof() {
         r#"
         extern void show(JsValue value);
         extern class Error { string message; init(string message); }
+        extern JsValue globalThis;
         class Shape { float size; init(float size) { this.size = size; } }
         class Circle extends Shape { init(float size) { super(size); } }
         class Square extends Shape { init(float size) { super(size); } }
@@ -1983,7 +1984,7 @@ fn identity_tests_on_classes_are_instanceof() {
             show(error is Error);
             show(v is Error);
         }
-        f(new Error("boom") as JsValue);
+        f(new (globalThis.Error)("boom"));
         "#,
         PRISTINE,
     );
