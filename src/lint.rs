@@ -19,6 +19,7 @@ use crate::program::{
 };
 use crate::span::Span;
 
+mod implicit_default;
 mod js_builtin;
 
 pub const RULES: &[&str] = &[
@@ -29,6 +30,7 @@ pub const RULES: &[&str] = &[
     "correctness/unhandled-module-task",
     "effects/pure-extern-requires-allowlist",
     js_builtin::RULE,
+    implicit_default::RULE,
     "performance/allocation-in-loop",
     "performance/closure-allocation-in-loop",
     "performance/indirect-call-in-loop",
@@ -300,6 +302,7 @@ pub fn lint_checked_with_providers(
         lint_items(module, syntax, &config.lint, &mut pending);
         if let Some(view) = checked.semantics.view(module) {
             js_builtin::lint(module, source, syntax, &view, &mut pending);
+            implicit_default::lint(module, source, syntax, &view, &mut pending);
         }
     }
     lint_unused_private_symbols(checked, &mut pending);
@@ -2259,6 +2262,91 @@ mod tests {
                 .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
                 .collect::<Vec<_>>(),
             [(false, "JS.array(x)"), (false, "JS.array()"), (false, "JS.add(text, \"y\")")]
+        );
+    }
+
+    /// `migration/implicit-default`: a field that `init` does not assign on
+    /// every path gets its implicit default written as its initializer; a
+    /// field whose default is not a value of its type is reported without a
+    /// fix.
+    #[test]
+    fn implicit_default_fixes_write_each_default() {
+        let scratch = Scratch::new("implicit-default");
+        let header = "enum Tone { Plain, Loud }\nclass Node { int value; init(int value) { this.value = value; } }\n";
+        let original = r#"class Holder {
+    int count;
+    float ratio;
+    bool ready;
+    string label;
+    int[] marks;
+    Map<string, int> index;
+    Set<int> seen;
+    Record<int> table;
+    Tone tone;
+    Node? next;
+    Node head;
+    Node tail;
+    int assigned;
+    int branchy;
+    int both;
+    int kept = 4;
+    init(bool b) {
+        this.assigned = 1;
+        if (b) { this.branchy = 1; }
+        if (b) { this.both = 1; } else { this.both = 2; }
+        this.head = new Node(1);
+    }
+}
+print(new Holder(true).kept);
+"#;
+        let fixed = r#"class Holder {
+    int count = 0;
+    float ratio = 0.0;
+    bool ready = false;
+    string label = "";
+    int[] marks = [];
+    Map<string, int> index = new Map();
+    Set<int> seen = new Set();
+    Record<int> table = record {};
+    Tone tone = Tone.Plain;
+    Node? next = null;
+    Node head;
+    Node tail;
+    int assigned;
+    int branchy = 0;
+    int both;
+    int kept = 4;
+    init(bool b) {
+        this.assigned = 1;
+        if (b) { this.branchy = 1; }
+        if (b) { this.both = 1; } else { this.both = 2; }
+        this.head = new Node(1);
+    }
+}
+print(new Holder(true).kept);
+"#;
+        let path = scratch.file("main.lil", "");
+        let mut source = format!("{header}{original}");
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        let mut edits = diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.rule == "migration/implicit-default")
+            .filter_map(|diagnostic| diagnostic.fix.as_ref())
+            .flat_map(|fix| fix.edits.iter().cloned())
+            .collect::<Vec<_>>();
+        edits.sort_by_key(|edit| std::cmp::Reverse(edit.span.start));
+        for edit in edits {
+            source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
+        }
+        assert_eq!(source, format!("{header}{fixed}"));
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        assert_eq!(
+            diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.rule == "migration/implicit-default")
+                .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
+                .collect::<Vec<_>>(),
+            [(false, "tail")]
         );
     }
 

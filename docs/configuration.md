@@ -375,6 +375,14 @@ syntax would mean another operation (`+` of a typed `string`, a call of a typed
 function, an array literal where no `JsValue` is expected) is reported without a
 fix.
 
+`migration/implicit-default` warns at each class field that has no initializer
+and that `init` does not assign on every path: such a field takes its type's
+implicit default, which [language rule R3](language.md) removes. The fix writes
+that default as the field's initializer (`int count = 0;`, `string[] rows =
+[];`, `Color tint = Color.None;`), which is what every construction evaluates
+today. A field whose implicit default is not a value of its type (a class,
+struct or function field left null until `init`) is reported without a fix.
+
 Use `// lilscript-lint-disable RULE` to suppress a rule from that line onward,
 or `// lilscript-lint-disable-next-line RULE` for the following line.
 
