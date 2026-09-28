@@ -30,6 +30,28 @@ fn vector_bytes<T>(values: &Vec<T>) -> Result<u64, AllocationError> {
         .ok_or(AllocationError::Capacity)
 }
 
+/// `JS.method<N>`, `JS.methodRest` and `JS.staticRest`: the adapters a
+/// receiver or rest lambda names (R7).
+fn method_adapter(builtin: BuiltinCall) -> bool {
+    use BuiltinCall as B;
+    matches!(
+        builtin,
+        B::JsMethod0
+            | B::JsMethod1
+            | B::JsMethod2
+            | B::JsMethod3
+            | B::JsMethod4
+            | B::JsMethod5
+            | B::JsMethod6
+            | B::JsMethod7
+            | B::JsMethod8
+            | B::JsMethod9
+            | B::JsMethod10
+            | B::JsMethodRest
+            | B::JsStaticRest
+    )
+}
+
 /// An operand of a dynamic operation lowered from its syntax (R12).
 #[derive(Clone, Copy)]
 enum DynamicOperand<'a, 'ast, 'src> {
@@ -42,6 +64,8 @@ enum DynamicOperand<'a, 'ast, 'src> {
     Binding(ast::Ident<'src>),
     /// A value already evaluated: a compound update's operands.
     Value(ValueId),
+    /// A method lambda's closure, formed as the adapter's operand.
+    Closure(&'a ast::Expr<'ast, 'src>),
 }
 
 fn drop_vector<T>(
@@ -4725,27 +4749,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 )?
             }
             ExprKind::ArrowFunction { params, body, .. } => {
-                let child = self.add_unit(UnitKind::Closure)?;
-                self.units[child.index()].callable_type = Some(ty);
-                self.parameters(child, params)?;
-                let name = self.string("")?;
-                self.units[child.index()].function_name = Some(name);
-                let root = RegionId::from_index(0).unwrap();
-                match body {
-                    ArrowBody::Expr(expression) => {
-                        let result = self.expression(child, root, expression)?;
-                        let result = self.copy_value(child, root, result, expression.span())?;
-                        self.effect(
-                            child,
-                            root,
-                            OperationKind::Return,
-                            &[result],
-                            expression.span(),
-                        )?;
-                    }
-                    ArrowBody::Block(body) => self.statements(child, root, body)?,
-                }
-                (OperationKind::Closure(child), vec![])
+                (OperationKind::Closure(self.closure(params, body, ty)?), vec![])
             }
             ExprKind::ArrayLiteral { elements, .. } => {
                 let mut values = self.budget.vector(Scratch, elements.len())?;
@@ -4936,6 +4940,35 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         )?;
         Ok(call)
     }
+    /// A lambda's unit, of callable type `ty`.
+    fn closure(
+        &mut self,
+        params: &[ast::Param<'ast, 'src>],
+        body: &ArrowBody<'ast, 'src>,
+        ty: TypeId,
+    ) -> Result<UnitId, ConversionError> {
+        let child = self.add_unit(UnitKind::Closure)?;
+        self.units[child.index()].callable_type = Some(ty);
+        self.parameters(child, params)?;
+        let name = self.string("")?;
+        self.units[child.index()].function_name = Some(name);
+        let root = RegionId::from_index(0).unwrap();
+        match body {
+            ArrowBody::Expr(expression) => {
+                let result = self.expression(child, root, expression)?;
+                let result = self.copy_value(child, root, result, expression.span())?;
+                self.effect(
+                    child,
+                    root,
+                    OperationKind::Return,
+                    &[result],
+                    expression.span(),
+                )?;
+            }
+            ArrowBody::Block(body) => self.statements(child, root, body)?,
+        }
+        Ok(child)
+    }
     /// Syntax on a `JsValue` lowered as the dynamic operation its `JS.*`
     /// spelling names (R12): the same builtin call, with the same operands in
     /// the same order, so each dynamic operation has one IR form.
@@ -4982,6 +5015,11 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 );
             }
             (ExprKind::Ident(_), BuiltinCall::JsUndefined) => {}
+            // `(this JsValue self, …) => …`: its closure is the adapter's one
+            // operand, formed where `JS.method<N>(lambda)` forms it (R7).
+            (ExprKind::ArrowFunction { .. }, adapter) if method_adapter(adapter) => {
+                operands.push(O::Closure(expr));
+            }
             (
                 ExprKind::DynamicUnary {
                     expr:
@@ -5043,7 +5081,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 .iter()
                 .map(|argument| O::Expression(&argument.expression)),
         );
-        let ty = self.expression_type(expr)?;
+        // An adapter lambda's recorded type is its callback's; its value is
+        // the method, a `JsValue`.
+        let ty = if method_adapter(builtin) {
+            self.ty(&crate::check::Type::Dynamic)?
+        } else {
+            self.expression_type(expr)?
+        };
         self.dynamic_call(unit, region, builtin, &operands, ty, origin, span)
     }
     /// A dynamic operation's builtin call over its operands, evaluated in
@@ -5108,6 +5152,23 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 self.copy_value(unit, region, value, name.span)
             }
             DynamicOperand::Value(value) => Ok(value),
+            DynamicOperand::Closure(lambda) => {
+                let ExprKind::ArrowFunction { params, body, .. } = &lambda.kind else {
+                    return self.unsupported(lambda.span(), "adapter operand is not a lambda");
+                };
+                let ty = self.expression_type(lambda)?;
+                let child = self.closure(params, body, ty)?;
+                let value = self.value(
+                    unit,
+                    region,
+                    OperationKind::Closure(child),
+                    &[],
+                    ty,
+                    Some(lambda.id),
+                    lambda.span(),
+                )?;
+                self.copy_value(unit, region, value, lambda.span())
+            }
         }
     }
     /// An opened call's evaluated arguments, with the defaults its caller
