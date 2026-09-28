@@ -4927,17 +4927,24 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     },
                 ..
             } => {
-                // `v as T`: a trusted view, `JS.assume(v)` (R12).
+                // `v as T`: a trusted view, `JS.assume(v)` (R12). `x as
+                // JsValue` views any value as the dynamic type, the explicit
+                // spelling of the widening a `JsValue` parameter makes.
                 let source = self.analyze_expr(value, Some(&Type::Dynamic))?;
-                if !is_js_value_or_nullable_js_value(&source) {
-                    return Err(AdmittedCheckError::new(
-                        *span,
-                        format!("`as` views a `JsValue` as a type, found `{source}`"),
-                    ));
-                }
                 let target = self.resolve_value_type(*target, "`as` target")?;
                 if target.is_void() {
                     return Err(AdmittedCheckError::new(*span, "`as` cannot view a value as `void`"));
+                }
+                if source.is_void() {
+                    return Err(AdmittedCheckError::new(*span, "`as` cannot view `void` as a value"));
+                }
+                if !is_js_value(&target) && !is_js_value_or_nullable_js_value(&source) {
+                    return Err(AdmittedCheckError::new(
+                        *span,
+                        format!(
+                            "`as` views a `JsValue` as a type, found `{source}`; view it as `JsValue` first: `x as JsValue as {target}`"
+                        ),
+                    ));
                 }
                 self.resolve_dynamic(expr.id, BuiltinCall::JsAssume);
                 target
