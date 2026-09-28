@@ -1679,6 +1679,32 @@ Not in this batch: a field's implicit default (R3's second half), which gets a w
 
 Predicted: unmodified programs are byte-identical, since none declares a local without an initializer.
 
+## 2026-09-28 Batch K5: field initializers and the implicit-default warning (M10.13, R3)
+
+**Pre-registration** (written before the first build of the batch; base: K4's last commit). Its tests and ladder run with the next batch's.
+
+What the batch builds (language.md R3, first of its two batches for fields):
+- **Field initializers.** `int count = 0;` in a class. The initializer is a value of the field's type, checked where `this` is not in scope. Each construction evaluates it before `init`, once per construction, and a derived class's construction evaluates its base's first. It is lowered at each construction under its class's module's facts, since the construction may be in another module.
+  - An `extern class` field is the host's and takes none; a struct field takes its value from the construction literal. Both are refused with their spans.
+- **`migration/implicit-default`.** A warning at each class field that has no initializer and that `init` does not assign on every path. Its fix writes the field's implicit default as its initializer, which is what every construction evaluates today:
+  - `0`, `0.0`, `false`, `""`;
+  - `[]`, `new Map()`, `new Set()`, `record {}`;
+  - the enum's first variant, `null` for nullable and dynamic fields, and the buffers' zero-length constructions.
+
+  A class, struct or function field that `init` leaves null has no default of its type, so it is reported without a fix.
+- **The port rewrite** applies these fixes with `migration/js-builtin`'s, and counts them.
+
+Changes:
+- **C1.** Syntax: the initializer, and the struct refusal.
+- **C2.** The checker: the initializer's type, and the extern refusal.
+- **C3.** Lowering: each construction evaluates the initializer of the class that declares the slot, under that class's module's view.
+- **C4.** The lint rule, its fix and its test; the docs.
+- **C5.** Tests: constructions of generic, derived and kept classes, and the refusals; a case with the class in another module.
+
+Not in this batch (R3's second batch for fields, with the port releases, M12.4): the refusal of implicit defaults, and of reading `this` before every field is assigned. Until the ports carry the fix, every field has a value when `init` starts.
+
+Predicted: unmodified programs are byte-identical, since none writes a field initializer. A fixed port's output should match its unfixed output, since the fix writes the value the construction already stored.
+
 ---
 
 ## Appendix: where milestones 001–014 went
