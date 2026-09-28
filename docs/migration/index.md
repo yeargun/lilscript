@@ -42,7 +42,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [x] **4** Batch A1, canonical formation without tree analysis: 2026-09-27
 - [x] **5** Floor slice: M5.1, M6.4a, M7.8a, M7.3, M7.5a: 2026-09-28 (batches F1–F3). Carried: M5.1's `UseIndex` and `drop_unreferenced_functions`, M6.4a's finite sets, the tree twins (measured, kept)
 - [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Critical path done 2026-09-28* (B1, B1b, B2, B3: M3.5's walk, AM2's upper levels, M3.1's first slice). Open: M3.4 after S1, `-j` scoring after M5.6
-- [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16. **In progress**: S1–S3 landed 2026-09-28 (the dynamic type's syntax, tests and conversions; receiver and rest lambdas; the fix-it, ports −93% `JS.*`); next M10.4's second part (spread), M10.16, M10.7
+- [x] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16: 2026-09-28 (batches S1–S7; the fix-it takes the reference ports' `JS.*` from 14,335 to 355, −97.5%). Carried: the refusal of the spellings lands with each port's release (M12.4); M4.2's type parameters by id and interned types go to step 9 with M4.4
 - [ ] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half), M10.12 (Y1 answered yes 2026-09-28)
 - [ ] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half)
 - [ ] **10** Facts and the rest of the floor: M6.4b, M6.6, M6.7, M6.8, then M7.1, M7.4, M7.5, M7.6, M7.7, M7.8, M7.9, M8.5, M7.10, with M5.3b; M5.7, M8.3 (second half); M4.5, M11.1, M11.11, and M11.5 right after M7
@@ -108,7 +108,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 ### M4 Checker identities and checker-owned facts: 1 of 6 · [plan](plan.md#m4-checker-identities-and-checker-owned-facts)
 
 - [x] M4.1 Nominal identity: 2026-09-27 (batch N)
-- [ ] M4.2 The dynamic type, with M10.2: step 7. *Partly (S1):* `Type::Dynamic` is a type. Open: `unknown`, type parameters by id, interned types
+- [ ] M4.2 The dynamic type, with M10.2: step 7. *Partly (S1, S7):* `Type::Dynamic` is a type, and `unknown` (S7). Open: type parameters by id and interned types, moved to step 9 with M4.4
 - [ ] M4.3 Checker facts transported. *Partly:* `assigned` split into `reassigned` and `observable_before_initialization`, with `ReadInitialization` (batch I). The rest is step 9
 - [ ] M4.4 Node ids: step 9
 - [ ] M4.5 Contracts and capabilities at check time: step 10
@@ -181,10 +181,10 @@ A fact counts as landed only once its re-derivations are deleted (plan rule 2).
 
 ### M10 The final language: 0 of 19 · [plan](plan.md#m10-the-final-language-r1r18)
 
-- [ ] M10.2 The dynamic type (R12), with M4.2: step 7. *Partly (S1):* member, index, call, `new`, `||`, `&&`, `+`, `%`, comparisons, `===`, `!==`, `typeof`, `in`, `instanceof`, `delete`, `as`, `string()`/`float()`, `undefined`; the `migration/js-builtin` fix-it (ports −85% `JS.*`). Open: `?.`, `??`, arithmetic, truthiness, `as?`, `unknown`, the refusal
-- [ ] M10.4 Receivers and variadics (R7): step 7. *Partly (S2):* receiver and rest lambdas as the adapters' spelling; forwarding of any single host operation. Open: typed receivers, spread arguments, declared rest parameters, `extern JsValue this`
-- [ ] M10.7 Identity tests (R13): step 7
-- [ ] M10.16 Iteration (R14): step 7
+- [x] M10.2 The dynamic type (R12), with M4.2: 2026-09-28 (S1, S3, S5, S7). The ordinary syntax, `??`, arithmetic, `bool(v)`, `as`, `as?`, `as JsValue`, `unknown`, and the fix-it (ports −97.5% `JS.*`). Carried: `?.` with M9.3's optional chaining; the refusal with each port's release (M12.4)
+- [x] M10.4 Receivers and variadics (R7): 2026-09-28 (S2, S4, S6, S7). Receiver and rest lambdas, typed receivers, spread arguments, declared rest parameters, and forwarding adapters. Carried: jquerylil's `extern JsValue this/arguments` (32 sites), a port patch with the refusal (M12.4)
+- [x] M10.7 Identity tests (R13): 2026-09-28 (S6). `is` and `as?` on classes as `instanceof`, with the second marking step; native refuses them until M11
+- [x] M10.16 Iteration (R14): 2026-09-28 (S4). `for` over sets, maps (key and value) and `JsValue`s. Carried: the codec-judged lowering choice, with M9.12
 - [ ] M10.13 Definite assignment (R3), two batches: step 8
 - [ ] M10.9 Absence and integers (R2, R11), two batches: step 8
 - [ ] M10.15 Typed intrinsics (R10): step 8
