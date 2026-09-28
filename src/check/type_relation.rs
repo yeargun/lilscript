@@ -161,7 +161,7 @@ fn unequal<A: RelationAdmission>(
     }
 
     match (expected, actual) {
-        (Type::TypeParameter("$js"), _) => Ok(!actual.is_void()),
+        (Type::Dynamic, _) => Ok(!actual.is_void()),
         (Type::Float, Type::Int) => Ok(true),
         (Type::Nullable(_), Type::Null) => Ok(true),
         (Type::Nullable(expected), actual) => {

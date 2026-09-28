@@ -1208,7 +1208,7 @@ impl<'p, 'src> Proof<'p, 'src> {
                     }
                     if matches!(
                         self.ty(self.program.cells[formal.index()].ty)?,
-                        Type::TypeParameter(_)
+                        Type::TypeParameter(_) | Type::Dynamic
                     ) {
                         let schema = self
                             .schema

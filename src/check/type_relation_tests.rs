@@ -37,7 +37,7 @@ fn corpus() -> Vec<Type<'static>> {
         Type::String,
         Type::Null,
         Type::Void,
-        Type::TypeParameter("$js"),
+        Type::Dynamic,
         Type::TypeParameter("T"),
         Type::Enum(test_enum("Number")),
         Type::Class(test_class("Number")),
@@ -54,7 +54,7 @@ fn corpus() -> Vec<Type<'static>> {
         Type::Union(vec![Type::Int, Type::Int]),
         Type::Union(vec![Type::Int, Type::Bool]),
         Type::Union(vec![Type::Bool, Type::Int]),
-        Type::Union(vec![Type::Float, Type::TypeParameter("$js")]),
+        Type::Union(vec![Type::Float, Type::Dynamic]),
         Type::Union(vec![Type::Null, Type::Union(vec![Type::Bool, Type::Int])]),
     ];
     let bases = types.clone();
@@ -70,7 +70,7 @@ fn corpus() -> Vec<Type<'static>> {
             function(vec![FunctionParameter::value(ty)], Type::Int),
         ]);
     }
-    for ty in [Type::Int, Type::Float, Type::TypeParameter("$js")] {
+    for ty in [Type::Int, Type::Float, Type::Dynamic] {
         for default in [None, Some(DefaultValue::Int(3)), Some(DefaultValue::Int(4))] {
             types.push(function(
                 vec![FunctionParameter {
@@ -365,7 +365,7 @@ fn old_relation(expected: &Type<'_>, actual: &Type<'_>) -> bool {
         return true;
     }
     match (expected, actual) {
-        (Type::TypeParameter("$js"), _) => !actual.is_void(),
+        (Type::Dynamic, _) => !actual.is_void(),
         (Type::Float, Type::Int) => true,
         (Type::Array(expected), Type::Array(actual)) => {
             old_relation(expected, actual) && old_relation(actual, expected)

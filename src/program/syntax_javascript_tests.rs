@@ -1676,3 +1676,111 @@ fn a_number_counts_up_with_the_increment() {
     );
     assert_eq!(run(&javascript, SHOW), "3.5\n");
 }
+
+/// R12: an operator on a `JsValue` is the dynamic operation its `JS.*`
+/// spelling names, operand for operand, so the two spellings compile to the
+/// same program. (Member access, calls and literals keep their own IR forms:
+/// the method is read before the arguments are evaluated.)
+#[test]
+fn dynamic_operators_compile_as_their_js_spelling() {
+    let header = r#"
+        extern void show(JsValue value);
+    "#;
+    let syntax = r#"
+        export JsValue f(JsValue o, string k, JsValue x, JsValue C) {
+            show(x.call(o, 1));
+            show(x.apply(o, x));
+            show(new C(x));
+            show(new (x)(1, 2));
+            show(x + 1);
+            show(x % 2);
+            show(x < o);
+            show(x >= o);
+            show(x === o);
+            show(x !== o);
+            show(x || o);
+            show(x && o);
+            show(typeof x);
+            show(k in o);
+            delete o.name;
+            delete o[k];
+            show(string(x));
+            show(float(x));
+            show(undefined);
+            string s = x as string;
+            show(s);
+            return o;
+        }
+    "#;
+    let spelled = r#"
+        export JsValue f(JsValue o, string k, JsValue x, JsValue C) {
+            show(JS.call(x, o, 1));
+            show(JS.apply(x, o, x));
+            show(JS.construct(C, x));
+            show(JS.construct(x, 1, 2));
+            show(JS.add(x, 1));
+            show(JS.mod(x, 2));
+            show(JS.lessThan(x, o));
+            show(JS.greaterThanOrEqual(x, o));
+            show(JS.strictEqual(x, o));
+            show(JS.strictNotEqual(x, o));
+            show(JS.or(x, o));
+            show(JS.and(x, o));
+            show(JS.typeOf(x));
+            show(JS.in(k, o));
+            JS.delete(o, "name");
+            JS.delete(o, k);
+            show(JS.string(x));
+            show(JS.number(x));
+            show(JS.undefined());
+            string s = JS.assume(x);
+            show(s);
+            return o;
+        }
+    "#;
+    for config in ["[javascript]\n", PRISTINE] {
+        assert_eq!(
+            compile_with(&format!("{header}{syntax}"), config),
+            compile_with(&format!("{header}{spelled}"), config),
+            "{config}"
+        );
+    }
+}
+
+/// `instanceof`, `+=` on a property, an assignment's value, `delete` and
+/// `undefined` as a parameter default, observed by running them.
+#[test]
+fn dynamic_syntax_has_javascripts_meaning() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        extern JsValue Error;
+        extern JsValue Date;
+        extern JsValue replace(JsValue o);
+        export JsValue f(JsValue o, JsValue fallback = undefined) {
+            show(o instanceof Error);
+            show(o.when instanceof Date);
+            o.count += 2;
+            o["count"] += 3;
+            JsValue seen = o.last = o.count;
+            show(seen);
+            delete o.when;
+            show(typeof fallback);
+            show(fallback === undefined);
+            show("k" + o.count);
+            // The method is read before its argument redefines it.
+            show(o.greet(replace(o)));
+            show(o.greet(1));
+            show(object { list: [], items: [o.count, 2] });
+            return o;
+        }
+        show(f(object { when: new Date(0), count: 1, greet: (JsValue v) => "old" }));
+        "#,
+        PRISTINE,
+    );
+    let host = format!("{SHOW}globalThis.replace=o=>{{o.greet=()=>'new';return 0;}};");
+    assert_eq!(
+        run(&javascript, &host),
+        "false\ntrue\n6\n\"undefined\"\ntrue\n\"k6\"\n\"old\"\n\"new\"\n{\"list\":[],\"items\":[6,2]}\n{\"count\":6,\"last\":6}\n"
+    );
+}

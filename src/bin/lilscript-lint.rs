@@ -167,9 +167,24 @@ fn apply_fixes(diagnostics: &[LintDiagnostic]) -> Result<(), String> {
     for (path, mut edits) in by_path {
         let mut source = fs::read_to_string(&path)
             .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
-        edits.sort_by_key(|edit| std::cmp::Reverse(edit.span.start));
+        // A module shared by several linted entries reports its fixes once
+        // per entry: identical edits apply once. Of two overlapping edits
+        // only the later one applies; the next run offers the other again.
+        edits.sort_by(|left, right| {
+            (right.span.start, right.span.end, &right.replacement).cmp(&(
+                left.span.start,
+                left.span.end,
+                &left.replacement,
+            ))
+        });
+        edits.dedup();
+        let mut limit = usize::MAX;
         for edit in edits {
+            if edit.span.end > limit {
+                continue;
+            }
             source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
+            limit = edit.span.start;
         }
         fs::write(&path, source)
             .map_err(|error| format!("failed to write {}: {error}", path.display()))?;

@@ -62,6 +62,10 @@ pub enum TokenKind<'src> {
     ThinArrow,
     EqEq,
     BangEq,
+    /// `===`: strict equality on a `JsValue` (R12).
+    EqEqEq,
+    /// `!==`: strict inequality on a `JsValue` (R12).
+    BangEqEq,
     LessEq,
     GreaterEq,
     AndAnd,
@@ -180,6 +184,8 @@ enum RawToken<'src> {
     #[token("->", |_| TokenKind::ThinArrow)]
     #[token("==", |_| TokenKind::EqEq)]
     #[token("!=", |_| TokenKind::BangEq)]
+    #[token("===", |_| TokenKind::EqEqEq)]
+    #[token("!==", |_| TokenKind::BangEqEq)]
     #[token("<=", |_| TokenKind::LessEq)]
     #[token(">=", |_| TokenKind::GreaterEq)]
     #[token("&&", |_| TokenKind::AndAnd)]

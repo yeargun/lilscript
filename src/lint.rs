@@ -19,6 +19,8 @@ use crate::program::{
 };
 use crate::span::Span;
 
+mod js_builtin;
+
 pub const RULES: &[&str] = &[
     "correctness/unreachable-code",
     "correctness/constant-condition",
@@ -26,6 +28,7 @@ pub const RULES: &[&str] = &[
     "correctness/unused-private-symbol",
     "correctness/unhandled-module-task",
     "effects/pure-extern-requires-allowlist",
+    js_builtin::RULE,
     "performance/allocation-in-loop",
     "performance/closure-allocation-in-loop",
     "performance/indirect-call-in-loop",
@@ -295,6 +298,9 @@ pub fn lint_checked_with_providers(
         lint_unused_imports(module, source, syntax, config, &mut pending);
         lint_bundle_policy(module, syntax, config, &mut pending);
         lint_items(module, syntax, &config.lint, &mut pending);
+        if let Some(view) = checked.semantics.view(module) {
+            js_builtin::lint(module, source, syntax, &view, &mut pending);
+        }
     }
     lint_unused_private_symbols(checked, &mut pending);
     lint_program(checked.program, &mut pending);
@@ -735,7 +741,28 @@ fn contains_dynamic_import(expression: &Expr<'_, '_>) -> bool {
         | Expr {
             kind: ExprKind::Update { target: object, .. },
             ..
+        }
+        | Expr {
+            kind: ExprKind::Cast { value: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Convert { value: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::DynamicUnary { expr: object, .. },
+            ..
         } => contains_dynamic_import(object),
+        Expr {
+            kind: ExprKind::Construct { callee, args, .. },
+            ..
+        } => {
+            contains_dynamic_import(callee)
+                || args
+                    .iter()
+                    .any(|argument| contains_dynamic_import(&argument.expression))
+        }
         Expr {
             kind: ExprKind::Call { callee, args, .. },
             ..
@@ -781,6 +808,10 @@ fn contains_dynamic_import(expression: &Expr<'_, '_>) -> bool {
                     value: rhs,
                     ..
                 },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::DynamicBinary { lhs, rhs, .. },
             ..
         } => contains_dynamic_import(lhs) || contains_dynamic_import(rhs),
         Expr {
@@ -1629,6 +1660,34 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
             ..
         } => walk_expr_idents(target, visitor),
         Expr {
+            kind: ExprKind::Cast { value, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Convert { value, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::DynamicUnary { expr: value, .. },
+            ..
+        } => walk_expr_idents(value, visitor),
+        Expr {
+            kind: ExprKind::DynamicBinary { lhs, rhs, .. },
+            ..
+        } => {
+            walk_expr_idents(lhs, visitor);
+            walk_expr_idents(rhs, visitor);
+        }
+        Expr {
+            kind: ExprKind::Construct { callee, args, .. },
+            ..
+        } => {
+            walk_expr_idents(callee, visitor);
+            for argument in *args {
+                walk_expr_idents(&argument.expression, visitor);
+            }
+        }
+        Expr {
             kind: ExprKind::Template { parts, .. },
             ..
         } => {
@@ -2096,6 +2155,78 @@ mod tests {
         assert_eq!(
             &std::fs::read_to_string(&path).unwrap()[error.span.start..error.span.end],
             "\"wrong\""
+        );
+    }
+
+    /// `migration/js-builtin`: its fixes, applied until none is left, spell
+    /// every call that has syntax, from the inside out, and leave the calls
+    /// whose syntax would mean another operation.
+    #[test]
+    fn js_builtin_fixes_reach_a_fixed_point() {
+        let scratch = Scratch::new("js-builtin");
+        let header = "extern void show(JsValue value);\nextern JsValue Map;\n";
+        let original = r#"export JsValue f(JsValue o, JsValue x, string text) {
+    JS.set(o, "total", JS.add(JS.get(o, "total"), JS.invoke(x, "size")));
+    show(JS.call(JS.get(o, "handler"), JS.undefined(), JS.strictEqual(JS.typeOf(x), "string")));
+    show(JS.call(x, JS.undefined(), JS.get(o, "length")));
+    show(JS.or(JS.get(o, "a"), JS.array(1, x)));
+    show(JS.construct(JS.get(o, "Ctor"), JS.object("k", x, "data-x", 2)));
+    string s = JS.assume(JS.get(o, "name"));
+    show(JS.add(text, x));
+    auto list = JS.array(x);
+    show(list);
+    show(JS.invoke(o, "floor", (text.length - 1) / 2.0));
+    show(JS.construct(Map, x));
+    show(() => JS.array());
+    return JS.invoke(o, "call", s);
+}
+"#;
+        let fixed = r#"export JsValue f(JsValue o, JsValue x, string text) {
+    o.total = o.total + x.size();
+    show(o.handler.call(undefined, typeof x === "string"));
+    show(x(o["length"]));
+    show(o.a || [1, x]);
+    show(new o.Ctor(object { k: x, "data-x": 2 }));
+    string s = o.name as string;
+    show(JS.add(text, x));
+    auto list = JS.array(x);
+    show(list);
+    show(o.floor((text.length - 1) / 2.0));
+    show(new (Map)(x));
+    show(() => JS.array());
+    return o["call"](s);
+}
+"#;
+        let path = scratch.file("main.lil", "");
+        let mut source = format!("{header}{original}");
+        for _ in 0..8 {
+            let diagnostics =
+                lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+            let mut edits = diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.rule == "migration/js-builtin")
+                .filter_map(|diagnostic| diagnostic.fix.as_ref())
+                .flat_map(|fix| fix.edits.iter().cloned())
+                .collect::<Vec<_>>();
+            if edits.is_empty() {
+                break;
+            }
+            edits.sort_by_key(|edit| std::cmp::Reverse(edit.span.start));
+            for edit in edits {
+                source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
+            }
+        }
+        assert_eq!(source, format!("{header}{fixed}"));
+        // What stays is reported without a fix: `+` of a typed string is
+        // concatenation, and an `auto` binding expects no `JsValue`.
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        assert_eq!(
+            diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.rule == "migration/js-builtin")
+                .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
+                .collect::<Vec<_>>(),
+            [(false, "JS.add(text, x)"), (false, "JS.array(x)"), (false, "JS.array()")]
         );
     }
 

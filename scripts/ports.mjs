@@ -6,7 +6,7 @@
 //        [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR]
 //        [--ports-root ~] [--ledger tests/ports/expected-failures.json]
 //        [--timeout SECONDS] [--jobs N] [--codec <lilscript-codec>|none] [--keep]
-//        [--patches apply|none]
+//        [--patches apply|none|DIR]
 //
 // For each port the runner:
 //   1. copies the port (without .git, dist, _site, .tmp, test-output; every
@@ -259,8 +259,11 @@ async function runPort(port, context) {
     return result;
   };
 
-  const patch = join(repository, "finer", "port-migrations", `${port}.patch`);
-  if (patches === "apply" && existsSync(patch)) {
+  // `apply` takes the repository's migration patches; a directory takes its
+  // own `<port>.patch` (a batch's port patches in the work tree).
+  const patchDirectory = patches === "apply" ? join(repository, "finer", "port-migrations") : patches === "none" ? null : resolve(patches);
+  const patch = patchDirectory && join(patchDirectory, `${port}.patch`);
+  if (patch && existsSync(patch)) {
     const applied = await run("patch", ["-p1", "--forward", "--batch", "-d", workspace, "-i", patch], { timeoutMs: 120_000 });
     row.patch = { path: relative(repository, patch), sha256: sha256File(patch), status: applied.status };
     if (applied.status !== 0) {
@@ -412,11 +415,11 @@ async function main() {
     },
   });
   if (values.help || !values.compiler || !values.ports) {
-    process.stderr.write("usage: node scripts/ports.mjs --compiler <lilscript> --ports a,b|all [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR] [--ports-root DIR] [--ledger FILE] [--timeout SECONDS] [--jobs N] [--codec PATH|none] [--keep] [--patches apply|none]\n");
+    process.stderr.write("usage: node scripts/ports.mjs --compiler <lilscript> --ports a,b|all [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR] [--ports-root DIR] [--ledger FILE] [--timeout SECONDS] [--jobs N] [--codec PATH|none] [--keep] [--patches apply|none|DIR]\n");
     process.exit(values.help ? 0 : 2);
   }
   if (!OBJECTIVES.includes(values.objective)) throw new Error(`--objective must be one of ${OBJECTIVES.join(", ")}`);
-  if (!["apply", "none"].includes(values.patches)) throw new Error("--patches must be apply or none");
+  if (!["apply", "none"].includes(values.patches) && !existsSync(values.patches)) throw new Error("--patches must be apply, none or a directory of <port>.patch files");
   const known = maintainedPorts();
   const portsRoot = resolve(values["ports-root"]);
   // `all` is the maintained libraries that exist under the ports root.

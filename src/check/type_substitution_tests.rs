@@ -53,7 +53,7 @@ fn forward_substitution_matches_previous_checker_with_nested_types_and_union_col
         Type::Struct(declaration),
         parameter.clone(),
         Type::TypeParameter("Other"),
-        Type::TypeParameter("$js"),
+        Type::Dynamic,
     ];
     for _ in 0..3 {
         let previous = corpus.clone();

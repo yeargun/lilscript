@@ -484,7 +484,7 @@ pub(crate) fn intrinsic_call_contract(
         Intrinsic::JsRegexExec => (
             &STRING_PARAMETERS[..],
             &REQUIRED_SINGLE[..],
-            &Type::TypeParameter("$js"),
+            &Type::Dynamic,
         ),
         _ => return None,
     };
@@ -651,9 +651,9 @@ fn member_intrinsic(receiver: &crate::check::Type<'_>, property: &str) -> Option
     use crate::check::Type;
     use crate::typed_array::TypedArrayKind;
     match (receiver, property) {
-        (Type::TypeParameter("$js"), "truthy") => Some(Intrinsic::JsTruthy),
-        (Type::TypeParameter("$js"), "isArray") => Some(Intrinsic::JsIsArray),
-        (Type::TypeParameter("$js"), "isObject") => Some(Intrinsic::JsIsObject),
+        (Type::Dynamic, "truthy") => Some(Intrinsic::JsTruthy),
+        (Type::Dynamic, "isArray") => Some(Intrinsic::JsIsArray),
+        (Type::Dynamic, "isObject") => Some(Intrinsic::JsIsObject),
         (Type::Array(_), "push") => Some(Intrinsic::ArrayPush),
         (Type::Array(_), "pop") => Some(Intrinsic::ArrayPop),
         (Type::Array(_), "indexOf") => Some(Intrinsic::ArrayIndexOf),

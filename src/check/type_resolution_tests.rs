@@ -73,7 +73,7 @@ fn explicit_and_contextual_collection_constructors_keep_nested_types() {
     assert_eq!(
         binding(&model, "dynamicMap"),
         &Type::Map(
-            Box::new(Type::TypeParameter("$js")),
+            Box::new(Type::Dynamic),
             Box::new(Type::Task(Box::new(Type::Record(Box::new(Type::Bool))))),
         )
     );

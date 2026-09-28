@@ -580,6 +580,9 @@ impl Formation<'_, '_, '_, '_, '_> {
                 self.host_binary(js::Binary::In, argument(1), object)?
             }
             B::JsIn if count == 2 => self.host_binary(js::Binary::In, argument(0), argument(1))?,
+            B::JsInstanceOf if count == 2 => {
+                self.host_binary(js::Binary::InstanceOf, argument(0), argument(1))?
+            }
             B::JsMethod0
             | B::JsMethod1
             | B::JsMethod2

@@ -414,7 +414,7 @@ fn dynamic_calls_retain_a_real_checked_type_and_builtins_cannot_hide_missing_con
             .unwrap();
         assert_eq!(
             program.types[dynamic.contract.signature.unwrap().index()],
-            Type::TypeParameter("$js")
+            Type::Dynamic
         );
         let mut broken = program.clone();
         let mut working = broken.units[0].clone().into_working();

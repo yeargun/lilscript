@@ -757,6 +757,20 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     },
                 ..
             } => self.evaluate_update(*op, target, *prefix, *span),
+            // The dynamic type's operations run only as JavaScript, as the
+            // `JS.*` builtins do.
+            Expr {
+                kind:
+                    ExprKind::Cast { span, .. }
+                    | ExprKind::Convert { span, .. }
+                    | ExprKind::Construct { span, .. }
+                    | ExprKind::DynamicBinary { span, .. }
+                    | ExprKind::DynamicUnary { span, .. },
+                ..
+            } => Err(InterpretError::new(
+                *span,
+                "`JsValue` operations run only as JavaScript",
+            )),
             Expr {
                 kind: ExprKind::Template { parts, span },
                 ..

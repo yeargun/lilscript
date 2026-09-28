@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 
 use crate::ast::{
     Argument, ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, ClassDecl,
-    ClassMember, ConstructorDecl, Expr, ExternClassMember, ExternDecl, ForInitializer,
+    ClassMember, ConstructorDecl, DynamicBinaryOp, DynamicUnaryOp, Expr, ExternClassMember, ExternDecl, ForInitializer,
     FunctionDecl, Ident, Item, MatchPattern, Program, RecordElement, SourceNodeId, Stmt,
     StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
 };
@@ -94,6 +94,8 @@ pub enum BuiltinCall {
     JsDelete,
     JsHas,
     JsIn,
+    /// `value instanceof constructor` (R12); no `JS.*` spelling.
+    JsInstanceOf,
     JsBox,
     JsArrayPush,
     JsArrayPop,
@@ -162,6 +164,9 @@ pub enum Type<'src> {
         args: Vec<Type<'src>>,
     },
     TypeParameter(&'src str),
+    /// `JsValue`: the dynamic type, a JavaScript-only capability (R12,
+    /// M4.2). Every host value that no declared type describes has it.
+    Dynamic,
     Function(FunctionType<'src>),
     GenericFunction(GenericFunctionType<'src>),
 }
@@ -320,7 +325,7 @@ impl fmt::Display for Type<'_> {
                 }
                 f.write_str(">")
             }
-            Self::TypeParameter("$js") => f.write_str("JsValue"),
+            Self::Dynamic => f.write_str("JsValue"),
             Self::TypeParameter(name) => f.write_str(name),
             Self::Function(signature) => {
                 f.write_str("function(")?;
@@ -816,6 +821,10 @@ pub enum ExpressionResolution {
     None,
     Binding(SymbolId),
     Builtin(BuiltinCall),
+    /// Syntax on a `JsValue` that is the dynamic operation its `JS.*`
+    /// spelling names (R12). Its operands are the node's own parts: the
+    /// receiver and key of `v.k`, the callee and arguments of `f(a)`.
+    Dynamic(BuiltinCall),
     Primitive(crate::primitive::ResolvedIntrinsic),
     NominalMember(NominalMemberId),
     NominalConstruction(NominalId),
@@ -1244,6 +1253,10 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().builtin_call(id)
     }
 
+    pub(crate) fn dynamic_operation(&self, id: SourceNodeId) -> Option<BuiltinCall> {
+        self.view().dynamic_operation(id)
+    }
+
     pub(crate) fn resolved_intrinsic(
         &self,
         id: SourceNodeId,
@@ -1403,6 +1416,14 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
     pub(crate) fn builtin_call(&self, id: SourceNodeId) -> Option<BuiltinCall> {
         match self.expression_resolution(id) {
             ExpressionResolution::Builtin(builtin) => Some(builtin),
+            _ => None,
+        }
+    }
+
+    /// The dynamic operation a node's syntax is, if it is one (R12).
+    pub(crate) fn dynamic_operation(&self, id: SourceNodeId) -> Option<BuiltinCall> {
+        match self.expression_resolution(id) {
+            ExpressionResolution::Dynamic(builtin) => Some(builtin),
             _ => None,
         }
     }
@@ -3481,7 +3502,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     self.push_scope()?;
                     if let Some(binding) = clause.binding {
                         let ty = if binding.ty.is_auto() {
-                            Type::TypeParameter("$js")
+                            Type::Dynamic
                         } else {
                             self.resolve_value_type(binding.ty, "catch binding")?
                         };
@@ -3493,7 +3514,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 ),
                             ));
                         }
-                        self.declare(binding.name, Type::TypeParameter("$js"))?;
+                        self.declare(binding.name, Type::Dynamic)?;
                     }
                     for statement in clause.body {
                         self.analyze_stmt(statement)?;
@@ -3974,45 +3995,19 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             Expr {
                 kind: ExprKind::Ident(ident),
                 ..
+            } if ident.name == "undefined" && self.builtin_namespace_is_unshadowed("undefined") => {
+                // JavaScript's `undefined`, a `JsValue` (R12): `JS.undefined()`.
+                self.resolve_dynamic(expr.id, BuiltinCall::JsUndefined);
+                Type::Dynamic
+            }
+            Expr {
+                kind: ExprKind::Ident(ident),
+                ..
             } => {
-                let (id, declared) = {
-                    let symbol = self.resolve(ident)?;
-                    (symbol.id, symbol.ty.clone())
-                };
-                if let Some((initializing, depth)) = self.initializing {
-                    if id == initializing && self.callable_depth == depth {
-                        return Err(AdmittedCheckError::new(
-                            ident.span,
-                            format!(
-                                "cannot read `{}` in its own initializer; nest the reference in a function",
-                                ident.name
-                            ),
-                        ));
-                    }
-                }
-                if let Some(binding) = self.initialization.bindings.get(&id) {
-                    let from_owner = self.module == Some(binding.owner);
-                    if from_owner && ident.span.start < binding.declaration.start {
-                        return Err(AdmittedCheckError::new(
-                            ident.span,
-                            format!("cannot read `{}` before its declaration", ident.name),
-                        ));
-                    }
-                    if !self.initialization.initialized.contains(&id) && self.callable_depth == 0 {
-                        return Err(AdmittedCheckError::new(
-                            ident.span,
-                            format!(
-                                "cannot eagerly read module binding `{}` before it is initialized",
-                                ident.name
-                            ),
-                        ));
-                    }
-                }
-                self.record_identifier(ident.span, id);
-                self.record_read_initialization(expr.id, id);
+                let (id, ty) = self.analyze_binding_read(ident, expr.id)?;
                 self.facts.source_info[expr.id.index()].resolution =
                     ExpressionResolution::Binding(id);
-                self.narrowed_type(id).cloned().unwrap_or(declared)
+                ty
             }
             Expr {
                 kind: ExprKind::ArrayLiteral { elements, span },
@@ -4020,6 +4015,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             } => {
                 let expected_element = match expected {
                     Some(Type::Array(element)) => Some(element.as_ref()),
+                    // Where a `JsValue` is expected, a literal is a JavaScript
+                    // array of `JsValue`s, `[]` and `[1, v]` alike (R12).
+                    Some(Type::Dynamic) => Some(&Type::Dynamic),
                     _ => None,
                 };
                 let mut element_type = expected_element.cloned();
@@ -4083,7 +4081,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                     format!("duplicate object key `{}`", entry.key.name),
                                 ));
                             }
-                            self.analyze_expr(&entry.value, Some(&Type::TypeParameter("$js")))?;
+                            self.analyze_dynamic_operand(&entry.value)?;
                         }
                         RecordElement::Spread { span, .. } => {
                             return Err(AdmittedCheckError::new(
@@ -4093,7 +4091,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         }
                     }
                 }
-                Type::TypeParameter("$js")
+                Type::Dynamic
             }
             Expr {
                 kind: ExprKind::RecordLiteral { entries, span },
@@ -4112,14 +4110,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                         format!("duplicate record key `{}`", entry.key.name),
                                     ));
                                 }
-                                self.analyze_expr(&entry.value, Some(&Type::TypeParameter("$js")))?;
+                                self.analyze_expr(&entry.value, Some(&Type::Dynamic))?;
                             }
                             RecordElement::Spread { value, .. } => {
-                                self.analyze_expr(value, Some(&Type::TypeParameter("$js")))?;
+                                self.analyze_expr(value, Some(&Type::Dynamic))?;
                             }
                         }
                     }
-                    Type::TypeParameter("$js")
+                    Type::Dynamic
                 } else {
                     let expected_value = match expected {
                         Some(Type::Record(value)) => Some(value.as_ref()),
@@ -4291,18 +4289,16 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 )? {
                     ty
                 } else {
-                    let identity = self
+                    let Some(identity) = self
                         .facts
                         .type_bindings
                         .get(class.name)
                         .copied()
                         .filter(|identity| identity.is_class())
-                        .ok_or_else(|| {
-                            AdmittedCheckError::new(
-                                class.span,
-                                format!("unknown class `{}`", class.name),
-                            )
-                        })?;
+                    else {
+                        // `new C(a)` of a `JsValue` binding: `JS.construct(C, a)`.
+                        return self.analyze_binding_construction(expr, class, type_args, args);
+                    };
                     let info = &self.declarations.classes[identity.index()];
                     let declaration = info.declaration;
                     self.facts.source_info[expr.id.index()].resolution =
@@ -4639,15 +4635,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             } => {
                 let object_type = self.analyze_expr(object, None)?;
                 if is_js_value(&object_type) {
-                    let index_type = self.analyze_expr(index, None)?;
-                    if !is_js_index_type(&index_type) {
-                        return Err(AdmittedCheckError::new(
-                            index.span(),
-                            format!(
-                                "a `JsValue` index must be numeric, `string`, or `JsValue`, found `{index_type}`"
-                            ),
-                        ));
-                    }
+                    self.analyze_dynamic_key(index)?;
                 } else {
                     let expected_index = index_key_type(&object_type).ok_or_else(|| {
                         AdmittedCheckError::new(
@@ -4765,6 +4753,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ));
                 }
                 let target_type = self.analyze_lvalue(target)?;
+                if is_js_value(&target_type) && *op != AssignmentOp::Assign {
+                    return self.analyze_dynamic_update(expr, *op, target, value, *span);
+                }
                 let value_expected = if *op == AssignmentOp::Nullish {
                     Some(nullish_present_type(&target_type).ok_or_else(|| {
                         AdmittedCheckError::new(
@@ -4839,6 +4830,138 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 Type::String
             }
+            Expr {
+                kind:
+                    ExprKind::Cast {
+                        value,
+                        target,
+                        span,
+                    },
+                ..
+            } => {
+                // `v as T`: a trusted view, `JS.assume(v)` (R12).
+                let source = self.analyze_expr(value, Some(&Type::Dynamic))?;
+                if !is_js_value_or_nullable_js_value(&source) {
+                    return Err(AdmittedCheckError::new(
+                        *span,
+                        format!("`as` views a `JsValue` as a type, found `{source}`"),
+                    ));
+                }
+                let target = self.resolve_value_type(*target, "`as` target")?;
+                if target.is_void() {
+                    return Err(AdmittedCheckError::new(*span, "`as` cannot view a value as `void`"));
+                }
+                self.resolve_dynamic(expr.id, BuiltinCall::JsAssume);
+                target
+            }
+            Expr {
+                kind:
+                    ExprKind::Convert {
+                        target,
+                        value,
+                        span,
+                    },
+                ..
+            } => {
+                // `string(v)` is `JS.string(v)`; `float(v)` and `number(v)` are
+                // `JS.number(v)` (R12).
+                let (builtin, result) = match target.kind {
+                    TypeKind::String => (BuiltinCall::JsString, Type::String),
+                    TypeKind::Float => (BuiltinCall::JsNumber, Type::Float),
+                    _ => {
+                        return Err(AdmittedCheckError::new(
+                            *span,
+                            "a conversion is `string(v)`, `float(v)` or `number(v)`",
+                        ))
+                    }
+                };
+                self.analyze_dynamic_operand(value)?;
+                self.resolve_dynamic(expr.id, builtin);
+                result
+            }
+            Expr {
+                kind: ExprKind::Construct { callee, args, .. },
+                ..
+            } => {
+                // `new f(a)` of a value: `JS.construct(f, a)` (R12).
+                let constructor = self.analyze_expr(callee, None)?;
+                if !is_js_value(&constructor) {
+                    return Err(AdmittedCheckError::new(
+                        callee.span(),
+                        format!("`new` of a value needs a `JsValue` constructor, found `{constructor}`"),
+                    ));
+                }
+                self.analyze_dynamic_arguments(args)?;
+                self.resolve_dynamic(expr.id, BuiltinCall::JsConstruct);
+                Type::Dynamic
+            }
+            Expr {
+                kind: ExprKind::DynamicBinary { op, lhs, rhs, .. },
+                ..
+            } => {
+                self.analyze_dynamic_operand(lhs)?;
+                self.analyze_dynamic_operand(rhs)?;
+                self.resolve_dynamic(
+                    expr.id,
+                    match op {
+                        DynamicBinaryOp::StrictEq => BuiltinCall::JsStrictEqual,
+                        DynamicBinaryOp::StrictNotEq => BuiltinCall::JsStrictNotEqual,
+                        DynamicBinaryOp::In => BuiltinCall::JsIn,
+                        DynamicBinaryOp::InstanceOf => BuiltinCall::JsInstanceOf,
+                    },
+                );
+                Type::Bool
+            }
+            Expr {
+                kind:
+                    ExprKind::DynamicUnary {
+                        op: DynamicUnaryOp::TypeOf,
+                        expr: value,
+                        ..
+                    },
+                ..
+            } => {
+                self.analyze_dynamic_operand(value)?;
+                self.resolve_dynamic(expr.id, BuiltinCall::JsTypeOf);
+                Type::String
+            }
+            Expr {
+                kind:
+                    ExprKind::DynamicUnary {
+                        op: DynamicUnaryOp::Delete,
+                        expr: target,
+                        span,
+                    },
+                ..
+            } => {
+                // `delete v.k`, `delete v[k]`: `JS.delete(v, k)` (R12). The
+                // property is an operand, not read.
+                let (ExprKind::Member { object, .. } | ExprKind::Index { object, .. }) =
+                    &target.kind
+                else {
+                    return Err(AdmittedCheckError::new(
+                        *span,
+                        "`delete` takes a `JsValue`'s property, `v.k` or `v[k]`",
+                    ));
+                };
+                let object_type = self.analyze_expr(object, None)?;
+                if !is_js_value(&object_type) {
+                    return Err(AdmittedCheckError::new(
+                        object.span(),
+                        format!("`delete` takes a `JsValue`'s property, found `{object_type}`"),
+                    ));
+                }
+                if let ExprKind::Index { index, .. } = &target.kind {
+                    self.analyze_dynamic_key(index)?;
+                }
+                self.facts.source_info[target.id.index()] = SourceInfo {
+                    expression: Some(target),
+                    resolution: ExpressionResolution::None,
+                };
+                self.facts.expression_types[target.id.index()] = Some(Type::Dynamic);
+                self.resolve_dynamic(expr.id, BuiltinCall::JsDelete);
+                Type::Void
+            }
         };
 
         self.facts.expression_types[expr.id.index()] = Some(ty.clone());
@@ -4903,7 +5026,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                 } else {
                                     when_false
                                 });
-                                Some(Type::Bool)
+                                // `v || x` on a `JsValue` yields an operand.
+                                Some(if is_js_value(&ty) {
+                                    Type::Dynamic
+                                } else {
+                                    Type::Bool
+                                })
                             } else if *op == BinaryOp::Nullish {
                                 nullish_present_type(&ty).cloned().or(expected)
                             } else {
@@ -4934,7 +5062,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             let ExprKind::Binary { op, span, .. } = &expression.kind else {
                                 unreachable!("binary continuation owns a binary expression")
                             };
-                            ty = self.analyze_binary(*op, &left, &ty, *span)?;
+                            ty = match dynamic_binary(*op, &left, &ty) {
+                                Some((builtin, result)) => {
+                                    self.resolve_dynamic(expression.id, builtin);
+                                    result
+                                }
+                                None => self.analyze_binary(*op, &left, &ty, *span)?,
+                            };
                             narrowing = if matches!(op, BinaryOp::And | BinaryOp::Or) {
                                 left_narrowing.join(narrowing, expression, *op)
                             } else {
@@ -5049,6 +5183,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 match object_type {
                     Type::Record(value) => *value,
+                    // `v.k = x`: a property write with JavaScript's meaning.
+                    Type::Dynamic
+                        if intent != PlaceIntent::MutableArgument
+                            && !typed_js_member(property.name) =>
+                    {
+                        Type::Dynamic
+                    }
                     other => self.analyze_member_type(other, *property, expression.id, *span)?,
                 }
             }
@@ -5069,16 +5210,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 let object_type = self.analyze_expr(object, None)?;
                 if is_js_value(&object_type) {
-                    let index_type = self.analyze_expr(index, None)?;
-                    if !is_js_index_type(&index_type) {
-                        return Err(AdmittedCheckError::new(
-                            index.span(),
-                            format!(
-                                "a `JsValue` index must be numeric, `string`, or `JsValue`, found `{index_type}`"
-                            ),
-                        ));
-                    }
-                    Type::TypeParameter("$js")
+                    self.analyze_dynamic_key(index)?;
+                    Type::Dynamic
                 } else {
                     let expected_index = index_key_type(&object_type).ok_or_else(|| {
                         AdmittedCheckError::new(
@@ -5137,7 +5270,191 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         span: Span,
     ) -> Result<Type<'src>, AdmittedCheckError> {
         let object_type = self.analyze_expr(object, None)?;
+        if is_js_value(&object_type) && !typed_js_member(property.name) {
+            // `v.k`: a property read with JavaScript's meaning (R12).
+            return Ok(Type::Dynamic);
+        }
         self.analyze_member_type(object_type, property, id, span)
+    }
+
+    /// A read of the binding `ident` at `node`: its symbol and its type,
+    /// narrowed where the read is.
+    fn analyze_binding_read(
+        &mut self,
+        ident: &Ident<'src>,
+        node: SourceNodeId,
+    ) -> Result<(SymbolId, Type<'src>), AdmittedCheckError> {
+        let (id, declared) = {
+            let symbol = self.resolve(ident)?;
+            (symbol.id, symbol.ty.clone())
+        };
+        if let Some((initializing, depth)) = self.initializing {
+            if id == initializing && self.callable_depth == depth {
+                return Err(AdmittedCheckError::new(
+                    ident.span,
+                    format!(
+                        "cannot read `{}` in its own initializer; nest the reference in a function",
+                        ident.name
+                    ),
+                ));
+            }
+        }
+        if let Some(binding) = self.initialization.bindings.get(&id) {
+            let from_owner = self.module == Some(binding.owner);
+            if from_owner && ident.span.start < binding.declaration.start {
+                return Err(AdmittedCheckError::new(
+                    ident.span,
+                    format!("cannot read `{}` before its declaration", ident.name),
+                ));
+            }
+            if !self.initialization.initialized.contains(&id) && self.callable_depth == 0 {
+                return Err(AdmittedCheckError::new(
+                    ident.span,
+                    format!(
+                        "cannot eagerly read module binding `{}` before it is initialized",
+                        ident.name
+                    ),
+                ));
+            }
+        }
+        self.record_identifier(ident.span, id);
+        self.record_read_initialization(node, id);
+        Ok((id, self.narrowed_type(id).cloned().unwrap_or(declared)))
+    }
+
+    /// Records that `id` is the dynamic operation `builtin` (R12). Its syntax
+    /// lowers exactly as its `JS.*` spelling does, so each dynamic operation
+    /// has one IR form.
+    fn resolve_dynamic(&mut self, id: SourceNodeId, builtin: BuiltinCall) {
+        self.facts.source_info[id.index()].resolution = ExpressionResolution::Dynamic(builtin);
+    }
+
+    /// An operand of a dynamic operation: any value, viewed as a `JsValue`,
+    /// as a `JS.*` builtin's argument is.
+    fn analyze_dynamic_operand(
+        &mut self,
+        expression: &'ast Expr<'ast, 'src>,
+    ) -> Result<Type<'src>, AdmittedCheckError> {
+        let ty = self.analyze_expr(expression, Some(&Type::Dynamic))?;
+        self.require_assignable(&Type::Dynamic, &ty, expression.span())?;
+        Ok(ty)
+    }
+
+    fn analyze_dynamic_arguments(
+        &mut self,
+        args: &'ast [Argument<'ast, 'src>],
+    ) -> Result<(), AdmittedCheckError> {
+        for argument in args {
+            let actual = self.analyze_value_argument(argument, Some(&Type::Dynamic))?;
+            self.require_assignable(&Type::Dynamic, &actual, argument.span)?;
+        }
+        Ok(())
+    }
+
+    /// `v.m(a)` on a `JsValue`: a method call with JavaScript's meaning (R12).
+    /// `v.call(t, a)` and `v.apply(t, a)` are `JS.call(v, t, a)` and
+    /// `JS.apply(v, t, a)`, which assume the standard `Function.prototype`
+    /// methods, as those builtins always have.
+    fn analyze_dynamic_method_call(
+        &mut self,
+        call_node: SourceNodeId,
+        member: &'ast Expr<'ast, 'src>,
+        property: Ident<'src>,
+        args: &'ast [Argument<'ast, 'src>],
+    ) -> Result<Type<'src>, AdmittedCheckError> {
+        self.analyze_dynamic_arguments(args)?;
+        match (property.name, args.len()) {
+            ("call", 1..) => self.resolve_dynamic(call_node, BuiltinCall::JsCall),
+            ("apply", 2) => self.resolve_dynamic(call_node, BuiltinCall::JsApply),
+            // A method call: the method is read before the arguments are
+            // evaluated, as a reference call models it.
+            _ => {}
+        }
+        self.facts.expression_types[member.id.index()] = Some(Type::Dynamic);
+        Ok(Type::Dynamic)
+    }
+
+    /// `new C(a)` where `C` is a `JsValue` binding rather than a class:
+    /// `JS.construct(C, a)` (R12).
+    fn analyze_binding_construction(
+        &mut self,
+        expression: &'ast Expr<'ast, 'src>,
+        class: &Ident<'src>,
+        type_args: &[TypeRef<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
+    ) -> Result<Type<'src>, AdmittedCheckError> {
+        let unknown =
+            || AdmittedCheckError::new(class.span, format!("unknown class `{}`", class.name));
+        if self.resolve(class).is_err() {
+            return Err(unknown());
+        }
+        let (_, ty) = self.analyze_binding_read(class, expression.id)?;
+        if !is_js_value(&ty) {
+            return Err(unknown());
+        }
+        if let Some(argument) = type_args.first() {
+            return Err(AdmittedCheckError::new(
+                argument.span,
+                "a `JsValue` constructor takes no type arguments",
+            ));
+        }
+        self.analyze_dynamic_arguments(args)?;
+        self.resolve_dynamic(expression.id, BuiltinCall::JsConstruct);
+        self.facts.expression_types[expression.id.index()] = Some(Type::Dynamic);
+        Ok(Type::Dynamic)
+    }
+
+    /// `v += x` on a `JsValue` place is `+` with JavaScript's meaning,
+    /// `JS.add` (R12); the place is read and written once each.
+    fn analyze_dynamic_update(
+        &mut self,
+        expression: &'ast Expr<'ast, 'src>,
+        op: AssignmentOp,
+        target: &'ast Expr<'ast, 'src>,
+        value: &'ast Expr<'ast, 'src>,
+        span: Span,
+    ) -> Result<Type<'src>, AdmittedCheckError> {
+        if op != AssignmentOp::Add {
+            return Err(AdmittedCheckError::new(
+                span,
+                "a `JsValue` place takes `=` and `+=`; compute other updates explicitly",
+            ));
+        }
+        // A `JsValue` key would be converted twice, where JavaScript converts
+        // it once.
+        if let ExprKind::Index { index, .. } = &target.kind {
+            if self.facts.expression_types[index.id.index()]
+                .as_ref()
+                .is_some_and(is_js_value)
+            {
+                return Err(AdmittedCheckError::new(
+                    index.span(),
+                    "`+=` on a `JsValue` property needs a `string` or numeric key",
+                ));
+            }
+        }
+        self.analyze_dynamic_operand(value)?;
+        self.resolve_dynamic(expression.id, BuiltinCall::JsAdd);
+        self.invalidate_assigned_narrowing(target);
+        self.facts.expression_types[expression.id.index()] = Some(Type::Dynamic);
+        Ok(Type::Dynamic)
+    }
+
+    /// The key of `v[k]` on a `JsValue`: a number, a `string` or a `JsValue`.
+    fn analyze_dynamic_key(
+        &mut self,
+        index: &'ast Expr<'ast, 'src>,
+    ) -> Result<Type<'src>, AdmittedCheckError> {
+        let index_type = self.analyze_expr(index, None)?;
+        if !is_js_index_type(&index_type) {
+            return Err(AdmittedCheckError::new(
+                index.span(),
+                format!(
+                    "a `JsValue` index must be numeric, `string`, or `JsValue`, found `{index_type}`"
+                ),
+            ));
+        }
+        Ok(index_type)
     }
 
     fn analyze_match(
@@ -5426,7 +5743,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ))
             }
             Type::Array(_) | Type::String if property.name == "length" => Ok(Type::Int),
-            Type::TypeParameter("$js") => match property.name {
+            Type::Dynamic => match property.name {
                 "length" => Ok(Type::Float),
                 "message" | "specifier" => Ok(Type::Nullable(Box::new(Type::String))),
                 "truthy" | "isArray" | "isObject" => {
@@ -5799,6 +6116,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     })));
                 return Ok(result);
             }
+            (Type::Dynamic, name)
+                if crate::primitive::resolve_member(&Type::Dynamic, name).is_none() =>
+            {
+                return self.analyze_dynamic_method_call(call_node, member, property, args);
+            }
             (receiver, _) => {
                 let callee =
                     self.analyze_member_type(receiver, property, member.id, member.span())?;
@@ -6092,7 +6414,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         call_node: Option<SourceNodeId>,
     ) -> Result<Type<'src>, AdmittedCheckError> {
         if is_js_value(callee) {
-            let js = Type::TypeParameter("$js");
+            let js = Type::Dynamic;
             for arg in args {
                 let actual = self.analyze_value_argument(arg, Some(&js))?;
                 self.require_assignable(&js, &actual, arg.span)?;
@@ -6402,7 +6724,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 };
                 let actual = self.analyze_value_argument(value, Some(&Type::String))?;
                 self.require_assignable(&Type::String, &actual, value.span)?;
-                Ok(Some((BuiltinCall::JsonParse, Type::TypeParameter("$js"))))
+                Ok(Some((BuiltinCall::JsonParse, Type::Dynamic)))
             }
             ("Task", "resolve") => {
                 let [value] = args else {
@@ -6488,7 +6810,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         span: Span,
         expected: Option<&Type<'src>>,
     ) -> Result<Option<(BuiltinCall, Type<'src>)>, AdmittedCheckError> {
-        let js = Type::TypeParameter("$js");
+        let js = Type::Dynamic;
         let require_arity = |expected: std::ops::RangeInclusive<usize>| {
             if expected.contains(&args.len()) {
                 Ok(())
@@ -6932,7 +7254,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
         let parameters = match method {
             "then" => vec![FunctionParameter::value(value.clone())],
-            "catch" => vec![FunctionParameter::value(Type::TypeParameter("$js"))],
+            "catch" => vec![FunctionParameter::value(Type::Dynamic)],
             "finally" => Vec::new(),
             _ => unreachable!("task call dispatch validates the method name"),
         };
@@ -7529,7 +7851,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 args,
             } => {
                 self.resolve_type_arguments("JsValue", args, &[], ty.span)?;
-                Ok(Type::TypeParameter("$js"))
+                Ok(Type::Dynamic)
             }
             TypeKind::Named {
                 name: "Record",
@@ -8238,6 +8560,13 @@ fn resolve_parameter_defaults<'ast, 'src>(
                     "mutable-reference parameters cannot have defaults",
                 ));
             }
+            // `undefined` first: it is spelled as an identifier.
+            if syntactic_js_undefined_default(expression) {
+                return Ok(Some(DefaultValue::PendingUndefined {
+                    expression: expression.id,
+                    span: expression.span(),
+                }));
+            }
             if let Expr {
                 kind: ExprKind::Ident(identifier),
                 ..
@@ -8246,12 +8575,6 @@ fn resolve_parameter_defaults<'ast, 'src>(
                 return Ok(Some(DefaultValue::PendingIdentifier {
                     expression: expression.id,
                     span: identifier.span,
-                }));
-            }
-            if syntactic_js_undefined_default(expression) {
-                return Ok(Some(DefaultValue::PendingUndefined {
-                    expression: expression.id,
-                    span: expression.span(),
                 }));
             }
             if let Some((_, actual)) = scalar_default_value(expression) {
@@ -8317,7 +8640,9 @@ fn resolve_analyzed_parameter_defaults<'ast, 'src>(
             parameters[index].default,
             Some(DefaultValue::PendingUndefined { .. })
         ) {
-            if model.builtin_call(expression.id) == Some(BuiltinCall::JsUndefined) {
+            if model.builtin_call(expression.id) == Some(BuiltinCall::JsUndefined)
+                || model.dynamic_operation(expression.id) == Some(BuiltinCall::JsUndefined)
+            {
                 parameters[index].default = Some(DefaultValue::Undefined);
                 continue;
             }
@@ -8357,7 +8682,21 @@ fn resolve_analyzed_parameter_defaults<'ast, 'src>(
     Ok(())
 }
 
+/// `JS.undefined()` or `undefined` (R12): a default the parameter keeps
+/// omitted.
 fn syntactic_js_undefined_default(expression: &Expr<'_, '_>) -> bool {
+    if matches!(
+        expression,
+        Expr {
+            kind: ExprKind::Ident(Ident {
+                name: "undefined",
+                ..
+            }),
+            ..
+        }
+    ) {
+        return true;
+    }
     matches!(
         expression,
         Expr { kind: ExprKind::Call {
@@ -8565,7 +8904,13 @@ fn finalize_default_binding<'src>(
             if source_info
                 .get(expression.index())
                 .map(|info| info.resolution)
-                != Some(ExpressionResolution::Builtin(BuiltinCall::JsUndefined))
+                .is_none_or(|resolution| {
+                    !matches!(
+                        resolution,
+                        ExpressionResolution::Builtin(BuiltinCall::JsUndefined)
+                            | ExpressionResolution::Dynamic(BuiltinCall::JsUndefined)
+                    )
+                })
             {
                 return Err(CheckError::new(
                     *span,
@@ -8655,7 +9000,8 @@ fn finalize_default_bindings_in_type<'src>(
         | Type::ModuleLoadError
         | Type::Struct(_)
         | Type::Class(_)
-        | Type::TypeParameter(_) => {}
+        | Type::TypeParameter(_)
+        | Type::Dynamic => {}
     }
     Ok(())
 }
@@ -8709,7 +9055,8 @@ fn strip_parameter_defaults_from_type(ty: &mut Type<'_>) {
         | Type::ModuleLoadError
         | Type::Struct(_)
         | Type::Class(_)
-        | Type::TypeParameter(_) => {}
+        | Type::TypeParameter(_)
+        | Type::Dynamic => {}
     }
 }
 
@@ -9385,7 +9732,7 @@ fn nullable_type<'src>(ty: Type<'src>) -> Type<'src> {
 
 fn validate_collection_key(ty: &Type<'_>, span: Span, context: &str) -> Result<(), CheckError> {
     let supported = match ty {
-        Type::TypeParameter("$js") => true,
+        Type::Dynamic => true,
         Type::Struct(_) | Type::StructInstance { .. } | Type::TypeParameter(_) | Type::Void => {
             false
         }
@@ -9512,7 +9859,51 @@ fn runtime_type_category(ty: &Type<'_>) -> Option<RuntimeTypeCategory> {
 }
 
 fn is_js_value(ty: &Type<'_>) -> bool {
-    matches!(ty, Type::TypeParameter("$js"))
+    matches!(ty, Type::Dynamic)
+}
+
+/// A typed operator applied to a `JsValue` operand (R12), as the dynamic
+/// operation its `JS.*` spelling names. `==` and `!=` stay loose binary
+/// operations (M1.9); `+` with a `string` operand stays concatenation, which
+/// is what JavaScript does with it.
+fn dynamic_binary<'src>(
+    op: BinaryOp,
+    left: &Type<'src>,
+    right: &Type<'src>,
+) -> Option<(BuiltinCall, Type<'src>)> {
+    if !(is_js_value(left) || is_js_value(right)) || left.is_void() || right.is_void() {
+        return None;
+    }
+    Some(match op {
+        BinaryOp::Add if *left != Type::String && *right != Type::String => {
+            (BuiltinCall::JsAdd, Type::Dynamic)
+        }
+        BinaryOp::Mod => (BuiltinCall::JsMod, Type::Dynamic),
+        BinaryOp::Less => (BuiltinCall::JsLessThan, Type::Bool),
+        BinaryOp::LessEq => (BuiltinCall::JsLessThanOrEqual, Type::Bool),
+        BinaryOp::Greater => (BuiltinCall::JsGreaterThan, Type::Bool),
+        BinaryOp::GreaterEq => (BuiltinCall::JsGreaterThanOrEqual, Type::Bool),
+        BinaryOp::And => (BuiltinCall::JsAnd, Type::Dynamic),
+        BinaryOp::Or => (BuiltinCall::JsOr, Type::Dynamic),
+        _ => return None,
+    })
+}
+
+/// The names `new` constructs as builtin types before any binding:
+/// `analyze_builtin_constructor`'s cases.
+pub(crate) fn builtin_constructor_name(name: &str) -> bool {
+    matches!(name, "Map" | "Set" | "Symbol" | "Regex")
+        || crate::typed_array::TypedArrayKind::from_name(name).is_some()
+}
+
+/// The members a `JsValue` has with a declared type (v0.1): `length`,
+/// `message`, `specifier`, `truthy()`, `isArray()` and `isObject()`. Every
+/// other member is a dynamic property (R12). They retire in S2.
+fn typed_js_member(name: &str) -> bool {
+    matches!(
+        name,
+        "length" | "message" | "specifier" | "truthy" | "isArray" | "isObject"
+    )
 }
 
 fn is_js_index_type(ty: &Type<'_>) -> bool {
@@ -9521,7 +9912,7 @@ fn is_js_index_type(ty: &Type<'_>) -> bool {
 
 fn is_js_value_or_nullable_js_value(ty: &Type<'_>) -> bool {
     match ty {
-        Type::TypeParameter("$js") => true,
+        Type::Dynamic => true,
         Type::Nullable(inner) => is_js_value(inner),
         _ => false,
     }
@@ -9630,7 +10021,7 @@ fn index_key_type<'src>(ty: &Type<'src>) -> Option<Type<'src>> {
 
 fn index_value_type<'src>(ty: &Type<'src>, writable: bool) -> Option<Type<'src>> {
     match ty {
-        Type::TypeParameter("$js") => Some(Type::TypeParameter("$js")),
+        Type::Dynamic => Some(Type::Dynamic),
         Type::Array(element) => Some(element.as_ref().clone()),
         Type::Record(value) if writable => Some(value.as_ref().clone()),
         Type::Record(value) => Some(nullable_type(value.as_ref().clone())),

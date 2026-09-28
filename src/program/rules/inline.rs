@@ -130,7 +130,7 @@ fn scalar(program: &Program<'_>, ty: TypeId) -> bool {
                 | crate::check::Type::Float
                 | crate::check::Type::Bool
                 | crate::check::Type::Enum(_)
-                | crate::check::Type::TypeParameter("$js")
+                | crate::check::Type::Dynamic
         )
     )
 }

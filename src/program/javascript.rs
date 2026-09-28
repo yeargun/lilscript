@@ -199,6 +199,7 @@ fn operands_first(builtin: BuiltinCall) -> bool {
             | B::JsStrictEqual
             | B::JsStrictNotEqual
             | B::JsConstruct
+            | B::JsInstanceOf
     )
 }
 
@@ -4456,7 +4457,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 let dynamic = matches!(op, BinaryOp::Eq | BinaryOp::NotEq)
                     && operands[..2]
                         .iter()
-                        .any(|&value| matches!(ty(value), Type::TypeParameter("$js")));
+                        .any(|&value| matches!(ty(value), Type::Dynamic));
                 let null_test = matches!(op, BinaryOp::Eq | BinaryOp::NotEq)
                     && operands[..2]
                         .iter()

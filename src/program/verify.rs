@@ -168,7 +168,7 @@ fn verify_places<'program, 'src>(
                 }
                 let ty = match value_type(receiver)? {
                     Type::Array(element) | Type::Record(element) => Some(element.as_ref()),
-                    dynamic @ Type::TypeParameter("$js") => Some(dynamic),
+                    dynamic @ Type::Dynamic => Some(dynamic),
                     _ => None,
                 };
                 (ty, own, true)
@@ -215,7 +215,7 @@ fn verify_places<'program, 'src>(
                 value_type(key)?;
                 let ty = match value_type(receiver)? {
                     Type::Array(element) | Type::Record(element) => Some(element.as_ref()),
-                    dynamic @ Type::TypeParameter("$js") => Some(dynamic),
+                    dynamic @ Type::Dynamic => Some(dynamic),
                     _ => None,
                 };
                 (ty, own, true)
@@ -1669,7 +1669,7 @@ fn verify_types(
                 Constant::String(_) => Type::String,
                 Constant::Boolean(_) => Type::Bool,
                 Constant::Null => Type::Null,
-                Constant::Undefined => Type::TypeParameter("$js"),
+                Constant::Undefined => Type::Dynamic,
             };
             expect(class_assignable(
                 program,
@@ -1791,7 +1791,7 @@ fn verify_types(
                 ShortCircuit::JavaScriptAnd | ShortCircuit::JavaScriptOr => expect(
                     !operand(0).is_void()
                         && !right.is_void()
-                        && matches!(result, Some(Type::TypeParameter("$js"))),
+                        && matches!(result, Some(Type::Dynamic)),
                 ),
             }
         }
@@ -1991,7 +1991,7 @@ fn verify_types(
                 Ok(())
             }
             // A JS object literal.
-            AllocationKind::Object(_) => expect(matches!(result, Some(Type::TypeParameter("$js")))),
+            AllocationKind::Object(_) => expect(matches!(result, Some(Type::Dynamic))),
             // An internal class instance of its result's class, holding
             // exactly its declared fields in order.
             AllocationKind::Instance { class, keys } => expect(match result {
@@ -2400,7 +2400,7 @@ fn verify_types(
                         &mut query,
                     )?)
                 }
-                Type::TypeParameter("$js") => expect(
+                Type::Dynamic => expect(
                     !has_references
                         && supplied == arguments.len()
                         && type_matches(result, Some(callee_type), &mut query)?,

@@ -79,7 +79,7 @@ Each phase's state is in [index.md](index.md).
 | M7 | Program rules: the floor | the floor slice (M7.3, M7.5a, M7.8a) after M5.1 and M6.4a; the rest after M5.2/M5.3a and M6 |
 | M8 | Canonical formation and the pure printer | A1: nothing; A2: M2.5, M4.6, M5.2; the rest of M8.2 by replacement (M7.3, M9.7, M10.4/M10.7); M8.3 after M5.2, its `\|0`/`++` half after M6.4b |
 | M9 | One choice system: choices, naming, layouts and data | M3.5; M5.2; M8.3 for spelling families; M7.5 for inline-or-share; M10.3 before M9.8's rest. No new family before M3.5 |
-| M10 | The final language (R1–R18) | slice 1: M4.2; the core: nothing (M10.12 after Y1); the rest after the core |
+| M10 | The final language (R1–R18) | slice 1: M4.2; the core: nothing (M10.12 after Y1, answered yes 2026-09-28); the rest after the core |
 | M11 | Native: the whole language, directly executable | M11.2 in batch A1; M11.5 after M7; M11.11 after M4.5 |
 | M12 | Qualification and publication | continuous; M2.10 (bars); closes last |
 
@@ -552,7 +552,7 @@ Version 1 of the design (2026-09-27) sets this order. The dependency graph above
 5. **The floor slice** (needs M2.5 and M2.13): M5.1 (edit kernel and DCE), M6.4a, M7.8a, M7.3, M7.5a, each deleting its JS-tree twin or its removing half. Gated per change on the generic ratchet. Interim exit: `comparison/apps` and `algorithms` at or below the frozen old route, or each remaining case named with its M7 owner.
 6. **The budget model, counted (amendment AM1)** (needs M2.14): M3.1's first slice, M3.4 and M3.5; M3.2, M3.9, M5.6 and M3.7 follow when a family, a cache or a cleanup needs them. Its exit (monotone levels by construction and by test; level 13 and above never larger because of a change (AM2); compile work linear in program size at levels 0–12 (AM3)) gates every new choice family (rule 9).
 7. **Language slice 1** (no ruling): M4.2 with M10.2, then M10.4, M10.7 and M10.16, with the `JS.*` rewrite script and port patches in `~/lilscript-work/portwork/`.
-8. **The core, in batches keyed to rulings:** without a ruling, M4.6, M10.13 (two batches), M10.9 (two batches, with the development-check lane), M10.15, M10.11's `debug` class and M10.14's checker half; after Y1, M10.12.
+8. **The core, in batches keyed to rulings:** without a ruling, M4.6, M10.13 (two batches), M10.9 (two batches, with the development-check lane), M10.15, M10.11's `debug` class and M10.14's checker half; M10.12 (Y1 answered yes on 2026-09-28: the runtime carries no conversion the source did not write).
 9. **The machinery:** M4.3 and M4.4, then M5.2 (absorbing M8.1, with the rule-2 deletions once each column verifies), M5.5, M5.3a with its transitional rules, batch A2, and M8.3's first half. Each of its batches reports the CPU time its facts and rules add (rule 3).
 10. **The facts and the rest of the floor:** M6.4b, M6.6, M6.7, M6.8, then M7.1, M7.4, M7.5, M7.6, M7.7, M7.8, M7.9, M8.5 and M7.10, with M5.3b deleting each transitional rule as its replacement lands, until `comparison/apps` and `comparison/algorithms` no longer lose to Closure ADVANCED. M5.7 (incremental tail) and M8.3's second half. M4.5, M11.1, M11.11, and M11.5 directly after M7.
 11. **One choice system:** M10.3 first, then M9.1's rest (the structural search and the five family analyses deleted), M9.2's gzip row, M9.3 per site, M9.5, M9.6, M9.7, M9.8's rest, M9.9, M9.10, M9.11, M9.12 and M10.19; M3.3c with M3.8b, whose exit gates the consumer lanes.

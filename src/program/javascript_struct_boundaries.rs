@@ -85,7 +85,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     }
                     None
                 }
-                (Type::TypeParameter("$js"), Type::TypeParameter("$js")) => None,
+                (Type::Dynamic, Type::Dynamic) => None,
                 // These shapes need a qualified adapter/instantiated schema;
                 // a matching-looking type parameter is not enough evidence.
                 (
@@ -128,7 +128,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         self.work(1)?;
         if self.struct_boundary_value(context, value) {
             let actual = &self.program.types[self.data(context).values[value.index()].ty.index()];
-            if matches!(expected, Type::TypeParameter("$js"))
+            if matches!(expected, Type::Dynamic)
                 && self.public_encode(context, value, actual)?
             {
                 return Ok(());
@@ -248,7 +248,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
             match &program.types[data.values[receiver.index()].ty.index()] {
                 Type::Array(inner) | Type::Record(inner) => Some(inner.as_ref()),
                 // A host object's property is a `JsValue` position.
-                dynamic @ Type::TypeParameter("$js") => Some(dynamic),
+                dynamic @ Type::Dynamic => Some(dynamic),
                 // The field's slot in the receiver's class, whose flattened
                 // layout carries the base's fields first with the receiver's
                 // type arguments applied.
@@ -422,12 +422,12 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                         // An ordinary object literal is a host object: each
                         // entry is a `JsValue` position, where a struct takes
                         // its D2 public shape.
-                        if !matches!(result_type, Some(Type::TypeParameter("$js"))) {
+                        if !matches!(result_type, Some(Type::Dynamic)) {
                             return Err(
                                 self.error(span, "value-struct object entry ABI adaptation")
                             );
                         }
-                        self.struct_transfer(context, value, &Type::TypeParameter("$js"), span)?;
+                        self.struct_transfer(context, value, &Type::Dynamic, span)?;
                     }
                 }
                 AllocationKind::Struct(identity) => {
@@ -456,7 +456,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 if let Some(signature) = data.call_signature(&data.calls[call.index()]) {
                     let dynamic = matches!(
                         self.program.types[signature.index()],
-                        Type::TypeParameter("$js")
+                        Type::Dynamic
                     );
                     let params = match &self.program.types[signature.index()] {
                         Type::Function(function) => Some(&function.params),
@@ -479,7 +479,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                             self.struct_transfer(
                                 context,
                                 value,
-                                &Type::TypeParameter("$js"),
+                                &Type::Dynamic,
                                 span,
                             )?;
                             continue;
@@ -509,7 +509,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     // type (`JsValue`, an extern class) it views the value's
                     // public shape, like any `JsValue` position.
                     if let (Some(result), [CallArgument::Value(value)]) = (result_type, arguments) {
-                        let host = Type::TypeParameter("$js");
+                        let host = Type::Dynamic;
                         let expected =
                             if super::public_structs::carries_product(result, self.budget)? {
                                 result

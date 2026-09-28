@@ -476,7 +476,7 @@ pub(super) fn native_type<'program, 'src>(
             NativeType::Dynamic(tagged)
         }
         // A type parameter may stand for anything the tag can carry.
-        Type::TypeParameter(name) if *name != "$js" => NativeType::Dynamic(Tagged::ANY),
+        Type::TypeParameter(_) => NativeType::Dynamic(Tagged::ANY),
         _ => return Ok(None),
     }))
 }

@@ -147,7 +147,7 @@ pub(super) fn old_equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
             let other = if is_js_value(lhs) { rhs } else { lhs };
             matches!(
                 other,
-                Type::TypeParameter("$js")
+                Type::Dynamic
                     | Type::Null
                     | Type::Bool
                     | Type::String
@@ -181,7 +181,7 @@ pub(super) fn old_is_stringable(ty: &Type<'_>) -> bool {
         Type::Union(members) => members.iter().all(old_is_stringable),
         _ => matches!(
             ty,
-            Type::String | Type::Int | Type::Float | Type::Bool | Type::TypeParameter("$js")
+            Type::String | Type::Int | Type::Float | Type::Bool | Type::Dynamic
         ),
     }
 }

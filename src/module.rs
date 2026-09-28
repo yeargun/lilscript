@@ -1324,7 +1324,28 @@ fn collect_expr_dynamic_imports<'ast, 'src>(
         | Expr {
             kind: ExprKind::Update { target: object, .. },
             ..
+        }
+        | Expr {
+            kind: ExprKind::Cast { value: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Convert { value: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::DynamicUnary { expr: object, .. },
+            ..
         } => collect_expr_dynamic_imports(object, imports),
+        Expr {
+            kind: ExprKind::Construct { callee, args, .. },
+            ..
+        } => {
+            collect_expr_dynamic_imports(callee, imports);
+            for argument in *args {
+                collect_expr_dynamic_imports(&argument.expression, imports);
+            }
+        }
         Expr {
             kind: ExprKind::Call { callee, args, .. },
             ..
@@ -1373,6 +1394,10 @@ fn collect_expr_dynamic_imports<'ast, 'src>(
                     value: rhs,
                     ..
                 },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::DynamicBinary { lhs, rhs, .. },
             ..
         } => {
             collect_expr_dynamic_imports(lhs, imports);

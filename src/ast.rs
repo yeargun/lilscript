@@ -760,6 +760,38 @@ pub enum ExprKind<'ast, 'src> {
         parts: &'ast [TemplatePart<'ast, 'src>],
         span: Span,
     },
+    /// `value as T`: a trusted view of a `JsValue` as `T`, no code (R12).
+    Cast {
+        value: &'ast Expr<'ast, 'src>,
+        target: TypeRef<'ast, 'src>,
+        span: Span,
+    },
+    /// `T(value)`: an explicit conversion that emits the coercion (R12).
+    Convert {
+        target: TypeRef<'ast, 'src>,
+        value: &'ast Expr<'ast, 'src>,
+        span: Span,
+    },
+    /// `new callee(args)` whose constructor is a value, not a class name: a
+    /// member chain or a parenthesized expression (R12).
+    Construct {
+        callee: &'ast Expr<'ast, 'src>,
+        args: &'ast [Argument<'ast, 'src>],
+        span: Span,
+    },
+    /// An operator that only a `JsValue` has (R12).
+    DynamicBinary {
+        op: DynamicBinaryOp,
+        lhs: &'ast Expr<'ast, 'src>,
+        rhs: &'ast Expr<'ast, 'src>,
+        span: Span,
+    },
+    /// A prefix operator that only a `JsValue` has (R12).
+    DynamicUnary {
+        op: DynamicUnaryOp,
+        expr: &'ast Expr<'ast, 'src>,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -839,7 +871,12 @@ impl<'ast, 'src> ExprKind<'ast, 'src> {
             | Self::Match { span, .. }
             | Self::Assignment { span, .. }
             | Self::Update { span, .. }
-            | Self::Template { span, .. } => *span,
+            | Self::Template { span, .. }
+            | Self::Cast { span, .. }
+            | Self::Convert { span, .. }
+            | Self::Construct { span, .. }
+            | Self::DynamicBinary { span, .. }
+            | Self::DynamicUnary { span, .. } => *span,
             Self::Ident(ident) => ident.span,
         }
     }
@@ -887,6 +924,100 @@ pub enum ArrowBody<'ast, 'src> {
 pub enum UnaryOp {
     Neg,
     Not,
+}
+
+/// How tightly each form binds, as the parser climbs: an operand that binds
+/// less tightly than its position needs parentheses. Binary operators take
+/// theirs from [`BinaryOp::precedence`] and [`DynamicBinaryOp::precedence`].
+pub mod precedence {
+    /// Assignments, arrows and the `if` and `match` expressions.
+    pub const LOWEST: u8 = 0;
+    /// `value is T`.
+    pub const TYPE_TEST: u8 = 4;
+    /// `<`, `in`, `instanceof` and `value as T`.
+    pub const RELATIONAL: u8 = 7;
+    /// Prefix operators and `await`.
+    pub const UNARY: u8 = 11;
+    /// Member access, indexing, calls and postfix updates.
+    pub const POSTFIX: u8 = 12;
+    /// Literals, names, `new`, conversions and parenthesized expressions.
+    pub const PRIMARY: u8 = 13;
+}
+
+impl BinaryOp {
+    pub const fn precedence(self) -> u8 {
+        match self {
+            Self::Nullish | Self::Or => 1,
+            Self::And => 2,
+            Self::BitOr => 3,
+            Self::Xor => 4,
+            Self::BitAnd => 5,
+            Self::Eq | Self::NotEq => 6,
+            Self::Less | Self::LessEq | Self::Greater | Self::GreaterEq => precedence::RELATIONAL,
+            Self::ShiftLeft | Self::ShiftRight | Self::UnsignedShiftRight => 8,
+            Self::Add | Self::Sub => 9,
+            Self::Mul | Self::Div | Self::Mod => 10,
+        }
+    }
+}
+
+impl DynamicBinaryOp {
+    pub const fn precedence(self) -> u8 {
+        match self {
+            Self::StrictEq | Self::StrictNotEq => 6,
+            Self::In | Self::InstanceOf => precedence::RELATIONAL,
+        }
+    }
+}
+
+impl<'ast, 'src> Expr<'ast, 'src> {
+    /// How tightly this expression binds (see [`precedence`]).
+    pub const fn precedence(&self) -> u8 {
+        match &self.kind {
+            ExprKind::Assignment { .. }
+            | ExprKind::ArrowFunction { .. }
+            | ExprKind::If { .. }
+            | ExprKind::Match { .. } => precedence::LOWEST,
+            ExprKind::Binary { op, .. } => op.precedence(),
+            ExprKind::DynamicBinary { op, .. } => op.precedence(),
+            ExprKind::TypeCheck { .. } => precedence::TYPE_TEST,
+            ExprKind::Cast { .. } => precedence::RELATIONAL,
+            ExprKind::Unary { .. }
+            | ExprKind::DynamicUnary { .. }
+            | ExprKind::Await { .. }
+            | ExprKind::Update { prefix: true, .. } => precedence::UNARY,
+            ExprKind::Update { .. }
+            | ExprKind::Member { .. }
+            | ExprKind::OptionalMember { .. }
+            | ExprKind::Index { .. }
+            | ExprKind::OptionalIndex { .. }
+            | ExprKind::Call { .. } => precedence::POSTFIX,
+            _ => precedence::PRIMARY,
+        }
+    }
+}
+
+/// Operators with JavaScript's meaning that apply only through a `JsValue`
+/// (R12). They lower to the dynamic operations, so the IR's typed operators
+/// never see them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DynamicBinaryOp {
+    /// `===`
+    StrictEq,
+    /// `!==`
+    StrictNotEq,
+    /// `key in object`
+    In,
+    /// `value instanceof constructor`
+    InstanceOf,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DynamicUnaryOp {
+    /// `typeof value`
+    TypeOf,
+    /// `delete object.key`, `delete object[key]`
+    Delete,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

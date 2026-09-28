@@ -1138,7 +1138,7 @@ pub(super) fn primitive_evaluation_behavior(
                 let operands = unit.operands(operation.operands).unwrap_or(&[]);
                 let dynamic = operands
                     .iter()
-                    .any(|&value| matches!(ty(value), Type::TypeParameter("$js")));
+                    .any(|&value| matches!(ty(value), Type::Dynamic));
                 let against_null = operands
                     .iter()
                     .any(|&value| matches!(ty(value), Type::Null));

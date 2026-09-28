@@ -4,6 +4,7 @@ use bumpalo::Bump;
 
 use crate::ast::{
     Argument, ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, CatchBinding,
+    precedence, DynamicBinaryOp, DynamicUnaryOp,
     CatchClause, ClassDecl, ClassMember, ConstructorDecl, EnumDecl, ExportDecl, ExportKind, Expr,
     ExternClassDecl, ExternClassMember, ExternConstructorDecl, ExternDecl, ExternGlobalDecl,
     FieldDecl, ForInitializer, ForeignImportDecl, FunctionDecl, Ident, ImportDecl, ImportSpecifier,
@@ -1562,7 +1563,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
 
         loop {
             if self.check(|kind| matches!(kind, TokenKind::Is)) {
-                let precedence = 4;
+                let precedence = precedence::TYPE_TEST;
                 if precedence < min_precedence {
                     break;
                 }
@@ -1573,6 +1574,41 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     value,
                     target,
                     span: value.span().merge(target.span),
+                });
+                continue;
+            }
+
+            // `value as T` binds like a relational operator, as in TypeScript:
+            // `a + b as T` views the sum.
+            if self.check(|kind| matches!(kind, TokenKind::As)) {
+                let precedence = precedence::RELATIONAL;
+                if precedence < min_precedence {
+                    break;
+                }
+                self.advance();
+                let target = self.parse_type()?;
+                let value = admission::alloc(self.arena, self.admission, lhs)?;
+                lhs = self.source.expression(ExprKind::Cast {
+                    value,
+                    target,
+                    span: value.span().merge(target.span),
+                });
+                continue;
+            }
+
+            if let Some((op, precedence)) = self.peek_dynamic_binary_op() {
+                if precedence < min_precedence {
+                    break;
+                }
+                self.advance();
+                let rhs = self.parse_binary_expression(precedence + 1)?;
+                let lhs_ref = admission::alloc(self.arena, self.admission, lhs)?;
+                let rhs_ref = admission::alloc(self.arena, self.admission, rhs)?;
+                lhs = self.source.expression(ExprKind::DynamicBinary {
+                    op,
+                    lhs: lhs_ref,
+                    rhs: rhs_ref,
+                    span: lhs_ref.span().merge(rhs_ref.span()),
                 });
                 continue;
             }
@@ -1646,6 +1682,17 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             let expr_ref = admission::alloc(self.arena, self.admission, expr)?;
             return Ok(self.source.expression(ExprKind::Unary {
                 op: UnaryOp::Neg,
+                expr: expr_ref,
+                span: op_span.merge(expr_ref.span()),
+            }));
+        }
+
+        if let Some(op) = self.peek_dynamic_unary_op()? {
+            let op_span = self.advance().expect("peeked a prefix operator").span;
+            let expr = self.parse_unary_expression()?;
+            let expr_ref = admission::alloc(self.arena, self.admission, expr)?;
+            return Ok(self.source.expression(ExprKind::DynamicUnary {
+                op,
                 expr: expr_ref,
                 span: op_span.merge(expr_ref.span()),
             }));
@@ -1798,6 +1845,19 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 }))
             }
             TokenKind::New => {
+                if let Some(callee) = self.parse_constructor_value()? {
+                    self.expect(
+                        |kind| matches!(kind, TokenKind::LParen),
+                        "expected `(` after the constructor",
+                    )?;
+                    let (args, close_span) = self.parse_args_after_open()?;
+                    let callee = admission::alloc(self.arena, self.admission, callee)?;
+                    return Ok(self.source.expression(ExprKind::Construct {
+                        callee,
+                        args,
+                        span: token.span.merge(close_span),
+                    }));
+                }
                 let class = self.expect_ident("expected class name after `new`")?;
                 let type_args = self.parse_type_args()?;
                 self.expect(
@@ -1851,6 +1911,31 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 Ok(expr)
             }
             TokenKind::LBracket => self.parse_array_literal_after_open(token.span),
+            // `string(v)`, `float(v)`, `number(v)`: explicit conversions (R12).
+            TokenKind::String | TokenKind::Float | TokenKind::Number
+                if self.check(|kind| matches!(kind, TokenKind::LParen)) =>
+            {
+                let target = TypeRef {
+                    kind: if matches!(token.kind, TokenKind::String) {
+                        TypeKind::String
+                    } else {
+                        TypeKind::Float
+                    },
+                    span: token.span,
+                };
+                self.advance();
+                let value = self.parse_expression()?;
+                let close = self.expect(
+                    |kind| matches!(kind, TokenKind::RParen),
+                    "expected `)` after the converted value",
+                )?;
+                let value = admission::alloc(self.arena, self.admission, value)?;
+                Ok(self.source.expression(ExprKind::Convert {
+                    target,
+                    value,
+                    span: token.span.merge(close.span),
+                }))
+            }
             _ => Err(AdmittedParseError::new(token.span, "expected expression")),
         }
     }
@@ -2347,6 +2432,11 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
     }
 
     fn looks_like_typed_binding(&self) -> Result<bool, AdmittedParseError> {
+        // `delete v.k;` is an operator applied to an operand, not a binding
+        // of type `delete`.
+        if self.peek_dynamic_unary_op()?.is_some() {
+            return Ok(false);
+        }
         let Some(type_end) = self.scan_type_end(self.cursor)? else {
             return Ok(false);
         };
@@ -2485,31 +2575,93 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         Ok(false)
     }
 
-    fn peek_binary_op(&self) -> Option<(BinaryOp, u8)> {
+    /// The operators only a `JsValue` has (R12), at the precedences
+    /// JavaScript gives them. `instanceof` is contextual: after an operand an
+    /// identifier cannot otherwise follow.
+    fn peek_dynamic_binary_op(&self) -> Option<(DynamicBinaryOp, u8)> {
         let op = match self.peek_kind()? {
-            TokenKind::QuestionQuestion => (BinaryOp::Nullish, 1),
-            TokenKind::OrOr => (BinaryOp::Or, 1),
-            TokenKind::AndAnd => (BinaryOp::And, 2),
-            TokenKind::Pipe => (BinaryOp::BitOr, 3),
-            TokenKind::Caret => (BinaryOp::Xor, 4),
-            TokenKind::Ampersand => (BinaryOp::BitAnd, 5),
-            TokenKind::EqEq => (BinaryOp::Eq, 6),
-            TokenKind::BangEq => (BinaryOp::NotEq, 6),
-            TokenKind::Less => (BinaryOp::Less, 7),
-            TokenKind::LessEq => (BinaryOp::LessEq, 7),
-            TokenKind::Greater => (BinaryOp::Greater, 7),
-            TokenKind::GreaterEq => (BinaryOp::GreaterEq, 7),
-            TokenKind::ShiftLeft => (BinaryOp::ShiftLeft, 8),
-            TokenKind::ShiftRight => (BinaryOp::ShiftRight, 8),
-            TokenKind::UnsignedShiftRight => (BinaryOp::UnsignedShiftRight, 8),
-            TokenKind::Plus => (BinaryOp::Add, 9),
-            TokenKind::Minus => (BinaryOp::Sub, 9),
-            TokenKind::Star => (BinaryOp::Mul, 10),
-            TokenKind::Slash => (BinaryOp::Div, 10),
-            TokenKind::Percent => (BinaryOp::Mod, 10),
+            TokenKind::EqEqEq => DynamicBinaryOp::StrictEq,
+            TokenKind::BangEqEq => DynamicBinaryOp::StrictNotEq,
+            TokenKind::In => DynamicBinaryOp::In,
+            TokenKind::Ident("instanceof") => DynamicBinaryOp::InstanceOf,
             _ => return None,
         };
-        Some(op)
+        Some((op, op.precedence()))
+    }
+
+    /// `typeof` and `delete` are contextual prefix operators: the word
+    /// followed by the start of an operand.
+    fn peek_dynamic_unary_op(&self) -> Result<Option<DynamicUnaryOp>, AdmittedParseError> {
+        let op = match self.peek_kind() {
+            Some(TokenKind::Ident("typeof")) => DynamicUnaryOp::TypeOf,
+            Some(TokenKind::Ident("delete")) => DynamicUnaryOp::Delete,
+            _ => return Ok(None),
+        };
+        let next = self.lookahead_kind(self.cursor + 1)?;
+        Ok(next.is_some_and(starts_operand).then_some(op))
+    }
+
+    /// After `new`: a constructor given as a value, either a member chain
+    /// (`new a.B(x)`) or a parenthesized expression (`new (f())(x)`) (R12).
+    /// A lone class name, with or without type arguments, is a class
+    /// construction and gives `None`.
+    fn parse_constructor_value(
+        &mut self,
+    ) -> Result<Option<Expr<'arena, 'src>>, AdmittedParseError> {
+        if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
+            let expr = self.parse_expression()?;
+            self.expect(|kind| matches!(kind, TokenKind::RParen), "expected `)`")?;
+            return Ok(Some(expr));
+        }
+        let chain = matches!(
+            self.peek_kind(),
+            Some(TokenKind::Ident(_) | TokenKind::From)
+        ) && matches!(
+            self.lookahead_kind(self.cursor + 1)?,
+            Some(TokenKind::Dot)
+        );
+        if !chain {
+            return Ok(None);
+        }
+        let first = self.expect_ident("expected a constructor after `new`")?;
+        let mut expr = self.source.expression(ExprKind::Ident(first));
+        while self.match_kind(|kind| matches!(kind, TokenKind::Dot)) {
+            let property = self.expect_property_ident("expected property name after `.`")?;
+            let object = admission::alloc(self.arena, self.admission, expr)?;
+            expr = self.source.expression(ExprKind::Member {
+                object,
+                property,
+                span: object.span().merge(property.span),
+            });
+        }
+        Ok(Some(expr))
+    }
+
+    fn peek_binary_op(&self) -> Option<(BinaryOp, u8)> {
+        let op = match self.peek_kind()? {
+            TokenKind::QuestionQuestion => BinaryOp::Nullish,
+            TokenKind::OrOr => BinaryOp::Or,
+            TokenKind::AndAnd => BinaryOp::And,
+            TokenKind::Pipe => BinaryOp::BitOr,
+            TokenKind::Caret => BinaryOp::Xor,
+            TokenKind::Ampersand => BinaryOp::BitAnd,
+            TokenKind::EqEq => BinaryOp::Eq,
+            TokenKind::BangEq => BinaryOp::NotEq,
+            TokenKind::Less => BinaryOp::Less,
+            TokenKind::LessEq => BinaryOp::LessEq,
+            TokenKind::Greater => BinaryOp::Greater,
+            TokenKind::GreaterEq => BinaryOp::GreaterEq,
+            TokenKind::ShiftLeft => BinaryOp::ShiftLeft,
+            TokenKind::ShiftRight => BinaryOp::ShiftRight,
+            TokenKind::UnsignedShiftRight => BinaryOp::UnsignedShiftRight,
+            TokenKind::Plus => BinaryOp::Add,
+            TokenKind::Minus => BinaryOp::Sub,
+            TokenKind::Star => BinaryOp::Mul,
+            TokenKind::Slash => BinaryOp::Div,
+            TokenKind::Percent => BinaryOp::Mod,
+            _ => return None,
+        };
+        Some((op, op.precedence()))
     }
 
     fn expect_ident(&mut self, message: &'static str) -> Result<Ident<'src>, AdmittedParseError> {
@@ -2665,6 +2817,37 @@ fn property_identifier_name<'src>(kind: TokenKind<'src>) -> Option<&'src str> {
     })
 }
 
+/// Whether a token can begin an operand, as after a prefix operator.
+fn starts_operand(kind: &TokenKind<'_>) -> bool {
+    matches!(
+        kind,
+        TokenKind::Ident(_)
+            | TokenKind::From
+            | TokenKind::IntLiteral(_)
+            | TokenKind::FloatLiteral(_)
+            | TokenKind::StringLiteral(_)
+            | TokenKind::TemplateLiteral(_)
+            | TokenKind::True
+            | TokenKind::False
+            | TokenKind::Null
+            | TokenKind::LParen
+            | TokenKind::LBracket
+            | TokenKind::Bang
+            | TokenKind::Minus
+            | TokenKind::PlusPlus
+            | TokenKind::MinusMinus
+            | TokenKind::Await
+            | TokenKind::New
+            | TokenKind::If
+            | TokenKind::Match
+            | TokenKind::Record
+            | TokenKind::Import
+            | TokenKind::String
+            | TokenKind::Float
+            | TokenKind::Number
+    )
+}
+
 fn exported_item_name<'src>(item: &Item<'_, 'src>) -> Option<Ident<'src>> {
     match item {
         Item::Enum(decl) => Some(decl.name),
@@ -2687,6 +2870,91 @@ fn strip_quotes(raw: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
+    /// R12's syntax on a `JsValue`: the operators only it has, at
+    /// JavaScript's precedences, and `as`, the conversions and `new` of a
+    /// value.
+    #[test]
+    fn parses_the_dynamic_types_syntax() {
+        use crate::ast::{DynamicBinaryOp, DynamicUnaryOp};
+        let arena = Bump::new();
+        let initializer = |source: &'static str| {
+            let program = parse_source(&arena, source)
+                .unwrap_or_else(|error| panic!("{source}: {error:?}"));
+            let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[0] else {
+                panic!("{source}: expected a declaration");
+            };
+            declaration.initializer.clone().expect("an initializer")
+        };
+        // `===` binds like `==`, below `+`; `in` and `instanceof` like `<`.
+        let Expr {
+            kind: ExprKind::DynamicBinary { op, rhs, .. },
+            ..
+        } = initializer("bool b = a === c + 1;")
+        else {
+            panic!("strict equality");
+        };
+        assert_eq!(op, DynamicBinaryOp::StrictEq);
+        assert!(matches!(rhs.kind, ExprKind::Binary { op: BinaryOp::Add, .. }));
+        for (source, expected) in [
+            ("bool b = a !== c;", DynamicBinaryOp::StrictNotEq),
+            ("bool b = \"k\" in o;", DynamicBinaryOp::In),
+            ("bool b = e instanceof Error;", DynamicBinaryOp::InstanceOf),
+        ] {
+            assert!(
+                matches!(initializer(source).kind, ExprKind::DynamicBinary { op, .. } if op == expected),
+                "{source}"
+            );
+        }
+        // `a && b instanceof C` groups the relation first.
+        assert!(matches!(
+            initializer("bool b = a && e instanceof C;").kind,
+            ExprKind::Binary { op: BinaryOp::And, rhs: Expr { kind: ExprKind::DynamicBinary { .. }, .. }, .. }
+        ));
+        // `as` views the whole additive expression.
+        assert!(matches!(
+            initializer("int n = a + b as int;").kind,
+            ExprKind::Cast { value: Expr { kind: ExprKind::Binary { .. }, .. }, .. }
+        ));
+        assert!(matches!(
+            initializer("string s = typeof v;").kind,
+            ExprKind::DynamicUnary { op: DynamicUnaryOp::TypeOf, .. }
+        ));
+        assert!(matches!(
+            initializer("string s = string(v);").kind,
+            ExprKind::Convert { target: TypeRef { kind: TypeKind::String, .. }, .. }
+        ));
+        assert!(matches!(
+            initializer("float f = number(v);").kind,
+            ExprKind::Convert { target: TypeRef { kind: TypeKind::Float, .. }, .. }
+        ));
+        assert!(matches!(
+            initializer("JsValue v = new a.b.C(1);").kind,
+            ExprKind::Construct { callee: Expr { kind: ExprKind::Member { .. }, .. }, .. }
+        ));
+        assert!(matches!(
+            initializer("JsValue v = new (f())(1);").kind,
+            ExprKind::Construct { callee: Expr { kind: ExprKind::Call { .. }, .. }, .. }
+        ));
+        assert!(matches!(
+            initializer("JsValue v = new C(1);").kind,
+            ExprKind::New { .. }
+        ));
+        // `delete` starts an expression statement, not a declaration, and
+        // the words stay identifiers where no operand follows.
+        let program = parse_source(&arena, "delete o.k; typeof = 1; delete = typeof;").unwrap();
+        assert!(matches!(
+            &program.items[0],
+            Item::Stmt(Stmt::Expr(Expr { kind: ExprKind::DynamicUnary { op: DynamicUnaryOp::Delete, .. }, .. }))
+        ));
+        assert!(matches!(
+            &program.items[2],
+            Item::Stmt(Stmt::Expr(Expr { kind: ExprKind::Assignment { value: Expr { kind: ExprKind::Ident(_), .. }, .. }, .. }))
+        ));
+        // `for (T k in o)` keeps its head.
+        let program = parse_source(&arena, "for (string k in o) { print(k); }").unwrap();
+        assert!(matches!(&program.items[0], Item::Stmt(Stmt::ForIn { .. })));
+    }
+
     #[test]
     fn contextual_reference_arguments_preserve_ref_identifier_expressions() {
         let arena = Bump::new();

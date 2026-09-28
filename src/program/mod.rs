@@ -252,7 +252,7 @@ pub(crate) fn host_call(program: &Program<'_>, data: &UnitData, target: &CallTar
 /// instance. Its members are host properties and methods.
 pub(crate) fn host_receiver(program: &Program<'_>, data: &UnitData, receiver: ValueId) -> bool {
     match &program.types[data.values[receiver.index()].ty.index()] {
-        Type::TypeParameter("$js") => true,
+        Type::Dynamic => true,
         Type::Class(declaration) | Type::ClassInstance { declaration, .. } => program
             .class(declaration.identity)
             .is_some_and(|class| class.external),

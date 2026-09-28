@@ -18,7 +18,7 @@ These do not change emitted JS. They change what authors are allowed to ship, wh
 | `pure_extern_allowlist` | `[]` | trusted `pure extern` names |
 | `rules` | `{}` | `"namespace/id" = "off\|hint\|warn\|error"` |
 
-`web/eager-host-access` flags top-level host work before a progressive-enhancement boundary. Embedders can add in-process `LintRuleProvider`s (`lint_path_with_providers`); not a dynamic plugin ABI.
+`web/eager-host-access` flags top-level host work before a progressive-enhancement boundary. `migration/js-builtin` warns at each `JS.*` call with a syntax spelling (R12) and offers the rewrite as a machine-applicable fix; run `--fix` until nothing changes. Embedders can add in-process `LintRuleProvider`s (`lint_path_with_providers`); not a dynamic plugin ABI.
 
 Suppressions: `// lilscript-lint-disable RULE` and `-next-line`. Machine fix today: remove unreachable expression statements.
 

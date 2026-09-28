@@ -5,7 +5,8 @@ use crate::ast::{
     Stmt,
 };
 use crate::check::{
-    CheckedModule, CheckedModules, CheckedView, ClassInfo, ExpressionResolution, NominalMember,
+    BuiltinCall, CheckedModule, CheckedModules, CheckedView, ClassInfo, ExpressionResolution,
+    NominalMember,
 };
 use crate::compilation_policy::WorkKind;
 use crate::output_budget::{
@@ -27,6 +28,20 @@ fn vector_bytes<T>(values: &Vec<T>) -> Result<u64, AllocationError> {
         .checked_mul(std::mem::size_of::<T>())
         .and_then(|bytes| u64::try_from(bytes).ok())
         .ok_or(AllocationError::Capacity)
+}
+
+/// An operand of a dynamic operation lowered from its syntax (R12).
+#[derive(Clone, Copy)]
+enum DynamicOperand<'a, 'ast, 'src> {
+    /// A source expression, evaluated as a call argument is.
+    Expression(&'a ast::Expr<'ast, 'src>),
+    /// A property name: the constant string the `JS.*` spelling's key
+    /// literal is.
+    Key(&'src str, Span),
+    /// A binding read by name: the constructor of `new C(a)`.
+    Binding(ast::Ident<'src>),
+    /// A value already evaluated: a compound update's operands.
+    Value(ValueId),
 }
 
 fn drop_vector<T>(
@@ -2499,7 +2514,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     span,
                 );
             }
-            Type::Nullable(_) | Type::TypeParameter("$js") | Type::Null => Constant::Null,
+            Type::Nullable(_) | Type::Dynamic | Type::Null => Constant::Null,
             // Legacy leaves a non-nullable class, struct or callable field
             // null until `init` assigns it. That is not a value of the field's
             // type, so the constant keeps its own type.
@@ -3043,7 +3058,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     }
                     found
                 }
-                Type::TypeParameter(name) => *name != "$js",
+                Type::TypeParameter(_) => true,
                 _ => false,
             })
         }
@@ -3859,8 +3874,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             OperationKind::Binary(op)
         }
     }
-    fn eager_binary(expr: &ast::Expr<'ast, 'src>) -> bool {
+    fn eager_binary(&self, expr: &ast::Expr<'ast, 'src>) -> bool {
         matches!(expr.kind, ExprKind::Binary { op, .. } if !matches!(op, BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish))
+            && self.semantics.dynamic_operation(expr.id).is_none()
     }
     fn binary_expression(
         &mut self,
@@ -3875,7 +3891,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         while let Some((expr, ready)) = pending.pop() {
             self.work(1)?;
             if let ExprKind::Binary { op, lhs, rhs, .. } = &expr.kind {
-                if Self::eager_binary(expr) {
+                if self.eager_binary(expr) {
                     if !ready {
                         self.budget.extend_copy(
                             Scratch,
@@ -4113,7 +4129,16 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         expr: &ast::Expr<'ast, 'src>,
     ) -> Result<ValueId, ConversionError> {
         self.work(1)?;
-        if Self::eager_binary(expr) {
+        // A compound update of a `JsValue` place lowers as any compound
+        // assignment does, with the dynamic add.
+        if let Some(builtin) = self
+            .semantics
+            .dynamic_operation(expr.id)
+            .filter(|_| !matches!(expr.kind, ExprKind::Assignment { .. }))
+        {
+            return self.dynamic_expression(unit, region, expr, builtin);
+        }
+        if self.eager_binary(expr) {
             return self.binary_expression(unit, region, expr);
         }
         let ty = self.expression_type(expr)?;
@@ -4392,7 +4417,19 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         self.infer_creation_name(unit, value, rhs, name.name)?;
                     }
                 }
-                let value = if let Some(old) = old {
+                let value = if let Some(old) = old
+                    .filter(|_| self.semantics.dynamic_operation(expr.id) == Some(BuiltinCall::JsAdd))
+                {
+                    self.dynamic_call(
+                        unit,
+                        region,
+                        BuiltinCall::JsAdd,
+                        &[DynamicOperand::Value(old), DynamicOperand::Value(rhs)],
+                        ty,
+                        origin,
+                        span,
+                    )?
+                } else if let Some(old) = old {
                     let op = match op {
                         AssignmentOp::Add => BinaryOp::Add,
                         AssignmentOp::Sub => BinaryOp::Sub,
@@ -4817,8 +4854,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     kind: AllocationKind::Record(_),
                     ..
                 },
-                Type::TypeParameter("$js"),
-            ) => self.ty(&Type::Record(Box::new(Type::TypeParameter("$js"))))?,
+                Type::Dynamic,
+            ) => self.ty(&Type::Record(Box::new(Type::Dynamic)))?,
             _ => ty,
         };
         let result = self.value(unit, region, kind, &operands, ty, origin, span)?;
@@ -4858,6 +4895,25 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         values: &[ValueId],
         preparation: Span,
     ) -> Result<(OperationKind, Vec<ValueId>), ConversionError> {
+        let call = self.open_call(unit, region, target, contract, preparation)?;
+        let mut arguments = self.budget.vector(Scratch, values.len())?;
+        for &value in values {
+            self.budget
+                .push(Scratch, &mut arguments, CallArgument::Value(value))?;
+        }
+        self.close_call(unit, region, call, contract, arguments, preparation)?;
+        Ok((OperationKind::Call(call), Vec::new()))
+    }
+    /// A call site whose target is fixed before any of its operands is
+    /// evaluated: every call's arguments follow its `PrepareCall`.
+    fn open_call(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        target: CallTarget,
+        contract: CallContract,
+        preparation: Span,
+    ) -> Result<CallId, ConversionError> {
         let call = CallId::from_index(self.units[unit.index()].calls.len()).ok_or(Unsupported {
             span: preparation,
             feature: "semantic call capacity",
@@ -4878,28 +4934,214 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             &[],
             preparation,
         )?;
-        let mut arguments = self.budget.vector(Scratch, values.len())?;
-        for &value in values {
-            self.budget
-                .push(Scratch, &mut arguments, CallArgument::Value(value))?;
+        Ok(call)
+    }
+    /// Syntax on a `JsValue` lowered as the dynamic operation its `JS.*`
+    /// spelling names (R12): the same builtin call, with the same operands in
+    /// the same order, so each dynamic operation has one IR form.
+    fn dynamic_expression(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        expr: &ast::Expr<'ast, 'src>,
+        builtin: BuiltinCall,
+    ) -> Result<ValueId, ConversionError> {
+        use DynamicOperand as O;
+        let span = expr.span();
+        let origin = Some(expr.id);
+        let mut operands: Vec<DynamicOperand<'_, 'ast, 'src>> = Vec::new();
+        // A call's arguments follow its receiver operands.
+        let mut arguments: &'ast [ast::Argument<'ast, 'src>] = &[];
+        match (&expr.kind, builtin) {
+            (
+                ExprKind::Binary {
+                    op: BinaryOp::And | BinaryOp::Or,
+                    lhs,
+                    rhs,
+                    ..
+                },
+                BuiltinCall::JsAnd | BuiltinCall::JsOr,
+            ) => {
+                // `JS.and` and `JS.or` short-circuit, as `&&` and `||` do.
+                let ty = self.expression_type(expr)?;
+                let left = self.expression(unit, region, lhs)?;
+                let right = self.expression_region(unit, region, rhs)?;
+                let kind = if builtin == BuiltinCall::JsAnd {
+                    ShortCircuit::JavaScriptAnd
+                } else {
+                    ShortCircuit::JavaScriptOr
+                };
+                return self.value(
+                    unit,
+                    region,
+                    OperationKind::ShortCircuit { kind, right },
+                    &[left],
+                    ty,
+                    origin,
+                    span,
+                );
+            }
+            (ExprKind::Ident(_), BuiltinCall::JsUndefined) => {}
+            (
+                ExprKind::DynamicUnary {
+                    expr:
+                        ast::Expr {
+                            kind:
+                                ExprKind::Member {
+                                    object, property, ..
+                                },
+                            ..
+                        },
+                    ..
+                },
+                BuiltinCall::JsDelete,
+            ) => operands.extend([O::Expression(object), O::Key(property.name, property.span)]),
+            (
+                ExprKind::DynamicUnary {
+                    expr:
+                        ast::Expr {
+                            kind: ExprKind::Index { object, index, .. },
+                            ..
+                        },
+                    ..
+                },
+                BuiltinCall::JsDelete,
+            ) => operands.extend([O::Expression(object), O::Expression(index)]),
+            (
+                ExprKind::Call { callee, args, .. },
+                BuiltinCall::JsCall | BuiltinCall::JsApply,
+            ) => {
+                // `f.call(t, a)` and `f.apply(t, a)`: the receiver is the
+                // function, the first argument its `this`.
+                let ExprKind::Member { object, .. } = &callee.kind else {
+                    return self.unsupported(span, "dynamic call receiver");
+                };
+                operands.push(O::Expression(object));
+                arguments = args;
+            }
+            (ExprKind::New { class, args, .. }, BuiltinCall::JsConstruct) => {
+                operands.push(O::Binding(*class));
+                arguments = args;
+            }
+            (ExprKind::Construct { callee, args, .. }, BuiltinCall::JsConstruct) => {
+                operands.push(O::Expression(callee));
+                arguments = args;
+            }
+            (ExprKind::Binary { lhs, rhs, .. }, _)
+            | (ExprKind::DynamicBinary { lhs, rhs, .. }, _) => {
+                operands.extend([O::Expression(lhs), O::Expression(rhs)])
+            }
+            (ExprKind::DynamicUnary { expr: value, .. }, BuiltinCall::JsTypeOf)
+            | (ExprKind::Cast { value, .. }, BuiltinCall::JsAssume)
+            | (ExprKind::Convert { value, .. }, BuiltinCall::JsString | BuiltinCall::JsNumber) => {
+                operands.push(O::Expression(value))
+            }
+            _ => return self.unsupported(span, "dynamic operation syntax"),
         }
+        operands.extend(
+            arguments
+                .iter()
+                .map(|argument| O::Expression(&argument.expression)),
+        );
+        let ty = self.expression_type(expr)?;
+        self.dynamic_call(unit, region, builtin, &operands, ty, origin, span)
+    }
+    /// A dynamic operation's builtin call over its operands, evaluated in
+    /// order after the call's preparation, as `JS.name(operands)` is.
+    #[allow(clippy::too_many_arguments)]
+    fn dynamic_call(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        builtin: BuiltinCall,
+        operands: &[DynamicOperand<'_, 'ast, 'src>],
+        ty: TypeId,
+        origin: Option<ast::SourceNodeId>,
+        span: Span,
+    ) -> Result<ValueId, ConversionError> {
+        let contract = CallContract {
+            signature: None,
+            instantiation: None,
+            supplied: u32::try_from(operands.len()).map_err(|_| Unsupported {
+                span,
+                feature: "semantic call argument capacity",
+            })?,
+            defaults: DefaultConvention::MaterializeAtCaller,
+        };
+        let call = self.open_call(unit, region, CallTarget::Builtin(builtin), contract, span)?;
+        let mut values = self.budget.vector(Scratch, operands.len())?;
+        for &operand in operands {
+            let value = self.dynamic_operand(unit, region, operand)?;
+            self.budget.push(Scratch, &mut values, CallArgument::Value(value))?;
+        }
+        self.close_call(unit, region, call, contract, values, span)?;
+        self.value(unit, region, OperationKind::Call(call), &[], ty, origin, span)
+    }
+    fn dynamic_operand(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        operand: DynamicOperand<'_, 'ast, 'src>,
+    ) -> Result<ValueId, ConversionError> {
+        match operand {
+            DynamicOperand::Expression(expression) => {
+                let value = self.expression(unit, region, expression)?;
+                self.copy_value(unit, region, value, expression.span())
+            }
+            DynamicOperand::Key(name, span) => {
+                let key = self.decoded_string(name, span, "invalid checked property key")?;
+                let ty = self.ty(&crate::check::Type::String)?;
+                self.value(
+                    unit,
+                    region,
+                    OperationKind::Constant(Constant::String(key)),
+                    &[],
+                    ty,
+                    None,
+                    span,
+                )
+            }
+            DynamicOperand::Binding(name) => {
+                let cell = self.cell(name)?;
+                self.reference(unit, cell)?;
+                let value = self.load_cell(unit, region, cell, name.span)?;
+                self.copy_value(unit, region, value, name.span)
+            }
+            DynamicOperand::Value(value) => Ok(value),
+        }
+    }
+    /// An opened call's evaluated arguments, with the defaults its caller
+    /// materializes.
+    fn close_call(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        call: CallId,
+        contract: CallContract,
+        mut values: Vec<CallArgument>,
+        preparation: Span,
+    ) -> Result<(), ConversionError> {
         if contract.defaults == DefaultConvention::MaterializeAtCaller {
-            self.materialize_defaults(unit, region, contract, &mut arguments, preparation)?;
+            self.materialize_defaults(unit, region, contract, &mut values, preparation)?;
         }
         let data = &mut self.units[unit.index()];
         let start = u32::try_from(data.call_arguments.len()).map_err(|_| Unsupported {
             span: preparation,
             feature: "semantic call argument capacity",
         })?;
-        let len = u32::try_from(arguments.len()).map_err(|_| Unsupported {
+        let len = u32::try_from(values.len()).map_err(|_| Unsupported {
+            span: preparation,
+            feature: "semantic call argument capacity",
+        })?;
+        start.checked_add(len).ok_or(Unsupported {
             span: preparation,
             feature: "semantic call argument capacity",
         })?;
         self.budget
-            .extend_copy(Retained, &mut data.call_arguments, &arguments)?;
-        self.units[unit.index()].calls[call.index()].arguments = ArgumentRange { start, len };
-        drop_vector(arguments, Scratch, self.budget)?;
-        Ok((OperationKind::Call(call), Vec::new()))
+            .extend_copy(Retained, &mut data.call_arguments, &values)?;
+        data.calls[call.index()].arguments = ArgumentRange { start, len };
+        drop_vector(values, Scratch, self.budget)?;
+        Ok(())
     }
     /// `receiver`, when present, is the already-evaluated first argument: the
     /// instance a class method or `init` runs on.
@@ -4913,26 +5155,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         arguments: &'ast [ast::Argument<'ast, 'src>],
         preparation: Span,
     ) -> Result<(OperationKind, Vec<ValueId>, Option<ValueId>), ConversionError> {
-        let call = CallId::from_index(self.units[unit.index()].calls.len()).ok_or(Unsupported {
-            span: preparation,
-            feature: "semantic call capacity",
-        })?;
-        self.budget.push(
-            Retained,
-            &mut self.units[unit.index()].calls,
-            CallSite {
-                target,
-                contract,
-                arguments: ArgumentRange { start: 0, len: 0 },
-            },
-        )?;
-        self.effect(
-            unit,
-            region,
-            OperationKind::PrepareCall(call),
-            &[],
-            preparation,
-        )?;
+        let call = self.open_call(unit, region, target, contract, preparation)?;
         let mut values = self.budget.vector(Scratch, arguments.len() + 1)?;
         let mut receiver_value = None;
         if let Some(CallReceiver::Value(receiver)) = receiver {
@@ -4975,26 +5198,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             values.insert(0, CallArgument::Value(instance));
             receiver_value = Some(instance);
         }
-        if contract.defaults == DefaultConvention::MaterializeAtCaller {
-            self.materialize_defaults(unit, region, contract, &mut values, preparation)?;
-        }
-        let data = &mut self.units[unit.index()];
-        let start = u32::try_from(data.call_arguments.len()).map_err(|_| Unsupported {
-            span: preparation,
-            feature: "semantic call argument capacity",
-        })?;
-        let len = u32::try_from(values.len()).map_err(|_| Unsupported {
-            span: preparation,
-            feature: "semantic call argument capacity",
-        })?;
-        start.checked_add(len).ok_or(Unsupported {
-            span: preparation,
-            feature: "semantic call argument capacity",
-        })?;
-        self.budget
-            .extend_copy(Retained, &mut data.call_arguments, &values)?;
-        data.calls[call.index()].arguments = ArgumentRange { start, len };
-        drop_vector(values, Scratch, self.budget)?;
+        self.close_call(unit, region, call, contract, values, preparation)?;
         Ok((OperationKind::Call(call), Vec::new(), receiver_value))
     }
     /// Omitted parameters with checked defaults are evaluated by the caller

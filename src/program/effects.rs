@@ -358,7 +358,7 @@ fn primitive_type(ty: &Type<'_>) -> bool {
 /// A host object: a dynamic value or an extern class instance.
 fn host_type(program: &Program<'_>, ty: &Type<'_>) -> bool {
     match ty {
-        Type::TypeParameter("$js") => true,
+        Type::Dynamic => true,
         Type::Class(declaration) | Type::ClassInstance { declaration, .. } => program
             .class(declaration.identity)
             .is_some_and(|class| class.external),
@@ -434,6 +434,7 @@ pub(super) fn operation_effects(
                         | Type::Nullable(_)
                         | Type::Union(_)
                         | Type::TypeParameter(_)
+                        | Type::Dynamic
                 )
             }),
             ..Effects::NONE

@@ -77,7 +77,7 @@ fn neutral_constant(ty: &Type<'_>) -> Option<NeutralConstant> {
         Type::Float => Some(NeutralConstant::Number),
         Type::Bool => Some(NeutralConstant::Boolean),
         Type::Null | Type::Nullable(_) => Some(NeutralConstant::Null),
-        Type::TypeParameter("$js") => Some(NeutralConstant::Undefined),
+        Type::Dynamic => Some(NeutralConstant::Undefined),
         _ => None,
     }
 }

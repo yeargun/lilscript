@@ -366,6 +366,15 @@ lilscript-lint src --format sarif --deny-warnings
 lilscript-lint src --fix
 ```
 
+`migration/js-builtin` warns at each `JS.*` call that has a syntax spelling
+(`JsValue`'s ordinary JavaScript syntax, [language rule R12](language.md)) and
+fixes it to that spelling, which means the same operation. A call is fixed
+once its operands hold no other `JS.*` call, so `lilscript-lint --fix`, run
+until nothing changes, rewrites nested calls from the inside out. A call whose
+syntax would mean another operation (`+` of a typed `string`, a call of a typed
+function, an array literal where no `JsValue` is expected) is reported without a
+fix.
+
 Use `// lilscript-lint-disable RULE` to suppress a rule from that line onward,
 or `// lilscript-lint-disable-next-line RULE` for the following line.
 

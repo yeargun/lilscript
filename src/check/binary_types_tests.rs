@@ -40,7 +40,7 @@ fn corpus() -> Vec<Type<'static>> {
         Type::Bool,
         Type::Null,
         Type::Void,
-        Type::TypeParameter("$js"),
+        Type::Dynamic,
         Type::TypeParameter("T"),
         Type::Class(test_class("Object")),
         Type::Class(test_class("Other")),

@@ -21,7 +21,7 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
   - **Program rules are young.** F1 and F2 added DCE, folding and removal-only inlining on the Program IR: production module lanes −1,174 Brotli since A1, but `comparison/apps` is still 926 Brotli against 834 for Closure ADVANCED and 558 for the old route, because the ratchet's script lanes cannot seal their roots while every competitor treats top-level bindings as private: Y5.
   - **Compile time.** Under AM2 the default level buys size with time: katexlil takes about 43 s at level 13 (F3 18.1 s, frozen pre-M1 4.62 s), 24 s with the Brotli judge at quality 9. Under AM3 there is no target in seconds: each phase's work must scale linearly with the program at levels 0–12, and its cost per unit of program is compared with the previous binary's. M5.7 (incremental formation) and M3.9 (the decision lock) are where level 13's time comes back.
   - **Runtime.** katexlil's steady state in Node is 1.047× upstream KaTeX (after A1). M2.12's runtime ledger will track every port.
-- **Owner rulings pending:** Y1–Y7 (architecture §21.1). None of them blocks the critical path.
+- **Owner rulings pending:** Y2–Y7 (architecture §21.1). None of them blocks the critical path. Y1 was answered yes on 2026-09-28: types are guarantees, and the runtime carries no conversion the source did not write (M10.12 is unblocked).
 - **How work runs:** one building, testing or measuring job at a time on this host (plan rule 5), with the full verification after each batch rather than each change (rule 8).
 - **Owner decisions of 2026-09-28** ([brief](../../finer/intent/2026-09-28.md)):
   - Amendment AM1: budgets are counts, and the work-unit tariff and its machinery are dropped.
@@ -43,7 +43,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [x] **5** Floor slice: M5.1, M6.4a, M7.8a, M7.3, M7.5a: 2026-09-28 (batches F1–F3). Carried: M5.1's `UseIndex` and `drop_unreferenced_functions`, M6.4a's finite sets, the tree twins (measured, kept)
 - [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Critical path done 2026-09-28* (B1, B1b, B2, B3: M3.5's walk, AM2's upper levels, M3.1's first slice). Open: M3.4 after S1, `-j` scoring after M5.6
 - [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16. **In progress** (S1)
-- [ ] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half); M10.12 after Y1
+- [ ] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half), M10.12 (Y1 answered yes 2026-09-28)
 - [ ] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half)
 - [ ] **10** Facts and the rest of the floor: M6.4b, M6.6, M6.7, M6.8, then M7.1, M7.4, M7.5, M7.6, M7.7, M7.8, M7.9, M8.5, M7.10, with M5.3b; M5.7, M8.3 (second half); M4.5, M11.1, M11.11, and M11.5 right after M7
 - [ ] **11** One choice system: M10.3, M9.1's rest, M9.2's gzip row, M9.3 per site, M9.5, M9.6, M9.7, M9.8's rest, M9.9–M9.12, M10.19, M3.3c with M3.8b
@@ -190,7 +190,7 @@ A fact counts as landed only once its re-derivations are deleted (plan rule 2).
 - [ ] M10.15 Typed intrinsics (R10): step 8
 - [ ] M10.11 Effects and pins (R15, R9): the `debug` class at step 8; termination (after Y4) and pins at step 12
 - [ ] M10.14 Reflection (R6): the checker half at step 8; constructibility (after Y3) at step 12
-- [ ] M10.12 Trusted crossings (R1): step 8, after Y1
+- [ ] M10.12 Trusted crossings (R1): step 8 (Y1 answered yes, 2026-09-28)
 - [ ] M10.3 Const data (R9): step 11
 - [ ] M10.19 Specialization over const data (R9): step 11
 - [ ] M10.1 Shapes (R5): step 12
