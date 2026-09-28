@@ -28,7 +28,7 @@ fn options() -> ServiceOptions {
 
 fn config(delivery: &str) -> ProjectConfig {
     crate::config::parse_project_config(&format!(
-        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[delivery]\n{delivery}"
+        "objective.codecs='brotli'\n[javascript]\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[delivery]\n{delivery}"
     ))
     .unwrap()
     .config
@@ -503,7 +503,7 @@ const HOST: &str = "import { sum } from \"./math.ts\"\n// Adds.\nexport function
 
 fn with_config(directory: &Path, extra: &str) -> Result<ServiceCompilation, ServiceError> {
     let config: ProjectConfig = toml::from_str(&format!(
-        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
+        "objective.codecs='brotli'\n[javascript]\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
     ))
     .unwrap();
     compile_path(

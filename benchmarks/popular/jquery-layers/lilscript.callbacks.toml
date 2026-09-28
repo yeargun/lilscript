@@ -1,7 +1,5 @@
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "brotli"
 assume_pristine_builtins = true
 strip_console = true
 local_name_reserve = 8
@@ -45,3 +43,9 @@ compression = [
 identifiers = true
 properties = true
 exports = false
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

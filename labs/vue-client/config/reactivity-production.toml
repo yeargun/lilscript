@@ -8,8 +8,6 @@ identical_function_folding = true
 [javascript]
 priority = "size-first"
 ecmascript = "es2022"
-optimization_level = 15
-cost_model = "brotli"
 assume_pristine_builtins = false
 assume_pure_property_reads = false
 strip_console = true
@@ -37,3 +35,9 @@ mode = "single"
 
 [lint]
 pure_extern_allowlist = ["hostCreateEffectScopeClass", "hostCreateWeakMap"]
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

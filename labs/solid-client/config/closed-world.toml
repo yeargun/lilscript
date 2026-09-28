@@ -1,8 +1,6 @@
 # Application build: the complete consumer graph is linked before emission.
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "brotli"
 function_spelling = "arrow"
 pool_numeric_literals = true
 
@@ -14,3 +12,9 @@ pool_strings = true
 
 [bundle]
 mode = "single"
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

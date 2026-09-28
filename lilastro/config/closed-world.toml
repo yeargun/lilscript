@@ -1,8 +1,6 @@
 # Application build: every LilScript-owned name is private to the linked graph.
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "brotli"
 function_spelling = "arrow"
 pool_numeric_literals = true
 local_name_reserve = 48
@@ -15,3 +13,9 @@ pool_strings = true
 
 [bundle]
 mode = "single"
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

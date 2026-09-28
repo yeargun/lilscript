@@ -3,8 +3,6 @@ preset = "maximum"
 
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "brotli"
 candidate_search = "always"
 candidate_limit = 1536
 candidate_byte_budget = 16777216
@@ -23,3 +21,9 @@ partial_escape_analysis = true
 stack_allocation = true
 region_allocation = true
 stack_array_element_limit = 64
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

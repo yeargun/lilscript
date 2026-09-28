@@ -792,7 +792,7 @@ fn immutable_target_binding_shares_contract_storage_across_codec_and_effort_poli
             .unwrap();
         let names = "[mangle]\npreserve_properties=['public_name','kept']\n";
         let first_policy = policy(&format!(
-            "{names}[javascript]\ncost_model='raw'\noptimization_level=0\n"
+            "objective.codecs='raw'\neffort.level=0\n{names}[javascript]\n"
         ));
         let first = compiler
             .direct_javascript(source, &first_policy, WorkDomain::Baseline)
@@ -806,7 +806,7 @@ fn immutable_target_binding_shares_contract_storage_across_codec_and_effort_poli
         let before = compiler.ledger().retained_bytes();
         for (codec, effort) in [("gzip", 8), ("brotli", 16)] {
             let next_policy = policy(&format!(
-                "{names}[javascript]\ncost_model='{codec}'\noptimization_level={effort}\n"
+                "objective.codecs='{codec}'\neffort.level={effort}\n{names}[javascript]\n"
             ));
             assert_eq!(first_policy.contract(), next_policy.contract());
             assert_ne!(first_policy.fingerprint(), next_policy.fingerprint());

@@ -3,8 +3,6 @@ preset = "maximum"
 
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "brotli"
 candidate_search = "production"
 strip_console = false
 
@@ -16,3 +14,9 @@ pool_strings = true
 
 [bundle]
 mode = "single"
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

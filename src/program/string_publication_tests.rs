@@ -336,7 +336,7 @@ fn string_permissions_apply_at_insert_rebase_and_output_without_binding_codec() 
                 .unwrap(),
         );
         for codec in ["raw", "gzip", "brotli"] {
-            let compatible = policy(&format!("cost_model='{codec}'\n[policy.tactics]\nconstant-folding='on'\nstring-pooling='on'\n"));
+            let compatible = policy(&format!("[objective]\ncodecs='{codec}'\n[policy.tactics]\nconstant-folding='on'\nstring-pooling='on'\n"));
             assert!(!render(&mut compiler, literal, &compatible).is_empty());
         }
         let wrong_target = policy(

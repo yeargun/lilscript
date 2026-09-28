@@ -269,8 +269,12 @@ export function renderToml(tables) {
 }
 
 function laneTables(lane, tactics) {
-  const javascript = new Map([["cost_model", JSON.stringify(lane.codec)]]);
-  const tables = new Map([["", new Map()], ["javascript", javascript]]);
+  const javascript = new Map();
+  const tables = new Map([
+    ["", new Map()],
+    ["objective", new Map([["codecs", JSON.stringify([lane.codec])]])],
+    ["javascript", javascript],
+  ]);
   if (lane.mode === "formation-only") {
     javascript.set("candidate_search", '"off"');
     tables.set("policy.tactics", new Map(tactics.map((id) => [id, '"off"'])));
@@ -293,7 +297,10 @@ export function composeConfig(lane, tactics, caseToml, level = null) {
       }
     }
   }
-  if (level !== null && lane.mode === "production") tables.get("javascript").set("optimization_level", String(level));
+  if (level !== null && lane.mode === "production") {
+    if (!tables.has("effort")) tables.set("effort", new Map());
+    tables.get("effort").set("level", String(level));
+  }
   return renderToml(tables);
 }
 

@@ -1,8 +1,6 @@
 # Reusable-package build: JavaScript consumers observe exports and public fields.
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "brotli"
 function_spelling = "arrow"
 # The package facade exposes raw runtime aggregates only as opaque handles.
 # Positional layout lets the compiler compact their internal fields while the
@@ -18,3 +16,9 @@ pool_strings = true
 
 [bundle]
 mode = "single"
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

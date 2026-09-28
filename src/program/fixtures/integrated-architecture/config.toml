@@ -1,8 +1,6 @@
 # Shared semantic/host contract. Driver level overrides retain these settings.
 [javascript]
-optimization_level = 13
 priority = "size-first"
-cost_model = "brotli"
 # Module execution is selected by CompilationRequest's preserved public exports.
 ecmascript = "es2022"
 assume_pristine_builtins = false
@@ -11,3 +9,9 @@ terminal_codec_probe_limit = 192
 
 # The explicit test portfolio resolves these overrides on top of this profile.
 # Driver effort rows use auto permissions and record every resolved override.
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 13

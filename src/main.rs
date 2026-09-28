@@ -371,7 +371,7 @@ fn build(
     }
     let javascript = || {
         result
-            .javascript(config.javascript.cost_model)
+            .javascript(config.objective.codec())
             .ok_or_else(|| "missing selected JavaScript artifact".to_string())
     };
     let native_c = || {
@@ -562,7 +562,7 @@ fn write_delivery(
                 .to_string()
         })
         .collect::<Vec<_>>();
-    let manifest = lilscript::manifest_v3(&outputs, &modules, config.javascript.cost_model);
+    let manifest = lilscript::manifest_v3(&outputs, &modules, config.objective.codec());
     remove_stale_files(&directory, &manifest_path, &written)?;
     for (path, code) in &written {
         ensure_parent(path)?;

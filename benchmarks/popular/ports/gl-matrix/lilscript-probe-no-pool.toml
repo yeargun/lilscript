@@ -1,7 +1,5 @@
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "brotli"
 
 [mangle]
 identifiers = true
@@ -10,3 +8,9 @@ pool_strings = false
 
 [bundle]
 mode = "preserve-modules"
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

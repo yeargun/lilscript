@@ -3,8 +3,6 @@ preset = "maximum"
 
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "gzip"
 candidate_search = "always"
 candidate_limit = 1536
 candidate_byte_budget = 16777216
@@ -17,3 +15,9 @@ allocation_weight = 12
 indirect_call_weight = 24
 hot_code_weight = 1
 max_regression_percent = 10
+
+[objective]
+codecs = "gzip"
+
+[effort]
+level = 15

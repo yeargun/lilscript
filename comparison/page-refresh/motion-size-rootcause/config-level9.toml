@@ -3,8 +3,6 @@ preset = "maximum"
 
 [javascript]
 priority = "size-first"
-optimization_level = 9
-cost_model = "brotli"
 function_spelling = "arrow"
 local_name_reserve = 48
 
@@ -13,3 +11,9 @@ identifiers = true
 properties = true
 exports = false
 pool_strings = true
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 9

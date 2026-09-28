@@ -11,6 +11,7 @@ use crate::compilation_policy::{
     AdmissionError, BudgetLedger, CandidateCostEvidence, CompilationContract, ResolvedPolicy,
     TacticUse, WorkKind,
 };
+use crate::compression::CodecSettings;
 use crate::config::CompressionCostModel;
 use crate::js::{
     extract::Output,
@@ -319,6 +320,7 @@ impl Record {
     fn file_sizes(
         &self,
         codec: CompressionCostModel,
+        settings: &CodecSettings,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<usize>, CandidateError> {
         let mut sizes = Vec::with_capacity(self.files.len());
@@ -327,8 +329,12 @@ impl Record {
             let size = match file.sizes.measured(codec) {
                 Some(size) => size,
                 None => {
-                    let size =
-                        crate::compression::measure_admitted(file.code.as_bytes(), codec, budget)?;
+                    let size = crate::compression::measure_admitted_with(
+                        file.code.as_bytes(),
+                        codec,
+                        settings,
+                        budget,
+                    )?;
                     file.sizes.publish(codec, size)?
                 }
             };
@@ -340,23 +346,26 @@ impl Record {
     fn rows(
         &self,
         codec: CompressionCostModel,
+        settings: &CodecSettings,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<u64>, CandidateError> {
         match &self.layout {
-            None => Ok(vec![self.measure(codec, budget)? as u64]),
-            Some(layout) => Ok(layout.rows(&self.file_sizes(codec, budget)?)),
+            None => Ok(vec![self.measure(codec, settings, budget)? as u64]),
+            Some(layout) => Ok(layout.rows(&self.file_sizes(codec, settings, budget)?)),
         }
     }
     /// The proxy judge's size under `codec`: gzip and raw are their own
-    /// proxies (exact); Brotli is measured at the proxy quality, once. A
-    /// delivery plan's files are judged exactly.
+    /// proxies (exact); Brotli is measured at the proxy quality, once, unless
+    /// the objective's quality is no higher. A delivery plan's files are
+    /// judged exactly.
     fn proxy(
         &self,
         codec: CompressionCostModel,
+        settings: &CodecSettings,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, CandidateError> {
-        if codec != CompressionCostModel::Brotli || self.layout.is_some() {
-            return self.measure(codec, budget);
+        if proxy_is_exact(codec, settings, self.layout.is_some()) {
+            return self.measure(codec, settings, budget);
         }
         budget.work(WorkKind::Codec, 1)?;
         let slot = &self.sizes.brotli_proxy;
@@ -364,8 +373,12 @@ impl Record {
         if cached != 0 {
             return Ok(cached);
         }
-        let size =
-            crate::compression::measure_proxy_admitted(self.text.as_bytes(), codec, budget)?;
+        let size = crate::compression::measure_proxy_admitted(
+            self.text.as_bytes(),
+            codec,
+            settings,
+            budget,
+        )?;
         if size == 0 {
             return Err(CandidateError::Codec("proxy compressed artifact is empty"));
         }
@@ -375,6 +388,7 @@ impl Record {
     fn measure(
         &self,
         codec: CompressionCostModel,
+        settings: &CodecSettings,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, CandidateError> {
         // A cache lookup is work, but it neither allocates nor invokes a codec.
@@ -383,12 +397,17 @@ impl Record {
             return Ok(size);
         }
         let size = match &self.layout {
-            None => crate::compression::measure_admitted(self.text.as_bytes(), codec, budget)?,
+            None => crate::compression::measure_admitted_with(
+                self.text.as_bytes(),
+                codec,
+                settings,
+                budget,
+            )?,
             // The sum of the entries' rows: shared code weighs by how many
             // entries load it. A refusal in any file, a zero score, or an
             // overflowing sum never publishes a partial coordinate.
             Some(layout) => {
-                let rows = layout.rows(&self.file_sizes(codec, budget)?);
+                let rows = layout.rows(&self.file_sizes(codec, settings, budget)?);
                 let total = rows
                     .iter()
                     .try_fold(0u64, |sum, row| sum.checked_add(*row))
@@ -565,22 +584,54 @@ struct Slot {
     next_free: Option<u32>,
 }
 
+/// Whether the proxy judge's measurement is the exact one (architecture
+/// §9.4): gzip and raw are their own proxies, a delivery plan's files are
+/// judged exactly, and Brotli's proxy is its exact codec when the objective's
+/// quality is no higher than the proxy's.
+fn proxy_is_exact(codec: CompressionCostModel, settings: &CodecSettings, layout: bool) -> bool {
+    codec != CompressionCostModel::Brotli
+        || layout
+        || settings.brotli.quality <= crate::compression::PROXY_BROTLI_QUALITY
+}
+
 pub(super) struct ArtifactArena {
     identity: RevisionId,
     owner: RevisionId,
     slots: Vec<Slot>,
     charge: Option<RetainedCharge<RevisionId>>,
     free: Option<u32>,
+    /// The codec settings every size this arena measures is judged with:
+    /// the objective's, bound with the JavaScript contract (law B2).
+    settings: CodecSettings,
+    bound: bool,
 }
 impl ArtifactArena {
     pub(super) fn new(owner: RevisionId) -> Self {
+        Self::with_settings(owner, CodecSettings::CANONICAL)
+    }
+    fn with_settings(owner: RevisionId, settings: CodecSettings) -> Self {
         Self {
             identity: RevisionId::fresh(),
             owner,
             slots: Vec::new(),
             charge: None,
             free: None,
+            settings,
+            bound: false,
         }
+    }
+    /// Bind the objective's codec settings, once per compilation: sizes are
+    /// cached per artifact and codec, so one compilation measures with one
+    /// setting.
+    pub(super) fn bind_codec_settings(&mut self, settings: CodecSettings) -> Result<(), CandidateError> {
+        if self.bound && self.settings != settings {
+            return Err(CandidateError::Artifact(
+                "a compilation measures with one objective's codec settings",
+            ));
+        }
+        self.settings = settings;
+        self.bound = true;
+        Ok(())
     }
     fn index(&self, id: Handle) -> Result<usize, CandidateError> {
         if id.arena != self.identity {
@@ -718,7 +769,8 @@ impl ArtifactArena {
         codec: CompressionCostModel,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, CandidateError> {
-        self.get_mut(id.0)?.measure(codec, budget)
+        let settings = self.settings;
+        self.get_mut(id.0)?.measure(codec, &settings, budget)
     }
     /// The walk's proxy judgement of an artifact (architecture §9.4).
     pub(super) fn measure_proxy(
@@ -727,17 +779,18 @@ impl ArtifactArena {
         codec: CompressionCostModel,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, CandidateError> {
-        self.get_mut(id.0)?.proxy(codec, budget)
+        let settings = self.settings;
+        self.get_mut(id.0)?.proxy(codec, &settings, budget)
     }
     /// Whether the proxy judge's size under `codec` is the exact one, so its
-    /// measurement spent the exact codec (gzip, raw, and a delivery plan's
-    /// files).
+    /// measurement spent the exact codec (gzip, raw, a delivery plan's
+    /// files, and Brotli at a quality no higher than the proxy's).
     pub(super) fn proxy_is_exact(
         &self,
         id: ArtifactId,
         codec: CompressionCostModel,
     ) -> Result<bool, CandidateError> {
-        Ok(codec != CompressionCostModel::Brotli || self.get(id.0)?.layout.is_some())
+        Ok(proxy_is_exact(codec, &self.settings, self.get(id.0)?.layout.is_some()))
     }
     /// Whether two retained artifacts deliver the same files, byte for byte.
     pub(super) fn same_output(
@@ -999,7 +1052,7 @@ impl ArtifactArena {
         codec: CompressionCostModel,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<u64>, CandidateError> {
-        self.get(id.0)?.rows(codec, budget)
+        self.get(id.0)?.rows(codec, &self.settings, budget)
     }
     pub(super) fn discard(
         &mut self,
@@ -1094,7 +1147,7 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
     ) -> Self {
         Self {
             output,
-            staging: ArtifactArena::new(retained.owner),
+            staging: ArtifactArena::with_settings(retained.owner, retained.settings),
             retained,
             candidate,
             identity,
@@ -1285,7 +1338,10 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         codec: CompressionCostModel,
     ) -> Result<usize, CandidateError> {
         self.output
-            .with_allocation_budget(|budget| self.staging.get_mut(id.0)?.measure(codec, budget))
+            .with_allocation_budget(|budget| {
+                let settings = self.staging.settings;
+                self.staging.get_mut(id.0)?.measure(codec, &settings, budget)
+            })
     }
     pub fn retain_artifact(&mut self, id: ScopedArtifactId) -> Result<ArtifactId, CandidateError> {
         self.staging.index(id.0)?;

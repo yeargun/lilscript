@@ -714,7 +714,7 @@ mod tests {
         }];
         let at = |level: u8, tactics: &str| {
             policy(&format!(
-                "[javascript]\noptimization_level={level}\n[policy.tactics]\n{tactics}"
+                "effort.level={level}\n[policy.tactics]\n{tactics}"
             ))
         };
         for (resolved, expected) in [

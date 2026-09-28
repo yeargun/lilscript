@@ -62,7 +62,7 @@ fn policy_with_naming(
     naming: bool,
 ) -> ResolvedPolicy {
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\noptimization_level=15\npriority='size-first'\ncandidate_proposal_limit={cap}\nterminal_codec_probe_limit={}\ncandidate_limit=8\ncandidate_beam_width=2\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\ndead-code-elimination='on'\ntarget-compaction='{}'\nidentifier-mangling='on'\nnaming-search='{}'\ninlining='{}'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
+        "effort.level=15\n[javascript]\npriority='size-first'\ncandidate_proposal_limit={cap}\nterminal_codec_probe_limit={}\ncandidate_limit=8\ncandidate_beam_width=2\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\ndead-code-elimination='on'\ntarget-compaction='{}'\nidentifier-mangling='on'\nnaming-search='{}'\ninlining='{}'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
         cap * 2, if compaction { "on" } else { "off" }, if naming { "on" } else { "off" }, if inlining { "on" } else { "off" },
     )).unwrap();
     config

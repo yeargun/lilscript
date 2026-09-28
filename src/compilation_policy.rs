@@ -529,6 +529,9 @@ fn normalized_ratio(value: u64, baseline: u64) -> u64 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OptimizationObjective {
     pub codec: CompressionCostModel,
+    /// The codec settings the objective judges and reports with (law B2):
+    /// `[objective.brotli]` and `[objective.gzip]`.
+    pub codec_settings: crate::compression::CodecSettings,
     pub rank: ObjectiveRank,
     pub optional_alternatives: usize,
     pub optional_codec_probes: usize,
@@ -985,7 +988,7 @@ impl ResolvedPolicy {
                     "request_bytes":delivery.request_bytes, "depth_bytes":delivery.depth_bytes},
             }),
         };
-        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
+        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
         json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| json!({"id":id, "state":self.tactic(id)})), "resources":self.resources, "constraints":self.constraints})
     }
     pub fn fingerprint(&self) -> [u8; 32] {
@@ -1568,7 +1571,7 @@ mod tests {
     #[test]
     fn startup_effort_and_recurring_permissions_are_candidate_specific() {
         for level in [0, 13, 15, 16] {
-            let p = js(&format!("[javascript]\noptimization_level={level}"));
+            let p = js(&format!("effort.level={level}"));
             assert!(p
                 .admit(
                     &[usage(TacticId::StringArrayPacking, RuntimeRisk::Neutral)],
@@ -1598,7 +1601,7 @@ mod tests {
                 .is_err());
         }
         let on =
-            js("[javascript]\noptimization_level=0\n[policy.tactics]\nstring-array-packing='on'");
+            js("effort.level=0\n[policy.tactics]\nstring-array-packing='on'");
         assert!(on
             .admit(
                 &[usage(TacticId::StringArrayPacking, RuntimeRisk::Startup)],
@@ -1630,7 +1633,7 @@ mod tests {
     fn every_tactic_obeys_explicit_off_and_on_without_forcing_a_winner() {
         for tactic in TacticId::ALL {
             let off = js(&format!(
-                "[javascript]\noptimization_level=16\n[policy.tactics]\n{}='off'",
+                "effort.level=16\n[policy.tactics]\n{}='off'",
                 tactic.spec().name
             ));
             assert!(!off.tactic(tactic).enabled, "{tactic:?}");
@@ -1643,7 +1646,7 @@ mod tests {
                 Err(AdmissionError::ForbiddenTactic(tactic))
             );
             let on = js(&format!(
-                "[javascript]\noptimization_level=0\n[policy.tactics]\n{}='on'",
+                "effort.level=0\n[policy.tactics]\n{}='on'",
                 tactic.spec().name
             ));
             assert!(on.tactic(tactic).enabled, "{tactic:?}");
@@ -1701,8 +1704,8 @@ mod tests {
 
     #[test]
     fn logging_and_boundaries_are_independent_of_effort_and_codec() {
-        let low = js("[javascript]\noptimization_level=0\ncost_model='raw'");
-        let high = js("[javascript]\noptimization_level=16\ncost_model='brotli'");
+        let low = js("effort.level=0\nobjective.codecs='raw'");
+        let high = js("effort.level=16\nobjective.codecs='brotli'");
         assert_eq!(low.contract(), high.contract());
         assert!(!low.javascript_contract().unwrap().effects.strip_debug);
         assert_ne!(low.fingerprint(), high.fingerprint());
@@ -1736,8 +1739,8 @@ mod tests {
         let two = product("[javascript]\nterminal_codec_probe_limit=2");
         assert_eq!(one.fingerprint(), two.fingerprint());
         assert_eq!(one.fingerprint(), js("").fingerprint());
-        let low = js("[javascript]\noptimization_level=8");
-        let high = js("[javascript]\noptimization_level=13");
+        let low = js("effort.level=8");
+        let high = js("effort.level=13");
         assert_ne!(low.fingerprint(), high.fingerprint());
         assert!(low.objective().unwrap().walk.exact < high.objective().unwrap().walk.exact);
         assert_eq!(
@@ -1751,7 +1754,7 @@ mod tests {
         let a = config("")
             .resolve_policy(CompilationRequest::Native)
             .unwrap();
-        let b = config("[javascript]\noptimization_level=16\ncost_model='raw'")
+        let b = config("effort.level=16\nobjective.codecs='raw'")
             .resolve_policy(CompilationRequest::Native)
             .unwrap();
         assert!(a.objective().is_none());
@@ -1767,11 +1770,11 @@ mod tests {
     #[test]
     fn version_and_level_boundaries_are_explicit() {
         for level in [0, 13, 15, 16] {
-            assert!(config(&format!("[javascript]\noptimization_level={level}"))
+            assert!(config(&format!("effort.level={level}"))
                 .validate()
                 .is_ok());
         }
-        assert!(config("[javascript]\noptimization_level=17")
+        assert!(config("effort.level=17")
             .validate()
             .is_err());
         for version in [1, 3] {

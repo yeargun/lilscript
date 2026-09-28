@@ -31,7 +31,7 @@ const PROGRAM: &str = include_str!("../../tests/cases/objective_judged_spellings
 
 fn policy(codec: &str, level: u8) -> ResolvedPolicy {
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\ncost_model='{codec}'\noptimization_level={level}"
+        "objective.codecs='{codec}'\neffort.level={level}"
     ))
     .unwrap();
     config

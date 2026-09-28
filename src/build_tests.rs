@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 fn config(extra: &str) -> ProjectConfig {
     toml::from_str(&format!(
-        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
+        "objective.codecs='brotli'\n[javascript]\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
     )).unwrap()
 }
 
@@ -1812,4 +1812,49 @@ fn class_bodies_in_a_classic_script_keep_sloppy_host_writes_out_of_the_class() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert_eq!(String::from_utf8(output.stdout).unwrap(), "w\ntrue\n");
+}
+
+#[test]
+fn the_objective_codec_settings_judge_report_and_fingerprint_the_build() {
+    // Law B2 (M3.5): the judge is the configured codec, and its settings are
+    // objective configuration.
+    use crate::compression::{BrotliMode, BrotliSettings, CodecSettings, GzipSettings};
+    let source = "export int answer(int value){int total=0;for(int i=0;i<value;i++){total+=i*3+1;}return total;}";
+    let config = |settings: &str| {
+        crate::config::parse_project_config(&format!("[objective]\ncodecs='brotli'\n{settings}"))
+            .unwrap()
+            .config
+    };
+    let canonical = config("");
+    let nine = config("[objective.brotli]\nquality=9\nwindow=18\n");
+    let request = CompilationRequest::JavaScript {
+        preserve_root_exports: true,
+    };
+    let (canonical_policy, nine_policy) = (
+        canonical.resolve_policy(request).unwrap(),
+        nine.resolve_policy(request).unwrap(),
+    );
+    assert_ne!(canonical_policy.fingerprint(), nine_policy.fingerprint());
+    assert_eq!(
+        nine_policy.receipt()["objective"]["codec_settings"]["brotli"]["quality"],
+        9
+    );
+    let compiled = compile_source(source, &nine, ServiceOptions::default()).unwrap();
+    let artifact = compiled.javascript(Objective::Brotli).unwrap();
+    let settings = CodecSettings {
+        brotli: BrotliSettings {
+            quality: 9,
+            window: 18,
+            mode: BrotliMode::Generic,
+        },
+        gzip: GzipSettings::CANONICAL,
+    };
+    let judged = crate::compression::measure_admitted_with(
+        artifact.javascript().as_bytes(),
+        Objective::Brotli,
+        &settings,
+        &mut crate::output_budget::AllocationBudget::new(None),
+    )
+    .unwrap();
+    assert_eq!(artifact.sizes().get(Objective::Brotli), Some(judged));
 }

@@ -19,6 +19,24 @@ error, not a silently ignored setting.
 | `call_site_specialization` | `Option<bool>` | `unset` | The `call-specialization` tactic, when set. |
 | `parameterized_function_merging` | `Option<bool>` | `unset` | The `helper-sharing` tactic, when set. |
 
+## `[objective]` — closed
+
+`[objective]` (schema v3, architecture §14.1): the codecs the build is judged and reported under, and their settings (law B2).
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `codecs` | `Vec<CompressionCostModel>` | `vec![CompressionCostModel::Brotli]` | `codecs = ["brotli"]`, or one codec as a string. |
+| `brotli` | `crate::compression::BrotliSettings` | `crate::compression::BrotliSettings::CANONICAL` | `[objective.brotli]`: `quality` 0–11 (11), `window` 10–24 (22) and `mode` `generic`, `text` or `font` (`generic`). |
+| `gzip` | `crate::compression::GzipSettings` | `crate::compression::GzipSettings::CANONICAL` | `[objective.gzip]`: `level` 1–9 (9) and `window` 9–15 (15). |
+
+## `[effort]` — closed
+
+`[effort]` (schema v3, architecture §13.4, §14.1): the level, 0 to 16, a work budget with a versioned schedule that grants no permission.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `level` | `u8` | `13` | The effort level, 0 to 16: the walk's and the structural search's versioned schedule (`--print-policy` prints it). |
+
 ## `[javascript]` — closed
 
 | Key | Type | Default | Meaning |
@@ -26,16 +44,14 @@ error, not a silently ignored setting.
 | `priority` | `JavaScriptPriority` | `JavaScriptPriority::SizeFirst` | The objective's priority. |
 | `ecmascript` | `EcmaScriptEdition` | `EcmaScriptEdition::Es2022` | The ECMAScript edition the output may use. |
 | `browsers` | `Vec<String>` | `Vec::new()` | Browser floors; the output uses the newest edition all of them support, capped by `ecmascript`. |
-| `optimization_level` | `u8` | `13` | The effort level, 0 to 16: a versioned schedule of search breadth and tactic gates. |
 | `optimizations` | `Option<Vec<JavaScriptOptimization>>` | `None` | An exact allowlist of search families. |
 | `compression` | `Option<Vec<CompressionDecision>>` | `None` | An exact allowlist of compression decisions (`CompressionDecision`); omitted, `priority` decides. |
-| `cost_model` | `CompressionCostModel` | `CompressionCostModel::Brotli` | The codec whose bytes the objective minimizes: `raw`, `gzip` or `brotli`. |
-| `candidate_search` | `CandidateSearch` | `CandidateSearch::Production` | Whether the candidate search runs: `off`, `production` or `always`. |
-| `candidate_limit` | `usize` | `1536` | The most whole-artifact candidates the search retains. |
-| `candidate_byte_budget` | `usize` | `1024 * 1024` | The most bytes of retained candidates. |
-| `candidate_beam_width` | `usize` | `12` | The beam width of the structural search. |
-| `candidate_proposal_limit` | `Option<usize>` | `None` | Maximum optional structural emission plans admitted after the scored context seeds are installed. |
-| `terminal_codec_probe_limit` | `Option<usize>` | `None` | Maximum whole-artifact work units in terminal syntax/name search. |
+| `candidate_search` | `CandidateSearch` | `CandidateSearch::Production` | `off` delivers the level-0 artifact whatever the level: no walk and no beam (`--mode development` sets it). |
+| `candidate_limit` | `Option<usize>` | `None` | Retired (M3.5), with `candidate_byte_budget`, `candidate_beam_width`, `candidate_proposal_limit` and `terminal_codec_probe_limit`: a product configuration drops these keys with a warning (`RETIRED_KEYS`), and the structural search runs at the level's schedule (`StructuralSchedule`). |
+| `candidate_byte_budget` | `Option<usize>` | `None` | See [configuration.md](../../configuration.md). |
+| `candidate_beam_width` | `Option<usize>` | `None` | See [configuration.md](../../configuration.md). |
+| `candidate_proposal_limit` | `Option<usize>` | `None` | See [configuration.md](../../configuration.md). |
+| `terminal_codec_probe_limit` | `Option<usize>` | `None` | See [configuration.md](../../configuration.md). |
 | `operand_order_fusion` | `bool` | `true` | Rebuild a nested expression when a run of single-use producers all feed one consumer that reads them in production order. |
 | `assume_pristine_builtins` | `bool` | `false` | Allow representations that bypass ambient JavaScript constructor bindings. |
 | `assume_pure_property_reads` | `bool` | `false` | Treat a dynamic member read as free of coercion hooks, the way Terser's `pure_getters` does. |
@@ -127,6 +143,13 @@ path covers every key in that table.
 
 | Key | Outcome | Reason |
 |---|---|---|
+| `javascript.cost_model` | replaced by `objective.codecs` | the objective is its own table with its codecs' settings (schema v3, architecture §14.1) |
+| `javascript.optimization_level` | replaced by `effort.level` | the effort level is its own table (schema v3, architecture §14.1) |
+| `javascript.candidate_limit` | no effect | the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7) |
+| `javascript.candidate_byte_budget` | no effect | the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7) |
+| `javascript.candidate_beam_width` | no effect | the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7) |
+| `javascript.candidate_proposal_limit` | no effect | the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7) |
+| `javascript.terminal_codec_probe_limit` | no effect | the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7) |
 | `compiler.backend` | refused | there is one compiler; remove [compiler] backend |
 | `compiler.resources` | no effect | the compiler compiles and encodes on one thread; worker threads and codec workers are not implemented yet |
 | `policy.search.interaction_interval` | no effect | the search has no pairwise interaction phase |

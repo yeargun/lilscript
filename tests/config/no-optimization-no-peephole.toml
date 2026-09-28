@@ -3,7 +3,6 @@ preset = "none"
 
 [javascript]
 priority = "size-first"
-optimization_level = 0
 optimizations = []
 candidate_search = "off"
 
@@ -17,3 +16,6 @@ mode = "single"
 min_chunk_bytes = 4096
 max_chunks = 8
 shared_min_imports = 2
+
+[effort]
+level = 0

@@ -54,7 +54,8 @@ export function parseDefaults(text, name) {
 }
 
 const SECTIONS = [
-  ["optimization", "OptimizationConfig"], ["javascript", "JavaScriptConfig"], ["mangle", "MangleConfig"],
+  ["optimization", "OptimizationConfig"], ["objective", "ObjectiveConfig"], ["effort", "EffortConfig"],
+  ["javascript", "JavaScriptConfig"], ["mangle", "MangleConfig"],
   ["target", "TargetConfig"], ["delivery", "DeliveryConfig"], ["lint", "LintConfig"], ["format", "FormatConfig"],
   ["policy", "PolicyConfig"],
 ]

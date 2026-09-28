@@ -5,8 +5,6 @@ scalar_replacement = true
 
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "gzip"
 candidate_search = "always"
 candidate_limit = 1536
 candidate_byte_budget = 1048576
@@ -17,3 +15,9 @@ strip_console_calls = false
 [mangle]
 identifiers = true
 properties = true
+
+[objective]
+codecs = "gzip"
+
+[effort]
+level = 15

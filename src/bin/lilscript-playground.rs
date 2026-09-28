@@ -195,7 +195,7 @@ fn compile_playground(source: &str) -> Result<String, String> {
     };
     let compilation = compile_source(source, &config, options).map_err(render_error)?;
     compilation
-        .javascript(config.javascript.cost_model)
+        .javascript(config.objective.codec())
         .map(|artifact| artifact.javascript().to_string())
         .ok_or_else(|| "the compiler selected no JavaScript artifact".to_string())
 }

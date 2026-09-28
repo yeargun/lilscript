@@ -11,7 +11,7 @@ const EXPECTED: &str = include_str!("../tests/cases/objective_judged_spellings.o
 
 fn compile(codec: &str, extra: &str) -> ServiceCompilation {
     let config: ProjectConfig =
-        toml::from_str(&format!("[javascript]\ncost_model='{codec}'\n{extra}")).unwrap();
+        toml::from_str(&format!("objective.codecs='{codec}'\n{extra}")).unwrap();
     compile_source(PROGRAM, &config, ServiceOptions::default()).unwrap()
 }
 
@@ -306,7 +306,7 @@ fn check_spellings(compiled: &ServiceCompilation, codec: &str) {
 #[test]
 fn the_stage_keeps_a_challenger_that_shrinks_the_artifact_and_rejects_one_that_grows_it() {
     // Level 15 walks the whole list.
-    let compiled = compile("brotli", "optimization_level=15");
+    let compiled = compile("brotli", "effort.level=15");
     check_spellings(&compiled, "brotli");
     let stage = stage(&compiled);
     let kept = trials(stage)
@@ -326,9 +326,9 @@ fn the_stage_keeps_a_challenger_that_shrinks_the_artifact_and_rejects_one_that_g
 
 #[test]
 fn the_objective_seeds_the_families_and_its_codec_judges_them() {
-    let raw = compile("raw", "optimization_level=15");
-    let brotli = compile("brotli", "optimization_level=15");
-    let gzip = compile("gzip", "optimization_level=15");
+    let raw = compile("raw", "effort.level=15");
+    let brotli = compile("brotli", "effort.level=15");
+    let gzip = compile("gzip", "effort.level=15");
     for (compiled, codec) in [(&raw, "raw"), (&gzip, "gzip"), (&brotli, "brotli")] {
         check_spellings(compiled, codec);
     }
@@ -366,7 +366,7 @@ fn the_effort_sets_the_schedule_prefix_and_a_longer_one_never_ends_larger() {
     let mut digests = std::collections::BTreeMap::new();
     let mut stops = Vec::new();
     for level in 1..=15u8 {
-        let compiled = compile("brotli", &format!("optimization_level={level}"));
+        let compiled = compile("brotli", &format!("effort.level={level}"));
         check_spellings(&compiled, "brotli");
         let stage = stage(&compiled);
         // The level alone sets the walk's counts.
@@ -404,7 +404,7 @@ fn the_effort_sets_the_schedule_prefix_and_a_longer_one_never_ends_larger() {
         );
     }
     // Level 0 delivers the level-0 artifact: no walk and no codec.
-    let off = compile("brotli", "optimization_level=0");
+    let off = compile("brotli", "effort.level=0");
     assert!(off.report()["search"]["terminal"]["objectives"]
         .as_array()
         .unwrap()
@@ -438,7 +438,7 @@ fn the_effort_sets_the_schedule_prefix_and_a_longer_one_never_ends_larger() {
 fn a_vetoed_family_is_never_formed() {
     let compiled = compile(
         "brotli",
-        "optimization_level=15\n[policy.tactics]\ntarget-compaction='off'",
+        "effort.level=15\n[policy.tactics]\ntarget-compaction='off'",
     );
     check_spellings(&compiled, "brotli");
     for trial in trials(stage(&compiled)) {
@@ -462,11 +462,11 @@ fn the_stage_is_deterministic_across_runs_and_threads() {
             compiled.report()["search"]["terminal"].clone(),
         )
     };
-    let first = key(&compile("brotli", "optimization_level=15"));
-    assert_eq!(first, key(&compile("brotli", "optimization_level=15")));
+    let first = key(&compile("brotli", "effort.level=15"));
+    assert_eq!(first, key(&compile("brotli", "effort.level=15")));
     let concurrent: Vec<_> = std::thread::scope(|scope| {
         let workers: Vec<_> = (0..4)
-            .map(|_| scope.spawn(|| key(&compile("brotli", "optimization_level=15"))))
+            .map(|_| scope.spawn(|| key(&compile("brotli", "effort.level=15"))))
             .collect();
         workers
             .into_iter()
@@ -490,8 +490,8 @@ fn every_objective_judges_the_data_tables_and_delivers_them_exactly() {
     let mut delivered = Vec::new();
     for codec in ["raw", "gzip", "brotli"] {
         let config: ProjectConfig = toml::from_str(&format!(
-            "[javascript]\nassume_pristine_builtins=true\n\
-             cost_model='{codec}'\noptimization_level=15\n"
+            "objective.codecs='{codec}'\neffort.level=15\n\
+             [javascript]\nassume_pristine_builtins=true\n"
         ))
         .unwrap();
         let compiled = compile_source(TABLES, &config, ServiceOptions::default()).unwrap();
@@ -539,8 +539,8 @@ fn every_objective_judges_the_data_tables_and_delivers_them_exactly() {
     );
     // Level 0 has no walk: the seeds ship.
     let config: ProjectConfig = toml::from_str(
-        "[javascript]\nassume_pristine_builtins=true\n\
-         cost_model='brotli'\noptimization_level=0\n",
+        "objective.codecs='brotli'\neffort.level=0\n\
+         [javascript]\nassume_pristine_builtins=true\n",
     )
     .unwrap();
     let compiled = compile_source(TABLES, &config, ServiceOptions::default()).unwrap();

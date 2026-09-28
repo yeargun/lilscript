@@ -1,7 +1,5 @@
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "gzip"
 
 [mangle]
 identifiers = true
@@ -10,3 +8,9 @@ pool_strings = true
 
 [bundle]
 mode = "preserve-modules"
+
+[objective]
+codecs = "gzip"
+
+[effort]
+level = 15

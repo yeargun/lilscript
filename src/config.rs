@@ -100,6 +100,20 @@ pub const RETIRED_KEYS: &[(&str, Retirement)] = &[
             reason: EFFORT_SCHEDULE,
         },
     ),
+    (
+        "javascript.cost_model",
+        Retirement::Renamed {
+            to: "objective.codecs",
+            reason: "the objective is its own table with its codecs' settings (schema v3, architecture §14.1)",
+        },
+    ),
+    (
+        "javascript.optimization_level",
+        Retirement::Renamed {
+            to: "effort.level",
+            reason: "the effort level is its own table (schema v3, architecture §14.1)",
+        },
+    ),
     ("javascript.candidate_limit", Retirement::NoEffect(EFFORT_SCHEDULE)),
     ("javascript.candidate_byte_budget", Retirement::NoEffect(EFFORT_SCHEDULE)),
     ("javascript.candidate_beam_width", Retirement::NoEffect(EFFORT_SCHEDULE)),
@@ -597,6 +611,11 @@ pub struct ProjectConfig {
     pub package: Option<PackageMetadata>,
     pub dependencies: BTreeMap<String, DependencyConfig>,
     pub optimization: OptimizationConfig,
+    /// `[objective]`: the codecs the build is judged and reported under, and
+    /// their settings (schema v3).
+    pub objective: ObjectiveConfig,
+    /// `[effort]`: the level, a work budget with a versioned schedule.
+    pub effort: EffortConfig,
     pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
     pub target: TargetConfig,
@@ -627,11 +646,7 @@ impl ProjectConfig {
         let defaults = PolicyConfig::default();
         let policy = self.policy.as_ref().unwrap_or(&defaults);
         let javascript = matches!(request, CompilationRequest::JavaScript { .. });
-        let effort = if javascript {
-            self.javascript.optimization_level
-        } else {
-            0
-        };
+        let effort = if javascript { self.effort.level } else { 0 };
         let mut diagnostics = Vec::new();
         if self.policy.is_none() {
             diagnostics.push(format!("legacy optimizer configuration translated to policy schema {}; translation retires at schema {}", crate::compilation_policy::POLICY_SCHEMA_VERSION, crate::compilation_policy::LEGACY_TRANSLATOR_RETIREMENT_SCHEMA));
@@ -736,15 +751,15 @@ impl ProjectConfig {
                     crate::compilation_policy::WalkSchedule::OFF
                 } else {
                     crate::compilation_policy::WalkSchedule::at(
-                        self.javascript.optimization_level,
-                        self.javascript.cost_model,
+                        self.effort.level,
+                        self.objective.codec(),
                     )
                 };
-                let structural = crate::compilation_policy::StructuralSchedule::at(
-                    self.javascript.optimization_level,
-                );
+                let structural =
+                    crate::compilation_policy::StructuralSchedule::at(self.effort.level);
                 let objective = OptimizationObjective {
-                    codec: self.javascript.cost_model,
+                    codec: self.objective.codec(),
+                    codec_settings: self.objective.settings(),
                     rank: ObjectiveRank {
                         priority: self.javascript.priority,
                     },
@@ -1003,9 +1018,19 @@ impl ProjectConfig {
                 return Err(format!("`javascript.{key}` must be greater than zero"));
             }
         }
-        if self.javascript.optimization_level > 16 {
-            return Err("`javascript.optimization_level` must be between 0 and 16".to_string());
+        if self.effort.level > 16 {
+            return Err("`effort.level` must be between 0 and 16".to_string());
         }
+        match self.objective.codecs.len() {
+            0 => return Err("`objective.codecs` names no codec".to_string()),
+            1 => {}
+            _ => {
+                return Err("`objective.codecs` names several codecs: this compiler delivers one \
+winner per build until the multi-objective build (plan M3.4); name one"
+                    .to_string())
+            }
+        }
+        self.objective.settings().validate()?;
         if let Some(features) = &self.javascript.optimizations {
             let mut unique = HashSet::with_capacity(features.len());
             for feature in features {
@@ -1165,6 +1190,89 @@ impl CompressionDecision {
     }
 }
 
+
+/// `[objective]` (schema v3, architecture §14.1): the codecs the build is
+/// judged and reported under, and their settings (law B2).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ObjectiveConfig {
+    /// `codecs = ["brotli"]`, or one codec as a string.
+    #[serde(deserialize_with = "one_or_many_codecs")]
+    pub codecs: Vec<CompressionCostModel>,
+    /// `[objective.brotli]`: `quality` 0–11 (11), `window` 10–24 (22) and
+    /// `mode` `generic`, `text` or `font` (`generic`).
+    pub brotli: crate::compression::BrotliSettings,
+    /// `[objective.gzip]`: `level` 1–9 (9) and `window` 9–15 (15).
+    pub gzip: crate::compression::GzipSettings,
+}
+
+impl Default for ObjectiveConfig {
+    fn default() -> Self {
+        Self {
+            codecs: vec![CompressionCostModel::Brotli],
+            brotli: crate::compression::BrotliSettings::CANONICAL,
+            gzip: crate::compression::GzipSettings::CANONICAL,
+        }
+    }
+}
+
+impl ObjectiveConfig {
+    /// The objective's codec; validation admits exactly one until the
+    /// multi-objective build (M3.4).
+    pub fn codec(&self) -> CompressionCostModel {
+        self.codecs
+            .first()
+            .copied()
+            .unwrap_or(CompressionCostModel::Brotli)
+    }
+
+    pub fn settings(&self) -> crate::compression::CodecSettings {
+        crate::compression::CodecSettings {
+            brotli: self.brotli,
+            gzip: self.gzip,
+        }
+    }
+}
+
+fn one_or_many_codecs<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<CompressionCostModel>, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum OneOrMany {
+        One(CompressionCostModel),
+        Many(Vec<CompressionCostModel>),
+    }
+    Ok(match OneOrMany::deserialize(deserializer)? {
+        OneOrMany::One(codec) => vec![codec],
+        OneOrMany::Many(codecs) => codecs,
+    })
+}
+
+/// `[effort]` (schema v3, architecture §13.4, §14.1): the level, 0 to 16, a
+/// work budget with a versioned schedule that grants no permission.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct EffortConfig {
+    /// The effort level, 0 to 16: the walk's and the structural search's
+    /// versioned schedule (`--print-policy` prints it).
+    pub level: u8,
+}
+
+impl Default for EffortConfig {
+    fn default() -> Self {
+        Self {
+            // Level 13, not the ceiling: the last walk level before the
+            // structural beam (`WalkSchedule::at`). The beam is an order of
+            // magnitude more compile time for about a percent; a project that
+            // wants that percent asks for 14 or above, and it should not be the
+            // price of not having an opinion. The measurements that set the
+            // default are in finer/hypotheses/007-level-13-sweet-spot.
+            level: 13,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct JavaScriptConfig {
@@ -1177,9 +1285,6 @@ pub struct JavaScriptConfig {
     /// Browser floors; the output uses the newest edition all of them support,
     /// capped by `ecmascript`.
     pub browsers: Vec<String>,
-    /// The effort level, 0 to 16: a versioned schedule of search breadth and
-    /// tactic gates.
-    pub optimization_level: u8,
     /// An exact allowlist of search families. This compiler reads two entries:
     /// `call-site-specialization` (the `call-specialization` tactic) and
     /// `entropy-cross-scope-reuse` (the `naming-search` tactic); an explicit
@@ -1189,8 +1294,6 @@ pub struct JavaScriptConfig {
     /// omitted, `priority` decides. An explicit list that omits a decision
     /// turns it off.
     pub compression: Option<Vec<CompressionDecision>>,
-    /// The codec whose bytes the objective minimizes: `raw`, `gzip` or `brotli`.
-    pub cost_model: CompressionCostModel,
     /// `off` delivers the level-0 artifact whatever the level: no walk and no
     /// beam (`--mode development` sets it). Its other values have no effect:
     /// the effort level's schedule budgets the search (M3.5).
@@ -1261,16 +1364,8 @@ impl Default for JavaScriptConfig {
             priority: JavaScriptPriority::SizeFirst,
             ecmascript: EcmaScriptEdition::Es2022,
             browsers: Vec::new(),
-            // Level 13, not the ceiling: the last walk level before the
-            // structural beam (`WalkSchedule::at`). The beam is an order of
-            // magnitude more compile time for about a percent; a project that
-            // wants that percent asks for 14 or above, and it should not be the
-            // price of not having an opinion. The measurements that set the
-            // default are in finer/hypotheses/007-level-13-sweet-spot.
-            optimization_level: 13,
             optimizations: None,
             compression: None,
-            cost_model: CompressionCostModel::Brotli,
             candidate_search: CandidateSearch::Production,
             candidate_limit: None,
             candidate_byte_budget: None,
@@ -2003,7 +2098,7 @@ mod tests {
         .unwrap_err()
         .contains("duplicate"));
         assert!(
-            parse_project_config("[javascript]\noptimization_level=17\n")
+            parse_project_config("[effort]\nlevel=17\n")
                 .unwrap_err()
                 .contains("between 0 and 16")
         );
@@ -2113,11 +2208,59 @@ mod tests {
     }
 
     #[test]
-    fn default_optimization_level_is_the_measured_effort_plateau() {
+    fn the_objective_and_the_effort_are_tables_and_their_old_keys_are_renamed() {
+        use crate::compression::{BrotliMode, BrotliSettings, CodecSettings, GzipSettings};
+        // Schema v3 (M3.1's first slice): the objective and its codec
+        // settings, the effort level.
+        let parsed = parse(
+            "[objective]\ncodecs = [\"gzip\"]\n[objective.brotli]\nquality = 9\nwindow = 20\nmode = \"text\"\n\
+             [objective.gzip]\nlevel = 6\nwindow = 12\n[effort]\nlevel = 8\n",
+        );
+        assert!(parsed.warnings.is_empty(), "{:?}", parsed.warnings);
+        let config = parsed.config;
+        assert_eq!(config.objective.codec(), CompressionCostModel::Gzip);
+        assert_eq!(
+            config.objective.settings(),
+            CodecSettings {
+                brotli: BrotliSettings { quality: 9, window: 20, mode: BrotliMode::Text },
+                gzip: GzipSettings { level: 6, window: 12 },
+            }
+        );
+        assert_eq!(config.effort.level, 8);
+        // One codec may be a string.
+        assert_eq!(parse("[objective]\ncodecs = \"raw\"\n").config.objective.codec(), CompressionCostModel::Raw);
+        // Defaults are the canonical settings.
+        assert_eq!(ProjectConfig::default().objective.settings(), CodecSettings::CANONICAL);
+        // The old keys move to the new ones, each with a warning.
+        let legacy = parse("[javascript]\ncost_model = \"raw\"\noptimization_level = 5\n");
+        assert_eq!(legacy.config.objective.codec(), CompressionCostModel::Raw);
+        assert_eq!(legacy.config.effort.level, 5);
+        assert_eq!(legacy.warnings.len(), 2, "{:?}", legacy.warnings);
+        assert!(legacy.warnings.iter().all(|warning| warning.contains("is replaced by")));
+        // With the new key set too, the new key wins.
+        let both = parse("[javascript]\noptimization_level = 5\n[effort]\nlevel = 14\n");
+        assert_eq!(both.config.effort.level, 14);
+        assert!(both.warnings[0].contains("has no effect"), "{:?}", both.warnings);
+        // Ranges and the one-codec rule until M3.4.
+        for (source, error) in [
+            ("[objective.brotli]\nquality = 12\n", "quality"),
+            ("[objective.brotli]\nwindow = 9\n", "window"),
+            ("[objective.gzip]\nlevel = 0\n", "level"),
+            ("[objective.gzip]\nwindow = 16\n", "window"),
+            ("[objective]\ncodecs = [\"raw\", \"brotli\"]\n", "several codecs"),
+            ("[objective]\ncodecs = []\n", "no codec"),
+            ("[effort]\nlevel = 17\n", "between 0 and 16"),
+        ] {
+            assert!(refusal(source).contains(error), "{source}: {}", refusal(source));
+        }
+    }
+
+    #[test]
+    fn default_effort_level_is_the_measured_plateau() {
         // Guards the deliberate choice of 13 over the 0..=15 ceiling. Raising
         // this is a 20x compile-time decision on a large artifact, not a
         // tuning tweak, so it should not happen by accident.
-        assert_eq!(JavaScriptConfig::default().optimization_level, 13);
+        assert_eq!(EffortConfig::default().level, 13);
     }
 
     /// Every key removed as having no effect names a key or table the

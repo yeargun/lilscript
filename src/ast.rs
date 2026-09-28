@@ -223,7 +223,7 @@ pub struct FieldDecl<'ast, 'src> {
 /// Behaviour the author pinned to one region of the program with an `@`
 /// attribute, kept when the project-wide objective would decide otherwise.
 ///
-/// The objective (`javascript.priority`, `javascript.cost_model`) answers for
+/// The objective (`javascript.priority`, `[objective] codecs`) answers for
 /// the artifact as a whole. It cannot answer for a function whose cost is not
 /// the artifact's cost — a parser's inner loop inside a size-first library, a
 /// literal table the author wrote *to be* pooled under an objective whose

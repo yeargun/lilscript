@@ -3,8 +3,6 @@ preset = "maximum"
 
 [javascript]
 priority = "balanced"
-optimization_level = 15
-cost_model = "brotli"
 candidate_search = "off"
 function_spelling = "arrow"
 strip_console = true
@@ -17,3 +15,9 @@ identifiers = true
 properties = true
 exports = false
 pool_strings = false
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

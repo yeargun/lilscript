@@ -711,7 +711,7 @@ fn a_raw_objective_inlines_functions_called_once_as_blocks() {
         run(0);
         run(5);
     "#;
-    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let raw = compile_with(source, &format!("objective.codecs=\"raw\"\n{PRISTINE}"));
     let coded = compile_with(source, PRISTINE);
     // `classify` returns only in tail position: its body stores the label
     // in place. `early` would need a loop to leave, so it stays a function.
@@ -738,7 +738,7 @@ fn a_function_also_read_as_a_value_keeps_its_declaration() {
         show(JS.typeOf(pick(false)));
         show(JS.typeOf(pick(true)));
     "#;
-    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let raw = compile_with(source, &format!("objective.codecs=\"raw\"\n{PRISTINE}"));
     // One call, but `chosen` reads the function too: it stays declared.
     assert!(raw.contains("=>"), "{raw}");
     assert_eq!(run(&raw, SHOW), "\"attempt\"\n\"function\"\n\"function\"\n");
@@ -806,7 +806,7 @@ fn a_raw_objective_reads_repeated_strings_from_constants_and_packs_string_arrays
         show(names());
         show(names() == names());
     "#;
-    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let raw = compile_with(source, &format!("objective.codecs=\"raw\"\n{PRISTINE}"));
     let coded = compile_with(source, PRISTINE);
     // `"string"` is spelled once, as a constant; the names are one string.
     assert_eq!(raw.matches("\"string\"").count(), 1, "{raw}");
@@ -892,7 +892,7 @@ fn a_raw_objective_writes_statements_as_expressions() {
         show(classify(5));
         show(classify(500));
     "#;
-    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let raw = compile_with(source, &format!("objective.codecs=\"raw\"\n{PRISTINE}"));
     let coded = compile_with(source, PRISTINE);
     // `n<0?(note(…),note(n)):note(…)` and `return n>100?"big":(note(…),…)`.
     assert!(!raw.contains("if("), "{raw}");
@@ -939,7 +939,7 @@ fn a_raw_objective_stores_a_conditional_and_moves_a_loop_increment_into_its_upda
         show(fill("x", true));
         show(fill("y", false));
     "#;
-    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let raw = compile_with(source, &format!("objective.codecs=\"raw\"\n{PRISTINE}"));
     let coded = compile_with(source, PRISTINE);
     // One store of a conditional, which then folds into the literal; the
     // first loop's increment is its update.
@@ -1036,7 +1036,7 @@ fn a_raw_objective_ends_a_body_with_an_else_instead_of_an_exit() {
         visit([JS.box(1.0), JS.box("a"), JS.box(2.0)], false);
         visit([JS.box(3.0)], true);
     "#;
-    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let raw = compile_with(source, &format!("objective.codecs=\"raw\"\n{PRISTINE}"));
     let coded = compile_with(source, PRISTINE);
     // Neither the early `return;` nor the `continue` is spelled.
     assert!(
@@ -1099,7 +1099,7 @@ fn a_function_of_one_statement_is_inlined_where_its_value_is_discarded() {
         }
         show(fill(JS.object(), JS.object("s", 2)));
     "#;
-    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let raw = compile_with(source, &format!("objective.codecs=\"raw\"\n{PRISTINE}"));
     let coded = compile_with(source, PRISTINE);
     // `put`'s body is its calls' statements; the function is gone.
     for javascript in [&raw, &coded] {
@@ -1550,7 +1550,7 @@ fn a_repeated_long_number_is_named_once_for_raw_bytes() {
         export float d(float x) { return x / big; }
         show(JS.box(a(1.0) + b(1.0) + c(0.0) + d(0.0)));
     "#;
-    let raw = "[javascript]\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
+    let raw = "objective.codecs=\"raw\"\n[javascript]\nassume_pristine_builtins=true\n";
     let javascript = compile_with(source, raw);
     // Canonicalized into its reads, then pooled again for the raw objective.
     assert_eq!(
@@ -1588,7 +1588,7 @@ fn a_string_of_double_quotes_prints_in_single_quotes_for_raw_bytes() {
         export JsValue table() { return JS.invoke(JSON, "parse", "{\"a\":\"b\"}"); }
         show(table());
     "#;
-    let raw = "[javascript]\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
+    let raw = "objective.codecs=\"raw\"\n[javascript]\nassume_pristine_builtins=true\n";
     let javascript = compile_plan(source, raw, Plan::spelled(Style::Global, true));
     assert!(javascript.contains(r#"'{"a":"b"}'"#), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "{\"a\":\"b\"}\n");

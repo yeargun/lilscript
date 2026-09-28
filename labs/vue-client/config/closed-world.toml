@@ -6,8 +6,6 @@ identical_function_folding = true
 
 [javascript]
 priority = "performance-first"
-optimization_level = 15
-cost_model = "brotli"
 assume_pristine_builtins = false
 strip_console = false
 pool_numeric_literals = true
@@ -25,3 +23,9 @@ pool_strings = true
 
 [bundle]
 mode = "single"
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

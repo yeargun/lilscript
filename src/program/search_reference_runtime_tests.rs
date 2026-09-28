@@ -74,7 +74,7 @@ fn provenance() -> Json {
 
 fn policy(cap: usize) -> ResolvedPolicy {
     let text = format!(
-        "[javascript]\noptimization_level=15\npriority='size-first'\ncost_model='brotli'\ncandidate_proposal_limit={cap}\nterminal_codec_probe_limit={}\ncandidate_limit=16\ncandidate_beam_width={BEAM}\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\ninlining='on'\nscalar-replacement='on'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'",
+        "effort.level=15\nobjective.codecs='brotli'\n[javascript]\npriority='size-first'\ncandidate_proposal_limit={cap}\nterminal_codec_probe_limit={}\ncandidate_limit=16\ncandidate_beam_width={BEAM}\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\ninlining='on'\nscalar-replacement='on'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'",
         cap * 2
     );
     let config: crate::config::ProjectConfig = toml::from_str(&text).unwrap();

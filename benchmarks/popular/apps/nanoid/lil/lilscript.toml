@@ -1,10 +1,14 @@
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "brotli"
 strip_console = false
 
 [mangle]
 identifiers = true
 properties = true
 pool_strings = true
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

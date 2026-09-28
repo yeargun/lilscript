@@ -32,7 +32,7 @@ test("a case configuration merges into the lane's tables, one [javascript] table
   assert.equal(text.match(/^\[javascript\]$/gm).length, 1);
   const tables = parseTomlTables(text);
   assert.equal(tables.get("javascript").has("strip_console"), false);
-  assert.equal(tables.get("javascript").get("cost_model"), '"gzip"');
+  assert.equal(tables.get("objective").get("codecs"), '["gzip"]');
   assert.equal(tables.get("javascript").get("candidate_search"), '"off"');
   assert.equal(tables.get("javascript").get("assume_pristine_builtins"), "false");
   assert.equal(tables.get("policy.tactics").get("naming-search"), '"off"');
@@ -43,13 +43,15 @@ test("a case configuration merges into the lane's tables, one [javascript] table
 test("production lanes carry no tactic table", () => {
   const text = composeConfig(LANES.find((row) => row.id === "production/raw/script"), ["inlining"], null);
   assert.doesNotMatch(text, /policy\.tactics|candidate_search/);
-  assert.match(text, /cost_model = "raw"/);
+  assert.match(text, /\[objective\]\ncodecs = \["raw"\]/);
+  assert.doesNotMatch(text, /cost_model/);
 });
 
-test("objective rewriting replaces, inserts or appends cost_model", () => {
+test("objective rewriting replaces codecs or a port's cost_model, and inserts or appends codecs", () => {
+  assert.equal(rewriteObjective('[objective]\ncodecs = ["brotli"]\n', "raw"), '[objective]\ncodecs = ["raw"]\n');
   assert.equal(rewriteObjective('[javascript]\ncost_model = "brotli"\n', "raw"), '[javascript]\ncost_model = "raw"\n');
-  assert.equal(rewriteObjective("[package]\nname = 'x'\n[javascript]\nlevel = 13\n", "gzip"), "[package]\nname = 'x'\n[javascript]\ncost_model = \"gzip\"\nlevel = 13\n");
-  assert.equal(rewriteObjective("[mangle]\nexports = false\n", "raw"), '[mangle]\nexports = false\n\n[javascript]\ncost_model = "raw"\n');
+  assert.equal(rewriteObjective("[package]\nname = 'x'\n[objective]\n[effort]\nlevel = 13\n", "gzip"), "[package]\nname = 'x'\n[objective]\ncodecs = [\"gzip\"]\n[effort]\nlevel = 13\n");
+  assert.equal(rewriteObjective("[mangle]\nexports = false\n", "raw"), '[mangle]\nexports = false\n\n[objective]\ncodecs = ["raw"]\n');
 });
 
 test("failing-test names from node:test, jest and TAP", () => {

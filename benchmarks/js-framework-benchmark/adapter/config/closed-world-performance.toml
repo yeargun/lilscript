@@ -7,8 +7,6 @@ identical_function_folding = true
 
 [javascript]
 priority = "performance-first"
-optimization_level = 15
-cost_model = "brotli"
 candidate_search = "production"
 candidate_limit = 1536
 candidate_byte_budget = 1048576
@@ -25,3 +23,9 @@ pool_strings = true
 
 [bundle]
 mode = "single"
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

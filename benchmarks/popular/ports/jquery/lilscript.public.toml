@@ -1,7 +1,5 @@
 [javascript]
 priority = "balanced"
-optimization_level = 15
-cost_model = "brotli"
 strip_console = true
 local_name_reserve = 48
 candidate_search = "production"
@@ -39,3 +37,9 @@ identifiers = true
 properties = true
 exports = false
 pool_strings = false
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

@@ -2566,6 +2566,11 @@ impl<'src> Compilation<'src> {
         domain: WorkDomain,
     ) -> Result<Option<BoundJavaScript>, CandidateError> {
         let payload = admitted_contract_payload(policy.contract(), &mut self.ledger, domain)?;
+        // Every size the compilation measures is judged with the objective's
+        // codec settings (law B2).
+        if let Some(objective) = policy.objective() {
+            self.artifacts.bind_codec_settings(objective.codec_settings)?;
+        }
         if let Some(target) = &self.javascript {
             if target.contract != *policy.contract() {
                 return Err(CandidateError::ContractMismatch);

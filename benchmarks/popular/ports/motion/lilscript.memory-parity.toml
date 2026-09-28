@@ -1,7 +1,5 @@
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "brotli"
 function_spelling = "arrow"
 aggregate_layout = "named"
 
@@ -9,3 +7,9 @@ aggregate_layout = "named"
 identifiers = true
 properties = true
 pool_strings = true
+
+[objective]
+codecs = "brotli"
+
+[effort]
+level = 15

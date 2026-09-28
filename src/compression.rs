@@ -14,6 +14,103 @@ pub const CANONICAL_BROTLI_LIBRARY_VERSION: u32 = 0x0100_1000;
 /// Part of backend provenance: admission failure is recoverable, not exit(1).
 pub const CANONICAL_BROTLI_ALLOCATION_MODE: &str = "BROTLI_ENCODER_CLEANUP_ON_OOM";
 
+/// The codec settings an objective judges and reports with (architecture law
+/// B2; `[objective.brotli]` and `[objective.gzip]`, §14.1). The defaults are
+/// the canonical settings, which the benchmark contract and `lilscript-codec`
+/// always use.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize)]
+pub struct CodecSettings {
+    pub brotli: BrotliSettings,
+    pub gzip: GzipSettings,
+}
+
+impl CodecSettings {
+    pub const CANONICAL: Self = Self {
+        brotli: BrotliSettings::CANONICAL,
+        gzip: GzipSettings::CANONICAL,
+    };
+
+    pub fn validate(&self) -> Result<(), String> {
+        let BrotliSettings { quality, window, .. } = self.brotli;
+        if quality > 11 {
+            return Err(format!("`objective.brotli.quality` must be between 0 and 11, not {quality}"));
+        }
+        if !(10..=24).contains(&window) {
+            return Err(format!("`objective.brotli.window` must be between 10 and 24, not {window}"));
+        }
+        let GzipSettings { level, window } = self.gzip;
+        if !(1..=9).contains(&level) {
+            return Err(format!("`objective.gzip.level` must be between 1 and 9, not {level}"));
+        }
+        if !(9..=15).contains(&window) {
+            return Err(format!("`objective.gzip.window` must be between 9 and 15, not {window}"));
+        }
+        Ok(())
+    }
+}
+
+/// Brotli's encoder settings: quality 0–11, window (log2 bytes) 10–24, and
+/// the mode hint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct BrotliSettings {
+    pub quality: u32,
+    pub window: u32,
+    pub mode: BrotliMode,
+}
+
+impl BrotliSettings {
+    pub const CANONICAL: Self = Self {
+        quality: BROTLI_QUALITY,
+        window: 22,
+        mode: BrotliMode::Generic,
+    };
+}
+
+impl Default for BrotliSettings {
+    fn default() -> Self {
+        Self::CANONICAL
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BrotliMode {
+    #[default]
+    Generic,
+    Text,
+    Font,
+}
+
+/// Deflate's settings inside the gzip container: level 1–9 and window
+/// (log2 bytes) 9–15, memory level 8 and the default strategy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct GzipSettings {
+    pub level: u32,
+    pub window: u32,
+}
+
+impl GzipSettings {
+    pub const CANONICAL: Self = Self {
+        level: 9,
+        window: 15,
+    };
+}
+
+impl Default for GzipSettings {
+    fn default() -> Self {
+        Self::CANONICAL
+    }
+}
+
+/// Whether one encode is an exact judgement or the proxy's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Role {
+    Exact,
+    Proxy,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CodecError {
     Admission(AllocationError),
@@ -74,7 +171,17 @@ pub(crate) fn measure_admitted(
     model: CompressionCostModel,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<usize, CodecError> {
-    measure_admitted_at(bytes, model, BROTLI_QUALITY, budget)
+    measure_admitted_with(bytes, model, &CodecSettings::CANONICAL, budget)
+}
+
+/// An exact measurement under an objective's codec settings.
+pub(crate) fn measure_admitted_with(
+    bytes: &[u8],
+    model: CompressionCostModel,
+    settings: &CodecSettings,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<usize, CodecError> {
+    measure_admitted_at(bytes, model, settings, Role::Exact, budget)
 }
 
 /// The Brotli quality every exact judgement and delivered size uses.
@@ -86,31 +193,39 @@ pub const BROTLI_QUALITY: u32 = 11;
 pub const PROXY_BROTLI_QUALITY: u32 = 5;
 
 /// The walk's proxy judge: gzip and raw are cheap enough to be their own
-/// proxy; Brotli runs at `PROXY_BROTLI_QUALITY`.
+/// proxy; Brotli runs at min(quality, `PROXY_BROTLI_QUALITY`) with the
+/// objective's window and mode (architecture §9.4).
 pub(crate) fn measure_proxy_admitted(
     bytes: &[u8],
     model: CompressionCostModel,
+    settings: &CodecSettings,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<usize, CodecError> {
-    measure_admitted_at(bytes, model, PROXY_BROTLI_QUALITY, budget)
+    measure_admitted_at(bytes, model, settings, Role::Proxy, budget)
 }
 
 fn measure_admitted_at(
     bytes: &[u8],
     model: CompressionCostModel,
-    quality: u32,
+    settings: &CodecSettings,
+    role: Role,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<usize, CodecError> {
     if model == CompressionCostModel::Raw {
         return Ok(bytes.len());
     }
-    let _timing = match model {
-        CompressionCostModel::Gzip => crate::timing::CANONICAL_GZIP.scope(0),
-        CompressionCostModel::Brotli if quality == BROTLI_QUALITY => {
-            crate::timing::CANONICAL_BROTLI.scope(0)
-        }
-        CompressionCostModel::Brotli => crate::timing::PROXY_BROTLI.scope(0),
-        CompressionCostModel::Raw => unreachable!(),
+    let brotli = BrotliSettings {
+        quality: match role {
+            Role::Exact => settings.brotli.quality,
+            Role::Proxy => settings.brotli.quality.min(PROXY_BROTLI_QUALITY),
+        },
+        ..settings.brotli
+    };
+    let _timing = match (model, role) {
+        (CompressionCostModel::Gzip, _) => crate::timing::CANONICAL_GZIP.scope(0),
+        (CompressionCostModel::Brotli, Role::Exact) => crate::timing::CANONICAL_BROTLI.scope(0),
+        (CompressionCostModel::Brotli, Role::Proxy) => crate::timing::PROXY_BROTLI.scope(0),
+        (CompressionCostModel::Raw, _) => unreachable!(),
     };
     let mut phase = budget.scope();
     phase.work(
@@ -124,8 +239,8 @@ fn measure_admitted_at(
         };
         match model {
             CompressionCostModel::Raw => unreachable!(),
-            CompressionCostModel::Gzip => gzip_size(bytes, &mut memory),
-            CompressionCostModel::Brotli => brotli_size(bytes, quality, &mut memory),
+            CompressionCostModel::Gzip => gzip_size(bytes, &settings.gzip, &mut memory),
+            CompressionCostModel::Brotli => brotli_size(bytes, &brotli, &mut memory),
         }
     };
     // A final C CPU segment can cross the deadline without another allocation
@@ -293,7 +408,11 @@ impl Drop for DeflateGuard {
         }
     }
 }
-fn gzip_size(bytes: &[u8], memory: &mut CodecMemory<'_, '_>) -> Result<usize, CodecError> {
+fn gzip_size(
+    bytes: &[u8],
+    settings: &GzipSettings,
+    memory: &mut CodecMemory<'_, '_>,
+) -> Result<usize, CodecError> {
     // Compare bytes directly: no allocated diagnostics inside admitted scoring.
     let version = unsafe { std::ffi::CStr::from_ptr(libz_sys::zlibVersion()) };
     if version.to_bytes() != CANONICAL_ZLIB_LIBRARY_VERSION.as_bytes() {
@@ -317,15 +436,16 @@ fn gzip_size(bytes: &[u8], memory: &mut CodecMemory<'_, '_>) -> Result<usize, Co
         reserved: 0,
     };
     memory.call()?;
-    // Same raw-deflate parameters as flate2 GzEncoder::best: level9,
-    // window15, memLevel8, default strategy. zlib may retain &stream internally;
-    // it is never moved between Init and End.
+    // Raw deflate at the objective's level and window, memLevel 8 and the
+    // default strategy; the canonical settings (level 9, window 15) are
+    // flate2 GzEncoder::best's. zlib may retain &stream internally; it is
+    // never moved between Init and End.
     let initialized = unsafe {
         libz_sys::deflateInit2_(
             &mut stream,
-            9,
+            settings.level as i32,
             libz_sys::Z_DEFLATED,
-            -15,
+            -(settings.window as i32),
             8,
             libz_sys::Z_DEFAULT_STRATEGY,
             libz_sys::zlibVersion(),
@@ -380,7 +500,7 @@ impl Drop for BrotliGuard {
 }
 fn brotli_size(
     bytes: &[u8],
-    quality: u32,
+    settings: &BrotliSettings,
     memory: &mut CodecMemory<'_, '_>,
 ) -> Result<usize, CodecError> {
     use compu_brotli_sys::*;
@@ -409,13 +529,15 @@ fn brotli_size(
         return Err(memory.result("Brotli initialization failed"));
     }
     let _guard = BrotliGuard(state);
+    let mode = match settings.mode {
+        BrotliMode::Generic => BrotliEncoderMode_BROTLI_MODE_GENERIC,
+        BrotliMode::Text => BrotliEncoderMode_BROTLI_MODE_TEXT,
+        BrotliMode::Font => BrotliEncoderMode_BROTLI_MODE_FONT,
+    };
     for (parameter, value) in [
-        (BrotliEncoderParameter_BROTLI_PARAM_QUALITY, quality),
-        (BrotliEncoderParameter_BROTLI_PARAM_LGWIN, 22),
-        (
-            BrotliEncoderParameter_BROTLI_PARAM_MODE,
-            BrotliEncoderMode_BROTLI_MODE_GENERIC as u32,
-        ),
+        (BrotliEncoderParameter_BROTLI_PARAM_QUALITY, settings.quality),
+        (BrotliEncoderParameter_BROTLI_PARAM_LGWIN, settings.window),
+        (BrotliEncoderParameter_BROTLI_PARAM_MODE, mode as u32),
         // This cast intentionally matches the pinned convenience API.
         (
             BrotliEncoderParameter_BROTLI_PARAM_SIZE_HINT,

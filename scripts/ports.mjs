@@ -86,11 +86,16 @@ function configFiles(directory) {
 
 // Sets `[javascript] cost_model` (the key, wherever it is; else inserted
 // after the `[javascript]` header; else a new table).
+// A configuration's objective codec: `[objective] codecs` (schema v3), or a
+// port's `[javascript] cost_model`, which the compiler still renames.
 export function rewriteObjective(text, objective) {
-  const value = `cost_model = ${JSON.stringify(objective)}`;
-  if (/^\s*cost_model\s*=.*$/m.test(text)) return text.replace(/^(\s*)cost_model\s*=.*$/gm, (_, indent) => `${indent}${value}`);
-  if (/^\[javascript\]\s*$/m.test(text)) return text.replace(/^\[javascript\]\s*$/m, `[javascript]\n${value}`);
-  return `${text.replace(/\n*$/, "\n")}\n[javascript]\n${value}\n`;
+  const codecs = `codecs = [${JSON.stringify(objective)}]`;
+  if (/^\s*codecs\s*=.*$/m.test(text)) return text.replace(/^(\s*)codecs\s*=.*$/gm, (_, indent) => `${indent}${codecs}`);
+  if (/^\s*cost_model\s*=.*$/m.test(text)) {
+    return text.replace(/^(\s*)cost_model\s*=.*$/gm, (_, indent) => `${indent}cost_model = ${JSON.stringify(objective)}`);
+  }
+  if (/^\[objective\]\s*$/m.test(text)) return text.replace(/^\[objective\]\s*$/m, `[objective]\n${codecs}`);
+  return `${text.replace(/\n*$/, "\n")}\n[objective]\n${codecs}\n`;
 }
 
 function distArtifacts(workspace) {

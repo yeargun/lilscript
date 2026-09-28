@@ -2,7 +2,6 @@
 preset = "none"
 
 [javascript]
-optimization_level = 0
 candidate_search = "off"
 strip_console = false
 
@@ -14,3 +13,6 @@ pool_strings = false
 
 [bundle]
 mode = "single"
+
+[effort]
+level = 0

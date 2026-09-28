@@ -1,7 +1,5 @@
 [javascript]
 priority = "size-first"
-optimization_level = 15
-cost_model = "raw"
 
 [mangle]
 identifiers = true
@@ -10,3 +8,9 @@ pool_strings = true
 
 [bundle]
 mode = "preserve-modules"
+
+[objective]
+codecs = "raw"
+
+[effort]
+level = 15

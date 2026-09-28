@@ -25,16 +25,22 @@ A configuration is read in two steps:
 ## The schema
 
 ```toml
+[objective]
+codecs = ["brotli"]           # raw | gzip | brotli: the codec whose bytes are minimized
+[objective.brotli]
+quality = 11                  # 0..11
+window = 22                   # 10..24 (log2 bytes)
+mode = "generic"              # generic | text | font
+[objective.gzip]
+level = 9                     # 1..9
+window = 15                   # 9..15 (log2 bytes)
+
+[effort]
+level = 13                    # 0..16; 13 is the default
+
 [javascript]
 priority = "size-first"      # the only accepted value; see "Retired keys"
-cost_model = "brotli"         # raw | gzip | brotli: the codec whose bytes are minimized
-optimization_level = 13       # effort, 0..16; 13 is the default
-candidate_search = "production" # off | production | always; --mode development sets off
-candidate_limit = 1536        # retained whole-artifact candidates
-candidate_byte_budget = 1048576 # retained candidate bytes
-candidate_beam_width = 12
-# candidate_proposal_limit = 384   # optional structural proposals; 0 disables
-# terminal_codec_probe_limit = 384 # optional terminal codec probes; 0 disables
+# candidate_search = "off"    # only `off` has an effect: --mode development sets it
 # ecmascript = "es2022"       # es2015 … es2022 | esnext
 # browsers = ["chrome80", "firefox78"] # intersected with ecmascript; the lower floor wins
 strip_debug = false           # drop debugLog calls (print is never stripped)
@@ -156,28 +162,40 @@ Per-library configuration is contract, objective, effort and permission
 
 ## Objective and effort
 
-`javascript.cost_model` is the objective: the compiler minimizes the delivered
-file's bytes under that codec. `raw` counts bytes, `gzip` is zlib 1.3.1 level
-9, and `brotli` is Google Brotli 1.1.0 at quality 11, `lgwin = 22`, the same
-encoders `lilscript-codec` measures with.
+`[objective] codecs` names the objective: the compiler minimizes the delivered
+file's bytes under that codec. `raw` counts bytes, `gzip` is zlib 1.3.1 and
+`brotli` is Google Brotli 1.1.0. `[objective.brotli]` and `[objective.gzip]`
+set the codec's parameters (law B2: the judge is the configured codec). They
+are fingerprinted and printed in the policy, and every exact judgement and
+reported size of the build uses them. The defaults are the canonical settings
+(Brotli quality 11, window 22, generic mode; gzip level 9, window 15), which
+`lilscript-codec` and the benchmark contract always use. The walk's proxy is
+Brotli at min(quality, 5) with the objective's window and mode. One codec per
+build for now: several, one winner each, come with the multi-objective build
+(plan M3.4). A single codec may be written as a string, `codecs = "gzip"`.
 
-`javascript.optimization_level` (0 to 16, default 13) is the effort: a
-versioned schedule of search breadth and tactic gates, printed in the policy.
-It never weakens checking or a correctness normalization. The effective
-retained-candidate count, candidate bytes and beam width are each the lower of
-the level's tier and the configured ceiling (`candidate_limit`,
-`candidate_byte_budget`, `candidate_beam_width`). `candidate_proposal_limit`
-and `terminal_codec_probe_limit` default from the level; an explicit value may
-exceed the level's default but not the `candidate_search` tier, and level 0
-turns both off whatever they say. `candidate_search = "off"` (and
-`--mode development`) keeps only the mandatory artifact.
+`[effort] level` (0 to 16, default 13) is a work budget with a versioned
+schedule (`--print-policy` prints it) and grants no permission. Architecture
+§13.4 and §9.6 state the schedule:
+- Level 0 runs every rule and forms the level-0 artifact, and no codec runs:
+  gzip and Brotli sizes are unmeasured.
+- Levels 1 to 12 are the fast tiers. One pass over the walk's list from the
+  level-0 artifact, with a prefix of 8 positions (levels 1–4), 24 (5–9) or all
+  (10–12), and 2, 4, 6, 8 or 12 exact judgements.
+- From level 13, size comes first (amendment AM2). The structural search runs,
+  and each objective walks several starts (the search's winner, the level-0
+  artifact, the level-0 artifact under each other naming seed) in passes to
+  their fixed points, keeping the smallest. Above 13 the structural search
+  widens with the level.
 
-Level 13 is the default because the measured curve is a plateau around it:
-on the jQuery port, level 15 cost 20 times the CPU of level 13 for 1.4% of the
-Brotli bytes, and levels 12 to 14 were within 0.15% of each other
-([007](../finer/hypotheses/007-level-13-sweet-spot/README.md)). Those numbers were
-measured on the old compiler; the default stands until the effort schedule is
-re-measured on this one.
+Each level passes through every lower level's result (the replay check,
+[testing.md](testing.md#the-effort-schedules-monotonicity-m35)).
+`candidate_search = "off"` (and `--mode development`) keeps only the level-0
+artifact at any level.
+
+Level 13 is the default. It is the first level where the whole search runs
+and never grows a build because of a change (AM2). The measurements behind
+the choice are in [007](../finer/hypotheses/007-level-13-sweet-spot/README.md).
 
 `[policy.search]` fixes the search's cadence: `codec_schedule` (`staged`
 groups renders before codec measurement, `immediate` scores each at once),
@@ -226,6 +244,14 @@ yet, so their permission changes nothing today.
 The full table, generated from the source, is in
 [schema.md](knowledge/config/schema.md#retired-keys). In summary:
 
+- **Renamed (moved, with a warning).** `javascript.cost_model` is now
+  `[objective] codecs`, and `javascript.optimization_level` is now
+  `[effort] level` (schema v3, plan M3.1). When the new key is set too, it
+  wins, and the old key is removed with a warning.
+- **No effect since the counted budget (M3.5).** `javascript.candidate_limit`,
+  `candidate_byte_budget`, `candidate_beam_width`, `candidate_proposal_limit`,
+  `terminal_codec_probe_limit`, and `candidate_search` other than `"off"`.
+  The effort level's schedule is the only budget.
 - **No effect (warned and removed).** Every key that steered the old compiler:
   its optimizer passes (`optimization.algebraic_simplification`,
   `finite_value_propagation`, `identical_function_folding` and the rest),

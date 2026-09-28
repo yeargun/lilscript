@@ -378,7 +378,7 @@ print(present(null));print(present("x"));print(absent(null));print(absent(""));p
         };
         let compiled = crate::build::compile_source(&source, &config, options).unwrap();
         let javascript = compiled
-            .javascript(config.javascript.cost_model)
+            .javascript(config.objective.codec())
             .unwrap()
             .javascript()
             .to_string();

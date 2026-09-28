@@ -762,7 +762,7 @@ fn discovery_run_with_beam(
             None => policy_limits(true, proposals, 384),
             Some(width) => {
                 let config: crate::config::ProjectConfig = toml::from_str(&format!(
-                    "[javascript]\noptimization_level=15\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=384\ncandidate_limit=64\ncandidate_beam_width={width}\n[policy.tactics]\ntarget-compaction='on'\nscalar-replacement='on'\ninlining='on'\nconstant-folding='on'\nstring-pooling='on'\nidentifier-mangling='on'\nnaming-search='on'\n"
+                    "effort.level=15\n[javascript]\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=384\ncandidate_limit=64\ncandidate_beam_width={width}\n[policy.tactics]\ntarget-compaction='on'\nscalar-replacement='on'\ninlining='on'\nconstant-folding='on'\nstring-pooling='on'\nidentifier-mangling='on'\nnaming-search='on'\n"
                 )).unwrap();
                 config
                     .resolve_policy(CompilationRequest::JavaScript {

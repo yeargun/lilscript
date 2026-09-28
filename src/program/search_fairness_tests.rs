@@ -28,7 +28,7 @@ fn policy(beam: usize) -> ResolvedPolicy {
 
 fn schedule_policy(beam: usize, probes: usize, schedule: &str) -> ResolvedPolicy {
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "[javascript]\noptimization_level=15\npriority='size-first'\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit={probes}\ncandidate_limit=8\ncandidate_beam_width={beam}\n[policy.search]\ncodec_schedule='{schedule}'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\ninlining='on'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'"
+        "effort.level=15\nobjective.codecs='brotli'\n[javascript]\npriority='size-first'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit={probes}\ncandidate_limit=8\ncandidate_beam_width={beam}\n[policy.search]\ncodec_schedule='{schedule}'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\ninlining='on'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'"
     )).unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {
