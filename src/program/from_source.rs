@@ -1490,8 +1490,12 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         span: Span,
     ) -> Result<(), ConversionError> {
         let collection = self.expression_type(iterable)?;
-        if matches!(self.program.types[collection.index()], Type::Generator(_)) {
-            // A generator has no index: the loop runs its iterator protocol.
+        if matches!(
+            self.program.types[collection.index()],
+            Type::Generator(_) | Type::Set(_) | Type::Dynamic
+        ) {
+            // A generator, a set or a `JsValue` has no index: the loop runs its
+            // iterator protocol (R14).
             let generator = self.expression(unit, region, iterable)?;
             let iteration = self.region(unit, region, span)?;
             let item = self.declare(unit, iteration, element)?;

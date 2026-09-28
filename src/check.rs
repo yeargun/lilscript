@@ -3678,6 +3678,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let actual = match iterable_type {
                     Type::Array(element) => *element,
                     Type::Generator(element) => *element,
+                    // A set's elements, in insertion order (R14).
+                    Type::Set(element) => *element,
+                    // A `JsValue` iterates by JavaScript's iterator protocol
+                    // (R14); its elements are `JsValue`s, never cast (Y1).
+                    Type::Dynamic => Type::Dynamic,
                     ty if TypedArrayKind::from_type(&ty).is_some() => {
                         if TypedArrayKind::from_type(&ty)
                             .is_some_and(TypedArrayKind::element_is_float)
@@ -3691,7 +3696,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         return Err(AdmittedCheckError::new(
                             iterable.span(),
                             format!(
-                                "for-of requires an array or typed array, or Generator<T>, found `{other}`"
+                                "for-of requires an array, a typed array, a Set<T>, a Generator<T> or a JsValue, found `{other}`"
                             ),
                         ));
                     }

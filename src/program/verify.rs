@@ -1819,8 +1819,11 @@ fn verify_types(
         }
         OperationKind::ForOf { item, body } => {
             statement_region(*body)?;
-            let Type::Generator(element) = operand(0) else {
-                return Err(error());
+            // What the iterator protocol yields (R14).
+            let element = match operand(0) {
+                Type::Generator(element) | Type::Set(element) => element.as_ref(),
+                Type::Dynamic => &Type::Dynamic,
+                _ => return Err(error()),
             };
             expect(class_assignable(
                 program,
