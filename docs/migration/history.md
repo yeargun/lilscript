@@ -1613,6 +1613,26 @@ Predicted: no artifact changes.
 
 ---
 
+## 2026-09-28 Batch B4: the walk's reserve (M3.5, AM2)
+
+**Pre-registration** (written before the first build of the batch; base: K2's last commit).
+
+**Found by S5's katexlil diagnosis.** A structural search with many optional alternatives spent the whole optional work budget before the level walk ran.
+- With S5's rewrite, katexlil's main entry made 665 proposals, each one a render and a full-file codec probe (223 exact string definitions × 3 naming styles). The unpatched main entry makes 5.
+- The search stopped at `WorkExhausted(Optional)`. The walk ran 0 passes (unpatched: 4 passes, 61,226 → 59,937 Brotli). The entry ended at 61,213, and took 524 s against 51 s.
+- The rewrite itself costs +78 at the walk's start (61,304 against 61,226). The rest is the starved walk.
+
+What the batch builds: the structural search spends at most half the optional work (search schedule 26), then stops as it does at its alternatives limit. The level walk, which finds most of level 13's bytes, always keeps the other half. This answers AM2 (13 and above never grow because of a change) for programs with many alternatives, and bounds the search's share of compile time (AM3).
+
+Changes:
+- **C1.** `BudgetLedger::work_limit`; `SearchLimit::WalkReserve`, checked before each optional proposal; schedule version 26.
+
+Predicted:
+- Programs whose search stays under half the optional work are byte-identical. Every current case and port is expected to, except possibly jquerylil, whose search makes 125 probes.
+- katexlil rewritten by S5's fixes: its walk runs again, so the regression falls from about +1.3K to about +78 per file, which the string family's own cost then owns.
+
+---
+
 ## Appendix: where milestones 001–014 went
 
 | Old | Now |
