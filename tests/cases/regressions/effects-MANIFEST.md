@@ -14,7 +14,7 @@ what the source means.
 | `effects-discarded_call_arguments_still_run_in_order` | A removed call never removes its arguments: they run once, in order |
 | `effects-discarded_call_that_may_throw_still_throws` | A discarded call whose body may throw stays |
 | `effects-pure_extern_result_unused_still_runs` | D3.6 as settled: a `pure extern` has no observable effect (a `pure` function may call it), but no termination proof, so a discarded call stays. The pending amendment would change this case |
-| `effects-raw_argument_conversion_in_a_discarded_call_still_runs` | D2: an `int` parameter may hold a raw host value; the body converts it, so the call stays and `valueOf` runs |
+| `effects-a_discarded_pure_call_keeps_its_arguments_host_call` | R1: an `int` parameter is a trusted crossing, so a discarded pure call goes and its argument's host call stays (was `raw_argument_conversion_in_a_discarded_call_still_runs`, the retired D2 posture) |
 | `effects-jsvalue_getter_and_valueof_in_discarded_calls_still_run` | A getter or `valueOf` reached through a `JsValue` is user code: the calls stay |
 | `effects-exported_function_survives_its_discarded_calls` | Module lane: an internal discarded call of an exported function goes; the export stays callable |
 

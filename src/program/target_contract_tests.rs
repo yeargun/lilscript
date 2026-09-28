@@ -559,44 +559,21 @@ fn disabled_identifier_mangling_preserves_legal_source_cells_and_rejects_mangled
     }
 }
 
+/// A typed builtin means ECMAScript's original (R10): `Math.imul`'s result is
+/// an int32 with no code, after its arguments in order. A host that replaces
+/// the builtin breaks the contract.
 #[test]
-fn mutable_builtin_integer_results_normalize_after_lookup_arguments_and_receiver_call() {
+fn typed_builtin_integer_results_are_the_originals() {
     let source =
         "extern int operand(int n);export int multiply(){return Math.imul(operand(1),operand(2));}";
     let resolved = policy("[javascript]\n", true);
-    let host = r#"
-        let result=NaN;const failure={};
-        globalThis.operand=n=>{events.push('arg:'+n);return n;};
-        Object.defineProperty(Math,'imul',{configurable:true,get(){events.push('get');return function(a,b){events.push(['call',this===Math,a,b]);return result;};}});
-    "#;
-    let observations = r#"
-        events.push(['result',library.multiply()]);
-        result=4294967297;
-        events.push(['result',library.multiply()]);
-        result={valueOf(){events.push('coerce');throw failure;}};
-        try{library.multiply();events.push('unexpected return');}catch(error){events.push(['thrown',error===failure]);}
-    "#;
+    let host = r#"globalThis.operand=n=>{events.push('arg:'+n);return n*65536;};"#;
+    let observations = r#"events.push(['result',library.multiply()]);"#;
     for (_, javascript) in artifacts(source, &resolved, false, Style::Global).unwrap() {
+        assert!(!javascript.contains("|0"), "{javascript}");
         assert_eq!(
             execute(&javascript, host, observations),
-            json!([
-                "get",
-                "arg:1",
-                "arg:2",
-                ["call", true, 1, 2],
-                ["result", 0],
-                "get",
-                "arg:1",
-                "arg:2",
-                ["call", true, 1, 2],
-                ["result", 1],
-                "get",
-                "arg:1",
-                "arg:2",
-                ["call", true, 1, 2],
-                "coerce",
-                ["thrown", true]
-            ]),
+            json!(["arg:1", "arg:2", ["result", 0]]),
             "{javascript}"
         );
     }

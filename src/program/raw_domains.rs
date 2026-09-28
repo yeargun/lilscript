@@ -1135,7 +1135,8 @@ mod tests {
                 semantic.discard(&mut meter).unwrap();
                 let target = DomainProof::build(program,&uses,&roots,DomainInputs::empty(),&super::super::javascript::JavaScriptRecipes,&mut meter).unwrap();
                 assert!(target.primitive(roots[0],&mut meter).unwrap());
-                assert!(!target.primitive(roots[1],&mut meter).unwrap());
+                // An extern `int` result is an int32 by type (R1).
+                assert!(target.primitive(roots[1],&mut meter).unwrap());
                 target.discard(&mut meter).unwrap();
                 assert_eq!(allocation.retained_bytes(AllocationClass::Scratch),0);
             }

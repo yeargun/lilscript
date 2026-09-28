@@ -532,10 +532,11 @@ fn stale_nullable_product_reads_keep_plain_store_checks_before_and_after_rhs() {
 }
 
 #[test]
-fn integer_field_loads_normalize_but_place_checks_never_coerce_the_old_payload() {
-    // The actual host value of an extern int remains unknown before the
-    // selected runtime normalization. The source signature is not evidence
-    // that this raw value is already a JavaScript Number.
+fn integer_fields_from_a_trusted_extern_wrap_as_int32() {
+    // An extern `int` is a trusted crossing (R1): the host promises an int32,
+    // which the struct field holds as it is. The arithmetic on it wraps; a
+    // compound assignment reads the field once, after its right operand's
+    // call.
     let source = r#"
         struct P{int x;}
         extern int input;
@@ -545,21 +546,10 @@ fn integer_field_loads_normalize_but_place_checks_never_coerce_the_old_payload()
         export void compound(){P value=P{input};value.x+=rhs();print(value.x);}
     "#;
     for (input, expected) in [
+        ("4", json!(["read", 5, "plain", "rhs", 2, "compound", "rhs", 6])),
         (
-            "'4'",
-            json!(["read", 5, "plain", "rhs", 2, "compound", "rhs", 6]),
-        ),
-        (
-            "({valueOf(){events.push('coerce');return 4;}})",
-            json!(["read", "coerce", 5, "plain", "rhs", 2, "compound", "coerce", "rhs", 6]),
-        ),
-        (
-            "({valueOf(){events.push('coerce');throw Error('coercion');}})",
-            json!(["read", "coerce", "threw", "plain", "rhs", 2, "compound", "coerce", "threw"]),
-        ),
-        (
-            "1n",
-            json!(["read", "threw", "plain", "rhs", 2, "compound", "threw"]),
+            "2147483647",
+            json!(["read", -2147483648i64, "plain", "rhs", 2, "compound", "rhs", -2147483647i64]),
         ),
     ] {
         for compact in [false, true] {

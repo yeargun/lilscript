@@ -1,5 +1,6 @@
 //! One original imported parametric body, concrete downstream storage/helper
-//! choices, and raw snapshot/coercion observations. No source reconstruction.
+//! choices, and well-typed observations (R1: an export's `int` parameter is a
+//! trusted crossing). No source reconstruction.
 use super::facts::CacheLimits;
 use super::publication::*;
 use super::*;

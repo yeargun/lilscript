@@ -1669,9 +1669,10 @@ fn a_number_counts_up_with_the_increment() {
         show(JS.box(halves(3)));
     "#;
     let javascript = compile_with(source, PRISTINE);
-    // A float's `x=x+1` is `++x`; the int counter keeps its wrap.
+    // A float's `x=x+1` is `++x`. The int counter stays below `n`, an int32
+    // by type (R1), so its increment cannot wrap and is `++` too.
     assert!(
-        javascript.contains("++") && javascript.contains("+1|0"),
+        javascript.matches("++").count() >= 2 && !javascript.contains("|0"),
         "{javascript}"
     );
     assert_eq!(run(&javascript, SHOW), "3.5\n");
@@ -2147,8 +2148,9 @@ fn unknown_refuses_other_operations() {
     assert!(format!("{error:?}").contains("narrowed before other operations"), "{error:?}");
 }
 
-/// Trusted crossings (R1): a typed `int` load is an int32 by type, so no
-/// `|0` normalizes it; arithmetic still wraps.
+/// Trusted crossings (R1): a typed `int` field is an int32 by type, so no
+/// `|0` normalizes its load; arithmetic still wraps. An element read past the
+/// end reads 0 until R11's index precondition lands (M10.9).
 #[test]
 fn typed_int_loads_are_not_normalized() {
     let javascript = compile_with(
@@ -2159,18 +2161,19 @@ fn typed_int_loads_are_not_normalized() {
         export int next(int[] values, int i) { return values[i] + 1; }
         show(read(new Counter(41)));
         show(next([1, 2, 3], 1));
+        show(next([1, 2, 3], 7));
         "#,
         PRISTINE,
     );
     let read = javascript
-        .split("read")
+        .split("read=function")
         .nth(1)
         .unwrap_or_default()
-        .split(';')
+        .split('}')
         .next()
         .unwrap_or_default();
-    assert!(!read.contains("|0"), "{javascript}");
-    assert_eq!(run(&javascript, SHOW), "41\n3\n");
+    assert!(read.contains("return") && !read.contains("|0"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "41\n3\n1\n");
 }
 
 /// Definite assignment (R3): a local declared without a value is read only

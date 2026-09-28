@@ -431,19 +431,10 @@ fn flat_product_initializers_keep_unused_effects_and_throw_order() {
     matrix(case!("initializer-effects"), None, false);
 }
 #[test]
-fn shared_and_inline_product_helpers_preserve_discarded_coercion_and_raw_snapshots() {
+fn shared_and_inline_product_helpers_preserve_raw_snapshots() {
+    // The host's `opaque()` returns an int (R1) and `keep` runs the
+    // replacement at once: `saved` is a snapshot of the old state.
     matrix(case!("coercing-helper"), Some("step"), false);
-    let original = case!("coercing-helper");
-    matrix(
-        Case {
-            name: "bigint-discarded-product-read",
-            setup: "globalThis.keep=value=>{};globalThis.opaque=()=>1n;",
-            expected: "[99,99]",
-            ..original
-        },
-        Some("step"),
-        false,
-    );
 }
 #[test]
 fn product_storage_and_captured_helper_oracle_measures_the_complete_compatible_space() {

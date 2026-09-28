@@ -242,28 +242,31 @@ fn shared_and_inline_helpers_preserve_argument_schedule_and_fresh_parameters() {
     }
 }
 
+/// Inlined helpers keep the host's calls, their throws and a captured
+/// string's later reads. The host's `opaque()` returns strings (R1: an
+/// `extern string` result is a trusted crossing).
 #[test]
-fn inline_helpers_preserve_opaque_string_parameter_and_capture_coercions() {
+fn inline_helpers_preserve_host_calls_throws_and_captured_reads() {
     for case in [
         Case {
-            name: "opaque private string parameter",
+            name: "private string parameter",
             source: "extern string opaque();string helper(string value){return value+\"!\";}print(helper(opaque()));helper(opaque());try{helper(opaque());}catch{print(9);}finally{print(10);}",
-            host: "let calls=0;globalThis.opaque=()=>({[Symbol.toPrimitive](hint){console.log('coerce:'+hint+':'+(++calls));if(calls==3)throw Error('conversion');return 'ok';}});",
-            expected: "coerce:default:1\nok!\ncoerce:default:2\ncoerce:default:3\n9\n10\n",
+            host: "let calls=0;globalThis.opaque=()=>{if(++calls==3)throw Error('host');return 'ok'+calls;};",
+            expected: "ok1!\n9\n10\n",
             helper: "helper",
         },
         Case {
-            name: "opaque captured string with discarded result",
+            name: "captured string with discarded result",
             source: "extern string opaque();func()->void make(){string value=opaque();auto helper=()=>{value+\"!\";return;};return ()=>helper();}auto run=make();run();try{run();}catch{print(9);}finally{print(10);}",
-            host: "let calls=0;globalThis.opaque=()=>({[Symbol.toPrimitive](hint){console.log('coerce:'+hint+':'+(++calls));if(calls==2)throw Error('conversion');return 'ok';}});",
-            expected: "coerce:default:1\ncoerce:default:2\n9\n10\n",
+            host: "globalThis.opaque=()=>'ok';",
+            expected: "10\n",
             helper: "helper",
         },
         Case {
-            name: "conversion reentry changes a later captured-string read",
-            source: "extern string opaque();extern void keep(func()->void replace);func()->string make(){string text=opaque();keep(()=>{text=\"changed\";});auto helper=()=>{string first=text+\"!\";return first+text;};return ()=>helper();}auto run=make();print(run());print(run());",
-            host: "let replace;globalThis.keep=value=>{replace=value};globalThis.opaque=()=>({[Symbol.toPrimitive](hint){console.log('coerce:'+hint);replace();return 'old';}});",
-            expected: "coerce:default\nold!changed\nchanged!changed\n",
+            name: "a host call changes a later captured-string read",
+            source: "extern string opaque();extern void keep(func()->void replace);extern void tick();func()->string make(){string text=opaque();keep(()=>{text=\"changed\";});auto helper=()=>{string first=text+\"!\";tick();return first+text;};return ()=>helper();}auto run=make();print(run());print(run());",
+            host: "let replace,ticks=0;globalThis.keep=value=>{replace=value};globalThis.tick=()=>{if(++ticks==1)replace();};globalThis.opaque=()=>'old';",
+            expected: "old!changed\nchanged!changed\n",
             helper: "helper",
         },
     ] {

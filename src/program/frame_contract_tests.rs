@@ -149,33 +149,29 @@ fn artifact_execution_is_independent_of_world() {
     assert!(!script.execution.guarantees_strict_execution());
 }
 
+/// An `extern int` result is a trusted crossing (R1): the helper's `+`
+/// converts nothing, so it runs no host code that could see its frame, and a
+/// script inlines it as a module does. A host whose `opaque` returns another
+/// value breaks the precondition.
 #[test]
-fn script_keeps_a_coercing_private_helper_frame_and_rejects_its_inline_candidate() {
+fn script_inlines_a_private_helper_over_a_trusted_crossing() {
     compiled(COERCING, false, |compiler, direct, helper, policy| {
-        let original = render(compiler, direct, policy);
-        assert_eq!(
-            execute(&original, false, true),
-            json!([["caller-visible", true], ["value", 5]])
-        );
         let result = compiler
             .inline_helper_javascript(direct, helper, request(), policy, WorkDomain::Optional)
             .unwrap();
-        assert!(
-            matches!(
-                result.outcome,
-                HelperOutcome::Unknown(HelperUnknownReason::ObservableFrame)
-            ),
-            "{result:?}"
-        );
-        let retained = render(compiler, direct, policy);
-        assert_eq!(
-            retained, original,
-            "rejection must preserve the valid incumbent"
-        );
-        assert_eq!(
-            execute(&retained, false, true),
-            json!([["caller-visible", true], ["value", 5]])
-        );
+        let HelperOutcome::Published(inlined) = result.outcome else {
+            panic!("script helper: {result:?}")
+        };
+        for candidate in [direct, inlined] {
+            let javascript = render(compiler, candidate, policy);
+            let script = format!(
+                "globalThis.events=[];console.log=value=>events.push(['value',value]);globalThis.opaque=()=>4;\n{javascript}\nprocess.stdout.write(JSON.stringify(events));"
+            );
+            let result = Command::new("node").args(["-e", &script]).output().unwrap();
+            assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+            let events: Json = serde_json::from_slice(&result.stdout).unwrap();
+            assert_eq!(events, json!([["value", 5]]));
+        }
     });
 }
 
