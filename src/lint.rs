@@ -2164,7 +2164,7 @@ mod tests {
     #[test]
     fn js_builtin_fixes_reach_a_fixed_point() {
         let scratch = Scratch::new("js-builtin");
-        let header = "extern void show(JsValue value);\nextern JsValue Map;\nfloat half(float v) { return v / 2.0; }\n";
+        let header = "extern void show(JsValue value);\nextern JsValue Map;\nfloat half(float v) { return v / 2.0; }\nJsValue pick(JsValue self, JsValue a) { return a; }\nJsValue all(JsValue rest) { return rest; }\n";
         let original = r#"export JsValue f(JsValue o, JsValue x, string text) {
     JS.set(o, "total", JS.add(JS.get(o, "total"), JS.invoke(x, "size")));
     show(JS.call(JS.get(o, "handler"), JS.undefined(), JS.strictEqual(JS.typeOf(x), "string")));
@@ -2191,6 +2191,9 @@ mod tests {
     show(JS.call(half, JS.undefined(), x));
     float h = JS.assume(half(3.0));
     int n = JS.assume(text);
+    show(JS.method1(pick));
+    show(JS.staticRest(all));
+    show(JS.methodRest(pick));
     return JS.invoke(o, "call", s);
 }
 "#;
@@ -2220,6 +2223,9 @@ mod tests {
     show((half as JsValue)(x));
     float h = half(3.0);
     int n = text as JsValue as int;
+    show((this JsValue self, JsValue a0) => pick(self, a0));
+    show((JsValue... rest) => all(rest));
+    show((this JsValue self, JsValue... rest) => pick(self, rest));
     return o["call"](s);
 }
 "#;

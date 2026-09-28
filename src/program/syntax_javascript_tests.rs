@@ -2098,3 +2098,51 @@ fn method_lambdas_take_typed_parameters() {
     assert_eq!(run(&javascript, SHOW), "42\n7\n");
 }
 
+/// `unknown` takes the tests and the ways out, and lowers as `JsValue`
+/// (R12).
+#[test]
+fn unknown_takes_its_tests_and_ways_out() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export void f(unknown u) {
+            show(u === null);
+            show(u == null);
+            show(typeof u);
+            if (u is string) { show(u + "!"); }
+            string? s = u as? string;
+            show(s != null);
+            show(float(u) + 1.0);
+            show(bool(u));
+            JsValue j = u as JsValue;
+            show(j);
+        }
+        f("5" as JsValue as unknown);
+        "#,
+        PRISTINE,
+    );
+    assert_eq!(
+        run(&javascript, SHOW),
+        "false\nfalse\n\"string\"\n\"5!\"\ntrue\n6\ntrue\n\"5\"\n"
+    );
+}
+
+/// Every other operation needs `unknown` narrowed first, and leaving it is
+/// written, even to `JsValue`.
+#[test]
+fn unknown_refuses_other_operations() {
+    let arena = bumpalo::Bump::new();
+    for source in [
+        "void f(unknown u) { JsValue j = u; }",
+        "void f(unknown u, JsValue v) { bool b = u in v; }",
+        "void f(unknown u) { unknown w = u; string s = w.name; }",
+        "void f(unknown u) { float x = u + 1.0; }",
+    ] {
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        assert!(crate::analyze(&syntax).is_err(), "{source} was accepted");
+    }
+    let syntax = crate::parse_source(&arena, "void f(unknown u, JsValue v) { bool b = u in v; }").unwrap();
+    let error = crate::analyze(&syntax).unwrap_err();
+    assert!(format!("{error:?}").contains("narrowed before other operations"), "{error:?}");
+}
+
