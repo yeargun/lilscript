@@ -1374,6 +1374,32 @@ Predicted:
 
 ---
 
+## 2026-09-28 Batch S5: the fix-it on typed operands (M10.2, M4.2)
+
+**Pre-registration** (written before the first build of the batch; base `3bed426f`, baseline binary `~/lilscript-work/bin/s3-1`). S4's ladder runs with this batch's, at the owner's direction to test several changes together; each change is its own commit, so a surprise bisects to it.
+
+What the batch builds (language.md R12; M10.14 names the explicit view):
+- **`x as JsValue`**: the explicit view of a typed value as the dynamic type. It emits no code: it resolves to the trusted view `JS.assume` resolves to, over a typed operand, which is what `JS.assume(x)` with a typed `x` does today.
+- **The fix-it on the spellings it left** (the 1,054 at S3):
+  - `JS.add` with a typed `string` operand becomes `+`. `+` with a `string` operand is typed concatenation, and it prints the same JavaScript `+` (checked: `JS.add("color:", v)` and `"color:" + v` both print `"color:"+a`). Its type becomes `string`, so it is not offered where the sum is a receiver or the operand of a unary operator.
+  - `JS.get`, `JS.set`, `JS.delete`, `JS.invoke`, `JS.call`, `JS.apply` and `JS.construct` on a typed receiver or callee are spelled on `(x as JsValue)`, which keeps the dynamic operation.
+  - `JS.assume(x)` on a typed `x` becomes `x` when `x` already has the target type, `x as JsValue` for a `JsValue` target, and `x as JsValue as T` otherwise.
+
+Changes (one commit each):
+- **C1.** Checker: `as JsValue` from any value type.
+- **C2.** Fix-it: typed-`string` `JS.add`.
+- **C3.** Fix-it: typed receivers and callees.
+- **C4.** Fix-it: `JS.assume` on typed values.
+- **C5.** Tests: the checker's `as JsValue`, and the fix-it's new rewrites at a fixed point.
+- **C6.** The seven reference ports rewritten from their own sources, suites green, census.
+
+Predicted:
+- Unmodified programs, cases and ports: byte-identical to `s3-1` through S4 and S5.
+- Census: 1,054 `JS.*` mentions fall below 400. What stays is the catalog helpers, function-reference adapters, `JS.undefined()` where a module binds `undefined`, and calls whose operand keeps a `JS.*` spelling.
+- Rewritten ports: the same operations, so bytes within noise.
+
+---
+
 ## Appendix: where milestones 001–014 went
 
 | Old | Now |
