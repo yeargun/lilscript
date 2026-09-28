@@ -2375,3 +2375,35 @@ fn development_checks_index_reads() {
     assert!(!production.contains("RangeError"), "{production}");
     assert_eq!(run(&production, SHOW), "5\n0\n\"\"\n\"a\"\n");
 }
+
+/// R11: `%` with a `float` operand is a `float`; a bitwise operator takes a
+/// `float` operand through ToInt32 and gives an `int`; `codeUnitAt` is a
+/// code unit with no `|0`.
+#[test]
+fn float_remainder_bitwise_conversion_and_code_units() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export float rem(float a, float b) { return a % b; }
+        export int bits(float a) { return a | 0; }
+        export int unit(string s, int i) { return s.codeUnitAt(i); }
+        show(rem(5.5, 2.0));
+        show(bits(-1.75));
+        show(bits(4294967297.5));
+        show(unit("héllo", 1));
+        "#,
+        PRISTINE,
+    );
+    let unit = javascript
+        .split("unit=function")
+        .nth(1)
+        .unwrap_or_default()
+        .split('}')
+        .next()
+        .unwrap_or_default();
+    assert!(unit.contains("charCodeAt") && !unit.contains("|0"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "1.5\n-1\n1\n233\n");
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, "int x = 5.5 % 2;").unwrap();
+    assert!(crate::analyze(&syntax).is_err(), "a float remainder is a float");
+}
