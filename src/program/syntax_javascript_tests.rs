@@ -1784,3 +1784,33 @@ fn dynamic_syntax_has_javascripts_meaning() {
         "false\ntrue\n6\n\"undefined\"\ntrue\n\"k6\"\n\"old\"\n\"new\"\n{\"list\":[],\"items\":[6,2]}\n{\"count\":6,\"last\":6}\n"
     );
 }
+
+/// R7: a lambda that names its receiver or its rest is the method its
+/// adapter makes, and compiles as the adapter's spelling does.
+#[test]
+fn receiver_and_rest_lambdas_compile_as_their_adapters() {
+    let header = "extern void show(JsValue value);\n";
+    let syntax = r#"
+        export JsValue methods(JsValue proto) {
+            proto.size = (this JsValue self) => self.items;
+            proto.add = (this JsValue self, JsValue item, JsValue at) => self.items.splice(at, 0, item);
+            proto.all = (this JsValue self, JsValue... items) => self.items.concat(items);
+            return (JsValue... values) => values;
+        }
+    "#;
+    let spelled = r#"
+        export JsValue methods(JsValue proto) {
+            proto.size = JS.method0((JsValue self) => self.items);
+            proto.add = JS.method2((JsValue self, JsValue item, JsValue at) => self.items.splice(at, 0, item));
+            proto.all = JS.methodRest((JsValue self, JsValue items) => self.items.concat(items));
+            return JS.staticRest((JsValue values) => values);
+        }
+    "#;
+    for config in ["[javascript]\n", PRISTINE] {
+        assert_eq!(
+            compile_with(&format!("{header}{syntax}"), config),
+            compile_with(&format!("{header}{spelled}"), config),
+            "{config}"
+        );
+    }
+}

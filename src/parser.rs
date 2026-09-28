@@ -2991,7 +2991,22 @@ mod tests {
             &program.items[2],
             Item::Stmt(Stmt::Expr(Expr { kind: ExprKind::Assignment { value: Expr { kind: ExprKind::Ident(_), .. }, .. }, .. }))
         ));
-        // `for (T k in o)` keeps its head.
+        // A lambda names its receiver first and its rest last (R7);
+        // declarations take neither.
+        let Expr {
+            kind: ExprKind::ArrowFunction { params, .. },
+            ..
+        } = initializer("JsValue m = (this JsValue self, JsValue a, JsValue... rest) => a;")
+        else {
+            panic!("method lambda");
+        };
+        assert_eq!(
+            params.iter().map(|param| param.role).collect::<Vec<_>>(),
+            [ParamRole::Receiver, ParamRole::Value, ParamRole::Rest]
+        );
+        assert!(parse_source(&arena, "JsValue f(this JsValue self) { return self; }").is_err());
+        assert!(parse_source(&arena, "JsValue m = (JsValue... rest, JsValue a) => a;").is_err());
+                // `for (T k in o)` keeps its head.
         let program = parse_source(&arena, "for (string k in o) { print(k); }").unwrap();
         assert!(matches!(&program.items[0], Item::Stmt(Stmt::ForIn { .. })));
     }
