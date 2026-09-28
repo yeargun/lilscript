@@ -2369,7 +2369,9 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     saw_default = true;
                     Some(self.parse_expression()?)
                 } else {
-                    if saw_default {
+                    // A rest parameter is not a required one: the checker says
+                    // why a function with one takes no defaults.
+                    if saw_default && !rest {
                         return Err(AdmittedParseError::new(
                             name.span,
                             "required parameters cannot follow defaulted parameters",
