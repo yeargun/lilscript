@@ -1814,3 +1814,35 @@ fn receiver_and_rest_lambdas_compile_as_their_adapters() {
         );
     }
 }
+
+/// R12's tests and conversions on a `JsValue`, and its arithmetic: `??`,
+/// `bool(v)`, `as?`, `-`, `*`, `/`, observed by running them. Only the
+/// source's explicit forms emit a test or a conversion (owner, Y1).
+#[test]
+fn dynamic_tests_and_conversions_have_javascripts_meaning() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export void f(JsValue a, JsValue b) {
+            show(a ?? b);
+            show(bool(a));
+            show(!bool(b));
+            string? s = a as? string;
+            show(s ?? "none");
+            float? n = b as? float;
+            show(n ?? 0.5);
+            show(a - b);
+            show(a * b);
+            show(b / 2);
+            show(-b);
+        }
+        f(null, 4);
+        f("7", 2);
+        "#,
+        PRISTINE,
+    );
+    assert_eq!(
+        run(&javascript, SHOW),
+        "4\nfalse\nfalse\n\"none\"\n4\n-4\n0\n2\n-4\n\"7\"\ntrue\nfalse\n\"7\"\n2\n5\n14\n1\n-2\n"
+    );
+}

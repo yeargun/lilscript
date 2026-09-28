@@ -2181,6 +2181,8 @@ mod tests {
     show(JS.method1((JsValue self, JsValue a) => JS.add(JS.get(self, "n"), a)));
     show(JS.staticRest((JsValue rest) => rest));
     show(JS.call(JS.get(o, "m"), o, x));
+    show(JS.isNullish(x) || JS.isUndefined(o) || JS.isFalse(x));
+    show(x.truthy());
     return JS.invoke(o, "call", s);
 }
 "#;
@@ -2200,6 +2202,8 @@ mod tests {
     show((this JsValue self, JsValue a) => self.n + a);
     show((JsValue... rest) => rest);
     show(o.m(x));
+    show(x == null || o === undefined || x === false);
+    show(bool(x));
     return o["call"](s);
 }
 "#;
