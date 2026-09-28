@@ -32,6 +32,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-28 | [Batch B2: level 0 without a codec, the replay check, the audit lane, the counts](#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35) | M3.5 | `m3-budget` |
 | 2026-09-28 | [Batch B3: the objective and effort axes](#2026-09-28-batch-b3-the-objective-and-effort-axes-m31-first-slice-m35-codec-settings) | M3.1, M3.5 | `m3-budget` |
 | 2026-09-28 | [Batch S1: the dynamic type's syntax](#2026-09-28-batch-s1-the-dynamic-types-syntax-m42-m102-first-part) | M4.2, M10.2 | `language-slice-1` |
+| 2026-09-28 | [Owner decisions: compile time scales, test on a clock, track each change](#2026-09-28-owner-decisions-compile-time-scales-test-on-a-clock-track-each-change) | AM3, plan rules 3, 5 and 8 | — |
 
 ---
 
@@ -1128,6 +1129,18 @@ Predicted:
 - **Rewritten ports:** each builds byte-identical to its unrewritten source under the batch's binary, and its suite passes.
 - **Census:** the `JS.*` mentions in the seven reference ports fall from 16,041 to about 1,000 (the method adapters, the helpers and the non-`JsValue` receivers).
 - **No bytes from new capabilities:** the new capabilities (`instanceof`, the `new` forms) yield bytes only when a port uses them, in their own patches.
+
+## 2026-09-28 Owner decisions: compile time scales, test on a clock, track each change
+
+The owner's message, during batch S1, is in [finer/intent/2026-09-28.md](../../finer/intent/2026-09-28.md).
+
+- **Amendment AM3** (architecture §13.2, §13.7 and appendix A). Compile time has no target in seconds: a program that grows takes longer, so a number of seconds either blocks honest growth or says nothing about a new program. Withdrawn: level 12 at the frozen `-j 4` time and 1.3× it single-threaded, level 0 at 1.4 s on katexlil, katexlil's package build at 14.4 s, the package builds at upstream's time, and levels 1–4 at 2× Terser. In their place:
+  - *scaling*: each phase's counted work at levels 0–12 is at most linear in the program's size (log-linear where it sorts), and a batch that adds a super-linear term fails;
+  - *relative cost*: CPU per thousand IR operations against the previous binary on the same inputs; at levels 0–12 a rise the pre-registration did not predict fails, and at 13 and above it is reported (AM2);
+  - *what time buys*: every exact judgement is reported with its bytes (B9).
+  The frozen baseline (M2.14) stays as the record of where the time went. The plan's compile-time gate, M3.5's exit, step 6's exit, CP2 and M12.4 follow.
+- **Test on a clock** (plan rule 8). Per change, a type-check only. Builds and unit tests run about every 20 minutes of work or right after a critical part, meaning a change every program passes through; the ladder runs per batch.
+- **Track each change** (plan rule 5). A batch's pre-registration lists its changes as C1, C2, …; each lands as its own commit on the batch branch, and a surprise in the batch's verification is bisected over those commits. Batch S1, already built when the rule came, records its changes as a list; the rule applies from the next batch.
 
 ---
 
