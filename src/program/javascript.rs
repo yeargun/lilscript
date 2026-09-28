@@ -77,19 +77,17 @@ fn call_result_recipe(
     }
 }
 
-/// A load's result recipe. A typed load is its type's by R1: a field's or a
-/// member's `int` needs no `|0`. Absence past an array's or a string's end
-/// and on a record's missing key reads as the language's null, empty string
-/// or 0 until R11's index precondition and R2's absence land (M10.9).
+/// A load's result recipe. A typed load is its type's by R1, and an index
+/// read is in range by R11's precondition, so an element read is its
+/// JavaScript read: an `int` needs no `|0`, a `string` no `??""`. Absence
+/// on a record's missing key and in a `T?` element reads as the language's
+/// null until R2's second batch (M10.9). A `Uint32Array` element is a uint32,
+/// which an `int` reads as int32.
 #[derive(Clone, Copy)]
 enum LoadResultRecipe {
     Raw,
     NullishNull,
-    NullishEmptyString,
-    /// An `int` element: past the end is `undefined`, which reads as 0 until
-    /// R11's precondition; a `Uint32Array` element is a uint32, which the
-    /// read converts to int32 whatever the index.
-    IndexInteger,
+    Uint32Element,
 }
 fn load_result_recipe(
     program: &Program<'_>,
@@ -98,30 +96,22 @@ fn load_result_recipe(
     ty: TypeId,
 ) -> LoadResultRecipe {
     let receiver = match unit.places[place.index()] {
-        Place::Cell(_) | Place::Value(_) => return LoadResultRecipe::Raw,
-        Place::Field { .. } => return LoadResultRecipe::Raw,
+        Place::Cell(_) | Place::Value(_) | Place::Field { .. } => return LoadResultRecipe::Raw,
         Place::Member { receiver, .. }
         | Place::ClassField { receiver, .. }
         | Place::Index { receiver, .. } => receiver,
     };
+    let index = matches!(unit.places[place.index()], Place::Index { .. });
     let receiver_ty = &program.types[unit.values[receiver.index()].ty.index()];
     let result_ty = &program.types[ty.index()];
-    if matches!(receiver_ty, Type::Record(_)) {
+    if matches!(receiver_ty, Type::Record(_))
+        || index
+            && matches!(receiver_ty, Type::Array(_))
+            && matches!(result_ty, Type::Nullable(_) | Type::Null)
+    {
         LoadResultRecipe::NullishNull
-    } else if matches!(unit.places[place.index()], Place::Index { .. })
-        && matches!(receiver_ty, Type::Array(_))
-        && matches!(result_ty, Type::Nullable(_) | Type::Null)
-    {
-        // A position past the end is `undefined`; the language reads null.
-        LoadResultRecipe::NullishNull
-    } else if matches!(unit.places[place.index()], Place::Index { .. })
-        && matches!(result_ty, Type::String)
-    {
-        LoadResultRecipe::NullishEmptyString
-    } else if matches!(unit.places[place.index()], Place::Index { .. })
-        && matches!(result_ty, Type::Int)
-    {
-        LoadResultRecipe::IndexInteger
+    } else if index && matches!(receiver_ty, Type::Uint32Array) && matches!(result_ty, Type::Int) {
+        LoadResultRecipe::Uint32Element
     } else {
         LoadResultRecipe::Raw
     }
@@ -2988,18 +2978,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 raw = self.crossing_check(ty, raw)?;
             }
         }
-        // Language absence and integer obligations are distinct from the raw
-        // JavaScript property load, including loads from foreign containers.
+        // A load is its JavaScript read (R1, R11), but for absence until
+        // R2's second batch and a `Uint32Array` element read as an `int`.
         match load_result_recipe(self.program, self.data(unit), place, ty) {
-            recipe @ (LoadResultRecipe::NullishNull | LoadResultRecipe::NullishEmptyString) => {
-                let absent = match recipe {
-                    LoadResultRecipe::NullishNull => js::Literal::Null,
-                    _ => js::Literal::String("".into()),
-                };
-                let right = self.literal(absent)?;
+            LoadResultRecipe::NullishNull => {
+                let right = self.literal(js::Literal::Null)?;
                 Ok(self.save_nullish(unit, operation, raw, right)?)
             }
-            LoadResultRecipe::IndexInteger => {
+            LoadResultRecipe::Uint32Element => {
                 let value = self.expression(js::Expr::ToInt32(raw))?;
                 Ok(self.save(unit, operation, value)?)
             }
@@ -4121,7 +4107,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     .allows(JsSyntaxFeature::NullishCoalescing)
                 {
                     // An absent key is `undefined` in the host and `null` in
-                    // the language, exactly as the legacy `m.get(k)??null`.
+                    // the language until R2's second batch (M10.9).
                     let left = self.expression(call)?;
                     let right = self.literal(js::Literal::Null)?;
                     js::Expr::Binary {
