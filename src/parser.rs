@@ -2270,7 +2270,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
 
     fn parse_arrow_function(&mut self) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         let open = self.expect(|kind| matches!(kind, TokenKind::LParen), "expected `(`")?;
-        let params = self.parse_params_after_open()?;
+        let params = self.parse_lambda_params_after_open()?;
         self.expect(|kind| matches!(kind, TokenKind::FatArrow), "expected `=>`")?;
 
         let (body, body_span) = if self.match_kind(|kind| matches!(kind, TokenKind::LBrace)) {
@@ -2292,7 +2292,22 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         }))
     }
 
+    /// A declaration's parameters: a receiver or rest parameter is a
+    /// lambda's in this version (R7, M10.4's first part).
     fn parse_params_after_open(
+        &mut self,
+    ) -> Result<&'arena [Param<'arena, 'src>], AdmittedParseError> {
+        let params = self.parse_lambda_params_after_open()?;
+        if let Some(param) = params.iter().find(|param| param.role != ParamRole::Value) {
+            return Err(AdmittedParseError::new(
+                param.span,
+                "a receiver or rest parameter belongs to a lambda: `(this JsValue self, JsValue... rest) => …`",
+            ));
+        }
+        Ok(params)
+    }
+
+    fn parse_lambda_params_after_open(
         &mut self,
     ) -> Result<&'arena [Param<'arena, 'src>], AdmittedParseError> {
         let mut params = BumpVec::new_in(self.arena, self.admission);
