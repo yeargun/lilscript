@@ -5334,14 +5334,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         value: Some(value),
                     }
                 }
-                // `let x;` (R3). An inlined body's locals are declared by its
-                // host, so there it is nothing.
-                OperationKind::Declare(_)
-                    if matches!(self.demand.context(unit).kind, ContextKind::Inline { .. }) =>
-                {
-                    cursor += 1;
-                    continue;
-                }
+                // `let x;` (R3), in an inlined body as in its own: the context
+                // binds the cell as `Initialize`'s `let` does.
                 OperationKind::Declare(cell) => js::Statement::Let {
                     binding: self.cell_binding(unit, cell)?,
                     value: None,
