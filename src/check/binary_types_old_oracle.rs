@@ -44,6 +44,10 @@ pub(super) fn old_checked_binary_type<'src>(
             if lhs == &Type::Null {
                 return Ok(rhs.clone());
             }
+            // Added by batch S3 (R12): `JsValue ?? x` is either side.
+            if lhs == &Type::Dynamic && !rhs.is_void() {
+                return Ok(Type::Dynamic);
+            }
             let present = nullish_present_type(lhs).ok_or_else(|| {
                 CheckError::new(
                     span,
