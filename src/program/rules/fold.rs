@@ -139,6 +139,15 @@ pub(super) fn apply(
                 edit::detach(data, op);
             }
         }
+        // A fold's value may be another fold's result in the same round
+        // (`(x | 0) | 0`): each substitution follows the ones made before it.
+        let mut substituted: HashMap<ValueId, ValueId> = HashMap::new();
+        let resolve = |substituted: &HashMap<ValueId, ValueId>, mut value: ValueId| {
+            while let Some(&next) = substituted.get(&value) {
+                value = next;
+            }
+            value
+        };
         for fold in plan.folds {
             match fold {
                 Fold::Block { op, region } => edit::make_block(data, op, region),
@@ -150,11 +159,15 @@ pub(super) fn apply(
                     yields,
                 } => {
                     edit::splice(data, cells, unit, op, region);
+                    let yields = resolve(&substituted, yields);
                     edit::substitute(data, result, yields);
+                    substituted.insert(result, yields);
                 }
                 Fold::Replace { op, result, with } => {
                     edit::detach(data, op);
+                    let with = resolve(&substituted, with);
                     edit::substitute(data, result, with);
+                    substituted.insert(result, with);
                 }
             }
             receipt.folded_branches += 1;
