@@ -1850,3 +1850,35 @@ fn dynamic_tests_and_conversions_have_javascripts_meaning() {
         "4\nfalse\nfalse\n\"none\"\n4\n-4\n0\n2\n-4\n\"7\"\ntrue\nfalse\n\"7\"\n2\n5\n14\n1\n-2\n"
     );
 }
+
+/// R14: sets and maps iterate in insertion order, and a `JsValue` by the
+/// iterator protocol, observed by running them.
+#[test]
+fn sets_maps_and_dynamic_iterables_iterate_in_order() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export void f(JsValue letters) {
+            Set<string> seen = new Set<string>();
+            seen.add("b");
+            seen.add("a");
+            seen.add("b");
+            for (string s of seen) { show(s); }
+            Map<string, int> counts = new Map<string, int>();
+            counts.set("x", 1);
+            counts.set("y", 2);
+            for (string k, int v of counts) {
+                if (v > 1) { break; }
+                show(k + v);
+            }
+            for (JsValue letter of letters) { show(letter); }
+        }
+        f("hi");
+        "#,
+        PRISTINE,
+    );
+    assert_eq!(
+        run(&javascript, SHOW),
+        "\"b\"\n\"a\"\n\"x1\"\n\"h\"\n\"i\"\n"
+    );
+}
