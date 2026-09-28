@@ -1228,6 +1228,7 @@ Changes (one commit each):
 - **C4.** The fix-it: `JS.method<N>`, `JS.methodRest` and `JS.staticRest` of a lambda become receiver and rest lambdas. `JS.call(o.m, o, …)`, where both `o`s are one binding, becomes `o.m(…)`.
 - **C5.** Tests: the parser's roles, the adapters' identity with their spellings, and the fix's fixed point.
 - **C6.** Port patches regenerated with the new fix-it on top of S1's, measured per port.
+- **C7** (added during the batch, after S1's record). Formation forwards a wrapper into any single host operation, not only a builtin. A reference call on `p0[p1]` with the remaining parameters as arguments is `JS.invoke`; a load of `p0[p1]` is `JS.get`; an empty object literal is `JS.object()`; an array literal of the parameters is `JS.array`. S1's rewrite lost zodlil +331 Brotli because its `invoke` wrappers, written as `o[m](a)`, stayed calls.
 
 Predicted:
 - Unmodified programs, cases and ports: byte-identical.
