@@ -1568,6 +1568,28 @@ Changes:
 
 ---
 
+## 2026-09-28 Batch K1: trusted crossings (M10.12, R1)
+
+**Pre-registration** (written before the first build of the batch; base: S7's last commit, baseline binary `~/lilscript-work/bin/s7-1`). Step 8, the core, starts here: M10.12 needs only Y1, answered yes on 2026-09-28 ("runtime shouldn't have explicit type casting behaviours").
+
+What the batch builds (language.md R1): inside a program every value inhabits its static type; host values enter at declared crossings, trusted, with no code in production.
+- **Loads and calls never normalize.** A typed `int` load (a field, a class field, a member, an element) and an `int` call result (a builtin or a call through a reference) are int32 by type: the `|0` the JavaScript lowering adds to them goes. The reads R2 and R11 own stay: `?? null` past an array's end or on a missing record key, and `?? ""` past a string's end (M10.9).
+- **The int32 proof collapses.** An `int` value is an int32 by type. The exception is a load of a classic script's top-level cell, which another script may write until Y5 is answered. Parameters no longer need their callers' arguments checked. The counting loop's range reasoning, which drops `|0` on `c+1`, stays.
+- **The effect obligations go.** A summary no longer records parameters assumed primitive, int32 or well-formed, or reliance on untraced typed data (`untrusted`). Under R1 no typed value reaches a conversion hook, so a call is removable on its effects alone.
+
+Changes (one commit each):
+- **C1.** Loads and call results never normalize.
+- **C2.** The int32 proof by type.
+- **C3.** The effect obligations deleted.
+- **C4.** Tests: expectations that carried the normalizations; new tests of typed loads without `|0` and of a call removable with typed arguments.
+
+Predicted:
+- Byte changes wherever typed `int` loads were normalized: fewer `|0`, smaller in every codec on typed programs. Level 13 and above must not grow (AM2); every growth is named.
+- Ports: small wins on typed code (markedlil, parts of zodlil and posthoglil); JsValue-heavy ports barely move.
+- No behavior change on the suites. R1 changes meaning only for ill-typed crossings, which the development-check lane (M10.9) will catch.
+
+---
+
 ## Appendix: where milestones 001–014 went
 
 | Old | Now |
