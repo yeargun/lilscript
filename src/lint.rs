@@ -19,10 +19,12 @@ use crate::program::{
 };
 use crate::span::Span;
 
+mod absence;
 mod char_code;
 mod debug_class;
 mod implicit_default;
 mod js_builtin;
+mod walk;
 
 pub const RULES: &[&str] = &[
     "correctness/unreachable-code",
@@ -35,6 +37,7 @@ pub const RULES: &[&str] = &[
     implicit_default::RULE,
     debug_class::RULE,
     char_code::RULE,
+    absence::RULE,
     "performance/allocation-in-loop",
     "performance/closure-allocation-in-loop",
     "performance/indirect-call-in-loop",
@@ -309,6 +312,7 @@ pub fn lint_checked_with_providers(
             implicit_default::lint(module, source, syntax, &view, &mut pending);
             debug_class::lint(module, syntax, &mut pending);
             char_code::lint(module, syntax, &view, &mut pending);
+            absence::lint(module, source, syntax, &view, &mut pending);
         }
     }
     lint_unused_private_symbols(checked, &mut pending);
@@ -2410,6 +2414,40 @@ print(new Holder(true).kept);
             source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
         }
         assert_eq!(source, fixed);
+    }
+
+    /// `migration/absence`: operations that tell the spellings of absence
+    /// apart get today's meaning written out where it has one spelling, and
+    /// a report where it has none.
+    #[test]
+    fn absence_fixes_write_todays_meaning() {
+        let scratch = Scratch::new("absence");
+        let path = scratch.file("main.lil", "");
+        let header = "extern void show(JsValue value);\n";
+        let original = "export void f(string? s, int? n, JsValue v, int?[] list) {\n    print(s);\n    print(string(n));\n    show(s === null);\n    show(n !== 5);\n    show(v === s);\n    show(typeof s);\n    show(list.indexOf(n));\n}\n";
+        let fixed = "export void f(string? s, int? n, JsValue v, int?[] list) {\n    print(s ?? \"null\");\n    print(string(n ?? \"null\"));\n    show(s == null);\n    show(n != 5);\n    show(v === s);\n    show(typeof s);\n    show(list.indexOf(n));\n}\n";
+        let mut source = format!("{header}{original}");
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        let mut edits = diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.rule == "migration/absence")
+            .filter_map(|diagnostic| diagnostic.fix.as_ref())
+            .flat_map(|fix| fix.edits.iter().cloned())
+            .collect::<Vec<_>>();
+        edits.sort_by_key(|edit| std::cmp::Reverse(edit.span.start));
+        for edit in edits {
+            source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
+        }
+        assert_eq!(source, format!("{header}{fixed}"));
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        assert_eq!(
+            diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.rule == "migration/absence")
+                .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
+                .collect::<Vec<_>>(),
+            [(false, "v === s"), (false, "s"), (false, "indexOf")]
+        );
     }
 
     #[test]
