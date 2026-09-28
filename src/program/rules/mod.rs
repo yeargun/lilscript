@@ -1,0 +1,212 @@
+//! Program rules (plan M5.1, M6.4a, M7.8a; architecture §8.2–§8.4): exact,
+//! target-neutral rewrites of the owned program, run once per build after
+//! conversion and before any target forms it, to their fixed point.
+//! JavaScript, native and every search candidate start from the result.
+//!
+//! A rule removes operations and never duplicates a body (L3). Rules read the
+//! program's facts (effects and the call graph, initialization order) and the
+//! exact values of `values.rs`. They never read a codec, a name plan, a
+//! target or the effort level, so the base they leave is the same at every
+//! level (B5), and a rule phase is never truncated (§8.2): a round ceiling
+//! that is reached is a compiler bug and fails the build.
+//!
+//! Prior art: Closure's `PhaseOptimizer` loop (`closure-compiler@0da58e1
+//! src/com/google/javascript/jscomp/PhaseOptimizer.java:270-277`) and Oxc's
+//! `run_in_loop` (`oxc@591966d crates/oxc_minifier/src/compressor.rs:106-140`),
+//! here over the typed program instead of the syntax tree.
+
+mod dce;
+mod edit;
+mod fold;
+mod values;
+
+#[cfg(test)]
+mod tests;
+
+use super::call_graph::Seal;
+use super::effects::ProgramEffects;
+use super::facts::{self, EvaluationBehavior, MemoryAccess};
+use super::*;
+
+/// What a build permits the rules: its contract's tactics and sealing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct RuleRequest {
+    /// Literal and branch folding on exact values (M7.8a).
+    pub(crate) fold: bool,
+    /// Dead operations, dead stores and dead named functions (M5.1).
+    pub(crate) dead_code: bool,
+    /// Root storage is sealed only in module execution: a script's root
+    /// bindings are globals other scripts may read and write.
+    pub(crate) seal: Seal,
+}
+
+impl RuleRequest {
+    pub(crate) fn any(self) -> bool {
+        self.fold || self.dead_code
+    }
+}
+
+/// What the rules did, for the build receipt.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct RuleReceipt {
+    pub(crate) rounds: u32,
+    pub(crate) folded_values: u32,
+    pub(crate) folded_branches: u32,
+    pub(crate) removed_operations: u32,
+    pub(crate) removed_stores: u32,
+    pub(crate) retired_functions: u32,
+    /// Bodies nothing creates any more, emptied: they use nothing.
+    pub(crate) emptied_units: u32,
+}
+
+impl RuleReceipt {
+    pub(crate) fn json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "rounds": self.rounds,
+            "folded_values": self.folded_values,
+            "folded_branches": self.folded_branches,
+            "removed_operations": self.removed_operations,
+            "removed_stores": self.removed_stores,
+            "retired_functions": self.retired_functions,
+            "emptied_units": self.emptied_units,
+        })
+    }
+}
+
+/// A rule edit strictly removes operations, so rounds are bounded by the
+/// program's size; this ceiling only catches a rule that does not.
+const ROUND_CEILING: u32 = 64;
+
+/// Runs the permitted rules to their fixed point. The result is verified: a
+/// rule that leaves an invalid program is a compiler bug, reported as an
+/// error rather than delivered.
+pub(crate) fn optimize<'src>(
+    program: Program<'src>,
+    request: RuleRequest,
+) -> Result<(Program<'src>, RuleReceipt), String> {
+    let mut receipt = RuleReceipt::default();
+    if !request.any() {
+        return Ok((program, receipt));
+    }
+    let mut editor = edit::Editor::new(program);
+    loop {
+        if receipt.rounds == ROUND_CEILING {
+            return Err("program rules did not reach a fixed point".into());
+        }
+        receipt.rounds += 1;
+        let mut changed = false;
+        if request.fold {
+            let effects = editor.program().effects(request.seal);
+            let values = values::ProgramValues::compute(editor.program(), &effects, request.seal);
+            changed |= fold::apply(&mut editor, &values, &effects, &mut receipt);
+            editor.commit()?;
+        }
+        if request.dead_code {
+            let effects = editor.program().effects(request.seal);
+            changed |= dce::apply(&mut editor, &effects, request.seal, &mut receipt);
+            editor.commit()?;
+        }
+        if cfg!(debug_assertions) {
+            editor
+                .program()
+                .verify()
+                .map_err(|error| format!("program rules, round {}: {error}", receipt.rounds))?;
+        }
+        if !changed {
+            break;
+        }
+    }
+    let program = editor.finish()?;
+    program
+        .verify()
+        .map_err(|error| format!("program rules left an invalid program: {error}"))?;
+    Ok((program, receipt))
+}
+
+/// What evaluating each operation of `unit` may do, in arena order, with the
+/// program's summaries. A cell load the initialization owner proves past the
+/// cell's initialization cannot fail: the temporal dead zone is a passive
+/// load's only failure (as `facts.rs` refines it). A value with exact
+/// knowledge is a primitive, so it runs no conversion hook.
+fn behaviors(
+    program: &Program<'_>,
+    effects: &ProgramEffects,
+    unit: UnitId,
+    values: Option<&values::ProgramValues>,
+) -> Vec<EvaluationBehavior> {
+    let data = program.unit(unit).expect("a program unit");
+    let initialization = effects.initialization();
+    let mut domains = vec![false; data.values.len()];
+    let mut behaviors = Vec::with_capacity(data.operations.len());
+    for (index, operation) in data.operations.iter().enumerate() {
+        let mut behavior = facts::operation_evaluation_behavior(
+            program,
+            Some(effects),
+            unit,
+            data,
+            operation,
+            &domains,
+        );
+        if let OperationKind::Load(place) = operation.kind {
+            if let Some(&Place::Cell(cell)) = data.places.get(place.index()) {
+                let passive = EvaluationBehavior {
+                    reads: behavior.reads,
+                    may_throw: true,
+                    ..EvaluationBehavior::TOTAL
+                };
+                if behavior == passive
+                    && matches!(behavior.reads, MemoryAccess::Cell(_))
+                    && initialization.initialized(
+                        program,
+                        unit,
+                        OpId::from_index(index).unwrap(),
+                        cell,
+                    )
+                {
+                    behavior.may_throw = false;
+                }
+            }
+        }
+        if let Some(result) = operation.result {
+            domains[result.index()] =
+                facts::primitive_result_domain(program, data, operation, &domains)
+                    || values.is_some_and(|values| values.exact(unit, result).is_some());
+        }
+        behaviors.push(behavior);
+    }
+    behaviors
+}
+
+/// The operations of a module initializer's instantiation prefix: the named
+/// function pairs, which only the dead-code rule may retire, as pairs.
+fn prefix(data: &UnitData) -> &[OpId] {
+    let operations = &data.regions[data.entry.index()].operations;
+    &operations[..(data.instantiation_prefix as usize).min(operations.len())]
+}
+
+/// Units something creates: every module initializer, and every body a
+/// `Closure` of a created unit names (a named function's is its prefix pair).
+/// A body nothing creates never runs; its operations are not evidence.
+pub(super) fn created_units(program: &Program<'_>) -> Vec<bool> {
+    let mut created = vec![false; program.units.len()];
+    let mut pending: Vec<UnitId> = program
+        .units
+        .iter()
+        .filter(|unit| unit.data().kind == UnitKind::ModuleInitialization)
+        .map(FrozenUnit::id)
+        .collect();
+    for unit in &pending {
+        created[unit.index()] = true;
+    }
+    while let Some(unit) = pending.pop() {
+        let data = program.unit(unit).expect("a program unit");
+        for operation in &data.operations {
+            if let OperationKind::Closure(body) = operation.kind {
+                if !std::mem::replace(&mut created[body.index()], true) {
+                    pending.push(body);
+                }
+            }
+        }
+    }
+    created
+}

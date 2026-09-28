@@ -1,3 +1,4 @@
+use super::rules::{RuleReceipt, RuleRequest};
 use super::*;
 use crate::ast::{
     self, ArrayElement, ArrowBody, AssignmentOp, ExprKind, ForInitializer, Item, RecordElement,
@@ -133,12 +134,25 @@ pub(crate) fn from_checked_source_admitted<'ast, 'src>(
     semantics: &CheckedModule<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ConversionError> {
+    from_checked_source_with_rules(source, semantics, None, budget).map(|(program, _)| program)
+}
+
+/// Conversion, then the program rules a build permits (`rules/`), before the
+/// program is published to any target.
+pub(crate) fn from_checked_source_with_rules<'ast, 'src>(
+    source: &ast::Program<'ast, 'src>,
+    semantics: &CheckedModule<'ast, 'src>,
+    rules: Option<RuleRequest>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ConversionError> {
     let mut scope = budget.scope();
     let program = convert_source(source, semantics, &mut scope)?;
     verify_conversion(&program, source.span, &mut scope)?;
     check_contracts(&program).map_err(|(_, violation)| ConversionError::Contract(violation))?;
-    publication::PreparedProgram::new(program, &mut scope)
-        .map_err(|error| publication_conversion_error(error, source.span))
+    let (program, receipt) = with_rules(program, rules, source.span, &mut scope)?;
+    let prepared = publication::PreparedProgram::new(program, &mut scope)
+        .map_err(|error| publication_conversion_error(error, source.span))?;
+    Ok((prepared, receipt))
 }
 
 pub(crate) fn from_checked_modules_admitted<'ast, 'src>(
@@ -146,6 +160,16 @@ pub(crate) fn from_checked_modules_admitted<'ast, 'src>(
     semantics: &CheckedModules<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ModuleConversionError> {
+    from_checked_modules_with_rules(sources, semantics, None, budget).map(|(program, _)| program)
+}
+
+/// `from_checked_source_with_rules` for a module graph.
+pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
+    sources: &[ast::Program<'ast, 'src>],
+    semantics: &CheckedModules<'ast, 'src>,
+    rules: Option<RuleRequest>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ModuleConversionError> {
     let mut scope = budget.scope();
     let program = convert_modules(sources, semantics, &mut scope)?;
     verify_conversion(&program, sources[semantics.root()].span, &mut scope).map_err(|error| {
@@ -158,10 +182,48 @@ pub(crate) fn from_checked_modules_admitted<'ast, 'src>(
         module: module.index(),
         error: ConversionError::Contract(violation),
     })?;
-    publication::PreparedProgram::new(program, &mut scope).map_err(|error| ModuleConversionError {
-        module: semantics.root(),
-        error: publication_conversion_error(error, sources[semantics.root()].span),
-    })
+    let root_span = sources[semantics.root()].span;
+    let (program, receipt) =
+        with_rules(program, rules, root_span, &mut scope).map_err(|error| {
+            ModuleConversionError {
+                module: semantics.root(),
+                error,
+            }
+        })?;
+    let prepared = publication::PreparedProgram::new(program, &mut scope).map_err(|error| {
+        ModuleConversionError {
+            module: semantics.root(),
+            error: publication_conversion_error(error, root_span),
+        }
+    })?;
+    Ok((prepared, receipt))
+}
+
+/// Runs the permitted program rules on the owned program. They edit in place,
+/// outside this scope's admitted allocations, so the scope's retained charge
+/// is then set to the edited program's exact size, which publication checks.
+fn with_rules<'src>(
+    program: Program<'src>,
+    rules: Option<RuleRequest>,
+    span: Span,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(Program<'src>, RuleReceipt), ConversionError> {
+    let Some(request) = rules.filter(|request| request.any()) else {
+        return Ok((program, RuleReceipt::default()));
+    };
+    let resources = |error| publication_conversion_error(error, span);
+    let before = publication::program_retained_bytes(&program, budget).map_err(resources)?;
+    let (program, receipt) = super::rules::optimize(program, request).map_err(|message| {
+        eprintln!("lilscript: {message}");
+        ConversionError::Unsupported(Unsupported {
+            span,
+            feature: "program rules",
+        })
+    })?;
+    let after = publication::program_retained_bytes(&program, budget).map_err(resources)?;
+    budget.release(Retained, before)?;
+    budget.retain(Retained, after)?;
+    Ok((program, receipt))
 }
 
 fn publication_conversion_error(

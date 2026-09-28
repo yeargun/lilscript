@@ -53,12 +53,12 @@ impl Dependencies {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum StoredString {
+pub(super) enum StoredString {
     Source(StringId),
     Computed(Arc<StringValue>),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum StoredExact {
+pub(super) enum StoredExact {
     Integer(i32),
     Number(u64),
     Boolean(bool),
@@ -76,7 +76,7 @@ pub enum UnknownReason {
     MemoryLimit,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum StoredKnowledge {
+pub(super) enum StoredKnowledge {
     Exact(StoredExact),
     Unknown(UnknownReason),
 }
@@ -862,7 +862,7 @@ impl Drop for FactsSession<'_> {
     }
 }
 
-struct Work {
+pub(super) struct Work {
     quota: u64,
     used: u64,
     result_limit: u64,
@@ -870,6 +870,17 @@ struct Work {
     truncated: bool,
 }
 impl Work {
+    /// A fresh budget for an evaluation outside a facts session (the program
+    /// rules' values, `rules/values.rs`).
+    pub(super) fn bounded(quota: u64, result_limit: u64) -> Self {
+        Self {
+            quota,
+            used: 0,
+            result_limit,
+            result_used: 0,
+            truncated: false,
+        }
+    }
     fn charge(&mut self, amount: u64) -> bool {
         let Some(next) = self
             .used
@@ -1261,7 +1272,9 @@ pub(super) fn primitive_result_domain(
     }
 }
 
-fn exact(
+/// The exact result of one operation over exact operands: the language's
+/// primitive evaluation, owned here and read by the program rules (M6.4a).
+pub(super) fn exact(
     program: &Program<'_>,
     unit: &UnitData,
     operation: &Operation,
@@ -1402,7 +1415,7 @@ fn number(value: &StoredExact) -> Option<f64> {
         _ => None,
     }
 }
-fn truthy(program: &Program<'_>, value: &StoredExact) -> bool {
+pub(super) fn truthy(program: &Program<'_>, value: &StoredExact) -> bool {
     match value {
         StoredExact::Integer(value) => *value != 0,
         StoredExact::Number(bits) => {

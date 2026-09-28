@@ -158,6 +158,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         for frozen in &self.plan.program.units {
             let unit = frozen.id();
             self.budget.work(WorkKind::Render, 1)?;
+            if !self.plan.created[unit.index()] {
+                continue;
+            }
             if self.plan.named_adapter_needed(unit) {
                 let signature = self.plan.signature_for_unit(unit);
                 let result = self.plan.signatures[signature].result;

@@ -355,6 +355,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         }
         self.globals()?;
         for frozen in &program.units {
+            if !self.plan.created[frozen.id().index()] {
+                continue;
+            }
             self.signature(frozen.id())?;
             self.text(";\n")?;
         }
@@ -362,6 +365,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.closure_recipes()?;
         }
         for frozen in &program.units {
+            if !self.plan.created[frozen.id().index()] {
+                continue;
+            }
             self.unit(frozen.id())?;
         }
         self.text("int main(void) {\nif (!ls_runtime_init()) return 1;\n")?;

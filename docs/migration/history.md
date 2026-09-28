@@ -584,6 +584,82 @@ Predicted, per lane:
 
 Not in this batch: M7.3 and M7.5a (F2). `drop_unreferenced_functions` stays as a transitional rule, because the tree inliners still create unreferenced functions until M7.5a and the inline-or-share choice replace them.
 
+**What landed** (M5.1's first part, M6.4a's exact tier, M7.8a; branch `m5-floor` on `222ce5cb`).
+- **The rule phase** (`src/program/rules/mod.rs`). Program rules run once per build, after conversion and before any target, at every level, to a fixed point:
+  - The contract permits them through the tactics `constant-folding` and `dead-code-elimination`, and seals root storage only under module execution: a script's root bindings are globals.
+  - The build receipt records them as `phases.rules`.
+  - Reaching the round ceiling (64) is a compiler bug and fails the build.
+  - The program is verified after the phase in every build, and after every round in debug builds.
+  - The retained-bytes ledger is re-accounted around the phase (`publication::program_retained_bytes`).
+- **The edit kernel** (`rules/edit.rs`). An `Editor` copies a shared unit once, stamps each committed unit with a fresh revision, and drops the derived views. Its edits:
+  - `detach`, `make_constant`, `make_block`, `substitute` and `splice`;
+  - `compact`, which rebuilds a unit's arenas from what its entry region owns; a cell whose region was removed moves to the nearest region that remains.
+- **Exact values** (`rules/values.rs`). A lattice (⊥, exact, ⊤) over values, formals and results:
+  - formals are joined over complete call sets (`CallGraph::complete_callers`);
+  - a cell is settled when it is local, never reassigned, not synthetic, of primitive type and initialized once, and a root cell counts only when sealed; its loads count only where initialization order proves them past its initializer;
+  - evaluation goes through the language's own `facts::exact`, with bounded work.
+- **Folding** (`rules/fold.rs`, M7.8a):
+  - An operation with an exact result, whose evaluation is not required, becomes that constant.
+  - `if`, `?:`, short circuits and loops with exact conditions keep only the code that runs.
+  - The guard (L3): the constant's text is at most a lower bound of the replaced expression's text in any output. A literal the program spells once counts at its text; anything else counts as one character, since the target may name a repeated literal, a load is a name, and a nested expression may be named.
+  - The batch's first binary counted exact operands at their literal text. It grew `-2147483647-1` into `-2147483648` where the raw objective had named the repeated literal: `integer_multiplication` +7 raw and `typed_arrays` +9. This was fixed within the batch, with a test (`a_fold_counts_what_the_output_may_name_at_one_character`).
+  - Integers take the shortest numeral, as the printer spells them.
+- **Dead code** (`rules/dce.rs`):
+  - operations nothing reads, whose evaluation is not required, go with their call preparations;
+  - stores to unread locals go, past initialization;
+  - named functions whose cells nothing reads leave the module prefix, and bodies nothing creates are emptied, captures included;
+  - visible cells are exports, `import()` namespaces, class values and published methods, and a script's root bindings.
+- **Native plans only the code that exists** (`native_plan.rs`, `native.rs`, `native_ownership.rs`):
+  - uncreated units are neither declared nor written;
+  - the fall-through check covers created units only;
+  - an unused local callable cell no longer pulls in the closure runtime.
+- **Wiring** (`src/build.rs`): `Frontend::rules()`, on both the source and the path front end.
+- **Tests:** 11 rule tests. Each program is converted, optimized, verified and run in Node against the interpreter's output. The formation test that inspects an unfolded `3+4` turns the rules off through a test switch.
+
+**Evidence (binary `~/lilscript-work/bin/f1-6`, SHA-256 `4f9d0ecd76e446f6…`, against `head-edf870ae` and the A1 reports of `~/lilscript-work/out/m2.5`).**
+- Unit tests: 1,564 pass, 9 ignored.
+- Case runner, 395 cases × 18 lanes: no failure outside the ledger.
+  - The formation-only JavaScript lanes are byte-identical, since the rules are off there.
+  - Production:
+
+    | Lane | Brotli | gzip | raw |
+    |---|---:|---:|---:|
+    | module | 38,731 → 38,155 | 47,019 → 46,468 | 68,757 → 67,881 |
+    | script | 39,710 → 39,617 | 47,665 → 47,576 | 69,237 → 69,045 |
+
+  - C: production 2,215,237 → 2,140,652 bytes (−74,585); formation-only 2,173,655 (−41,582, from native planning alone).
+  - No case grows in raw or gzip. Two grow in production Brotli module (+7 and +6), from the search's tie-break (findings).
+- Ratchet: pass, with 230 improvements.
+  - `comparison/cases` Brotli 49,170 → 48,746. Losses to the competitor: Brotli 439 → 423, gzip 400 → 378, raw 399 → 375.
+  - Apps Brotli 945 → 926; raw losses to the competitor 1 → 0.
+  - Algorithms Brotli 3,250 → 3,235; raw losses to Closure 11 → 10.
+  - `control/dead-branch` 54 → 15 raw (bar 14). `wins/optimizer-pressure` 357 → 322 raw as a script, and 296 → 235 as a module.
+- Reference ports: all seven green with identical tests.
+  - Over all artifacts: raw −15,908, gzip −1,664, Brotli −2,084.
+  - Per port (raw/gzip/Brotli): katexlil −13,620/−1,174/−1,132; posthoglil −1,659/−376/−257; micromarklil −311/−99/−172; motionlil −318/−15/−523.
+  - markedlil, zodlil and jquerylil are byte-identical.
+- CPU time at level 13, median of three alternating pairs after a warm-up (`cpu-pairs.py`, M2.14's frozen entries): markedlil ×1.025, zodlil ×1.027, posthoglil ×1.016, micromarklil ×1.024, katexlil ×1.000, jquerylil ×1.006, and motionlil ×0.658 (15.69 → 10.32 s): the search starts from less code.
+- Against the prediction:
+  - `dead-branch` reached the predicted 15.
+  - The loss count fell.
+  - `optimizer-pressure` reached 322, not about 250, because a script's roots stay global (it is 235 as a module).
+  - The apps total fell.
+  - katexlil exceeded the per-port prediction.
+  - No port grew.
+  - The rule phase costs what was predicted.
+
+**Findings.**
+- **The search scores a text it does not deliver.** The terminal stage re-spells loops after selection. The scoped and global naming plans tied at 111 Brotli and ended at 95 and 107, depending on which one the tie-break kept; `Style`'s derived order prefers `Global` on a tie. Owner: M9.1 and M9.5. The choice procedure judges delivered text, and a tie keeps the seed.
+- **The script lanes cannot seal their roots.** `comparison/cases` compile as scripts, whose root bindings are globals, while every competitor recipe treats top-level bindings as private (`toplevel: true`, or an IIFE). `functions/nested-local` folds to the bar, `console.log(16)`, as a module, but stays at 47 raw as a script. This is Y5.
+- **motionlil's `dist/internal/graph` parts** are esbuild's unminified reprints of the compiler's output. A shorter nested form (`if(!c){…}` for `if(c)return;…`) prints longer there, so the parts move with the compiler's choices, not with its bytes.
+
+**Deviations.**
+- M5.1 lands its first part: remove, splice, substitute, compact and cell-table edits. Clone, delete and merge units, change signature, retype and the incremental `UseIndex` come with the rules that need them (F2 grafts and changes signatures). Units are emptied, not deleted, and `drop_unreferenced_functions` stays until M7.5a.
+- M6.4a lands its exact tier. The finite-set tier and deleting `simplify::known`'s constant cases stay open.
+- The search-era rewrites `fold_literal_int_binary` and `drop_dead_value` stay for their lineage tests; production reaches them only for what the rules left.
+
+**Open.** M7.3 and M7.5a (F2); M6.4a's finite-set tier and `simplify::known`; the two findings (M9.1 and M9.5; Y5); folding what tree inlining exposes (`1+1|0`), which is M7.8's.
+
 ---
 
 ## Appendix: where milestones 001–014 went

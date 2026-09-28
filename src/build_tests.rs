@@ -916,6 +916,9 @@ fn default_service_preserves_target_metadata_after_factory_finalization() {
 fn delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history() {
     use crate::program::{CellBinding, CellId, Constant, OpId, OperationKind};
 
+    // The program rules fold `3+4` before publication; this test needs the
+    // publication layer's own rewrite of it.
+    SKIP_PROGRAM_RULES.with(|skip| skip.set(true));
     let ((folded_output, changed_output, before, meaning), finished) = with_checked_source(
         "export int answer(){return 3+4;}",
         &config(""),
@@ -994,6 +997,7 @@ fn delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history(
         },
     )
     .unwrap();
+    SKIP_PROGRAM_RULES.with(|skip| skip.set(false));
     assert_eq!(finished.ledger.retained_bytes(), 0);
     let folded = &folded_output.details()["semantic"];
     let changed = &changed_output.details()["semantic"];

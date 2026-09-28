@@ -11,7 +11,8 @@ use crate::check::{
     with_analyzed_modules, with_analyzed_source, AdmittedCheckError, CheckedModules,
 };
 use crate::compilation_policy::{
-    BaselineFirstPlan, BudgetLedger, CompilationRequest, ResolvedPolicy, WorkDomain, WorkKind,
+    BaselineFirstPlan, BudgetLedger, CompilationRequest, ResolvedPolicy, TacticId, WorkDomain,
+    WorkKind,
 };
 use crate::config::ProjectConfig;
 use crate::js::selection::{Objective, Objectives, Plan, Sizes};
@@ -22,10 +23,14 @@ use crate::module::{
 use crate::output_budget::AllocationBudget;
 pub use crate::output_budget::AllocationError as ServiceResourceError;
 use crate::parser::{AdmittedArena, AdmittedParseError};
+use crate::program::call_graph::Seal;
 use crate::program::facts::CacheLimits;
+#[cfg(test)]
+use crate::program::from_checked_source_admitted;
 use crate::program::publication::*;
+use crate::program::rules::RuleRequest;
 use crate::program::{
-    from_checked_modules_admitted, from_checked_source_admitted, ConversionError, RevisionId,
+    from_checked_modules_with_rules, from_checked_source_with_rules, ConversionError, RevisionId,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -263,7 +268,46 @@ struct Frontend {
     hosts: crate::host_modules::HostDelivery,
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Set by tests of the publication layer's rewrite lineage, which need a
+    /// published program whose literals the rules have not already folded.
+    pub(crate) static SKIP_PROGRAM_RULES: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
+}
+
 impl Frontend {
+    /// The program rules this build's contracts permit (`program/rules/`):
+    /// each where every requested target permits its tactic, with root
+    /// storage sealed as the JavaScript execution seals it (a native program
+    /// is closed).
+    fn rules(&self) -> Option<RuleRequest> {
+        #[cfg(test)]
+        if SKIP_PROGRAM_RULES.with(std::cell::Cell::get) {
+            return None;
+        }
+        let policies: Vec<&ResolvedPolicy> = [&self.javascript, &self.native]
+            .into_iter()
+            .flatten()
+            .collect();
+        if policies.is_empty() {
+            return None;
+        }
+        let permitted = |tactic| policies.iter().all(|policy| policy.tactic(tactic).enabled);
+        let seal = self
+            .javascript
+            .as_ref()
+            .and_then(ResolvedPolicy::javascript_contract)
+            .map_or(Seal::Module, |contract| {
+                Seal::from_execution(contract.execution)
+            });
+        Some(RuleRequest {
+            fold: permitted(TacticId::ConstantFolding),
+            dead_code: permitted(TacticId::DeadCodeElimination),
+            seal,
+        })
+    }
+
     fn new(config: &ProjectConfig, options: ServiceOptions) -> Result<Self, ServiceError> {
         let started = Instant::now();
         let resolve = |request: Option<CompilationRequest>| {
@@ -1012,6 +1056,7 @@ fn check_source_frontend<'src>(
     frontend: &mut Frontend,
     source: &'src str,
 ) -> Result<PreparedProgram<'src>, ServiceError> {
+    let rules = frontend.rules();
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
     let syntax = arena.parse(source).map_err(|error| match error {
@@ -1039,31 +1084,29 @@ fn check_source_frontend<'src>(
                         .work(WorkKind::Analysis, source.len() as u64)
                         .map_err(|error| ServiceError::resources("frontend resources", error))?;
                     let phase = Instant::now();
-                    let program = from_checked_source_admitted(&syntax, semantics, budget)
-                        .map_err(|error| match error {
-                            ConversionError::Unsupported(error) => ServiceError::module(
-                                "conversion",
-                                ModuleError::new(
-                                    "<source>",
-                                    source,
-                                    error.span,
-                                    format!("unsupported source: {}", error.feature),
-                                ),
+                    let (program, rules) = from_checked_source_with_rules(
+                        &syntax, semantics, rules, budget,
+                    )
+                    .map_err(|error| match error {
+                        ConversionError::Unsupported(error) => ServiceError::module(
+                            "conversion",
+                            ModuleError::new(
+                                "<source>",
+                                source,
+                                error.span,
+                                format!("unsupported source: {}", error.feature),
                             ),
-                            ConversionError::Contract(violation) => ServiceError::module(
-                                "check",
-                                ModuleError::new(
-                                    "<source>",
-                                    source,
-                                    violation.span,
-                                    violation.message,
-                                ),
-                            ),
-                            ConversionError::Resources(error) => {
-                                ServiceError::resources("conversion resources", error)
-                            }
-                        })?;
+                        ),
+                        ConversionError::Contract(violation) => ServiceError::module(
+                            "check",
+                            ModuleError::new("<source>", source, violation.span, violation.message),
+                        ),
+                        ConversionError::Resources(error) => {
+                            ServiceError::resources("conversion resources", error)
+                        }
+                    })?;
                     frontend.phases["convert_ns"] = json!(nanos(phase));
+                    frontend.phases["rules"] = rules.json();
                     Ok((program, Instant::now()))
                 },
             )
@@ -1113,6 +1156,7 @@ fn check_path_frontend<'src, T>(
     build: bool,
     inspect: impl for<'a, 'ast> FnOnce(&CheckedProgram<'a, 'ast, 'src>) -> T,
 ) -> Result<(PreparedProgram<'src>, Value, T), ServiceError> {
+    let rules = if build { frontend.rules() } else { None };
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
     let (modules, syntax) =
@@ -1180,37 +1224,39 @@ fn check_path_frontend<'src, T>(
                         .work(WorkKind::Analysis, bytes)
                         .map_err(|error| ServiceError::resources("frontend resources", error))?;
                     let phase = Instant::now();
-                    let program = from_checked_modules_admitted(&syntax, semantics, budget)
-                        .map_err(|error| match error.error {
-                            ConversionError::Unsupported(unsupported) => {
-                                let module = &modules.modules[error.module];
-                                ServiceError::module(
-                                    "conversion",
-                                    ModuleError::new(
-                                        &module.path,
-                                        module.source,
-                                        unsupported.span,
-                                        format!("unsupported source: {}", unsupported.feature),
-                                    ),
-                                )
-                            }
-                            ConversionError::Contract(violation) => {
-                                let module = &modules.modules[error.module];
-                                ServiceError::module(
-                                    "check",
-                                    ModuleError::new(
-                                        &module.path,
-                                        module.source,
-                                        violation.span,
-                                        violation.message,
-                                    ),
-                                )
-                            }
-                            ConversionError::Resources(error) => {
-                                ServiceError::resources("conversion resources", error)
-                            }
-                        })?;
+                    let (program, rules) =
+                        from_checked_modules_with_rules(&syntax, semantics, rules, budget)
+                            .map_err(|error| match error.error {
+                                ConversionError::Unsupported(unsupported) => {
+                                    let module = &modules.modules[error.module];
+                                    ServiceError::module(
+                                        "conversion",
+                                        ModuleError::new(
+                                            &module.path,
+                                            module.source,
+                                            unsupported.span,
+                                            format!("unsupported source: {}", unsupported.feature),
+                                        ),
+                                    )
+                                }
+                                ConversionError::Contract(violation) => {
+                                    let module = &modules.modules[error.module];
+                                    ServiceError::module(
+                                        "check",
+                                        ModuleError::new(
+                                            &module.path,
+                                            module.source,
+                                            violation.span,
+                                            violation.message,
+                                        ),
+                                    )
+                                }
+                                ConversionError::Resources(error) => {
+                                    ServiceError::resources("conversion resources", error)
+                                }
+                            })?;
                     frontend.phases["convert_ns"] = json!(nanos(phase));
+                    frontend.phases["rules"] = rules.json();
                     let inspected = inspect(&CheckedProgram {
                         modules: &modules,
                         syntax: &syntax,

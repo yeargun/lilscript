@@ -317,6 +317,9 @@ pub(super) struct NativePlan<'program, 'src> {
     /// Callable adapters `(from, to)` between physical signatures, used where
     /// a call passes a callable to a parameter of another signature.
     pub(super) adapters: Vec<(usize, usize)>,
+    /// Units something creates. A body nothing creates never runs (the
+    /// program rules empty it) and is not written.
+    pub(super) created: Vec<bool>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1058,6 +1061,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             ));
         }
         validate_hosts(program, hosts.bindings, budget)?;
+        let created = super::rules::created_units(program);
         let mut tables = TypeTables {
             arrays: Vec::new(),
             signatures: Vec::new(),
@@ -1125,7 +1129,13 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     CellBinding::Local | CellBinding::Parameter(_),
                     TypeClass::Function(signature),
                 ) => {
-                    signatures::require(&mut signatures, signature, budget)?;
+                    // A local no operation uses (a retired function's cell)
+                    // holds no callable, so it needs no callable runtime.
+                    let unused = cell.binding == CellBinding::Local
+                        && uses.cell(id).is_some_and(|users| users.sites().is_empty());
+                    if !unused {
+                        signatures::require(&mut signatures, signature, budget)?;
+                    }
                     ValueStorage::Value(NativeType::Callable(signature))
                 }
                 (CellBinding::Foreign, TypeClass::Function(signature)) => {
@@ -1254,6 +1264,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             arrays,
             class_fields,
             adapters: Vec::new(),
+            created,
         };
         for frozen in &program.units {
             work(budget, 1)?;
@@ -1679,7 +1690,11 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             budget
                 .release(Scratch, dominance_bytes)
                 .map_err(NativeError::Allocation)?;
-            if return_type != NativeType::Void && !must_return(data, budget)? {
+            // A body nothing creates never runs; the program rules empty it.
+            if return_type != NativeType::Void
+                && plan.created[unit.index()]
+                && !must_return(data, budget)?
+            {
                 return Err(unit_error("native nonvoid fallthrough"));
             }
             plan.units.push(unit_plan);

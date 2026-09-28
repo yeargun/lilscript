@@ -44,6 +44,7 @@ pub mod publication;
 mod raw_domains;
 mod record_family;
 mod rewrite_lineage;
+pub(crate) mod rules;
 mod search_entries;
 mod search_opportunities;
 pub mod storage;
@@ -145,7 +146,8 @@ mod recipe_descriptor_tests;
 
 pub use from_source::{from_checked_modules, from_checked_source, ModuleUnsupported, Unsupported};
 pub(crate) use from_source::{
-    from_checked_modules_admitted, from_checked_source_admitted, ConversionError,
+    from_checked_modules_admitted, from_checked_modules_with_rules, from_checked_source_admitted,
+    from_checked_source_with_rules, ConversionError,
 };
 pub use ids::*;
 pub use storage::{FrozenUnit, WorkingUnit};

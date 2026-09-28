@@ -589,6 +589,30 @@ pub(crate) struct PreparedProgram<'src> {
     pending: Pending<'src>,
 }
 
+/// The retained bytes of an owned program as `PreparedProgram::new` counts
+/// them, before it adds its own charge table: the unit handles, every unit
+/// payload and every table. Conversion's scope holds exactly this much.
+pub(crate) fn program_retained_bytes(
+    program: &Program<'_>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<u64, PublicationError> {
+    let mut total = capacity(&program.units)?;
+    for unit in &program.units {
+        total = sum(&[
+            total,
+            unit.allocation_bytes().ok_or(PublicationError::Capacity)?,
+        ])?;
+    }
+    for index in 0..11 {
+        let (bytes, _) = budget.with_ledger(|ledger| {
+            let (ledger, domain) = ledger.ok_or(AllocationError::Unaccounted)?;
+            table_bytes(program, index, ledger, domain)
+        })?;
+        total = sum(&[total, bytes])?;
+    }
+    Ok(total)
+}
+
 impl<'src> PreparedProgram<'src> {
     pub(crate) fn new(
         program: Program<'src>,
