@@ -34,6 +34,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-28 | [Batch S1: the dynamic type's syntax](#2026-09-28-batch-s1-the-dynamic-types-syntax-m42-m102-first-part) | M4.2, M10.2 | `language-slice-1` |
 | 2026-09-28 | [Owner decisions: compile time scales, test on a clock, track each change](#2026-09-28-owner-decisions-compile-time-scales-test-on-a-clock-track-each-change) | AM3, plan rules 3, 5 and 8 | — |
 | 2026-09-28 | [Batch S2: receivers and rest parameters](#2026-09-28-batch-s2-receivers-and-rest-parameters-m104-first-part) | M10.4 | `language-slice-1` |
+| 2026-09-28 | [Batch S3: the dynamic type's tests and conversions](#2026-09-28-batch-s3-the-dynamic-types-tests-and-conversions-m102-second-part) | M10.2 | `language-slice-1` |
 
 ---
 
@@ -1235,6 +1236,31 @@ Predicted:
 - The receiver and rest syntax compiles byte-identically to its adapter spelling.
 - `o.m(…)` is the reference call where `JS.call` was: the output was already `o.m(…)` through `self_method_calls`, so bytes are within noise.
 - Census: the seven ports' `JS.method*`, `JS.methodRest` and `JS.staticRest` mentions (about 800) fall to those with a function reference as the argument.
+
+## 2026-09-28 Batch S3: the dynamic type's tests and conversions (M10.2, second part)
+
+**Pre-registration** (written before the first build of the batch; base: S2's commits, baseline binary `~/lilscript-work/bin/s2-1`).
+
+What the batch builds (language.md R12, and the owner's Y1 answer: the runtime carries no conversion the source did not write, and a test or conversion appears only where the source writes one).
+
+Changes, one commit each and grouped by feature, so a surprise bisects to a feature:
+- **C1** (`c3983f33`). `v ?? x` with a `JsValue` on the left: JavaScript's nullish coalescing, the natural short circuit, whose right side expects a `JsValue`.
+- **C2** (`b253ebaf`). `bool(v)`: JavaScript's truthiness as an explicit conversion. It is the `truthy()` intrinsic's call, so the fix of `v.truthy()` is byte-identical.
+- **C3** (`4d598ed2`). `-`, `*`, `/` and unary `-` on a `JsValue`, as operators over their operands (new builtins). `!v` on a `JsValue` is refused with `!bool(v)`, since conditions stay `bool`.
+- **C4** (`1a7ca86c`). `v as? T` for `float`, `string` and `bool`: the `typeof` test `v is T` selects `v` viewed as `T`, or null.
+- **C5** (`afdec67f`). The fix: `JS.isNullish(v)` → `v == null` (loose equality on a `JsValue`, M1.9); `JS.isUndefined(v)` → `v === undefined` where `undefined` is not bound; `JS.isFalse(v)` → `v === false`; `v.truthy()` → `bool(v)`.
+- **C6** (`978d823c`). Tests: the forms' meaning run under Node, and the fix's fixed point.
+- **C7.** Port patches regenerated (S1–S3's fixes), measured per port.
+
+Not in this batch:
+- `?.` and `?.()` on a `JsValue`: the JavaScript tree has no optional chain yet, which M9.3's optional-chaining family brings;
+- `unknown`;
+- `is` and `as?` on classes (M10.7).
+
+Predicted:
+- Unmodified programs: byte-identical.
+- Rewritten ports: `v == null` for `JS.isNullish(v)` trades a builtin for loose equality with the same text, and `bool(v)` is identical; bytes within noise.
+- Census: about 340 fewer `JS.*` mentions in the seven ports, and the `.truthy()` calls gone.
 
 ---
 
