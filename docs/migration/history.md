@@ -1799,6 +1799,34 @@ Changes:
 
 Predicted: unmodified programs are byte-identical except where they write `x | 0` of an `int`, which gets smaller. Fixed ports are byte-identical where the fix wrote `| 0`, and smaller by `|0` where it wrote `codeUnitAt`.
 
+## 2026-09-28 Batch K10: R2's first batch (M10.9)
+
+**Pre-registration** (written before the first build of the batch; base: K9's last commit). Its tests and ladder run with the next batch's.
+
+What the batch builds (language.md R2):
+- **`T??` is `T?`.** Wherever the checker builds a type: substituting `T?` with `T := U?`, and a destructured binding's optional element.
+- **`migration/absence`.** A warning at each operation on a `T?` operand that could tell `null` from `undefined`, with today's meaning written out where it has one spelling:
+  - `print(x)` and `string(x)` become `x ?? "null"`, since today absence prints as null;
+  - typed `===` and `!==` become `==` and `!=`;
+  - reported without a fix: a `JsValue` compared with `===`, `typeof`, a search for an absent value (`includes`, `indexOf`, `lastIndexOf`), and `sort` of a `T?[]`.
+
+  A shared exhaustive expression walk (`lint/walk.rs`) serves the rule.
+- **The port rewrite** applies the fixes with the others and counts the reports.
+
+Not in this batch, R2's second batch:
+- the refusals;
+- the load normalizations' removal (`m.get(k)??null`, `a[i]??null`, `??""`), where the bytes are;
+- a defaulted parameter's type `T` inside, with the default on absence. That refuses `x == null` inside, so it gets its own warning first;
+- `T?` as a `Set` element or a `Map` key;
+- reflected nominals' absent fields as missing keys.
+
+Changes:
+- **C1.** The collapse.
+- **C2.** The rule, its walk and its test.
+- **C3.** Docs.
+
+Predicted: unmodified programs are byte-identical. The fixed ports' output changes only where `print` or `string` of an absent value would have printed "undefined".
+
 ---
 
 ## Appendix: where milestones 001–014 went
