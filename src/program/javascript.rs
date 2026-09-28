@@ -4603,12 +4603,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             OperationKind::Intrinsic(ResolvedIntrinsic::Property(property))
                 if js::supports_intrinsic_property(property) =>
             {
-                // Under pristine builtins a string or array length is at most
-                // 2^30 (the bound counting loops already use), so arithmetic
-                // near it needs no int32 normalization.
-                if self.contract.assumptions.pristine_builtins
-                    && matches!(property, Intrinsic::StringLength | Intrinsic::ArrayLength)
-                {
+                // A typed length is the original's (R10), at most 2^30 (the
+                // bound counting loops already use), so arithmetic near it
+                // needs no int32 normalization.
+                if matches!(property, Intrinsic::StringLength | Intrinsic::ArrayLength) {
                     self.transfer_number(unit, operation, false, |_| {
                         NumberFacts::integer_range(0, 1 << 30, false)
                             .unwrap_or(NumberFacts::UNKNOWN)

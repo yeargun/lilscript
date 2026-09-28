@@ -13,7 +13,7 @@
 use crate::catalog::{
     intrinsic_arity, intrinsic_form, intrinsic_recipe, native_constructor, IntrinsicForm,
 };
-pub(crate) use crate::catalog::{integer_intrinsic, pristine_int32_intrinsic};
+pub(crate) use crate::catalog::{integer_intrinsic, original_int32_intrinsic};
 use crate::ast::SourceNodeId;
 use crate::check::SymbolId;
 use crate::literal::StringValue;

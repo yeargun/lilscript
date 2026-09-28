@@ -623,13 +623,14 @@ impl<'a> Printer<'a, '_, '_> {
         }
     }
 
+    /// A typed intrinsic whose original returns an int32 (R10), or a value
+    /// nothing reads: no `|0`.
     fn plain_integer(&self, id: ExprId) -> bool {
         self.discarded_root == Some(id)
-            || self.module.pristine_builtins
-                && matches!(
-                    self.module.expressions[id.index()],
-                    Expr::Intrinsic { operation, .. } if pristine_int32_intrinsic(operation)
-                )
+            || matches!(
+                self.module.expressions[id.index()],
+                Expr::Intrinsic { operation, .. } if original_int32_intrinsic(operation)
+            )
     }
 
     /// The part of a statement's value worth printing. The value is
@@ -656,10 +657,9 @@ impl<'a> Printer<'a, '_, '_> {
                     self.discarded_root = Some(id);
                     return id;
                 }
-                // An unpatched integer method returns a number: `|0` on it
-                // has no effect when the value is discarded.
-                Expr::Intrinsic { operation, .. }
-                    if self.module.pristine_builtins && integer_intrinsic(operation) =>
+                // A typed integer method's original returns a number (R10):
+                // `|0` on it has no effect when the value is discarded.
+                Expr::Intrinsic { operation, .. } if integer_intrinsic(operation) =>
                 {
                     self.discarded_root = Some(id);
                     return id;

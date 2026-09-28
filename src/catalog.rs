@@ -228,10 +228,11 @@ pub(crate) fn integer_intrinsic(operation: Intrinsic) -> bool {
     intrinsic_recipe(operation).is_some_and(|recipe| recipe.normalizes_i32)
 }
 
-/// Unpatched, these results are always int32: string lengths and positions
-/// stay below 2^31 on every engine, as do collection sizes. A typed array's
-/// byte counts can exceed that, and `charCodeAt` past the end is NaN.
-pub(crate) fn pristine_int32_intrinsic(operation: Intrinsic) -> bool {
+/// The originals of these (R10: a typed operation means ECMAScript's
+/// original) always return an int32: string lengths and positions stay below
+/// 2^31 on every engine, as do collection sizes (R11's resource bound). A typed
+/// array's byte counts can exceed that, and `charCodeAt` past the end is NaN.
+pub(crate) fn original_int32_intrinsic(operation: Intrinsic) -> bool {
     matches!(
         operation,
         Intrinsic::StringLength
