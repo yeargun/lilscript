@@ -1237,6 +1237,33 @@ Predicted:
 - `o.m(…)` is the reference call where `JS.call` was: the output was already `o.m(…)` through `self_method_calls`, so bytes are within noise.
 - Census: the seven ports' `JS.method*`, `JS.methodRest` and `JS.staticRest` mentions (about 800) fall to those with a function reference as the argument.
 
+**Landed** (binary `~/lilscript-work/bin/s2-1` for the ladder, SHA-256 `a30385314c2db608…`; the port run with `s3-1`, which carries S2's fix-up).
+
+Changes, each its own commit:
+- **C1.** `ast::ParamRole` (`Value`, `Receiver`, `Rest`). The parser reads `this` before a lambda's first parameter type and `...` after its last. Declarations refuse both: a receiver or rest parameter belongs to a lambda in this part.
+- **C2.** A lambda with a receiver or rest parameter resolves to its adapter (`JS.method<N>`, `JS.methodRest`, `JS.staticRest`). Its parameters and result are `JsValue`s, it takes no defaults, and the roles are in their places. The node's recorded type is the callback's function type; its value is the method, a `JsValue`.
+- **C3.** Lowering: the lambda's closure is formed as the adapter call's operand, exactly where `JS.method<N>(lambda)` forms it. Closure formation moved into `Lower::closure`, which the ordinary arrow shares.
+- **C4.** The fix writes receiver and rest lambdas, and `o.m(…)` for `JS.call(o.m, o, …)` when both `o`s are one binding.
+- **C5.** Tests: the parser's roles and refusals, adapter identity with the spellings (a method lambda bound to a name included), and the fix's fixed point.
+- **C7** (added during the batch). Formation forwards a wrapper into any single host operation. A reference call on `p0[p1]` with the rest as arguments is `JS.invoke`, a load of `p0[p1]` is `JS.get`, an empty object literal is `JS.object()`, and an array literal of the parameters is `JS.array`.
+- **Fix-up**, found by the first port run: `infer_creation_id` assumed a lambda bound to a name has a closure as its value. A method lambda's value is its adapter's result, and like its spelling it takes no inferred name. The adapter-identity test now binds one to a name.
+- A diagnostic knob, `LILSCRIPT_JS_FIX_ONLY`, lets the fix run one family of spellings at a time.
+
+**Evidence** (ladder at `s2-1` against `s1-1`):
+- Unit tests: 1,589 pass (1,590 with S3's).
+- Case runner: no artifact changes in any of the 18 lanes. C7 finds no natural forwarding wrapper in the case corpus.
+- Monotone and replay: pass, all 45,162 stops. Ratchet: pass, no change.
+- Reference ports, unpatched: all green, and all 681 files byte-identical to S1's.
+- CPU pairs: ×0.997–×1.006, identical bytes and judgement counts.
+- **Ports rewritten with S1–S3's fixes together** (run at `s3-1`, below in S3's record): all seven suites pass, and the method adapters fall from about 800 mentions to 73, those whose argument is a function reference. With C7, S1's zodlil loss (+331 Brotli) becomes +15 and katexlil's +646 becomes −298.
+
+**Deviations.**
+- **C7 joined the batch** after S1's record found the forwarding gap.
+- **The fix-up came from the port run**, which the unit tests had missed: they bound method lambdas to members, never to names.
+- **One port run for two batches:** S2's own port run failed on the fix-up's panic, so S2's ports are verified in S3's combined run.
+
+**Open.** M10.4's second part: typed receivers (`fn(this: T, A) -> R` as a type), spread arguments, declared functions' rest parameters, and `extern JsValue this`/`arguments` retiring (jquerylil's 22 files). `self_method_calls` is deleted once no port writes `x.m.call(x, …)`.
+
 ## 2026-09-28 Batch S3: the dynamic type's tests and conversions (M10.2, second part)
 
 **Pre-registration** (written before the first build of the batch; base: S2's commits, baseline binary `~/lilscript-work/bin/s2-1`).
@@ -1261,6 +1288,63 @@ Predicted:
 - Unmodified programs: byte-identical.
 - Rewritten ports: `v == null` for `JS.isNullish(v)` trades a builtin for loose equality with the same text, and `bool(v)` is identical; bytes within noise.
 - Census: about 340 fewer `JS.*` mentions in the seven ports, and the `.truthy()` calls gone.
+
+**Landed** (binary `~/lilscript-work/bin/s3-1`, SHA-256 `5012d564ec167c61…`; the fix-it as rebuilt for micromarklil's rerun, `s3-2/lilscript-lint`).
+
+Changes: C1–C6 as pre-registered, with three fix-ups found on the way:
+- **C1 fix-up.** `JsValue ?? x` moved into the shared binary-typing rule, which the IR verifier also reads. The checker-only special case failed verification ("semantic operation type mismatch: ShortCircuit Nullish"). The frozen prior-rules oracle records the rule, as a deliberate change.
+- **C2 fix-up.** `bool(v)` carries `truthy()`'s checked signature, `() -> bool`, which the checker builds by hand; the intrinsic table has none.
+- **C5 fix-up.** A fix's edit covers the call's balanced text. micromarklil's `(if … { … }).truthy()` started its span inside the parentheses, and the fix left an unclosed one.
+
+**Evidence** (ladder at `s3-1` against `s2-1`):
+- Unit tests: 1,590 pass.
+- Case runner: no artifact changes in any of the 18 lanes.
+- Monotone and replay: pass, all 45,162 stops. Ratchet: pass, no change.
+- Reference ports, unpatched: all green, and all 681 files byte-identical to S2's.
+- CPU pairs: ×0.98–×1.00, identical bytes and judgement counts.
+- **Ports rewritten with S1–S3's fixes**, from each port's own sources. All seven suites pass. Bytes against the unpatched ports at `s3-1`:
+
+  | Port | Files changed | Raw | gzip | Brotli |
+  |---|---:|---:|---:|---:|
+  | jquerylil, markedlil, posthoglil | 0 | 0 | 0 | 0 |
+  | katexlil | 10 of 26 | +1,381 | −232 | −298 |
+  | zodlil | 2 of 7 | +85 | −56 | +15 |
+  | motionlil | 21 of 621 | +925 | +154 | +88 |
+  | micromarklil | 8 of 9 | +177 | +119 | +37 |
+
+  motionlil and micromarklil are within noise per file (+4 and +5 Brotli), and katexlil is a win.
+- **Census**, the seven ports' `JS.*` mentions in `src/`:
+
+  | Port | Before | After |
+  |---|---:|---:|
+  | markedlil | 30 | 4 |
+  | zodlil | 726 | 10 |
+  | posthoglil | 698 | 106 |
+  | micromarklil | 3,459 | 25 |
+  | katexlil | 5,793 | 361 |
+  | jquerylil | 2,028 | 303 |
+  | motionlil | 1,601 | 245 |
+  | total | 14,335 | 1,054 (−93%) |
+
+  What remains:
+  - `JS.add` with a typed `string` operand (296), where `+` would be typed concatenation;
+  - `JS.invoke` (151) and `JS.assume` (126) on typed values;
+  - `JS.call` (47);
+  - adapters of a function reference;
+  - the catalog helpers (`regexTest`, `isArray`, `stringSlice`, …).
+- **katexlil's `instanceof` idiom** is noise: +177 Brotli on this run against −184 on S1's.
+
+**Findings.** Three fix-ups, each found by a port run, not by unit tests: the verifier's rule, the intrinsic's signature, and a span inside parentheses. The port runs are this slice's real test of the fix-it and the new syntax, which is why each batch runs them.
+
+**Deviations.**
+- **`!v` on a `JsValue` is refused**, spelled `!bool(v)`, where the pre-registration had it mean `!bool(v)` implicitly: the owner's Y1 answer wants truthiness explicit.
+- **One port run covers S2 and S3.**
+
+**Open.**
+- `?.`, `?.()` and `unknown`.
+- `is` and `as?` on classes (M10.7). Classes are observed today only when published or host-derived, and marking runs before bodies are checked, so a tested class needs a second marking step.
+- The typed-`string` `+` rewrite: its result type becomes `string`.
+- The refusal batch.
 
 ---
 
