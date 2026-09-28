@@ -4845,14 +4845,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     return self.unsupported(span, "conversion without a checked operation");
                 };
                 let receiver = Some(self.expression(unit, region, value)?);
-                let contract = crate::primitive::intrinsic_call_contract(operation).ok_or(
-                    Unsupported {
-                        span,
-                        feature: "conversion call contract",
-                    },
-                )?;
-                let signature =
-                    self.ty(&crate::check::Type::Function(contract.signature()))?;
+                // `truthy()`'s checked signature on a `JsValue`: `() -> bool`.
+                let signature = self.ty(&crate::check::Type::Function(
+                    crate::check::FunctionType::new(crate::check::FunctionSignature {
+                        params: Vec::new(),
+                        return_type: Box::new(crate::check::Type::Bool),
+                    }),
+                ))?;
                 let defaults = operation.call_default_convention().ok_or(Unsupported {
                     span,
                     feature: "prepared intrinsic call convention",
