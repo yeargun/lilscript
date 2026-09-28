@@ -2147,3 +2147,29 @@ fn unknown_refuses_other_operations() {
     assert!(format!("{error:?}").contains("narrowed before other operations"), "{error:?}");
 }
 
+/// Trusted crossings (R1): a typed `int` load is an int32 by type, so no
+/// `|0` normalizes it; arithmetic still wraps.
+#[test]
+fn typed_int_loads_are_not_normalized() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        class Counter { int count; init(int count) { this.count = count; } }
+        export int read(Counter c) { return c.count; }
+        export int next(int[] values, int i) { return values[i] + 1; }
+        show(read(new Counter(41)));
+        show(next([1, 2, 3], 1));
+        "#,
+        PRISTINE,
+    );
+    let read = javascript
+        .split("read")
+        .nth(1)
+        .unwrap_or_default()
+        .split(';')
+        .next()
+        .unwrap_or_default();
+    assert!(!read.contains("|0"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "41\n3\n");
+}
+
