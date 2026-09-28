@@ -28,6 +28,8 @@ use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
 use crate::scalar_transfer::NumberFacts;
 
+#[path = "javascript_checks.rs"]
+mod checks;
 #[path = "javascript_host.rs"]
 mod host;
 #[path = "javascript_int32.rs"]
@@ -603,6 +605,7 @@ fn form_head(
         struct_plan,
         reference_plan,
         host_factories: Vec::new(),
+        index_check: None,
         unit_functions: Vec::new(),
         foreign_bindings: Vec::new(),
         stable_cells: Vec::new(),
@@ -1391,6 +1394,8 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     reference_plan: references::Plan,
     /// One hoisted `JS.methodN` adapter factory per calling convention.
     host_factories: Vec<(u8, js::BindingId)>,
+    /// The hoisted index-read check (`checks = "development"`), once formed.
+    index_check: Option<js::BindingId>,
     /// Each formed function unit's target function, for export reflection.
     unit_functions: Vec<(UnitId, js::FunctionId)>,
     /// One ES import binding per foreign cell with an `import extern` source.
@@ -2958,7 +2963,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 return self.save(unit, operation, value);
             }
         }
-        let mut raw = self.place(unit, place)?;
+        // A development build checks an index read's precondition (R11); the
+        // checked read is the element, so absence recipes still apply.
+        let mut raw = if self.checked_index_read(unit, place) {
+            self.index_read_check(unit, place)?
+        } else {
+            self.place(unit, place)?
+        };
         if self.compact {
             if let Some(projected) = js::literal_array_projection(&self.module, raw, self.budget)? {
                 raw = projected;
