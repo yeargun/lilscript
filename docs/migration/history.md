@@ -1590,6 +1590,29 @@ Predicted:
 
 ---
 
+## 2026-09-28 Batch K2: the reflected set (M10.14, checker half)
+
+**Pre-registration** (written before the first build of the batch; base: K1's last commit). Its tests run with K1's.
+
+What the batch builds (language.md R6): the checker computes the **reflected set** once for the whole program. These are the nominals whose property names, key order and identity a crossing shows the host.
+- Seeds:
+  - a value widened to `JsValue` or `unknown`, implicitly or with `as JsValue`;
+  - a thrown value;
+  - a host binding's parameters, result or value;
+  - a root module's exports;
+  - published classes and classes with a host ancestor.
+- Closure: a reflected class's base and field types, a struct's field types, and the type arguments and function signatures a seed names.
+- Published on the checked view as `is_reflected`.
+
+Consumers follow their own tasks: field facts (M6.7, step 10) and property names (M9.6, step 11). Until then the set changes no output.
+
+Changes:
+- **C1.** The set: seeds, closure, the view's query, and a test (a crossing reflects its nominal and what its fields reach; a thrown class is reflected; a class that never crosses is not).
+
+Predicted: no artifact changes.
+
+---
+
 ## Appendix: where milestones 001–014 went
 
 | Old | Now |
