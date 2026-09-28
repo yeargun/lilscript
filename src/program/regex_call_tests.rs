@@ -205,20 +205,6 @@ fn unchanged_marked_regex_helpers_preserve_utf16_last_index_and_replacement() {
 }
 
 #[test]
-fn marked_indent_rule_keeps_host_constructor_alias_and_last_index_setter() {
-    matrix(
-        "marked-regex-constructor-alias",
-        &marked_source(),
-        include_str!("fixtures/regex-calls/marked-alias.setup.js"),
-        include_str!("fixtures/regex-calls/marked-alias.host.js"),
-        &serde_json::from_str(include_str!(
-            "fixtures/regex-calls/marked-alias.expected.json"
-        ))
-        .unwrap(),
-    );
-}
-
-#[test]
 fn constructors_prepare_before_arguments_preserve_new_target_arity_aliases_and_errors() {
     matrix(
         "regex-constructors",

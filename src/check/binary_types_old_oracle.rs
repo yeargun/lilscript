@@ -22,14 +22,18 @@ pub(super) fn old_checked_binary_type<'src>(
         {
             Ok(common_numeric_type(lhs, rhs))
         }
-        BinaryOp::Mod
-        | BinaryOp::BitAnd
+        // R11 (batch K9): `%` with a float operand is a float, and a bitwise
+        // operator takes float operands through ToInt32.
+        BinaryOp::Mod if lhs.is_numeric() && rhs.is_numeric() => {
+            Ok(common_numeric_type(lhs, rhs))
+        }
+        BinaryOp::BitAnd
         | BinaryOp::BitOr
         | BinaryOp::Xor
         | BinaryOp::ShiftLeft
         | BinaryOp::ShiftRight
         | BinaryOp::UnsignedShiftRight
-            if lhs == &Type::Int && rhs == &Type::Int =>
+            if lhs.is_numeric() && rhs.is_numeric() =>
         {
             Ok(Type::Int)
         }

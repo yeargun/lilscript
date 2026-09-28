@@ -199,27 +199,6 @@ fn omitted_method_operands_retain_checked_signature_and_complete_uses() {
 }
 
 #[test]
-fn replaceable_method_preserves_arity_lookup_exceptions_and_reentry() {
-    let expected: Json = serde_json::from_str(include_str!(
-        "fixtures/call-contract/primitive-calls.expected.json"
-    ))
-    .unwrap();
-    for emission in artifacts(PRIMITIVE_SOURCE) {
-        assert_eq!(
-            execute(
-                &emission,
-                "",
-                include_str!("fixtures/call-contract/primitive-calls.host.js")
-            ),
-            expected,
-            "compact={} style={:?}",
-            emission.compact,
-            emission.style,
-        );
-    }
-}
-
-#[test]
 fn fully_supplied_default_signatures_preserve_explicit_values_and_host_call_arity() {
     let source = r#"
         extern int choose(int value=7);

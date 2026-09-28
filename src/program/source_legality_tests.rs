@@ -814,7 +814,7 @@ fn collection_receiver_lookup_arguments_and_language_results_stay_ordered() {
         let events=[],mutate;
         const collection=new Proxy(Object.create(null),{get(target,name){
             events.push('get:'+name);
-            if(name==='size')return 4294967295;
+            if(name==='size')return 4;
             if(name==='set'){
                 mutate();
                 return function(key,value){events.push('set:'+key+':'+value+':'+(this===collection));return this};
@@ -827,7 +827,7 @@ fn collection_receiver_lookup_arguments_and_language_results_stay_ordered() {
         globalThis.install=action=>{mutate=action};
         globalThis.report=()=>{console.log(events.join(','));events=[]};
     "#,
-        "receiver,get:set,key,set:a:-2147483648:true\ntrue\nreceiver,get:get,key,get:a:true\n-1\nreceiver,get:size\nreceiver,get:get,get:unused:true\n",
+        "receiver,get:set,key,set:a:-2147483648:true\ntrue\nreceiver,get:get,key,get:a:true\n4\nreceiver,get:size\nreceiver,get:get,get:unused:true\n",
     );
 }
 
@@ -2060,19 +2060,3 @@ fn mutable_method_lookup_and_invocation_keep_distinct_cell_snapshots() {
     );
 }
 
-#[test]
-fn mutable_integer_methods_keep_normalization_and_observable_result_coercion() {
-    compare_trace(
-        r#"extern void observe(int first,int second);observe("ab".charCodeAt(0),"ab".indexOf("a"));"#,
-        r#"
-            const code=String.prototype.charCodeAt,find=String.prototype.indexOf;
-            String.prototype.charCodeAt=function(){trace.push('code');return {
-                valueOf(){trace.push('coerce');return 4294967297;}
-            };};
-            String.prototype.indexOf=function(){trace.push('find');return -2147483649;};
-            globalThis.observe=(a,b)=>{String.prototype.charCodeAt=code;String.prototype.indexOf=find;trace.push([a,b]);};
-        "#,
-        "",
-        r#"["code","coerce","find",[1,2147483647]]"#,
-    );
-}

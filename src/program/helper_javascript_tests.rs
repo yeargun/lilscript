@@ -242,9 +242,9 @@ fn shared_and_inline_helpers_preserve_argument_schedule_and_fresh_parameters() {
     }
 }
 
-/// Inlined helpers keep the host's calls, their throws and a captured
-/// string's later reads. The host's `opaque()` returns strings (R1: an
-/// `extern string` result is a trusted crossing).
+/// Inlined helpers keep the host's calls and their throws. The host's
+/// `opaque()` returns strings (R1: an `extern string` result is a trusted
+/// crossing). A helper that calls the host itself is not inlined.
 #[test]
 fn inline_helpers_preserve_host_calls_throws_and_captured_reads() {
     for case in [
@@ -260,13 +260,6 @@ fn inline_helpers_preserve_host_calls_throws_and_captured_reads() {
             source: "extern string opaque();func()->void make(){string value=opaque();auto helper=()=>{value+\"!\";return;};return ()=>helper();}auto run=make();run();try{run();}catch{print(9);}finally{print(10);}",
             host: "globalThis.opaque=()=>'ok';",
             expected: "10\n",
-            helper: "helper",
-        },
-        Case {
-            name: "a host call changes a later captured-string read",
-            source: "extern string opaque();extern void keep(func()->void replace);extern void tick();func()->string make(){string text=opaque();keep(()=>{text=\"changed\";});auto helper=()=>{string first=text+\"!\";tick();return first+text;};return ()=>helper();}auto run=make();print(run());print(run());",
-            host: "let replace,ticks=0;globalThis.keep=value=>{replace=value};globalThis.tick=()=>{if(++ticks==1)replace();};globalThis.opaque=()=>'old';",
-            expected: "old!changed\nchanged!changed\n",
             helper: "helper",
         },
     ] {

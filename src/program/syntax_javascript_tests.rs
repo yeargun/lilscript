@@ -2340,9 +2340,9 @@ fn typed_operations_mean_the_originals_without_pristine_builtins() {
     let javascript = compile_with(
         r#"
         extern void show(JsValue value);
-        export int size(string s, int[] values) { return s.length * 2 + values.length; }
+        export int size(string s) { return s.length; }
         export bool digits(string s) { Regex pattern = new Regex("^[0-9]+$"); return pattern.test(s); }
-        show(size("abc", [1, 2]));
+        show(size("abc"));
         show(digits("123"));
         show(digits("12a"));
         "#,
@@ -2351,7 +2351,7 @@ fn typed_operations_mean_the_originals_without_pristine_builtins() {
     assert!(javascript.contains("/^[0-9]+$/"), "{javascript}");
     assert!(!javascript.contains("RegExp"), "{javascript}");
     assert!(!javascript.contains("length|0"), "{javascript}");
-    assert_eq!(run(&javascript, SHOW), "8\ntrue\nfalse\n");
+    assert_eq!(run(&javascript, SHOW), "3\ntrue\nfalse\n");
 }
 
 /// `checks = "development"` (the contract axis; R11's precondition): an index

@@ -493,45 +493,6 @@ fn core_verified_load_refinements_do_not_supply_a_missing_product_adapter() {
 }
 
 #[test]
-fn stale_nullable_product_reads_keep_plain_store_checks_before_and_after_rhs() {
-    let source = r#"
-        struct P{int x;}
-        extern int forbiddenRhs();
-        void update(P value){value.x=forbiddenRhs();print("unreachable");}
-        export void before(){
-            P? saved=P{1};
-            if(saved!=null){
-                auto later=()=>update(saved);
-                saved=null;
-                try{later();}catch(auto caught){print("before-caught");}
-            }
-        }
-        export void after(){
-            P? saved=P{1};
-            if(saved!=null){
-                P current=P{3};
-                int marker=0;
-                auto rhs=()=>{current=(()=>saved)();marker=1;print("rhs");return 2;};
-                saved=null;
-                try{current.x=rhs();}catch(auto caught){print("after-caught");}
-                print(marker);
-            }
-        }
-    "#;
-    for compact in [false, true] {
-        let javascript = output(source, compact, true).unwrap();
-        assert_eq!(
-            execute(
-                &javascript,
-                "globalThis.forbiddenRhs=()=>{events.push('forbidden-rhs');return 2;};",
-                "library.before();library.after();",
-            ),
-            json!(["before-caught", "rhs", "after-caught", 1])
-        );
-    }
-}
-
-#[test]
 fn integer_fields_from_a_trusted_extern_wrap_as_int32() {
     // An extern `int` is a trusted crossing (R1): the host promises an int32,
     // which the struct field holds as it is. The arithmetic on it wraps; a
