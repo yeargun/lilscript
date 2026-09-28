@@ -773,10 +773,12 @@ pub enum ExprKind<'ast, 'src> {
         parts: &'ast [TemplatePart<'ast, 'src>],
         span: Span,
     },
-    /// `value as T`: a trusted view of a `JsValue` as `T`, no code (R12).
+    /// `value as T`: a trusted view of a `JsValue` as `T`, no code. With
+    /// `checked`, `value as? T`: a test, then the value as `T` or null (R12).
     Cast {
         value: &'ast Expr<'ast, 'src>,
         target: TypeRef<'ast, 'src>,
+        checked: bool,
         span: Span,
     },
     /// `T(value)`: an explicit conversion that emits the coercion (R12).

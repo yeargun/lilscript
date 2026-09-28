@@ -4827,6 +4827,12 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             ExprKind::Template { parts, .. } => {
                 return self.template(unit, region, parts, ty, origin, span);
             }
+            ExprKind::Cast {
+                value,
+                checked: true,
+                span: check,
+                ..
+            } => return self.checked_cast(unit, region, value, *check, ty, origin, span),
             ExprKind::TypeCheck {
                 value, span: check, ..
             } => {
@@ -4939,6 +4945,67 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             preparation,
         )?;
         Ok(call)
+    }
+    /// `v as? T`: the test `v is T`, then `v` viewed as `T` (`JS.assume`, no
+    /// code) or null. `ty` is `T?`.
+    #[allow(clippy::too_many_arguments)]
+    fn checked_cast(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        value: &ast::Expr<'ast, 'src>,
+        check: Span,
+        ty: TypeId,
+        origin: Option<ast::SourceNodeId>,
+        span: Span,
+    ) -> Result<ValueId, ConversionError> {
+        let target = self.semantics.type_check_type(check).ok_or(Unsupported {
+            span,
+            feature: "missing checked `as?` target",
+        })?;
+        let target = self.ty(target)?;
+        let value = self.expression(unit, region, value)?;
+        let boolean = self.ty(&crate::check::Type::Bool)?;
+        let test = self.value(
+            unit,
+            region,
+            OperationKind::TypeTest(target),
+            &[value],
+            boolean,
+            None,
+            span,
+        )?;
+        let yes = self.region(unit, region, span)?;
+        let viewed = self.dynamic_call(
+            unit,
+            yes,
+            BuiltinCall::JsAssume,
+            &[DynamicOperand::Value(value)],
+            target,
+            None,
+            span,
+        )?;
+        self.units[unit.index()].regions[yes.index()].result = Some(viewed);
+        let no = self.region(unit, region, span)?;
+        let null = self.value(
+            unit,
+            no,
+            OperationKind::Constant(Constant::Null),
+            &[],
+            ty,
+            None,
+            span,
+        )?;
+        self.units[unit.index()].regions[no.index()].result = Some(null);
+        self.value(
+            unit,
+            region,
+            OperationKind::Select { yes, no },
+            &[test],
+            ty,
+            origin,
+            span,
+        )
     }
     /// A lambda's unit, of callable type `ty`.
     fn closure(

@@ -4840,6 +4840,31 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ExprKind::Cast {
                         value,
                         target,
+                        checked: true,
+                        span,
+                    },
+                ..
+            } => {
+                // `v as? T`: a test, then the value as `T` or null (R12). A
+                // `JsValue` narrows to the types `is` can test on it.
+                let source = self.analyze_expr(value, None)?;
+                if !is_js_value_or_nullable_js_value(&source) {
+                    return Err(AdmittedCheckError::new(
+                        *span,
+                        format!("`as?` narrows a `JsValue`, found `{source}`"),
+                    ));
+                }
+                let target = self.resolve_value_type(*target, "`as?` target")?;
+                validate_type_guard(&source, &target, *span)?;
+                self.facts.type_check_types.insert(*span, target.clone());
+                nullable_type(target)
+            }
+            Expr {
+                kind:
+                    ExprKind::Cast {
+                        value,
+                        target,
+                        checked: false,
                         span,
                     },
                 ..

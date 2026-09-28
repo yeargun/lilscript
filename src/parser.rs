@@ -1586,11 +1586,14 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     break;
                 }
                 self.advance();
+                // `as?`: the checked narrowing to `T?`.
+                let checked = self.match_kind(|kind| matches!(kind, TokenKind::Question));
                 let target = self.parse_type()?;
                 let value = admission::alloc(self.arena, self.admission, lhs)?;
                 lhs = self.source.expression(ExprKind::Cast {
                     value,
                     target,
+                    checked,
                     span: value.span().merge(target.span),
                 });
                 continue;
