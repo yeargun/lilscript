@@ -2183,6 +2183,7 @@ mod tests {
     show(JS.call(JS.get(o, "m"), o, x));
     show(JS.isNullish(x) || JS.isUndefined(o) || JS.isFalse(x));
     show(x.truthy());
+    show((if (text == "") { x } else { o }).truthy());
     return JS.invoke(o, "call", s);
 }
 "#;
@@ -2204,6 +2205,7 @@ mod tests {
     show(o.m(x));
     show(x == null || o === undefined || x === false);
     show(bool(x));
+    show(bool(if (text == "") { x } else { o }));
     return o["call"](s);
 }
 "#;

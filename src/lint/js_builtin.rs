@@ -490,7 +490,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
         if !fix_enabled("truthy") {
             return;
         }
-        let span = call.span();
+        let span = self.balanced(call.span());
         let replacement = format!("bool({})", self.text(object));
         self.pending.push(PendingDiagnostic {
             module: self.module,
@@ -540,7 +540,9 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
         } else {
             self.spelling(call, name, args, at)
         };
-        let span = call.span();
+        // The edit covers the call's balanced text: a call whose callee is a
+        // parenthesized expression starts inside the parentheses.
+        let span = self.balanced(call.span());
         let message = match &spelling {
             Some(text) => format!("`JS.{name}` is spelled `{text}` (R12)"),
             None if nested => {
