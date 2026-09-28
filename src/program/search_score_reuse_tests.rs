@@ -69,7 +69,7 @@ fn staged_equal_bytes_reuse_exhausted_probes_but_recheck_naming_permission() {
         let baseline = policy(0, "on");
         let optional = policy(2, "on");
         let mut search = compilation
-            .search_javascript(source, &baseline, request())
+            .search_javascript_explored(source, &baseline, request())
             .unwrap();
         let original = search
             .with_winner(Objective::Brotli, |view, _| view.sizes)

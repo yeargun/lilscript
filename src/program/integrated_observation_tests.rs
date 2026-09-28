@@ -344,7 +344,7 @@ fn document_consumer_literal_modes_compose_with_the_existing_portfolio_and_fixed
             "canonical_mapping_sha256":digest(&mapping),"policy":policy.receipt(),"manual_maps":12,"manual_artifacts":72,"manual_minima":manual_minima})
         );
         let search = compiler
-            .search_javascript_observed(
+            .search_javascript_explored_observed(
                 source,
                 &policy,
                 SearchRequest {

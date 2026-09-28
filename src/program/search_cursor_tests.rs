@@ -90,7 +90,7 @@ fn with_states(inspect: impl FnOnce(&mut JavaScriptSearch<'_, '_>)) {
         .adopt_checked(program, WorkDomain::Baseline)
         .unwrap();
     let mut search = compiler
-        .search_javascript(source, &policy, request)
+        .search_javascript_explored(source, &policy, request)
         .unwrap();
     search
         .compilation

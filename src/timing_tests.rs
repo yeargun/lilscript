@@ -12,9 +12,12 @@ const TEST: &str = "timing::tests::semantic_phase_timing_is_observational_and_co
 const ANSWER: &str = "export int answer(){return 17;}";
 const VALLEY: &str = include_str!("program/fixtures/search-structural-valley/entry.lil");
 
+/// With inlining, the structural beam (level 14, M3.5) weighs the helper
+/// proofs; without, the default level walks only.
 fn configuration(proposals: usize, inlining: bool) -> crate::config::ProjectConfig {
     toml::from_str(&format!(
-        "[javascript]\ncost_model='brotli'\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=48\ncandidate_limit=8\ncandidate_beam_width=2\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'\ninlining='{}'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
+        "[javascript]\noptimization_level={}\ncost_model='brotli'\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=48\ncandidate_limit=8\ncandidate_beam_width=2\n[policy.search]\ncodec_schedule='staged'\nrender_batch=8\ndiversity_interval=4\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='on'\ninlining='{}'\nscalar-replacement='off'\ncall-specialization='off'\nconstant-folding='off'\nstring-pooling='off'",
+        if inlining { 14 } else { 13 },
         if inlining { "on" } else { "off" },
     )).unwrap()
 }
@@ -30,11 +33,17 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
     let before = phase_counts();
     let phases_before = PHASE_BUCKETS.map(|bucket| bucket.snapshot().0);
     let started = Instant::now();
+    // The beam serves one objective; the walk serves each.
+    let objectives = if inlining {
+        Objectives::One(Objective::Brotli)
+    } else {
+        Objectives::All
+    };
     let compiled = compile_source(
         source,
         &configuration(proposals, inlining),
         ServiceOptions {
-            objectives: Some(Objectives::All),
+            objectives: Some(objectives),
             ..ServiceOptions::default()
         },
     )
@@ -52,23 +61,23 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
         let stages = compiled.report()["search"]["terminal"]["objectives"]
             .as_array()
             .unwrap();
-        // Choice alternatives form and render like challengers; a survey
-        // forms a tail only, to read the incumbent's choice sites.
-        let tried: u64 = stages
-            .iter()
-            .map(|stage| {
-                stage["tried"].as_u64().unwrap() + stage["choices_tried"].as_u64().unwrap()
-            })
-            .sum();
+        // Choice alternatives and joint moves form and render like
+        // challengers; a survey forms a tail only, to read the incumbent's
+        // choice sites.
+        let formed = |stage: &Value| {
+            stage["tried"].as_u64().unwrap()
+                + stage["choices_tried"].as_u64().unwrap()
+                + stage["joints_tried"].as_u64().unwrap()
+                + stage["restarts_tried"].as_u64().unwrap()
+        };
+        let tried: u64 = stages.iter().map(formed).sum();
         let surveys: u64 = stages
             .iter()
             .map(|stage| stage["surveys"].as_u64().unwrap())
             .sum();
         let heads = stages
             .iter()
-            .filter(|stage| {
-                stage["tried"].as_u64().unwrap() + stage["surveys"].as_u64().unwrap() > 0
-            })
+            .filter(|stage| formed(stage) + stage["surveys"].as_u64().unwrap() > 0)
             .count() as u64;
         let terminal_encodes: u64 = stages
             .iter()
@@ -77,21 +86,25 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
         let renders = compiled.report()["search"]["renders"].as_u64().unwrap() + tried;
         assert_eq!(phases[5]["calls"], renders);
         assert_eq!(phases[6]["calls"], renders);
+        // The level-0 artifact is measured once under each requested codec.
+        let baseline_encodes = objectives
+            .iter()
+            .filter(|codec| *codec != Objective::Raw)
+            .count() as u64;
         let encodes = compiled.report()["search"]["codec_probes"]
             .as_u64()
             .unwrap()
-            + 2
+            + baseline_encodes
             + terminal_encodes;
         assert_eq!(
             phases[7]["calls"].as_u64().unwrap() + phases[8]["calls"].as_u64().unwrap(),
-            encodes
+            encodes,
+            "{label}"
         );
         if !inlining {
-            let expected = if proposals == 0 {
-                [1; 7]
-            } else {
-                [1, 1, 2, 2, 2, 3, 3]
-            };
+            // The search forms the level-0 artifact only; the walk's moves
+            // are the rest.
+            let expected = [1; 7];
             let terminal = [
                 heads,
                 heads + tried + surveys,
@@ -128,8 +141,8 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
         compiled.report()["resources"]["retained_bytes_after_handoff"],
         0
     );
-    let artifacts: Vec<_> = [Objective::Raw, Objective::Gzip, Objective::Brotli]
-        .into_iter()
+    let artifacts: Vec<_> = objectives
+        .iter()
         .map(|codec| {
             let artifact = compiled.javascript(codec).unwrap();
             json!({"objective":format!("{codec:?}"),"javascript":artifact.javascript(),
@@ -184,9 +197,9 @@ fn check_refusal_and_native() {
     assert_eq!(
         delta,
         if enabled() {
-            [0, 0, 2, 1, 1, 1, 1, 0, 0, 0, 0]
+            [0, 0, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0]
         } else {
-            [0; 11]
+            [0; 12]
         }
     );
     let refused = compile_source(

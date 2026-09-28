@@ -517,7 +517,7 @@ fn bounded_search_retains_exact_per_codec_winners_for_the_original_module_graph(
             facts_cache: cache(),
         };
         let mut measured = Vec::new();
-        let search = compiler.search_javascript_observed(source, &policy, request, |observation| {
+        let search = compiler.search_javascript_explored_observed(source, &policy, request, |observation| {
             execute(observation.javascript);
             let sizes = scores(observation.sizes);
             measured.push((digest(observation.javascript), sizes));
@@ -779,7 +779,7 @@ fn discovery_run_with_beam(
             facts_cache: cache(),
         };
         let mut observed = Vec::new();
-        let search = compiler.search_javascript_observed(source, &policy, request, |observation| {
+        let search = compiler.search_javascript_explored_observed(source, &policy, request, |observation| {
         // The scorer has completed before this callback; do not publish a codec
         // claim in the test receipt until the independent full trace succeeds.
         execute(observation.javascript);

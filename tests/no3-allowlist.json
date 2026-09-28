@@ -3,20 +3,6 @@
   "about": "NO3 allowlist ledger (architecture §18.3, plan rule 10, task M2.13): every mention of a port or upstream library in non-test src/, per file and library, with why it is there and the plan task that removes it. Checked by src/no_library_knowledge_tests.rs (cargo test --lib): a file may not gain a mention, and an entry must shrink with its file. M8.7 empties the ledger. Recorded 2026-09-27 at 24968659 (compiler source d1d48c4c): 30 mentions in 22 entries, all comments that justify a rule, a default or a schedule constant by one port's measurement. After merging batch A1 (e30cc68f): 31 mentions in 22 entries; A1 removed the katex import pin and added two citations (src/js/tables.rs, src/program/javascript_methods.rs).",
   "entries": [
     {
-      "file": "src/config.rs",
-      "name": "acorn",
-      "count": 3,
-      "reason": "The effort ladder's candidate limits and levels are justified by curves measured on the acorn port (comments at the ladder); the ladder was calibrated on the deleted route.",
-      "owner": "M3.5 (the budget model's versioned schedule, calibrated on the case and calibration corpora, NO9)"
-    },
-    {
-      "file": "src/config.rs",
-      "name": "jquery",
-      "count": 5,
-      "reason": "Default level 13 and the candidate ceilings are justified by jQuery-port measurements in comments at the effort ladder.",
-      "owner": "M3.5 (the budget model's versioned schedule, calibrated on the case and calibration corpora, NO9)"
-    },
-    {
       "file": "src/main.rs",
       "name": "micromark",
       "count": 1,

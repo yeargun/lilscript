@@ -2,23 +2,23 @@
 
 The one-compiler migration as a to-do list. [plan.md](plan.md) says what each task is and the order the work goes in. [history.md](history.md) records what each batch landed, measured and left open.
 
-**Updated 2026-09-28**, at batch F3 on `finer/059-idiom-directed-naming`. Every batch branch is merged there.
+**Updated 2026-09-28**, at batch B1 on `finer/059-idiom-directed-naming`. Every batch branch is merged there.
 
 ## Where we are
 
 - **Done:**
   - M0 and M1: there has been one compiler since 2026-09-24.
   - The interim release.
-  - Batches I, T, D, N, A1, F1, F2 and F3, and M3.3a.
+  - Batches I, T, D, N, A1, F1, F2, F3 and B1, and M3.3a.
   - Three of the tools: M2.13, M2.5 and M2.14.
   - Of the plan's 13 steps, steps 1, 4 and 5 are done and steps 2 and 3 are partly done.
-- **Next on the critical path:** step 6, the budget model counted (M3.5 with M3.1's first slice and M3.4). Step 5 closed with batches F1–F3: the program-rule phase (DCE, exact values, folding, removal-only inlining, parameters and returns); since A1 the reference ports are raw −7,858, gzip −2,059, Brotli −3,050.
+- **Next on the critical path:** step 6 continues with batch B2 (level 0 without a codec, codec settings as objective configuration, deterministic parallel scoring, the count gates), then M3.1's first slice and M3.4. Batch B1 landed the counted walk: one list from A0, the proxy judge, schedule v1, passes to the fixed point and restarts from level 14; level-13 CPU fell to ×0.58 on katexlil and ×0.08 on jquerylil, and level 13 no longer reaches the beam's structural recipes (ledgered to M7.9, M7.5's rest and M9.1's rest).
 - **Also open, off the critical path:**
   - Step 2: the layout commit, then M3.3b with M3.8a, then motionlil compiler-written (M12.2).
   - Step 3: M2.10, M2.11, M2.12 and M2.15.
 - **Largest gaps:**
   - **Program rules are young.** F1 and F2 added DCE, folding and removal-only inlining on the Program IR: production module lanes −1,174 Brotli since A1, but `comparison/apps` is still 926 Brotli against 834 for Closure ADVANCED and 558 for the old route, because the ratchet's script lanes cannot seal their roots while every competitor treats top-level bindings as private: Y5.
-  - **Compile time.** Level 13 takes 1.06–3.81× the frozen pre-M1 time (katexlil 17.6 s against 4.62 s, measured on head `d1d48c4c` for M2.14). Step 6's exit (M3.5) brings it back.
+  - **Compile time.** After B1, level 13 is below the frozen pre-M1 time on jquerylil (2.0 s against 28.8 s) and motionlil (5.3 s against 14.3 s), and above it on katexlil (10.4 s against 4.62 s) and the small ports, whose time is frontend, rules and formation. M3.5's exit needs katexlil at 6.0 s.
   - **Runtime.** katexlil's steady state in Node is 1.047× upstream KaTeX (after A1). M2.12's runtime ledger will track every port.
 - **Owner rulings pending:** Y1–Y7 (architecture §21.1). None of them blocks the critical path.
 - **How work runs:** one building, testing or measuring job at a time on this host (plan rule 5), with the full verification after each batch rather than each change (rule 8).
@@ -26,7 +26,7 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
   - Amendment AM1: budgets are counts, and the work-unit tariff and its machinery are dropped.
   - Law L22: decide statically first.
   - Implement the whole plan.
-- **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding), [F2](history.md#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults), [F3](history.md#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins).
+- **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding), [F2](history.md#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults), [F3](history.md#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins), [B1](history.md#2026-09-28-batch-b1-the-counted-walk-m35-first-part).
 
 ## Steps
 
@@ -37,7 +37,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] **3** Tools. Done: M2.5, M2.13, M2.14. Open: M2.10, M2.11, M2.12, M2.15, and M2.7; M2.4 starts here and then runs ahead of each fact
 - [x] **4** Batch A1, canonical formation without tree analysis: 2026-09-27
 - [x] **5** Floor slice: M5.1, M6.4a, M7.8a, M7.3, M7.5a: 2026-09-28 (batches F1–F3). Carried: M5.1's `UseIndex` and `drop_unreferenced_functions`, M6.4a's finite sets, the tree twins (measured, kept)
-- [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. **Next on the critical path**
+- [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Partly:* B1 (M3.5's walk, 2026-09-28). **In progress**
 - [ ] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16
 - [ ] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half); M10.12 after Y1
 - [ ] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half)
@@ -94,7 +94,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] M3.3d Lazy effects and cycles: step 13
 - [ ] M3.3e Ports, with M12.2: step 2 for motionlil
 - [ ] M3.4 Public API and shared formation: step 6
-- [ ] M3.5 The budget model, counted (AM1): step 6
+- [ ] M3.5 The budget model, counted (AM1): step 6. *Partly (B1): the proxy judge, schedule v1, one list walked in passes from A0, restarts and the beam in the tail, receipts, `scripts/monotone.mjs`. Open: level 0 without a codec, codec settings, `-j` scoring, count gates, the replay check, the audit lane, the time exit*
 - M3.6 Codec pool: merged into M3.5
 - [ ] M3.7 Environment variables: step 6
 - [ ] M3.8a Consumer-shakeable delivery, first half: step 2, with M3.3b

@@ -847,6 +847,81 @@ Predicted:
 
 Not in this batch: level 0 without a codec, codec settings as configuration, parallel scoring (B2); schema v3 and the public API (B3).
 
+**Landed** (binary `~/lilscript-work/bin/b1-6`, SHA-256 `d57286084191a7eb…`):
+- **The proxy judge.** `compression::measure_proxy_admitted` runs Brotli at quality 5, once per artifact (`CachedSizes.brotli_proxy`), timed in its own bucket (`proxy_brotli`); gzip and raw are their own proxies, and `ArtifactArena::proxy_is_exact` says when a proxy measurement is an exact probe.
+- **The effort schedule, version 1** (`compilation_policy::WalkSchedule`, in the policy's fingerprint and receipt; an unbounded count prints as null):
+
+  | Levels | p(L) | e(L) | passes | tail |
+  |---|---|---|---|---|
+  | 0 | 0 | 0 | 0 | no |
+  | 1–4 | 8 | 2 | 1 | no |
+  | 5–9 | 24 | 4 | 1 | no |
+  | 10, 11, 12, 13 | all | 6, 8, 12, 16 | 1 | no |
+  | 14–16 | all | all | to the fixed point | yes |
+
+  The margin M is 150 bytes of proxy for Brotli and 0 for gzip and raw. The seven ladders and their fields are gone; the five search keys warn (`RETIRED_KEYS`), and `candidate_search = "off"` keeps its meaning.
+- **The walk** (`program/search_terminal.rs`, a `Walker` over one list):
+  - The list is the choice sites by stake, the declared challengers, then the joint moves (the other literal spelling, the naming seeds). A pass walks it once; a pass that keeps a move is followed by another, up to the level's number.
+  - The walk holds its incumbent itself: it retains and qualifies each kept artifact, discards the one it replaces, and promotes the last one into the portfolio once.
+  - The tail (from level 14) restarts the walk from A0 under each other naming seed. A restart's start is pruned by the proxy against A0, and its result replaces the best only on a strict exact win. Then the structural beam runs as the last move, seeded with the incumbent's tactics and naming (`BeamSeed`), for one objective (a build with several skips it, with the reason in the receipt).
+  - `search_javascript` forms A0 only. The machinery tests reach the old exploring flow through the test-only `search_javascript_explored`.
+- **Receipts.** Per objective: the schedule, positions examined, exact judgements, prunings, passes, and each move's pass, proxy delta and exact delta; restarts with their start and result. `--explain human` prints a `walk` line and a `beam` line, and `--print-policy` the schedule.
+- **Tools.** `scripts/monotone.mjs` (the case runner at each tier boundary, failing on any growth from one level to the next) and `scripts/cases.mjs --level N`; [testing.md](../testing.md#the-effort-schedules-monotonicity-m35).
+- **Tests.** 1,582 unit tests pass. The terminal build tests check the walk's arithmetic per pass and per restart, the schedule per level, and monotonicity from level 1 to 15. The beam's own shape keys stay readable by direct deserialization for the beam's unit tests only; they go with the beam (M9.1).
+- **NO3.** `src/config.rs`'s two entries (acorn, jquery; owner M3.5) are gone with the ladders.
+
+**Calibration** (`~/lilscript-work/tools/walk-calibrate.py` on M2.14's frozen entries; the unbounded one-pass walk against the exact budget):
+
+| Port | A0 | walk | final kept by judgement | F3 level 13 |
+|---|---:|---:|---:|---:|
+| markedlil | 9,201 | 9,197 | 1st | 9,197 |
+| zodlil | 26,886 | 26,840 | 1st | 26,840 |
+| posthoglil | 5,340 | 5,244 | 4th | 5,244 |
+| micromarklil | 21,633 | 21,614 | 3rd | 21,614 |
+| katexlil | 61,346 | 60,166 | 14th | 60,119 |
+| jquerylil | 25,499 | 25,416 | 7th | 25,403 |
+| motionlil | 34,140 | 33,984 | 6th | 34,070 |
+
+- e(13) = 16 holds every port's unbounded result.
+- With no pruning at all (a calibration build), every port reaches the same sizes. M = 150 prunes 4 to 6 moves per port and loses nothing.
+- katexlil needs 14 judgements; at e = 8 it would stop at 60,302.
+
+**What the ladder caught.**
+- **One greedy order is path-dependent.** With the joint moves last and one pass (`b1-2`), five ratchet items lost 1 to 6 bytes (nested structs, `host-hasown`, `edge-loop-control`, `host-callable-as-value`): F3's search explored the naming seeds before its challengers, and a naming seed that ties or loses alone can win with the families it enables. The joint moves first (`b1-3`) fixed those and broke ten others (Brotli −69 against −111 for the corpus). Passes to the fixed point (`b1-4`) fixed one more. The tail's restarts (`b1-5`) fixed the rest: the ratchet passes, and no item grows.
+- **Test configurations with retired keys.** Direct deserialization rejected them once the fields went; they are readable again for the beam's tests only.
+
+**Evidence** (`b1-6` against F3's `f3-2`):
+- **Case runner**, 395 cases × 18 lanes: no failure outside the ledger. At level 13 against F3:
+
+  | Lane | Brotli | gzip | raw |
+  |---|---:|---:|---:|
+  | module | +122 | +183 | +176 |
+  | script | +5 | +117 | +128 |
+
+  These are the structural recipes the beam found on small programs, which level 13 no longer reaches: scalar replacement of records and structs (`irjs-record_literals…`, the `folds_redundant_record_miss…` pair, `17_struct`), inlining in `16_templates` and `modules/main`. The data tables gain (−555 Brotli). C is unchanged.
+- **Monotone** (`scripts/monotone.mjs`, levels 0, 1, 5, 10–14, production module lanes): no growth at any step. Brotli 38,703 (level 0) → 37,819 (1) → 37,775 (5) → 37,455 (10) → 37,454 (11–13) → 37,194 (14); gzip and raw fall the same way.
+- **Ratchet:** pass, with 439 improvements; the baseline is tightened to this binary (`tests/ratchet/baseline.json`). Against the baseline before the batch (at level 15 configurations): cases Brotli 48,725 → 48,573, gzip 58,550 → 58,522; apps Brotli 926 → 920; algorithms Brotli 3,235 → 3,233.
+- **Reference ports** (`scripts/ports.mjs --patches none`): all seven green. Delivered files against F3: raw −2,342, gzip −62, Brotli +675.
+  - markedlil and zodlil are identical.
+  - jquerylil: raw −2,890, Brotli −7. micromarklil −22 Brotli. posthoglil +2.
+  - katexlil +406 Brotli over its 26 files. Its compiler-built artifacts (`.esm.js`, `.mjs`, `.closed.js`) grow 8 each (60,085); the esbuild re-bundles of them (`.cjs` +130, `.min.js` and `.umd.js` +47) and the test builds (+107, +47) grow more.
+  - motionlil +296 over its 621 graph files, whose part numbering shifted.
+- **CPU time** at level 13 (`cpu-pairs.py`, median of three alternating pairs): markedlil ×0.789 (0.87 → 0.68 s), zodlil ×1.043, posthoglil ×0.821, micromarklil ×0.766, katexlil ×0.577 (18.09 → 10.44 s), jquerylil ×0.081 (24.82 → 2.01 s), motionlil ×0.492 (10.80 → 5.31 s). jquerylil and motionlil are now below their frozen pre-M1 times; katexlil is at 2.26× its 4.62 s.
+
+**Deviations.**
+- The tail comes from level 14, as pre-registered, not at 16 as the architecture's starting table has it; the restarts are the tail's new first moves.
+- The beam serves one objective; a build with several objectives skips it (the product always builds one).
+- The beam's shape keys stay readable by direct deserialization for its unit tests.
+
+**Known cost, ledgered** (M3.5's size exit allows it with an owner): level 13 no longer reaches the beam's structural recipes. The case corpus pays +122 Brotli in the module lane, owned by M7.9 (scalar replacement) and M7.5's rest (inlining), and katexlil +8 on its compiler-built artifacts, owned by M9.1's rest. Level 14 recovers all of it.
+
+**Open.**
+- The time exit: katexlil at level 13 is 10.4 s against the 6.0 s ceiling. Formation is most of the rest after the exact judgements (M5.7), and the list order could put katexlil's late winners earlier.
+- The replay check of §9.6 (the incumbent at each lower level's stopping point against a build at that level).
+- An auditing lane that measures what pruning misses.
+- The per-batch count gates in the runners.
+- Level 0 without a codec, codec settings as configuration, parallel scoring (B2).
+
 ---
 
 ## Appendix: where milestones 001–014 went

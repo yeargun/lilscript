@@ -38,6 +38,12 @@ pub enum Retirement {
         to: &'static str,
         reason: &'static str,
     },
+    /// Kept while it holds `value`, which still has a meaning; any other
+    /// value is removed with a warning that it has no effect.
+    NoEffectUnless {
+        value: RetiredValue,
+        reason: &'static str,
+    },
 }
 
 /// The one value a conditionally refused key may hold.
@@ -65,6 +71,18 @@ const OLD_EMITTER: &str =
 const OLD_NAMING: &str = "it steered the old compiler's local naming, which was deleted; \
 this compiler chooses names per artifact";
 const OLD_SEARCH: &str = "it bounded the old compiler's candidate search, which was deleted";
+/// The structural beam's one fixed schedule, whatever level reaches it
+/// (architecture §9.6: it "runs at one fixed schedule (today's level-13
+/// schedule)"): the level-13 production values of the ladders this replaced.
+const BEAM_PROPOSALS: usize = 384;
+const BEAM_CODEC_PROBES: usize = 384;
+const BEAM_CANDIDATES: usize = 384;
+const BEAM_CANDIDATE_BYTES: usize = 768 * 1024;
+const BEAM_WIDTH: usize = 10;
+
+const EFFORT_SCHEDULE: &str = "the effort level's versioned schedule budgets the walk and the \
+structural beam (architecture §13.4; `--print-policy` prints it); a per-project search budget \
+will be refused (Y7)";
 const OLD_INLINER: &str = "it bounded the old compiler's inliner, which was deleted";
 const SIBLING_LINE: &str = "it configured the `migration/target-tree` line of the compiler, \
 which this compiler does not implement";
@@ -80,6 +98,18 @@ size is the objective, and runtime limits need runtime estimators that do not ex
 /// `javascript.optimizations` are retired separately
 /// (`RETIRED_COMPRESSION_DECISIONS`, `RETIRED_JAVASCRIPT_OPTIMIZATIONS`).
 pub const RETIRED_KEYS: &[(&str, Retirement)] = &[
+    (
+        "javascript.candidate_search",
+        Retirement::NoEffectUnless {
+            value: RetiredValue::String("off"),
+            reason: EFFORT_SCHEDULE,
+        },
+    ),
+    ("javascript.candidate_limit", Retirement::NoEffect(EFFORT_SCHEDULE)),
+    ("javascript.candidate_byte_budget", Retirement::NoEffect(EFFORT_SCHEDULE)),
+    ("javascript.candidate_beam_width", Retirement::NoEffect(EFFORT_SCHEDULE)),
+    ("javascript.candidate_proposal_limit", Retirement::NoEffect(EFFORT_SCHEDULE)),
+    ("javascript.terminal_codec_probe_limit", Retirement::NoEffect(EFFORT_SCHEDULE)),
     (
         "compiler.backend",
         Retirement::Refused("there is one compiler; remove [compiler] backend"),
@@ -338,6 +368,15 @@ pub fn apply_retired_keys(table: &mut toml::Table) -> Result<Vec<String>, String
                     None => continue,
                     Some(reason) => reason,
                 }
+            }
+            Retirement::NoEffectUnless {
+                value: kept,
+                reason,
+            } => {
+                if kept.matches(value) {
+                    continue;
+                }
+                reason
             }
         };
         remove(table, &path);
@@ -695,18 +734,42 @@ impl ProjectConfig {
                     self.mangle.preserve_properties.clone().unwrap_or_default();
                 preserved_properties.sort();
                 preserved_properties.dedup();
+                // The walk's budget is the effort level's schedule (M3.5);
+                // `candidate_search = "off"` keeps its meaning, no walk. The
+                // beam, when a level reaches it, runs at the level-13
+                // production schedule whatever the level (architecture §9.6).
+                let walk = if self.javascript.candidate_search == CandidateSearch::Off {
+                    crate::compilation_policy::WalkSchedule::OFF
+                } else {
+                    crate::compilation_policy::WalkSchedule::at(
+                        self.javascript.optimization_level,
+                        self.javascript.cost_model,
+                    )
+                };
                 let objective = OptimizationObjective {
                     codec: self.javascript.cost_model,
                     rank: ObjectiveRank {
                         priority: self.javascript.priority,
                     },
-                    optional_alternatives: self.javascript.effective_candidate_proposal_limit(),
-                    optional_codec_probes: self.javascript.effective_terminal_codec_probe_limit(),
-                    retained_candidates: self.javascript.effective_candidate_limit(),
-                    retained_candidate_bytes: self.javascript.effective_candidate_byte_budget(),
-                    beam_width: self.javascript.effective_candidate_beam_width(),
-                    terminal_challengers: self.javascript.effective_terminal_challenger_limit(),
-                    terminal_choices: self.javascript.effective_terminal_choice_limit(),
+                    // Optional work exists whenever the walk does; whether
+                    // the beam runs is the walk's (`walk.tail`).
+                    optional_alternatives: if walk == crate::compilation_policy::WalkSchedule::OFF {
+                        0
+                    } else {
+                        self.javascript.candidate_proposal_limit.unwrap_or(BEAM_PROPOSALS)
+                    },
+                    optional_codec_probes: if walk == crate::compilation_policy::WalkSchedule::OFF {
+                        0
+                    } else {
+                        self.javascript.terminal_codec_probe_limit.unwrap_or(BEAM_CODEC_PROBES)
+                    },
+                    retained_candidates: self.javascript.candidate_limit.unwrap_or(BEAM_CANDIDATES),
+                    retained_candidate_bytes: self
+                        .javascript
+                        .candidate_byte_budget
+                        .unwrap_or(BEAM_CANDIDATE_BYTES),
+                    beam_width: self.javascript.candidate_beam_width.unwrap_or(BEAM_WIDTH),
+                    walk,
                     search: policy.search,
                 };
                 let delivery = self.delivery_contract(preserve_root_exports)?;
@@ -929,14 +992,14 @@ impl ProjectConfig {
             }
         }
         resolve_ecmascript_target(self.javascript.ecmascript, &self.javascript.browsers)?;
-        if self.javascript.candidate_limit == 0 {
-            return Err("`javascript.candidate_limit` must be greater than zero".to_string());
-        }
-        if self.javascript.candidate_byte_budget == 0 {
-            return Err("`javascript.candidate_byte_budget` must be greater than zero".to_string());
-        }
-        if self.javascript.candidate_beam_width == 0 {
-            return Err("`javascript.candidate_beam_width` must be greater than zero".to_string());
+        for (key, value) in [
+            ("candidate_limit", self.javascript.candidate_limit),
+            ("candidate_byte_budget", self.javascript.candidate_byte_budget),
+            ("candidate_beam_width", self.javascript.candidate_beam_width),
+        ] {
+            if value == Some(0) {
+                return Err(format!("`javascript.{key}` must be greater than zero"));
+            }
         }
         if self.javascript.optimization_level > 16 {
             return Err("`javascript.optimization_level` must be between 0 and 16".to_string());
@@ -1126,26 +1189,20 @@ pub struct JavaScriptConfig {
     pub compression: Option<Vec<CompressionDecision>>,
     /// The codec whose bytes the objective minimizes: `raw`, `gzip` or `brotli`.
     pub cost_model: CompressionCostModel,
-    /// Whether the candidate search runs: `off`, `production` or `always`.
-    /// `--mode development` sets `off`.
+    /// `off` delivers the level-0 artifact whatever the level: no walk and no
+    /// beam (`--mode development` sets it). Its other values have no effect:
+    /// the effort level's schedule budgets the search (M3.5).
     pub candidate_search: CandidateSearch,
-    /// The most whole-artifact candidates the search retains.
-    pub candidate_limit: usize,
-    /// The most bytes of retained candidates.
-    pub candidate_byte_budget: usize,
-    /// The beam width of the structural search.
-    pub candidate_beam_width: usize,
-    /// Maximum optional structural emission plans admitted after the scored
-    /// context seeds are installed. Omitted values also honor
-    /// `candidate_limit`, so a deliberately tiny retained frontier stays a
-    /// tiny-work search. An explicit value decouples attempted work from that
-    /// survivor count while remaining bounded by the level/search tier.
-    /// Zero keeps only scored seeds and the reserved terminal challenger tail.
+    /// Retired (M3.5), with `candidate_byte_budget`, `candidate_beam_width`,
+    /// `candidate_proposal_limit` and `terminal_codec_probe_limit`: a product
+    /// configuration drops these keys with a warning (`RETIRED_KEYS`), and
+    /// the beam runs at its fixed schedule. Only the structural beam's own
+    /// unit tests, which deserialize a configuration directly, set them to
+    /// shape the beam they test. They go with the beam (M9.1).
+    pub candidate_limit: Option<usize>,
+    pub candidate_byte_budget: Option<usize>,
+    pub candidate_beam_width: Option<usize>,
     pub candidate_proposal_limit: Option<usize>,
-    /// Maximum whole-artifact work units in terminal syntax/name search. A
-    /// unit is charged before optional repair/validation and bounds one exact
-    /// codec call. Omitted values derive from the level; zero disables
-    /// optional terminal search while retaining the incumbent.
     pub terminal_codec_probe_limit: Option<usize>,
     /// Rebuild a nested expression when a run of single-use producers all feed
     /// one consumer that reads them in production order. `false` turns the
@@ -1201,22 +1258,20 @@ impl Default for JavaScriptConfig {
             priority: JavaScriptPriority::SizeFirst,
             ecmascript: EcmaScriptEdition::Es2022,
             browsers: Vec::new(),
-            // Level 13, not the ceiling. Measured on the jQuery port: level 15
-            // costs 1829 CPU-seconds against level 13's 89.8 — 20x — to save
-            // 426 Brotli bytes, 1.4%, and it issues 500 canonical encodes
-            // against 52. Levels 12 through 14 sit on a plateau within 0.15% of
-            // each other on both jQuery and acorn, and the curve only breaks
-            // down at 11 and below. A project that wants the last percent can
-            // still ask for 15 explicitly; it should not be the price of not
-            // having an opinion. See finer/hypotheses/007-level-13-sweet-spot.
+            // Level 13, not the ceiling: the last walk level before the
+            // structural beam (`WalkSchedule::at`). The beam is an order of
+            // magnitude more compile time for about a percent; a project that
+            // wants that percent asks for 14 or above, and it should not be the
+            // price of not having an opinion. The measurements that set the
+            // default are in finer/hypotheses/007-level-13-sweet-spot.
             optimization_level: 13,
             optimizations: None,
             compression: None,
             cost_model: CompressionCostModel::Brotli,
             candidate_search: CandidateSearch::Production,
-            candidate_limit: 1536,
-            candidate_byte_budget: 1024 * 1024,
-            candidate_beam_width: 12,
+            candidate_limit: None,
+            candidate_byte_budget: None,
+            candidate_beam_width: None,
             candidate_proposal_limit: None,
             terminal_codec_probe_limit: None,
             operand_order_fusion: true,
@@ -1363,205 +1418,6 @@ impl JavaScriptConfig {
             || self.priority.enables_compression(decision),
             |enabled| enabled.contains(&decision),
         )
-    }
-
-    pub fn effective_candidate_limit(&self) -> usize {
-        let level_limit = match self.optimization_level {
-            0..=2 => 1,
-            3..=4 => 16,
-            5..=6 => 64,
-            7..=8 => 192,
-            9..=10 => 384,
-            11..=12 => 768,
-            13..=14 => 1_024,
-            _ => usize::MAX,
-        };
-        let search_limit = match self.candidate_search {
-            CandidateSearch::Off => 1,
-            CandidateSearch::Production => 384,
-            CandidateSearch::Always => usize::MAX,
-        };
-        self.candidate_limit.min(level_limit).min(search_limit)
-    }
-
-    /// The configured byte pool is a ceiling, while the optimization level
-    /// supplies a progressively larger default work tier. The configured root
-    /// can always exceed this value: the arena raises its effective byte floor
-    /// to retain that mandatory incumbent.
-    pub fn effective_candidate_byte_budget(&self) -> usize {
-        let level_limit = match self.optimization_level {
-            0..=2 => 64 * 1024,
-            3..=4 => 128 * 1024,
-            5..=6 => 192 * 1024,
-            7..=8 => 256 * 1024,
-            9..=10 => 384 * 1024,
-            11..=12 => 512 * 1024,
-            13 => 768 * 1024,
-            14 => 896 * 1024,
-            _ => usize::MAX,
-        };
-        let search_limit = match self.candidate_search {
-            CandidateSearch::Off => 1,
-            CandidateSearch::Production | CandidateSearch::Always => usize::MAX,
-        };
-        self.candidate_byte_budget
-            .min(level_limit)
-            .min(search_limit)
-    }
-
-    /// Beam width participates in the effort ladder too. Previously every
-    /// nonzero level inherited the level-15 width of twelve even when its
-    /// candidate cap was intentionally small.
-    pub fn effective_candidate_beam_width(&self) -> usize {
-        let level_limit = match self.optimization_level {
-            0..=2 => 1,
-            3..=4 => 2,
-            5..=6 => 3,
-            7..=8 => 4,
-            9..=10 => 6,
-            11..=12 => 8,
-            13 => 10,
-            14 => 11,
-            _ => usize::MAX,
-        };
-        self.candidate_beam_width
-            .min(level_limit)
-            .min(self.effective_candidate_limit())
-            .max(1)
-    }
-
-    /// Hard ceiling for optional structural whole-artifact proposals after
-    /// the already-scored IR context seeds have been installed. Survivor and
-    /// byte limits cannot provide this guarantee: hundreds of rejected plans
-    /// may be emitted before a small survivor frontier is chosen.
-    /// The ceiling an explicitly configured proposal budget may not exceed.
-    /// The optimization level sets the *default* breadth, so an explicit budget
-    /// is allowed past it; the search tier is a different thing and stays hard.
-    fn candidate_proposal_tier_ceiling(&self) -> usize {
-        match self.candidate_search {
-            CandidateSearch::Off => 0,
-            CandidateSearch::Production => 384,
-            CandidateSearch::Always => usize::MAX,
-        }
-    }
-
-    fn candidate_proposal_level_limit(&self) -> usize {
-        let level_limit = match self.optimization_level {
-            0..=2 => 0,
-            3..=4 => 16,
-            5..=6 => 64,
-            7..=8 => 192,
-            9..=10 => 384,
-            11..=12 => 768,
-            13..=14 => 1_024,
-            _ => 1_536,
-        };
-        match self.candidate_search {
-            CandidateSearch::Off => 0,
-            CandidateSearch::Production => level_limit.min(384),
-            CandidateSearch::Always => level_limit,
-        }
-    }
-
-    pub fn effective_candidate_proposal_limit(&self) -> usize {
-        let level_limit = self.candidate_proposal_level_limit();
-        // A level that turns the search off turns it off for everyone; an
-        // explicit budget widens a search that is running, it does not start one.
-        if level_limit == 0 {
-            return 0;
-        }
-        self.candidate_proposal_limit.map_or_else(
-            || self.effective_candidate_limit().min(level_limit),
-            |configured| configured.min(self.candidate_proposal_tier_ceiling()),
-        )
-    }
-
-    /// Hard ceiling for optional whole-artifact work after structural
-    /// candidates have been ranked. This is deliberately independent of
-    /// survivor count: one large survivor can expose thousands of proposals.
-    fn terminal_codec_probe_level_limit(&self) -> usize {
-        let level_limit = match self.optimization_level {
-            0..=7 => 0,
-            8 => 24,
-            9..=10 => 64,
-            11..=12 => 128,
-            // The terminal probe budget is the one dimension of the effort
-            // ladder that measurably buys bytes, and 13 was rationing it.
-            // Measured with the budget pinned explicitly, so artifact scaling
-            // is out of the picture: on the acorn port the Brotli curve is
-            // 3071 at 192 probes and 3063 from 384 onward — flat through 3072 —
-            // and 3063 beats what level 15 produces (3069). On jQuery, the
-            // budget that level 13 actually reaches after artifact scaling was
-            // ~42 probes; doubling this base takes it to ~84 and moves Brotli
-            // from 30651 to 30593, which is 87% of the gain an unscaled 384
-            // achieves (30587) for half the probes.
-            //
-            // Levels above 13 deliberately stop here too. Raising them to 512
-            // and 768 was tried on the strength of jQuery still gaining at 768
-            // unscaled probes, and then measured: level 15 went from 1829 to
-            // **5434 CPU-seconds** — three times slower — to save 192 Brotli
-            // bytes. That is the same bad trade level 15 was already criticized
-            // for, made worse, so it was reverted. 384 is the measured knee on
-            // acorn (flat from 384 through 3072) and it restores level 15 to
-            // exactly the budget it had before.
-            _ => 384,
-        };
-        match self.candidate_search {
-            CandidateSearch::Off => 0,
-            CandidateSearch::Production => level_limit,
-            CandidateSearch::Always => level_limit.saturating_mul(4),
-        }
-    }
-
-    /// How many declared terminal challengers the exact codec judges on each
-    /// objective's final candidate (M5.4): each is one exact codec score of
-    /// the complete artifact, the stage's dominant cost. Challengers that
-    /// render the incumbent's bytes cost a formation and a render only, and
-    /// the declared schedule bounds those. The schedule's order is fixed, so a
-    /// higher level walks further along the same challengers: from the same
-    /// final candidate it can only keep more. The search-off levels offer
-    /// none, like the probe ladder.
-    pub fn effective_terminal_challenger_limit(&self) -> usize {
-        // Level 13 reaches every challenger kept on the seven reference ports
-        // when the stage landed (the first seven of the schedule).
-        let level_limit = match self.optimization_level {
-            0..=7 => 0,
-            8 => 3,
-            9..=10 => 4,
-            11..=12 => 5,
-            13 => 7,
-            14 => 9,
-            _ => usize::MAX,
-        };
-        match self.candidate_search {
-            CandidateSearch::Off => 0,
-            CandidateSearch::Production => level_limit,
-            CandidateSearch::Always if level_limit == 0 => 0,
-            CandidateSearch::Always => usize::MAX,
-        }
-    }
-
-    /// How many choice alternatives (M9.1) the terminal stage judges per
-    /// objective: the challengers' ladder, counted apart. A site offers one
-    /// to three alternatives the estimator ranks, and most programs have no
-    /// site, so the ladder bounds the codec work a program with many tables
-    /// can ask for rather than what one table needs.
-    pub fn effective_terminal_choice_limit(&self) -> usize {
-        self.effective_terminal_challenger_limit()
-    }
-
-    pub fn effective_terminal_codec_probe_limit(&self) -> usize {
-        let level_limit = self.terminal_codec_probe_level_limit();
-        if level_limit == 0 {
-            return 0;
-        }
-        // An explicit limit is a request for more verification, and it is
-        // honored. Measured on jQuery: raising the ceiling from 384 to the
-        // configured 1536 is 33 Brotli bytes for 24% more compile time, because
-        // terminal search on an 84KB artifact is budget-limited rather than
-        // idea-limited. Silently clamping to the level meant a config could ask
-        // for four times the search and receive none of it.
-        self.terminal_codec_probe_limit.unwrap_or(level_limit)
     }
 }
 
@@ -2148,16 +2004,6 @@ mod tests {
                 .unwrap_err()
                 .contains("between 0 and 16")
         );
-        assert!(
-            parse_project_config("[javascript]\ncandidate_beam_width=0\n")
-                .unwrap_err()
-                .contains("candidate_beam_width")
-        );
-        assert!(
-            parse_project_config("[javascript]\ncandidate_byte_budget=0\n")
-                .unwrap_err()
-                .contains("candidate_byte_budget")
-        );
         assert!(parse_project_config(
             "[javascript]\noptimizations=['call-site-specialization','call-site-specialization']\n"
         )
@@ -2180,72 +2026,44 @@ mod tests {
     }
 
     #[test]
-    fn effort_levels_set_the_search_breadth() {
-        let disabled = parse("[javascript]\noptimization_level=0\ncandidate_limit=1536\n").config;
-        assert_eq!(disabled.javascript.effective_candidate_limit(), 1);
-        assert_eq!(disabled.javascript.effective_candidate_beam_width(), 1);
-        assert_eq!(
-            disabled.javascript.effective_candidate_byte_budget(),
-            64 * 1024
-        );
-        assert_eq!(
-            disabled.javascript.effective_terminal_codec_probe_limit(),
-            0
-        );
-        assert_eq!(disabled.javascript.effective_candidate_proposal_limit(), 0);
-
-        let standard = parse("[javascript]\noptimization_level=9\n").config;
-        assert_eq!(standard.javascript.effective_candidate_limit(), 384);
-        assert_eq!(standard.javascript.effective_candidate_beam_width(), 6);
-        assert_eq!(
-            standard.javascript.effective_candidate_byte_budget(),
-            384 * 1024
-        );
-        assert_eq!(
-            standard.javascript.effective_terminal_codec_probe_limit(),
-            64
-        );
-        assert_eq!(
-            standard.javascript.effective_candidate_proposal_limit(),
-            384
-        );
-
-        let level_fourteen = parse("[javascript]\noptimization_level=14\n").config;
-        assert_eq!(
-            level_fourteen.javascript.effective_candidate_beam_width(),
-            11
-        );
-        assert_eq!(
-            level_fourteen.javascript.effective_candidate_byte_budget(),
-            896 * 1024
-        );
-        assert_eq!(
-            level_fourteen
-                .javascript
-                .effective_terminal_codec_probe_limit(),
-            384
-        );
-    }
-
-    #[test]
-    fn proposal_defaults_follow_survivor_limits_but_explicit_work_is_independent() {
-        let mut config = parse(
-            "[javascript]\noptimization_level=15\ncandidate_search='always'\ncandidate_limit=2\n",
-        )
-        .config;
-        assert_eq!(config.javascript.effective_candidate_limit(), 2);
-        assert_eq!(config.javascript.effective_candidate_proposal_limit(), 2);
-        config.javascript.candidate_proposal_limit = Some(23);
-        assert_eq!(config.javascript.effective_candidate_proposal_limit(), 23);
-        config.javascript.candidate_proposal_limit = Some(1);
-        assert_eq!(config.javascript.effective_candidate_proposal_limit(), 1);
-        config.javascript.optimization_level = 0;
-        config.javascript.candidate_proposal_limit = Some(23);
-        assert_eq!(
-            config.javascript.effective_candidate_proposal_limit(),
-            0,
-            "an explicit proposal ceiling cannot bypass level zero"
-        );
+    fn the_effort_schedule_is_monotone_and_the_old_search_budgets_have_no_effect() {
+        use crate::compilation_policy::WalkSchedule;
+        // Every parameter is non-decreasing in the level (architecture §9.6).
+        for codec in [
+            CompressionCostModel::Raw,
+            CompressionCostModel::Gzip,
+            CompressionCostModel::Brotli,
+        ] {
+            for level in 0..16u8 {
+                let (low, high) = (WalkSchedule::at(level, codec), WalkSchedule::at(level + 1, codec));
+                assert!(low.prefix <= high.prefix, "{level} {codec:?}");
+                assert!(low.exact <= high.exact, "{level} {codec:?}");
+                assert!(!low.tail || high.tail, "{level} {codec:?}");
+                assert!(low.passes <= high.passes, "{level} {codec:?}");
+                assert!(low.margin <= high.margin, "{level} {codec:?}");
+            }
+            assert_eq!(WalkSchedule::at(0, codec), WalkSchedule::OFF);
+            assert!(WalkSchedule::at(14, codec).tail);
+            assert!(!WalkSchedule::at(13, codec).tail);
+        }
+        // The per-project budgets are retired: each warns and changes nothing.
+        for key in [
+            "candidate_limit=2",
+            "candidate_byte_budget=0",
+            "candidate_beam_width=0",
+            "candidate_proposal_limit=23",
+            "terminal_codec_probe_limit=1",
+            "candidate_search='always'",
+        ] {
+            let parsed = parse(&format!("[javascript]\n{key}\n"));
+            assert_eq!(parsed.config, ProjectConfig::default(), "{key}");
+            assert_eq!(parsed.warnings.len(), 1, "{key}");
+            assert!(parsed.warnings[0].contains("has no effect"), "{key}");
+        }
+        // `off` keeps its meaning: no walk and no beam.
+        let off = parse("[javascript]\ncandidate_search='off'\n");
+        assert!(off.warnings.is_empty());
+        assert_eq!(off.config.javascript.candidate_search, CandidateSearch::Off);
     }
 
     #[test]

@@ -7,6 +7,7 @@ Three versioned runners check a compiler binary. Each pins the binary by SHA-256
 | `scripts/cases.mjs` | M2.2 | `finer/tools/semantic-census.mjs` (development mode only) and the knob configs in `tests/config/` |
 | `scripts/ports.mjs` | M2.6 | `finer/tools/semantic-port-tests.mjs`, `finer/tools/portgate.mjs` and the unversioned `~/lilscript-work/tools/*.sh` |
 | `scripts/ratchet.mjs` | M2.13 | the always-failing hard gates of `comparison/cases/run.mjs` and `comparison/algorithms/run.mjs` as per-change evidence |
+| `scripts/monotone.mjs` | M3.5 | — |
 | `src/no_library_knowledge_tests.rs` (NO3) and `tests/idiom-debt.json` (NO4) | M2.13 | — |
 | the admission parse, inside the compiler (`src/admission_parse.rs`) | M2.5 | the old route's syntax-only parse of terminal leaves |
 
@@ -111,6 +112,12 @@ The first five rows are the base rule: a case with a `.host.js`, a `.module-prob
 For every compiled (case, lane), the report records the artifact's byte size and SHA-256. Every JavaScript artifact is also measured with the canonical codec (`raw`, `gzip9`, `brotli11`). The summary gives each lane's total in its own objective.
 
 `--compare previous.json` prints, per lane, how many artifacts changed and the byte and objective totals before and after. It also lists state changes and the largest per-case byte changes; the JSON has all of them. Two runs of the same binary must compare identical; two runs of the pre-M1 binary did, on every compiled artifact of every lane.
+
+`--level N` compiles the production lanes at effort level N, over any level a case's configuration sets.
+
+### The effort schedule's monotonicity (M3.5)
+
+`scripts/monotone.mjs --compiler <lilscript>` runs the case runner once per level of a list (by default `0,1,5,10,11,12,13,14`, one level per tier of the effort schedule) in the production JavaScript lanes (by default `production/*/module`), and compares each (case, lane) between consecutive levels under the lane's codec. A higher level walks the same list further and keeps a move only on a strict exact win, and the beam (level 14 and above) replaces the walk's result only on one, so an artifact that grows from one level to the next, or a lane that passes at one level and fails at the next, is a violation and exits 1. It prints each level's lane totals.
 
 ## The port runner
 

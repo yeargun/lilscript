@@ -123,7 +123,7 @@ fn run(source: &str, schedule: &str, probes: usize, memory: u64, request: Search
         assert!(compilation.local_facts_status().is_none());
         let mut observed = Vec::new();
         let search = compilation
-            .search_javascript_observed(source_id, &policy, request, |entry| {
+            .search_javascript_explored_observed(source_id, &policy, request, |entry| {
                 observed.push(observation(entry))
             })
             .unwrap();
@@ -315,7 +315,7 @@ fn zero_byte_and_partial_all_codec_failures_are_never_retried_or_observed() {
             let baseline = policy("staged", 8, 0, false);
             let policy = policy("staged", 8, 384, false);
             let mut search = compilation
-                .search_javascript(source, &baseline, request())
+                .search_javascript_explored(source, &baseline, request())
                 .unwrap();
             let original = CODECS.map(|codec| {
                 search

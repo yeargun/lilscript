@@ -495,7 +495,7 @@ fn public_search_skips_inactive_modes_and_keeps_actual_mode_qualified_winners() 
             let mut descriptor: Option<Vec<u32>> = None;
             let mut baselines = 0;
             let search = compiler
-                .search_javascript_observed(source, &p, request(), |view| {
+                .search_javascript_explored_observed(source, &p, request(), |view| {
                     if let Some(previous) = &descriptor {
                         assert_eq!(
                             previous.as_slice(),
@@ -586,7 +586,7 @@ fn one_naming_seed_uses_optional_literal_work_only_when_allowed() {
             let mut rows = Vec::new();
             let mut descriptor = Vec::new();
             let search = compiler
-                .search_javascript_observed(source, &p, request(), |view| {
+                .search_javascript_explored_observed(source, &p, request(), |view| {
                     let observed = execute(WEAK, view.javascript);
                     if rows.is_empty() {
                         descriptor.extend_from_slice(

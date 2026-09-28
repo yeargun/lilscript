@@ -323,7 +323,7 @@ fn real_gzip_and_brotli_winners_survive_independently() {
     with_source(BYTE, true, WORK, MEMORY, |compiler, source| {
         let mut measured = Vec::new();
         let search = compiler
-            .search_javascript_observed(source, &policy, request(), |entry| {
+            .search_javascript_explored_observed(source, &policy, request(), |entry| {
                 let entry = observe(entry);
                 receipt(
                     "independent-codecs",
@@ -367,7 +367,7 @@ fn identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes(
             |compiler, source| {
                 let mut measured = Vec::new();
                 let search = compiler
-                    .search_javascript_observed(source, &policy, request(), |entry| {
+                    .search_javascript_explored_observed(source, &policy, request(), |entry| {
                         measured.push(observe(entry));
                     })
                     .unwrap();
@@ -425,7 +425,7 @@ fn zero_optional_work_seals_a_completely_scored_direct_baseline() {
         with_source(BYTE, true, WORK, MEMORY, |compiler, source| {
             let mut measured = Vec::new();
             let search = compiler
-                .search_javascript_observed(source, &policy, request(), |entry| {
+                .search_javascript_explored_observed(source, &policy, request(), |entry| {
                     measured.push(observe(entry))
                 })
                 .unwrap();
@@ -610,7 +610,7 @@ fn structural_discovery_matches_independent_twelve_state_oracle_and_measured_uni
             .unwrap();
         let mut measured = Vec::new();
         let search = compiler
-            .search_javascript_observed(source, &policy, request(), |entry| {
+            .search_javascript_explored_observed(source, &policy, request(), |entry| {
                 let entry = observe(entry);
                 // Keep the logged fixture matrix bounded even if a broader
                 // inventory later discovers additional valid representations.
@@ -696,7 +696,7 @@ fn optional_work_memory_and_probe_exhaustion_preserve_scored_incumbents() {
     let (baseline_work, baseline_peak) =
         with_source(FACTORY, true, WORK, MEMORY, |compiler, source| {
             let search = compiler
-                .search_javascript(source, &baseline_policy, request())
+                .search_javascript_explored(source, &baseline_policy, request())
                 .unwrap();
             (
                 search.baseline_seal().baseline_work,
@@ -722,7 +722,7 @@ fn optional_work_memory_and_probe_exhaustion_preserve_scored_incumbents() {
         with_source(FACTORY, true, work, memory, |compiler, source| {
             let mut measured = Vec::new();
             let search = compiler
-                .search_javascript_observed(source, &policy, request, |entry| {
+                .search_javascript_explored_observed(source, &policy, request, |entry| {
                     measured.push(observe(entry))
                 })
                 .unwrap();
@@ -803,7 +803,7 @@ fn panicking_observer_releases_losing_artifact_provenance_and_search_storage() {
             let mut reached_expected_artifact = false;
             let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let search = compiler
-                    .search_javascript_observed(source, &policy, request(), |entry| {
+                    .search_javascript_explored_observed(source, &policy, request(), |entry| {
                         let entry = observe(entry);
                         if entry.plan.style == panic_at {
                             if panic_at == Style::Source {
@@ -840,7 +840,7 @@ fn taking_one_shared_winner_moves_its_buffer_and_consumes_all_objective_aliases(
     let policy = byte_policy("candidate_proposal_limit=0");
     with_source(BYTE, true, WORK, MEMORY, |compiler, source| {
         let mut search = compiler
-            .search_javascript(source, &policy, request())
+            .search_javascript_explored(source, &policy, request())
             .unwrap();
         let (pointer, capacity, expected) = search
             .with_winner(Objective::Raw, |view, _| {
@@ -886,7 +886,7 @@ fn one_retained_artifact_allows_replacement_but_rejects_a_divergent_codec_union(
         request.objectives = Objectives::One(Objective::Gzip);
         let mut measured = Vec::new();
         let search = compiler
-            .search_javascript_observed(source, &policy, request, |entry| {
+            .search_javascript_explored_observed(source, &policy, request, |entry| {
                 assert_eq!(entry.sizes.raw, entry.javascript.len());
                 assert!(
                     entry.sizes.brotli11.is_none(),
@@ -932,7 +932,7 @@ fn one_retained_artifact_allows_replacement_but_rejects_a_divergent_codec_union(
     with_source(BYTE, true, WORK, MEMORY, |compiler, source| {
         let mut measured = Vec::new();
         let search = compiler
-            .search_javascript_observed(source, &policy, request(), |entry| {
+            .search_javascript_explored_observed(source, &policy, request(), |entry| {
                 measured.push(observe(entry))
             })
             .unwrap();
@@ -968,7 +968,7 @@ fn invalid_ledger_and_missing_runtime_evidence_reject_before_search_work_or_stor
             let before = compiler.ledger().clone();
             let mut entered = false;
             let result = compiler
-                .search_javascript_observed(source, policy, request(), |_| entered = true)
+                .search_javascript_explored_observed(source, policy, request(), |_| entered = true)
                 .map(drop);
             if baseline_first {
                 assert!(matches!(

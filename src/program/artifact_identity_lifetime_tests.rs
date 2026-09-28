@@ -5,7 +5,7 @@ fn qualified_winner_keeps_complete_recipe_after_search_and_source_disposal() {
     with_source(BYTE, true, WORK, MEMORY, |compiler, source| {
         let policy = byte_policy("candidate_proposal_limit=3\nterminal_codec_probe_limit=6");
         let mut search = compiler
-            .search_javascript(source, &policy, request())
+            .search_javascript_explored(source, &policy, request())
             .unwrap();
         let (candidate, words, fingerprint, pointer, bytes) = search
             .with_winner(Objective::Brotli, |view, _| {

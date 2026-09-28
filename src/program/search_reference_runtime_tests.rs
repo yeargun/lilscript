@@ -416,7 +416,7 @@ fn check(run: &str, cap: usize, require_mixed: bool) {
         );
         let mut measured = Vec::<Artifact>::new();
         let mut baseline = None;
-        let search = compiler.search_javascript_observed(source, &policy, request(), |view| {
+        let search = compiler.search_javascript_explored_observed(source, &policy, request(), |view| {
             let known = oracle.iter().find(|row| row.descriptor == view.recipe_descriptor.whole_words().expect("Whole cohort") && row.style == view.naming.style && row.output == view.output)
                 .expect("search's permitted storage/helper map, naming and actual output belong to the independent finite oracle");
             assert_eq!(known.javascript, view.javascript, "same source mapping, canonical recipe, name plan and actual output");

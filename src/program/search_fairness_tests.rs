@@ -289,7 +289,7 @@ fn check_search(beam: usize, require_joint: bool) {
     with_source(true, |compiler, source, _| {
         let mut observed = Vec::new();
         let search = compiler
-            .search_javascript_observed(source, &policy, request(), |view| {
+            .search_javascript_explored_observed(source, &policy, request(), |view| {
                 let entry = Artifact {
                     descriptor: view
                         .recipe_descriptor
@@ -400,7 +400,7 @@ fn finite_valley_schedule_ablation_reports_quality_and_work_without_changing_def
                             request.objectives = objectives;
                             let mut seen = Vec::new();
                             let mut best_seen = [usize::MAX; 3];
-                            let search = compiler.search_javascript_observed(source, &policy, request, |entry| {
+                            let search = compiler.search_javascript_explored_observed(source, &policy, request, |entry| {
                             let descriptor = entry.recipe_descriptor.whole_words().unwrap();
                             let (mask, known) = oracle.iter().find(|(_, known)| {
                                 known.descriptor == descriptor && known.style == entry.naming.style
@@ -643,7 +643,7 @@ fn narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper() {
             request.objectives = Objectives::One(Objective::Brotli);
             let mut observed = Vec::new();
             let search = compiler
-                .search_javascript_observed(source, &policy, request, |entry| {
+                .search_javascript_explored_observed(source, &policy, request, |entry| {
                     assert_eq!(entry.sizes.gzip9, None, "Brotli search must not run gzip");
                     let descriptor = entry.recipe_descriptor.whole_words().unwrap();
                     let (mask, known) = oracle

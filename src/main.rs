@@ -786,21 +786,64 @@ fn explain_human(report: &Value) -> String {
                         ),
                     );
                 }
+                let joints = stage["joint_trials"]
+                    .as_array()
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[])
+                    .iter()
+                    .filter(|trial| trial["outcome"] == "kept")
+                    .map(|trial| format!("{} {}", text(&trial["name"]), text(&trial["delta"])));
+                let restarts = stage["restarts"]
+                    .as_array()
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[])
+                    .iter()
+                    .filter(|trial| trial["outcome"] == "kept")
+                    .map(|trial| {
+                        format!("restart {} {}", text(&trial["name"]), text(&trial["delta"]))
+                    });
+                let kept = kept.into_iter().chain(joints).chain(restarts).collect::<Vec<_>>();
+                let bounded = |value: &Value| match value {
+                    Value::Null => "unbounded".to_string(),
+                    value => text(value),
+                };
                 line(
-                    &format!("terminal {}", text(&stage["codec"])),
+                    &format!("walk {}", text(&stage["codec"])),
                     format!(
-                        "{} -> {}; {} of {} challenger(s) tried, {} codec probe(s); kept: {}",
+                        "{} -> {}; {} pass(es), {} examined (prefix {}), {} judged exactly (budget {}), {} pruned (margin {}); kept: {}",
                         text(&stage["before"]),
                         text(&stage["after"]),
-                        text(&stage["tried"]),
-                        trials.len(),
-                        text(&stage["codec_probes"]),
+                        text(&stage["passes"]),
+                        text(&stage["examined"]),
+                        bounded(&stage["prefix"]),
+                        text(&stage["judged"]),
+                        bounded(&stage["exact"]),
+                        text(&stage["pruned"]),
+                        text(&stage["margin"]),
                         if kept.is_empty() {
                             "none".to_string()
                         } else {
                             kept.join(", ")
                         }
                     ),
+                );
+            }
+            let beam = &search["terminal"]["beam"];
+            if !beam.is_null() {
+                line(
+                    "beam",
+                    match &beam["skipped"] {
+                        Value::Null => format!(
+                            "{} -> {}; {} proposals, {} structures, {} renders, {} codec probes",
+                            text(&beam["before"]),
+                            text(&beam["after"]),
+                            text(&beam["proposals"]),
+                            text(&beam["structures"]),
+                            text(&beam["renders"]),
+                            text(&beam["codec_probes"]),
+                        ),
+                        reason => format!("skipped: {}", text(reason)),
+                    },
                 );
             }
         }

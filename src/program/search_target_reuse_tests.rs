@@ -224,7 +224,7 @@ fn one_target_two_bases_preserve_three_styles_and_exact_old_artifacts() {
             let mut rows = Vec::new();
             let policy = policy(8, true, false, schedule);
             let mut search = compiler
-                .search_javascript_observed(source, &policy, request(), |entry| {
+                .search_javascript_explored_observed(source, &policy, request(), |entry| {
                     if entry.baseline || schedule == "immediate" {
                         observe_lifetimes();
                     } else {
@@ -293,7 +293,7 @@ fn no_continuation_drops_target_before_seal_without_optional_naming_work() {
             let policy = policy(proposals, naming, false, "immediate");
             let mut observations = 0;
             let search = compiler
-                .search_javascript_observed(source, &policy, request(), |entry| {
+                .search_javascript_explored_observed(source, &policy, request(), |entry| {
                     observe_lifetimes();
                     assert!(entry.baseline);
                     observations += 1;
@@ -322,7 +322,7 @@ fn literal_only_continuation_reuses_target_with_naming_search_disabled() {
         let before = counts();
         let policy = policy(8, false, false, "immediate");
         let mut modes = Vec::new();
-        let search = compiler.search_javascript_observed(source, &policy, request(), |entry| {
+        let search = compiler.search_javascript_explored_observed(source, &policy, request(), |entry| {
             observe_lifetimes();
             assert_eq!(entry.naming.style, Style::Scoped);
             exact_sizes(entry.javascript, entry.sizes);
@@ -341,7 +341,7 @@ fn optional_preparation_refusal_drops_target_and_preserves_qualified_baseline() 
     let policy = policy(8, true, false, "immediate");
     let baseline_work = with_source(ANSWER, WORK, |compiler, source| {
         compiler
-            .search_javascript(source, &policy, request())
+            .search_javascript_explored(source, &policy, request())
             .unwrap()
             .baseline_seal()
             .baseline_work
@@ -350,7 +350,7 @@ fn optional_preparation_refusal_drops_target_and_preserves_qualified_baseline() 
         let before = counts();
         let mut observations = 0;
         let mut search = compiler
-            .search_javascript_observed(source, &policy, request(), |entry| {
+            .search_javascript_explored_observed(source, &policy, request(), |entry| {
                 observe_lifetimes();
                 assert!(entry.baseline);
                 observations += 1;
@@ -383,7 +383,7 @@ fn observer_panics_release_target_and_each_naming_basis() {
             let before = counts();
             let policy = policy(8, true, false, "immediate");
             let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let _ = compiler.search_javascript_observed(source, &policy, request(), |entry| {
+                let _ = compiler.search_javascript_explored_observed(source, &policy, request(), |entry| {
                     observe_lifetimes();
                     if entry.baseline == panic_on_baseline {
                         std::panic::panic_any("target reuse observer");
@@ -405,7 +405,7 @@ fn structural_children_still_form_distinct_targets() {
         let before = counts();
         let policy = policy(64, true, true, "immediate");
         let mut recipes = std::collections::BTreeSet::new();
-        let search = compiler.search_javascript_observed(source, &policy, request(), |entry| {
+        let search = compiler.search_javascript_explored_observed(source, &policy, request(), |entry| {
             observe_lifetimes();
             recipes.insert(entry.recipe_fingerprint);
             exact_sizes(entry.javascript, entry.sizes);
@@ -445,16 +445,26 @@ fn public_service_transfers_winners_without_reforming_targets() {
         },
     )
     .unwrap();
-    // The search forms one target; each terminal challenger forms its own
-    // (from one shared head) and the handoff forms none.
+    // The search forms the level-0 artifact's target and prepared output;
+    // each move the walk forms, a challenger or a joint move, forms its own
+    // (from one shared head) and the handoff forms none. Level 13 does not
+    // reach the beam.
     let stages = output.report()["search"]["terminal"]["objectives"]
         .as_array()
         .unwrap();
-    let challengers: usize = stages
+    let moves: usize = stages
         .iter()
-        .map(|stage| stage["tried"].as_u64().unwrap() as usize)
+        .map(|stage| {
+            assert_eq!(stage["choices_tried"], 0, "no target compaction");
+            (stage["tried"].as_u64().unwrap() + stage["joints_tried"].as_u64().unwrap()) as usize
+        })
         .sum();
-    check_counts(before, 1 + challengers, 2 + challengers);
+    let after = counts();
+    assert_eq!(
+        (after.0 - before.0, after.1 - before.1),
+        (1 + moves, 1 + moves),
+        "{stages:?}"
+    );
     for (codec, stage) in CODECS.into_iter().zip(stages) {
         assert_eq!(stage["codec"], format!("{codec:?}").to_lowercase());
         let artifact = output.javascript(codec).unwrap();

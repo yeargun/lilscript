@@ -339,7 +339,7 @@ fn automatic_search(case: &Case, oracle: &[Json]) {
         },
     };
     let mut observed = Vec::new();
-    let search=compiler.search_javascript_observed(source,&policy,request,|entry| {
+    let search=compiler.search_javascript_explored_observed(source,&policy,request,|entry| {
         let actual=execute(case,entry.javascript);
         let row=json!({"case":case.name,"style":format!("{:?}",entry.naming.style),"javascript":entry.javascript,"javascript_sha256":digest(entry.javascript),
             "raw":entry.sizes.raw,"gzip9":entry.sizes.gzip9,"brotli11":entry.sizes.brotli11,"baseline":entry.baseline,

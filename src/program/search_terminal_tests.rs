@@ -114,7 +114,7 @@ fn search(policy: &ResolvedPolicy, objectives: Objectives, challenge: bool) -> R
             })
             .unwrap();
         let report = if challenge {
-            search.challenge(policy, objectives).unwrap().clone()
+            search.challenge(policy, request(objectives), |_| {}).unwrap().clone()
         } else {
             TerminalReport::default()
         };
@@ -173,16 +173,62 @@ fn incumbents_never_worsen_within_a_search_or_its_terminal_stage() {
             );
             assert_eq!(stage.after, winner);
             assert!(stage.after <= stage.before);
-            let mut incumbent = stage.before as i64;
-            for trial in &stage.trials {
-                if trial.outcome == ChallengerOutcome::Kept {
-                    assert!(trial.delta.unwrap() < 0);
-                    incumbent += trial.delta.unwrap();
-                }
-            }
-            assert_eq!(incumbent, stage.after as i64);
+            assert_eq!(replay(stage), stage.after);
         }
     }
+}
+
+/// The walk's result, replayed from its report: each walk (the main one,
+/// then each restart of the tail) from its start, through its kept moves in
+/// pass order; a restart replaces the best result only when it reports a
+/// strict win.
+fn replay(stage: &TerminalObjective) -> usize {
+    let kept = |pass: usize| -> Vec<(i64, usize)> {
+        let choices = stage
+            .choice_trials
+            .iter()
+            .filter(|trial| trial.pass == pass && trial.outcome == ChallengerOutcome::Kept)
+            .map(|trial| (trial.delta.unwrap(), trial.size.unwrap()));
+        let challengers = stage
+            .trials
+            .iter()
+            .filter(|trial| trial.pass == pass && trial.outcome == ChallengerOutcome::Kept)
+            .map(|trial| (trial.delta.unwrap(), trial.size.unwrap()));
+        let joints = stage
+            .joint_trials
+            .iter()
+            .filter(|trial| trial.pass == pass && trial.outcome == ChallengerOutcome::Kept)
+            .map(|trial| (trial.delta.unwrap(), trial.size.unwrap()));
+        choices.chain(challengers).chain(joints).collect()
+    };
+    let walk = |passes: std::ops::Range<usize>, start: usize| {
+        let mut incumbent = start;
+        for pass in passes {
+            for (delta, size) in kept(pass) {
+                assert!(delta < 0);
+                assert_eq!(size as i64, incumbent as i64 + delta);
+                incumbent = size;
+            }
+        }
+        incumbent
+    };
+    let firsts: Vec<usize> = std::iter::once(1)
+        .chain(stage.restarts.iter().map(|restart| restart.pass))
+        .chain(std::iter::once(stage.passes + 1))
+        .collect();
+    let mut best = walk(firsts[0]..firsts[1], stage.before);
+    for (index, restart) in stage.restarts.iter().enumerate() {
+        let Some(start) = restart.start else {
+            continue;
+        };
+        let end = walk(firsts[index + 1]..firsts[index + 2], start);
+        assert_eq!(restart.size, Some(end));
+        if restart.outcome == ChallengerOutcome::Kept {
+            assert!(end < best);
+            best = end;
+        }
+    }
+    best
 }
 
 #[test]

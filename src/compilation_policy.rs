@@ -529,17 +529,98 @@ pub struct OptimizationObjective {
     pub retained_candidates: usize,
     pub retained_candidate_bytes: usize,
     pub beam_width: usize,
-    /// How many of the declared terminal challengers (`js::Challenger`) the
-    /// terminal stage tries on each objective's final candidate, in their
-    /// declared order (M5.4). From the effort level, never a constant.
-    pub terminal_challengers: usize,
-    /// How many choice alternatives (`js::ChoiceSite`, M9.1) the terminal
-    /// stage judges on each objective's final candidate, in its estimator's
-    /// order. Counted apart from the challengers, whose budget was
-    /// calibrated on their own schedule, so a data table's alternatives never
-    /// displace a family challenger. From the effort level.
-    pub terminal_choices: usize,
+    /// The walk's budget at this effort level (architecture §9.6, §13.4).
+    pub walk: WalkSchedule,
     pub search: SearchSchedule,
+}
+
+/// The version of the effort schedule `WalkSchedule::at` states. Receipts
+/// carry it; a changed value is a changed schedule.
+pub const WALK_SCHEDULE_VERSION: u32 = 1;
+
+/// The walk's budget at one effort level (architecture §9.6, §13.3–§13.4;
+/// plan M3.5): budgets are counts (AM1), never the clock.
+///
+/// - `prefix`: the list positions the walk may examine, p(L);
+/// - `exact`: the exact judgements it may make, e(L);
+/// - `margin`: a move whose proxy delta exceeds it is pruned without an
+///   exact judgement, M (the proxy never keeps);
+/// - `passes`: the passes over the list it may make; a pass that keeps
+///   nothing ends the walk (the fixed point);
+/// - `tail`: whether the walk reaches the reserved tail of its list: a
+///   restart from the level-0 artifact under each other naming seed, then
+///   the beam move, the structural exploration.
+///
+/// Every parameter is non-decreasing in the level and none reads the
+/// program, so the walk at level L+1 passes through level L's stopping
+/// point: size(L+1) ≤ size(L) by construction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct WalkSchedule {
+    pub prefix: usize,
+    pub exact: usize,
+    pub margin: usize,
+    pub passes: usize,
+    pub tail: bool,
+}
+
+impl WalkSchedule {
+    /// No walk and no beam: the level-0 artifact is delivered.
+    pub const OFF: Self = Self {
+        prefix: 0,
+        exact: 0,
+        margin: 0,
+        passes: 0,
+        tail: false,
+    };
+
+    /// Schedule version 1. The prefix tiers follow §13.4: rules only at 0,
+    /// short prefixes at 1–9, one pass over every unreserved move from 10,
+    /// and from 14 passes to the fixed point, then the tail. The exact budget
+    /// at 13 keeps every judgement the reference ports keep in an unbounded
+    /// pass (batch B1's calibration: the last one lands by the 14th). The
+    /// proxy margin prunes no move a walk without pruning keeps on the
+    /// reference ports (B1); gzip and raw are their own proxies.
+    pub fn at(level: u8, codec: CompressionCostModel) -> Self {
+        let margin = match codec {
+            CompressionCostModel::Brotli => 150,
+            CompressionCostModel::Gzip | CompressionCostModel::Raw => 0,
+        };
+        // Up to the default level the walk makes one pass; from level 14 it
+        // walks to the fixed point, then reaches the tail.
+        let (prefix, exact, passes, tail) = match level {
+            0 => (0, 0, 0, false),
+            1..=4 => (8, 2, 1, false),
+            5..=9 => (24, 4, 1, false),
+            10 => (usize::MAX, 6, 1, false),
+            11 => (usize::MAX, 8, 1, false),
+            12 => (usize::MAX, 12, 1, false),
+            13 => (usize::MAX, 16, 1, false),
+            _ => (usize::MAX, usize::MAX, usize::MAX, true),
+        };
+        Self {
+            prefix,
+            exact,
+            margin: if prefix == 0 { 0 } else { margin },
+            passes,
+            tail,
+        }
+    }
+    /// The schedule as a receipt records it: an unbounded count is null.
+    pub fn receipt(self) -> serde_json::Value {
+        let bound = |count: usize| (count != usize::MAX).then_some(count);
+        serde_json::json!({"version": WALK_SCHEDULE_VERSION, "prefix": bound(self.prefix),
+            "exact": bound(self.exact), "margin": self.margin, "passes": bound(self.passes),
+            "tail": self.tail})
+    }
+}
+
+/// Serializes one of a walk's schedule counts: an unbounded one
+/// (`usize::MAX`) as null.
+pub fn serialize_bound<S: serde::Serializer>(count: &usize, serializer: S) -> Result<S::Ok, S::Error> {
+    match *count {
+        usize::MAX => serializer.serialize_none(),
+        count => serializer.serialize_u64(count as u64),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -859,7 +940,7 @@ impl ResolvedPolicy {
                     "request_bytes":delivery.request_bytes, "depth_bytes":delivery.depth_bytes},
             }),
         };
-        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "terminal_challengers":o.terminal_challengers, "terminal_choices":o.terminal_choices, "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
+        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
         json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| json!({"id":id, "state":self.tactic(id)})), "resources":self.resources, "constraints":self.constraints})
     }
     pub fn fingerprint(&self) -> [u8; 32] {
@@ -1592,13 +1673,32 @@ mod tests {
     }
 
     #[test]
-    fn explicit_codec_budgets_are_part_of_the_resolved_identity() {
-        let one = js("[javascript]\nterminal_codec_probe_limit=1");
-        let two = js("[javascript]\nterminal_codec_probe_limit=2");
-        assert_ne!(one.fingerprint(), two.fingerprint());
-        assert_eq!(one.objective().unwrap().optional_codec_probes, 1);
-        assert_eq!(two.objective().unwrap().optional_codec_probes, 2);
-        assert_eq!(one.contract(), two.contract());
+    fn the_effort_level_alone_sets_the_walk_and_retired_budgets_change_nothing() {
+        // A per-project search budget is retired (M3.5): the product parser
+        // drops it with a warning, the effort level's schedule is the only
+        // budget, and the schedule is part of the identity.
+        let product = |source: &str| {
+            let parsed = crate::config::parse_project_config(source).unwrap();
+            assert!(!parsed.warnings.is_empty());
+            parsed
+                .config
+                .resolve_policy(CompilationRequest::JavaScript {
+                    preserve_root_exports: true,
+                })
+                .unwrap()
+        };
+        let one = product("[javascript]\nterminal_codec_probe_limit=1");
+        let two = product("[javascript]\nterminal_codec_probe_limit=2");
+        assert_eq!(one.fingerprint(), two.fingerprint());
+        assert_eq!(one.fingerprint(), js("").fingerprint());
+        let low = js("[javascript]\noptimization_level=8");
+        let high = js("[javascript]\noptimization_level=13");
+        assert_ne!(low.fingerprint(), high.fingerprint());
+        assert!(low.objective().unwrap().walk.exact < high.objective().unwrap().walk.exact);
+        assert_eq!(
+            high.receipt()["objective"]["walk"]["version"],
+            WALK_SCHEDULE_VERSION
+        );
     }
 
     #[test]

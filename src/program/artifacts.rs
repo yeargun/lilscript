@@ -122,6 +122,8 @@ struct CachedSizes {
     raw: usize,
     gzip9: AtomicUsize,
     brotli11: AtomicUsize,
+    /// The walk's proxy judge for Brotli (architecture §9.4), measured once.
+    brotli_proxy: AtomicUsize,
 }
 impl CachedSizes {
     fn new(raw: usize) -> Self {
@@ -129,6 +131,7 @@ impl CachedSizes {
             raw,
             gzip9: AtomicUsize::new(0),
             brotli11: AtomicUsize::new(0),
+            brotli_proxy: AtomicUsize::new(0),
         }
     }
     fn get(&self) -> Sizes {
@@ -336,6 +339,31 @@ impl Record {
             None => Ok(vec![self.measure(codec, budget)? as u64]),
             Some(layout) => Ok(layout.rows(&self.file_sizes(codec, budget)?)),
         }
+    }
+    /// The proxy judge's size under `codec`: gzip and raw are their own
+    /// proxies (exact); Brotli is measured at the proxy quality, once. A
+    /// delivery plan's files are judged exactly.
+    fn proxy(
+        &self,
+        codec: CompressionCostModel,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, CandidateError> {
+        if codec != CompressionCostModel::Brotli || self.layout.is_some() {
+            return self.measure(codec, budget);
+        }
+        budget.work(WorkKind::Codec, 1)?;
+        let slot = &self.sizes.brotli_proxy;
+        let cached = slot.load(std::sync::atomic::Ordering::Relaxed);
+        if cached != 0 {
+            return Ok(cached);
+        }
+        let size =
+            crate::compression::measure_proxy_admitted(self.text.as_bytes(), codec, budget)?;
+        if size == 0 {
+            return Err(CandidateError::Codec("proxy compressed artifact is empty"));
+        }
+        slot.store(size, std::sync::atomic::Ordering::Relaxed);
+        Ok(size)
     }
     fn measure(
         &self,
@@ -684,6 +712,25 @@ impl ArtifactArena {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, CandidateError> {
         self.get_mut(id.0)?.measure(codec, budget)
+    }
+    /// The walk's proxy judgement of an artifact (architecture §9.4).
+    pub(super) fn measure_proxy(
+        &mut self,
+        id: ArtifactId,
+        codec: CompressionCostModel,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, CandidateError> {
+        self.get_mut(id.0)?.proxy(codec, budget)
+    }
+    /// Whether the proxy judge's size under `codec` is the exact one, so its
+    /// measurement spent the exact codec (gzip, raw, and a delivery plan's
+    /// files).
+    pub(super) fn proxy_is_exact(
+        &self,
+        id: ArtifactId,
+        codec: CompressionCostModel,
+    ) -> Result<bool, CandidateError> {
+        Ok(codec != CompressionCostModel::Brotli || self.get(id.0)?.layout.is_some())
     }
     /// Whether two retained artifacts deliver the same files, byte for byte.
     pub(super) fn same_output(

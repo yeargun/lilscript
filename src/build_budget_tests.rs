@@ -64,11 +64,12 @@ fn service_cache_requests_partition_metadata_and_refuse_tiny_capacity_as_resourc
 #[test]
 fn small_service_options_and_policy_limits_have_the_same_search_budget() {
     // Two calls of a helper too large to copy for free: the program rules
-    // keep it (M7.5a), and the search weighs inlining it.
+    // keep it (M7.5a), and the structural beam (level 14 and above, M3.5)
+    // weighs inlining it.
     let source = "int increment(int value){return(value&255)+1;}export int run(int value){return increment(value)+increment(value+1);}";
     let from_options = compile_source(
         source,
-        &config("", "always"),
+        &config("optimization_level=14", "always"),
         ServiceOptions {
             logical_work: 2_000_000,
             retained_bytes: 1_000_000,
@@ -79,7 +80,7 @@ fn small_service_options_and_policy_limits_have_the_same_search_budget() {
     let from_policy = compile_source(
         source,
         &config(
-            "[policy.resources]\nlogical_work=2000000\nretained_bytes=1000000",
+            "optimization_level=14\n[policy.resources]\nlogical_work=2000000\nretained_bytes=1000000",
             "always",
         ),
         ServiceOptions::default(),

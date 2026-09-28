@@ -26,7 +26,7 @@ fn private_product_transport_search_is_independent_and_retries_under_stronger_ca
             };
             let mut measured = Vec::new();
             let search = compiler
-                .search_javascript_observed(source, &policy, plans, |entry| {
+                .search_javascript_explored_observed(source, &policy, plans, |entry| {
                     run(entry.javascript, "", "", "6\n1\n");
                     measured.push(observe(entry));
                 })
@@ -62,7 +62,7 @@ fn one_closed_product_proof_covers_its_copy_hints_without_a_facts_cache() {
         };
         let mut measured = Vec::new();
         let search = compiler
-            .search_javascript_observed(source, &policy, plans, |entry| {
+            .search_javascript_explored_observed(source, &policy, plans, |entry| {
                 run(entry.javascript, "", "", expected);
                 measured.push(observe(entry));
             })
@@ -148,7 +148,7 @@ fn one_artifact_attempt_can_reach_a_literal_after_many_unavailable_helpers() {
         let mut measured = Vec::new();
         let mut descriptors = Vec::new();
         let search = compiler
-            .search_javascript_observed(source, &policy, request(), |entry| {
+            .search_javascript_explored_observed(source, &policy, request(), |entry| {
                 run(entry.javascript, "", "", "leftright\n");
                 descriptors.push(
                     entry
@@ -192,7 +192,7 @@ fn truncated_queries_are_skipped_within_the_request_and_retried_with_stronger_bo
             }
             let mut measured = Vec::new();
             let search = compiler
-                .search_javascript_observed(source, &policy, plans, |entry| {
+                .search_javascript_explored_observed(source, &policy, plans, |entry| {
                     run_factory(entry.javascript);
                     measured.push(observe(entry));
                 })
@@ -292,7 +292,7 @@ fn cold_low_search_and_high_warmed_low_search_keep_exact_winners_and_request_cha
                 .map(|domain| compiler.ledger().work_used(domain));
             let mut observed = Vec::new();
             let search = compiler
-                .search_javascript_observed(source, &policy, plans, |entry| {
+                .search_javascript_explored_observed(source, &policy, plans, |entry| {
                     run(
                         entry.javascript,
                         "",

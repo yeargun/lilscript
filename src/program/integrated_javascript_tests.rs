@@ -150,6 +150,8 @@ fn with_modules<R>(native: bool, edited: bool, inspect: impl FnOnce(Program<'_>,
 }
 fn configuration(compact: bool) -> crate::config::ProjectConfig {
     let text = format!("{CONFIG}\n[policy.tactics]\nscalar-replacement='on'\ninlining='on'\nconstant-folding='on'\nstring-pooling='on'\ncall-specialization='on'\nidentifier-mangling='on'\nnaming-search='on'\ntarget-compaction='{}'\n", if compact {"on"} else {"off"});
+    // Deserialized directly: the fixture shapes the structural beam with
+    // keys the product parser retires (M3.5).
     toml::from_str(&text).unwrap()
 }
 fn policy(compact: bool) -> ResolvedPolicy {
@@ -688,10 +690,10 @@ fn public_factory_qualifies_combined_recipes_with_exact_scores_and_original_obse
     SKIP_PROGRAM_INLINING.with(|skip| skip.set(true));
     let _restore = Restore;
     verify_archives();
-    let mut config = configuration(true);
+    let config = configuration(true);
     // The service's ordinary baseline lifecycle seals the ledger. The bounded
-    // manual portfolio below does not run an automatic discovery neighborhood.
-    config.javascript.candidate_proposal_limit = Some(0);
+    // manual portfolio below does not run an automatic discovery neighborhood:
+    // at level 13 the walk does not reach the beam.
     let required_tactics = [
         TacticId::ScalarReplacement,
         TacticId::Inlining,
@@ -914,7 +916,7 @@ fn integrated_search_winners_belong_to_the_exact_executed_measured_union() {
             string: string_request(),
             facts_cache: cache(),
         };
-        let search=c.search_javascript_observed(source,&p,request,|observation| {
+        let search=c.search_javascript_explored_observed(source,&p,request,|observation| {
             let observed=execute(observation.javascript,false);let score=sizes(observation.sizes);measured.push((digest(observation.javascript),score));
             measured_recipes.push((observation.recipe_descriptor.whole_words().expect("Whole cohort").to_vec(),observation.naming.style,observation.output.clone(),observation.candidate));
             eprintln!("integrated-search-artifact {}",json!({"sources":metadata,"descriptor":observation.recipe_descriptor.whole_words().expect("Whole cohort"),"style":format!("{:?}",observation.naming.style),"output":output_metadata(&observation.output),"baseline":observation.baseline,"javascript":observation.javascript,"javascript_sha256":digest(observation.javascript),"raw":score[0],"gzip9":score[1],"brotli11":score[2],"expected":expected(false),"observed":observed}));

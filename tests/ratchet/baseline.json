@@ -1,35 +1,35 @@
 {
  "schema": 1,
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
- "recorded": "2026-09-27",
+ "recorded": "2026-09-28",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/head-a1/lilscript",
-  "sha256": "7e720be75a6dd9e35ece0e068f228eb704b2125e106bb96952f45a7f3cda33d7",
+  "source": "/home/azureuser/lilscript-work/bin/b1-6/lilscript",
+  "sha256": "d57286084191a7eb323470bc8f140f8e909f4b036791197a94073e4038e32525",
   "version": "lilscript 0.1.0",
-  "label": "head-a1"
+  "label": null
  },
  "barsSha256": "770649437963ff5bd6955ea79195cf37c13a84d96fb6c83e7327db9a0085f45b",
  "counts": {
   "cases": {
    "raw": {
-    "competitor": 399,
+    "competitor": 368,
     "closure": 0,
     "old": 610
    },
    "gzip9": {
-    "competitor": 400,
+    "competitor": 368,
     "closure": 0,
-    "old": 600
+    "old": 595
    },
    "brotli11": {
-    "competitor": 439,
+    "competitor": 422,
     "closure": 0,
-    "old": 603
+    "old": 598
    }
   },
   "apps": {
    "raw": {
-    "competitor": 1,
+    "competitor": 0,
     "closure": 5,
     "old": 7
    },
@@ -47,11 +47,11 @@
   "algorithms": {
    "raw": {
     "competitor": 5,
-    "closure": 11,
+    "closure": 10,
     "old": 11
    },
    "gzip9": {
-    "competitor": 8,
+    "competitor": 7,
     "closure": 11,
     "old": 11
    },
@@ -67,36 +67,36 @@
    "raw": {
     "competitor": {
      "items": 612,
-     "ours": 65437,
+     "ours": 64807,
      "bar": 58285
     },
     "old": {
      "items": 612,
-     "ours": 65437,
+     "ours": 64807,
      "bar": 44195
     }
    },
    "gzip9": {
     "competitor": {
      "items": 612,
-     "ours": 58996,
+     "ours": 58522,
      "bar": 54669
     },
     "old": {
      "items": 610,
-     "ours": 58808,
+     "ours": 58335,
      "bar": 45206
     }
    },
    "brotli11": {
     "competitor": {
      "items": 612,
-     "ours": 49170,
+     "ours": 48573,
      "bar": 43541
     },
     "old": {
      "items": 611,
-     "ours": 49073,
+     "ours": 48476,
      "bar": 33656
     }
    }
@@ -105,51 +105,51 @@
    "raw": {
     "competitor": {
      "items": 7,
-     "ours": 1394,
+     "ours": 1359,
      "bar": 1527
     },
     "closure": {
      "items": 7,
-     "ours": 1394,
+     "ours": 1359,
      "bar": 1332
     },
     "old": {
      "items": 7,
-     "ours": 1394,
+     "ours": 1359,
      "bar": 802
     }
    },
    "gzip9": {
     "competitor": {
      "items": 7,
-     "ours": 1095,
+     "ours": 1078,
      "bar": 1053
     },
     "closure": {
      "items": 7,
-     "ours": 1095,
+     "ours": 1078,
      "bar": 982
     },
     "old": {
      "items": 7,
-     "ours": 1095,
+     "ours": 1078,
      "bar": 711
     }
    },
    "brotli11": {
     "competitor": {
      "items": 7,
-     "ours": 945,
+     "ours": 920,
      "bar": 870
     },
     "closure": {
      "items": 7,
-     "ours": 945,
+     "ours": 920,
      "bar": 834
     },
     "old": {
      "items": 7,
-     "ours": 945,
+     "ours": 920,
      "bar": 558
     }
    }
@@ -158,51 +158,51 @@
    "raw": {
     "competitor": {
      "items": 11,
-     "ours": 6081,
+     "ours": 6047,
      "bar": 6210
     },
     "closure": {
      "items": 11,
-     "ours": 6081,
+     "ours": 6047,
      "bar": 4522
     },
     "old": {
      "items": 11,
-     "ours": 6081,
+     "ours": 6047,
      "bar": 3995
     }
    },
    "gzip9": {
     "competitor": {
      "items": 11,
-     "ours": 3560,
+     "ours": 3542,
      "bar": 3440
     },
     "closure": {
      "items": 11,
-     "ours": 3560,
+     "ours": 3542,
      "bar": 3031
     },
     "old": {
      "items": 11,
-     "ours": 3560,
+     "ours": 3542,
      "bar": 2662
     }
    },
    "brotli11": {
     "competitor": {
      "items": 11,
-     "ours": 3250,
+     "ours": 3233,
      "bar": 3039
     },
     "closure": {
      "items": 11,
-     "ours": 3250,
+     "ours": 3233,
      "bar": 2703
     },
     "old": {
      "items": 11,
-     "ours": 3250,
+     "ours": 3233,
      "bar": 2305
     }
    }
@@ -272,7 +272,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 573
+    "size": 572
    },
    "brotli11": {
     "state": "pass",
@@ -304,7 +304,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 316
+    "size": 314
    }
   },
   "algorithms/state-machine-parser": {
@@ -338,15 +338,15 @@
   "algorithms/static-rule-engine": {
    "raw": {
     "state": "pass",
-    "size": 359
+    "size": 325
    },
    "gzip9": {
     "state": "pass",
-    "size": 237
+    "size": 220
    },
    "brotli11": {
     "state": "pass",
-    "size": 216
+    "size": 201
    }
   },
   "algorithms/string-dictionary": {
@@ -374,7 +374,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 164
+    "size": 161
    }
   },
   "apps/control-flow-engine": {
@@ -436,15 +436,15 @@
   "apps/optimizer-pressure": {
    "raw": {
     "state": "pass",
-    "size": 303
+    "size": 268
    },
    "gzip9": {
     "state": "pass",
-    "size": 193
+    "size": 176
    },
    "brotli11": {
     "state": "pass",
-    "size": 165
+    "size": 143
    }
   },
   "apps/text-report": {
@@ -510,7 +510,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 116
+    "size": 115
    },
    "brotli11": {
     "state": "pass",
@@ -601,15 +601,15 @@
   "cases/canonical/control/dead-branch": {
    "raw": {
     "state": "pass",
-    "size": 56
+    "size": 15
    },
    "gzip9": {
     "state": "pass",
-    "size": 64
+    "size": 35
    },
    "brotli11": {
     "state": "pass",
-    "size": 58
+    "size": 19
    }
   },
   "cases/canonical/control/early-return": {
@@ -1007,25 +1007,25 @@
   "cases/canonical/scalars/bitops": {
    "raw": {
     "state": "pass",
-    "size": 93
+    "size": 80
    },
    "gzip9": {
     "state": "pass",
-    "size": 59
+    "size": 53
    },
    "brotli11": {
     "state": "pass",
-    "size": 53
+    "size": 50
    }
   },
   "cases/canonical/scalars/bool-logic": {
    "raw": {
     "state": "pass",
-    "size": 67
+    "size": 57
    },
    "gzip9": {
     "state": "pass",
-    "size": 63
+    "size": 51
    },
    "brotli11": {
     "state": "pass",
@@ -1113,7 +1113,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 130
+    "size": 123
    }
   },
   "cases/canonical/strings/chars": {
@@ -1133,15 +1133,15 @@
   "cases/canonical/strings/concat": {
    "raw": {
     "state": "pass",
-    "size": 50
+    "size": 37
    },
    "gzip9": {
     "state": "pass",
-    "size": 57
+    "size": 48
    },
    "brotli11": {
     "state": "pass",
-    "size": 52
+    "size": 41
    }
   },
   "cases/canonical/strings/pool": {
@@ -1183,21 +1183,21 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 164
+    "size": 161
    }
   },
   "cases/canonical/wins/optimizer-pressure": {
    "raw": {
     "state": "pass",
-    "size": 303
+    "size": 268
    },
    "gzip9": {
     "state": "pass",
-    "size": 193
+    "size": 176
    },
    "brotli11": {
     "state": "pass",
-    "size": 165
+    "size": 143
    }
   },
   "cases/canonical/wins/point-batch": {
@@ -1253,7 +1253,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 130
+    "size": 117
    }
   },
   "cases/catalog/aggregate/class-counter-13-8": {
@@ -1393,7 +1393,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 109
+    "size": 108
    }
   },
   "cases/catalog/aggregate/frontier-inheritance-super": {
@@ -1435,7 +1435,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 157
+    "size": 155
    }
   },
   "cases/catalog/aggregate/matrix2-10-20-30-40": {
@@ -1487,7 +1487,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 170
+    "size": 169
    },
    "brotli11": {
     "state": "pass",
@@ -1505,7 +1505,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 174
+    "size": 173
    }
   },
   "cases/catalog/aggregate/nested-struct-1-1-2-3-5-8-13-21": {
@@ -1533,7 +1533,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 180
+    "size": 179
    }
   },
   "cases/catalog/aggregate/nested-struct-10-20-30-40": {
@@ -1547,7 +1547,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 175
+    "size": 174
    }
   },
   "cases/catalog/aggregate/nested-struct-12-4-8-16-2-6": {
@@ -1561,7 +1561,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 178
+    "size": 172
    }
   },
   "cases/catalog/aggregate/nested-struct-15-3-9-27-1-81": {
@@ -1631,7 +1631,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 180
+    "size": 179
    }
   },
   "cases/catalog/aggregate/record-transform-2": {
@@ -1673,7 +1673,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 117
+    "size": 116
    }
   },
   "cases/catalog/aggregate/record-transform-5": {
@@ -1701,7 +1701,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 118
+    "size": 117
    }
   },
   "cases/catalog/aggregate/record-transform-7": {
@@ -1711,11 +1711,11 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 132
+    "size": 131
    },
    "brotli11": {
     "state": "pass",
-    "size": 118
+    "size": 117
    }
   },
   "cases/catalog/aggregate/struct-pairs-0-1-0-2-0-3-0-4": {
@@ -1743,7 +1743,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 141
+    "size": 140
    }
   },
   "cases/catalog/aggregate/struct-pairs-1-2-3-4-5-6-7-8": {
@@ -1757,7 +1757,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 140
+    "size": 139
    }
   },
   "cases/catalog/aggregate/struct-pairs-10-20-30-40": {
@@ -1771,7 +1771,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 137
+    "size": 135
    }
   },
   "cases/catalog/aggregate/struct-pairs-11-22-33-44-55-66": {
@@ -1785,7 +1785,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 150
+    "size": 148
    }
   },
   "cases/catalog/aggregate/struct-pairs-12-4-8-16-2-6": {
@@ -1855,7 +1855,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 139
+    "size": 134
    }
   },
   "cases/catalog/aggregate/struct-pairs-4-9-16-25-36-49": {
@@ -1869,7 +1869,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 140
+    "size": 139
    }
   },
   "cases/catalog/aggregate/struct-pairs-5-5-5-5-5-5": {
@@ -1931,113 +1931,113 @@
   "cases/catalog/boolean/bool-logic-0": {
    "raw": {
     "state": "pass",
-    "size": 144
+    "size": 132
    },
    "gzip9": {
     "state": "pass",
-    "size": 76
+    "size": 62
    },
    "brotli11": {
     "state": "pass",
-    "size": 68
+    "size": 60
    }
   },
   "cases/catalog/boolean/bool-logic-1": {
    "raw": {
     "state": "pass",
-    "size": 144
+    "size": 132
    },
    "gzip9": {
     "state": "pass",
-    "size": 76
+    "size": 60
    },
    "brotli11": {
     "state": "pass",
-    "size": 68
+    "size": 60
    }
   },
   "cases/catalog/boolean/bool-logic-2": {
    "raw": {
     "state": "pass",
-    "size": 144
+    "size": 132
    },
    "gzip9": {
     "state": "pass",
-    "size": 76
+    "size": 62
    },
    "brotli11": {
     "state": "pass",
-    "size": 69
+    "size": 60
    }
   },
   "cases/catalog/boolean/bool-logic-3": {
    "raw": {
     "state": "pass",
-    "size": 144
+    "size": 132
    },
    "gzip9": {
     "state": "pass",
-    "size": 76
+    "size": 60
    },
    "brotli11": {
     "state": "pass",
-    "size": 68
+    "size": 60
    }
   },
   "cases/catalog/boolean/bool-logic-4": {
    "raw": {
     "state": "pass",
-    "size": 144
+    "size": 132
    },
    "gzip9": {
     "state": "pass",
-    "size": 76
+    "size": 60
    },
    "brotli11": {
     "state": "pass",
-    "size": 69
+    "size": 60
    }
   },
   "cases/catalog/boolean/bool-logic-5": {
    "raw": {
     "state": "pass",
-    "size": 144
+    "size": 132
    },
    "gzip9": {
     "state": "pass",
-    "size": 76
+    "size": 62
    },
    "brotli11": {
     "state": "pass",
-    "size": 69
+    "size": 60
    }
   },
   "cases/catalog/boolean/bool-logic-6": {
    "raw": {
     "state": "pass",
-    "size": 144
+    "size": 132
    },
    "gzip9": {
     "state": "pass",
-    "size": 76
+    "size": 60
    },
    "brotli11": {
     "state": "pass",
-    "size": 69
+    "size": 60
    }
   },
   "cases/catalog/boolean/bool-logic-7": {
    "raw": {
     "state": "pass",
-    "size": 144
+    "size": 132
    },
    "gzip9": {
     "state": "pass",
-    "size": 76
+    "size": 62
    },
    "brotli11": {
     "state": "pass",
-    "size": 70
+    "size": 60
    }
   },
   "cases/catalog/boolean/bool-typeof-predicate": {
@@ -2057,99 +2057,99 @@
   "cases/catalog/closure/closure-capture-2": {
    "raw": {
     "state": "pass",
-    "size": 93
+    "size": 85
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 97
    },
    "brotli11": {
     "state": "pass",
-    "size": 83
+    "size": 80
    }
   },
   "cases/catalog/closure/closure-capture-3": {
    "raw": {
     "state": "pass",
-    "size": 93
+    "size": 85
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 97
    },
    "brotli11": {
     "state": "pass",
-    "size": 83
+    "size": 80
    }
   },
   "cases/catalog/closure/closure-capture-4": {
    "raw": {
     "state": "pass",
-    "size": 93
+    "size": 85
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 97
    },
    "brotli11": {
     "state": "pass",
-    "size": 83
+    "size": 80
    }
   },
   "cases/catalog/closure/closure-capture-5": {
    "raw": {
     "state": "pass",
-    "size": 93
+    "size": 85
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 97
    },
    "brotli11": {
     "state": "pass",
-    "size": 83
+    "size": 80
    }
   },
   "cases/catalog/closure/closure-capture-6": {
    "raw": {
     "state": "pass",
-    "size": 93
+    "size": 85
    },
    "gzip9": {
     "state": "pass",
-    "size": 101
+    "size": 97
    },
    "brotli11": {
     "state": "pass",
-    "size": 82
+    "size": 79
    }
   },
   "cases/catalog/closure/closure-capture-7": {
    "raw": {
     "state": "pass",
-    "size": 93
+    "size": 85
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 97
    },
    "brotli11": {
     "state": "pass",
-    "size": 83
+    "size": 80
    }
   },
   "cases/catalog/closure/closure-capture-8": {
    "raw": {
     "state": "pass",
-    "size": 93
+    "size": 85
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 97
    },
    "brotli11": {
     "state": "pass",
-    "size": 83
+    "size": 80
    }
   },
   "cases/catalog/closure/edge-closure-mutation-11n4n5": {
@@ -2289,7 +2289,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 107
+    "size": 105
    }
   },
   "cases/catalog/collection/edge-array-concat": {
@@ -2709,7 +2709,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 108
+    "size": 107
    }
   },
   "cases/catalog/collection/pipeline-1-1-2-3-5-8-13-21": {
@@ -2719,7 +2719,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 127
+    "size": 126
    },
    "brotli11": {
     "state": "pass",
@@ -2733,7 +2733,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 127
+    "size": 126
    },
    "brotli11": {
     "state": "pass",
@@ -2747,7 +2747,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 122
+    "size": 121
    },
    "brotli11": {
     "state": "pass",
@@ -2765,7 +2765,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 107
+    "size": 105
    }
   },
   "cases/catalog/collection/pipeline-3-1-4-1-5-9": {
@@ -2803,7 +2803,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 127
+    "size": 126
    },
    "brotli11": {
     "state": "pass",
@@ -4171,71 +4171,71 @@
   "cases/catalog/control/dead-branch-3": {
    "raw": {
     "state": "pass",
-    "size": 42
+    "size": 15
    },
    "gzip9": {
     "state": "pass",
-    "size": 50
+    "size": 35
    },
    "brotli11": {
     "state": "pass",
-    "size": 42
+    "size": 19
    }
   },
   "cases/catalog/control/dead-branch-4": {
    "raw": {
     "state": "pass",
-    "size": 42
+    "size": 15
    },
    "gzip9": {
     "state": "pass",
-    "size": 50
+    "size": 35
    },
    "brotli11": {
     "state": "pass",
-    "size": 42
+    "size": 19
    }
   },
   "cases/catalog/control/dead-branch-5": {
    "raw": {
     "state": "pass",
-    "size": 44
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 50
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 46
+    "size": 20
    }
   },
   "cases/catalog/control/dead-branch-6": {
    "raw": {
     "state": "pass",
-    "size": 44
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 51
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 39
+    "size": 20
    }
   },
   "cases/catalog/control/dead-branch-7": {
    "raw": {
     "state": "pass",
-    "size": 44
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 51
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 42
+    "size": 20
    }
   },
   "cases/catalog/control/early-return-0": {
@@ -4511,7 +4511,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 117
+    "size": 116
    },
    "brotli11": {
     "state": "pass",
@@ -4525,7 +4525,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 118
+    "size": 117
    },
    "brotli11": {
     "state": "pass",
@@ -4543,7 +4543,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 109
+    "size": 108
    }
   },
   "cases/catalog/control/enum-int-dispatch-6": {
@@ -4557,7 +4557,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 109
+    "size": 105
    }
   },
   "cases/catalog/control/enum-int-dispatch-8": {
@@ -4613,7 +4613,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 51
+    "size": 48
    }
   },
   "cases/catalog/control/if-chain-1": {
@@ -4627,7 +4627,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 51
+    "size": 48
    }
   },
   "cases/catalog/control/if-chain-10": {
@@ -4669,7 +4669,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 51
+    "size": 48
    }
   },
   "cases/catalog/control/if-chain-3": {
@@ -4697,7 +4697,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 51
+    "size": 48
    }
   },
   "cases/catalog/control/if-chain-5": {
@@ -5449,7 +5449,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 101
    },
    "brotli11": {
     "state": "pass",
@@ -5673,7 +5673,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 120
+    "size": 118
    },
    "brotli11": {
     "state": "pass",
@@ -5691,7 +5691,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 68
+    "size": 67
    }
   },
   "cases/catalog/host/host-callable-as-value": {
@@ -5715,7 +5715,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 124
+    "size": 123
    },
    "brotli11": {
     "state": "pass",
@@ -5729,7 +5729,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 110
+    "size": 109
    },
    "brotli11": {
     "state": "pass",
@@ -5743,7 +5743,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 108
+    "size": 107
    },
    "brotli11": {
     "state": "pass",
@@ -5761,7 +5761,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 97
+    "size": 96
    }
   },
   "cases/catalog/host/host-hasown-a-b-c": {
@@ -5789,7 +5789,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 148
+    "size": 146
    }
   },
   "cases/catalog/host/host-hasown-as-value": {
@@ -5803,7 +5803,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 95
+    "size": 87
    }
   },
   "cases/catalog/host/host-hasown-left-right-mid": {
@@ -5873,7 +5873,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 64
+    "size": 62
    }
   },
   "cases/catalog/host/host-is-window-self": {
@@ -5883,11 +5883,11 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 91
+    "size": 90
    },
    "brotli11": {
     "state": "pass",
-    "size": 76
+    "size": 74
    }
   },
   "cases/catalog/host/host-iterator-assign": {
@@ -6097,171 +6097,171 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 79
+    "size": 78
    }
   },
   "cases/catalog/integer/bitops-1-2": {
    "raw": {
     "state": "pass",
-    "size": 87
+    "size": 75
    },
    "gzip9": {
     "state": "pass",
-    "size": 56
+    "size": 46
    },
    "brotli11": {
     "state": "pass",
-    "size": 46
+    "size": 35
    }
   },
   "cases/catalog/integer/bitops-11-17": {
    "raw": {
     "state": "pass",
-    "size": 95
+    "size": 78
    },
    "gzip9": {
     "state": "pass",
-    "size": 58
+    "size": 50
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 47
+   }
+  },
+  "cases/catalog/integer/bitops-12-19": {
+   "raw": {
+    "state": "pass",
+    "size": 78
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 48
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 40
+   }
+  },
+  "cases/catalog/integer/bitops-18-4": {
+   "raw": {
+    "state": "pass",
+    "size": 78
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 48
    },
    "brotli11": {
     "state": "pass",
     "size": 53
    }
   },
-  "cases/catalog/integer/bitops-12-19": {
-   "raw": {
-    "state": "pass",
-    "size": 95
-   },
-   "gzip9": {
-    "state": "pass",
-    "size": 58
-   },
-   "brotli11": {
-    "state": "pass",
-    "size": 54
-   }
-  },
-  "cases/catalog/integer/bitops-18-4": {
-   "raw": {
-    "state": "pass",
-    "size": 91
-   },
-   "gzip9": {
-    "state": "pass",
-    "size": 57
-   },
-   "brotli11": {
-    "state": "pass",
-    "size": 57
-   }
-  },
   "cases/catalog/integer/bitops-21-6": {
    "raw": {
     "state": "pass",
-    "size": 91
+    "size": 78
    },
    "gzip9": {
     "state": "pass",
-    "size": 57
+    "size": 51
    },
    "brotli11": {
     "state": "pass",
-    "size": 58
+    "size": 48
    }
   },
   "cases/catalog/integer/bitops-25-3": {
    "raw": {
     "state": "pass",
-    "size": 91
+    "size": 78
    },
    "gzip9": {
     "state": "pass",
-    "size": 57
+    "size": 50
    },
    "brotli11": {
     "state": "pass",
-    "size": 60
+    "size": 42
    }
   },
   "cases/catalog/integer/bitops-3-5": {
    "raw": {
     "state": "pass",
-    "size": 87
+    "size": 75
    },
    "gzip9": {
     "state": "pass",
-    "size": 56
+    "size": 46
    },
    "brotli11": {
     "state": "pass",
-    "size": 46
+    "size": 43
    }
   },
   "cases/catalog/integer/bitops-32-8": {
    "raw": {
     "state": "pass",
-    "size": 91
+    "size": 78
    },
    "gzip9": {
     "state": "pass",
-    "size": 57
+    "size": 47
    },
    "brotli11": {
     "state": "pass",
-    "size": 60
+    "size": 48
    }
   },
   "cases/catalog/integer/bitops-40-2": {
    "raw": {
     "state": "pass",
-    "size": 91
+    "size": 78
    },
    "gzip9": {
     "state": "pass",
-    "size": 57
+    "size": 48
    },
    "brotli11": {
     "state": "pass",
-    "size": 60
+    "size": 40
    }
   },
   "cases/catalog/integer/bitops-41-1": {
    "raw": {
     "state": "pass",
-    "size": 91
+    "size": 78
    },
    "gzip9": {
     "state": "pass",
-    "size": 56
+    "size": 49
    },
    "brotli11": {
     "state": "pass",
-    "size": 58
+    "size": 40
    }
   },
   "cases/catalog/integer/bitops-7-9": {
    "raw": {
     "state": "pass",
-    "size": 87
+    "size": 78
    },
    "gzip9": {
     "state": "pass",
-    "size": 56
+    "size": 45
    },
    "brotli11": {
     "state": "pass",
-    "size": 46
+    "size": 45
    }
   },
   "cases/catalog/integer/bitops-8-13": {
    "raw": {
     "state": "pass",
-    "size": 91
+    "size": 77
    },
    "gzip9": {
     "state": "pass",
-    "size": 58
+    "size": 49
    },
    "brotli11": {
     "state": "pass",
@@ -6293,7 +6293,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 130
+    "size": 123
    }
   },
   "cases/catalog/integer/edge-i32-churn-1nn2147483647nn1n3n19": {
@@ -6303,11 +6303,11 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 133
+    "size": 132
    },
    "brotli11": {
     "state": "pass",
-    "size": 113
+    "size": 112
    }
   },
   "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7": {
@@ -6359,7 +6359,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 133
+    "size": 132
    },
    "brotli11": {
     "state": "pass",
@@ -6373,7 +6373,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 133
+    "size": 132
    },
    "brotli11": {
     "state": "pass",
@@ -6705,29 +6705,29 @@
   "cases/catalog/integer/semantic-integer-min-div-neg-one": {
    "raw": {
     "state": "pass",
-    "size": 40
+    "size": 30
    },
    "gzip9": {
     "state": "pass",
-    "size": 60
+    "size": 50
    },
    "brotli11": {
     "state": "pass",
-    "size": 44
+    "size": 34
    }
   },
   "cases/catalog/integer/semantic-integer-radix-formatting": {
    "raw": {
     "state": "pass",
-    "size": 102
+    "size": 99
    },
    "gzip9": {
     "state": "pass",
-    "size": 74
+    "size": 71
    },
    "brotli11": {
     "state": "pass",
-    "size": 70
+    "size": 68
    }
   },
   "cases/catalog/integer/semantic-integer-remainder-by-zero": {
@@ -6747,15 +6747,15 @@
   "cases/catalog/integer/semantic-integer-shift-count-masking": {
    "raw": {
     "state": "pass",
-    "size": 19
+    "size": 15
    },
    "gzip9": {
     "state": "pass",
-    "size": 39
+    "size": 35
    },
    "brotli11": {
     "state": "pass",
-    "size": 23
+    "size": 19
    }
   },
   "cases/catalog/integer/semantic-integer-update-values": {
@@ -6783,7 +6783,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 116
+    "size": 113
    }
   },
   "cases/catalog/loop/edge-loop-control-11-5-10": {
@@ -6797,7 +6797,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 117
+    "size": 114
    }
   },
   "cases/catalog/loop/edge-loop-control-12-2-9": {
@@ -6825,7 +6825,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 115
+    "size": 114
    }
   },
   "cases/catalog/loop/edge-loop-control-14-4-12": {
@@ -6839,7 +6839,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 116
+    "size": 114
    }
   },
   "cases/catalog/loop/edge-loop-control-15-5-13": {
@@ -6853,7 +6853,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 116
+    "size": 115
    }
   },
   "cases/catalog/loop/edge-loop-control-16-6-14": {
@@ -6867,7 +6867,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 118
+    "size": 114
    }
   },
   "cases/catalog/loop/edge-loop-control-18-7-15": {
@@ -6895,7 +6895,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 115
+    "size": 112
    }
   },
   "cases/catalog/loop/edge-loop-control-9-3-8": {
@@ -7189,7 +7189,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 98
+    "size": 94
    }
   },
   "cases/catalog/loop/loop-product-6-1-8-2-10-3": {
@@ -7399,7 +7399,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 83
+    "size": 81
    }
   },
   "cases/catalog/loop/loop-sum-6-1-8-2-10-3": {
@@ -7451,11 +7451,11 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 133
+    "size": 132
    },
    "brotli11": {
     "state": "pass",
-    "size": 117
+    "size": 115
    }
   },
   "cases/catalog/loop/nested-loop-score-11": {
@@ -7465,7 +7465,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 134
+    "size": 133
    },
    "brotli11": {
     "state": "pass",
@@ -7493,7 +7493,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 133
+    "size": 132
    },
    "brotli11": {
     "state": "pass",
@@ -7521,7 +7521,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 134
+    "size": 133
    },
    "brotli11": {
     "state": "pass",
@@ -7535,7 +7535,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 134
+    "size": 133
    },
    "brotli11": {
     "state": "pass",
@@ -7549,7 +7549,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 134
+    "size": 133
    },
    "brotli11": {
     "state": "pass",
@@ -8026,7 +8026,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 57
+    "size": 54
    }
   },
   "cases/catalog/number/clampn5n20n25": {
@@ -8134,7 +8134,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 113
+    "size": 112
    },
    "brotli11": {
     "state": "pass",
@@ -8152,7 +8152,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 113
+    "size": 112
    }
   },
   "cases/catalog/number/edge-number-flow-3p75n0p125nn2n3": {
@@ -8176,7 +8176,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 115
+    "size": 114
    },
    "brotli11": {
     "state": "pass",
@@ -8204,7 +8204,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 112
+    "size": 111
    },
    "brotli11": {
     "state": "pass",
@@ -8416,7 +8416,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 87
+    "size": 86
    }
   },
   "cases/catalog/string/edge-string-utf16-greek": {
@@ -8506,15 +8506,15 @@
   "cases/catalog/string/semantic-string-code-point-length": {
    "raw": {
     "state": "pass",
-    "size": 67
+    "size": 50
    },
    "gzip9": {
     "state": "pass",
-    "size": 66
+    "size": 61
    },
    "brotli11": {
     "state": "pass",
-    "size": 71
+    "size": 54
    }
   },
   "cases/catalog/string/semantic-string-out-of-range-code-unit": {
@@ -8584,7 +8584,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 102
+    "size": 101
    }
   },
   "cases/catalog/string/string-chars-brotli": {
@@ -8612,7 +8612,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 103
+    "size": 99
    }
   },
   "cases/catalog/string/string-chars-javascript": {
@@ -8626,7 +8626,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 100
+    "size": 99
    }
   },
   "cases/catalog/string/string-chars-lilscript": {
@@ -8780,7 +8780,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 70
+    "size": 69
    }
   },
   "cases/catalog/string/string-concat-scalar-replace": {
@@ -8794,7 +8794,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 68
+    "size": 67
    }
   },
   "cases/catalog/string/string-concat-struct-layout": {
@@ -8822,7 +8822,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 72
+    "size": 66
    }
   },
   "cases/catalog/string/string-index-Ab": {
@@ -8990,7 +8990,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 81
+    "size": 80
    }
   },
   "cases/catalog/string/string-search-LilScript-Lil": {
@@ -9116,7 +9116,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 164
+    "size": 161
    }
   },
   "cases/catalog/winner/win-class-scale": {
@@ -9136,15 +9136,15 @@
   "cases/catalog/winner/win-optimizer-pressure": {
    "raw": {
     "state": "pass",
-    "size": 303
+    "size": 268
    },
    "gzip9": {
     "state": "pass",
-    "size": 193
+    "size": 176
    },
    "brotli11": {
     "state": "pass",
-    "size": 165
+    "size": 143
    }
   },
   "cases/catalog/winner/win-point-batch": {

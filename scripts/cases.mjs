@@ -4,7 +4,10 @@
 //   node scripts/cases.mjs --compiler <lilscript> [--lanes <spec>] [--filter <spec>]
 //        [--json out.json] [--compare previous.json] [--jobs N] [--work DIR]
 //        [--cc /usr/bin/cc] [--codec <lilscript-codec>|none] [--ledger FILE]
-//        [--node <node>] [--timeout SECONDS]
+//        [--node <node>] [--timeout SECONDS] [--level N]
+//
+// `--level N` compiles the production lanes at effort level N, over any
+// level a case's own configuration sets (scripts/monotone.mjs uses it).
 //
 // A case is a `.lil` entry with an expected-stdout `.out` beside it, found under
 // tests/cases (recursively, skipping multi-module folders) and tests/modules.
@@ -277,8 +280,9 @@ function laneTables(lane, tactics) {
 
 // Case keys are merged into the lane's tables (one `[javascript]` table,
 // never a second); a case key overrides the lane's value for that key. The
-// retired `strip_console` is refused: the compiler never strips `print`.
-export function composeConfig(lane, tactics, caseToml) {
+// retired `strip_console` is refused: the compiler never strips `print`. A
+// run's `level` overrides a production lane's effort level last.
+export function composeConfig(lane, tactics, caseToml, level = null) {
   const tables = laneTables(lane, tactics);
   if (caseToml) {
     for (const [name, entries] of parseTomlTables(caseToml)) {
@@ -289,6 +293,7 @@ export function composeConfig(lane, tactics, caseToml) {
       }
     }
   }
+  if (level !== null && lane.mode === "production") tables.get("javascript").set("optimization_level", String(level));
   return renderToml(tables);
 }
 
@@ -385,7 +390,7 @@ export async function runCases(options) {
   }
   const laneRecords = [];
   for (const lane of lanes) {
-    const config = composeConfig(lane, tactics, null);
+    const config = composeConfig(lane, tactics, null, options.level ?? null);
     const policy = await printPolicy(config, TARGETS[lane.target].flag);
     const record = { id: lane.id, mode: lane.mode, codec: lane.codec, target: lane.target, config };
     if (policy.error) record.policyError = policy.error;
@@ -428,7 +433,7 @@ export async function runCases(options) {
     }
     const config = `${base}.toml`;
     try {
-      writeFileSync(config, composeConfig(lane, tactics, item.toml ? readFileSync(item.toml, "utf8") : null));
+      writeFileSync(config, composeConfig(lane, tactics, item.toml ? readFileSync(item.toml, "utf8") : null, options.level ?? null));
     } catch (error) {
       return { ...row, state: "refused", detail: `case configuration: ${error.message}` };
     }
@@ -707,12 +712,13 @@ async function main() {
       ledger: { type: "string", default: join(repository, "tests/cases/expected-failures.json") },
       node: { type: "string", default: process.execPath },
       timeout: { type: "string", default: "30" },
+      level: { type: "string" },
       verbose: { type: "boolean", default: false },
       help: { type: "boolean", default: false },
     },
   });
   if (values.help || !values.compiler) {
-    process.stderr.write("usage: node scripts/cases.mjs --compiler <lilscript> [--lanes all|<mode>/<codec>/<target>,...] [--filter <id-substring|glob>,...] [--json out.json] [--compare previous.json] [--jobs N] [--work DIR] [--cc PATH] [--codec PATH|none] [--ledger FILE] [--node PATH] [--timeout SECONDS] [--verbose]\n");
+    process.stderr.write("usage: node scripts/cases.mjs --compiler <lilscript> [--lanes all|<mode>/<codec>/<target>,...] [--filter <id-substring|glob>,...] [--json out.json] [--compare previous.json] [--jobs N] [--work DIR] [--cc PATH] [--codec PATH|none] [--ledger FILE] [--node PATH] [--timeout SECONDS] [--level N] [--verbose]\n");
     process.exit(values.help ? 0 : 2);
   }
   const selected = selectLanes(values.lanes);
@@ -729,6 +735,7 @@ async function main() {
     jobs: Number(values.jobs ?? Math.max(1, availableParallelism() - 2)),
     timeoutMs: Number(values.timeout) * 1000,
     compare: values.compare ? resolve(values.compare) : null,
+    level: values.level === undefined ? null : Number(values.level),
   });
   const destination = resolve(values.json ?? join(values.work, "report.json"));
   mkdirSync(dirname(destination), { recursive: true });

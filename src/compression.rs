@@ -74,12 +74,42 @@ pub(crate) fn measure_admitted(
     model: CompressionCostModel,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<usize, CodecError> {
+    measure_admitted_at(bytes, model, BROTLI_QUALITY, budget)
+}
+
+/// The Brotli quality every exact judgement and delivered size uses.
+pub const BROTLI_QUALITY: u32 = 11;
+/// The proxy judge's Brotli quality (architecture §9.4, "Brotli at min(q,
+/// 5)"): it agrees in sign with quality 11 on every measured pair more than
+/// about 150–200 bytes apart, at a small fraction of the cost. It prunes;
+/// it never keeps.
+pub const PROXY_BROTLI_QUALITY: u32 = 5;
+
+/// The walk's proxy judge: gzip and raw are cheap enough to be their own
+/// proxy; Brotli runs at `PROXY_BROTLI_QUALITY`.
+pub(crate) fn measure_proxy_admitted(
+    bytes: &[u8],
+    model: CompressionCostModel,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<usize, CodecError> {
+    measure_admitted_at(bytes, model, PROXY_BROTLI_QUALITY, budget)
+}
+
+fn measure_admitted_at(
+    bytes: &[u8],
+    model: CompressionCostModel,
+    quality: u32,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<usize, CodecError> {
     if model == CompressionCostModel::Raw {
         return Ok(bytes.len());
     }
     let _timing = match model {
         CompressionCostModel::Gzip => crate::timing::CANONICAL_GZIP.scope(0),
-        CompressionCostModel::Brotli => crate::timing::CANONICAL_BROTLI.scope(0),
+        CompressionCostModel::Brotli if quality == BROTLI_QUALITY => {
+            crate::timing::CANONICAL_BROTLI.scope(0)
+        }
+        CompressionCostModel::Brotli => crate::timing::PROXY_BROTLI.scope(0),
         CompressionCostModel::Raw => unreachable!(),
     };
     let mut phase = budget.scope();
@@ -95,7 +125,7 @@ pub(crate) fn measure_admitted(
         match model {
             CompressionCostModel::Raw => unreachable!(),
             CompressionCostModel::Gzip => gzip_size(bytes, &mut memory),
-            CompressionCostModel::Brotli => brotli_size(bytes, &mut memory),
+            CompressionCostModel::Brotli => brotli_size(bytes, quality, &mut memory),
         }
     };
     // A final C CPU segment can cross the deadline without another allocation
@@ -348,7 +378,11 @@ impl Drop for BrotliGuard {
         }
     }
 }
-fn brotli_size(bytes: &[u8], memory: &mut CodecMemory<'_, '_>) -> Result<usize, CodecError> {
+fn brotli_size(
+    bytes: &[u8],
+    quality: u32,
+    memory: &mut CodecMemory<'_, '_>,
+) -> Result<usize, CodecError> {
     use compu_brotli_sys::*;
     if canonical_brotli_version() != CANONICAL_BROTLI_LIBRARY_VERSION {
         return Err(CodecError::Version("Brotli1.1.0 required"));
@@ -376,7 +410,7 @@ fn brotli_size(bytes: &[u8], memory: &mut CodecMemory<'_, '_>) -> Result<usize, 
     }
     let _guard = BrotliGuard(state);
     for (parameter, value) in [
-        (BrotliEncoderParameter_BROTLI_PARAM_QUALITY, 11),
+        (BrotliEncoderParameter_BROTLI_PARAM_QUALITY, quality),
         (BrotliEncoderParameter_BROTLI_PARAM_LGWIN, 22),
         (
             BrotliEncoderParameter_BROTLI_PARAM_MODE,

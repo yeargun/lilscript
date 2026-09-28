@@ -598,10 +598,11 @@ impl<'src> CheckedSourceSession<'src> {
             .compilation
             .search_javascript_observed(source, policy, request, observe)
             .map_err(|error| ServiceError::output("javascript", error))?;
-        // The terminal challenger stage (M5.4): every requested objective's
-        // winner is offered the declared challengers before any handoff.
+        // The walk (architecture §9.6, plan M3.5): from the level-0 artifact,
+        // each requested objective's list of moves within the level's counted
+        // budget, then the reserved beam move where the level reaches it.
         let terminal = search
-            .challenge(policy, objectives)
+            .challenge(policy, request, |_| {})
             .map(|report| serde_json::to_value(report).unwrap_or(Value::Null))
             .map_err(|error| ServiceError::output("javascript", error))?;
         let counters = search.counters();

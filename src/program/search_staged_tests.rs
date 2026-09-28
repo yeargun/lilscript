@@ -214,7 +214,7 @@ fn run(fixture: Fixture, policy: &ResolvedPolicy, objectives: Objectives) -> Rep
     let mut observed = Vec::new();
     let started = Instant::now();
     let search = compiler
-        .search_javascript_observed(source, policy, request, |entry| {
+        .search_javascript_explored_observed(source, policy, request, |entry| {
             observed.push(Observed {
                 recipe: entry.recipe_fingerprint,
                 naming: entry.naming.clone(),
