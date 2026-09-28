@@ -1727,6 +1727,33 @@ Changes:
 
 Predicted: unmodified programs byte-identical, since none writes `debug`; jquerylil's fixed port byte-identical to its unfixed build, since `debugLog` was already dropped by its name.
 
+## 2026-09-28 Batch K7: typed intrinsics mean the originals (M10.15, R10)
+
+**Pre-registration** (written before the first build of the batch; base: K6's last commit and the K1/K4 fix-ups). Its tests and ladder run with K5's and K6's.
+
+What K1 already did: a typed call's `int` result carries no `|0` (R1). The one builtin that returns `int`, `Math.imul`, returns an int32 in its original, so that is R10's result half.
+
+What the batch builds (language.md R10): every assumption typed code makes about the builtins stops depending on `assume_pristine_builtins`.
+- **Integer intrinsics.** A typed length, position, size or `push` whose original returns an int32 prints without `|0`, and a length is bounded by 2^30 for the arithmetic next to it. Before this, both held only under pristine builtins.
+- **Regex literals.** A typed `new Regex(p, f)` of literal strings in the proven subset is the literal `/p/f`, formed as such. The simplifier's gated rewrite stays for a `JsValue` construction.
+- **The store fold.** A store to a key that a fresh literal already has updates an own data property, which shadows any inherited setter. It folds without pristine builtins; only a new key needs them. Initializer inlining, whose stores are to the instance literal's own keys, runs always.
+- **Data tables.** The decoder is compiler-written code over compiler-made data: it takes `String` and `Array` methods to be the originals.
+- **What stays gated.** `assume_pristine_builtins` now means the host's builtins are the originals where a `JsValue` operation reaches them:
+  - `.call` receivers rewritten;
+  - forwarding wrappers;
+  - standard globals read as inert;
+  - prototype stores grouped with `Object.assign`;
+  - new keys folded into a literal.
+
+Changes:
+- **C1.** Integer intrinsics and lengths.
+- **C2.** Regex literals.
+- **C3.** The store fold and initializer inlining.
+- **C4.** Data tables.
+- **C5.** Tests and docs.
+
+Predicted: the ports set `assume_pristine_builtins = true`, so they are byte-identical, with one exception. Where the fold used to push a new key, it still does, so the fold's output under pristine builtins is unchanged. Cases and ratchet items compiled without pristine builtins get smaller (regex literals, no `|0` on lengths, folded constructions).
+
 ---
 
 ## Appendix: where milestones 001–014 went
