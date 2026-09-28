@@ -657,7 +657,7 @@ impl Scan {
                             return Ok(());
                         };
                         if program.cells[cell.index()].owner != unit
-                            && !matches!(usage, CellUse::Initialize(_))
+                            && !matches!(usage, CellUse::Initialize(_) | CellUse::Declare(_))
                         {
                             facts.shared = true;
                         }
@@ -666,7 +666,8 @@ impl Scan {
                                 facts.initializers = facts.initializers.saturating_add(1);
                                 first[cell.index()].get_or_insert((unit, operation));
                             }
-                            CellUse::Write { .. } => facts.stored = true,
+                            // `let x;`: its value comes from its stores (R3).
+                            CellUse::Write { .. } | CellUse::Declare(_) => facts.stored = true,
                             CellUse::Reference { .. } => facts.referenced = true,
                             // A loop or catch binding is written by its
                             // construct on every entry.

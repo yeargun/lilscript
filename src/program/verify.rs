@@ -824,6 +824,16 @@ fn verify_units(
                             }
                             (Some(0), true)
                         }
+                        // `let x;` (R3): a local of this unit, with no value.
+                        OperationKind::Declare(cell) => {
+                            access_cell(*cell)?;
+                            if program.cells[cell.index()].owner != frozen.id()
+                                || program.cells[cell.index()].binding != CellBinding::Local
+                            {
+                                return fail("a declaration does not own its local");
+                            }
+                            (Some(0), false)
+                        }
                         OperationKind::Initialize(cell) => {
                             access_cell(*cell)?;
                             if program.cells[cell.index()].owner != frozen.id()
@@ -1686,6 +1696,10 @@ fn verify_types(
                 &literal_type,
                 &mut query,
             )?)
+        }
+        OperationKind::Declare(cell) => {
+            let cell = &program.cells[cell.index()];
+            expect(cell.binding == CellBinding::Local && cell.region == operation.region)
         }
         OperationKind::Initialize(cell) => {
             let cell = &program.cells[cell.index()];

@@ -3743,21 +3743,25 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             } => self.record_destructure(unit, region, bindings, *rest, value, *span)?,
             Stmt::VarDecl(declaration) => {
                 let cell = self.declare(unit, region, declaration.name)?;
-                let value = if let Some(initializer) = &declaration.initializer {
-                    let value = self.expression(unit, region, initializer)?;
-                    self.infer_creation_name(unit, initializer, value, declaration.name.name)?;
-                    value
-                } else {
-                    return self.unsupported(declaration.span, "default variable initialization");
-                };
-                let value = self.copy_value(unit, region, value, declaration.span)?;
-                self.effect(
-                    unit,
-                    region,
-                    OperationKind::Initialize(cell),
-                    &[value],
-                    declaration.span,
-                )?;
+                match &declaration.initializer {
+                    Some(initializer) => {
+                        let value = self.expression(unit, region, initializer)?;
+                        self.infer_creation_name(unit, initializer, value, declaration.name.name)?;
+                        let value = self.copy_value(unit, region, value, declaration.span)?;
+                        self.effect(
+                            unit,
+                            region,
+                            OperationKind::Initialize(cell),
+                            &[value],
+                            declaration.span,
+                        )?;
+                    }
+                    // `int x;` (R3): the cell with no value until its first
+                    // store, which the checker proves precedes every read.
+                    None => {
+                        self.effect(unit, region, OperationKind::Declare(cell), &[], declaration.span)?;
+                    }
+                }
             }
             Stmt::Expr(expr) => {
                 self.expression(unit, region, expr)?;

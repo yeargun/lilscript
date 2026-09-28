@@ -300,7 +300,7 @@ fn dead_operations(
         }
         let operation = &data.operations[op.index()];
         let store = match operation.kind {
-            OperationKind::Initialize(cell) => Some(cell),
+            OperationKind::Initialize(cell) | OperationKind::Declare(cell) => Some(cell),
             OperationKind::Store(place) => match data.places.get(place.index()) {
                 Some(&Place::Cell(cell)) => Some(cell),
                 _ => None,
@@ -312,7 +312,10 @@ fn dead_operations(
             // (the temporal dead zone), so it goes only past the declaration.
             Some(cell) => {
                 unread_local(cell)
-                    && (matches!(operation.kind, OperationKind::Initialize(_))
+                    && (matches!(
+                        operation.kind,
+                        OperationKind::Initialize(_) | OperationKind::Declare(_)
+                    )
                         || initialization.initialized(program, unit, op, cell))
             }
             None => {

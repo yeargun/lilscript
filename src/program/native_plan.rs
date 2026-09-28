@@ -1153,6 +1153,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 Initialization::Missing
             };
             let mut captured = false;
+            let mut declared = false;
             let sites = uses.cell(id).unwrap().sites();
             for site in sites {
                 work(budget, 1)?;
@@ -1160,11 +1161,14 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     return Err(error("native exported cell"));
                 };
                 match usage {
-                    CellUse::Initialize(operation) => {
+                    // `let x;` (R3) is where the local begins: its stores and
+                    // reads follow it, as they follow an initialization.
+                    CellUse::Initialize(operation) | CellUse::Declare(operation) => {
                         if unit != cell.owner || !matches!(initialization, Initialization::Missing)
                         {
                             return Err(error("native unique cell initialization"));
                         }
+                        declared |= matches!(usage, CellUse::Declare(_));
                         initialization = Initialization::Operation(operation);
                     }
                     CellUse::Parameter(_) => {
@@ -1203,6 +1207,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 && program.unit(cell.owner).unwrap().kind == UnitKind::ModuleInitialization;
             if global {
                 captured = false;
+            }
+            if captured && declared {
+                return Err(error("native captured local declared without a value"));
             }
             if captured {
                 if matches!(storage, ValueStorage::Value(NativeType::Callable(_))) {
@@ -2165,6 +2172,12 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     && self.program.cells[cell.index()].owner == unit
                     && self.compatible(self.cell_storage(*cell), operand(0)),
                 "native initialization representation",
+            ),
+            OperationKind::Declare(cell) => expect(
+                matches!(initializations[cell.index()], Initialization::Operation(found) if found == at)
+                    && self.program.cells[cell.index()].owner == unit
+                    && !self.boxed_cell(*cell),
+                "native declaration representation",
             ),
             OperationKind::CheckPlace(place) => {
                 let place = plan.places[place.index()];

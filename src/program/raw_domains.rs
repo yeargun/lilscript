@@ -722,6 +722,8 @@ impl DomainProof {
                                 self.unknown(index, budget)?;
                             }
                         }
+                        // `let x;`: the stores give its values (R3).
+                        CellUse::Declare(_) => initialized = true,
                         CellUse::Parameter(position) => {
                             initialized = true;
                             if program.is_reference_parameter(cell) {

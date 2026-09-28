@@ -414,6 +414,8 @@ pub(super) fn operation_effects(
         Op::Load(place) => place_effects(ctx, values, *place, Access::Read),
         Op::CheckPlace(place) => place_effects(ctx, values, *place, Access::Check),
         Op::Store(place) => place_effects(ctx, values, *place, Access::Write),
+        // `let x;`: nothing runs (R3).
+        Op::Declare(_) => Effects::NONE,
         Op::Initialize(cell) => Effects {
             writes: if ctx.program.cells[cell.index()].owner == ctx.unit {
                 Regions::OWN_CELLS

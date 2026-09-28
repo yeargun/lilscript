@@ -666,6 +666,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     _ => unreachable!("native plan rejects unsupported constants"),
                 }
             }
+            // `let x;`: the C local is declared with its function; its first
+            // store gives it a value (R3).
+            OperationKind::Declare(_) => {}
             OperationKind::Initialize(cell) => {
                 if self.plan.boxed_cell(*cell) {
                     self.write(format_args!(

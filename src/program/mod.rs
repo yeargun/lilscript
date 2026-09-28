@@ -838,6 +838,9 @@ pub enum CallTarget {
 pub enum OperationKind {
     Constant(Constant),
     Initialize(CellId),
+    /// `let x;` (R3): the cell exists, holding no value until its first
+    /// store, which the checker proves precedes every read.
+    Declare(CellId),
     Load(PlaceId),
     /// Validate an evaluated mutable location before its RHS. This observes
     /// access failure, never the old leaf's value or a value conversion.
