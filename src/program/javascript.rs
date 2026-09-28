@@ -75,15 +75,19 @@ fn call_result_recipe(
     }
 }
 
-/// A load's result recipe. A typed load is its type's by R1: an `int` needs no
-/// `|0`. Absence past an array's or a string's end and on a record's missing
-/// key reads as the language's null or empty string until R11's index
-/// precondition and R2's absence land (M10.9).
+/// A load's result recipe. A typed load is its type's by R1: a field's or a
+/// member's `int` needs no `|0`. Absence past an array's or a string's end
+/// and on a record's missing key reads as the language's null, empty string
+/// or 0 until R11's index precondition and R2's absence land (M10.9).
 #[derive(Clone, Copy)]
 enum LoadResultRecipe {
     Raw,
     NullishNull,
     NullishEmptyString,
+    /// An `int` element: past the end is `undefined`, which reads as 0 until
+    /// R11's precondition; a `Uint32Array` element is a uint32, which the
+    /// read converts to int32 whatever the index.
+    IndexInteger,
 }
 fn load_result_recipe(
     program: &Program<'_>,
@@ -112,6 +116,10 @@ fn load_result_recipe(
         && matches!(result_ty, Type::String)
     {
         LoadResultRecipe::NullishEmptyString
+    } else if matches!(unit.places[place.index()], Place::Index { .. })
+        && matches!(result_ty, Type::Int)
+    {
+        LoadResultRecipe::IndexInteger
     } else {
         LoadResultRecipe::Raw
     }
@@ -2963,6 +2971,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 };
                 let right = self.literal(absent)?;
                 Ok(self.save_nullish(unit, operation, raw, right)?)
+            }
+            LoadResultRecipe::IndexInteger => {
+                let value = self.expression(js::Expr::ToInt32(raw))?;
+                Ok(self.save(unit, operation, value)?)
             }
             LoadResultRecipe::Raw => Ok(self.save(unit, operation, raw)?),
         }
