@@ -24,6 +24,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-27 | [Batch A1: canonical formation without tree analysis](#2026-09-27-batch-a1-canonical-formation-without-tree-analysis) | M8.2 A1, M8.1 (imports), M2.3 (`print`), M9.5 (seed), M11.2 | `m8-a1` |
 | 2026-09-27 | [The tools, first part: M2.13, M2.5 and M2.14](#2026-09-27-the-tools-first-part-m213-m25-and-m214) | M2.13, M2.5, M2.14 | `m2-tools` |
 | 2026-09-28 | [Owner decisions: counted budgets, decide statically first, verify per batch](#2026-09-28-owner-decisions-counted-budgets-decide-statically-first-verify-per-batch) | AM1, L22, plan rules 3 and 8 | — |
+| 2026-09-28 | [Batch F1: the floor slice, first part](#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding) | M5.1, M6.4a, M7.8a | `m5-floor` |
 
 ---
 
@@ -559,6 +560,29 @@ The evidence behind AM1:
 - exact Brotli-11 is 55–74% of every production compile;
 - batches T and D bought −88..+7 bytes per port for 2.7× compile time;
 - the search winner is byte-identical at levels 8, 13 and 15 on five of six ports.
+
+## 2026-09-28 Batch F1: the floor slice, first part (edit kernel, DCE, exact values, folding)
+
+**Pre-registration** (written before the first build of the batch; base `222ce5cb`, baseline binary `~/lilscript-work/bin/head-edf870ae`, which differs from the base by documentation only).
+
+What the batch builds:
+- **M5.1, the edit kernel and DCE.** Program rules run once per build on the owned program, after conversion and before any target, so JavaScript, native and every search candidate start from the optimized program (P*). They run at every level. The kernel removes and splices operations and regions, substitutes values, compacts a unit's arenas, and edits the cells table. DCE removes unused operations whose evaluation is not required, dead stores to write-only locals, and named functions nothing reads; the native plan skips units nothing creates.
+- **M6.4a, exact values.** Constants; loads of cells that are initialized once, never reassigned and read after initialization; parameters joined over complete call sets; and call results. Root cells count only under module sealing.
+- **M7.8a, literal and branch folding.** A removable operation with an exact result becomes a constant. `If`, `?:`, short circuits and loops with exact conditions keep only the code that runs.
+
+Predicted, per lane:
+- `comparison/cases`:
+  - `control/dead-branch` from 54 bytes to about 15 raw;
+  - the loss count against the smallest competitor falls (439 on Brotli today);
+  - no case grows beyond the seeded noise band.
+- `comparison/apps`:
+  - `optimizer-pressure` from 357 raw bytes to about 250;
+  - the apps total falls from 945 Brotli.
+- Reference ports: 0 to −300 Brotli each (constant conditions are rare in ports), no port larger beyond noise; gzip and raw move the same way.
+- Compile time: the rule phase adds 1–5% at level 13.
+- Runtime: neutral or better, since the programs execute fewer operations.
+
+Not in this batch: M7.3 and M7.5a (F2). `drop_unreferenced_functions` stays as a transitional rule, because the tree inliners still create unreferenced functions until M7.5a and the inline-or-share choice replace them.
 
 ---
 
