@@ -2321,7 +2321,9 @@ Changes:
 
 Predicted: byte-identical output; its first reader is F1 (M7.4), verified with it.
 
-## 2026-09-29 Batch S1: the edit journal and one rule scheduler (M5.2's journal, M5.3a)
+## 2026-09-29 Batch J1: the edit journal and one rule scheduler (M5.2's journal, M5.3a)
+
+(Its commits are titled `S1`; it is J1 here, to keep step 7's batch S1 distinct.)
 
 **Pre-registration** (written before the first build of the batch; base: D1's pre-registration, whose verification this batch carries).
 
@@ -2359,7 +2361,7 @@ Predicted:
 - **CPU:** up on formation. Each rule set takes at least two rounds (the last confirms). Formation is about 15% of markedlil's and 20% of katexlil's compile time (`LILSCRIPT_TIMING`, `p3-1`: 184 of 1,240 ms and 14.3 of 72.2 s), so expect +5% to +15%. The remedy is M5.7's dirty-unit scheduling.
 - **D1:** the solver and the cell-SSA view have no reader yet; this batch's runs verify them.
 
-**Landed** (binary `s1-1`, and a fix-up):
+**Landed** (binary `j1-1`, and a fix-up). This batch's first run wrote to `bin/s1-1` and `out/s1`, which overwrote step 7's binary (SHA-256 `4fb1870b726a1bd4…`) and four of its result files. O1's run did the same to step 8's `bin/b1-1`. Both old binaries rebuild from their batches' commits, and their numbers stand in their records.
 - **Unit tests:** 1,626 pass, with the journal checked on every rule application in every formation the suite runs. The checks found no unrecorded edit. The first run found five failures, fixed in the fix-up:
   - `encode_tables` recorded its choice sites afresh on each run, so the round confirming the fixed point erased them. It now records each site once, and the tail clears them when it starts: a rule must be idempotent in what it records, not only in what it edits.
   - The per-round verification counted as a formation in the phase counters. It is now untimed.
@@ -2415,9 +2417,11 @@ The fixed point is worth more than any hand order the chain had: every codec gai
 - landed: the chain is gone, the scheduler runs both rule kinds, and every transitional rule names its deleting task;
 - open: the program rules' structural order over SCCs with a dirty worklist, and classifying the remaining JS target rules as their legality moves to the columns (M5.2).
 
-## 2026-09-29 Batch B1: the program's initialization order on the tree (M6.5 through M5.2's columns)
+## 2026-09-29 Batch O1: the program's initialization order on the tree (M6.5 through M5.2's columns)
 
-**Pre-registration** (written before the first build of the batch; base: S1's record).
+(Its commits are titled `B1`; it is O1 here, to keep step 8's batch B1 distinct.)
+
+**Pre-registration** (written before the first build of the batch; base: J1's record).
 
 Why: the tree's rules ask one initialization question: does a root binding hold its value whenever a function runs? Root constants and single-use forwarding into closures depend on the answer. `quiet.rs` answers it from the tree alone: a function may run from the first root statement that could run any program code. The program's initialization owner (M6.5) knows more:
 - the root point that settles each module cell;
@@ -2435,7 +2439,7 @@ What the batch builds:
 
   Forwarding root constants and single-use values into closures, the two consumers, get the stronger answer unchanged.
 - **C3. Root rows carry the program's root point** of the last operation a statement was formed from. A fused row keeps the later point, and an unknown part makes it unknown. `runs_after_root` asks the program too: does the function first run after the statement completes? That is the namespace flattening's question.
-- **C4. The tail runs declaration fusion** (`merge_declarations`, M8.2 A2's first rule). The tail's statement spellings build stores like `c=x?a:b`, and nothing fuses them with their `let` afterwards. `s1-1`'s katexlil keeps 38 adjacent `let c;c=E` pairs, such as `(a,b)=>{let c;c=a===void 0?b:a;return c}`; the 2026-09 splice measured 64 such sites at −104 Brotli.
+- **C4. The tail runs declaration fusion** (`merge_declarations`, M8.2 A2's first rule). The tail's statement spellings build stores like `c=x?a:b`, and nothing fuses them with their `let` afterwards. `j1-1`'s katexlil keeps 38 adjacent `let c;c=E` pairs, such as `(a,b)=>{let c;c=a===void 0?b:a;return c}`; the 2026-09 splice measured 64 such sites at −104 Brotli.
 
 Not in this batch:
 - The deletion of `quiet.rs`'s order waits for the rule-created bindings and functions to carry a transfer.
@@ -2446,9 +2450,9 @@ Predicted:
 - **CPU:** unchanged; two small copies per `order()`.
 - **Tests:** a new syntax test forwards a constant into a function the call graph runs after it, and runs it.
 
-**Landed** (binary `b1-1`, and a fix-up of the new test's source order; the checker refuses a function that reads a constant declared after it):
+**Landed** (binary `o1-1`, and a fix-up of the new test's source order; the checker refuses a function that reads a constant declared after it):
 - **Unit tests:** 1,627 pass, including the new syntax test: a root constant reaches a function the call graph runs after it, and the function runs.
-- **Cases** against `s1-1`: every lane passes; four artifacts change, all smaller.
+- **Cases** against `j1-1`: every lane passes; four artifacts change, all smaller.
 
   | Lane | Script | Module |
   |---|---:|---:|
@@ -2457,8 +2461,8 @@ Predicted:
   | raw | −19 | −33 |
 
   The corpus seldom has early functions that read root constants, or statement-built stores.
-- **Ratchet:** passes; the totals are those of S1.
-- **Unpatched ports** against `s1-1`: all green.
+- **Ratchet:** passes; the totals are those of J1.
+- **Unpatched ports** against `j1-1`: all green.
 
   | Port | Raw | Gzip | Brotli |
   |---|---:|---:|---:|
@@ -2475,7 +2479,7 @@ Predicted:
   - micromarklil's builds are about −145 each.
   - motionlil's growth is spread over 193 of its 622 parts, most of them under 600 bytes, where Brotli moves by tens of bytes for a few raw ones.
   - jquerylil's raw growth is string constants that now reach more functions. Every literal forwards, and the codec keeps the repeats.
-- **CPU pairs** against `s1-1`:
+- **CPU pairs** against `j1-1`:
 
   | Port | Factor | Judged |
   |---|---:|---:|
@@ -2487,7 +2491,7 @@ Predicted:
   | jquerylil | ×0.93 | 38 → 29 |
   | motionlil | ×1.01 | 36 → 36 |
 
-  The walks judge fewer candidates on smaller trees. This undoes most of S1's slowdown.
+  The walks judge fewer candidates on smaller trees. This undoes most of J1's slowdown.
 
 The program's order is worth far more than the prediction: the fleet is −6,156 Brotli, against about −300 predicted. Most of it is katexlil, where both halves act on the same functions:
 - a root constant forwarded into an early function;
@@ -2497,11 +2501,13 @@ M6.5's first consumer is now the tree: `settled` and `first_run` reach the rules
 - `quiet.rs`'s own order stays as the fallback for what rules create;
 - deleting it waits for transfers on rule-created bindings and functions (M5.2).
 
-## 2026-09-29 Batch B2: A2's small rules (the dead `let`, C9, C19)
+## 2026-09-29 Batch A2a: A2's small rules (the dead `let`, C9, C19)
 
-**Pre-registration** (written before the first build of the batch; base: B1's record).
+(Its commits are titled `B2`; it is A2a here, to keep step 8's batch B2 distinct.)
 
-Why: batch A2 lists these as JS target rules on the tree's columns: `let x; x = E` fusion, a dead `let` whose initializer is discardable, C9 (known pure constructions) and C19 (`globalThis.<builtin>`). B1 brought the fusion to the tail; this batch takes the other three. `s1-1`'s outputs:
+**Pre-registration** (written before the first build of the batch; base: O1's record).
+
+Why: batch A2 lists these as JS target rules on the tree's columns: `let x; x = E` fusion, a dead `let` whose initializer is discardable, C9 (known pure constructions) and C19 (`globalThis.<builtin>`). O1 brought the fusion to the tail; this batch takes the other three. `j1-1`'s outputs:
 - zodlil reads `globalThis.RegExp` and constructs `new globalThis.RegExp("…")` with a literal pattern;
 - the tree keeps a declaration no code reads when its value has effects (`let x=f()`) whole;
 - a regular-expression literal counts as an effect.
