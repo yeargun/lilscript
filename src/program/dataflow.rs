@@ -53,6 +53,16 @@ pub(super) trait Forward {
     /// the per-iteration binding of a `for…in` or `for…of` at its body's
     /// entry, or a catch binding at its region's entry.
     fn transfer(&self, unit: &UnitData, operation: OpId, state: &mut Self::State);
+
+    /// What a branch's outcome adds: the state entering the `taken` side of
+    /// `operation`'s test (an `if`, or a loop continuing when `taken` and
+    /// leaving otherwise). Nothing by default.
+    fn branch(&self, _unit: &UnitData, _operation: OpId, _taken: bool, _state: &mut Self::State) {}
+
+    /// Widen a loop head after its first iteration: `next` follows
+    /// `previous`, and an analysis whose lattice has infinite ascending
+    /// chains jumps ahead here so the loop settles. Nothing by default.
+    fn widen(&self, _previous: &Self::State, _next: &mut Self::State) {}
 }
 
 /// Why a solve stopped without an answer.
@@ -154,10 +164,14 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
         let analysis = self.analysis;
         Ok(match unit.operations[operation.index()].kind {
             OperationKind::If { yes, no } => {
-                let mut out = self.region(yes, state.clone())?;
+                let mut taken = state.clone();
+                analysis.branch(unit, operation, true, &mut taken);
+                let mut other = state;
+                analysis.branch(unit, operation, false, &mut other);
+                let mut out = self.region(yes, taken)?;
                 let other = match no {
-                    Some(no) => self.region(no, state)?,
-                    None => state,
+                    Some(no) => self.region(no, other)?,
+                    None => other,
                 };
                 analysis.join(&mut out, &other);
                 out
@@ -186,11 +200,15 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                 });
                 self.fixed_point(state, |solver, head| {
                     let tested = solver.region(test, head)?;
-                    let bodied = solver.region(body, tested.clone())?;
+                    let mut entered = tested.clone();
+                    solver.analysis.branch(unit, operation, true, &mut entered);
+                    let bodied = solver.region(body, entered)?;
                     let exits = if endless {
                         solver.analysis.unreachable()
                     } else {
-                        tested
+                        let mut left = tested;
+                        solver.analysis.branch(unit, operation, false, &mut left);
+                        left
                     };
                     Ok((exits, bodied))
                 }, Some(update))?
@@ -262,7 +280,7 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
     ) -> Result<A::State, Stop<E>> {
         let analysis = self.analysis;
         let mut head = entry.clone();
-        for _ in 0..self.bound {
+        for round in 0..self.bound {
             self.targets.push(Target {
                 kind: TargetKind::Loop,
                 state: analysis.unreachable(),
@@ -278,6 +296,9 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
             };
             let mut next = entry.clone();
             analysis.join(&mut next, &back);
+            if round > 0 {
+                analysis.widen(&head, &mut next);
+            }
             if next == head {
                 let mut out = exits;
                 analysis.join(&mut out, &target.state);
