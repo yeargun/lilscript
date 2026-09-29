@@ -2520,3 +2520,47 @@ fn development_checks_export_parameters() {
     assert_eq!(String::from_utf8(output.stdout).unwrap(), "[9,\"TypeError\"]\n", "{javascript}");
 }
 
+
+/// A value range through a cell (M6.4b): `n&255` is in [0,255], so is `t`
+/// wherever that store reaches, and `t*3+1` stays in int32 without `|0`.
+#[test]
+fn a_range_through_a_cell_needs_no_int32_normalization() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export int scaled(int n) {
+            int t = n & 255;
+            t = t * 3;
+            return t + 1;
+        }
+        show(JS.box(scaled(1000)));
+        "#,
+        PRISTINE,
+    );
+    assert!(!javascript.contains("|0"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "697\n");
+}
+
+/// A callee's result range (M6.4b): each branch of `clamp` bounds what it
+/// returns, so the product of two clamped values and a small constant stays
+/// in int32.
+#[test]
+fn a_callee_result_range_bounds_its_callers_arithmetic() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        int clamp(int v) {
+            if (v < -120) { return -120; }
+            if (v > 120) { return 120; }
+            return v;
+        }
+        export int score(int a, int b) {
+            return clamp(a) * clamp(b) + 7;
+        }
+        show(JS.box(score(500, -3)));
+        "#,
+        PRISTINE,
+    );
+    assert!(!javascript.contains("|0"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "-353\n");
+}
