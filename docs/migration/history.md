@@ -2415,6 +2415,37 @@ The fixed point is worth more than any hand order the chain had: every codec gai
 - landed: the chain is gone, the scheduler runs both rule kinds, and every transitional rule names its deleting task;
 - open: the program rules' structural order over SCCs with a dirty worklist, and classifying the remaining JS target rules as their legality moves to the columns (M5.2).
 
+## 2026-09-29 Batch B1: the program's initialization order on the tree (M6.5 through M5.2's columns)
+
+**Pre-registration** (written before the first build of the batch; base: S1's record).
+
+Why: the tree's rules ask one initialization question: does a root binding hold its value whenever a function runs? Root constants and single-use forwarding into closures depend on the answer. `quiet.rs` answers it from the tree alone: a function may run from the first root statement that could run any program code. The program's initialization owner (M6.5) knows more:
+- the root point that settles each module cell;
+- the first point during which each unit may run, over the call graph.
+
+It computes both on every build, and nothing on the tree reads them. The 2026-09 record measured the gap on the fleet: roughly −90 to −160 Brotli on zodlil (41 enum kinds, 229 reads), −124 on motionlil, −41 to −55 on posthoglil, and a spread on katexlil.
+
+What the batch builds:
+- **C1. Two columns on the module**, indexed by id and charged as retained output.
+  - By binding: the point settling the module cell that a formed binding stores.
+  - By function: the first point during which a formed function's unit may run.
+
+  Formation writes them from the demand plan's initialization owner. A binding or function that a rule creates has neither.
+- **C2. `Order::initialized_in` reads the program's answer first**: the cell settles before the function's first point. The tree's own answer stays as the fallback for what rules created.
+
+  Forwarding root constants and single-use values into closures, the two consumers, get the stronger answer unchanged.
+- **C3. Root rows carry the program's root point** of the last operation a statement was formed from. A fused row keeps the later point, and an unknown part makes it unknown. `runs_after_root` asks the program too: does the function first run after the statement completes? That is the namespace flattening's question.
+- **C4. The tail runs declaration fusion** (`merge_declarations`, M8.2 A2's first rule). The tail's statement spellings build stores like `c=x?a:b`, and nothing fuses them with their `let` afterwards. `s1-1`'s katexlil keeps 38 adjacent `let c;c=E` pairs, such as `(a,b)=>{let c;c=a===void 0?b:a;return c}`; the 2026-09 splice measured 64 such sites at −104 Brotli.
+
+Not in this batch:
+- The deletion of `quiet.rs`'s order waits for the rule-created bindings and functions to carry a transfer.
+
+Predicted:
+- **Output:** smaller where functions declared early read root constants (zodlil first, then motionlil and posthoglil), and on katexlil from C4.
+- **katexlil:** may grow where a forwarded string literal repeats (as recorded), within the ±0.5% fleet band.
+- **CPU:** unchanged; two small copies per `order()`.
+- **Tests:** a new syntax test forwards a constant into a function the call graph runs after it, and runs it.
+
 ---
 
 ## Appendix: where milestones 001–014 went
