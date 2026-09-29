@@ -2160,6 +2160,28 @@ Predicted: byte-identical output everywhere against `n1-1`.
 
 **Landed** (binary `n2-1`): 1,613 unit tests pass (C3 adds a test that a module declaring an extern with other attributes is refused); every case lane passes with 0 artifacts changed against `n1-1`; the ratchet's 1,890 artifacts are byte-identical.
 
+## 2026-09-29 Batch P1: the tree's first annotations (M5.2, first batch)
+
+**Pre-registration** (written before the first build of the batch; base: N2's record).
+
+Why: M5.2 puts facts on the JavaScript tree's nodes, renumbered by the arena itself, so that no caller remaps anything. Three facts still live beside the tree:
+- `binding_classes` and `defined_parameters`, sparse lists on the module;
+- `literal_alternatives`, the string literals the source observes only for truthiness or nullishness. Formation owns them, remaps them by hand after each renumbering (about twelve places), and copies them into a `protected` slice for each of five passes (M5.2: "the hand remaps and the `protected` protocol go").
+
+What the batch builds:
+- **Binding facts on the binding.** `Binding::class` (what formation knows it always holds) and `Binding::defined` (a parameter whose type excludes `undefined`) replace the two lists.
+- **Observed literals on the module.** `Module::observed_literals` is renumbered inside `renumber`, with its expressions. A pass asks `Module::observed(id)` instead of taking a `protected` slice. Formation's copy, the slices and every hand remap go. A formed head and a tail carry just the module, and preparation reads the module's rows where it read the target's.
+
+Only expressions are renumbered (bindings, regions and functions keep their ids), so a fact on a binding needs no transfer, and the observed literals' transfer is the renumbering map.
+
+Changes:
+- **C1.** Binding facts on the binding.
+- **C2.** Observed literals on the module; the `protected` protocol goes.
+
+Predicted: byte-identical output. Tests that sum a module's retained storage follow the moved facts.
+
+Next (P2 onward): typed mutation helpers with the journal, then the evaluation-behaviour and binding-fact columns that let `quiet.rs` go (L20: only once they pass their debug verification).
+
 ---
 
 ## Appendix: where milestones 001–014 went
