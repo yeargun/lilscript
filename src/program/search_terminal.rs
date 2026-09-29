@@ -178,6 +178,10 @@ pub struct TerminalObjective {
     pub choices_scored: usize,
     /// Formations made only to read the incumbent's choice sites (0 or 1).
     pub surveys: usize,
+    /// Heads formed: one for each start walked in formations of its own,
+    /// and the head with the other `int32-hints` value wherever a
+    /// challenger asked for it.
+    pub heads: usize,
     /// Every choice alternative offered, in schedule order: sites by the
     /// largest estimated saving, then each site's alternatives by theirs.
     pub choice_trials: Vec<ChoiceTrial>,
@@ -1498,6 +1502,7 @@ impl JavaScriptSearch<'_, '_> {
             choices_tried: 0,
             choices_scored: 0,
             surveys: 0,
+            heads: 0,
             choice_trials: Vec::new(),
             choices: Vec::new(),
             joints_tried: 0,
@@ -1623,15 +1628,18 @@ impl JavaScriptSearch<'_, '_> {
                     memo: Vec::new(),
                     replay,
                 };
-                walker.walk_start(name, origin.clone())?;
-                if restarts {
-                    for &style in &naming {
-                        if style != origin.plan.style {
-                            walker.restart(&origin, style)?;
+                let walked = walker.walk_start(name, origin.clone()).and_then(|()| {
+                    if restarts {
+                        for &style in &naming {
+                            if style != origin.plan.style {
+                                walker.restart(&origin, style)?;
+                            }
                         }
                     }
-                }
-                Ok(())
+                    Ok(())
+                });
+                walker.report.heads += 1 + usize::from(walker.formations.other_head_formed());
+                walked
             },
         );
         match formed {

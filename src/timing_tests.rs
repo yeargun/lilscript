@@ -68,16 +68,20 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             .map(|stage| stage["surveys"].as_u64().unwrap())
             .sum();
         // Each start the portfolio holds (the search's winner, the level-0
-        // artifact) is walked in formations of its own, from one head.
+        // artifact) is walked in formations of its own, from one head, and
+        // forms the head with the other int32 hints if a challenger asks.
         let heads: u64 = stages
             .iter()
             .map(|stage| {
-                stage["starts"]
+                let starts = stage["starts"]
                     .as_array()
                     .unwrap()
                     .iter()
                     .filter(|start| matches!(start["name"].as_str(), Some("search" | "level-0")))
-                    .count() as u64
+                    .count() as u64;
+                let heads = stage["heads"].as_u64().unwrap();
+                assert!((starts..=2 * starts).contains(&heads), "{stage}");
+                heads
             })
             .sum();
         let terminal_encodes: u64 = stages
