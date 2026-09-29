@@ -1044,10 +1044,14 @@ fn form_tail(
     else {
         module.loop_head_declarations = false;
         module.logical_statements = false;
+        module.compound_assignments = false;
+        module.quotes = false;
         return Ok(module);
     };
     module.loop_head_declarations = families.loop_heads;
     module.logical_statements = families.logical_statements;
+    module.compound_assignments = families.compound_assignments;
+    module.quotes = families.quotes;
     // The tail edits storage the head admitted, and can release it: it runs
     // in the scope that owns the head's charges.
     let mut formation = Tail {

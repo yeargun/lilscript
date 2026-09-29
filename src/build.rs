@@ -887,7 +887,7 @@ fn deliver_javascript(
             "source_names":plan.source_names.iter().map(|id|id.index()).collect::<Vec<_>>(),
             "output":{"dead_code_elimination":view.output.dead_code_elimination,
                 "target_compaction":view.output.target_compaction,"literals":format!("{:?}",view.output.literals),
-                "families":format!("{:?}",view.output.families),"raw_spelling":plan.raw_spelling,
+                "families":format!("{:?}",view.output.families),"self_named":plan.self_named,"read_order":plan.read_order,
                 "choices":view.output.choices.iter().map(|(key,alternative)| json!({"family":key.family,"site":key.site,"alternative":alternative.0})).collect::<Vec<_>>()},
             "sizes":[Some(view.sizes.raw),view.sizes.gzip9,view.sizes.brotli11],
             "delivery":view.layout.map(|layout| delivery_report(layout, view.files)),

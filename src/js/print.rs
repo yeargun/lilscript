@@ -698,15 +698,12 @@ impl<'a> Printer<'a, '_, '_> {
             _ => precedence(expression),
         }
     }
-    /// A string in `"`, or for raw bytes in the quote it escapes least
-    /// (`'{"a":1}'`). A codec keeps one delimiter: the escaped `\"` pairs
-    /// of a JSON text compress well, and switching quotes costs more than
-    /// the escapes (react-markdown's entity table: −7,008 raw, +53 Brotli;
-    /// katexlil's `' class="'` strings, +80 Brotli).
+    /// A string in `"`, or under the `quotes` family in the quote it escapes
+    /// least (`'{"a":1}'`).
     fn string(&mut self, value: &StringValue) {
         let quote = match value.as_unicode() {
             Some(text)
-                if self.names.raw() && text.matches('"').count() > text.matches('\'').count() =>
+                if self.module.quotes && text.matches('"').count() > text.matches('\'').count() =>
             {
                 '\''
             }
@@ -1572,16 +1569,6 @@ impl<'a> Printer<'a, '_, '_> {
                 continue;
             }
             let last = index + 1 == statements.len();
-            if !declaring {
-                let consumed = self.conditional_statement(statement, statements.get(index + 1));
-                if consumed > 0 {
-                    if !(index + consumed == statements.len() && closing) {
-                        self.text(";");
-                    }
-                    skip = consumed - 1;
-                    continue;
-                }
-            }
             if let Statement::Let { binding, value } = statement {
                 self.text(if declaring { "," } else { "let " });
                 self.text(self.names.get(*binding));
@@ -1604,7 +1591,8 @@ impl<'a> Printer<'a, '_, '_> {
         }
     }
 
-    /// Under a raw plan, `x=x+y` prints as `x+=y` (and so for the other
+    /// Under the `compound_assignments` family, `x=x+y` prints as `x+=y`
+    /// (and so for the other
     /// arithmetic and bitwise operators) when evaluating the target twice is
     /// the same as once: a binding, or a named property of a binding or
     /// `this`. Returns the operator and its right operand.
@@ -1631,7 +1619,7 @@ impl<'a> Printer<'a, '_, '_> {
     }
 
     fn compound(&self, target: ExprId, value: ExprId) -> Option<(Binary, ExprId)> {
-        if !self.names.raw() {
+        if !self.module.compound_assignments {
             return None;
         }
         let Expr::Binary { op, left, right } = &self.module.expressions[value.index()] else {
@@ -1669,61 +1657,6 @@ impl<'a> Printer<'a, '_, '_> {
         (target_place == left_place).then_some((*op, *right))
     }
 
-    /// Under a raw plan, `if(c)return a;return b` prints as `return c?a:b`
-    /// and `if(c)x=a;else x=b` as `x=c?a:b`. Returns how many statements the
-    /// spelling consumed.
-    /// The terminating `;` is the caller's, which knows whether a `}` follows.
-    fn conditional_statement(&mut self, statement: &Statement, next: Option<&Statement>) -> usize {
-        if !self.names.raw() {
-            return 0;
-        }
-        let Statement::If { condition, yes, no } = statement else {
-            return 0;
-        };
-        let only =
-            |region: RegionId| match self.module.regions[region.index()].statements.as_slice() {
-                [only] => Some(only),
-                _ => None,
-            };
-        let returned = |statement: Option<&Statement>| match statement {
-            Some(Statement::Return(Some(value))) => Some(*value),
-            _ => None,
-        };
-        let assigned = |statement: Option<&Statement>| match statement {
-            Some(Statement::Evaluate(value)) => match &self.module.expressions[value.index()] {
-                Expr::Assign { target, value } => match self.module.expressions[target.index()] {
-                    Expr::Binding(binding) => Some((binding, *target, *value)),
-                    _ => None,
-                },
-                _ => None,
-            },
-            _ => None,
-        };
-        if let Some(yes_value) = returned(only(*yes)) {
-            let (no_value, consumed) = match no {
-                Some(no) => (returned(only(*no)), 1),
-                None => (returned(next), 2),
-            };
-            if let Some(no_value) = no_value {
-                self.text("return");
-                let at = self.output.text.len();
-                self.conditional_parts(*condition, yes_value, no_value);
-                self.output.separate_word(at);
-                return consumed;
-            }
-        }
-        if let (Some((binding, target, yes_value)), Some(no)) = (assigned(only(*yes)), no) {
-            if let Some((other, _, no_value)) = assigned(only(*no)) {
-                if other == binding {
-                    self.expression(target, 18);
-                    self.text("=");
-                    self.conditional_parts(*condition, yes_value, no_value);
-                    return 1;
-                }
-            }
-        }
-        0
-    }
 
     fn conditional_parts(&mut self, condition: ExprId, yes: ExprId, no: ExprId) {
         // `c?a:b` groups a condition below `||`/`??` level and branches
@@ -1739,23 +1672,9 @@ impl<'a> Printer<'a, '_, '_> {
     /// one `let`, and every statement keeps its `;`.
     fn statement_list(&mut self, statements: &[Statement], order: &[usize]) {
         let mut declaring = false;
-        let mut skip = 0;
         for (position, &index) in order.iter().enumerate() {
             if !self.output.work(1) {
                 return;
-            }
-            if skip > 0 {
-                skip -= 1;
-                continue;
-            }
-            if !declaring {
-                let next = order.get(position + 1).map(|&next| &statements[next]);
-                let consumed = self.conditional_statement(&statements[index], next);
-                if consumed > 0 {
-                    self.text(";");
-                    skip = consumed - 1;
-                    continue;
-                }
             }
             if let Statement::Let { binding, value } = &statements[index] {
                 self.text(if declaring { "," } else { "let " });
@@ -1821,7 +1740,7 @@ impl<'a> Printer<'a, '_, '_> {
             }
             Statement::If { condition, yes, no }
                 if no.is_none()
-                    && (self.module.logical_statements || self.names.raw())
+                    && self.module.logical_statements
                     && self.logical_statement(*condition, *yes) =>
             {
                 end(self);

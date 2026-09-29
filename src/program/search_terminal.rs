@@ -290,7 +290,10 @@ fn spelling_names(spelling: Spelling) -> Vec<&'static str> {
         (statements.conditional_values, Challenger::ConditionalValues),
         (statements.exit_points, Challenger::ExitPoints),
         (statements.loop_fusion, Challenger::LoopFusion),
-        (spelling.raw_spelling, Challenger::RawSpelling),
+        (spelling.self_named, Challenger::SelfNamed),
+        (spelling.read_order, Challenger::ReadOrder),
+        (families.compound_assignments, Challenger::CompoundAssignments),
+        (families.quotes, Challenger::Quotes),
         (families.loop_heads, Challenger::LoopHeads),
         (families.logical_statements, Challenger::LogicalStatements),
         (families.block_inlining, Challenger::BlockInlining),
@@ -429,7 +432,8 @@ impl Judge<'_> {
         let named = Plan {
             style: plan.style,
             source_names: plan.source_names.clone(),
-            raw_spelling: spelling.raw_spelling,
+            self_named: spelling.self_named,
+            read_order: spelling.read_order,
         };
         let rendered = formations
             .form(tactics, |target| {
@@ -1146,7 +1150,8 @@ impl Walker<'_, '_, '_> {
                     Some(style) => Plan {
                         style,
                         source_names: Vec::new(),
-                        raw_spelling: incumbent.spelling.raw_spelling,
+                        self_named: incumbent.spelling.self_named,
+                        read_order: incumbent.spelling.read_order,
                     },
                     None => incumbent.plan.clone(),
                 };
@@ -1313,7 +1318,8 @@ impl Walker<'_, '_, '_> {
         let plan = Plan {
             style,
             source_names: Vec::new(),
-            raw_spelling: origin.spelling.raw_spelling,
+            self_named: origin.spelling.self_named,
+            read_order: origin.spelling.read_order,
         };
         let (measured, proxy, probed) = self.judge.measure(
             self.formations,
@@ -1523,7 +1529,8 @@ impl JavaScriptSearch<'_, '_> {
         let plan = provenance.naming();
         report.spelling = spelling_names(Spelling {
             families: provenance.description().output().families,
-            raw_spelling: plan.raw_spelling,
+            self_named: plan.self_named,
+            read_order: plan.read_order,
         });
         report.style = format!("{:?}", plan.style);
         debug_assert!(report.after <= report.searched);
@@ -1571,7 +1578,8 @@ impl JavaScriptSearch<'_, '_> {
             artifact,
             spelling: Spelling {
                 families: output.families,
-                raw_spelling: plan.raw_spelling,
+                self_named: plan.self_named,
+                read_order: plan.read_order,
             },
             choices: output.choices.clone(),
             plan,

@@ -84,8 +84,18 @@ pub struct OutputFamilies {
     /// Print `{let i=v;for(;c;u)b}` as `for(let i=v;c;u)b`.
     pub loop_heads: bool,
     /// Print `if(c)e;` as `c&&e;` (and `if(!c)e;` as `c||e;`) where neither
-    /// side needs grouping. A raw naming plan prints this spelling anyway.
+    /// side needs grouping.
     pub logical_statements: bool,
+    /// Print `x=x+y` as `x+=y` (for a binding or a named property of one or
+    /// of `this`): shorter, but a repeated `x=x+` is nearly free under a
+    /// codec.
+    pub compound_assignments: bool,
+    /// Print a string in the quote it escapes least (`'{"a":1}'`). A codec
+    /// keeps one delimiter: the escaped `\"` pairs of a JSON text compress
+    /// well, and switching quotes costs more than the escapes
+    /// (react-markdown's entity table: −7,008 raw, +53 Brotli; katexlil's
+    /// `' class="'` strings, +80 Brotli).
+    pub quotes: bool,
     /// A redundant `|0` where the compiler printed one before R1, R10 and
     /// R11 made it unnecessary: after an `int` field, member or element read,
     /// an `int` host call's result, and an integer method's result without
@@ -107,13 +117,14 @@ impl OutputFamilies {
         string_pooling: false,
         loop_heads: false,
         logical_statements: false,
+        compound_assignments: false,
+        quotes: false,
         int32_hints: false,
     };
 
     /// The alternative each family starts from under `codec`. Raw bytes seed
     /// every raw-shaped family on; a codec seeds only the loop-head spelling,
-    /// which was never measured larger there. The logical-statement print is
-    /// part of the raw naming plan's spelling, so its own flag stays off.
+    /// which was never measured larger there.
     pub fn seed(codec: Objective) -> Self {
         match codec {
             Objective::Raw => Self {
@@ -122,7 +133,9 @@ impl OutputFamilies {
                 statements: StatementSpellings::ALL,
                 string_pooling: true,
                 loop_heads: true,
-                logical_statements: false,
+                logical_statements: true,
+                compound_assignments: true,
+                quotes: true,
                 int32_hints: false,
             },
             Objective::Gzip | Objective::Brotli => Self {
@@ -131,25 +144,20 @@ impl OutputFamilies {
             },
         }
     }
-
-    /// The same printed program: a raw naming plan already prints logical
-    /// statements, so under one the flag makes no difference.
-    fn effective(self, raw_spelling: bool) -> Self {
-        Self {
-            logical_statements: self.logical_statements || raw_spelling,
-            ..self
-        }
-    }
 }
 
 /// One complete output assignment a terminal challenger proposes: the
-/// families formation applies and the naming plan's raw spelling.
+/// families formation applies and the naming plan's two members.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Spelling {
     pub families: OutputFamilies,
-    /// `Plan::raw_spelling`: self-named functions, compound assignment,
-    /// statement-consuming conditionals, logical statements and quotes.
-    pub raw_spelling: bool,
+    /// `Plan::self_named`: each function that is not an arrow and has an
+    /// exact name prints as `function name(){…}`, so the binding holding it
+    /// takes a short name.
+    pub self_named: bool,
+    /// `Plan::read_order`: the root's most read bindings take its shortest
+    /// names.
+    pub read_order: bool,
 }
 
 impl Spelling {
@@ -157,16 +165,16 @@ impl Spelling {
     pub fn seed(codec: Objective) -> Self {
         Self {
             families: OutputFamilies::seed(codec),
-            raw_spelling: codec == Objective::Raw,
+            self_named: codec == Objective::Raw,
+            read_order: codec == Objective::Raw,
         }
     }
 
-    /// Two assignments that print the same program compare equal here.
+    /// Two assignments that print the same program compare equal here: since
+    /// the raw spelling's members are families of their own (M8.3), each
+    /// assignment prints its own program.
     pub fn effective(self) -> Self {
-        Self {
-            families: self.families.effective(self.raw_spelling),
-            raw_spelling: self.raw_spelling,
-        }
+        self
     }
 }
 
@@ -196,7 +204,10 @@ pub enum Challenger {
     ConditionalValues,
     ExitPoints,
     LoopFusion,
-    RawSpelling,
+    SelfNamed,
+    ReadOrder,
+    CompoundAssignments,
+    Quotes,
     LoopHeads,
     LogicalStatements,
     BlockInlining,
@@ -209,13 +220,16 @@ pub enum Challenger {
 
 impl Challenger {
     /// The declared schedule.
-    pub const ORDER: [Self; 13] = [
+    pub const ORDER: [Self; 16] = [
         Self::Int32Hints,
         Self::ConditionalValues,
         Self::ExitPoints,
         Self::LoopFusion,
         Self::BlockInlining,
-        Self::RawSpelling,
+        Self::SelfNamed,
+        Self::ReadOrder,
+        Self::CompoundAssignments,
+        Self::Quotes,
         Self::LogicalStatements,
         Self::ConditionalReturns,
         Self::OtherSeed,
@@ -231,7 +245,10 @@ impl Challenger {
             Self::ConditionalValues => "conditional-values",
             Self::ExitPoints => "exit-points",
             Self::LoopFusion => "loop-fusion",
-            Self::RawSpelling => "raw-spelling",
+            Self::SelfNamed => "self-named-functions",
+            Self::ReadOrder => "read-order",
+            Self::CompoundAssignments => "compound-assignments",
+            Self::Quotes => "quotes",
             Self::LoopHeads => "loop-heads",
             Self::LogicalStatements => "logical-statements",
             Self::BlockInlining => "block-inlining",
@@ -246,7 +263,7 @@ impl Challenger {
     /// Whether the challenger changes formation (and so needs target
     /// compaction's permission), rather than only the naming plan.
     pub fn forms(self) -> bool {
-        !matches!(self, Self::RawSpelling)
+        !matches!(self, Self::SelfNamed | Self::ReadOrder)
     }
 
     /// This challenger's assignment, applied to the incumbent's under
@@ -273,7 +290,10 @@ impl Challenger {
             }
             Self::LogicalBranches => families.statements.logical_branches ^= true,
             Self::Int32Hints => families.int32_hints ^= true,
-            Self::RawSpelling => next.raw_spelling ^= true,
+            Self::SelfNamed => next.self_named ^= true,
+            Self::ReadOrder => next.read_order ^= true,
+            Self::CompoundAssignments => families.compound_assignments ^= true,
+            Self::Quotes => families.quotes ^= true,
             Self::LoopHeads => families.loop_heads ^= true,
             Self::LogicalStatements => families.logical_statements ^= true,
             Self::BlockInlining => families.block_inlining ^= true,
@@ -315,21 +335,25 @@ mod tests {
         );
     }
 
+    /// The raw spelling's members are families of their own (M8.3): each
+    /// changes the printed program under every seed.
     #[test]
-    fn a_raw_plan_prints_logical_statements_either_way() {
-        let raw = Spelling::seed(Objective::Raw);
-        assert_eq!(
-            Challenger::LogicalStatements
-                .apply(Objective::Raw, raw)
-                .effective(),
-            raw.effective()
-        );
-        let brotli = Spelling::seed(Objective::Brotli);
-        assert_ne!(
-            Challenger::LogicalStatements
-                .apply(Objective::Brotli, brotli)
-                .effective(),
-            brotli.effective()
-        );
+    fn the_raw_spellings_members_are_each_a_family() {
+        for codec in [Objective::Raw, Objective::Brotli] {
+            let seed = Spelling::seed(codec);
+            for challenger in [
+                Challenger::SelfNamed,
+                Challenger::ReadOrder,
+                Challenger::CompoundAssignments,
+                Challenger::Quotes,
+                Challenger::LogicalStatements,
+            ] {
+                assert_ne!(
+                    challenger.apply(codec, seed).effective(),
+                    seed.effective(),
+                    "{challenger:?} under {codec:?}"
+                );
+            }
+        }
     }
 }

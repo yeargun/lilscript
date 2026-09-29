@@ -1060,6 +1060,12 @@ pub struct Module {
     /// but measured +34 Brotli on zodlil and +38 on katexlil (−4 on
     /// markedlil), so the codec judges it per artifact as well.
     pub logical_statements: bool,
+    /// Print `x=x+y` as `x+=y`: the `compound_assignments` output family,
+    /// written here by formation (M8.3: a family of its own).
+    pub compound_assignments: bool,
+    /// Print a string in the quote it escapes least: the `quotes` output
+    /// family, written here by formation (M8.3).
+    pub quotes: bool,
     /// The `int32_hints` output family, written here by formation: an
     /// integer method's result prints its `|0` as the compiler printed it
     /// before R10 (only without pristine builtins).
@@ -3341,6 +3347,8 @@ impl Module {
             carried: vec![],
             loop_head_declarations: false,
             logical_statements: false,
+            compound_assignments: false,
+            quotes: false,
             int32_hints: false,
             choice_sites: Vec::new(),
             observed_literals: Vec::new(),
