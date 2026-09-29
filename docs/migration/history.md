@@ -2321,6 +2321,44 @@ Changes:
 
 Predicted: byte-identical output; its first reader is F1 (M7.4), verified with it.
 
+## 2026-09-29 Batch S1: the edit journal and one rule scheduler (M5.2's journal, M5.3a)
+
+**Pre-registration** (written before the first build of the batch; base: D1's pre-registration, whose verification this batch carries).
+
+Why: the tree's rules still run as a hand-written chain (`src/program/javascript.rs`, 54 calls):
+- the order and the rounds are fixed by hand: `for _ in 0..3`, `fold_stores`'s four, and "if the last pass changed something, run this one";
+- nothing records what a pass changed.
+
+M5.2 asks for typed mutation helpers that journal every edit, checked against the actual difference. M5.3a asks for one journal-driven scheduler: rule sets to their fixed point, a round ceiling that fails the build, the verifier after each round in debug builds, and the chain deleted as a chain.
+
+What the batch builds:
+- **C1. The journal** (`src/js/journal.rs`).
+  - Every edit of a tree slot that existed when a rule started goes through a helper: `set_expression`, `expression_mut`, `statements_mut`, `set_statement`, `set_region_scope`, `binding_mut`, `function_mut`, `tables_mut`, and the root-row helpers.
+  - Each helper records the region, node, binding, function or table it edits. `renumber` carries the node entries.
+  - About 60 direct writes across 13 files are routed through the helpers.
+  - Test and debug builds check a rule's journal against the actual difference. Every changed region still reachable, every binding, function and table must be recorded, compared by structural digest so a renumbering changes none. A rule that recorded an edit must have changed something.
+- **C2. One scheduler** (`src/schedule.rs`) for the program rules and the JavaScript target rules.
+  - The program rules' own loop moves onto it unchanged.
+  - The JS passes become data (`src/js/rules.rs`), in the chain's relative order, each marked transitional with the task that deletes it (§8.2's table). The four fact-free rules are classified, and test builds assert that each of their applications strictly decreases the measure (reachable functions, then reachable nodes): `elide_undefined`, `drop_unreachable`, `drop_bare_blocks`, `drop_double_negations`.
+  - Three rule sets:
+    - the head (family-independent);
+    - the tail (the artifact's families);
+    - string pooling.
+
+    Each runs to its fixed point: a round in which no rule recorded an edit.
+  - A ceiling of 64 rounds fails the build.
+  - Test and debug builds verify the tree after every round.
+  - The chain's hand rounds, its conditionals on what changed, and `fold_stores` are deleted. The inliner's limit 6 stays as a parameter of its transitional rule, deleted with it (M7.5a).
+
+Predicted:
+- **Unit suite:** passes with the journal checks active; an unrecorded edit the checks find is routed in this batch.
+- **Output:** changes, since every rule set now reaches its fixed point (a rule that exposes work for an earlier one gets it next round).
+  - Expected: small net decreases from more forwarding and folding, with scattered growths from the new interleavings.
+  - The fleet should not move by more than ±0.5%.
+  - Judged by the totals (2026-09-29 ruling).
+- **CPU:** up on formation. Each rule set takes at least two rounds (the last confirms). Formation is about 15% of markedlil's and 20% of katexlil's compile time (`LILSCRIPT_TIMING`, `p3-1`: 184 of 1,240 ms and 14.3 of 72.2 s), so expect +5% to +15%. The remedy is M5.7's dirty-unit scheduling.
+- **D1:** the solver and the cell-SSA view have no reader yet; this batch's runs verify them.
+
 ---
 
 ## Appendix: where milestones 001–014 went
