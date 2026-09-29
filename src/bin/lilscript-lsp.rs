@@ -8,7 +8,7 @@ use lilscript::ast::{ClassMember, ExternClassMember, Item, Stmt};
 use lilscript::check::analyze;
 use lilscript::config::{load_project_config, ProjectConfig};
 use lilscript::formatter::format_source;
-use lilscript::lexer::{lex, lex_lossless, SyntaxElement, TokenKind, TriviaKind};
+use lilscript::lexer::{lex_lossless, SyntaxElement, TokenKind, TriviaKind};
 use lilscript::lint::{lint_checked, DiagnosticSeverity, LintDiagnostic};
 use lilscript::span::Span;
 use lilscript::{check_source, parse_source, with_checked_program, ServiceError};
@@ -471,23 +471,27 @@ fn semantic_identifier_spans(source: &str, offset: usize) -> Vec<Span> {
     let Ok(semantics) = analyze(&program) else {
         return Vec::new();
     };
-    let Some(selected_symbol) = semantics.identifier_symbol(selected_span) else {
+    // Every identifier with its symbol: the facts are keyed by identifier
+    // node, and each node carries its span.
+    let mut resolved = Vec::new();
+    lilscript::ast_walk::each_identifier(&program, &mut |ident| {
+        if let Some(symbol) = semantics.identifier_symbol(ident.id) {
+            resolved.push((ident.span, symbol));
+        }
+    });
+    let Some(&(_, selected_symbol)) = resolved.iter().find(|(span, _)| *span == selected_span)
+    else {
         return Vec::new();
     };
-    let Ok(tokens) = lex(source) else {
-        return Vec::new();
-    };
-    tokens
+    let mut spans: Vec<Span> = resolved
         .into_iter()
-        .filter_map(|token| match token.kind {
-            TokenKind::Ident(_)
-                if semantics.identifier_symbol(token.span) == Some(selected_symbol) =>
-            {
-                Some(token.span)
-            }
-            _ => None,
-        })
-        .collect()
+        .filter(|&(_, symbol)| symbol == selected_symbol)
+        .map(|(span, _)| span)
+        .collect();
+    // An export or import of a declaration's own name visits one node twice.
+    spans.sort_by_key(|span| (span.start, span.end));
+    spans.dedup();
+    spans
 }
 
 fn valid_identifier(name: &str) -> bool {

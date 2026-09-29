@@ -8,7 +8,8 @@ use indexmap::IndexMap;
 
 use crate::ast::{
     ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, Expr, ForInitializer,
-    FunctionDecl, Item, MatchPattern, Param, Program, RecordElement, Stmt, TemplatePart, TypeKind,
+    FunctionDecl, Ident, Item, MatchPattern, Param, Program, RecordElement, Stmt, TemplatePart,
+    TypeKind,
     UnaryOp, UpdateOp, VarDecl,
 };
 use crate::check::{BuiltinCall, CheckedModule, SymbolId, Type};
@@ -233,7 +234,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             .iter()
             .filter_map(|item| match item {
                 Item::Function(function) => semantics
-                    .identifier_symbol(function.name.span)
+                    .identifier_symbol(function.name.id)
                     .map(|symbol| (symbol, function)),
                 _ => None,
             })
@@ -334,7 +335,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                             ))),
                         ),
                     };
-                    self.declare(self.symbol(name.span)?, value);
+                    self.declare(self.symbol(&name)?, value);
                 }
                 Ok(Flow::Next)
             }
@@ -356,7 +357,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                         .get(&decode_source_string(binding.key.name))
                         .cloned()
                         .unwrap_or(Value::Null);
-                    self.declare(self.symbol(binding.name.span)?, value);
+                    self.declare(self.symbol(&binding.name)?, value);
                 }
                 if let Some(rest) = rest {
                     let excluded = bindings
@@ -370,7 +371,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                         }
                     }
                     self.declare(
-                        self.symbol(rest.span)?,
+                        self.symbol(&rest)?,
                         Value::Record(Rc::new(RefCell::new(remaining))),
                     );
                 }
@@ -476,10 +477,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 ..
             } => {
                 let iterable = self.evaluate(iterable)?;
-                let symbol = self.symbol(element.span)?;
+                let symbol = self.symbol(&element)?;
                 let ty = self
                     .semantics
-                    .binding_type(element.span)
+                    .binding_type(element.id)
                     .ok_or_else(|| InterpretError::new(element.span, "for-of element has no type"))?
                     .clone();
                 let mut index = 0usize;
@@ -531,10 +532,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             )
         })?;
         let value = self.evaluate(initializer)?;
-        let symbol = self.symbol(declaration.name.span)?;
+        let symbol = self.symbol(&declaration.name)?;
         let ty = self
             .semantics
-            .binding_type(declaration.name.span)
+            .binding_type(declaration.name.id)
             .ok_or_else(|| InterpretError::new(declaration.span, "binding has no checked type"))?;
         self.declare(symbol, coerce_value_to_type(value, ty));
         Ok(())
@@ -576,7 +577,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 kind: ExprKind::Ident(identifier),
                 ..
             } => {
-                let symbol = self.symbol(identifier.span)?;
+                let symbol = self.symbol(&identifier)?;
                 if self.functions.contains_key(&symbol) {
                     Ok(Value::Callable(Callable::Function(symbol)))
                 } else {
@@ -816,7 +817,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     },
                 ..
             } => {
-                if let Some(value) = self.semantics.enum_variant_value(*span) {
+                if let Some(value) = self.semantics.enum_variant_value(property.id) {
                     return Ok(Value::Int(value as i32));
                 }
                 let object = self.evaluate(object)?;
@@ -907,9 +908,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 for arm in *arms {
                     let selected = match arm.pattern {
                         MatchPattern::Wildcard(_) => true,
-                        MatchPattern::EnumVariant { span, .. } => {
+                        MatchPattern::EnumVariant { variant, .. } => {
                             matches!(&scrutinee, Value::Int(discriminant)
-                                if self.semantics.enum_variant_value(span)
+                                if self.semantics.enum_variant_value(variant.id)
                                     .is_some_and(|value| value == i64::from(*discriminant)))
                         }
                         MatchPattern::Int(value, _) => {
@@ -1317,17 +1318,17 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         }
         let mut frame = AHashMap::with_capacity(function.params.len());
         for (parameter, value) in function.params.iter().zip(values) {
-            let symbol = self.symbol(parameter.name.span)?;
+            let symbol = self.symbol(&parameter.name)?;
             let ty = self
                 .semantics
-                .binding_type(parameter.name.span)
+                .binding_type(parameter.name.id)
                 .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
             frame.insert(
                 symbol,
                 Rc::new(RefCell::new(coerce_value_to_type(value, ty))),
             );
         }
-        let return_type = match self.semantics.binding_type(function.name.span) {
+        let return_type = match self.semantics.binding_type(function.name.id) {
             Some(Type::Function(signature)) => signature.return_type.as_ref().clone(),
             Some(Type::GenericFunction(generic)) => generic.signature.return_type.as_ref().clone(),
             _ => {
@@ -1369,10 +1370,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         } = closure;
         let mut frame = captures;
         for (parameter, value) in params.iter().zip(values) {
-            let symbol = self.symbol(parameter.name.span)?;
+            let symbol = self.symbol(&parameter.name)?;
             let ty = self
                 .semantics
-                .binding_type(parameter.name.span)
+                .binding_type(parameter.name.id)
                 .ok_or_else(|| InterpretError::new(parameter.span, "parameter has no type"))?;
             frame.insert(
                 symbol,
@@ -2017,7 +2018,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             Expr {
                 kind: ExprKind::Ident(identifier),
                 ..
-            } => Ok(RuntimePlace::Binding(self.symbol(identifier.span)?)),
+            } => Ok(RuntimePlace::Binding(self.symbol(&identifier)?)),
             Expr {
                 kind:
                     ExprKind::Member {
@@ -2121,10 +2122,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         }
     }
 
-    fn symbol(&self, span: Span) -> Result<SymbolId, InterpretError> {
+    fn symbol(&self, ident: &Ident<'_>) -> Result<SymbolId, InterpretError> {
         self.semantics
-            .identifier_symbol(span)
-            .ok_or_else(|| InterpretError::new(span, "missing semantic symbol"))
+            .identifier_symbol(ident.id)
+            .ok_or_else(|| InterpretError::new(ident.span, "missing semantic symbol"))
     }
 
     fn declare(&mut self, symbol: SymbolId, value: Value) {

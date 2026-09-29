@@ -81,6 +81,7 @@ fn narrowed_inputs_match_full_traversal_across_boolean_shapes_and_live_contexts(
                                     Ident {
                                         name: "value",
                                         span: Span::empty(10_000),
+                                        id: SourceNodeId::detached(10_000),
                                     },
                                     Type::Nullable(Box::new(Type::String)),
                                 )
@@ -104,6 +105,7 @@ fn narrowed_inputs_match_full_traversal_across_boolean_shapes_and_live_contexts(
                                                 Ident {
                                                     name: "value",
                                                     span: Span::empty(10_001),
+                                                    id: SourceNodeId::detached(10_001),
                                                 },
                                                 Type::Nullable(Box::new(Type::Bool)),
                                             )
@@ -199,6 +201,7 @@ fn discarded_projections_still_resolve_guards_and_report_the_first_diagnostic() 
             Ident {
                 name: "value",
                 span: Span::empty(10_000),
+                id: SourceNodeId::detached(10_000),
             },
             Type::Nullable(Box::new(Type::String)),
         )
@@ -250,6 +253,7 @@ fn sparse_guard_prefixes_recheck_only_retained_guards_with_linear_work() {
                     Ident {
                         name: "value",
                         span: Span::empty(10_000),
+                        id: SourceNodeId::detached(10_000),
                     },
                     Type::Nullable(Box::new(Type::String)),
                 )
@@ -260,6 +264,7 @@ fn sparse_guard_prefixes_recheck_only_retained_guards_with_linear_work() {
                         Ident {
                             name: "other",
                             span: Span::empty(10_001),
+                            id: SourceNodeId::detached(10_001),
                         },
                         Type::Nullable(Box::new(Type::Int)),
                     )
@@ -312,6 +317,7 @@ fn guard_input_resource_refusals_preserve_declarations_and_restore_scopes() {
                 Ident {
                     name: "value",
                     span: Span::empty(10_000),
+                    id: SourceNodeId::detached(10_000),
                 },
                 Type::Nullable(Box::new(Type::String)),
             )

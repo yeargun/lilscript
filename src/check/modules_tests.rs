@@ -26,11 +26,11 @@ fn module_alias_binding_types_borrow_the_canonical_nested_payload() {
             };
             let canonical = &checked.symbols()[id.0 as usize].ty;
             assert!(std::ptr::eq(
-                view.binding_type(import.span).unwrap(),
+                view.binding_type(import.node).unwrap(),
                 canonical
             ));
             assert!(matches!(
-                checked.facts[module].binding_types.get(&import.span),
+                checked.facts[module].binding_types.get(&import.node),
                 Some(BindingType::Symbol(symbol)) if *symbol == id
             ));
             assert_eq!(checked.symbol_module(id), Some(2));
@@ -57,7 +57,7 @@ fn module_alias_binding_types_borrow_the_canonical_nested_payload() {
         let Type::Array(alias_outer) = checked
             .view(module)
             .unwrap()
-            .binding_type(alias.span)
+            .binding_type(alias.node)
             .unwrap()
         else {
             unreachable!();
@@ -72,10 +72,10 @@ fn module_alias_binding_types_borrow_the_canonical_nested_payload() {
         else {
             return None;
         };
-        Some(ident.span)
+        Some(ident.id)
     });
-    for span in uses {
-        assert!(checked.view(0).unwrap().binding_type(span).is_none());
+    for node in uses {
+        assert!(checked.view(0).unwrap().binding_type(node).is_none());
     }
     assert!(checked
         .declarations
@@ -111,19 +111,19 @@ fn repeated_foreign_binding_types_share_contracts_but_keep_detached_parameters_d
             })
             .unwrap();
         let view = checked.view(module).unwrap();
-        assert_eq!(view.identifier_symbol(declaration.name.span), Some(host.id));
+        assert_eq!(view.identifier_symbol(declaration.name.id), Some(host.id));
         assert!(std::ptr::eq(
-            view.binding_type(declaration.name.span).unwrap(),
+            view.binding_type(declaration.name.id).unwrap(),
             &host.ty
         ));
         let parameter = declaration.params[0].name;
-        let id = view.identifier_symbol(parameter.span).unwrap();
+        let id = view.identifier_symbol(parameter.id).unwrap();
         parameters.push(id);
         let canonical = &checked.symbols()[id.0 as usize];
         assert_eq!(canonical.origin, DeclarationOrigin::Source);
         assert_eq!(checked.symbol_module(id), Some(module));
         assert!(std::ptr::eq(
-            view.binding_type(parameter.span).unwrap(),
+            view.binding_type(parameter.id).unwrap(),
             &canonical.ty
         ));
         assert!(
@@ -690,7 +690,7 @@ fn nominal_module_diamond_keeps_original_identity_and_type_only_occurrences() {
         InterfaceTarget::Type(declaration.identity)
     );
     assert_eq!(
-        view.export_target(programs[0].exports[0].local.span),
+        view.export_target(programs[0].exports[0].local.id),
         Some(InterfaceTarget::Type(declaration.identity))
     );
     for specifier in programs[0]
@@ -698,9 +698,9 @@ fn nominal_module_diamond_keeps_original_identity_and_type_only_occurrences() {
         .iter()
         .flat_map(|import| import.specifiers)
     {
-        assert!(view.identifier_symbol(specifier.local.span).is_none());
+        assert!(view.identifier_symbol(specifier.local.id).is_none());
         assert_eq!(
-            view.binding_type(specifier.local.span),
+            view.binding_type(specifier.local.id),
             Some(&Type::Struct(declaration))
         );
     }
@@ -825,7 +825,7 @@ fn nominal_export_occurrences_distinguish_value_type_and_ambiguous_bare_names() 
         let arena = Bump::new();
         let program = parse_source(&arena, source).unwrap();
         let single = analyze(&program).unwrap();
-        let expected = single.export_target(program.exports[0].local.span).unwrap();
+        let expected = single.export_target(program.exports[0].local.id).unwrap();
         assert_eq!(
             matches!(expected, InterfaceTarget::Type(_)),
             expected_type,

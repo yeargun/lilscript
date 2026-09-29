@@ -1,9 +1,13 @@
 use crate::span::Span;
 
+/// A name as the source writes it. Its `id` is the occurrence's own source
+/// node (plan M4.4): the checker's facts about an identifier (its symbol,
+/// its declared type) are keyed by it, never by its span.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Ident<'src> {
     pub name: &'src str,
     pub span: Span,
+    pub id: SourceNodeId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -215,6 +219,8 @@ pub struct ConstructorDecl<'ast, 'src> {
     pub params: &'ast [Param<'ast, 'src>],
     pub body: &'ast [Stmt<'ast, 'src>],
     pub span: Span,
+    /// The implicit receiver's binding, `this`, with its own source node.
+    pub this: Ident<'src>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -275,6 +281,9 @@ pub struct FunctionDecl<'ast, 'src> {
     pub params: &'ast [Param<'ast, 'src>],
     pub body: &'ast [Stmt<'ast, 'src>],
     pub span: Span,
+    /// A method's implicit receiver binding, `this`, with its own source
+    /// node; a function's is unused.
+    pub this: Ident<'src>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -527,6 +536,15 @@ impl SourceNodeId {
     pub const fn index(self) -> usize {
         self.0.get() as usize - 1
     }
+
+    /// A node no source owns, for a test that declares a name by hand.
+    #[cfg(test)]
+    pub(crate) const fn detached(index: u32) -> Self {
+        match std::num::NonZeroU32::new(index + 1) {
+            Some(id) => Self(id),
+            None => panic!("detached node index overflow"),
+        }
+    }
 }
 
 /// Immutable source ownership. Clones retain the same opaque stamp; syntax
@@ -575,16 +593,29 @@ impl SourceNodes {
     }
 
     pub(crate) fn expression<'ast, 'src>(&self, kind: ExprKind<'ast, 'src>) -> Expr<'ast, 'src> {
+        Expr {
+            id: self.node(),
+            kind,
+        }
+    }
+
+    /// An identifier occurrence, with its own source node (M4.4).
+    pub(crate) fn ident<'src>(&self, name: &'src str, span: Span) -> Ident<'src> {
+        Ident {
+            name,
+            span,
+            id: self.node(),
+        }
+    }
+
+    fn node(&self) -> SourceNodeId {
         let next = self
             .0
             .get()
             .checked_add(1)
-            .expect("source expression identity limit");
+            .expect("source node identity limit");
         self.0.set(next);
-        Expr {
-            id: SourceNodeId(std::num::NonZeroU32::new(next).unwrap()),
-            kind,
-        }
+        SourceNodeId(std::num::NonZeroU32::new(next).unwrap())
     }
 
     pub(crate) fn finish(&self) -> SourceIdentity {

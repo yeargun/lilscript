@@ -3,15 +3,15 @@ use std::sync::Arc;
 
 fn canonical_binding<'model, 'ast, 'src>(
     model: &'model CheckedModule<'ast, 'src>,
-    span: Span,
+    node: SourceNodeId,
 ) -> &'model Type<'src> {
-    let id = model.identifier_symbol(span).unwrap();
+    let id = model.identifier_symbol(node).unwrap();
     let canonical = &model.declarations.symbols[id.0 as usize].ty;
     assert!(matches!(
-        model.facts.binding_types.get(&span),
+        model.facts.binding_types.get(&node),
         Some(BindingType::Symbol(symbol)) if *symbol == id
     ));
-    assert!(std::ptr::eq(model.binding_type(span).unwrap(), canonical));
+    assert!(std::ptr::eq(model.binding_type(node).unwrap(), canonical));
     canonical
 }
 
@@ -25,7 +25,7 @@ fn source_bindings_borrow_canonical_nested_types_but_identifier_uses_do_not() {
     .unwrap();
     let model = analyze(&program).unwrap();
     for symbol in model.symbols() {
-        canonical_binding(&model, symbol.span);
+        canonical_binding(&model, symbol.node);
     }
     for name in ["matrix", "detached", "value", "result"] {
         let symbol = model
@@ -33,7 +33,7 @@ fn source_bindings_borrow_canonical_nested_types_but_identifier_uses_do_not() {
             .iter()
             .find(|symbol| symbol.name == name)
             .unwrap();
-        let Type::Array(outer) = canonical_binding(&model, symbol.span) else {
+        let Type::Array(outer) = canonical_binding(&model, symbol.node) else {
             panic!("{name} must retain its nested array type");
         };
         let Type::Array(inner) = &**outer else {
@@ -54,8 +54,8 @@ fn source_bindings_borrow_canonical_nested_types_but_identifier_uses_do_not() {
         else {
             continue;
         };
-        assert!(model.identifier_symbol(ident.span).is_some());
-        assert!(model.binding_type(ident.span).is_none());
+        assert!(model.identifier_symbol(ident.id).is_some());
+        assert!(model.binding_type(ident.id).is_none());
         uses += 1;
     }
     assert!(uses >= 3);
@@ -135,12 +135,12 @@ fn declare_and_detached_binding_move_existing_nested_payloads_without_cloning() 
         declarations: &declarations,
         facts: &facts,
     };
-    for (span, id) in [
-        (first.name.span, declared_id),
-        (second.name.span, detached_id),
+    for (node, id) in [
+        (first.name.id, declared_id),
+        (second.name.id, detached_id),
     ] {
         assert!(std::ptr::eq(
-            view.binding_type(span).unwrap(),
+            view.binding_type(node).unwrap(),
             &declarations.symbols[id.0 as usize].ty
         ));
     }
@@ -148,7 +148,7 @@ fn declare_and_detached_binding_move_existing_nested_payloads_without_cloning() 
 }
 
 #[test]
-fn nominal_only_binding_spans_preserve_inline_types_without_value_symbols() {
+fn nominal_only_binding_nodes_preserve_inline_types_without_value_symbols() {
     let arena = bumpalo::Bump::new();
     let program = crate::parse_source(
         &arena,
@@ -160,11 +160,11 @@ fn nominal_only_binding_spans_preserve_inline_types_without_value_symbols() {
         unreachable!()
     };
     let nominal = model.view().struct_type("Point").unwrap();
-    for span in [declaration.name.span, program.exports[0].local.span] {
-        assert!(model.identifier_symbol(span).is_none());
-        assert_eq!(model.binding_type(span), Some(&Type::Struct(nominal)));
+    for node in [declaration.name.id, program.exports[0].local.id] {
+        assert!(model.identifier_symbol(node).is_none());
+        assert_eq!(model.binding_type(node), Some(&Type::Struct(nominal)));
         assert!(
-            matches!(model.facts.binding_types.get(&span), Some(BindingType::Inline(Type::Struct(value))) if *value == nominal)
+            matches!(model.facts.binding_types.get(&node), Some(BindingType::Inline(Type::Struct(value))) if *value == nominal)
         );
     }
     let value = model
@@ -173,11 +173,11 @@ fn nominal_only_binding_spans_preserve_inline_types_without_value_symbols() {
         .find(|symbol| symbol.name == "value")
         .unwrap();
     assert_eq!(
-        canonical_binding(&model, value.span),
+        canonical_binding(&model, value.node),
         &Type::Struct(nominal)
     );
     assert_eq!(
-        model.view().export_target(program.exports[0].local.span),
+        model.view().export_target(program.exports[0].local.id),
         Some(InterfaceTarget::Type(nominal.identity))
     );
 }
@@ -204,10 +204,10 @@ fn finalized_defaults_and_model_clones_resolve_bindings_against_their_own_symbol
             .iter()
             .find(|symbol| symbol.name == name)
             .unwrap();
-        let Type::Function(original) = canonical_binding(&model, symbol.span) else {
+        let Type::Function(original) = canonical_binding(&model, symbol.node) else {
             unreachable!()
         };
-        let Type::Function(copied) = canonical_binding(&clone, symbol.span) else {
+        let Type::Function(copied) = canonical_binding(&clone, symbol.node) else {
             unreachable!()
         };
         assert_eq!(original.params[0].default, Some(DefaultValue::Symbol(seed)));
@@ -215,19 +215,19 @@ fn finalized_defaults_and_model_clones_resolve_bindings_against_their_own_symbol
         assert!(!signature_has_pending_bindings(original));
         assert!(!signature_has_pending_bindings(copied));
         assert!(!std::ptr::eq(
-            model.binding_type(symbol.span).unwrap(),
-            clone.binding_type(symbol.span).unwrap()
+            model.binding_type(symbol.node).unwrap(),
+            clone.binding_type(symbol.node).unwrap()
         ));
         assert!(Arc::ptr_eq(&original.0, &copied.0));
     }
     let expected: Vec<_> = model
         .symbols()
         .iter()
-        .map(|symbol| (symbol.span, symbol.ty.clone()))
+        .map(|symbol| (symbol.node, symbol.ty.clone()))
         .collect();
     drop(model);
-    for (span, ty) in expected {
-        assert_eq!(canonical_binding(&clone, span), &ty);
+    for (node, ty) in expected {
+        assert_eq!(canonical_binding(&clone, node), &ty);
     }
     assert!(clone.identifier_index_is_consistent());
 }

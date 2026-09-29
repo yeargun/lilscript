@@ -47,6 +47,8 @@ pub struct ModuleImport<'src> {
     pub local: &'src str,
     pub target: InterfaceTarget,
     pub span: Span,
+    /// The local binding's identifier (M4.4).
+    pub node: SourceNodeId,
 }
 #[derive(Debug, Clone, Copy)]
 pub struct ModuleExport<'src> {
@@ -572,7 +574,7 @@ fn signature_phase<'ast, 'src, S>(
             )
             .into());
         }
-        for ((_, span), &target) in sites.iter().zip(dynamic) {
+        for ((_, span, import), &target) in sites.iter().zip(dynamic) {
             budget
                 .work(
                     WorkKind::Analysis,
@@ -582,7 +584,7 @@ fn signature_phase<'ast, 'src, S>(
             let id = u32::try_from(target)
                 .map_err(|_| error(module, *span, "dynamic module id range"))?;
             let facts = &mut checked.facts[module];
-            facts.dynamic_import_modules.insert(*span, id);
+            facts.dynamic_import_modules.insert(*import, id);
             for export in &checked.interfaces[target].exports {
                 if let InterfaceTarget::Value(symbol) = export.target {
                     facts
@@ -626,10 +628,10 @@ fn body_phase<'ast, 'src>(
         for item in program.items {
             if let Item::Stmt(Stmt::VarDecl(decl)) = item {
                 if !decl.ty.is_auto() {
-                    let symbol = analyzer.facts.identifier_symbols[&decl.name.span];
+                    let symbol = analyzer.facts.identifier_symbols[&decl.name.id];
                     analyzer
                         .module_binding_declarations
-                        .insert(decl.name.span, symbol);
+                        .insert(decl.name.id, symbol);
                 }
             }
         }
@@ -649,7 +651,7 @@ fn body_phase<'ast, 'src>(
                 .ok_or_else(|| {
                     error(module, export.local.span, "inferred export has no binding")
                 })?;
-            analyzer.record_identifier(export.local.span, symbol);
+            analyzer.record_identifier(export.local.id, symbol);
             inferred_exports.push(ModuleExport {
                 external: export.exported.name,
                 target: InterfaceTarget::Value(symbol),
@@ -1105,7 +1107,7 @@ impl<'src> InterfaceGraph<'src> {
                 let declared_type = checked
                     .view(module)
                     .unwrap()
-                    .export_target(export.local.span);
+                    .export_target(export.local.id);
                 let direct_value = local_value.is_some_and(|(span, _)| *span == export.local.span);
                 let target = if let Some(target) = declared_type {
                     Some(target)
@@ -1203,7 +1205,7 @@ impl<'src> InterfaceGraph<'src> {
                     }
                     facts
                         .binding_types
-                        .insert(specifier.local.span, BindingType::Inline(ty));
+                        .insert(specifier.local.id, BindingType::Inline(ty));
                 }
             }
         }
@@ -1256,10 +1258,10 @@ impl<'src> InterfaceGraph<'src> {
                         let facts = &mut checked.facts[module];
                         facts
                             .binding_types
-                            .insert(specifier.local.span, BindingType::Symbol(symbol));
+                            .insert(specifier.local.id, BindingType::Symbol(symbol));
                         facts.record_identifier(
                             &mut checked.declarations,
-                            specifier.local.span,
+                            specifier.local.id,
                             symbol,
                         );
                     }
@@ -1273,6 +1275,7 @@ impl<'src> InterfaceGraph<'src> {
                                 local: specifier.local.name,
                                 target,
                                 span: specifier.local.span,
+                                node: specifier.local.id,
                             },
                         )
                         .map_err(|error| resource(module, error))?;
@@ -1303,7 +1306,7 @@ impl<'src> InterfaceGraph<'src> {
                     checked
                         .view(module)
                         .unwrap()
-                        .export_target(export.local.span),
+                        .export_target(export.local.id),
                     Some(InterfaceTarget::Type(_))
                 );
                 if !direct_value
@@ -1324,7 +1327,7 @@ impl<'src> InterfaceGraph<'src> {
                 match target {
                     InterfaceTarget::Value(symbol) => facts.record_identifier(
                         &mut checked.declarations,
-                        export.local.span,
+                        export.local.id,
                         symbol,
                     ),
                     InterfaceTarget::Type(identity) => {
@@ -1338,7 +1341,7 @@ impl<'src> InterfaceGraph<'src> {
                         // constructor binding.
                         checked.facts[module]
                             .binding_types
-                            .entry(export.local.span)
+                            .entry(export.local.id)
                             .or_insert(BindingType::Inline(ty));
                     }
                 }

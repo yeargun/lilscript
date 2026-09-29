@@ -809,12 +809,15 @@ pub struct Symbol<'src> {
     pub name: &'src str,
     pub ty: Type<'src>,
     pub span: Span,
+    /// The declaring identifier, in its module's source (M4.4).
+    pub node: SourceNodeId,
     /// Classification belongs to the canonical declaration, including extern
     /// aliases shared by several checked modules.
     origin: DeclarationOrigin,
-    /// Distinct source spans currently registered to this identity, including
-    /// its declaration. Maintained by ModuleFacts::record_identifier across source owners; this
-    /// is source-binding knowledge, not a use count for a rewritten program.
+    /// Distinct identifier nodes currently registered to this identity,
+    /// including its declaration. Maintained by ModuleFacts::record_identifier
+    /// across source owners; this is source-binding knowledge, not a use count
+    /// for a rewritten program.
     identifier_occurrences: usize,
 }
 
@@ -979,12 +982,20 @@ struct ModuleFacts<'ast, 'src> {
     /// This source's type scope: every nominal name it declares or imports,
     /// resolved once to its identity. Nothing else resolves a type by name.
     type_bindings: AHashMap<&'src str, NominalId>,
-    optional_present_types: AHashMap<Span, Type<'src>>,
-    type_check_types: AHashMap<Span, Type<'src>>,
-    binding_types: AHashMap<Span, BindingType<'src>>,
-    identifier_symbols: AHashMap<Span, SymbolId>,
-    enum_variant_values: AHashMap<Span, i64>,
-    dynamic_import_modules: AHashMap<Span, u32>,
+    // Facts about a source node, keyed by its id (plan M4.4).
+    /// An optional member's or index's present type, by the expression.
+    optional_present_types: AHashMap<SourceNodeId, Type<'src>>,
+    /// A type test's (`is`, `as?`) target type, by the test's expression.
+    type_check_types: AHashMap<SourceNodeId, Type<'src>>,
+    /// A declaring identifier's binding.
+    binding_types: AHashMap<SourceNodeId, BindingType<'src>>,
+    /// An identifier's symbol: a declaration's and every reference's.
+    identifier_symbols: AHashMap<SourceNodeId, SymbolId>,
+    /// An enum variant's value, by the variant's identifier (in `E.V` and
+    /// in a `match` pattern).
+    enum_variant_values: AHashMap<SourceNodeId, i64>,
+    /// A dynamic import's module, by the import expression.
+    dynamic_import_modules: AHashMap<SourceNodeId, u32>,
     /// Direct module checking: a dynamically imported module's runtime
     /// exports, resolved through its interface rather than a merged scope.
     dynamic_export_symbols: AHashMap<(u32, &'src str), SymbolId>,
@@ -1115,10 +1126,10 @@ impl<'ast, 'src> ModuleFacts<'ast, 'src> {
     fn record_identifier(
         &mut self,
         declarations: &mut DeclarationTables<'src>,
-        span: Span,
+        ident: SourceNodeId,
         symbol: SymbolId,
     ) {
-        match self.identifier_symbols.insert(span, symbol) {
+        match self.identifier_symbols.insert(ident, symbol) {
             Some(previous) if previous == symbol => return,
             Some(previous) => declarations.symbols[previous.0 as usize].identifier_occurrences -= 1,
             None => {}
@@ -1385,9 +1396,9 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
     }
 
     #[cfg(test)]
-    fn record_identifier(&mut self, span: Span, symbol: SymbolId) {
+    fn record_identifier(&mut self, ident: SourceNodeId, symbol: SymbolId) {
         self.facts
-            .record_identifier(&mut self.declarations, span, symbol);
+            .record_identifier(&mut self.declarations, ident, symbol);
     }
 
     #[cfg(any(test, debug_assertions))]
@@ -1416,8 +1427,8 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().belongs_to(source)
     }
 
-    pub fn binding_type(&self, span: Span) -> Option<&Type<'src>> {
-        self.view().binding_type(span)
+    pub fn binding_type(&self, node: SourceNodeId) -> Option<&Type<'src>> {
+        self.view().binding_type(node)
     }
 
     pub(crate) fn builtin_call(&self, id: SourceNodeId) -> Option<BuiltinCall> {
@@ -1435,8 +1446,8 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().resolved_intrinsic(id)
     }
 
-    pub fn identifier_symbol(&self, span: Span) -> Option<SymbolId> {
-        self.view().identifier_symbol(span)
+    pub fn identifier_symbol(&self, node: SourceNodeId) -> Option<SymbolId> {
+        self.view().identifier_symbol(node)
     }
 
     pub(crate) fn symbol_is_reassigned(&self, symbol: SymbolId) -> bool {
@@ -1452,12 +1463,12 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().read_initialization(node)
     }
 
-    pub(crate) fn type_check_type(&self, span: Span) -> Option<&Type<'src>> {
-        self.view().type_check_type(span)
+    pub(crate) fn type_check_type(&self, node: SourceNodeId) -> Option<&Type<'src>> {
+        self.view().type_check_type(node)
     }
 
-    pub(crate) fn optional_present_type(&self, span: Span) -> Option<&Type<'src>> {
-        self.view().optional_present_type(span)
+    pub(crate) fn optional_present_type(&self, node: SourceNodeId) -> Option<&Type<'src>> {
+        self.view().optional_present_type(node)
     }
 
     pub fn symbols(&self) -> &[Symbol<'src>] {
@@ -1473,8 +1484,8 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().is_reflected(nominal)
     }
 
-    pub fn export_target(&self, span: Span) -> Option<InterfaceTarget> {
-        self.view().export_target(span)
+    pub fn export_target(&self, local: SourceNodeId) -> Option<InterfaceTarget> {
+        self.view().export_target(local)
     }
 
     pub fn struct_info(&self, name: &str) -> Option<&StructInfo<'src>> {
@@ -1531,8 +1542,8 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().base_constructor(class)
     }
 
-    pub(crate) fn enum_variant_value(&self, span: Span) -> Option<i64> {
-        self.view().enum_variant_value(span)
+    pub(crate) fn enum_variant_value(&self, node: SourceNodeId) -> Option<i64> {
+        self.view().enum_variant_value(node)
     }
 
     pub(crate) fn structs(&self) -> impl Iterator<Item = &StructInfo<'src>> {
@@ -1543,8 +1554,8 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().classes()
     }
 
-    pub(crate) fn dynamic_import_module(&self, span: Span) -> Option<u32> {
-        self.view().dynamic_import_module(span)
+    pub(crate) fn dynamic_import_module(&self, node: SourceNodeId) -> Option<u32> {
+        self.view().dynamic_import_module(node)
     }
 
     pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
@@ -1582,8 +1593,8 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
         self.facts.source.same(source)
     }
 
-    pub fn binding_type(&self, span: Span) -> Option<&'view Type<'src>> {
-        Some(match self.facts.binding_types.get(&span)? {
+    pub fn binding_type(&self, node: SourceNodeId) -> Option<&'view Type<'src>> {
+        Some(match self.facts.binding_types.get(&node)? {
             BindingType::Symbol(symbol) => &self.declarations.symbols[symbol.0 as usize].ty,
             BindingType::Inline(ty) => ty,
         })
@@ -1614,8 +1625,8 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
         }
     }
 
-    pub fn identifier_symbol(&self, span: Span) -> Option<SymbolId> {
-        self.facts.identifier_symbols.get(&span).copied()
+    pub fn identifier_symbol(&self, node: SourceNodeId) -> Option<SymbolId> {
+        self.facts.identifier_symbols.get(&node).copied()
     }
 
     pub(crate) fn symbol_is_reassigned(&self, symbol: SymbolId) -> bool {
@@ -1647,12 +1658,12 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
         }
     }
 
-    pub(crate) fn type_check_type(&self, span: Span) -> Option<&'view Type<'src>> {
-        self.facts.type_check_types.get(&span)
+    pub(crate) fn type_check_type(&self, node: SourceNodeId) -> Option<&'view Type<'src>> {
+        self.facts.type_check_types.get(&node)
     }
 
-    pub(crate) fn optional_present_type(&self, span: Span) -> Option<&'view Type<'src>> {
-        self.facts.optional_present_types.get(&span)
+    pub(crate) fn optional_present_type(&self, node: SourceNodeId) -> Option<&'view Type<'src>> {
+        self.facts.optional_present_types.get(&node)
     }
 
     pub fn symbols(&self) -> &'view [Symbol<'src>] {
@@ -1671,11 +1682,11 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
             .map(|info| info.declaration)
     }
 
-    pub fn export_target(&self, span: Span) -> Option<InterfaceTarget> {
-        if let Some(symbol) = self.identifier_symbol(span) {
+    pub fn export_target(&self, local: SourceNodeId) -> Option<InterfaceTarget> {
+        if let Some(symbol) = self.identifier_symbol(local) {
             return Some(InterfaceTarget::Value(symbol));
         }
-        self.binding_type(span)
+        self.binding_type(local)
             .and_then(|ty| self.nominal_id(ty))
             .map(InterfaceTarget::Type)
     }
@@ -1827,8 +1838,8 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
         Some((base_declaration.identity, signature))
     }
 
-    pub(crate) fn enum_variant_value(&self, span: Span) -> Option<i64> {
-        self.facts.enum_variant_values.get(&span).copied()
+    pub(crate) fn enum_variant_value(&self, node: SourceNodeId) -> Option<i64> {
+        self.facts.enum_variant_values.get(&node).copied()
     }
 
     pub(crate) fn structs(&self) -> impl Iterator<Item = &'view StructInfo<'src>> + 'view {
@@ -1839,8 +1850,8 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
         self.declarations.classes.iter()
     }
 
-    pub(crate) fn dynamic_import_module(&self, span: Span) -> Option<u32> {
-        self.facts.dynamic_import_modules.get(&span).copied()
+    pub(crate) fn dynamic_import_module(&self, node: SourceNodeId) -> Option<u32> {
+        self.facts.dynamic_import_modules.get(&node).copied()
     }
 
     pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
@@ -2006,7 +2017,9 @@ struct Analyzer<'check, 'budget, 'ast, 'src> {
     initializing_symbols: Vec<SymbolId>,
     /// Inside a parameter default: its reads run at each call site.
     parameter_defaults: usize,
-    module_binding_declarations: AHashMap<Span, SymbolId>,
+    /// A module binding declared before its module's items are analyzed,
+    /// by its declaring identifier.
+    module_binding_declarations: AHashMap<SourceNodeId, SymbolId>,
     constructor_classes: Vec<Option<NominalId>>,
     generator_contexts: Vec<Option<Type<'src>>>,
 }
@@ -2051,6 +2064,8 @@ enum NarrowingStep<'ast, 'src> {
 enum NarrowingLeaf<'ast, 'src> {
     TypeCheck {
         ident: &'ast Ident<'src>,
+        /// The test expression.
+        test: SourceNodeId,
         span: Span,
     },
     NullComparison {
@@ -2067,7 +2082,11 @@ fn narrowing_leaf<'ast, 'src>(
             let ExprKind::Ident(ident) = &value.kind else {
                 return None;
             };
-            Some(NarrowingLeaf::TypeCheck { ident, span: *span })
+            Some(NarrowingLeaf::TypeCheck {
+                ident,
+                test: condition.id,
+                span: *span,
+            })
         }
         ExprKind::Binary {
             op: op @ (BinaryOp::Eq | BinaryOp::NotEq),
@@ -2256,7 +2275,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
 
         self.finalize_parameter_default_bindings()?;
         for export in program.exports {
-            let target = if let Some(target) = self.view().export_target(export.local.span) {
+            let target = if let Some(target) = self.view().export_target(export.local.id) {
                 Some(target)
             } else {
                 match (
@@ -2289,7 +2308,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             "public exports do not yet support mutable-reference callable contracts",
                         ));
                     }
-                    self.record_identifier(export.local.span, symbol);
+                    self.record_identifier(export.local.id, symbol);
                     // An export's value crosses to its consumer (R6).
                     self.declarations
                         .reflect(&self.declarations.symbols[symbol.0 as usize].ty);
@@ -2298,7 +2317,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     if let Some(ty) = self.view().nominal_type(identity) {
                         self.facts
                             .binding_types
-                            .insert(export.local.span, BindingType::Inline(ty));
+                            .insert(export.local.id, BindingType::Inline(ty));
                     }
                 }
                 None => {}
@@ -2342,9 +2361,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
     }
 
-    fn record_identifier(&mut self, span: Span, symbol: SymbolId) {
+    fn record_identifier(&mut self, ident: SourceNodeId, symbol: SymbolId) {
         self.facts
-            .record_identifier(self.declarations, span, symbol);
+            .record_identifier(self.declarations, ident, symbol);
     }
 
     /// Classify one occurrence (a read or a write) of a binding: whether the
@@ -2465,7 +2484,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     )?;
                     self.facts
                         .binding_types
-                        .insert(name.span, BindingType::Inline(Type::Struct(declaration)));
+                        .insert(name.id, BindingType::Inline(Type::Struct(declaration)));
                     identity
                 }
                 NominalKind::Class => {
@@ -2497,7 +2516,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     if !object {
                         self.facts
                             .binding_types
-                            .insert(name.span, BindingType::Inline(Type::Class(declaration)));
+                            .insert(name.id, BindingType::Inline(Type::Class(declaration)));
                     }
                     identity
                 }
@@ -2520,7 +2539,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     )?;
                     self.facts
                         .binding_types
-                        .insert(name.span, BindingType::Inline(Type::Enum(declaration)));
+                        .insert(name.id, BindingType::Inline(Type::Enum(declaration)));
                     identity
                 }
             };
@@ -2753,9 +2772,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     .last()
                     .and_then(|scope| scope.get(decl.name.name))
                 {
-                    self.record_identifier(decl.name.span, symbol);
+                    self.record_identifier(decl.name.id, symbol);
                     self.facts.binding_types.insert(
-                        decl.name.span,
+                        decl.name.id,
                         BindingType::Inline(Type::Class(declaration)),
                     );
                 }
@@ -3357,13 +3376,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.push_scope()?;
         let class_info = &self.declarations.classes[class.index()];
         let this = applied_class_type(class_info.declaration, &class_info.type_params);
-        self.declare(
-            Ident {
-                name: "this",
-                span: constructor.span,
-            },
-            this,
-        )?;
+        self.declare(constructor.this, this)?;
         for (param, parameter) in constructor.params.iter().zip(parameters) {
             self.declare(param.name, parameter.ty)?;
         }
@@ -3420,13 +3433,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         if let Some(class) = class {
             let class_info = &self.declarations.classes[class.index()];
             let this = applied_class_type(class_info.declaration, &class_info.type_params);
-            self.declare(
-                Ident {
-                    name: "this",
-                    span: function.name.span,
-                },
-                this,
-            )?;
+            self.declare(function.this, this)?;
         }
 
         for (param, ty) in function.params.iter().zip(&signature.params) {
@@ -4225,7 +4232,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         strip_parameter_defaults_from_type(&mut binding_ty);
         let id = if let Some(id) = self
             .module_binding_declarations
-            .get(&decl.name.span)
+            .get(&decl.name.id)
             .copied()
         {
             id
@@ -4284,7 +4291,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             return;
         }
         if let ExprKind::Ident(ident) = &target.kind {
-            if let Some(&symbol) = self.facts.identifier_symbols.get(&ident.span) {
+            if let Some(&symbol) = self.facts.identifier_symbols.get(&ident.id) {
                 self.unassigned.retain(|&candidate| candidate != symbol);
             }
         }
@@ -4293,7 +4300,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     /// A compound assignment or update reads its target first.
     fn require_assigned_target(&self, target: &Expr<'ast, 'src>) -> Result<(), AdmittedCheckError> {
         if let ExprKind::Ident(ident) = &target.kind {
-            if let Some(&symbol) = self.facts.identifier_symbols.get(&ident.span) {
+            if let Some(&symbol) = self.facts.identifier_symbols.get(&ident.id) {
                 return self.require_assigned(symbol, ident.name, ident.span);
             }
         }
@@ -4412,7 +4419,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ..
             } => {
                 let module = self.facts.dynamic_import_modules
-                    .get(span)
+                    .get(&expr.id)
                     .copied()
                     .ok_or_else(|| {
                         AdmittedCheckError::new(
@@ -4875,7 +4882,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         ),
                     )
                 })?;
-                self.facts.enum_variant_values.insert(*span, value);
+                self.facts.enum_variant_values.insert(property.id, value);
                 Type::Enum(declaration)
             }
             Expr {
@@ -4908,7 +4915,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let member = self.analyze_member_type(*inner, *property, expr.id, *span)?;
                 self.facts
                     .optional_present_types
-                    .insert(*span, member.clone());
+                    .insert(expr.id, member.clone());
                 optional_result_type(member, *span)?
             }
             Expr {
@@ -5075,7 +5082,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 if !self.class_guard(&value_type, &target_type, *span)? {
                     validate_type_guard(&value_type, &target_type, *span)?;
                 }
-                self.facts.type_check_types.insert(*span, target_type);
+                self.facts.type_check_types.insert(expr.id, target_type);
                 Type::Bool
             }
             Expr {
@@ -5153,7 +5160,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 })?;
                 self.facts
                     .optional_present_types
-                    .insert(*span, element.clone());
+                    .insert(expr.id, element.clone());
                 optional_result_type(element, *span)?
             }
             Expr {
@@ -5315,7 +5322,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     }
                     validate_type_guard(&source, &target, *span)?;
                 }
-                self.facts.type_check_types.insert(*span, target.clone());
+                self.facts.type_check_types.insert(expr.id, target.clone());
                 nullable_type(target)
             }
             Expr {
@@ -5702,7 +5709,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             .retain(|symbol, _| !self.reference_parameters.contains_key(symbol));
                     }
                 }
-                self.record_identifier(ident.span, id);
+                self.record_identifier(ident.id, id);
                 self.facts.source_info[expression.id.index()].resolution =
                     ExpressionResolution::Binding(id);
                 ty
@@ -5874,7 +5881,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ));
             }
         }
-        self.record_identifier(ident.span, id);
+        self.record_identifier(ident.id, id);
         self.record_read_initialization(node, id);
         Ok((id, self.narrowed_type(id).cloned().unwrap_or(declared)))
     }
@@ -6200,7 +6207,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     }
                     self.facts
                         .enum_variant_values
-                        .insert(pattern_span, discriminant);
+                        .insert(variant.id, discriminant);
                 }
                 MatchPattern::Int(value, pattern_span) => {
                     if value_type != Type::Int {
@@ -9051,12 +9058,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         let Some(leaf) = narrowing_leaf(condition) else {
             return Ok((empty_narrowing(), empty_narrowing()));
         };
-        if let NarrowingLeaf::TypeCheck { ident, span } = leaf {
+        if let NarrowingLeaf::TypeCheck { ident, test, span } = leaf {
             let symbol = self.resolve(ident)?;
             let target = self
                 .facts
                 .type_check_types
-                .get(&span)
+                .get(&test)
                 .cloned()
                 .ok_or_else(|| {
                     AdmittedCheckError::new(span, "type guard was not analyzed before narrowing")
@@ -9263,7 +9270,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         else {
             return;
         };
-        let Some(symbol) = self.facts.identifier_symbols.get(&ident.span).copied() else {
+        let Some(symbol) = self.facts.identifier_symbols.get(&ident.id).copied() else {
             return;
         };
         for scope in &mut self.narrowings {
@@ -9310,8 +9317,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             self.scopes[0].insert(ident.name, symbol);
             self.facts
                 .binding_types
-                .insert(ident.span, BindingType::Symbol(symbol));
-            self.record_identifier(ident.span, symbol);
+                .insert(ident.id, BindingType::Symbol(symbol));
+            self.record_identifier(ident.id, symbol);
             return Ok(symbol);
         }
         let symbol = self.declare(ident, ty)?;
@@ -9347,6 +9354,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             name: ident.name,
             ty,
             span: ident.span,
+            node: ident.id,
             origin: DeclarationOrigin::Source,
             identifier_occurrences: 0,
         };
@@ -9361,8 +9369,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
         self.facts
             .binding_types
-            .insert(ident.span, BindingType::Symbol(id));
-        self.record_identifier(ident.span, id);
+            .insert(ident.id, BindingType::Symbol(id));
+        self.record_identifier(ident.id, id);
         Ok(id)
     }
 
@@ -9380,6 +9388,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             name: ident.name,
             ty,
             span: ident.span,
+            node: ident.id,
             origin: DeclarationOrigin::Source,
             identifier_occurrences: 0,
         };
@@ -9387,8 +9396,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .add_symbol(symbol, self.module, self.budget)?;
         self.facts
             .binding_types
-            .insert(ident.span, BindingType::Symbol(id));
-        self.record_identifier(ident.span, id);
+            .insert(ident.id, BindingType::Symbol(id));
+        self.record_identifier(ident.id, id);
         Ok(id)
     }
 
@@ -9526,7 +9535,7 @@ fn resolve_analyzed_parameter_defaults<'ast, 'src>(
     let parameter_symbols = if parameter_defaults_in_scope {
         params
             .iter()
-            .filter_map(|parameter| model.identifier_symbol(parameter.name.span))
+            .filter_map(|parameter| model.identifier_symbol(parameter.name.id))
             .collect::<AHashSet<_>>()
     } else {
         AHashSet::default()
@@ -9580,7 +9589,7 @@ fn resolve_analyzed_parameter_defaults<'ast, 'src>(
         if parameter_defaults_in_scope {
             let bound_parameter = params
                 .iter()
-                .position(|candidate| model.identifier_symbol(candidate.name.span) == Some(bound));
+                .position(|candidate| model.identifier_symbol(candidate.name.id) == Some(bound));
             if let Some(bound_parameter) = bound_parameter {
                 if bound_parameter >= index {
                     return Err(CheckError::new(
@@ -9635,18 +9644,13 @@ fn default_contains_arrow_capture(
     parameter_symbols: &AHashSet<SymbolId>,
     model: &CheckedView<'_, '_, '_>,
 ) -> bool {
-    let mut arrow_spans = Vec::new();
-    collect_default_arrow_spans(expression, &mut arrow_spans);
-    model
-        .facts
-        .identifier_symbols
-        .iter()
-        .any(|(identifier, symbol)| {
-            parameter_symbols.contains(symbol)
-                && arrow_spans
-                    .iter()
-                    .any(|arrow| arrow.start <= identifier.start && identifier.end <= arrow.end)
-        })
+    let mut arrows = Vec::new();
+    collect_default_arrows(expression, &mut arrows);
+    arrows.iter().any(|arrow| {
+        referenced_symbols(arrow, model)
+            .iter()
+            .any(|symbol| parameter_symbols.contains(symbol))
+    })
 }
 
 fn default_contains_non_global_arrow_capture(
@@ -9654,41 +9658,50 @@ fn default_contains_non_global_arrow_capture(
     global_symbols: &AHashSet<SymbolId>,
     model: &CheckedView<'_, '_, '_>,
 ) -> bool {
-    let mut arrow_spans = Vec::new();
-    collect_default_arrow_spans(expression, &mut arrow_spans);
-    model
-        .facts
-        .identifier_symbols
-        .iter()
-        .any(|(identifier, symbol)| {
+    let mut arrows = Vec::new();
+    collect_default_arrows(expression, &mut arrows);
+    arrows.iter().any(|arrow| {
+        let span = arrow.span();
+        referenced_symbols(arrow, model).iter().any(|symbol| {
             !global_symbols.contains(symbol)
-                && arrow_spans.iter().any(|arrow| {
-                    arrow.start <= identifier.start
-                        && identifier.end <= arrow.end
-                        && model
-                            .declarations
-                            .symbols
-                            .get(symbol.0 as usize)
-                            .is_some_and(|symbol| {
-                                symbol.span.start < arrow.start || symbol.span.end > arrow.end
-                            })
-                })
+                && model
+                    .declarations
+                    .symbols
+                    .get(symbol.0 as usize)
+                    .is_some_and(|symbol| {
+                        symbol.span.start < span.start || symbol.span.end > span.end
+                    })
         })
+    })
 }
 
-fn collect_default_arrow_spans(expression: &Expr<'_, '_>, spans: &mut Vec<Span>) {
+/// The symbols the identifiers `expression` holds resolve to.
+fn referenced_symbols(expression: &Expr<'_, '_>, model: &CheckedView<'_, '_, '_>) -> Vec<SymbolId> {
+    let mut symbols = Vec::new();
+    crate::ast_walk::expression(expression, &mut |expression| {
+        if let ExprKind::Ident(ident) = &expression.kind {
+            symbols.extend(model.identifier_symbol(ident.id));
+        }
+    });
+    symbols
+}
+
+fn collect_default_arrows<'ast, 'src>(
+    expression: &'ast Expr<'ast, 'src>,
+    arrows: &mut Vec<&'ast Expr<'ast, 'src>>,
+) {
     match expression {
         Expr {
-            kind: ExprKind::ArrowFunction { span, .. },
+            kind: ExprKind::ArrowFunction { .. },
             ..
-        } => spans.push(*span),
+        } => arrows.push(expression),
         Expr {
             kind: ExprKind::ArrayLiteral { elements, .. },
             ..
         } => {
             for element in *elements {
                 if let ArrayElement::Value(value) = element {
-                    collect_default_arrow_spans(value, spans);
+                    collect_default_arrows(value, arrows);
                 }
             }
         }
@@ -9697,7 +9710,7 @@ fn collect_default_arrow_spans(expression: &Expr<'_, '_>, spans: &mut Vec<Span>)
             ..
         } => {
             for value in *values {
-                collect_default_arrow_spans(value, spans);
+                collect_default_arrows(value, arrows);
             }
         }
         Expr {
@@ -9705,7 +9718,7 @@ fn collect_default_arrow_spans(expression: &Expr<'_, '_>, spans: &mut Vec<Span>)
             ..
         } => {
             for argument in *args {
-                collect_default_arrow_spans(&argument.expression, spans);
+                collect_default_arrows(&argument.expression, arrows);
             }
         }
         _ => {}
@@ -11317,7 +11330,7 @@ mod tests {
         ));
         assert!(model.symbol_is_reassigned(
             model
-                .identifier_symbol(forward.params[0].name.span)
+                .identifier_symbol(forward.params[0].name.id)
                 .unwrap()
         ));
     }
@@ -11675,10 +11688,7 @@ mod tests {
         );
         let span = Span { start: 10, end: 11 };
         let nodes = crate::ast::SourceNodes::default();
-        let expression = nodes.expression(ExprKind::Ident(Ident {
-            name: "defaultValue",
-            span,
-        }));
+        let expression = nodes.expression(ExprKind::Ident(nodes.ident("defaultValue", span)));
         let pending = DefaultValue::PendingIdentifier {
             expression: expression.id,
             span,
@@ -11758,7 +11768,8 @@ mod tests {
             let prefix = parse_source(&arena, "int seed=7;").unwrap();
             let nodes = crate::ast::SourceNodes::continuing(prefix.source_identity());
             let span = Span::empty(12);
-            let mut expression = nodes.expression(ExprKind::Ident(Ident { name: "seed", span }));
+            let seed_ident = nodes.ident("seed", span);
+            let mut expression = nodes.expression(ExprKind::Ident(seed_ident));
             let binding_expression = expression.id;
             let mut checked_ids = vec![expression.id];
             for _ in 0..4096 {
@@ -11802,7 +11813,7 @@ mod tests {
                 model.expression_resolution(binding_expression),
                 ExpressionResolution::Binding(seed.id)
             );
-            assert_eq!(model.identifier_symbol(span), Some(seed.id));
+            assert_eq!(model.identifier_symbol(seed_ident.id), Some(seed.id));
             assert!(model.identifier_index_is_consistent());
         }
     }
@@ -11904,7 +11915,7 @@ mod tests {
     }
 
     #[test]
-    fn identifier_registration_is_idempotent_and_tracks_rebinding_a_span() {
+    fn identifier_registration_is_idempotent_and_tracks_rebinding_a_node() {
         let arena = Bump::new();
         let program = parse_source(&arena, "int a=1;int b=2;print(a);print(b);").unwrap();
         let mut model = analyze(&program).unwrap();
@@ -11922,16 +11933,20 @@ mod tests {
             .find(|symbol| symbol.name == "b")
             .unwrap()
             .id;
-        let span = model.declarations.symbols[a.0 as usize].span;
+        // `a`'s declaring identifier (M4.4: facts are keyed by node).
+        let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[0] else {
+            unreachable!("the program starts with `int a=1;`")
+        };
+        let node = declaration.name.id;
         let count_a = model.declarations.symbols[a.0 as usize].identifier_occurrences;
         let count_b = model.declarations.symbols[b.0 as usize].identifier_occurrences;
-        model.record_identifier(span, a);
+        model.record_identifier(node, a);
         assert_eq!(
             model.declarations.symbols[a.0 as usize].identifier_occurrences,
             count_a
         );
-        model.record_identifier(span, b);
-        assert_eq!(model.identifier_symbol(span), Some(b));
+        model.record_identifier(node, b);
+        assert_eq!(model.identifier_symbol(node), Some(b));
         assert_eq!(
             model.declarations.symbols[a.0 as usize].identifier_occurrences,
             count_a - 1

@@ -8,7 +8,7 @@ use bumpalo::Bump;
 
 use crate::ast::{
     ArrowBody, ClassMember, Expr, ExternClassMember, ForInitializer, FunctionDecl, Item, Param,
-    Program, Stmt, TemplatePart,
+    Program, SourceNodeId, Stmt, TemplatePart,
 };
 use crate::compilation_policy::{BudgetLedger, WorkDomain, WorkKind};
 use crate::config::ProjectConfig;
@@ -776,7 +776,7 @@ fn collect_imports(program: &Program<'_, '_>) -> (ImportSites, ImportSites, Impo
     collect_program_dynamic_imports(program, &mut dynamic);
     let dynamic = dynamic
         .into_iter()
-        .map(|(source, span)| (source.to_string(), span))
+        .map(|(source, span, _)| (source.to_string(), span))
         .collect();
     (imports, foreign, dynamic)
 }
@@ -1104,7 +1104,7 @@ fn resolve_import_path(parent: &Path, specifier: &str) -> Result<PathBuf, String
 
 pub(crate) fn collect_program_dynamic_imports<'ast, 'src>(
     program: &Program<'ast, 'src>,
-    imports: &mut Vec<(&'src str, Span)>,
+    imports: &mut Vec<(&'src str, Span, SourceNodeId)>,
 ) {
     for item in program.items {
         match item {
@@ -1141,7 +1141,7 @@ pub(crate) fn collect_program_dynamic_imports<'ast, 'src>(
 
 fn collect_function_dynamic_imports<'ast, 'src>(
     function: &FunctionDecl<'ast, 'src>,
-    imports: &mut Vec<(&'src str, Span)>,
+    imports: &mut Vec<(&'src str, Span, SourceNodeId)>,
 ) {
     collect_param_dynamic_imports(function.params, imports);
     collect_stmt_dynamic_imports(function.body, imports);
@@ -1149,7 +1149,7 @@ fn collect_function_dynamic_imports<'ast, 'src>(
 
 fn collect_param_dynamic_imports<'ast, 'src>(
     params: &[Param<'ast, 'src>],
-    imports: &mut Vec<(&'src str, Span)>,
+    imports: &mut Vec<(&'src str, Span, SourceNodeId)>,
 ) {
     for default in params.iter().filter_map(|param| param.default.as_ref()) {
         collect_expr_dynamic_imports(default, imports);
@@ -1158,7 +1158,7 @@ fn collect_param_dynamic_imports<'ast, 'src>(
 
 fn collect_stmt_dynamic_imports<'ast, 'src>(
     statements: &[Stmt<'ast, 'src>],
-    imports: &mut Vec<(&'src str, Span)>,
+    imports: &mut Vec<(&'src str, Span, SourceNodeId)>,
 ) {
     for statement in statements {
         match statement {
@@ -1258,13 +1258,13 @@ fn collect_stmt_dynamic_imports<'ast, 'src>(
 
 fn collect_expr_dynamic_imports<'ast, 'src>(
     expression: &Expr<'ast, 'src>,
-    imports: &mut Vec<(&'src str, Span)>,
+    imports: &mut Vec<(&'src str, Span, SourceNodeId)>,
 ) {
     match expression {
         Expr {
             kind: ExprKind::DynamicImport { source, span },
             ..
-        } => imports.push((source, *span)),
+        } => imports.push((source, *span, expression.id)),
         Expr {
             kind: ExprKind::ArrayLiteral { elements, .. },
             ..

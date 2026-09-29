@@ -1206,7 +1206,7 @@ fn exact_string_values_cross_cells_joins_and_utf16_operations() {
 
 #[test]
 fn source_operations_with_one_diagnostic_span_keep_distinct_resolution() {
-    use crate::ast::{ArrayElement, ExprKind, Ident, Item, SourceNodes, Stmt};
+    use crate::ast::{ArrayElement, ExprKind, Item, SourceNodes, Stmt};
     use crate::check::BuiltinCall;
     use crate::primitive::Intrinsic;
     use crate::primitive::ResolvedIntrinsic::Property;
@@ -1214,7 +1214,7 @@ fn source_operations_with_one_diagnostic_span_keep_distinct_resolution() {
     let empty = crate::parse_source(&arena, "").unwrap();
     let nodes = SourceNodes::default();
     let span = crate::span::Span::empty(0);
-    let ident = |name| Ident { name, span };
+    let ident = |name| nodes.ident(name, span);
     // Generated syntax can have one diagnostic location while each occurrence
     // still has its own binding, operation and result obligations.
     let array = arena.alloc(nodes.expression(ExprKind::ArrayLiteral {

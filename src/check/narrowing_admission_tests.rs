@@ -234,6 +234,7 @@ fn narrowing_preserves_branch_maps_active_scope_assignment_and_shadowing() {
             Ident {
                 name: "value",
                 span: Span::empty(10_000),
+                id: SourceNodeId::detached(10_000),
             },
             Type::Nullable(Box::new(Type::String)),
         )
@@ -243,6 +244,7 @@ fn narrowing_preserves_branch_maps_active_scope_assignment_and_shadowing() {
             Ident {
                 name: "other",
                 span: Span::empty(10_001),
+                id: SourceNodeId::detached(10_001),
             },
             Type::Nullable(Box::new(Type::Int)),
         )
@@ -302,6 +304,7 @@ fn narrowing_preserves_branch_maps_active_scope_assignment_and_shadowing() {
             Ident {
                 name: "value",
                 span: Span::empty(10_002),
+                id: SourceNodeId::detached(10_002),
             },
             Type::Nullable(Box::new(Type::Bool)),
         )

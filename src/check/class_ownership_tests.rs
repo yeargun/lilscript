@@ -175,7 +175,7 @@ fn merged_object_members_keep_order_identity_and_shared_callable_payloads() {
         let Item::Class(declaration) = item else {
             unreachable!();
         };
-        let actual = model.identifier_symbol(declaration.name.span).unwrap();
+        let actual = model.identifier_symbol(declaration.name.id).unwrap();
         assert_eq!(*symbol.get_or_insert(actual), actual);
     }
 }

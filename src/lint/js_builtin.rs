@@ -743,8 +743,8 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             return false;
         };
         object.name == receiver.name
-            && self.view.identifier_symbol(object.span).is_some()
-            && self.view.identifier_symbol(object.span) == self.view.identifier_symbol(receiver.span)
+            && self.view.identifier_symbol(object.id).is_some()
+            && self.view.identifier_symbol(object.id) == self.view.identifier_symbol(receiver.id)
     }
 
     /// `JS.method<N>(lambda)`, `JS.methodRest(lambda)` and
@@ -792,7 +792,7 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
     /// binding once and a lambda on every call, so that one keeps its
     /// spelling.
     fn forwarding_lambda(&self, adapter: &str, name: &ast::Ident<'src>) -> Option<String> {
-        let symbol = self.view.identifier_symbol(name.span)?;
+        let symbol = self.view.identifier_symbol(name.id)?;
         if self.view.symbol_is_reassigned(symbol) {
             return None;
         }

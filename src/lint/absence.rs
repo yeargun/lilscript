@@ -46,7 +46,7 @@ pub(super) fn lint(
             }),
         });
     };
-    super::walk::each_expression(syntax, &mut |expression| match &expression.kind {
+    crate::ast_walk::each_expression(syntax, &mut |expression| match &expression.kind {
         ExprKind::Call { callee, args, .. } => {
             if let (ExprKind::Ident(name), [argument]) = (&callee.kind, args) {
                 if name.name == "print" && absent(&argument.expression) {

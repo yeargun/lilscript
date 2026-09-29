@@ -915,21 +915,15 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 .ok_or_else(|| self.error_here("expected record binding key"))?;
             let (key, quoted) = match token.kind {
                 TokenKind::StringLiteral(raw) => (
-                    Ident {
-                        name: strip_quotes(raw),
-                        span: token.span,
-                    },
+                    self.source.ident(strip_quotes(raw), token.span),
                     true,
                 ),
-                kind => (
-                    Ident {
-                        name: property_identifier_name(kind).ok_or_else(|| {
-                            AdmittedParseError::new(token.span, "expected record binding key")
-                        })?,
-                        span: token.span,
-                    },
-                    false,
-                ),
+                kind => {
+                    let name = property_identifier_name(kind).ok_or_else(|| {
+                        AdmittedParseError::new(token.span, "expected record binding key")
+                    })?;
+                    (self.source.ident(name, token.span), false)
+                }
             };
             let name = if self.match_kind(|kind| matches!(kind, TokenKind::Colon)) {
                 self.expect_ident("expected record binding name")?
@@ -1092,10 +1086,12 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     "expected constructor body",
                 )?;
                 let (body, body_span) = self.parse_block_after_open()?;
+                let span = start.merge(body_span);
                 members.push(ClassMember::Constructor(ConstructorDecl {
                     params,
                     body,
-                    span: start.merge(body_span),
+                    span,
+                    this: self.source.ident("this", span),
                 }))?;
                 continue;
             }
@@ -1214,6 +1210,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             params,
             body,
             span: return_type.span.merge(body_span),
+            this: self.source.ident("this", name.span),
         })
     }
 
@@ -1969,10 +1966,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 }))
             }
             TokenKind::Ident(name) => {
-                let ident = Ident {
-                    name,
-                    span: token.span,
-                };
+                let ident = self.source.ident(name, token.span);
                 if self.match_kind(|kind| matches!(kind, TokenKind::LBrace)) {
                     if name == "object" {
                         let literal = self.parse_record_literal_after_open(token.span)?;
@@ -1992,10 +1986,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 Ok(self.source.expression(ExprKind::Ident(ident)))
             }
             TokenKind::From => {
-                let ident = Ident {
-                    name: "from",
-                    span: token.span,
-                };
+                let ident = self.source.ident("from", token.span);
                 if self.match_kind(|kind| matches!(kind, TokenKind::LBrace)) {
                     return self.parse_struct_literal_after_open(ident);
                 }
@@ -2105,10 +2096,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             let pattern = match pattern_token.kind {
                 TokenKind::Ident("_") => MatchPattern::Wildcard(pattern_token.span),
                 TokenKind::Ident(name) => {
-                    let enum_name = Ident {
-                        name,
-                        span: pattern_token.span,
-                    };
+                    let enum_name = self.source.ident(name, pattern_token.span);
                     self.expect(
                         |kind| matches!(kind, TokenKind::Dot),
                         "expected `.` in enum pattern",
@@ -2221,16 +2209,13 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 .advance()
                 .ok_or_else(|| self.error_here("expected record key"))?;
             let key = match token.kind {
-                TokenKind::StringLiteral(raw) => Ident {
-                    name: strip_quotes(raw),
-                    span: token.span,
-                },
-                kind => Ident {
-                    name: property_identifier_name(kind).ok_or_else(|| {
+                TokenKind::StringLiteral(raw) => self.source.ident(strip_quotes(raw), token.span),
+                kind => {
+                    let name = property_identifier_name(kind).ok_or_else(|| {
                         AdmittedParseError::new(token.span, "expected record key")
-                    })?,
-                    span: token.span,
-                },
+                    })?;
+                    self.source.ident(name, token.span)
+                }
             };
             self.expect(
                 |kind| matches!(kind, TokenKind::Colon),
@@ -2825,14 +2810,8 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
     fn expect_ident(&mut self, message: &'static str) -> Result<Ident<'src>, AdmittedParseError> {
         let token = self.advance().ok_or_else(|| self.error_here(message))?;
         match token.kind {
-            TokenKind::Ident(name) => Ok(Ident {
-                name,
-                span: token.span,
-            }),
-            TokenKind::From => Ok(Ident {
-                name: "from",
-                span: token.span,
-            }),
+            TokenKind::Ident(name) => Ok(self.source.ident(name, token.span)),
+            TokenKind::From => Ok(self.source.ident("from", token.span)),
             _ => Err(AdmittedParseError::new(token.span, message)),
         }
     }
@@ -2844,10 +2823,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let token = self.advance().ok_or_else(|| self.error_here(message))?;
         let name = property_identifier_name(token.kind)
             .ok_or_else(|| AdmittedParseError::new(token.span, message))?;
-        Ok(Ident {
-            name,
-            span: token.span,
-        })
+        Ok(self.source.ident(name, token.span))
     }
 
     fn expect_semicolon(&mut self) -> Result<Token<'src>, AdmittedParseError> {

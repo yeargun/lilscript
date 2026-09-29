@@ -916,7 +916,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 Item::ExternGlobal(_) => {}
                 Item::Struct(declaration) => {
                     let identity = semantics
-                        .binding_type(declaration.name.span)
+                        .binding_type(declaration.name.id)
                         .and_then(|ty| semantics.nominal_id(ty))
                         .ok_or(Unsupported {
                             span: declaration.span,
@@ -1094,7 +1094,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             self.work(1)?;
             let target = self
                 .semantics
-                .export_target(export.local.span)
+                .export_target(export.local.id)
                 .and_then(interface_target)
                 .ok_or(Unsupported {
                     span: export.span,
@@ -1424,7 +1424,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
     fn cell(&self, name: ast::Ident<'src>) -> Result<CellId, ConversionError> {
         let symbol = self
             .semantics
-            .identifier_symbol(name.span)
+            .identifier_symbol(name.id)
             .ok_or(Unsupported {
                 span: name.span,
                 feature: "missing checked binding identity",
@@ -2024,7 +2024,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         &mut self,
         name: ast::Ident<'src>,
     ) -> Result<Option<NominalId>, ConversionError> {
-        match self.semantics.identifier_symbol(name.span) {
+        match self.semantics.identifier_symbol(name.id) {
             Some(symbol) => {
                 let cell =
                     CellId::from_index(symbol.0 as usize).ok_or(AllocationError::Capacity)?;
@@ -2300,7 +2300,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         }
         for member in declaration.members {
             self.work(1)?;
-            let (name, member_id, this_span, signature) = match member {
+            let (name, member_id, this, signature) = match member {
                 ast::ClassMember::Field(_) => continue,
                 ast::ClassMember::Method(function) => {
                     if function.is_async || function.is_generator {
@@ -2316,7 +2316,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     (
                         Some(function.name.name),
                         Some(method.member),
-                        function.name.span,
+                        function.this,
                         method.signature.clone(),
                     )
                 }
@@ -2325,12 +2325,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         span: constructor.span,
                         feature: "missing checked constructor",
                     })?;
-                    (None, None, constructor.span, signature)
+                    (None, None, constructor.this, signature)
                 }
-            };
-            let this = ast::Ident {
-                name: "this",
-                span: this_span,
             };
             let this_cell = self.cell(this)?;
             let receiver =
@@ -2510,18 +2506,18 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let class = self.declared_class(declaration.name)?;
         for member in declaration.members {
             self.work(1)?;
-            let (name, this_span, params, body, span) = match member {
+            let (name, this, params, body, span) = match member {
                 ast::ClassMember::Field(_) => continue,
                 ast::ClassMember::Method(function) => (
                     Some(function.name.name),
-                    function.name.span,
+                    function.this,
                     function.params,
                     function.body,
                     function.span,
                 ),
                 ast::ClassMember::Constructor(constructor) => (
                     None,
-                    constructor.span,
+                    constructor.this,
                     constructor.params,
                     constructor.body,
                     constructor.span,
@@ -2544,10 +2540,6 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span,
                 feature: "unregistered class body",
             })?;
-            let this = ast::Ident {
-                name: "this",
-                span: this_span,
-            };
             let this_cell = self.cell(this)?;
             let outer = self.current_class.replace((class, this_cell));
             self.parameters_with_receiver(method.unit, Some(this), params)?;
@@ -3744,8 +3736,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
     ) -> Result<ValueId, ConversionError> {
         let span = pattern.span();
         let constant = match pattern {
-            ast::MatchPattern::EnumVariant { span, .. } => {
-                let value = self.semantics.enum_variant_value(span).ok_or(Unsupported {
+            ast::MatchPattern::EnumVariant { variant, span, .. } => {
+                let value = self.semantics.enum_variant_value(variant.id).ok_or(Unsupported {
                     span,
                     feature: "match pattern lost its checked discriminant",
                 })?;
@@ -4376,7 +4368,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             ExprKind::DynamicImport { source, span } => {
                 let module = self
                     .semantics
-                    .dynamic_import_module(*span)
+                    .dynamic_import_module(expr.id)
                     .and_then(|module| ModuleId::from_index(module as usize))
                     .filter(|module| module.index() < self.program.modules.len())
                     .ok_or(Unsupported {
@@ -4413,8 +4405,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             ExprKind::Ident(_) | ExprKind::Index { .. } => {
                 (OperationKind::Load(self.place(unit, region, expr)?), vec![])
             }
-            ExprKind::Member { object, .. } => {
-                if let Some(value) = self.semantics.enum_variant_value(span) {
+            ExprKind::Member {
+                object, property, ..
+            } => {
+                if let Some(value) = self.semantics.enum_variant_value(property.id) {
                     (
                         OperationKind::Constant(Constant::Integer(value as i32)),
                         vec![],
@@ -4461,16 +4455,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             // `a?.m` and `a?.[i]`: the receiver is evaluated once; when it is
             // present the access reads the narrowed receiver (the index only
             // then), and otherwise the result is null.
-            ExprKind::OptionalMember {
-                object,
-                span: access,
-                ..
-            }
-            | ExprKind::OptionalIndex {
-                object,
-                span: access,
-                ..
-            } => {
+            ExprKind::OptionalMember { object, .. } | ExprKind::OptionalIndex { object, .. } => {
                 let receiver = self.expression(unit, region, object)?;
                 let optional = self.units[unit.index()].values[receiver.index()].ty;
                 let Type::Nullable(inner) = self.program.types[optional.index()].clone() else {
@@ -4479,7 +4464,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 let inner = self.ty(&inner)?;
                 let present = self
                     .semantics
-                    .optional_present_type(*access)
+                    .optional_present_type(expr.id)
                     .cloned()
                     .ok_or(Unsupported {
                         span,
@@ -5018,9 +5003,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             ExprKind::Cast {
                 value,
                 checked: true,
-                span: check,
                 ..
-            } => return self.checked_cast(unit, region, value, *check, ty, origin, span),
+            } => return self.checked_cast(unit, region, value, expr.id, ty, origin, span),
             // `bool(v)`: the truthiness intrinsic on its operand, as
             // `v.truthy()` calls it.
             ExprKind::Convert { value, .. } => {
@@ -5060,10 +5044,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     span,
                 )?
             }
-            ExprKind::TypeCheck {
-                value, span: check, ..
-            } => {
-                let checked = self.semantics.type_check_type(*check).ok_or(Unsupported {
+            ExprKind::TypeCheck { value, .. } => {
+                let checked = self.semantics.type_check_type(expr.id).ok_or(Unsupported {
                     span,
                     feature: "missing checked type-test target",
                 })?;
@@ -5206,7 +5188,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         unit: UnitId,
         region: RegionId,
         value: &ast::Expr<'ast, 'src>,
-        check: Span,
+        check: ast::SourceNodeId,
         ty: TypeId,
         origin: Option<ast::SourceNodeId>,
         span: Span,
