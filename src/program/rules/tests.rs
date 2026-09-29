@@ -471,15 +471,19 @@ print(clamp(-2, 0, 10));";
     });
 }
 
-/// After a `return` inside a loop's body nothing of that body runs.
+/// A branch folded into an exit inside a loop's body leaves the rest of the
+/// body unreachable (the source's own dead statements never reach the
+/// program: conversion drops them).
 #[test]
 fn operations_after_an_exit_go_and_initializations_stay_whole() {
-    let source = "int first(int n) {
+    let source = "int mode = 1;
+int first(int n) {
   int total = 0;
   for (int i = 0; i < n; i += 1) {
     total += i;
-    return total;
-    print(i);
+    if (mode == 1) { return total; }
+    total += 100;
+    print(total);
   }
   return total;
 }
