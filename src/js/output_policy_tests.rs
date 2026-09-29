@@ -20,12 +20,16 @@ fn fixture() -> (Module, BindingId) {
         scope: ScopeId::new(0),
         spelling: "descriptiveState".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     let reader = module.binding(Binding {
         source_symbol: Some(SymbolId(1)),
         scope: ScopeId::new(0),
         spelling: "read".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     let body = module.region(ScopeId::new(0));
     let value = module.expression(Expr::Binding(state), None);

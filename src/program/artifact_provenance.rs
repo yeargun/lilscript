@@ -421,6 +421,8 @@ mod tests {
             scope: ScopeId::new(0),
             spelling: "longLocalName".into(),
             pinned: false,
+            class: None,
+            defined: false,
         });
         let value = module.expression(Expr::Literal(Literal::Number(7.0)), None);
         module.regions[0].statements.push(Statement::Let {

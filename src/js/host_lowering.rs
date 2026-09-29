@@ -276,6 +276,8 @@ impl Lowering<'_, '_> {
                 scope: scope.id,
                 spelling: name.to_string(),
                 pinned: false,
+                class: None,
+                defined: false,
             },
             self.budget,
         )?;

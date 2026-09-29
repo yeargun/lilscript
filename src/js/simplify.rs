@@ -84,13 +84,11 @@ const STATIC_STRINGS: &[(&str, &str)] = &[
 
 impl Module {
     /// Apply the rules above until none applies. Returns the number of edits.
-    /// `protected` (ascending) lists literals with an observed alternative:
-    /// no rule rewrites an expression that holds one.
+    /// No rule rewrites an expression that holds an observed literal.
     pub(crate) fn simplify_operators(
         &mut self,
         numeric_lengths: bool,
         year: u16,
-        protected: &[ExprId],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
@@ -102,7 +100,7 @@ impl Module {
             budget.work(Analysis, self.expressions.len() as u64)?;
             let before = edits;
             for index in 0..self.expressions.len() {
-                if self.holds_protected(ExprId::new(index), protected) {
+                if self.holds_observed(ExprId::new(index)) {
                     continue;
                 }
                 if let Some(replacement) =
@@ -119,13 +117,13 @@ impl Module {
         Ok(edits)
     }
 
-    /// Whether `id`, a child or a grandchild is a protected literal: every
+    /// Whether `id`, a child or a grandchild is an observed literal: every
     /// rule reads at most two levels down.
-    fn holds_protected(&self, id: ExprId, protected: &[ExprId]) -> bool {
-        if protected.is_empty() {
+    fn holds_observed(&self, id: ExprId) -> bool {
+        if self.observed_literals.is_empty() {
             return false;
         }
-        let hit = |id: ExprId| protected.binary_search(&id).is_ok();
+        let hit = |id: ExprId| self.observed(id);
         let mut found = hit(id);
         let _ = self.expressions[id.index()].visit_children(|child| {
             found |= hit(child);

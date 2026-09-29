@@ -165,6 +165,8 @@ impl Formation<'_, '_, '_, '_, '_> {
                 scope,
                 spelling,
                 pinned: false,
+                class: None,
+                defined: false,
             },
             self.budget,
         )?)
@@ -226,11 +228,7 @@ impl Formation<'_, '_, '_, '_, '_> {
         right: js::ExprId,
     ) -> Result<Option<js::Expr>, FormationError> {
         let string = |this: &Self, id: js::ExprId| match &this.module.expressions[id.index()] {
-            js::Expr::Literal(js::Literal::String(value))
-                if this
-                    .literal_alternatives
-                    .binary_search_by_key(&id, |alternative| alternative.expression())
-                    .is_err() =>
+            js::Expr::Literal(js::Literal::String(value)) if !this.module.observed(id) =>
             {
                 Some(value.clone())
             }

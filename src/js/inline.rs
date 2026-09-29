@@ -849,6 +849,12 @@ impl Module {
                 });
             }
         }
+        // The observed literals move with their expressions; renumbering
+        // reorders ids, and lookups need them ascending.
+        self.observed_literals
+            .retain_mut(|alternative| alternative.remap(&map));
+        self.observed_literals
+            .sort_unstable_by_key(|alternative| alternative.expression());
         Ok(map)
     }
 }

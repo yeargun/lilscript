@@ -93,7 +93,7 @@ fn with_targets(
             let retained = ledger.retained_bytes();
             {
                 let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
-                let (module, literals) = javascript::lower_admitted(
+                let module = javascript::lower_admitted(
                     &program,
                     &uses,
                     &map,
@@ -106,7 +106,6 @@ fn with_targets(
                 module.verify().unwrap();
                 assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
                 inspect(&module, mode, compact);
-                drop(literals);
                 drop(module);
             }
             assert_eq!(ledger.retained_bytes(), retained);

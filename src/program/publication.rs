@@ -758,7 +758,6 @@ struct JavaScriptTarget<'scope, 'src> {
     chunk_extension: &'static str,
     hosts: Option<&'scope crate::host_modules::HostDelivery>,
     module: crate::js::Module,
-    literals: Vec<crate::js::LiteralAlternative>,
     #[cfg(test)]
     _test_lifetime: super::search_target_reuse_tests::TargetLifetime,
     /// The candidate's checkpoint, borrowed field by field so that one
@@ -782,7 +781,6 @@ impl JavaScriptTarget<'_, '_> {
     ) -> Result<R, CandidateError> {
         let Self {
             module,
-            literals,
             semantic,
             implementations,
             identity,
@@ -865,7 +863,7 @@ impl JavaScriptTarget<'_, '_> {
         budget.with_ledger(|ledger| {
             let mut phase = AllocationBudget::new(ledger.map(|(ledger, _)| (ledger, domain)));
             let mut output =
-                module.prepare_output_with_literals_admitted(policy, literals, &mut phase)?;
+                module.prepare_output_with_literals_admitted(policy, &mut phase)?;
             output.set_hosts(hosts.map(|hosts| (hosts, strict)));
             #[cfg(test)]
             let output = super::search_target_reuse_tests::AdmittedOutputOwner::new(output);
@@ -1024,7 +1022,7 @@ impl Formations<'_, '_> {
         };
         let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
         let head = head.clone_in(&mut budget)?;
-        let (module, literals) = super::javascript::form_tail_admitted(
+        let module = super::javascript::form_tail_admitted(
             head,
             choices.families,
             &choices.choices,
@@ -1036,7 +1034,6 @@ impl Formations<'_, '_> {
             chunk_extension: self.chunk_extension,
             hosts: self.hosts,
             module,
-            literals,
             #[cfg(test)]
             _test_lifetime: super::search_target_reuse_tests::TargetLifetime::new(),
             semantic: self.semantic,
@@ -1074,7 +1071,7 @@ impl Formations<'_, '_> {
         };
         let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
         let head = head.clone_in(&mut budget)?;
-        let (module, literals) = super::javascript::form_tail_admitted(
+        let module = super::javascript::form_tail_admitted(
             head,
             choices.families,
             &choices.choices,
@@ -1082,7 +1079,6 @@ impl Formations<'_, '_> {
         )
         .map_err(formation_error)?;
         let sites = module.choice_sites.clone();
-        drop(literals);
         drop(module);
         Ok(sites)
     }
@@ -2303,7 +2299,7 @@ impl<'src> Compilation<'src> {
             super::demand::DemandMode::Preserve
         };
         let mut budget = AllocationBudget::new(Some((&mut self.ledger, domain)));
-        let (module, literals) = super::javascript::lower_output_admitted(
+        let module = super::javascript::lower_output_admitted(
             &semantic.program,
             &semantic.uses,
             map,
@@ -2324,7 +2320,6 @@ impl<'src> Compilation<'src> {
             chunk_extension: self.chunk_extension,
             hosts: self.host_modules.as_ref().map(|(delivery, _)| delivery),
             module,
-            literals,
             #[cfg(test)]
             _test_lifetime: super::search_target_reuse_tests::TargetLifetime::new(),
             semantic,

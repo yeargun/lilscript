@@ -58,6 +58,8 @@ fn table_module(literal: &Lit) -> (Module, BindingId) {
         scope: ScopeId::new(0),
         spelling: "table".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     let value = build(&mut module, literal);
     module.regions[0].statements.push(Statement::Let {
@@ -129,7 +131,7 @@ fn every_alternative(literal: &Lit) -> (ChoiceSite, Vec<(AltId, String)>) {
     let oracle = run(&module);
     let mut seeded = module.clone();
     seeded
-        .encode_tables(&[], &ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
+        .encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
         .unwrap();
     assert_eq!(seeded.choice_sites.len(), 1, "one site");
     let site = seeded.choice_sites[0].clone();
@@ -140,7 +142,7 @@ fn every_alternative(literal: &Lit) -> (ChoiceSite, Vec<(AltId, String)>) {
         let mut formed = module.clone();
         let choices = ChoiceMap::SEEDS.with(site.key, offered.alternative);
         formed
-            .encode_tables(&[], &choices, &mut AllocationBudget::new(None))
+            .encode_tables(&choices, &mut AllocationBudget::new(None))
             .unwrap();
         assert_eq!(formed.choice_sites[0].applied, offered.alternative);
         assert_eq!(run(&formed), oracle, "{}", offered.name);
@@ -355,23 +357,22 @@ fn tables_that_cannot_be_exact_are_never_sites() {
     let (module, _) = table_module(&encodable);
     let mut formed = module.clone();
     formed
-        .encode_tables(&[], &ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
+        .encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
         .unwrap();
     assert_eq!(formed.choice_sites.len(), 1, "the control table is a site");
     let refused = |literal: Lit, protect: bool| {
         let (module, _) = table_module(&literal);
         let mut formed = module.clone();
-        let protected: Vec<ExprId> = if protect {
-            (0..formed.expressions.len()).map(ExprId::new).collect()
-        } else {
-            Vec::new()
-        };
+        // Every literal observed: no pass may rewrite one.
+        if protect {
+            formed.observed_literals = (0..formed.expressions.len())
+                .map(|index| {
+                    LiteralAlternative::new(ExprId::new(index), WeakLiteralObservation::Truthy)
+                })
+                .collect();
+        }
         formed
-            .encode_tables(
-                &protected,
-                &ChoiceMap::SEEDS,
-                &mut AllocationBudget::new(None),
-            )
+            .encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
             .unwrap();
         assert!(formed.choice_sites.is_empty());
         assert_eq!(
@@ -395,7 +396,7 @@ fn tables_that_cannot_be_exact_are_never_sites() {
     let (mut module, _) = table_module(&encodable);
     module.pristine_builtins = false;
     module
-        .encode_tables(&[], &ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
+        .encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
         .unwrap();
     assert_eq!(module.choice_sites.len(), 1);
 }
@@ -421,7 +422,7 @@ fn the_seed_is_the_largest_estimated_saving() {
     let (module, _) = table_module(&metrics());
     let mut formed = module.clone();
     formed
-        .encode_tables(&[], &ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
+        .encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
         .unwrap();
     let site = &formed.choice_sites[0];
     let best = site
@@ -435,7 +436,7 @@ fn the_seed_is_the_largest_estimated_saving() {
     let (module, _) = table_module(&Lit::O(vec![("a", Lit::N(0.5)), ("b", Lit::N(0.25))]));
     let mut formed = module.clone();
     formed
-        .encode_tables(&[], &ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
+        .encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
         .unwrap();
     assert!(formed.choice_sites.is_empty());
 }
@@ -452,6 +453,8 @@ fn two_tables_of_one_schema_decode_through_one_decoder() {
         scope: ScopeId::new(0),
         spelling: "second".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     let value = build(&mut module, &metrics());
     module.regions[0].statements.push(Statement::Let {
@@ -472,7 +475,7 @@ fn two_tables_of_one_schema_decode_through_one_decoder() {
     let oracle = run(&module);
     let mut seeded = module.clone();
     seeded
-        .encode_tables(&[], &ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
+        .encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
         .unwrap();
     assert_eq!(seeded.choice_sites.len(), 2, "two sites");
     let mut choices = ChoiceMap::SEEDS;
@@ -486,7 +489,7 @@ fn two_tables_of_one_schema_decode_through_one_decoder() {
     }
     let mut formed = module.clone();
     formed
-        .encode_tables(&[], &choices, &mut AllocationBudget::new(None))
+        .encode_tables(&choices, &mut AllocationBudget::new(None))
         .unwrap();
     let decoders = formed.regions[formed.root.index()]
         .statements

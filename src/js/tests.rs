@@ -22,6 +22,8 @@ fn binding(module: &mut Module, region: RegionId, source: u32, name: &str) -> Bi
         scope: module.regions[region.index()].scope,
         spelling: name.into(),
         pinned: false,
+        class: None,
+        defined: false,
     })
 }
 
@@ -88,6 +90,8 @@ fn distinct_target_cells_share_provenance_without_aliasing_and_remap_together() 
         scope: ScopeId::new(0),
         spelling: "temporary".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     assert_ne!(shared, parameter);
     assert_eq!(
@@ -923,6 +927,8 @@ fn exports_reject_missing_bindings_duplicate_names_and_nested_cells() {
         scope,
         spelling: "value".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     let initial = module.expression(Expr::Literal(Literal::Number(1.0)), None);
     module.regions[module.root.index()]
@@ -948,6 +954,8 @@ fn exports_reject_missing_bindings_duplicate_names_and_nested_cells() {
         scope: module.regions[nested.index()].scope,
         spelling: "local".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     module.regions[nested.index()]
         .statements

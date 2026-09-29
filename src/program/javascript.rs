@@ -341,7 +341,7 @@ pub(super) fn lower_admitted(
     mode: DemandMode,
     compact: bool,
     budget: &mut AllocationBudget<'_>,
-) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
+) -> Result<js::Module, FormationError> {
     lower_output_admitted(
         program,
         uses,
@@ -370,7 +370,7 @@ pub(super) fn lower_output_admitted(
     choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
-) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
+) -> Result<js::Module, FormationError> {
     let mut phase = budget.scope();
     let demand = phase.with_ledger(|ledger| {
         DemandPlan::build(
@@ -441,9 +441,9 @@ fn form(
     demand
         .discard(budget.map(|(ledger, _)| ledger))
         .map_err(FormationError::Budget)?;
-    result.map(|(module, literals)| {
+    result.map(|module| {
         debug_assert!(
-            literals.is_empty(),
+            module.observed_literals.is_empty(),
             "inspection formation keeps exact literals"
         );
         module
@@ -461,7 +461,7 @@ fn form_with_demand(
     choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
-) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
+) -> Result<js::Module, FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
     let head = form_head(
         program,
@@ -481,7 +481,6 @@ fn form_with_demand(
 /// runs `form_tail` on a copy for each challenger.
 pub(super) struct FormedHead {
     module: js::Module,
-    literals: Vec<js::LiteralAlternative>,
     /// The contract facts the family tail reads; absent without target
     /// compaction, which runs no tail.
     tail: Option<TailContext>,
@@ -508,11 +507,8 @@ impl FormedHead {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, AllocationError> {
         let module = self.module.clone_in(budget)?;
-        let mut literals = budget.vector(AllocationClass::Retained, self.literals.len())?;
-        literals.extend_from_slice(&self.literals);
         Ok(Self {
             module,
-            literals,
             tail: self.tail,
             hints_inert: self.hints_inert,
         })
@@ -555,7 +551,7 @@ pub(super) fn form_tail_admitted(
     families: js::OutputFamilies,
     choices: &js::ChoiceMap,
     budget: &mut AllocationBudget<'_>,
-) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
+) -> Result<js::Module, FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
     form_tail(head, families, choices, budget)
 }
@@ -610,7 +606,6 @@ fn form_head(
         demand,
         compact,
         module,
-        literal_alternatives: Vec::new(),
         string_sums: Vec::new(),
         contexts,
         entry_depths,
@@ -857,11 +852,6 @@ fn form_head(
         // `!!Number.isInteger(v)` should already read `Number.isInteger(v)`.
         let numeric_lengths = formation.contract.assumptions.numeric_lengths;
         let year = formation.contract.ecmascript.year();
-        let early: Vec<js::ExprId> = formation
-            .literal_alternatives
-            .iter()
-            .map(|alternative| alternative.expression())
-            .collect();
         // `x.m.call(x,…)` is `x.m(…)` for the operator rules too
         // (`+Number.parseInt(s)` needs no `+`).
         if let Err(error) = formation
@@ -870,7 +860,7 @@ fn form_head(
             .and_then(|_| {
                 formation
                     .module
-                    .simplify_operators(numeric_lengths, year, &early, formation.budget)
+                    .simplify_operators(numeric_lengths, year, formation.budget)
             })
         {
             drop(formation);
@@ -879,56 +869,32 @@ fn form_head(
         let inlined = formation
             .module
             .inline_expression_functions(6, strict, formation.budget);
-        let inlined = match inlined {
-            Ok((_, Some(map))) => {
-                // Renumbering reorders ids; lookups need them ascending.
-                formation
-                    .literal_alternatives
-                    .retain_mut(|alternative| alternative.remap(&map));
-                formation
-                    .literal_alternatives
-                    .sort_unstable_by_key(|alternative| alternative.expression());
-                Ok(())
-            }
-            Ok((_, None)) => Ok(()),
-            Err(error) => Err(error),
-        };
+        let inlined = inlined.map(|_| ());
         let inlined = inlined.and_then(|()| {
             // A body copied into its caller may still call a function whose
             // own inlining edited the original: a later round inlines the copy.
             for _ in 0..3 {
-                match formation
+                if formation
                     .module
                     .inline_statement_functions(strict, formation.budget)?
+                    .1
+                    .is_none()
                 {
-                    (_, Some(map)) => {
-                        formation
-                            .literal_alternatives
-                            .retain_mut(|alternative| alternative.remap(&map));
-                        formation
-                            .literal_alternatives
-                            .sort_unstable_by_key(|alternative| alternative.expression());
-                    }
-                    (_, None) => break,
+                    break;
                 }
             }
             formation.module.eliminate_aliases(formation.budget)?;
             Ok(())
         });
-        let protected: Vec<js::ExprId> = formation
-            .literal_alternatives
-            .iter()
-            .map(|alternative| alternative.expression())
-            .collect();
         let inlined = inlined.and_then(|()| {
             // Inlined host helpers meet their receivers: `call1(o.m,o,x)`.
             formation.module.self_method_calls(formation.budget)?;
             formation
                 .module
-                .fold_literal_operations(&protected, formation.budget)?;
+                .fold_literal_operations(formation.budget)?;
             formation
                 .module
-                .simplify_operators(numeric_lengths, year, &protected, formation.budget)
+                .simplify_operators(numeric_lengths, year, formation.budget)
                 .map(|_| ())
         });
         if let Err(error) = inlined {
@@ -937,19 +903,11 @@ fn form_head(
         }
         // Literal root constants are their literal wherever they are
         // initialized (by initialization order).
-        let protected: Vec<js::ExprId> = formation
-            .literal_alternatives
-            .iter()
-            .map(|alternative| alternative.expression())
-            .collect();
         let edited = formation
             .module
-            .forward_root_constants(&protected, formation.budget)
+            .forward_root_constants(formation.budget)
             .and_then(|_| formation.module.forward_single_uses(formation.budget))
-            .and_then(|(_, map)| {
-                if let Some(map) = map {
-                    remap_alternatives(&mut formation.literal_alternatives, &map);
-                }
+            .and_then(|_| {
                 formation.module.elide_undefined(formation.budget)?;
                 // `let o;o={…}` must meet as `let o={…}` before stores fold.
                 formation
@@ -986,42 +944,18 @@ fn form_head(
                 // inherited setter sees (R10: nothing here assumes pristine
                 // builtins).
                 formation.module.inline_initializers(formation.budget)?;
-                fold_stores(
-                    &mut formation.module,
-                    &mut formation.literal_alternatives,
-                    pristine,
-                    formation.budget,
-                )?;
+                fold_stores(&mut formation.module, pristine, formation.budget)?;
                 // Stores folded into their literals no longer run before the
                 // constants declared after them.
-                let protected: Vec<js::ExprId> = formation
-                    .literal_alternatives
-                    .iter()
-                    .map(|alternative| alternative.expression())
-                    .collect();
-                formation
-                    .module
-                    .forward_root_constants(&protected, formation.budget)?;
+                formation.module.forward_root_constants(formation.budget)?;
                 formation.module.drop_double_negations(formation.budget)?;
                 if logical != 0 {
-                    if let (_, Some(map)) =
-                        formation.module.forward_single_uses(formation.budget)?
-                    {
-                        remap_alternatives(&mut formation.literal_alternatives, &map);
-                    }
+                    formation.module.forward_single_uses(formation.budget)?;
                 }
                 // Forwarding and folds bring operators next to each other.
-                let protected: Vec<js::ExprId> = formation
-                    .literal_alternatives
-                    .iter()
-                    .map(|alternative| alternative.expression())
-                    .collect();
-                formation.module.simplify_operators(
-                    numeric_lengths,
-                    year,
-                    &protected,
-                    formation.budget,
-                )?;
+                formation
+                    .module
+                    .simplify_operators(numeric_lengths, year, formation.budget)?;
                 Ok(0)
             });
         if let Err(error) = edited {
@@ -1031,23 +965,12 @@ fn form_head(
         // Store folds and forwarding leave single-expression functions that
         // were several statements when inlining first ran: a builder's
         // `let o={};o.k=v;return o` is now `()=>({k:v})`.
-        match formation
+        if let Err(error) = formation
             .module
             .inline_expression_functions(6, strict, formation.budget)
         {
-            Ok((_, Some(map))) => {
-                formation
-                    .literal_alternatives
-                    .retain_mut(|alternative| alternative.remap(&map));
-                formation
-                    .literal_alternatives
-                    .sort_unstable_by_key(|alternative| alternative.expression());
-            }
-            Ok((_, None)) => {}
-            Err(error) => {
-                drop(formation);
-                return Err(error.into());
-            }
+            drop(formation);
+            return Err(error.into());
         }
         // Calls through the host's call machinery that name plain calls:
         // `x.m.call(x,…)`.
@@ -1065,7 +988,6 @@ fn form_head(
     }
     let Formation {
         module,
-        literal_alternatives,
         contexts,
         entry_depths,
         records,
@@ -1093,7 +1015,6 @@ fn form_head(
     phase.finish_retained()?;
     Ok(FormedHead {
         module,
-        literals: literal_alternatives,
         tail,
         hints_inert,
     })
@@ -1108,12 +1029,9 @@ fn form_tail(
     families: js::OutputFamilies,
     choices: &js::ChoiceMap,
     budget: &mut AllocationBudget<'_>,
-) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
+) -> Result<js::Module, FormationError> {
     let FormedHead {
-        mut module,
-        mut literals,
-        tail,
-        ..
+        mut module, tail, ..
     } = head;
     let Some(TailContext {
         strict,
@@ -1125,7 +1043,7 @@ fn form_tail(
     else {
         module.loop_head_declarations = false;
         module.logical_statements = false;
-        return Ok((module, literals));
+        return Ok(module);
     };
     module.loop_head_declarations = families.loop_heads;
     module.logical_statements = families.logical_statements;
@@ -1133,7 +1051,6 @@ fn form_tail(
     // in the scope that owns the head's charges.
     let mut formation = Tail {
         module: &mut module,
-        literal_alternatives: &mut literals,
         budget,
     };
     let result = formation.run(
@@ -1147,19 +1064,17 @@ fn form_tail(
     );
     drop(formation);
     match result {
-        Ok(()) => Ok((module, literals)),
+        Ok(()) => Ok(module),
         Err(error) => {
             drop(module);
-            drop(literals);
             Err(error.into())
         }
     }
 }
 
-/// The tree and its literal alternatives while the family tail edits them.
+/// The tree while the family tail edits it.
 struct Tail<'a, 'b> {
     module: &'a mut js::Module,
-    literal_alternatives: &'a mut Vec<js::LiteralAlternative>,
     budget: &'a mut AllocationBudget<'b>,
 }
 
@@ -1186,9 +1101,7 @@ impl Tail<'_, '_> {
                     != 0
             {
                 formation.module.eliminate_aliases(formation.budget)?;
-                if let (_, Some(map)) = formation.module.forward_single_uses(formation.budget)? {
-                    remap_alternatives(formation.literal_alternatives, &map);
-                }
+                formation.module.forward_single_uses(formation.budget)?;
             }
             if families.flat_blocks {
                 formation.module.flatten_blocks(formation.budget)?;
@@ -1204,33 +1117,17 @@ impl Tail<'_, '_> {
                 && families.statements != js::StatementSpellings::NONE
             {
                 // A store of a conditional is a store the fold can take.
-                fold_stores(
-                    formation.module,
-                    formation.literal_alternatives,
-                    pristine,
-                    formation.budget,
-                )?;
+                fold_stores(formation.module, pristine, formation.budget)?;
                 // Conditionals built from statements meet the operator
                 // rules for the first time (`x===void 0?null:x`).
-                let protected: Vec<js::ExprId> = formation
-                    .literal_alternatives
-                    .iter()
-                    .map(|alternative| alternative.expression())
-                    .collect();
-                formation.module.simplify_operators(
-                    numeric_lengths,
-                    year,
-                    &protected,
-                    formation.budget,
-                )?;
+                formation
+                    .module
+                    .simplify_operators(numeric_lengths, year, formation.budget)?;
             }
             // A function left with one call is created there.
-            if let (_, Some(map)) = formation
+            formation
                 .module
-                .place_single_calls(strict, formation.budget)?
-            {
-                remap_alternatives(formation.literal_alternatives, &map);
-            }
+                .place_single_calls(strict, formation.budget)?;
             // Initializer stores the construction literal already holds.
             formation
                 .module
@@ -1254,20 +1151,11 @@ impl Tail<'_, '_> {
             // What the source types allow: truthiness for nullable objects,
             // array methods on bindings that only hold arrays.
             formation.module.truthy_null_tests(formation.budget)?;
-            if let (_, Some(map)) = formation.module.array_receiver_calls(formation.budget)? {
-                remap_alternatives(formation.literal_alternatives, &map);
-            }
+            formation.module.array_receiver_calls(formation.budget)?;
             // Constant data tables: the literal, or an encoding decoded
             // once where the literal stood, as the artifact's choice map
             // names (M9.8; its seed when the map names none).
-            let protected: Vec<js::ExprId> = formation
-                .literal_alternatives
-                .iter()
-                .map(|alternative| alternative.expression())
-                .collect();
-            formation
-                .module
-                .encode_tables(&protected, choices, formation.budget)?;
+            formation.module.encode_tables(choices, formation.budget)?;
             formation.module.drop_default_arguments(formation.budget)?;
             formation.module.native_default_lengths(formation.budget)?;
             Ok(0)
@@ -1278,28 +1166,8 @@ impl Tail<'_, '_> {
             if !families.string_pooling {
                 return Ok(0);
             }
-            let protected: Vec<js::ExprId> = formation
-                .literal_alternatives
-                .iter()
-                .map(|alternative| alternative.expression())
-                .collect();
-            if let (_, Some(map)) = formation
-                .module
-                .pack_string_arrays(&protected, formation.budget)?
-            {
-                formation
-                    .literal_alternatives
-                    .retain_mut(|alternative| alternative.remap(&map));
-                formation
-                    .literal_alternatives
-                    .sort_unstable_by_key(|alternative| alternative.expression());
-            }
-            let protected: Vec<js::ExprId> = formation
-                .literal_alternatives
-                .iter()
-                .map(|alternative| alternative.expression())
-                .collect();
-            formation.module.pool_strings(&protected, formation.budget)
+            formation.module.pack_string_arrays(formation.budget)?;
+            formation.module.pool_strings(formation.budget)
         });
 
         edited.map(|_| ())
@@ -1343,7 +1211,6 @@ fn value_class(ty: &Type<'_>) -> Option<js::ValueClass> {
 /// (`new_keys`).
 fn fold_stores(
     module: &mut js::Module,
-    alternatives: &mut Vec<js::LiteralAlternative>,
     new_keys: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), AllocationError> {
@@ -1351,22 +1218,11 @@ fn fold_stores(
         if module.fold_object_stores(new_keys, budget)? == 0 {
             break;
         }
-        let (forwarded, map) = module.forward_single_uses(budget)?;
-        if let Some(map) = map {
-            remap_alternatives(alternatives, &map);
-        }
-        if forwarded == 0 {
+        if module.forward_single_uses(budget)?.0 == 0 {
             break;
         }
     }
     Ok(())
-}
-
-/// Point literal alternatives at their renumbered nodes, ascending for
-/// lookups; those whose node is gone go too.
-fn remap_alternatives(alternatives: &mut Vec<js::LiteralAlternative>, map: &[Option<js::ExprId>]) {
-    alternatives.retain_mut(|alternative| alternative.remap(map));
-    alternatives.sort_unstable_by_key(|alternative| alternative.expression());
 }
 
 struct FormationContext {
@@ -1411,9 +1267,6 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     demand: &'demand DemandPlan<'program, 'src>,
     compact: bool,
     module: js::Module,
-    // Formation owns these target occurrences with the Module. Failed growth
-    // drops both before its phase releases their allocation admission.
-    literal_alternatives: Vec<js::LiteralAlternative>,
     contexts: Vec<Option<FormationContext>>,
     // Expression insertion depths, not lexical scope depths: inline bodies
     // keep their caller's storage scope but execute inside its call schedule.
@@ -2226,6 +2079,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                                 spelling: self
                                     .format(format_args!("record_{index}_slot_{slot}"))?,
                                 pinned: false,
+                                class: None,
+                                defined: false,
                             };
                             self.module.binding_in(binding, self.budget)?
                         };
@@ -2253,17 +2108,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             self.format(format_args!("cell_{index}"))?
                         },
                         pinned: false,
+                        class: None,
+                        defined: false,
                     };
                     self.module.binding_in(binding, self.budget)?
                 };
                 // What the cell holds, for the tree's type-directed edits.
-                if let Some(class) = value_class(&self.program.types[cell.ty.index()]) {
-                    self.budget.push(
-                        AllocationClass::Retained,
-                        &mut self.module.binding_classes,
-                        (binding, class),
-                    )?;
-                }
+                self.module.bindings[binding.index()].class =
+                    value_class(&self.program.types[cell.ty.index()]);
                 cells[self.demand.cell_ordinal(cell_id)] = Some(binding);
                 if inline {
                     // Each occurrence has private scalar cells in the caller
@@ -2385,6 +2237,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     scope: self.module.regions[region.index()].scope,
                     spelling: self.format(format_args!("value_{}_{}", context.index(), index))?,
                     pinned: false,
+                    class: None,
+                    defined: false,
                 };
                 self.module.binding_in(binding, self.budget)?
             };
@@ -2417,6 +2271,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     scope: self.module.regions[body.index()].scope,
                     spelling: self.format(format_args!("string_{}_{}", context.index(), family))?,
                     pinned: false,
+                    class: None,
+                    defined: false,
                 };
                 self.module.binding_in(binding, self.budget)?
             };
@@ -2591,11 +2447,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         }
                     };
                     if let Some(weak) = weak {
-                        self.budget.push(
-                            AllocationClass::Retained,
-                            &mut self.literal_alternatives,
-                            js::LiteralAlternative::new(expression, weak),
-                        )?;
+                        self.module
+                            .observe_in(js::LiteralAlternative::new(expression, weak), self.budget)?;
                     }
                 }
                 return Ok(expression);
@@ -2870,6 +2723,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 scope,
                 spelling,
                 pinned: false,
+                class: None,
+                defined: false,
             },
             self.budget,
         )?;
@@ -3110,6 +2965,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     result.index()
                 ))?,
                 pinned: false,
+                class: None,
+                defined: false,
             };
             let binding = self.module.binding_in(binding, self.budget)?;
             self.statement(
@@ -5553,6 +5410,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                                             region.index()
                                         ))?,
                                         pinned: false,
+                                        class: None,
+                                        defined: false,
                                     };
                                     self.module.binding_in(binding, self.budget)?
                                 })

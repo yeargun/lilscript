@@ -434,10 +434,30 @@ impl Module {
         policy: &crate::compilation_policy::ResolvedPolicy,
         parent: &'a mut AllocationBudget<'_>,
     ) -> Result<Output<'a>, OutputError> {
-        self.prepare_output_with_literals_admitted(policy, &[], parent)
+        self.prepare_output_in(policy, &[], parent)
     }
 
+    /// `prepare_output_admitted`, with the module's observed literals.
     pub(crate) fn prepare_output_with_literals_admitted<'a>(
+        &'a self,
+        policy: &crate::compilation_policy::ResolvedPolicy,
+        parent: &'a mut AllocationBudget<'_>,
+    ) -> Result<Output<'a>, OutputError> {
+        self.prepare_output_in(policy, &self.observed_literals, parent)
+    }
+
+    /// `prepare_output_admitted` with rows a test supplies, valid or not.
+    #[cfg(test)]
+    pub(crate) fn prepare_output_with_rows_admitted<'a>(
+        &'a self,
+        policy: &crate::compilation_policy::ResolvedPolicy,
+        rows: &'a [LiteralAlternative],
+        parent: &'a mut AllocationBudget<'_>,
+    ) -> Result<Output<'a>, OutputError> {
+        self.prepare_output_in(policy, rows, parent)
+    }
+
+    fn prepare_output_in<'a>(
         &'a self,
         policy: &crate::compilation_policy::ResolvedPolicy,
         rows: &'a [LiteralAlternative],

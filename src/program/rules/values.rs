@@ -289,7 +289,7 @@ fn written(graph: &CallGraph, cell: CellId) -> bool {
 /// `undefined` argument triggers never runs. Typed callers evaluate every
 /// default they can (`DefaultConvention::MaterializeAtCaller`) and omit only
 /// trailing arrows, and every store into the parameter is typed too.
-/// Formation's `defined_parameters` states the same fact on the target tree.
+/// Formation's `Binding::defined` states the same fact on the target tree.
 fn typed_argument(
     program: &Program<'_>,
     graph: &CallGraph,

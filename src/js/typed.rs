@@ -1,5 +1,5 @@
 //! Edits the source types allow (013-T1): formation records what each
-//! binding always holds (`Module::binding_classes`).
+//! binding always holds (`Binding::class`).
 //!
 //! * A test of a nullable object against `null` is its truthiness: an
 //!   object is always truthy, and `null` (or a binding not yet assigned)
@@ -22,7 +22,7 @@ impl Module {
         &mut self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
-        if self.binding_classes.is_empty() {
+        if !self.bindings.iter().any(|binding| binding.class.is_some()) {
             return Ok(0);
         }
         let classes = self.value_classes();

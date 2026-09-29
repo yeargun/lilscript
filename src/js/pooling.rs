@@ -29,7 +29,6 @@ impl Module {
     /// Returns how many, and the renumbering map when it edited.
     pub(crate) fn pack_string_arrays(
         &mut self,
-        protected: &[ExprId],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
         if !self.pristine_builtins {
@@ -46,7 +45,7 @@ impl Module {
             for element in elements {
                 match &self.expressions[element.index()] {
                     Expr::Literal(Literal::String(value))
-                        if protected.binary_search(element).is_err() =>
+                        if !self.observed(*element) =>
                     {
                         let Some(value) = value.as_unicode() else {
                             break;
@@ -106,7 +105,6 @@ impl Module {
     /// first in the root. Returns how many strings.
     pub(crate) fn pool_strings(
         &mut self,
-        protected: &[ExprId],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let reach = self.reach(budget)?;
@@ -120,7 +118,7 @@ impl Module {
                 Expr::Literal(Literal::Number(value)) => Pooled::Number(value.to_bits()),
                 _ => continue,
             };
-            if protected.binary_search(&id).is_ok() {
+            if self.observed(id) {
                 continue;
             }
             match index.get(&pooled) {
@@ -158,6 +156,8 @@ impl Module {
                     scope,
                     spelling: "s".into(),
                     pinned: false,
+                    class: None,
+                    defined: false,
                 },
                 budget,
             )?;

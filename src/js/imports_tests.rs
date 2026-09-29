@@ -128,6 +128,8 @@ fn imported(module: &mut Module, spelling: &str, source: &str, name: &str) -> Bi
         scope: ScopeId::new(0),
         spelling: spelling.into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     module.import(source, name, binding);
     binding
@@ -182,6 +184,8 @@ fn cyclic_import_read_keeps_tdz_even_when_its_payload_is_discarded() {
         scope: ScopeId::new(0),
         spelling: "probe".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     let body = module.region(ScopeId::new(0));
     let read = module.expression(Expr::Binding(count), None);
@@ -223,6 +227,8 @@ fn fixed_import_export_names_and_escaped_specifier_survive_local_alias_mangling(
         scope: ScopeId::new(0),
         spelling: "descriptiveAlias".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     module.import("./producer\"quoted.mjs", "default", imported);
     module.exports.push(Export {
@@ -234,6 +240,8 @@ fn fixed_import_export_names_and_escaped_specifier_survive_local_alias_mangling(
         scope: ScopeId::new(0),
         spelling: "a".into(),
         pinned: true,
+        class: None,
+        defined: false,
     });
     let value = module.expression(Expr::Literal(Literal::Number(7.0)), None);
     module.regions[0].statements.push(Statement::Let {
@@ -284,6 +292,8 @@ fn imports_reject_missing_duplicate_nested_writable_and_invalid_name_declaration
         scope: ScopeId::new(0),
         spelling: "value".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     module.verify().unwrap();
     module.import("./producer.mjs", "other", id);
@@ -407,6 +417,8 @@ fn imports_require_module_policy_and_printer_limits_never_return_partial_imports
         scope: ScopeId::new(0),
         spelling: "value".into(),
         pinned: true,
+        class: None,
+        defined: false,
     });
     module.import("./producer.mjs", "value", id);
     assert!(module
@@ -427,6 +439,8 @@ fn imports_require_module_policy_and_printer_limits_never_return_partial_imports
         scope: ScopeId::new(0),
         spelling: "value".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     expensive.import(&"x".repeat(10_000), "value", id);
     let mut ledger = ledger(100_000, 100);

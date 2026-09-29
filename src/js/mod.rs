@@ -838,6 +838,15 @@ pub struct Binding {
     /// Exact observable lexical spelling. Callable reflection belongs to the
     /// function value, not every parameter or alias whose type is callable.
     pub pinned: bool,
+    /// What formation knows the binding always holds, from its source type
+    /// (013-T1, an annotation of M5.2). A binding a pass creates, and every
+    /// `JsValue`, is unknown (`None`).
+    pub class: Option<ValueClass>,
+    /// A parameter whose type excludes `undefined` (numbers, strings,
+    /// booleans, enums, collections, class and struct instances, functions):
+    /// a typed caller always passes a value, so only a host or erased caller
+    /// could leave it to its default.
+    pub defined: bool,
 }
 
 /// A binding's value class, from the source type of what it holds.
@@ -860,13 +869,7 @@ pub enum ValueClass {
 impl Module {
     /// The class of every binding, `None` where unknown.
     pub(crate) fn value_classes(&self) -> Vec<Option<ValueClass>> {
-        let mut classes = vec![None; self.bindings.len()];
-        for &(binding, class) in &self.binding_classes {
-            if let Some(slot) = classes.get_mut(binding.index()) {
-                *slot = Some(class);
-            }
-        }
-        classes
+        self.bindings.iter().map(|binding| binding.class).collect()
     }
 }
 
@@ -964,6 +967,12 @@ pub struct EntryPublic {
 pub struct Module {
     pub expressions: Vec<Expr>,
     pub origins: Vec<Option<SourceNodeId>>,
+    /// String literals the source only observes for truthiness or
+    /// nullishness (an annotation of M5.2), sorted by expression: an
+    /// artifact may spell them another way (`LiteralOutput::Observed`). The
+    /// arena renumbers them with their expressions, and every pass leaves
+    /// them where they are.
+    pub(crate) observed_literals: Vec<LiteralAlternative>,
     pub regions: Vec<Region>,
     pub functions: Vec<Function>,
     pub scopes: Vec<Option<ScopeId>>,
@@ -981,15 +990,6 @@ pub struct Module {
     /// function it receives nor reads its `prototype` (Terser's
     /// `unsafe_arrows`).
     pub unconstructed_callbacks: bool,
-    /// Parameters whose type excludes `undefined` (numbers, strings,
-    /// booleans, enums, collections, class and struct instances, functions):
-    /// a typed caller always passes a value, so only a host or erased caller
-    /// could leave one to its default.
-    pub defined_parameters: Vec<BindingId>,
-    /// What formation knows a binding always holds, from its source type
-    /// (013-T1): sparse, in formation order. A binding absent here (every
-    /// binding a pass creates, every `JsValue`) is unknown.
-    pub binding_classes: Vec<(BindingId, ValueClass)>,
     /// One row per root statement, aligned with the root region (plan
     /// M3.3): its source module and its anchor. Formation writes the rows;
     /// every rule that inserts, removes, moves or fuses a root statement
@@ -1454,17 +1454,15 @@ impl Module {
     /// is no longer: exact binary64 arithmetic, as in JavaScript, and the
     /// language's int32 contract for integer operations. String sums stay:
     /// computed, literal and shared spellings are the string family's choice
-    /// for each codec. `protected` (ascending) lists literals with an
-    /// observed alternative, left alone. Returns the number of folds.
+    /// for each codec. An observed literal is left alone. Returns the
+    /// number of folds.
     pub(crate) fn fold_literal_operations(
         &mut self,
-        protected: &[ExprId],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
-        let free = |id: ExprId| protected.binary_search(&id).is_err();
         let number = |module: &Self, id: ExprId| match module.expressions[id.index()] {
-            Expr::Literal(Literal::Number(value)) if free(id) => Some(value),
+            Expr::Literal(Literal::Number(value)) if !module.observed(id) => Some(value),
             _ => None,
         };
         let int32 = |value: f64| {
@@ -1933,7 +1931,7 @@ impl Module {
 
     /// A function whose every use is a direct call is called only by typed
     /// code, and typed code always passes a value for a parameter whose type
-    /// excludes `undefined` (`defined_parameters`): the body's opening
+    /// excludes `undefined` (`Binding::defined`): the body's opening
     /// default for such a parameter never applies, so `(a,b=0)=>…` is
     /// `(a,b)=>…`. A function created at its one call counts too. Returns
     /// how many defaults went.
@@ -1942,15 +1940,10 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
-        if self.defined_parameters.is_empty() {
+        if !self.bindings.iter().any(|binding| binding.defined) {
             return Ok(0);
         }
-        let mut defined = vec![false; self.bindings.len()];
-        for binding in &self.defined_parameters {
-            if let Some(slot) = defined.get_mut(binding.index()) {
-                *slot = true;
-            }
-        }
+        let defined: Vec<bool> = self.bindings.iter().map(|binding| binding.defined).collect();
         let reach = self.reach(budget)?;
         let mut uses = vec![0usize; self.bindings.len()];
         let mut calls = vec![0usize; self.bindings.len()];
@@ -3299,8 +3292,6 @@ impl Module {
             pristine_builtins: false,
             pure_property_reads: false,
             unconstructed_callbacks: false,
-            defined_parameters: Vec::new(),
-            binding_classes: Vec::new(),
             root_rows: vec![],
             entries: vec![],
             delivery: None,
@@ -3310,7 +3301,30 @@ impl Module {
             logical_statements: false,
             int32_hints: false,
             choice_sites: Vec::new(),
+            observed_literals: Vec::new(),
         })
+    }
+
+    /// Whether the literal at `id` is observed only for truthiness or
+    /// nullishness, so no pass may rewrite it.
+    pub(crate) fn observed(&self, id: ExprId) -> bool {
+        self.observed_literals
+            .binary_search_by_key(&id, |alternative| alternative.expression())
+            .is_ok()
+    }
+
+    /// Record an observed literal formation creates. Formation appends its
+    /// expressions, so the list stays sorted.
+    pub(crate) fn observe_in(
+        &mut self,
+        alternative: LiteralAlternative,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        debug_assert!(self
+            .observed_literals
+            .last()
+            .is_none_or(|last| last.expression() < alternative.expression()));
+        budget.push(AllocationClass::Retained, &mut self.observed_literals, alternative)
     }
 
     /// An admitted copy of the whole tree. The copy's arenas are charged at
@@ -3330,14 +3344,13 @@ impl Module {
         let arenas = [
             bytes(&self.expressions)?,
             bytes(&self.origins)?,
+            bytes(&self.observed_literals)?,
             bytes(&self.regions)?,
             bytes(&self.functions)?,
             bytes(&self.scopes)?,
             bytes(&self.bindings)?,
             bytes(&self.imports)?,
             bytes(&self.exports)?,
-            bytes(&self.defined_parameters)?,
-            bytes(&self.binding_classes)?,
             bytes(&self.root_rows)?,
             bytes(&self.entries)?,
             bytes(&self.reserved)?,

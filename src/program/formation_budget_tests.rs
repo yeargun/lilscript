@@ -54,15 +54,14 @@ fn property(value: &js::Property) -> u64 {
 fn module_storage(module: &js::Module) -> u64 {
     let mut total = bytes(&module.expressions)
         + bytes(&module.origins)
+        + bytes(&module.observed_literals)
         + bytes(&module.functions)
         + bytes(&module.bindings)
         + bytes(&module.exports)
         + bytes(&module.scopes)
         + bytes(&module.regions)
         + bytes(&module.root_rows)
-        + bytes(&module.entries)
-        + bytes(&module.defined_parameters)
-        + bytes(&module.binding_classes);
+        + bytes(&module.entries);
     for expression in &module.expressions {
         total += match expression {
             js::Expr::Literal(js::Literal::String(value)) => value.capacity_bytes() as u64,
@@ -143,7 +142,7 @@ fn formation_charges_exact_live_module_capacity_and_releases_all_planning_scratc
             let retained_before = ledger.retained_bytes();
             {
                 let mut budget = AllocationBudget::new(Some((&mut ledger, domain)));
-                let (module, literals) = javascript::lower_admitted(
+                let module = javascript::lower_admitted(
                     program,
                     &uses,
                     &ImplementationMap::direct(),
@@ -153,7 +152,7 @@ fn formation_charges_exact_live_module_capacity_and_releases_all_planning_scratc
                     &mut budget,
                 )
                 .unwrap();
-                assert!(literals.is_empty());
+                assert!(module.observed_literals.is_empty());
                 let stored = module_storage(&module);
                 assert!(stored > 0);
                 assert_eq!(budget.retained_bytes(AllocationClass::Retained), stored);
@@ -195,7 +194,7 @@ fn late_literal_formation_denial_preserves_incumbent_and_cleans_demand_and_parti
         let required;
         {
             let mut budget = AllocationBudget::new(Some((&mut probe, WorkDomain::Optional)));
-            let (module, literals) = javascript::lower_admitted(
+            let module = javascript::lower_admitted(
                 program,
                 &probe_uses,
                 &ImplementationMap::direct(),
@@ -205,7 +204,7 @@ fn late_literal_formation_denial_preserves_incumbent_and_cleans_demand_and_parti
                 &mut budget,
             )
             .unwrap();
-            assert!(literals.is_empty());
+            assert!(module.observed_literals.is_empty());
             assert_eq!(
                 budget.retained_bytes(AllocationClass::Retained),
                 module_storage(&module)
@@ -270,7 +269,7 @@ fn observed_literal_payloads_share_formation_admission_and_unwind_after_payload_
             let before = ledger.retained_bytes();
             let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let mut budget = AllocationBudget::new(Some((&mut ledger, domain)));
-                let (module, literals) = javascript::lower_admitted(
+                let module = javascript::lower_admitted(
                     program,
                     &uses,
                     &ImplementationMap::direct(),
@@ -280,10 +279,13 @@ fn observed_literal_payloads_share_formation_admission_and_unwind_after_payload_
                     &mut budget,
                 )
                 .unwrap();
-                assert!(!literals.is_empty(), "real Formation weak-literal client");
+                assert!(
+                    !module.observed_literals.is_empty(),
+                    "real Formation weak-literal client"
+                );
                 assert_eq!(
                     budget.retained_bytes(AllocationClass::Retained),
-                    module_storage(&module) + bytes(&literals)
+                    module_storage(&module)
                 );
                 assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
                 panic!("test unwind while target and literal alternatives coexist");
@@ -304,7 +306,7 @@ fn completed_formation_unwinds_after_actual_module_drop_in_the_original_domain()
         let before = ledger.retained_bytes();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
-            let (module, literals) = javascript::lower_admitted(
+            let module = javascript::lower_admitted(
                 program,
                 &uses,
                 &ImplementationMap::direct(),
@@ -314,7 +316,7 @@ fn completed_formation_unwinds_after_actual_module_drop_in_the_original_domain()
                 &mut budget,
             )
             .unwrap();
-            assert!(literals.is_empty());
+            assert!(module.observed_literals.is_empty());
             assert_eq!(
                 budget.retained_bytes(AllocationClass::Retained),
                 module_storage(&module)

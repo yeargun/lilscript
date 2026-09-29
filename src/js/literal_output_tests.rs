@@ -129,7 +129,7 @@ fn one_prepared_output_renders_original_and_observed_without_mutating_literals()
     {
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
         let output = module
-            .prepare_output_with_literals_admitted(&policy(true), &rows, &mut budget)
+            .prepare_output_with_rows_admitted(&policy(true), &rows, &mut budget)
             .unwrap();
         assert!(output.has_literal_alternative_admitted().unwrap());
         for style in [Style::Source, Style::Global, Style::Scoped] {
@@ -167,7 +167,7 @@ fn unreachable_rows_have_no_alternative_and_resolve_to_original() {
     {
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
         let output = module
-            .prepare_output_with_literals_admitted(&policy(true), &rows, &mut budget)
+            .prepare_output_with_rows_admitted(&policy(true), &rows, &mut budget)
             .unwrap();
         assert!(!output.has_literal_alternative_admitted().unwrap());
         let (text, mode) = render(&output, LiteralOutput::Observed, Style::Global);
@@ -193,7 +193,7 @@ fn malformed_sparse_locations_are_rejected_before_prepared_output_escapes() {
         {
             let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
             let result =
-                module.prepare_output_with_literals_admitted(&policy(true), &rows, &mut budget);
+                module.prepare_output_with_rows_admitted(&policy(true), &rows, &mut budget);
             assert!(matches!(
                 result,
                 Err(OutputError::Invalid("invalid observed literal occurrence"))
@@ -210,7 +210,7 @@ fn observed_output_checks_permission_even_if_the_recipe_is_inactive() {
         {
             let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
             let output = module
-                .prepare_output_with_literals_admitted(&policy(false), rows, &mut budget)
+                .prepare_output_with_rows_admitted(&policy(false), rows, &mut budget)
                 .unwrap();
             assert!(!output.has_literal_alternative_admitted().unwrap());
             let result = output.render_with_literals_admitted(
@@ -259,7 +259,7 @@ fn selected_literal_shape_preserves_receiver_syntax_and_avoids_directives() {
     {
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
         let output = module
-            .prepare_output_with_literals_admitted(&policy(true), &rows, &mut budget)
+            .prepare_output_with_rows_admitted(&policy(true), &rows, &mut budget)
             .unwrap();
         let (original, _) = render(&output, LiteralOutput::Original, Style::Global);
         let (observed, _) = render(&output, LiteralOutput::Observed, Style::Global);
@@ -277,7 +277,7 @@ fn failed_render_and_unwind_release_output_owners_and_leave_reusable_preparation
     {
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
         let output = module
-            .prepare_output_with_literals_admitted(&policy(true), &rows, &mut budget)
+            .prepare_output_with_rows_admitted(&policy(true), &rows, &mut budget)
             .unwrap();
         let (original, _) = render(&output, LiteralOutput::Original, Style::Scoped);
         let before = output
@@ -303,7 +303,7 @@ fn failed_render_and_unwind_release_output_owners_and_leave_reusable_preparation
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
         let output = module
-            .prepare_output_with_literals_admitted(&policy(true), &rows, &mut budget)
+            .prepare_output_with_rows_admitted(&policy(true), &rows, &mut budget)
             .unwrap();
         assert!(output.has_literal_alternative_admitted().unwrap());
         panic!("test output-scope unwind");
@@ -315,7 +315,7 @@ fn failed_render_and_unwind_release_output_owners_and_leave_reusable_preparation
         {
             let mut budget = AllocationBudget::new(Some((&mut denied, WorkDomain::Optional)));
             assert!(matches!(
-                module.prepare_output_with_literals_admitted(&policy(true), &rows, &mut budget),
+                module.prepare_output_with_rows_admitted(&policy(true), &rows, &mut budget),
                 Err(OutputError::Admission(_))
             ));
         }

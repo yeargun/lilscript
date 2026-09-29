@@ -85,6 +85,8 @@ impl Formation<'_, '_, '_, '_, '_> {
                 scope: self.module.regions[region.index()].scope,
                 spelling,
                 pinned: false,
+                class: None,
+                defined: false,
             },
             self.budget,
         )?)
@@ -349,13 +351,7 @@ impl Formation<'_, '_, '_, '_, '_> {
                         | Type::Function(_)
                 ) && !references::is_reference(self.program, cell)
                     && !entry;
-                if defined {
-                    self.budget.push(
-                        AllocationClass::Retained,
-                        &mut self.module.defined_parameters,
-                        binding,
-                    )?;
-                }
+                self.module.bindings[binding.index()].defined = defined;
                 if references::is_reference(self.program, cell) {
                     let path = self.reference_parameter_path(context, cell)?;
                     self.append(&mut parameters, path)?;

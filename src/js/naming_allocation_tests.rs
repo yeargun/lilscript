@@ -31,12 +31,16 @@ fn fixture() -> Module {
         scope: ScopeId::new(0),
         spelling: "retainedState".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     let reader = module.binding(Binding {
         source_symbol: Some(SymbolId(1)),
         scope: ScopeId::new(0),
         spelling: "readState".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     let body = module.region(ScopeId::new(0));
     let parameter = module.binding(Binding {
@@ -44,6 +48,8 @@ fn fixture() -> Module {
         scope: module.regions[body.index()].scope,
         spelling: "unusedInput".into(),
         pinned: false,
+        class: None,
+        defined: false,
     });
     let initial = module.expression(Expr::Literal(Literal::Number(7.0)), None);
     let read = module.expression(Expr::Binding(state), None);
@@ -280,6 +286,8 @@ fn name_index_checks_exact_scope_and_name_even_in_a_collision_cluster() {
             scope: if index == 8 { child } else { root },
             spelling: name.clone(),
             pinned: true,
+            class: None,
+            defined: false,
         });
     }
     let mut ledger = ledger(1_000_000, 1_000_000);
@@ -327,6 +335,8 @@ fn large_scope_uses_single_name_payloads_and_fails_capacity_before_allocation() 
             scope: ScopeId::new(0),
             spelling: format!("source{number}"),
             pinned: false,
+            class: None,
+            defined: false,
         });
         module.regions[0].statements.push(Statement::Let {
             binding,

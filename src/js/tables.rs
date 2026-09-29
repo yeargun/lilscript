@@ -1271,11 +1271,10 @@ impl Module {
     fn datum(
         &self,
         expr: ExprId,
-        protected: &[ExprId],
         depth: usize,
         nodes: &mut u64,
     ) -> Option<Node> {
-        if depth > MAX_NESTING || protected.binary_search(&expr).is_ok() {
+        if depth > MAX_NESTING || self.observed(expr) {
             return None;
         }
         *nodes += 1;
@@ -1285,7 +1284,7 @@ impl Module {
             Expr::Unary {
                 op: Unary::Negate,
                 value,
-            } if protected.binary_search(value).is_err() => {
+            } if !self.observed(*value) => {
                 match &self.expressions[value.index()] {
                     Expr::Literal(Literal::Number(value)) => number(-*value)?,
                     _ => return None,
@@ -1297,7 +1296,7 @@ impl Module {
             Expr::Array(items) => {
                 let mut values = Vec::with_capacity(items.len());
                 for item in items {
-                    values.push(self.datum(*item, protected, depth + 1, nodes)?);
+                    values.push(self.datum(*item, depth + 1, nodes)?);
                 }
                 Value::Array(values)
             }
@@ -1323,7 +1322,7 @@ impl Module {
                         }
                         Property::Named(name) => name.as_str(),
                         Property::Computed(key) => {
-                            if protected.binary_search(key).is_ok() {
+                            if self.observed(*key) {
                                 return None;
                             }
                             match &self.expressions[key.index()] {
@@ -1335,7 +1334,7 @@ impl Module {
                     if key == "__proto__" || !seen.insert(key) {
                         return None;
                     }
-                    let value = self.datum(*value, protected, depth + 1, nodes)?;
+                    let value = self.datum(*value, depth + 1, nodes)?;
                     values.push((key.to_owned(), value));
                 }
                 Value::Object {
@@ -1354,7 +1353,6 @@ impl Module {
     /// seed. Returns how many tables are encoded.
     pub(crate) fn encode_tables(
         &mut self,
-        protected: &[ExprId],
         choices: &ChoiceMap,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
@@ -1377,7 +1375,7 @@ impl Module {
                 continue;
             }
             let mut nodes = 0;
-            let node = self.datum(value, protected, 0, &mut nodes);
+            let node = self.datum(value, 0, &mut nodes);
             budget.work(Analysis, nodes)?;
             let Some(node) = node else {
                 continue;
@@ -1579,6 +1577,8 @@ impl Module {
                     scope,
                     spelling: spelling.into(),
                     pinned: false,
+                    class: None,
+                    defined: false,
                 },
                 budget,
             )
@@ -1860,6 +1860,8 @@ impl Emit<'_, '_, '_> {
                 scope,
                 spelling: spelling.into(),
                 pinned: false,
+                class: None,
+                defined: false,
             },
             self.budget,
         )
@@ -1868,11 +1870,8 @@ impl Emit<'_, '_, '_> {
     /// A binding that only ever holds a number: the printer spells its
     /// `x=x+1` as `x++`.
     fn numeric(&mut self, binding: BindingId) -> Result<(), AllocationError> {
-        self.budget.push(
-            AllocationClass::Retained,
-            &mut self.module.binding_classes,
-            (binding, ValueClass::Number),
-        )
+        self.module.bindings[binding.index()].class = Some(ValueClass::Number);
+        Ok(())
     }
 
     fn region(&mut self, parent: ScopeId) -> Result<(RegionId, ScopeId), AllocationError> {

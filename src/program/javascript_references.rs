@@ -548,6 +548,8 @@ impl<'demand, 'program, 'src, 'budget, 'ledger>
                 scope: self.module.regions[region.index()].scope,
                 spelling,
                 pinned: false,
+                class: None,
+                defined: false,
             },
             self.budget,
         )?)

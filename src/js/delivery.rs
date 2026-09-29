@@ -2655,6 +2655,8 @@ fn create_setters(
                         scope: body_scope,
                         spelling: "v".to_string(),
                         pinned: false,
+                        class: None,
+                        defined: false,
                     },
                     budget,
                 )?;
@@ -2696,6 +2698,8 @@ fn create_setters(
                         scope: root_scope,
                         spelling,
                         pinned: false,
+                        class: None,
+                        defined: false,
                     },
                     budget,
                 )?;

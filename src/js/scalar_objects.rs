@@ -136,6 +136,8 @@ impl Module {
                     scope,
                     spelling: format!("{spelling}_{key}"),
                     pinned: false,
+                    class: None,
+                    defined: false,
                 });
                 fields.push((key.clone(), field));
                 lets.push(Statement::Let {

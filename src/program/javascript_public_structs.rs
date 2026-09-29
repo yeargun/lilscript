@@ -261,6 +261,8 @@ impl Formation<'_, '_, '_, '_, '_> {
                 scope,
                 spelling,
                 pinned: false,
+                class: None,
+                defined: false,
             },
             self.budget,
         )?)

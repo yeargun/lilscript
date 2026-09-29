@@ -309,13 +309,11 @@ impl std::fmt::Write for Buffer<'_, '_> {
 
 /// Which bindings always hold a number.
 fn numeric_bindings(module: &Module) -> Vec<bool> {
-    let mut numeric = vec![false; module.bindings.len()];
-    for &(binding, class) in &module.binding_classes {
-        if let Some(slot) = numeric.get_mut(binding.index()) {
-            *slot = matches!(class, ValueClass::Int | ValueClass::Number);
-        }
-    }
-    numeric
+    module
+        .bindings
+        .iter()
+        .map(|binding| matches!(binding.class, Some(ValueClass::Int | ValueClass::Number)))
+        .collect()
 }
 
 struct Printer<'a, 'budget, 'ledger> {
@@ -329,7 +327,7 @@ struct Printer<'a, 'budget, 'ledger> {
     /// The specifier of each lazily delivered module's file (module,
     /// specifier), when this prints one file of several.
     lazy: &'a [(u32, String)],
-    /// Bindings that always hold a number (`Module::binding_classes`).
+    /// Bindings that always hold a number (`Binding::class`).
     numeric: Vec<bool>,
 }
 

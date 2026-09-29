@@ -74,6 +74,8 @@ impl Formation<'_, '_, '_, '_, '_> {
                         scope: self.module.regions[region.index()].scope,
                         spelling,
                         pinned: false,
+                        class: None,
+                        defined: false,
                     },
                     self.budget,
                 )?;
@@ -136,6 +138,8 @@ impl Formation<'_, '_, '_, '_, '_> {
                         scope: self.module.regions[region.index()].scope,
                         spelling,
                         pinned: false,
+                        class: None,
+                        defined: false,
                     },
                     self.budget,
                 )?;
@@ -231,6 +235,8 @@ impl Formation<'_, '_, '_, '_, '_> {
                         scope: self.module.regions[region.index()].scope,
                         spelling,
                         pinned: false,
+                        class: None,
+                        defined: false,
                     },
                     self.budget,
                 )?;
@@ -491,6 +497,8 @@ impl Formation<'_, '_, '_, '_, '_> {
                     scope: self.module.regions[region.index()].scope,
                     spelling,
                     pinned: false,
+                    class: None,
+                    defined: false,
                 },
                 self.budget,
             )?;

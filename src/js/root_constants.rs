@@ -20,12 +20,11 @@ use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 
 impl Module {
-    /// Reads of literal root constants become the literal. `protected`
-    /// (ascending) lists literals with scored spellings, which stay where
-    /// they are. Returns how many reads.
+    /// Reads of literal root constants become the literal. An observed
+    /// literal, which has a scored spelling, stays where it is. Returns how
+    /// many reads.
     pub(crate) fn forward_root_constants(
         &mut self,
-        protected: &[ExprId],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let frames = self.frames(budget)?;
@@ -45,7 +44,7 @@ impl Module {
             else {
                 continue;
             };
-            if order.written(binding) || protected.binary_search(&value).is_ok() {
+            if order.written(binding) || self.observed(value) {
                 continue;
             }
             if matches!(self.expressions[value.index()], Expr::Literal(_)) {

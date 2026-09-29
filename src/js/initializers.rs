@@ -702,7 +702,7 @@ impl Module {
                         // A typed argument is never `undefined`.
                         (Some(_), _)
                             if self.never_undefined(argument)
-                                || self.defined_parameters.contains(&parameters[*index]) =>
+                                || self.bindings[parameters[*index].index()].defined =>
                         {
                             Value::Moved(argument)
                         }
