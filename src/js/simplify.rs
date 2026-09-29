@@ -473,7 +473,8 @@ impl Module {
     /// `new RegExp(p[, f])` of literal strings, as a literal when the pattern
     /// and flags are in the proven subset.
     fn regex_literal(&self, callee: ExprId, arguments: &[ExprId], es2018: bool) -> Option<Expr> {
-        if !matches!(&self.expressions[callee.index()], Expr::Host(host) if host.kind == crate::catalog::HostKind::Standard(crate::catalog::Global::RegExp)) {
+        if !matches!(&self.expressions[callee.index()], Expr::Host(host) if host.kind == crate::catalog::HostKind::Standard(crate::catalog::Global::RegExp))
+        {
             return None;
         }
         let text = |id: &ExprId| match &self.expressions[id.index()] {

@@ -120,7 +120,10 @@ fn an_extern_declares_its_attributes_the_same_in_every_module() {
     ])
     .unwrap_err();
     assert_eq!(module, 1);
-    assert!(message.contains("conflicting extern contracts"), "{message}");
+    assert!(
+        message.contains("conflicting extern contracts"),
+        "{message}"
+    );
     assert!(message.contains("pure"), "{message}");
 }
 

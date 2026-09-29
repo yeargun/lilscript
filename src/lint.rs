@@ -1843,9 +1843,16 @@ mod tests {
             diagnostics
                 .iter()
                 .filter(|diagnostic| diagnostic.rule == "migration/js-builtin")
-                .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
+                .map(|diagnostic| (
+                    diagnostic.fix.is_some(),
+                    &source[diagnostic.span.start..diagnostic.span.end]
+                ))
                 .collect::<Vec<_>>(),
-            [(false, "JS.array(x)"), (false, "JS.array()"), (false, "JS.add(text, \"y\")")]
+            [
+                (false, "JS.array(x)"),
+                (false, "JS.array()"),
+                (false, "JS.add(text, \"y\")")
+            ]
         );
     }
 
@@ -1928,7 +1935,10 @@ print(new Holder(true).kept);
             diagnostics
                 .iter()
                 .filter(|diagnostic| diagnostic.rule == "migration/implicit-default")
-                .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
+                .map(|diagnostic| (
+                    diagnostic.fix.is_some(),
+                    &source[diagnostic.span.start..diagnostic.span.end]
+                ))
                 .collect::<Vec<_>>(),
             [(false, "tail")]
         );
@@ -1952,9 +1962,14 @@ print(new Holder(true).kept);
         for edit in edits {
             source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
         }
-        assert_eq!(source, "export debug extern void debugLog(JsValue value);\ndebugLog(1);\n");
+        assert_eq!(
+            source,
+            "export debug extern void debugLog(JsValue value);\ndebugLog(1);\n"
+        );
         let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
-        assert!(!diagnostics.iter().any(|diagnostic| diagnostic.rule == "migration/debug-class"));
+        assert!(!diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.rule == "migration/debug-class"));
         let pure = "pure extern void debugLog(JsValue value);\ndebugLog(1);\n";
         let diagnostics = lint_path_with_source(&path, pure, &ProjectConfig::default()).unwrap();
         assert_eq!(
@@ -1990,7 +2005,9 @@ print(new Holder(true).kept);
         assert_eq!(source, fixed);
         // A fixed source has nothing left to fix.
         let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
-        assert!(!diagnostics.iter().any(|diagnostic| diagnostic.rule == "migration/char-code"));
+        assert!(!diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.rule == "migration/char-code"));
     }
 
     /// `migration/absence`: operations that tell the spellings of absence
@@ -2021,7 +2038,10 @@ print(new Holder(true).kept);
             diagnostics
                 .iter()
                 .filter(|diagnostic| diagnostic.rule == "migration/absence")
-                .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
+                .map(|diagnostic| (
+                    diagnostic.fix.is_some(),
+                    &source[diagnostic.span.start..diagnostic.span.end]
+                ))
                 .collect::<Vec<_>>(),
             [(false, "v === s"), (false, "s"), (false, "indexOf")]
         );

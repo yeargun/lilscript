@@ -1104,10 +1104,7 @@ impl<'src> InterfaceGraph<'src> {
                     .type_bindings
                     .get(export.local.name)
                     .copied();
-                let declared_type = checked
-                    .view(module)
-                    .unwrap()
-                    .export_target(export.local.id);
+                let declared_type = checked.view(module).unwrap().export_target(export.local.id);
                 let direct_value = local_value.is_some_and(|(span, _)| *span == export.local.span);
                 let target = if let Some(target) = declared_type {
                     Some(target)
@@ -1303,10 +1300,7 @@ impl<'src> InterfaceGraph<'src> {
                     .get(export.local.name)
                     .is_some_and(|(span, _)| *span == export.local.span);
                 let direct_type = matches!(
-                    checked
-                        .view(module)
-                        .unwrap()
-                        .export_target(export.local.id),
+                    checked.view(module).unwrap().export_target(export.local.id),
                     Some(InterfaceTarget::Type(_))
                 );
                 if !direct_value
@@ -1325,11 +1319,9 @@ impl<'src> InterfaceGraph<'src> {
                 }
                 let facts = &mut checked.facts[module];
                 match target {
-                    InterfaceTarget::Value(symbol) => facts.record_identifier(
-                        &mut checked.declarations,
-                        export.local.id,
-                        symbol,
-                    ),
+                    InterfaceTarget::Value(symbol) => {
+                        facts.record_identifier(&mut checked.declarations, export.local.id, symbol)
+                    }
                     InterfaceTarget::Type(identity) => {
                         let ty = CheckedView {
                             declarations: &checked.declarations,

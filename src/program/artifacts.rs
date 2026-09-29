@@ -623,7 +623,10 @@ impl ArtifactArena {
     /// Bind the objective's codec settings, once per compilation: sizes are
     /// cached per artifact and codec, so one compilation measures with one
     /// setting.
-    pub(super) fn bind_codec_settings(&mut self, settings: CodecSettings) -> Result<(), CandidateError> {
+    pub(super) fn bind_codec_settings(
+        &mut self,
+        settings: CodecSettings,
+    ) -> Result<(), CandidateError> {
         if self.bound && self.settings != settings {
             return Err(CandidateError::Artifact(
                 "a compilation measures with one objective's codec settings",
@@ -790,7 +793,11 @@ impl ArtifactArena {
         id: ArtifactId,
         codec: CompressionCostModel,
     ) -> Result<bool, CandidateError> {
-        Ok(proxy_is_exact(codec, &self.settings, self.get(id.0)?.layout.is_some()))
+        Ok(proxy_is_exact(
+            codec,
+            &self.settings,
+            self.get(id.0)?.layout.is_some(),
+        ))
     }
     /// Whether two retained artifacts deliver the same files, byte for byte.
     pub(super) fn same_output(
@@ -824,7 +831,16 @@ impl ArtifactArena {
         baseline: Option<&QualifiedArtifact>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<QualifiedArtifact, CandidateError> {
-        self.qualify_with(id, formation_contract, policy, codec, runtime, baseline, true, budget)
+        self.qualify_with(
+            id,
+            formation_contract,
+            policy,
+            codec,
+            runtime,
+            baseline,
+            true,
+            budget,
+        )
     }
 
     /// Admission without the codec (M3.5): the artifact is qualified on its
@@ -840,7 +856,16 @@ impl ArtifactArena {
         runtime: ArtifactRuntimeEvidence,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<QualifiedArtifact, CandidateError> {
-        self.qualify_with(id, formation_contract, policy, codec, runtime, None, false, budget)
+        self.qualify_with(
+            id,
+            formation_contract,
+            policy,
+            codec,
+            runtime,
+            None,
+            false,
+            budget,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1337,11 +1362,12 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         id: ScopedArtifactId,
         codec: CompressionCostModel,
     ) -> Result<usize, CandidateError> {
-        self.output
-            .with_allocation_budget(|budget| {
-                let settings = self.staging.settings;
-                self.staging.get_mut(id.0)?.measure(codec, &settings, budget)
-            })
+        self.output.with_allocation_budget(|budget| {
+            let settings = self.staging.settings;
+            self.staging
+                .get_mut(id.0)?
+                .measure(codec, &settings, budget)
+        })
     }
     pub fn retain_artifact(&mut self, id: ScopedArtifactId) -> Result<ArtifactId, CandidateError> {
         self.staging.index(id.0)?;

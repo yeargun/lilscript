@@ -731,7 +731,8 @@ struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     /// Each class's (and `object`'s) name binding, by symbol: built once.
     class_values: Option<crate::stable_hash::StableHashMap<u32, NominalId>>,
     /// A field's own initializer (R3), by its class and its own slot.
-    field_initializers: crate::stable_hash::StableHashMap<(NominalId, usize), &'ast ast::Expr<'ast, 'src>>,
+    field_initializers:
+        crate::stable_hash::StableHashMap<(NominalId, usize), &'ast ast::Expr<'ast, 'src>>,
     budget: &'budget mut AllocationBudget<'ledger>,
 }
 
@@ -1428,10 +1429,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         &self,
         name: ast::Ident<'src>,
     ) -> Result<crate::check::Attributes, ConversionError> {
-        let symbol = self.semantics.identifier_symbol(name.id).ok_or(Unsupported {
-            span: name.span,
-            feature: "missing checked declaration",
-        })?;
+        let symbol = self
+            .semantics
+            .identifier_symbol(name.id)
+            .ok_or(Unsupported {
+                span: name.span,
+                feature: "missing checked declaration",
+            })?;
         Ok(self.semantics.symbols()[symbol.0 as usize].attributes)
     }
     fn cell(&self, name: ast::Ident<'src>) -> Result<CellId, ConversionError> {
@@ -2306,7 +2310,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         for member in declaration.members {
             if let ast::ClassMember::Field(field) = member {
                 if let Some(initializer) = &field.initializer {
-                    self.field_initializers.insert((identity, own_slot), initializer);
+                    self.field_initializers
+                        .insert((identity, own_slot), initializer);
                 }
                 own_slot += 1;
             }
@@ -3748,10 +3753,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let span = pattern.span();
         let constant = match pattern {
             ast::MatchPattern::EnumVariant { variant, span, .. } => {
-                let value = self.semantics.enum_variant_value(variant.id).ok_or(Unsupported {
-                    span,
-                    feature: "match pattern lost its checked discriminant",
-                })?;
+                let value = self
+                    .semantics
+                    .enum_variant_value(variant.id)
+                    .ok_or(Unsupported {
+                        span,
+                        feature: "match pattern lost its checked discriminant",
+                    })?;
                 Constant::Integer(i32::try_from(value).map_err(|_| Unsupported {
                     span,
                     feature: "enum discriminant outside int",
@@ -3840,7 +3848,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     // `int x;` (R3): the cell with no value until its first
                     // store, which the checker proves precedes every read.
                     None => {
-                        self.effect(unit, region, OperationKind::Declare(cell), &[], declaration.span)?;
+                        self.effect(
+                            unit,
+                            region,
+                            OperationKind::Declare(cell),
+                            &[],
+                            declaration.span,
+                        )?;
                     }
                 }
             }
@@ -4617,9 +4631,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         self.infer_creation_name(unit, value, rhs, name.name)?;
                     }
                 }
-                let value = if let Some(old) = old
-                    .filter(|_| self.semantics.dynamic_operation(expr.id) == Some(BuiltinCall::JsAdd))
-                {
+                let value = if let Some(old) = old.filter(|_| {
+                    self.semantics.dynamic_operation(expr.id) == Some(BuiltinCall::JsAdd)
+                }) {
                     self.dynamic_call(
                         unit,
                         region,
@@ -4903,9 +4917,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     class.span,
                 )?
             }
-            ExprKind::ArrowFunction { params, body, .. } => {
-                (OperationKind::Closure(self.closure(params, body, ty)?), vec![])
-            }
+            ExprKind::ArrowFunction { params, body, .. } => (
+                OperationKind::Closure(self.closure(params, body, ty)?),
+                vec![],
+            ),
             ExprKind::ArrayLiteral { elements, .. } => {
                 let mut values = self.budget.vector(Scratch, elements.len())?;
                 let spread = elements
@@ -4990,9 +5005,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             // `bool(v)`: the truthiness intrinsic on its operand, as
             // `v.truthy()` calls it.
             ExprKind::Convert { value, .. } => {
-                let ExpressionResolution::Primitive(
-                    operation @ ResolvedIntrinsic::Method(_),
-                ) = self.semantics.expression_resolution(expr.id)
+                let ExpressionResolution::Primitive(operation @ ResolvedIntrinsic::Method(_)) =
+                    self.semantics.expression_resolution(expr.id)
                 else {
                     return self.unsupported(span, "conversion without a checked operation");
                 };
@@ -5250,7 +5264,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             return Ok(None);
         }
         if !self.kept(class, span)? {
-            return self.unsupported(span, "an identity test on a class that does not keep its identity");
+            return self.unsupported(
+                span,
+                "an identity test on a class that does not keep its identity",
+            );
         }
         Ok(Some(self.kept_constructor(unit, region, class, span)?))
     }
@@ -5359,10 +5376,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 },
                 BuiltinCall::JsDelete,
             ) => operands.extend([O::Expression(object), O::Expression(index)]),
-            (
-                ExprKind::Call { callee, args, .. },
-                BuiltinCall::JsCall | BuiltinCall::JsApply,
-            ) => {
+            (ExprKind::Call { callee, args, .. }, BuiltinCall::JsCall | BuiltinCall::JsApply) => {
                 // `f.call(t, a)` and `f.apply(t, a)`: the receiver is the
                 // function, the first argument its `this`.
                 let ExprKind::Member { object, .. } = &callee.kind else {
@@ -5441,7 +5455,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             self.budget.push(Scratch, &mut values, argument)?;
         }
         self.close_call(unit, region, call, contract, values, span)?;
-        self.value(unit, region, OperationKind::Call(call), &[], ty, origin, span)
+        self.value(
+            unit,
+            region,
+            OperationKind::Call(call),
+            &[],
+            ty,
+            origin,
+            span,
+        )
     }
     fn dynamic_operand(
         &mut self,

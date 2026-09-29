@@ -310,7 +310,10 @@ fn structural(
                 return None;
             };
             let int = |value: ValueId| {
-                matches!(program.types[data.values[value.index()].ty.index()], Type::Int)
+                matches!(
+                    program.types[data.values[value.index()].ty.index()],
+                    Type::Int
+                )
             };
             let zero = |value: ValueId| values.exact(unit, value) == Some(&StoredExact::Integer(0));
             let with = if zero(right) && int(left) {

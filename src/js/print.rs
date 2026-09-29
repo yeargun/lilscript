@@ -1657,7 +1657,6 @@ impl<'a> Printer<'a, '_, '_> {
         (target_place == left_place).then_some((*op, *right))
     }
 
-
     fn conditional_parts(&mut self, condition: ExprId, yes: ExprId, no: ExprId) {
         // `c?a:b` groups a condition below `||`/`??` level and branches
         // below assignment, as a printed Conditional would.

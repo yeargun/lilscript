@@ -486,11 +486,7 @@ pub(crate) fn intrinsic_call_contract(
         | Intrinsic::StringToLowerCase => (&[][..], &[][..], &Type::String),
         Intrinsic::StringReplace => (&REPLACE_PARAMETERS[..], &REQUIRED_PAIR[..], &Type::String),
         Intrinsic::RegexTest => (&STRING_PARAMETERS[..], &REQUIRED_SINGLE[..], &Type::Bool),
-        Intrinsic::JsRegexExec => (
-            &STRING_PARAMETERS[..],
-            &REQUIRED_SINGLE[..],
-            &Type::Dynamic,
-        ),
+        Intrinsic::JsRegexExec => (&STRING_PARAMETERS[..], &REQUIRED_SINGLE[..], &Type::Dynamic),
         _ => return None,
     };
     Some(IntrinsicCallContract {
@@ -578,9 +574,6 @@ pub(crate) fn constructor_accepts(
         },
     }
 }
-
-
-
 
 pub(crate) fn resolve_member(
     receiver: &crate::check::Type<'_>,

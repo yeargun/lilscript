@@ -91,10 +91,16 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
         .iter()
         .map(|challenger| challenger.name())
         .collect();
-    assert_eq!(names, declared, "every declared challenger, in order, in the first pass");
+    assert_eq!(
+        names, declared,
+        "every declared challenger, in order, in the first pass"
+    );
     let before = stage["before"].as_i64().unwrap();
     let searched = stage["searched"].as_i64().unwrap();
-    assert!(searched <= before, "the search never worsens the level-0 artifact");
+    assert!(
+        searched <= before,
+        "the search never worsens the level-0 artifact"
+    );
     // One list (architecture §9.6), walked in passes: the choice moves
     // (M9.1), the declared challengers, then the joint moves, each from the
     // incumbent before it. Each start (AM2) walks passes of its own from its
@@ -207,8 +213,13 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
     );
     // Once the walk's prefix or exact budget closes, nothing after is
     // formed.
-    if let Some(first) = walk.iter().position(|(_, trial)| outcome(trial) == "budget") {
-        assert!(walk[first..].iter().all(|(_, trial)| outcome(trial) == "budget"));
+    if let Some(first) = walk
+        .iter()
+        .position(|(_, trial)| outcome(trial) == "budget")
+    {
+        assert!(walk[first..]
+            .iter()
+            .all(|(_, trial)| outcome(trial) == "budget"));
         assert!(
             stage["examined"] == stage["prefix"] || stage["judged"] == stage["exact"],
             "{stage}"
@@ -231,11 +242,18 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
             .filter(|(start, trial)| *start && restart(trial) && outcomes.contains(&outcome(trial)))
             .count()
     };
-    assert_eq!(count(false, &["stopped"]) + count(true, &["stopped"]), 0, "nothing ran out: {stage}");
+    assert_eq!(
+        count(false, &["stopped"]) + count(true, &["stopped"]),
+        0,
+        "nothing ran out: {stage}"
+    );
     // A move takes a position, and so does a restart's start; a start the
     // portfolio holds does not.
     let moves = walk.iter().filter(|(start, _)| !*start).count();
-    let restarted = walk.iter().filter(|(start, trial)| *start && restart(trial)).count();
+    let restarted = walk
+        .iter()
+        .filter(|(start, trial)| *start && restart(trial))
+        .count();
     assert_eq!(
         stage["examined"].as_u64().unwrap() as usize,
         moves - count(false, &["budget"]) + restarted - restarts(&["budget"]),
@@ -259,7 +277,10 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
         count(false, &["pruned"]) + restarts(&["pruned"])
     );
     assert_eq!(stage["after"].as_i64().unwrap(), best);
-    assert!(best <= searched, "the walks never worsen the search's winner");
+    assert!(
+        best <= searched,
+        "the walks never worsen the search's winner"
+    );
     assert_eq!(delivered(compiled, codec) as i64, best);
     let count = |outcomes: &[&str]| {
         trials(stage)
@@ -402,7 +423,10 @@ fn the_effort_sets_the_schedule_prefix_and_a_longer_one_never_ends_larger() {
         }
         previous = Some((before, after));
         let javascript = compiled.javascript(Objective::Brotli).unwrap().javascript();
-        digests.insert(level, format!("{:x}", Sha256::digest(javascript.as_bytes())));
+        digests.insert(
+            level,
+            format!("{:x}", Sha256::digest(javascript.as_bytes())),
+        );
         stops.extend(
             stage["stops"]
                 .as_array()
@@ -418,8 +442,15 @@ fn the_effort_sets_the_schedule_prefix_and_a_longer_one_never_ends_larger() {
         .unwrap()
         .is_empty());
     let artifact = off.javascript(Objective::Brotli).unwrap();
-    assert_eq!(artifact.sizes().get(Objective::Brotli), None, "level 0 measures no codec");
-    digests.insert(0, format!("{:x}", Sha256::digest(artifact.javascript().as_bytes())));
+    assert_eq!(
+        artifact.sizes().get(Objective::Brotli),
+        None,
+        "level 0 measures no codec"
+    );
+    digests.insert(
+        0,
+        format!("{:x}", Sha256::digest(artifact.javascript().as_bytes())),
+    );
     // The replay check (§9.6): wherever a walk from the level-0 artifact
     // passed a lower one-pass level's stopping point, that level's build
     // delivers exactly the recorded bytes.

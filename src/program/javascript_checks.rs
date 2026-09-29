@@ -396,8 +396,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         )?;
         let binding = self.fresh_binding(scope, &format!("{}_checked", kind.name()))?;
         self.helper_statement(root, js::Statement::Function { binding, function })?;
-        self.budget
-            .push(AllocationClass::Scratch, &mut self.crossing_checks, ((kind, absent), binding))?;
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.crossing_checks,
+            ((kind, absent), binding),
+        )?;
         Ok(binding)
     }
 }

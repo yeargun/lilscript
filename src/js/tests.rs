@@ -1937,6 +1937,12 @@ fn a_builtin_read_through_the_global_object_is_the_builtin() {
     module
         .simplify_operators(false, 2022, &mut AllocationBudget::new(None))
         .unwrap();
-    assert_eq!(module.expressions[construct.index()], Expr::Regex("/a+/".into()));
-    assert!(matches!(module.expressions[file.index()], Expr::Member { .. }));
+    assert_eq!(
+        module.expressions[construct.index()],
+        Expr::Regex("/a+/".into())
+    );
+    assert!(matches!(
+        module.expressions[file.index()],
+        Expr::Member { .. }
+    ));
 }

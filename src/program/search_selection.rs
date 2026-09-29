@@ -311,7 +311,8 @@ impl Portfolio {
         // Without a walk (level 0, M3.5) nothing compares the baseline with
         // another artifact: no codec runs, and it is admitted on its raw
         // bytes.
-        let measured = !(baseline && objective.walk == crate::compilation_policy::WalkSchedule::OFF);
+        let measured =
+            !(baseline && objective.walk == crate::compilation_policy::WalkSchedule::OFF);
         for codec in objectives.iter() {
             if !baseline && known.get(codec).is_none() {
                 counters.codec_probes += 1;

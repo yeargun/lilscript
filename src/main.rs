@@ -802,7 +802,11 @@ fn explain_human(report: &Value) -> String {
                     .map(|start| {
                         format!("start {} {}", text(&start["name"]), text(&start["delta"]))
                     });
-                let kept = kept.into_iter().chain(joints).chain(starts).collect::<Vec<_>>();
+                let kept = kept
+                    .into_iter()
+                    .chain(joints)
+                    .chain(starts)
+                    .collect::<Vec<_>>();
                 let bounded = |value: &Value| match value {
                     Value::Null => "unbounded".to_string(),
                     value => text(value),

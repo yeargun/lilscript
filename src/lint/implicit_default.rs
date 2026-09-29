@@ -80,7 +80,8 @@ pub(super) fn lint(
 /// Whether `init`'s body assigns `this.name` on every path: a statement at
 /// its top level, or both branches of an `if`.
 fn assigns(body: &[Stmt<'_, '_>], name: &str) -> bool {
-    body.iter().any(|statement| statement_assigns(statement, name))
+    body.iter()
+        .any(|statement| statement_assigns(statement, name))
 }
 
 fn statement_assigns(statement: &Stmt<'_, '_>, name: &str) -> bool {
@@ -117,7 +118,11 @@ fn expression_assigns(expression: &Expr<'_, '_>, name: &str) -> bool {
 /// `spelled` in the source), as source, or `None` where it is not a value of
 /// the type (a class, struct or function left null until `init`), which has
 /// no spelling to write.
-fn default_spelling(ty: &Type<'_>, spelled: &str, view: &CheckedView<'_, '_, '_>) -> Option<String> {
+fn default_spelling(
+    ty: &Type<'_>,
+    spelled: &str,
+    view: &CheckedView<'_, '_, '_>,
+) -> Option<String> {
     Some(match ty {
         Type::Enum(declaration) => {
             let info = view.nominal_enum(declaration.identity)?;

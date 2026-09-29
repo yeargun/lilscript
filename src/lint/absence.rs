@@ -63,7 +63,9 @@ pub(super) fn lint(
             } = &callee.kind
             {
                 let searched = matches!(property.name, "includes" | "indexOf" | "lastIndexOf")
-                    && args.first().is_some_and(|argument| absent(&argument.expression));
+                    && args
+                        .first()
+                        .is_some_and(|argument| absent(&argument.expression));
                 let sorted = property.name == "sort"
                     && matches!(
                         view.expression_type(object.id),
@@ -110,9 +112,8 @@ pub(super) fn lint(
             ..
         } if absent(lhs) || absent(rhs) => {
             let typed = |side: &Expr<'_, '_>| {
-                view.expression_type(side.id).filter(|ty| {
-                    !matches!(ty, Type::Dynamic | Type::Unknown)
-                })
+                view.expression_type(side.id)
+                    .filter(|ty| !matches!(ty, Type::Dynamic | Type::Unknown))
             };
             let loose = match (typed(lhs), typed(rhs)) {
                 (Some(left), Some(right)) => {
@@ -120,7 +121,11 @@ pub(super) fn lint(
                 }
                 _ => false,
             };
-            let spelled = if *op == DynamicBinaryOp::StrictEq { "===" } else { "!==" };
+            let spelled = if *op == DynamicBinaryOp::StrictEq {
+                "==="
+            } else {
+                "!=="
+            };
             let edits = if loose {
                 source
                     .get(lhs.span().end..rhs.span().start)
@@ -132,8 +137,12 @@ pub(super) fn lint(
                                 start,
                                 end: start + 3,
                             },
-                            replacement: if *op == DynamicBinaryOp::StrictEq { "==" } else { "!=" }
-                                .to_string(),
+                            replacement: if *op == DynamicBinaryOp::StrictEq {
+                                "=="
+                            } else {
+                                "!="
+                            }
+                            .to_string(),
                         }]
                     })
                     .unwrap_or_default()
@@ -179,7 +188,12 @@ fn with_null_text(value: &Expr<'_, '_>) -> Vec<LintEdit> {
             start: span.end,
             end: span.end,
         },
-        replacement: if tight { " ?? \"null\"" } else { ") ?? \"null\"" }.to_string(),
+        replacement: if tight {
+            " ?? \"null\""
+        } else {
+            ") ?? \"null\""
+        }
+        .to_string(),
     });
     edits
 }

@@ -1238,7 +1238,14 @@ fn a_dead_value_of_a_trusted_parameter_is_dropped() {
             let policy = dce_policy(true, false);
             let facts = with_facts(&mut compiler);
             let dropped = compiler
-                .drop_dead_value(source, unit, operation, &policy, WorkDomain::Optional, facts)
+                .drop_dead_value(
+                    source,
+                    unit,
+                    operation,
+                    &policy,
+                    WorkDomain::Optional,
+                    facts,
+                )
                 .unwrap()
                 .expect("the unread product is dead");
             let artifact = render(&mut compiler, dropped, &policy);

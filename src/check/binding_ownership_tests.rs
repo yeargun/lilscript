@@ -135,10 +135,7 @@ fn declare_and_detached_binding_move_existing_nested_payloads_without_cloning() 
         declarations: &declarations,
         facts: &facts,
     };
-    for (node, id) in [
-        (first.name.id, declared_id),
-        (second.name.id, detached_id),
-    ] {
+    for (node, id) in [(first.name.id, declared_id), (second.name.id, detached_id)] {
         assert!(std::ptr::eq(
             view.binding_type(node).unwrap(),
             &declarations.symbols[id.0 as usize].ty

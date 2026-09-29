@@ -30,10 +30,8 @@ use crate::program::facts::CacheLimits;
 const PROGRAM: &str = include_str!("../../tests/cases/objective_judged_spellings.lil");
 
 fn policy(codec: &str, level: u8) -> ResolvedPolicy {
-    let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "objective.codecs='{codec}'\neffort.level={level}"
-    ))
-    .unwrap();
+    let config: crate::config::ProjectConfig =
+        toml::from_str(&format!("objective.codecs='{codec}'\neffort.level={level}")).unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,
@@ -114,7 +112,10 @@ fn search(policy: &ResolvedPolicy, objectives: Objectives, challenge: bool) -> R
             })
             .unwrap();
         let report = if challenge {
-            search.challenge(policy, request(objectives)).unwrap().clone()
+            search
+                .challenge(policy, request(objectives))
+                .unwrap()
+                .clone()
         } else {
             TerminalReport::default()
         };
@@ -225,7 +226,11 @@ fn replay(stage: &TerminalObjective) -> usize {
     let mut best = stage.searched;
     for (index, start) in stage.starts.iter().enumerate() {
         let Some(from) = start.start else {
-            assert_eq!(firsts[index], firsts[index + 1], "an unformed restart walks no pass");
+            assert_eq!(
+                firsts[index],
+                firsts[index + 1],
+                "an unformed restart walks no pass"
+            );
             continue;
         };
         let end = walk(firsts[index]..firsts[index + 1], from);

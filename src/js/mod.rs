@@ -10,11 +10,11 @@
 //! value requires a binding reference or an explicitly justified rematerialized
 //! occurrence, never accidental duplication of a shared expression graph.
 
+use crate::ast::SourceNodeId;
+pub(crate) use crate::catalog::{integer_intrinsic, original_int32_intrinsic};
 use crate::catalog::{
     intrinsic_arity, intrinsic_form, intrinsic_recipe, native_constructor, IntrinsicForm,
 };
-pub(crate) use crate::catalog::{integer_intrinsic, original_int32_intrinsic};
-use crate::ast::SourceNodeId;
 use crate::check::SymbolId;
 use crate::literal::StringValue;
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
@@ -557,7 +557,6 @@ impl Expr {
     }
 }
 
-
 pub(crate) fn supports_intrinsic_method(operation: Intrinsic) -> bool {
     intrinsic_recipe(operation)
         .is_some_and(|recipe| matches!(recipe.form, IntrinsicForm::Method(_)))
@@ -870,7 +869,12 @@ impl Behaviour {
     /// Changes and observes nothing another evaluation could, cannot throw,
     /// and ends: its value is its operands' function.
     pub(crate) fn quiet(self) -> bool {
-        !(self.reads || self.writes || self.throws || self.diverges || self.reenters || self.suspends)
+        !(self.reads
+            || self.writes
+            || self.throws
+            || self.diverges
+            || self.reenters
+            || self.suspends)
     }
 }
 
@@ -2063,7 +2067,11 @@ impl Module {
         if !self.bindings.iter().any(|binding| binding.defined) {
             return Ok(0);
         }
-        let defined: Vec<bool> = self.bindings.iter().map(|binding| binding.defined).collect();
+        let defined: Vec<bool> = self
+            .bindings
+            .iter()
+            .map(|binding| binding.defined)
+            .collect();
         let reach = self.reach(budget)?;
         let mut uses = vec![0usize; self.bindings.len()];
         let mut calls = vec![0usize; self.bindings.len()];
@@ -2390,7 +2398,10 @@ impl Module {
     pub(crate) fn frame_free(&self, function: FunctionId) -> bool {
         !self.frame_reads(function, |expression| match expression {
             Expr::This | Expr::SuperCall { .. } => true,
-            Expr::Host(host) => matches!(host.kind, crate::catalog::HostKind::Arguments | crate::catalog::HostKind::Eval),
+            Expr::Host(host) => matches!(
+                host.kind,
+                crate::catalog::HostKind::Arguments | crate::catalog::HostKind::Eval
+            ),
             Expr::Call { invocation, .. } => *invocation == Invocation::DirectEval,
             _ => false,
         })
@@ -2411,7 +2422,10 @@ impl Module {
     /// the body can see (it would unmap a sloppy frame's `arguments`).
     pub(crate) fn arguments_free(&self, function: FunctionId) -> bool {
         !self.frame_reads(function, |expression| match expression {
-            Expr::Host(host) => matches!(host.kind, crate::catalog::HostKind::Arguments | crate::catalog::HostKind::Eval),
+            Expr::Host(host) => matches!(
+                host.kind,
+                crate::catalog::HostKind::Arguments | crate::catalog::HostKind::Eval
+            ),
             Expr::Call { invocation, .. } => *invocation == Invocation::DirectEval,
             _ => false,
         })
@@ -3543,7 +3557,11 @@ impl Module {
             .observed_literals
             .last()
             .is_none_or(|last| last.expression() < alternative.expression()));
-        budget.push(AllocationClass::Retained, &mut self.observed_literals, alternative)
+        budget.push(
+            AllocationClass::Retained,
+            &mut self.observed_literals,
+            alternative,
+        )
     }
 
     /// An admitted copy of the whole tree. The copy's arenas are charged at

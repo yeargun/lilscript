@@ -22,10 +22,10 @@
 //! call can only ever run the denoted body. This is the rule
 //! `callable_inputs` applies to one producer at a time, stated once for the
 //! whole program.
-use crate::catalog::callback_intrinsic;
 use super::uses::{self, CellUse, Event, ValueUse};
 use super::views::Deps;
 use super::*;
+use crate::catalog::callback_intrinsic;
 use crate::check::BuiltinCall;
 use crate::compilation_contract::JavaScriptExecution;
 use crate::primitive::ResolvedIntrinsic;
@@ -151,7 +151,6 @@ pub struct CallGraph {
     component: Vec<u32>,
     recursive: Vec<bool>,
 }
-
 
 struct Scan {
     storage: Vec<CellStorage>,

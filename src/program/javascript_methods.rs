@@ -1055,7 +1055,9 @@ impl Formation<'_, '_, '_, '_, '_> {
             || self.formal_lists.iter().any(|(list, _)| *list == cell)
         {
             let arguments = self.text("arguments")?;
-            return Ok(Some(self.expression(js::Expr::Host(js::Host::new(arguments)))?));
+            return Ok(Some(
+                self.expression(js::Expr::Host(js::Host::new(arguments)))?,
+            ));
         }
         Ok(None)
     }

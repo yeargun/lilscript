@@ -466,8 +466,15 @@ fn a_folded_exit_leaves_one_return_that_inlines() {
 print(clamp(-2, 0, 10));";
     optimized(source, MODULE, |program, receipt| {
         assert!(receipt.unreachable_operations >= 1, "{receipt:?}");
-        assert_eq!(receipt.inlined_calls + receipt.retired_functions, 1, "{receipt:?}");
-        assert_eq!(count(program, |kind| matches!(kind, OperationKind::Return)), 0);
+        assert_eq!(
+            receipt.inlined_calls + receipt.retired_functions,
+            1,
+            "{receipt:?}"
+        );
+        assert_eq!(
+            count(program, |kind| matches!(kind, OperationKind::Return)),
+            0
+        );
     });
 }
 

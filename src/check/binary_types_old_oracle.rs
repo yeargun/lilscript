@@ -24,9 +24,7 @@ pub(super) fn old_checked_binary_type<'src>(
         }
         // R11 (batch K9): `%` with a float operand is a float, and a bitwise
         // operator takes float operands through ToInt32.
-        BinaryOp::Mod if lhs.is_numeric() && rhs.is_numeric() => {
-            Ok(common_numeric_type(lhs, rhs))
-        }
+        BinaryOp::Mod if lhs.is_numeric() && rhs.is_numeric() => Ok(common_numeric_type(lhs, rhs)),
         BinaryOp::BitAnd
         | BinaryOp::BitOr
         | BinaryOp::Xor
@@ -157,12 +155,7 @@ pub(super) fn old_equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
             let other = if loosely_equatable(lhs) { rhs } else { lhs };
             matches!(
                 other,
-                Type::Dynamic
-                    | Type::Null
-                    | Type::Bool
-                    | Type::String
-                    | Type::Int
-                    | Type::Float
+                Type::Dynamic | Type::Null | Type::Bool | Type::String | Type::Int | Type::Float
             ) || loosely_equatable(other)
         }
         _ => {

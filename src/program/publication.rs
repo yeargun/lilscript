@@ -862,8 +862,7 @@ impl JavaScriptTarget<'_, '_> {
         }
         budget.with_ledger(|ledger| {
             let mut phase = AllocationBudget::new(ledger.map(|(ledger, _)| (ledger, domain)));
-            let mut output =
-                module.prepare_output_with_literals_admitted(policy, &mut phase)?;
+            let mut output = module.prepare_output_with_literals_admitted(policy, &mut phase)?;
             output.set_hosts(hosts.map(|hosts| (hosts, strict)));
             #[cfg(test)]
             let output = super::search_target_reuse_tests::AdmittedOutputOwner::new(output);
@@ -941,10 +940,7 @@ pub(super) struct Formations<'scope, 'src> {
 impl Formations<'_, '_> {
     /// The head for `hints`: the one formed first, or the other, formed now
     /// if no challenger asked for it before.
-    fn head_for(
-        &mut self,
-        hints: bool,
-    ) -> Result<&super::javascript::FormedHead, CandidateError> {
+    fn head_for(&mut self, hints: bool) -> Result<&super::javascript::FormedHead, CandidateError> {
         if hints == self.head_hints || !self.target_compaction {
             return Ok(self.head);
         }
@@ -2650,7 +2646,8 @@ impl<'src> Compilation<'src> {
         // Every size the compilation measures is judged with the objective's
         // codec settings (law B2).
         if let Some(objective) = policy.objective() {
-            self.artifacts.bind_codec_settings(objective.codec_settings)?;
+            self.artifacts
+                .bind_codec_settings(objective.codec_settings)?;
         }
         if let Some(target) = &self.javascript {
             if target.contract != *policy.contract() {

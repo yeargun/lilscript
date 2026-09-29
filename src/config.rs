@@ -781,12 +781,18 @@ impl ProjectConfig {
                             .terminal_codec_probe_limit
                             .unwrap_or(structural.codec_probes)
                     },
-                    retained_candidates: self.javascript.candidate_limit.unwrap_or(structural.candidates),
+                    retained_candidates: self
+                        .javascript
+                        .candidate_limit
+                        .unwrap_or(structural.candidates),
                     retained_candidate_bytes: self
                         .javascript
                         .candidate_byte_budget
                         .unwrap_or(structural.bytes),
-                    beam_width: self.javascript.candidate_beam_width.unwrap_or(structural.width),
+                    beam_width: self
+                        .javascript
+                        .candidate_beam_width
+                        .unwrap_or(structural.width),
                     walk,
                     search: policy.search,
                 };
@@ -1012,7 +1018,10 @@ impl ProjectConfig {
         resolve_ecmascript_target(self.javascript.ecmascript, &self.javascript.browsers)?;
         for (key, value) in [
             ("candidate_limit", self.javascript.candidate_limit),
-            ("candidate_byte_budget", self.javascript.candidate_byte_budget),
+            (
+                "candidate_byte_budget",
+                self.javascript.candidate_byte_budget,
+            ),
             ("candidate_beam_width", self.javascript.candidate_beam_width),
         ] {
             if value == Some(0) {
@@ -1026,9 +1035,11 @@ impl ProjectConfig {
             0 => return Err("`objective.codecs` names no codec".to_string()),
             1 => {}
             _ => {
-                return Err("`objective.codecs` names several codecs: this compiler delivers one \
+                return Err(
+                    "`objective.codecs` names several codecs: this compiler delivers one \
 winner per build until the multi-objective build (plan M3.4); name one"
-                    .to_string())
+                        .to_string(),
+                )
             }
         }
         self.objective.settings().validate()?;
@@ -1190,7 +1201,6 @@ impl CompressionDecision {
         }
     }
 }
-
 
 /// `[objective]` (schema v3, architecture §14.1): the codecs the build is
 /// judged and reported under, and their settings (law B2).
@@ -2103,11 +2113,9 @@ mod tests {
         )
         .unwrap_err()
         .contains("duplicate"));
-        assert!(
-            parse_project_config("[effort]\nlevel=17\n")
-                .unwrap_err()
-                .contains("between 0 and 16")
-        );
+        assert!(parse_project_config("[effort]\nlevel=17\n")
+            .unwrap_err()
+            .contains("between 0 and 16"));
         assert!(parse_project_config(
             "[javascript]\noptimizations=['call-site-specialization','call-site-specialization']\n"
         )
@@ -2139,7 +2147,10 @@ mod tests {
             CompressionCostModel::Brotli,
         ] {
             for level in 0..16u8 {
-                let (low, high) = (WalkSchedule::at(level, codec), WalkSchedule::at(level + 1, codec));
+                let (low, high) = (
+                    WalkSchedule::at(level, codec),
+                    WalkSchedule::at(level + 1, codec),
+                );
                 assert!(low.prefix <= high.prefix, "{level} {codec:?}");
                 assert!(low.exact <= high.exact, "{level} {codec:?}");
                 assert!(!low.starts || high.starts, "{level} {codec:?}");
@@ -2153,7 +2164,10 @@ mod tests {
         // The structural search only widens with the level (AM2).
         use crate::compilation_policy::StructuralSchedule;
         for level in 0..16u8 {
-            let (low, high) = (StructuralSchedule::at(level), StructuralSchedule::at(level + 1));
+            let (low, high) = (
+                StructuralSchedule::at(level),
+                StructuralSchedule::at(level + 1),
+            );
             assert!(low.proposals <= high.proposals, "{level}");
             assert!(low.codec_probes <= high.codec_probes, "{level}");
             assert!(low.candidates <= high.candidates, "{level}");
@@ -2228,36 +2242,66 @@ mod tests {
         assert_eq!(
             config.objective.settings(),
             CodecSettings {
-                brotli: BrotliSettings { quality: 9, window: 20, mode: BrotliMode::Text },
-                gzip: GzipSettings { level: 6, window: 12 },
+                brotli: BrotliSettings {
+                    quality: 9,
+                    window: 20,
+                    mode: BrotliMode::Text
+                },
+                gzip: GzipSettings {
+                    level: 6,
+                    window: 12
+                },
             }
         );
         assert_eq!(config.effort.level, 8);
         // One codec may be a string.
-        assert_eq!(parse("[objective]\ncodecs = \"raw\"\n").config.objective.codec(), CompressionCostModel::Raw);
+        assert_eq!(
+            parse("[objective]\ncodecs = \"raw\"\n")
+                .config
+                .objective
+                .codec(),
+            CompressionCostModel::Raw
+        );
         // Defaults are the canonical settings.
-        assert_eq!(ProjectConfig::default().objective.settings(), CodecSettings::CANONICAL);
+        assert_eq!(
+            ProjectConfig::default().objective.settings(),
+            CodecSettings::CANONICAL
+        );
         // The old keys move to the new ones, each with a warning.
         let legacy = parse("[javascript]\ncost_model = \"raw\"\noptimization_level = 5\n");
         assert_eq!(legacy.config.objective.codec(), CompressionCostModel::Raw);
         assert_eq!(legacy.config.effort.level, 5);
         assert_eq!(legacy.warnings.len(), 2, "{:?}", legacy.warnings);
-        assert!(legacy.warnings.iter().all(|warning| warning.contains("is replaced by")));
+        assert!(legacy
+            .warnings
+            .iter()
+            .all(|warning| warning.contains("is replaced by")));
         // With the new key set too, the new key wins.
         let both = parse("[javascript]\noptimization_level = 5\n[effort]\nlevel = 14\n");
         assert_eq!(both.config.effort.level, 14);
-        assert!(both.warnings[0].contains("has no effect"), "{:?}", both.warnings);
+        assert!(
+            both.warnings[0].contains("has no effect"),
+            "{:?}",
+            both.warnings
+        );
         // Ranges and the one-codec rule until M3.4.
         for (source, error) in [
             ("[objective.brotli]\nquality = 12\n", "quality"),
             ("[objective.brotli]\nwindow = 9\n", "window"),
             ("[objective.gzip]\nlevel = 0\n", "level"),
             ("[objective.gzip]\nwindow = 16\n", "window"),
-            ("[objective]\ncodecs = [\"raw\", \"brotli\"]\n", "several codecs"),
+            (
+                "[objective]\ncodecs = [\"raw\", \"brotli\"]\n",
+                "several codecs",
+            ),
             ("[objective]\ncodecs = []\n", "no codec"),
             ("[effort]\nlevel = 17\n", "between 0 and 16"),
         ] {
-            assert!(refusal(source).contains(error), "{source}: {}", refusal(source));
+            assert!(
+                refusal(source).contains(error),
+                "{source}: {}",
+                refusal(source)
+            );
         }
     }
 

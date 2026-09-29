@@ -37,8 +37,8 @@ pub(crate) enum EffectClass {
 }
 
 pub(crate) fn effect_class(operation: ResolvedIntrinsic) -> EffectClass {
-    use Intrinsic as I;
     use EffectClass as Class;
+    use Intrinsic as I;
     let intrinsic = match operation {
         ResolvedIntrinsic::Property(intrinsic)
         | ResolvedIntrinsic::Method(intrinsic)
@@ -536,6 +536,8 @@ pub fn host_kind(name: &str) -> HostKind {
         name => STANDARD_GLOBALS
             .iter()
             .find(|(spelling, _)| *spelling == name)
-            .map_or(HostKind::Declared, |&(_, global)| HostKind::Standard(global)),
+            .map_or(HostKind::Declared, |&(_, global)| {
+                HostKind::Standard(global)
+            }),
     }
 }

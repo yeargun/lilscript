@@ -383,12 +383,17 @@ fn observer_panics_release_target_and_each_naming_basis() {
             let before = counts();
             let policy = policy(8, true, false, "immediate");
             let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let _ = compiler.search_javascript_explored_observed(source, &policy, request(), |entry| {
-                    observe_lifetimes();
-                    if entry.baseline == panic_on_baseline {
-                        std::panic::panic_any("target reuse observer");
-                    }
-                });
+                let _ = compiler.search_javascript_explored_observed(
+                    source,
+                    &policy,
+                    request(),
+                    |entry| {
+                        observe_lifetimes();
+                        if entry.baseline == panic_on_baseline {
+                            std::panic::panic_any("target reuse observer");
+                        }
+                    },
+                );
             }))
             .expect_err("observer must run");
             assert_eq!(panic.downcast_ref::<&str>(), Some(&"target reuse observer"));

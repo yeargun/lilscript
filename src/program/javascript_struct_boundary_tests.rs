@@ -507,10 +507,22 @@ fn integer_fields_from_a_trusted_extern_wrap_as_int32() {
         export void compound(){P value=P{input};value.x+=rhs();print(value.x);}
     "#;
     for (input, expected) in [
-        ("4", json!(["read", 5, "plain", "rhs", 2, "compound", "rhs", 6])),
+        (
+            "4",
+            json!(["read", 5, "plain", "rhs", 2, "compound", "rhs", 6]),
+        ),
         (
             "2147483647",
-            json!(["read", -2147483648i64, "plain", "rhs", 2, "compound", "rhs", -2147483647i64]),
+            json!([
+                "read",
+                -2147483648i64,
+                "plain",
+                "rhs",
+                2,
+                "compound",
+                "rhs",
+                -2147483647i64
+            ]),
         ),
     ] {
         for compact in [false, true] {

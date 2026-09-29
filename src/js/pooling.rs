@@ -45,9 +45,7 @@ impl Module {
             let mut values = Vec::with_capacity(elements.len());
             for element in elements {
                 match &self.expressions[element.index()] {
-                    Expr::Literal(Literal::String(value))
-                        if !self.observed(*element) =>
-                    {
+                    Expr::Literal(Literal::String(value)) if !self.observed(*element) => {
                         let Some(value) = value.as_unicode() else {
                             break;
                         };

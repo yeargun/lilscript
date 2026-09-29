@@ -9,8 +9,7 @@ use indexmap::IndexMap;
 use crate::ast::{
     ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, Expr, ForInitializer,
     FunctionDecl, Ident, Item, MatchPattern, Param, Program, RecordElement, Stmt, TemplatePart,
-    TypeKind,
-    UnaryOp, UpdateOp, VarDecl,
+    TypeKind, UnaryOp, UpdateOp, VarDecl,
 };
 use crate::check::{BuiltinCall, CheckedModule, SymbolId, Type};
 use crate::span::Span;
@@ -2646,7 +2645,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             // as an index read is.
             "codeUnitAt" => {
                 let Value::Int(index) = arguments.first().cloned().unwrap_or(Value::Int(0)) else {
-                    return Err(InterpretError::new(span, "codeUnitAt requires an int index"));
+                    return Err(InterpretError::new(
+                        span,
+                        "codeUnitAt requires an int index",
+                    ));
                 };
                 usize::try_from(index)
                     .ok()

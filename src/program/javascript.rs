@@ -128,7 +128,10 @@ impl super::raw_domains::Recipes for JavaScriptRecipes {
         let operation = &data.operations[operation.index()];
         // An `int` result is an int32 by type (R1), with no code.
         let typed_int = operation.result.is_some_and(|value| {
-            matches!(program.types[data.values[value.index()].ty.index()], Type::Int)
+            matches!(
+                program.types[data.values[value.index()].ty.index()],
+                Type::Int
+            )
         });
         match operation.kind {
             OperationKind::Call(_) => match call_result_recipe(program, data, operation) {
@@ -2290,8 +2293,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         }
                     };
                     if let Some(weak) = weak {
-                        self.module
-                            .observe_in(js::LiteralAlternative::new(expression, weak), self.budget)?;
+                        self.module.observe_in(
+                            js::LiteralAlternative::new(expression, weak),
+                            self.budget,
+                        )?;
                     }
                 }
                 return Ok(expression);
@@ -3465,7 +3470,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                     loads.push(operation.result?);
                 }
-                OperationKind::Call(_) | OperationKind::Load(_) | OperationKind::Allocate { .. }
+                OperationKind::Call(_)
+                | OperationKind::Load(_)
+                | OperationKind::Allocate { .. }
                     if forwarded.is_none() && loads.len() == function.parameters.len() =>
                 {
                     forwarded = Some((operation, operation.result?));
@@ -4108,9 +4115,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         operation_id: OpId,
         operation: &Operation,
     ) -> Result<Option<js::ExprId>, FormationError> {
-        let previous =
-            self.forming
-                .replace((self.semantic(unit), operation_id, std::ptr::from_ref(operation)));
+        let previous = self.forming.replace((
+            self.semantic(unit),
+            operation_id,
+            std::ptr::from_ref(operation),
+        ));
         let formed = self.ordinary_expression_of(unit, operation_id, operation);
         self.forming = previous;
         formed
@@ -4184,7 +4193,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             suspends: behavior.may_suspend,
         };
         for node in nodes {
-            self.module.record_behaviour_in(node, behaviour, self.budget)?;
+            self.module
+                .record_behaviour_in(node, behaviour, self.budget)?;
         }
         Ok(())
     }
@@ -4323,7 +4333,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 js::Expr::Construct { callee, arguments }
             }
             OperationKind::TypeTest(target)
-                if matches!(self.program.types[target.index()], crate::check::Type::Class(_)) =>
+                if matches!(
+                    self.program.types[target.index()],
+                    crate::check::Type::Class(_)
+                ) =>
             {
                 // An identity test on a class (R13): `instanceof`, over the
                 // kept class's constructor, or the host class by its name.

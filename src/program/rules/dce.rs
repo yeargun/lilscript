@@ -315,8 +315,7 @@ fn dead_operations(
                     && (matches!(
                         operation.kind,
                         OperationKind::Initialize(_) | OperationKind::Declare(_)
-                    )
-                        || initialization.initialized(program, unit, op, cell))
+                    ) || initialization.initialized(program, unit, op, cell))
             }
             None => {
                 value_kind(&operation.kind)

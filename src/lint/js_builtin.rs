@@ -120,11 +120,11 @@ struct Walker<'a, 'view, 'ast, 'src> {
 impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
     fn item(&mut self, item: &Item<'ast, 'src>) {
         match item {
-            Item::Function(function) => {
-                self.callable(function.params, is_js_type(&function.return_type), |walker| {
-                    walker.statements(function.body)
-                })
-            }
+            Item::Function(function) => self.callable(
+                function.params,
+                is_js_type(&function.return_type),
+                |walker| walker.statements(function.body),
+            ),
             Item::Class(class) => {
                 for member in class.members {
                     match member {
@@ -155,7 +155,10 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
     ) {
         for parameter in params {
             if let Some(default) = &parameter.default {
-                self.expr(default, Position::expecting(is_js_type(&parameter.parameter.ty)));
+                self.expr(
+                    default,
+                    Position::expecting(is_js_type(&parameter.parameter.ty)),
+                );
             }
         }
         let outer = std::mem::replace(&mut self.returns_dynamic, returns_dynamic);
@@ -173,7 +176,10 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
         match statement {
             Stmt::VarDecl(declaration) => {
                 if let Some(initializer) = &declaration.initializer {
-                    self.expr(initializer, Position::expecting(is_js_type(&declaration.ty)));
+                    self.expr(
+                        initializer,
+                        Position::expecting(is_js_type(&declaration.ty)),
+                    );
                 }
             }
             Stmt::ArrayDestructure { value, .. } | Stmt::RecordDestructure { value, .. } => {
@@ -331,7 +337,8 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             ExprKind::Member { object, .. } | ExprKind::OptionalMember { object, .. } => {
                 self.expr(object, Position::binding(precedence::POSTFIX))
             }
-            ExprKind::Index { object, index, .. } | ExprKind::OptionalIndex { object, index, .. } => {
+            ExprKind::Index { object, index, .. }
+            | ExprKind::OptionalIndex { object, index, .. } => {
                 self.expr(object, Position::binding(precedence::POSTFIX));
                 self.expr(index, Position::ANY);
             }
@@ -594,20 +601,21 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
                 .collect::<Vec<_>>()
                 .join(", ")
         };
-        let binary = |op: &str, left: u8, right: u8| {
-            format!("{} {op} {}", text(0, left), text(1, right))
-        };
+        let binary =
+            |op: &str, left: u8, right: u8| format!("{} {op} {}", text(0, left), text(1, right));
         let either_dynamic = || dynamic(0) || dynamic(1);
-        let typed_string = |index: usize| {
-            matches!(self.view.expression_type(arg(index).id), Some(Type::String))
-        };
+        let typed_string =
+            |index: usize| matches!(self.view.expression_type(arg(index).id), Some(Type::String));
         // A receiver or callee as the dynamic operation needs it: a typed
         // value is viewed as a `JsValue`, which keeps the operation (R12).
         let receiver = |index: usize| {
             if dynamic(index) {
                 self.operand(arg(index), precedence::POSTFIX)
             } else {
-                format!("({} as JsValue)", self.operand(arg(index), precedence::RELATIONAL))
+                format!(
+                    "({} as JsValue)",
+                    self.operand(arg(index), precedence::RELATIONAL)
+                )
             }
         };
         Some(match (name, args.len()) {
@@ -734,8 +742,13 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
     /// `JS.call(o.m, o, …)` where both `o`s are one binding: a method call
     /// on its own receiver, `o.m(…)`, which reads `o.m` once and calls it with
     /// `o` as `this`, as `JS.call` did.
-    fn same_binding_receiver(&self, callee: &Expr<'ast, 'src>, receiver: &Expr<'ast, 'src>) -> bool {
-        let (ExprKind::Member { object, .. } | ExprKind::Index { object, .. }) = &callee.kind else {
+    fn same_binding_receiver(
+        &self,
+        callee: &Expr<'ast, 'src>,
+        receiver: &Expr<'ast, 'src>,
+    ) -> bool {
+        let (ExprKind::Member { object, .. } | ExprKind::Index { object, .. }) = &callee.kind
+        else {
             return false;
         };
         let (ExprKind::Ident(object), ExprKind::Ident(receiver)) = (&object.kind, &receiver.kind)
@@ -757,7 +770,11 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
         let (receiver, rest, count) = match adapter {
             "methodRest" => (true, true, 2),
             "staticRest" => (false, true, 1),
-            name => (true, false, name.strip_prefix("method")?.parse::<usize>().ok()? + 1),
+            name => (
+                true,
+                false,
+                name.strip_prefix("method")?.parse::<usize>().ok()? + 1,
+            ),
         };
         if params.len() != count
             || params.iter().any(|param| {
@@ -799,7 +816,11 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
         let (receiver, rest, count) = match adapter {
             "methodRest" => (true, true, 0),
             "staticRest" => (false, true, 0),
-            adapter => (true, false, adapter.strip_prefix("method")?.parse::<usize>().ok()?),
+            adapter => (
+                true,
+                false,
+                adapter.strip_prefix("method")?.parse::<usize>().ok()?,
+            ),
         };
         // Parameter names the forwarded name does not use.
         let fresh = |base: String| {
@@ -872,7 +893,11 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             Type::Nullable(inner) => format!("{}?", grouped(inner)?),
             Type::Record(value) => format!("Record<{}>", self.source_type(value)?),
             Type::Map(key, value) => {
-                format!("Map<{}, {}>", self.source_type(key)?, self.source_type(value)?)
+                format!(
+                    "Map<{}, {}>",
+                    self.source_type(key)?,
+                    self.source_type(value)?
+                )
             }
             Type::Set(element) => format!("Set<{}>", self.source_type(element)?),
             Type::Task(value) => format!("Task<{}>", self.source_type(value)?),
@@ -880,7 +905,8 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             Type::Enum(declaration) | Type::Struct(declaration) | Type::Class(declaration) => {
                 nominal(declaration)?
             }
-            Type::StructInstance { declaration, args } | Type::ClassInstance { declaration, args } => {
+            Type::StructInstance { declaration, args }
+            | Type::ClassInstance { declaration, args } => {
                 let args = args
                     .iter()
                     .map(|argument| self.source_type(argument))
@@ -933,7 +959,10 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
     /// a string, a number, a boolean or a `JsValue`, or a union of them.
     fn stringable(&self, expression: &Expr<'ast, 'src>) -> bool {
         let scalar = |ty: &Type<'src>| {
-            matches!(ty, Type::String | Type::Int | Type::Float | Type::Bool | Type::Dynamic)
+            matches!(
+                ty,
+                Type::String | Type::Int | Type::Float | Type::Bool | Type::Dynamic
+            )
         };
         match self.view.expression_type(expression.id) {
             Some(Type::Union(members)) => members.iter().all(scalar),
@@ -943,7 +972,10 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
     }
 
     fn is_dynamic(&self, expression: &Expr<'ast, 'src>) -> bool {
-        matches!(self.view.expression_type(expression.id), Some(Type::Dynamic))
+        matches!(
+            self.view.expression_type(expression.id),
+            Some(Type::Dynamic)
+        )
     }
 
     fn dynamic_or_nullable(&self, expression: &Expr<'ast, 'src>) -> bool {
@@ -969,8 +1001,12 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
     /// drops a parenthesized operand's parentheses, so `(a - b) / c` spans
     /// from `a`.
     fn balanced(&self, span: Span) -> Span {
-        let first = self.tokens.partition_point(|token| token.span.start < span.start);
-        let end = self.tokens.partition_point(|token| token.span.end <= span.end);
+        let first = self
+            .tokens
+            .partition_point(|token| token.span.start < span.start);
+        let end = self
+            .tokens
+            .partition_point(|token| token.span.end <= span.end);
         let (mut depth, mut lowest) = (0i32, 0i32);
         for token in &self.tokens[first..end.max(first)] {
             match token.kind {
@@ -991,7 +1027,10 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             open -= 1;
         }
         let mut after = end;
-        while close > 0 && after < self.tokens.len() && matches!(self.tokens[after].kind, TokenKind::RParen) {
+        while close > 0
+            && after < self.tokens.len()
+            && matches!(self.tokens[after].kind, TokenKind::RParen)
+        {
             stop = self.tokens[after].span.end;
             after += 1;
             close -= 1;
@@ -1066,7 +1105,14 @@ fn fix_enabled(name: &str) -> bool {
 
 /// The members a `JsValue` has with a declared type (v0.1); reading one is
 /// not a dynamic property, so the fix writes it with brackets.
-const TYPED_MEMBERS: [&str; 6] = ["length", "message", "specifier", "truthy", "isArray", "isObject"];
+const TYPED_MEMBERS: [&str; 6] = [
+    "length",
+    "message",
+    "specifier",
+    "truthy",
+    "isArray",
+    "isObject",
+];
 
 /// Method names whose call means something else: the typed members, and
 /// `call` and `apply`, which name `JS.call` and `JS.apply`.
@@ -1081,8 +1127,9 @@ fn precedence_of(name: &str) -> u8 {
         "or" => 1,
         "and" => 2,
         "strictEqual" | "strictNotEqual" => 6,
-        "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual" | "in"
-        | "assume" => precedence::RELATIONAL,
+        "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual" | "in" | "assume" => {
+            precedence::RELATIONAL
+        }
         "add" => 9,
         "mod" => 10,
         "typeOf" | "delete" => precedence::UNARY,
@@ -1107,7 +1154,10 @@ fn is_js_type(ty: &ast::TypeRef<'_, '_>) -> bool {
     matches!(ty.kind, ast::TypeKind::Named { name: "JsValue", args } if args.is_empty())
 }
 
-fn children<'e, 'ast, 'src>(expression: &'e Expr<'ast, 'src>, stack: &mut Vec<&'e Expr<'ast, 'src>>) {
+fn children<'e, 'ast, 'src>(
+    expression: &'e Expr<'ast, 'src>,
+    stack: &mut Vec<&'e Expr<'ast, 'src>>,
+) {
     match &expression.kind {
         ExprKind::Binary { lhs, rhs, .. } | ExprKind::DynamicBinary { lhs, rhs, .. } => {
             stack.extend([*lhs, *rhs])
@@ -1154,10 +1204,12 @@ fn children<'e, 'ast, 'src>(expression: &'e Expr<'ast, 'src>, stack: &mut Vec<&'
             stack.push(value);
             stack.extend(arms.iter().map(|arm| &arm.value));
         }
-        ExprKind::Template { parts, .. } => stack.extend(parts.iter().filter_map(|part| match part {
-            TemplatePart::Expr(value) => Some(value),
-            TemplatePart::String(..) => None,
-        })),
+        ExprKind::Template { parts, .. } => {
+            stack.extend(parts.iter().filter_map(|part| match part {
+                TemplatePart::Expr(value) => Some(value),
+                TemplatePart::String(..) => None,
+            }))
+        }
         ExprKind::Int(..)
         | ExprKind::Float(..)
         | ExprKind::String(..)

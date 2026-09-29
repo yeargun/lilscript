@@ -2641,7 +2641,11 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             return false;
         };
         let cell = &self.program.cells[cell.index()];
-        cell.debug && matches!(cell.binding, CellBinding::Function(_) | CellBinding::Foreign)
+        cell.debug
+            && matches!(
+                cell.binding,
+                CellBinding::Function(_) | CellBinding::Foreign
+            )
     }
     /// A read of the foreign `debugLog` extern, which `strip_debug` drops by
     /// its name until the ports declare it `debug` (R15's first batch;

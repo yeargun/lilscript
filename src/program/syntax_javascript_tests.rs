@@ -1955,7 +1955,7 @@ fn spread_arguments_reach_javascript_calls() {
         "#,
         PRISTINE,
     );
-    assert!(javascript.contains("...") , "{javascript}");
+    assert!(javascript.contains("..."), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "3\n0\n16\n22\n2000\n");
 }
 
@@ -1969,7 +1969,10 @@ fn a_spread_into_a_lilscript_function_is_refused() {
     )
     .unwrap();
     let error = crate::analyze(&syntax).unwrap_err();
-    assert!(format!("{error:?}").contains("spread argument"), "{error:?}");
+    assert!(
+        format!("{error:?}").contains("spread argument"),
+        "{error:?}"
+    );
 }
 
 /// `x as JsValue` views a typed value as the dynamic type with no code
@@ -2001,7 +2004,10 @@ fn a_typed_value_is_viewed_as_another_type_only_through_js_value() {
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, "string s = \"a\"; int n = s as int;").unwrap();
     let error = crate::analyze(&syntax).unwrap_err();
-    assert!(format!("{error:?}").contains("x as JsValue as int"), "{error:?}");
+    assert!(
+        format!("{error:?}").contains("x as JsValue as int"),
+        "{error:?}"
+    );
 }
 
 /// `v is C` and `v as? C` on classes (R13): `instanceof` over a class the
@@ -2122,9 +2128,13 @@ fn declared_rest_parameters_take_the_trailing_arguments() {
 #[test]
 fn declared_rest_parameters_are_refused_with_defaults() {
     let arena = bumpalo::Bump::new();
-    let syntax = crate::parse_source(&arena, "int f(int a = 1, int... rest) { return a; }").unwrap();
+    let syntax =
+        crate::parse_source(&arena, "int f(int a = 1, int... rest) { return a; }").unwrap();
     let error = crate::analyze(&syntax).unwrap_err();
-    assert!(format!("{error:?}").contains("takes no parameter defaults"), "{error:?}");
+    assert!(
+        format!("{error:?}").contains("takes no parameter defaults"),
+        "{error:?}"
+    );
 }
 
 /// A method lambda's parameters may be typed (R7): trusted views of what
@@ -2193,9 +2203,13 @@ fn unknown_refuses_other_operations() {
         let syntax = crate::parse_source(&arena, source).unwrap();
         assert!(crate::analyze(&syntax).is_err(), "{source} was accepted");
     }
-    let syntax = crate::parse_source(&arena, "void f(unknown u, JsValue v) { bool b = u in v; }").unwrap();
+    let syntax =
+        crate::parse_source(&arena, "void f(unknown u, JsValue v) { bool b = u in v; }").unwrap();
     let error = crate::analyze(&syntax).unwrap_err();
-    assert!(format!("{error:?}").contains("narrowed before other operations"), "{error:?}");
+    assert!(
+        format!("{error:?}").contains("narrowed before other operations"),
+        "{error:?}"
+    );
 }
 
 /// Trusted crossings (R1): a typed `int` field is an int32 by type, so no
@@ -2221,7 +2235,10 @@ fn typed_int_loads_are_not_normalized() {
         .split('}')
         .next()
         .unwrap_or_default();
-    assert!(read.contains("return") && !read.contains("|0"), "{javascript}");
+    assert!(
+        read.contains("return") && !read.contains("|0"),
+        "{javascript}"
+    );
     let next = javascript
         .split("next=function")
         .nth(1)
@@ -2229,7 +2246,11 @@ fn typed_int_loads_are_not_normalized() {
         .split('}')
         .next()
         .unwrap_or_default();
-    assert_eq!(next.matches("|0").count(), 1, "the sum's wrap alone: {javascript}");
+    assert_eq!(
+        next.matches("|0").count(),
+        1,
+        "the sum's wrap alone: {javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "41\n3\n");
 }
 
@@ -2289,7 +2310,6 @@ fn declared_locals_run() {
     assert_eq!(run(&javascript, SHOW), "17\n21\n");
 }
 
-
 /// Field initializers (R3): each construction evaluates a field's own
 /// initializer before `init`, a fresh value every time and the base's first,
 /// for a generic class and for a derived class kept as JavaScript's (its
@@ -2345,16 +2365,21 @@ fn field_initializers_run_at_construction() {
 #[test]
 fn field_initializers_are_checked_and_refused_where_they_mean_nothing() {
     let arena = bumpalo::Bump::new();
-    let syntax =
-        crate::parse_source(&arena, "class C { int n = \"one\"; } C c = new C(); print(c.n);")
-            .unwrap();
+    let syntax = crate::parse_source(
+        &arena,
+        "class C { int n = \"one\"; } C c = new C(); print(c.n);",
+    )
+    .unwrap();
     let error = crate::analyze(&syntax).unwrap_err();
     assert!(format!("{error:?}").contains("string"), "{error:?}");
     let syntax = crate::parse_source(&arena, "extern class Host { int n = 1; } print(1);").unwrap();
     let error = crate::analyze(&syntax).unwrap_err();
     assert!(format!("{error:?}").contains("the host's"), "{error:?}");
     let error = crate::parse_source(&arena, "struct P { int x = 1; } print(1);").unwrap_err();
-    assert!(format!("{error:?}").contains("construction literal"), "{error:?}");
+    assert!(
+        format!("{error:?}").contains("construction literal"),
+        "{error:?}"
+    );
 }
 
 /// `debug` (R15) is a modifier only before `void` or `extern void`; it
@@ -2387,7 +2412,10 @@ fn debug_declarations_parse_and_refuse() {
         ("debug extern class C { }", "not classes"),
     ] {
         let error = crate::parse_source(&arena, source).expect_err(source);
-        assert!(format!("{error:?}").contains(message), "{source}: {error:?}");
+        assert!(
+            format!("{error:?}").contains(message),
+            "{source}: {error:?}"
+        );
     }
 }
 
@@ -2428,7 +2456,11 @@ fn development_checks_index_reads() {
         show(letter("ab", 0));
     "#;
     let development = compile_with(source, "[javascript]\nchecks = \"development\"\n");
-    assert_eq!(development.matches("RangeError").count(), 1, "{development}");
+    assert_eq!(
+        development.matches("RangeError").count(),
+        1,
+        "{development}"
+    );
     assert_eq!(run(&development, SHOW), "5\n\"range\"\n\"range\"\n\"a\"\n");
     // Production checks nothing: past the end is unspecified (R11), and an
     // element read is the plain read.
@@ -2462,11 +2494,17 @@ fn float_remainder_bitwise_conversion_and_code_units() {
         .split('}')
         .next()
         .unwrap_or_default();
-    assert!(unit.contains("charCodeAt") && !unit.contains("|0"), "{javascript}");
+    assert!(
+        unit.contains("charCodeAt") && !unit.contains("|0"),
+        "{javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "1.5\n-1\n1\n233\n");
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, "int x = 5.5 % 2;").unwrap();
-    assert!(crate::analyze(&syntax).is_err(), "a float remainder is a float");
+    assert!(
+        crate::analyze(&syntax).is_err(),
+        "a float remainder is a float"
+    );
 }
 
 /// Development checks at crossings (R1): an extern's result, a typed host
@@ -2489,11 +2527,21 @@ fn development_checks_crossings() {
     let development = compile_with(source, "[javascript]\nchecks = \"development\"\n");
     let show = "globalThis.show=v=>console.log(JSON.stringify(v));";
     assert_eq!(
-        run(&development, &format!("{show}globalThis.count=()=>'three';globalThis.label=7;globalThis.raw=()=>1.5;")),
+        run(
+            &development,
+            &format!(
+                "{show}globalThis.count=()=>'three';globalThis.label=7;globalThis.raw=()=>1.5;"
+            )
+        ),
         "\"count\"\n\"label\"\n\"view\"\n"
     );
     assert_eq!(
-        run(&development, &format!("{show}globalThis.count=()=>3;globalThis.label=undefined;globalThis.raw=()=>2;")),
+        run(
+            &development,
+            &format!(
+                "{show}globalThis.count=()=>3;globalThis.label=undefined;globalThis.raw=()=>2;"
+            )
+        ),
         "4\n\"none\"\n2\n"
     );
     let production = compile_with(source, "");
@@ -2516,10 +2564,17 @@ fn development_checks_export_parameters() {
         .args(["--input-type=module", "-e", &script])
         .output()
         .unwrap();
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    assert_eq!(String::from_utf8(output.stdout).unwrap(), "[9,\"TypeError\"]\n", "{javascript}");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        "[9,\"TypeError\"]\n",
+        "{javascript}"
+    );
 }
-
 
 /// A value range through a cell (M6.4b): `n&255` is in [0,255], so is `t`
 /// wherever that store reaches, and `t*3+1` stays in int32 without `|0`.

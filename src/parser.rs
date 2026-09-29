@@ -3,12 +3,12 @@ use admission::{ArenaVec as BumpVec, TokenStorage};
 use bumpalo::Bump;
 
 use crate::ast::{
-    Argument, ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, CatchBinding,
-    precedence, DynamicBinaryOp, DynamicUnaryOp, ParamRole,
-    CatchClause, ClassDecl, ClassMember, ConstructorDecl, EnumDecl, ExportDecl, ExportKind, Expr,
-    ExternClassDecl, ExternClassMember, ExternConstructorDecl, ExternDecl, ExternGlobalDecl,
-    FieldDecl, ForInitializer, ForeignImportDecl, FunctionDecl, Ident, ImportDecl, ImportSpecifier,
-    Item, MatchArm, MatchPattern, Param, ParameterType, Program, RecordBinding, RecordElement,
+    precedence, Argument, ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp,
+    CatchBinding, CatchClause, ClassDecl, ClassMember, ConstructorDecl, DynamicBinaryOp,
+    DynamicUnaryOp, EnumDecl, ExportDecl, ExportKind, Expr, ExternClassDecl, ExternClassMember,
+    ExternConstructorDecl, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer,
+    ForeignImportDecl, FunctionDecl, Ident, ImportDecl, ImportSpecifier, Item, MatchArm,
+    MatchPattern, Param, ParamRole, ParameterType, Program, RecordBinding, RecordElement,
     RecordEntry, RegionPolicy, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp,
     UpdateOp, VarDecl,
 };
@@ -914,10 +914,9 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 .advance()
                 .ok_or_else(|| self.error_here("expected record binding key"))?;
             let (key, quoted) = match token.kind {
-                TokenKind::StringLiteral(raw) => (
-                    self.source.ident(strip_quotes(raw), token.span),
-                    true,
-                ),
+                TokenKind::StringLiteral(raw) => {
+                    (self.source.ident(strip_quotes(raw), token.span), true)
+                }
                 kind => {
                     let name = property_identifier_name(kind).ok_or_else(|| {
                         AdmittedParseError::new(token.span, "expected record binding key")
@@ -2380,7 +2379,10 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         &mut self,
     ) -> Result<&'arena [Param<'arena, 'src>], AdmittedParseError> {
         let params = self.parse_lambda_params_after_open()?;
-        if let Some(param) = params.iter().find(|param| param.role == ParamRole::Receiver) {
+        if let Some(param) = params
+            .iter()
+            .find(|param| param.role == ParamRole::Receiver)
+        {
             return Err(AdmittedParseError::new(
                 param.span,
                 "a receiver parameter belongs to a lambda: `(this JsValue self, …) => …`",
@@ -2759,10 +2761,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let chain = matches!(
             self.peek_kind(),
             Some(TokenKind::Ident(_) | TokenKind::From)
-        ) && matches!(
-            self.lookahead_kind(self.cursor + 1)?,
-            Some(TokenKind::Dot)
-        );
+        ) && matches!(self.lookahead_kind(self.cursor + 1)?, Some(TokenKind::Dot));
         if !chain {
             return Ok(None);
         }
@@ -3013,8 +3012,8 @@ mod tests {
         use crate::ast::{DynamicBinaryOp, DynamicUnaryOp};
         let arena = Bump::new();
         let initializer = |source: &'static str| {
-            let program = parse_source(&arena, source)
-                .unwrap_or_else(|error| panic!("{source}: {error:?}"));
+            let program =
+                parse_source(&arena, source).unwrap_or_else(|error| panic!("{source}: {error:?}"));
             let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[0] else {
                 panic!("{source}: expected a declaration");
             };
@@ -3029,7 +3028,13 @@ mod tests {
             panic!("strict equality");
         };
         assert_eq!(op, DynamicBinaryOp::StrictEq);
-        assert!(matches!(rhs.kind, ExprKind::Binary { op: BinaryOp::Add, .. }));
+        assert!(matches!(
+            rhs.kind,
+            ExprKind::Binary {
+                op: BinaryOp::Add,
+                ..
+            }
+        ));
         for (source, expected) in [
             ("bool b = a !== c;", DynamicBinaryOp::StrictNotEq),
             ("bool b = \"k\" in o;", DynamicBinaryOp::In),
@@ -3043,32 +3048,72 @@ mod tests {
         // `a && b instanceof C` groups the relation first.
         assert!(matches!(
             initializer("bool b = a && e instanceof C;").kind,
-            ExprKind::Binary { op: BinaryOp::And, rhs: Expr { kind: ExprKind::DynamicBinary { .. }, .. }, .. }
+            ExprKind::Binary {
+                op: BinaryOp::And,
+                rhs: Expr {
+                    kind: ExprKind::DynamicBinary { .. },
+                    ..
+                },
+                ..
+            }
         ));
         // `as` views the whole additive expression.
         assert!(matches!(
             initializer("int n = a + b as int;").kind,
-            ExprKind::Cast { value: Expr { kind: ExprKind::Binary { .. }, .. }, .. }
+            ExprKind::Cast {
+                value: Expr {
+                    kind: ExprKind::Binary { .. },
+                    ..
+                },
+                ..
+            }
         ));
         assert!(matches!(
             initializer("string s = typeof v;").kind,
-            ExprKind::DynamicUnary { op: DynamicUnaryOp::TypeOf, .. }
+            ExprKind::DynamicUnary {
+                op: DynamicUnaryOp::TypeOf,
+                ..
+            }
         ));
         assert!(matches!(
             initializer("string s = string(v);").kind,
-            ExprKind::Convert { target: TypeRef { kind: TypeKind::String, .. }, .. }
+            ExprKind::Convert {
+                target: TypeRef {
+                    kind: TypeKind::String,
+                    ..
+                },
+                ..
+            }
         ));
         assert!(matches!(
             initializer("float f = number(v);").kind,
-            ExprKind::Convert { target: TypeRef { kind: TypeKind::Float, .. }, .. }
+            ExprKind::Convert {
+                target: TypeRef {
+                    kind: TypeKind::Float,
+                    ..
+                },
+                ..
+            }
         ));
         assert!(matches!(
             initializer("JsValue v = new a.b.C(1);").kind,
-            ExprKind::Construct { callee: Expr { kind: ExprKind::Member { .. }, .. }, .. }
+            ExprKind::Construct {
+                callee: Expr {
+                    kind: ExprKind::Member { .. },
+                    ..
+                },
+                ..
+            }
         ));
         assert!(matches!(
             initializer("JsValue v = new (f())(1);").kind,
-            ExprKind::Construct { callee: Expr { kind: ExprKind::Call { .. }, .. }, .. }
+            ExprKind::Construct {
+                callee: Expr {
+                    kind: ExprKind::Call { .. },
+                    ..
+                },
+                ..
+            }
         ));
         assert!(matches!(
             initializer("JsValue v = new C(1);").kind,
@@ -3079,11 +3124,26 @@ mod tests {
         let program = parse_source(&arena, "delete o.k; typeof = 1; delete = typeof;").unwrap();
         assert!(matches!(
             &program.items[0],
-            Item::Stmt(Stmt::Expr(Expr { kind: ExprKind::DynamicUnary { op: DynamicUnaryOp::Delete, .. }, .. }))
+            Item::Stmt(Stmt::Expr(Expr {
+                kind: ExprKind::DynamicUnary {
+                    op: DynamicUnaryOp::Delete,
+                    ..
+                },
+                ..
+            }))
         ));
         assert!(matches!(
             &program.items[2],
-            Item::Stmt(Stmt::Expr(Expr { kind: ExprKind::Assignment { value: Expr { kind: ExprKind::Ident(_), .. }, .. }, .. }))
+            Item::Stmt(Stmt::Expr(Expr {
+                kind: ExprKind::Assignment {
+                    value: Expr {
+                        kind: ExprKind::Ident(_),
+                        ..
+                    },
+                    ..
+                },
+                ..
+            }))
         ));
         // A lambda names its receiver first and its rest last (R7);
         // declarations take neither.
@@ -3100,7 +3160,7 @@ mod tests {
         );
         assert!(parse_source(&arena, "JsValue f(this JsValue self) { return self; }").is_err());
         assert!(parse_source(&arena, "JsValue m = (JsValue... rest, JsValue a) => a;").is_err());
-                // `for (T k in o)` keeps its head.
+        // `for (T k in o)` keeps its head.
         let program = parse_source(&arena, "for (string k in o) { print(k); }").unwrap();
         assert!(matches!(&program.items[0], Item::Stmt(Stmt::ForIn { .. })));
     }

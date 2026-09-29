@@ -10,7 +10,11 @@ use super::{LintEdit, LintFix, PendingDiagnostic};
 
 pub(super) const RULE: &str = "migration/debug-class";
 
-pub(super) fn lint(module: ModuleId, syntax: &ast::Program<'_, '_>, pending: &mut Vec<PendingDiagnostic>) {
+pub(super) fn lint(
+    module: ModuleId,
+    syntax: &ast::Program<'_, '_>,
+    pending: &mut Vec<PendingDiagnostic>,
+) {
     for item in syntax.items {
         let Item::Extern(declaration) = item else {
             continue;
@@ -19,22 +23,24 @@ pub(super) fn lint(module: ModuleId, syntax: &ast::Program<'_, '_>, pending: &mu
             continue;
         }
         // A `pure` declaration has no effect to strip: it keeps its report.
-        let fix = (!declaration.declared_pure && declaration.return_type.is_void()).then(|| LintFix {
-            applicability: "machine-applicable",
-            edits: vec![LintEdit {
-                span: Span {
-                    start: declaration.span.start,
-                    end: declaration.span.start,
-                },
-                replacement: "debug ".to_string(),
-            }],
-        });
+        let fix =
+            (!declaration.declared_pure && declaration.return_type.is_void()).then(|| LintFix {
+                applicability: "machine-applicable",
+                edits: vec![LintEdit {
+                    span: Span {
+                        start: declaration.span.start,
+                        end: declaration.span.start,
+                    },
+                    replacement: "debug ".to_string(),
+                }],
+            });
         pending.push(PendingDiagnostic {
             module,
             span: declaration.name.span,
             rule: RULE,
-            message: "`strip_debug` drops `debugLog` by its name until it is declared `debug` (R15)"
-                .to_string(),
+            message:
+                "`strip_debug` drops `debugLog` by its name until it is declared `debug` (R15)"
+                    .to_string(),
             evidence: None,
             help: Some(if fix.is_some() {
                 "`lilscript-lint --fix` writes `debug extern`".to_string()

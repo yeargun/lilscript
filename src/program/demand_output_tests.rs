@@ -403,7 +403,11 @@ fn public_scalar_annotations_are_trusted_crossings() {
                 "{}",
                 String::from_utf8_lossy(&result.stderr)
             );
-            assert_eq!(String::from_utf8(result.stdout).unwrap(), "[3,0]", "{javascript}");
+            assert_eq!(
+                String::from_utf8(result.stdout).unwrap(),
+                "[3,0]",
+                "{javascript}"
+            );
         }
     });
 }

@@ -292,7 +292,10 @@ fn spelling_names(spelling: Spelling) -> Vec<&'static str> {
         (statements.loop_fusion, Challenger::LoopFusion),
         (spelling.self_named, Challenger::SelfNamed),
         (spelling.read_order, Challenger::ReadOrder),
-        (families.compound_assignments, Challenger::CompoundAssignments),
+        (
+            families.compound_assignments,
+            Challenger::CompoundAssignments,
+        ),
         (families.quotes, Challenger::Quotes),
         (families.loop_heads, Challenger::LoopHeads),
         (families.logical_statements, Challenger::LogicalStatements),
@@ -413,8 +416,14 @@ impl Judge<'_> {
         plan: &Plan,
         literals: crate::js::LiteralOutput,
         reference: &Incumbent,
-    ) -> Result<(Result<(ArtifactId, usize, QualifiedArtifact), Judgement>, Option<Proxy>, bool), SearchError>
-    {
+    ) -> Result<
+        (
+            Result<(ArtifactId, usize, QualifiedArtifact), Judgement>,
+            Option<Proxy>,
+            bool,
+        ),
+        SearchError,
+    > {
         let Self {
             policy,
             codec,
@@ -699,9 +708,9 @@ impl Walker<'_, '_, '_> {
         if levels.is_empty() {
             return Ok(());
         }
-        let sha256 = self
-            .formations
-            .with_arena(|arena, _, _| arena.with_artifact(incumbent.artifact, |view| delivered_digest(&view)))?;
+        let sha256 = self.formations.with_arena(|arena, _, _| {
+            arena.with_artifact(incumbent.artifact, |view| delivered_digest(&view))
+        })?;
         for &level in levels {
             self.report.stops.push(Stop {
                 level,
@@ -792,9 +801,14 @@ impl Walker<'_, '_, '_> {
             }
             _ => {}
         }
-        let (judgement, proxy, probed) =
-            self.judge
-                .judge(self.formations, spelling, choices, plan, literals, incumbent)?;
+        let (judgement, proxy, probed) = self.judge.judge(
+            self.formations,
+            spelling,
+            choices,
+            plan,
+            literals,
+            incumbent,
+        )?;
         let recall = match &judgement {
             Judgement::Kept { size, .. } | Judgement::Rejected { size } => {
                 Some(Recall::Measured(*size))
@@ -805,7 +819,11 @@ impl Walker<'_, '_, '_> {
             Judgement::Stopped | Judgement::Recalled { .. } => None,
         };
         if let Some(recall) = recall {
-            match self.memo.iter_mut().find(|(assignment, _)| *assignment == key) {
+            match self
+                .memo
+                .iter_mut()
+                .find(|(assignment, _)| *assignment == key)
+            {
                 Some(entry) => entry.1 = recall,
                 None => self.memo.push((key, recall)),
             }
@@ -839,7 +857,11 @@ impl Walker<'_, '_, '_> {
 
     /// The choice moves (M9.1): the incumbent's choice sites, surveyed, in
     /// the choice schedule. Whether one was kept.
-    fn choice_moves(&mut self, incumbent: &mut Incumbent, pass: usize) -> Result<bool, SearchError> {
+    fn choice_moves(
+        &mut self,
+        incumbent: &mut Incumbent,
+        pass: usize,
+    ) -> Result<bool, SearchError> {
         if !self.choices_permitted {
             return Ok(false);
         }
@@ -890,7 +912,7 @@ impl Walker<'_, '_, '_> {
                 size: None,
                 delta: None,
                 proxy: None,
-            audit: None,
+                audit: None,
             };
             let moved: Vec<(usize, crate::js::AltId)> = moves
                 .iter()
@@ -907,11 +929,10 @@ impl Walker<'_, '_, '_> {
                 record.outcome = ChallengerOutcome::Duplicate;
             } else {
                 self.report.examined += 1;
-                let choices = moved
-                    .iter()
-                    .fold(incumbent.choices.clone(), |choices, &(site, alternative)| {
-                        choices.with(sites[site].key, alternative)
-                    });
+                let choices = moved.iter().fold(
+                    incumbent.choices.clone(),
+                    |choices, &(site, alternative)| choices.with(sites[site].key, alternative),
+                );
                 let (judgement, proxy, probed) = self.judge_move(
                     incumbent.spelling,
                     &choices,
@@ -997,7 +1018,7 @@ impl Walker<'_, '_, '_> {
             size: None,
             delta: None,
             proxy: None,
-        audit: None,
+            audit: None,
         };
         let mut kept = false;
         let mut seen = vec![incumbent.spelling.effective()];
@@ -1134,7 +1155,7 @@ impl Walker<'_, '_, '_> {
                 size: None,
                 delta: None,
                 proxy: None,
-            audit: None,
+                audit: None,
             };
             if self.stopped {
                 record.outcome = ChallengerOutcome::Stopped;
@@ -1219,8 +1240,8 @@ impl Walker<'_, '_, '_> {
     /// record, `starts[index]`, takes the verdict.
     fn settle(&mut self, slot: usize, result: Incumbent) -> Result<(), SearchError> {
         let codec = self.codec;
-        let winner = self.portfolio.selected[index(codec)]
-            .expect("an objective walked has a winner");
+        let winner =
+            self.portfolio.selected[index(codec)].expect("an objective walked has a winner");
         let held = self.portfolio.entries.get(winner).unwrap().artifact;
         let held_size = self
             .formations
@@ -1232,15 +1253,25 @@ impl Walker<'_, '_, '_> {
             None if result.artifact == held => ChallengerOutcome::Identical,
             None => ChallengerOutcome::Rejected,
             Some(qualified) => {
-                let wins = self
-                    .judge
-                    .wins(self.formations, result.artifact, qualified, (held, held_size));
+                let wins = self.judge.wins(
+                    self.formations,
+                    result.artifact,
+                    qualified,
+                    (held, held_size),
+                );
                 let promoted = match wins {
                     Ok(true) => {
                         let (portfolio, state) = (&mut *self.portfolio, self.state);
                         self.formations.with_arena(|arena, _, budget| {
                             portfolio
-                                .promote_terminal(arena, budget, codec, state, result.artifact, qualified)
+                                .promote_terminal(
+                                    arena,
+                                    budget,
+                                    codec,
+                                    state,
+                                    result.artifact,
+                                    qualified,
+                                )
                                 .map(|_| true)
                         })
                     }
@@ -1282,7 +1313,7 @@ impl Walker<'_, '_, '_> {
             size: None,
             delta: None,
             proxy: None,
-        audit: None,
+            audit: None,
         });
         let mut result = start;
         self.passes(&mut result)?;
@@ -1303,7 +1334,7 @@ impl Walker<'_, '_, '_> {
             size: None,
             delta: None,
             proxy: None,
-        audit: None,
+            audit: None,
         };
         if self.stopped {
             record.outcome = ChallengerOutcome::Stopped;
@@ -1519,11 +1550,27 @@ impl JavaScriptSearch<'_, '_> {
             stops: Vec::new(),
         };
         if level0 != winner {
-            self.walk_from(policy, objective, codec, "search", winner, false, &mut report)?;
+            self.walk_from(
+                policy,
+                objective,
+                codec,
+                "search",
+                winner,
+                false,
+                &mut report,
+            )?;
         }
-        self.walk_from(policy, objective, codec, "level-0", level0, walk.starts, &mut report)?;
-        let delivered = self.portfolio.selected[index(codec)]
-            .expect("an objective keeps its winner");
+        self.walk_from(
+            policy,
+            objective,
+            codec,
+            "level-0",
+            level0,
+            walk.starts,
+            &mut report,
+        )?;
+        let delivered =
+            self.portfolio.selected[index(codec)].expect("an objective keeps its winner");
         report.after = size(self, delivered)?;
         let artifact = self.portfolio.entries.get(delivered).unwrap().artifact;
         let provenance = self.compilation.artifacts.provenance(artifact)?;
@@ -1594,7 +1641,12 @@ impl JavaScriptSearch<'_, '_> {
         // level's stopping point (levels 0 to 12, below this one).
         let replay = (name == "level-0").then(|| Replay {
             pending: (0..policy.effort())
-                .map(|level| (level, crate::compilation_policy::WalkSchedule::at(level, codec)))
+                .map(|level| {
+                    (
+                        level,
+                        crate::compilation_policy::WalkSchedule::at(level, codec),
+                    )
+                })
                 .filter(|(_, schedule)| schedule.passes <= 1)
                 .collect(),
             examined: report.examined,
@@ -1663,7 +1715,7 @@ impl JavaScriptSearch<'_, '_> {
                     size: None,
                     delta: None,
                     proxy: None,
-                audit: None,
+                    audit: None,
                 });
                 Ok(())
             }

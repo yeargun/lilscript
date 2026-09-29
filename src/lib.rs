@@ -1,9 +1,9 @@
 pub(crate) mod admission_parse;
 mod arena_budget;
-pub(crate) mod catalog;
 pub mod ast;
 pub mod ast_walk;
 pub mod build;
+pub(crate) mod catalog;
 pub mod check;
 pub mod compilation_contract;
 pub mod compilation_policy;
@@ -32,9 +32,9 @@ pub mod parser;
 pub mod primitive;
 pub mod program;
 pub(crate) mod scalar_transfer;
-pub(crate) mod schedule;
 #[cfg(test)]
 mod scalar_transfer_tests;
+pub(crate) mod schedule;
 pub mod span;
 mod stable_hash;
 pub mod timing;

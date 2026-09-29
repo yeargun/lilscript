@@ -1268,12 +1268,7 @@ impl Module {
     /// The constant data a literal denotes, if it is only constant data
     /// with no observed literal, no `__proto__` or duplicate key, no lone
     /// surrogate and no non-finite number.
-    fn datum(
-        &self,
-        expr: ExprId,
-        depth: usize,
-        nodes: &mut u64,
-    ) -> Option<Node> {
+    fn datum(&self, expr: ExprId, depth: usize, nodes: &mut u64) -> Option<Node> {
         if depth > MAX_NESTING || self.observed(expr) {
             return None;
         }
@@ -1284,12 +1279,10 @@ impl Module {
             Expr::Unary {
                 op: Unary::Negate,
                 value,
-            } if !self.observed(*value) => {
-                match &self.expressions[value.index()] {
-                    Expr::Literal(Literal::Number(value)) => number(-*value)?,
-                    _ => return None,
-                }
-            }
+            } if !self.observed(*value) => match &self.expressions[value.index()] {
+                Expr::Literal(Literal::Number(value)) => number(-*value)?,
+                _ => return None,
+            },
             Expr::Literal(Literal::String(text)) => Value::String(text.as_unicode()?.to_owned()),
             Expr::Literal(Literal::Bool(value)) => Value::Bool(*value),
             Expr::Literal(Literal::Null) => Value::Null,

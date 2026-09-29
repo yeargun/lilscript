@@ -2060,4 +2060,3 @@ fn mutable_method_lookup_and_invocation_keep_distinct_cell_snapshots() {
         r#"["lookup",["args",2,5],["after",3]]"#,
     );
 }
-

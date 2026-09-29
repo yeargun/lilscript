@@ -31,19 +31,29 @@ impl CodecSettings {
     };
 
     pub fn validate(&self) -> Result<(), String> {
-        let BrotliSettings { quality, window, .. } = self.brotli;
+        let BrotliSettings {
+            quality, window, ..
+        } = self.brotli;
         if quality > 11 {
-            return Err(format!("`objective.brotli.quality` must be between 0 and 11, not {quality}"));
+            return Err(format!(
+                "`objective.brotli.quality` must be between 0 and 11, not {quality}"
+            ));
         }
         if !(10..=24).contains(&window) {
-            return Err(format!("`objective.brotli.window` must be between 10 and 24, not {window}"));
+            return Err(format!(
+                "`objective.brotli.window` must be between 10 and 24, not {window}"
+            ));
         }
         let GzipSettings { level, window } = self.gzip;
         if !(1..=9).contains(&level) {
-            return Err(format!("`objective.gzip.level` must be between 1 and 9, not {level}"));
+            return Err(format!(
+                "`objective.gzip.level` must be between 1 and 9, not {level}"
+            ));
         }
         if !(9..=15).contains(&window) {
-            return Err(format!("`objective.gzip.window` must be between 9 and 15, not {window}"));
+            return Err(format!(
+                "`objective.gzip.window` must be between 9 and 15, not {window}"
+            ));
         }
         Ok(())
     }
@@ -73,7 +83,9 @@ impl Default for BrotliSettings {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Deserialize, serde::Serialize,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum BrotliMode {
     #[default]
@@ -535,7 +547,10 @@ fn brotli_size(
         BrotliMode::Font => BrotliEncoderMode_BROTLI_MODE_FONT,
     };
     for (parameter, value) in [
-        (BrotliEncoderParameter_BROTLI_PARAM_QUALITY, settings.quality),
+        (
+            BrotliEncoderParameter_BROTLI_PARAM_QUALITY,
+            settings.quality,
+        ),
         (BrotliEncoderParameter_BROTLI_PARAM_LGWIN, settings.window),
         (BrotliEncoderParameter_BROTLI_PARAM_MODE, mode as u32),
         // This cast intentionally matches the pinned convenience API.

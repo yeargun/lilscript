@@ -128,9 +128,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         self.work(1)?;
         if self.struct_boundary_value(context, value) {
             let actual = &self.program.types[self.data(context).values[value.index()].ty.index()];
-            if matches!(expected, Type::Dynamic)
-                && self.public_encode(context, value, actual)?
-            {
+            if matches!(expected, Type::Dynamic) && self.public_encode(context, value, actual)? {
                 return Ok(());
             }
             self.struct_transfer_shape(expected, actual, span)?;
@@ -454,10 +452,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
             OperationKind::Call(call) => {
                 let arguments = data.arguments(data.calls[call.index()].arguments).unwrap();
                 if let Some(signature) = data.call_signature(&data.calls[call.index()]) {
-                    let dynamic = matches!(
-                        self.program.types[signature.index()],
-                        Type::Dynamic
-                    );
+                    let dynamic = matches!(self.program.types[signature.index()], Type::Dynamic);
                     let params = match &self.program.types[signature.index()] {
                         Type::Function(function) => Some(&function.params),
                         Type::GenericFunction(function) => Some(&function.signature.params),
@@ -476,12 +471,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                         }
                         // A dynamic callee takes `JsValue` arguments.
                         if dynamic {
-                            self.struct_transfer(
-                                context,
-                                value,
-                                &Type::Dynamic,
-                                span,
-                            )?;
+                            self.struct_transfer(context, value, &Type::Dynamic, span)?;
                             continue;
                         }
                         let params = params.ok_or_else(|| {

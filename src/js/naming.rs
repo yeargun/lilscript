@@ -735,7 +735,11 @@ impl<'a> Basis<'a> {
                 {
                     return Err("printed name would capture a different binding".into());
                 }
-                Expr::Host(name) if names.resolve_in(module, scope, &name.name, budget)?.is_some() => {
+                Expr::Host(name)
+                    if names
+                        .resolve_in(module, scope, &name.name, budget)?
+                        .is_some() =>
+                {
                     return Err("printed local would capture an external identifier".into());
                 }
                 _ => {}

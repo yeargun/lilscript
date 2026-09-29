@@ -124,9 +124,10 @@ impl<'src> Assigned<'src> {
             Stmt::ArrayDestructure { value, .. } | Stmt::RecordDestructure { value, .. } => {
                 self.expression(value, nested)
             }
-            Stmt::Expr(expression) | Stmt::Throw { value: expression, .. } => {
-                self.expression(expression, nested)
-            }
+            Stmt::Expr(expression)
+            | Stmt::Throw {
+                value: expression, ..
+            } => self.expression(expression, nested),
             Stmt::Yield { value, .. } => self.expression(value, nested),
             Stmt::Return { value, .. } => {
                 if let Some(value) = value {
@@ -269,7 +270,8 @@ impl<'src> Assigned<'src> {
             ExprKind::TypeCheck { value, .. }
             | ExprKind::Cast { value, .. }
             | ExprKind::Convert { value, .. } => self.expression(value, nested),
-            ExprKind::Index { object, index, .. } | ExprKind::OptionalIndex { object, index, .. } => {
+            ExprKind::Index { object, index, .. }
+            | ExprKind::OptionalIndex { object, index, .. } => {
                 self.expression(object, nested);
                 self.expression(index, nested);
             }

@@ -667,7 +667,10 @@ impl StructuralSchedule {
 
 /// Serializes one of a walk's schedule counts: an unbounded one
 /// (`usize::MAX`) as null.
-pub fn serialize_bound<S: serde::Serializer>(count: &usize, serializer: S) -> Result<S::Ok, S::Error> {
+pub fn serialize_bound<S: serde::Serializer>(
+    count: &usize,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
     match *count {
         usize::MAX => serializer.serialize_none(),
         count => serializer.serialize_u64(count as u64),
@@ -1610,8 +1613,7 @@ mod tests {
                 )
                 .is_err());
         }
-        let on =
-            js("effort.level=0\n[policy.tactics]\nstring-array-packing='on'");
+        let on = js("effort.level=0\n[policy.tactics]\nstring-array-packing='on'");
         assert!(on
             .admit(
                 &[usage(TacticId::StringArrayPacking, RuntimeRisk::Startup)],
@@ -1780,13 +1782,9 @@ mod tests {
     #[test]
     fn version_and_level_boundaries_are_explicit() {
         for level in [0, 13, 15, 16] {
-            assert!(config(&format!("effort.level={level}"))
-                .validate()
-                .is_ok());
+            assert!(config(&format!("effort.level={level}")).validate().is_ok());
         }
-        assert!(config("effort.level=17")
-            .validate()
-            .is_err());
+        assert!(config("effort.level=17").validate().is_err());
         for version in [1, 3] {
             assert!(config(&format!("[policy]\nversion={version}"))
                 .validate()

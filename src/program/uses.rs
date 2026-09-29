@@ -643,7 +643,8 @@ pub(super) fn walk(
                     for (position, argument) in arguments.iter().enumerate() {
                         emit(Event::Tick)?;
                         // A spread uses its iterable as an argument too.
-                        if let CallArgument::Value(value) | CallArgument::Spread(value) = *argument {
+                        if let CallArgument::Value(value) | CallArgument::Spread(value) = *argument
+                        {
                             emit(Event::Value(
                                 value,
                                 ValueUse::CallArgument {

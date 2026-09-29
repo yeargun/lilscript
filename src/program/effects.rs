@@ -535,7 +535,11 @@ pub(super) fn operation_effects(
     }
 }
 
-fn primitive_effects(ctx: &Context<'_, '_>, operation: &Operation, operands: &[ValueId]) -> Effects {
+fn primitive_effects(
+    ctx: &Context<'_, '_>,
+    operation: &Operation,
+    operands: &[ValueId],
+) -> Effects {
     let safe = facts::primitive_evaluation_behavior(ctx.program, ctx.data, operation, true)
         .unwrap_or(EvaluationBehavior::UNKNOWN);
     let raw = facts::primitive_evaluation_behavior(ctx.program, ctx.data, operation, false)
@@ -803,11 +807,6 @@ fn unit_call_effects(
     }
     effects
 }
-
-
-
-
-
 
 fn intrinsic_effects(
     ctx: &Context<'_, '_>,
@@ -1589,11 +1588,16 @@ fn value_transfer(
             let site = &data.calls[call.index()];
             match site.target {
                 CallTarget::Builtin(builtin)
-                    if crate::catalog::builtin_effect(builtin) == crate::catalog::BuiltinEffect::Fresh =>
+                    if crate::catalog::builtin_effect(builtin)
+                        == crate::catalog::BuiltinEffect::Fresh =>
                 {
                     (None, None, Root::Fresh)
                 }
-                CallTarget::Intrinsic { operation, .. } if !crate::catalog::host_replaceable(operation) => primitive,
+                CallTarget::Intrinsic { operation, .. }
+                    if !crate::catalog::host_replaceable(operation) =>
+                {
+                    primitive
+                }
                 CallTarget::Value {
                     callee,
                     invocation: Invocation::Value,

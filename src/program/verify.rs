@@ -2425,8 +2425,8 @@ fn verify_types(
                     expect(full_arity(signature, &mut query)?)?;
                     // A host callee takes a declared rest parameter's arguments
                     // one by one (R7): each is an element, or a spread array.
-                    let host_rest = signature.has_rest()
-                        && convention == DefaultConvention::PreserveOmission;
+                    let host_rest =
+                        signature.has_rest() && convention == DefaultConvention::PreserveOmission;
                     let fixed = if host_rest {
                         signature.fixed_params()
                     } else {
@@ -2446,13 +2446,15 @@ fn verify_types(
                         for actual in arguments.iter().skip(fixed) {
                             query.admit(RelationEvent::ParameterPair)?;
                             let fits = match *actual {
-                                CallArgument::Value(value) => {
-                                    class_assignable(program, element, value_type(value), &mut query)?
-                                }
-                                CallArgument::Spread(value) => matches!(
+                                CallArgument::Value(value) => class_assignable(
+                                    program,
+                                    element,
                                     value_type(value),
-                                    Type::Array(_) | Type::Dynamic
-                                ),
+                                    &mut query,
+                                )?,
+                                CallArgument::Spread(value) => {
+                                    matches!(value_type(value), Type::Array(_) | Type::Dynamic)
+                                }
                                 CallArgument::Reference(_) => false,
                             };
                             if !fits {

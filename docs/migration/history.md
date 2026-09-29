@@ -2854,6 +2854,8 @@ Predicted:
 - **C5, delivery row repair:** a fresh assertion-enabled build of `cebc5928` reproduces the same ten delivery failures. Each is an evaluation statement labelled as a movable definition even though it declares no binding. Formation now anchors non-declaration statements when publishing their root row; the existing release delivery fallback already anchors these rows. Expected delivered bytes are unchanged. The assertion retains the failing statement and flags in its diagnostic.
 - V2's range fixture also needs its second outer function exported: otherwise its constant caller proves `[7,7]`, rather than the interval the test intends to exercise.
 
+**C6, formatting gate:** `cargo fmt --all -- --check` already fails on 60 files at `cebc5928`. After the assertion-enabled suite passes (1,639 passed, nine ignored), apply rustfmt in a separate mechanical commit so the branch can pass the CI formatting gate. No semantic or delivered-byte change is expected.
+
 Verification starts from the six rebased commits `67848cbc` through `1c4de0e5` on `cebc5928`. The first check also covers V2's two test-only repairs (`3bf39765`). Y5 changes the contract used by existing rules; it introduces no new exact rule or heuristic.
 
 ---

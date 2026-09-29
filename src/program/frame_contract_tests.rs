@@ -168,7 +168,11 @@ fn script_inlines_a_private_helper_over_a_trusted_crossing() {
                 "globalThis.events=[];console.log=value=>events.push(['value',value]);globalThis.opaque=()=>4;\n{javascript}\nprocess.stdout.write(JSON.stringify(events));"
             );
             let result = Command::new("node").args(["-e", &script]).output().unwrap();
-            assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+            assert!(
+                result.status.success(),
+                "{}",
+                String::from_utf8_lossy(&result.stderr)
+            );
             let events: Json = serde_json::from_slice(&result.stdout).unwrap();
             assert_eq!(events, json!([["value", 5]]));
         }

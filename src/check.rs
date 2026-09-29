@@ -10,9 +10,9 @@ use indexmap::IndexMap;
 
 use crate::ast::{
     Argument, ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, ClassDecl,
-    ClassMember, ConstructorDecl, DynamicBinaryOp, DynamicUnaryOp, Expr, ExternClassMember, ExternDecl, ForInitializer,
-    FunctionDecl, Ident, Item, MatchPattern, Program, RecordElement, SourceNodeId, Stmt,
-    StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
+    ClassMember, ConstructorDecl, DynamicBinaryOp, DynamicUnaryOp, Expr, ExternClassMember,
+    ExternDecl, ForInitializer, FunctionDecl, Ident, Item, MatchPattern, Program, RecordElement,
+    SourceNodeId, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
 };
 use crate::span::Span;
 use crate::typed_array::TypedArrayKind;
@@ -254,9 +254,10 @@ impl Type<'_> {
             Self::Task(value) => Self::Task(Box::new(value.without_unknown())),
             Self::Generator(value) => Self::Generator(Box::new(value.without_unknown())),
             Self::Nullable(value) => Self::Nullable(Box::new(value.without_unknown())),
-            Self::Map(key, value) => {
-                Self::Map(Box::new(key.without_unknown()), Box::new(value.without_unknown()))
-            }
+            Self::Map(key, value) => Self::Map(
+                Box::new(key.without_unknown()),
+                Box::new(value.without_unknown()),
+            ),
             Self::Union(values) => normalize_union(each(values)),
             Self::StructInstance { declaration, args } => Self::StructInstance {
                 declaration: *declaration,
@@ -2828,10 +2829,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     .and_then(|scope| scope.get(decl.name.name))
                 {
                     self.record_identifier(decl.name.id, symbol);
-                    self.facts.binding_types.insert(
-                        decl.name.id,
-                        BindingType::Inline(Type::Class(declaration)),
-                    );
+                    self.facts
+                        .binding_types
+                        .insert(decl.name.id, BindingType::Inline(Type::Class(declaration)));
                 }
                 continue;
             }
@@ -3455,7 +3455,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .map(|param| self.resolve_parameter_type(&param.parameter, "parameter"))
             .collect::<Result<Vec<_>, _>>()?;
         self.callable_depth += 1;
-        self.enter_body(assignments::Assigned::body(constructor.params, constructor.body))?;
+        self.enter_body(assignments::Assigned::body(
+            constructor.params,
+            constructor.body,
+        ))?;
         self.analyze_parameter_defaults(constructor.params, &parameters)?;
         self.push_scope()?;
         let class_info = &self.declarations.classes[class.index()];
@@ -3916,7 +3919,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     self.pop_scope();
                     // The finally's own assignments are definite afterwards.
                     let after_finally = std::mem::take(&mut self.unassigned);
-                    joined.retain(|symbol| !before.contains(symbol) || after_finally.contains(symbol));
+                    joined.retain(|symbol| {
+                        !before.contains(symbol) || after_finally.contains(symbol)
+                    });
                 }
                 self.unassigned = joined;
                 Ok(())
@@ -4098,7 +4103,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     (_, Some((value_type, _))) => {
                         return Err(AdmittedCheckError::new(
                             value_type.span,
-                            format!("only a map iterates as a key and a value, found `{iterable_type}`"),
+                            format!(
+                                "only a map iterates as a key and a value, found `{iterable_type}`"
+                            ),
                         ));
                     }
                     _ => {}
@@ -4314,11 +4321,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         let declared = self.resolve_value_type(decl.ty, "variable")?;
         let mut binding_ty = declared.clone();
         strip_parameter_defaults_from_type(&mut binding_ty);
-        let id = if let Some(id) = self
-            .module_binding_declarations
-            .get(&decl.name.id)
-            .copied()
-        {
+        let id = if let Some(id) = self.module_binding_declarations.get(&decl.name.id).copied() {
             id
         } else {
             self.declare(decl.name, binding_ty)?
@@ -4346,7 +4349,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
 
     /// A loop body may not run, or runs again: its assignments do not
     /// count after it (R3).
-    fn analyze_loop_body(&mut self, body: &'ast Stmt<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+    fn analyze_loop_body(
+        &mut self,
+        body: &'ast Stmt<'ast, 'src>,
+    ) -> Result<(), AdmittedCheckError> {
         let before = self.unassigned.clone();
         let result = self.analyze_stmt(body);
         self.unassigned = before;
@@ -5262,11 +5268,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let (then_narrowing, else_narrowing) = self.condition_narrowing(condition)?;
                 self.push_scope()?;
                 self.apply_narrowing(then_narrowing);
-                let then_type = self.conditionally(|this| this.analyze_expr(then_value, expected))?;
+                let then_type =
+                    self.conditionally(|this| this.analyze_expr(then_value, expected))?;
                 self.pop_scope();
                 self.push_scope()?;
                 self.apply_narrowing(else_narrowing);
-                let else_type = self.conditionally(|this| this.analyze_expr(else_value, expected))?;
+                let else_type =
+                    self.conditionally(|this| this.analyze_expr(else_value, expected))?;
                 self.pop_scope();
                 common_type(&then_type, &else_type).ok_or_else(|| {
                     AdmittedCheckError::new(
@@ -5436,10 +5444,16 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let source = self.analyze_expr(value, Some(&Type::Dynamic))?;
                 let target = self.resolve_value_type(*target, "`as` target")?;
                 if target.is_void() {
-                    return Err(AdmittedCheckError::new(*span, "`as` cannot view a value as `void`"));
+                    return Err(AdmittedCheckError::new(
+                        *span,
+                        "`as` cannot view a value as `void`",
+                    ));
                 }
                 if source.is_void() {
-                    return Err(AdmittedCheckError::new(*span, "`as` cannot view `void` as a value"));
+                    return Err(AdmittedCheckError::new(
+                        *span,
+                        "`as` cannot view `void` as a value",
+                    ));
                 }
                 if is_js_value_or_nullable_js_value(&target) {
                     // An explicit view as `JsValue` crosses to the host (R6).
@@ -5470,9 +5484,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 if matches!(target.kind, TypeKind::Bool) {
                     self.analyze_test_operand(value)?;
                     self.facts.source_info[expr.id.index()].resolution =
-                        ExpressionResolution::Primitive(crate::primitive::ResolvedIntrinsic::Method(
-                            crate::primitive::Intrinsic::JsTruthy,
-                        ));
+                        ExpressionResolution::Primitive(
+                            crate::primitive::ResolvedIntrinsic::Method(
+                                crate::primitive::Intrinsic::JsTruthy,
+                            ),
+                        );
                     self.facts.expression_types[expr.id.index()] = Some(Type::Bool);
                     return Ok(Type::Bool);
                 }
@@ -5501,7 +5517,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 if !is_js_value(&constructor) {
                     return Err(AdmittedCheckError::new(
                         callee.span(),
-                        format!("`new` of a value needs a `JsValue` constructor, found `{constructor}`"),
+                        format!(
+                            "`new` of a value needs a `JsValue` constructor, found `{constructor}`"
+                        ),
                     ));
                 }
                 self.analyze_dynamic_arguments(args)?;
@@ -8210,7 +8228,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         let outer = self.unassigned.clone();
         let conditional = std::mem::replace(&mut self.conditional_assignments, 0);
         self.enter_body(match body {
-            ArrowBody::Expr(expression) => assignments::Assigned::expression_body(params, expression),
+            ArrowBody::Expr(expression) => {
+                assignments::Assigned::expression_body(params, expression)
+            }
             ArrowBody::Block(statements) => assignments::Assigned::body(params, statements),
         })?;
         let result = self.analyze_arrow_body(params, body, expected);
@@ -8867,8 +8887,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             return Ok(false);
         };
         let info = &self.declarations.classes[declaration.identity.index()];
-        let (external, object, generic) =
-            (info.external, info.object, !args.is_empty() || !info.type_params.is_empty());
+        let (external, object, generic) = (
+            info.external,
+            info.object,
+            !args.is_empty() || !info.type_params.is_empty(),
+        );
         if generic {
             return Err(AdmittedCheckError::new(
                 span,
@@ -11075,7 +11098,10 @@ fn mark_rest_parameter<'src>(
         ));
     }
     if last.parameter.passing != ParameterPassing::Value {
-        return Err(AdmittedCheckError::new(last.span, "a rest parameter passes by value"));
+        return Err(AdmittedCheckError::new(
+            last.span,
+            "a rest parameter passes by value",
+        ));
     }
     let parameter = resolved
         .last_mut()
@@ -11105,13 +11131,21 @@ fn refuse_rest_parameter(params: &[crate::ast::Param<'_, '_>]) -> Result<(), Adm
 /// alone.
 fn method_adapter(params: &[crate::ast::Param<'_, '_>]) -> Result<Option<BuiltinCall>, CheckError> {
     use crate::ast::ParamRole;
-    let receiver = params.first().is_some_and(|param| param.role == ParamRole::Receiver);
-    let rest = params.last().is_some_and(|param| param.role == ParamRole::Rest);
-    if let Some(misplaced) = params.iter().enumerate().find(|(index, param)| match param.role {
-        ParamRole::Value => false,
-        ParamRole::Receiver => *index != 0,
-        ParamRole::Rest => *index + 1 != params.len(),
-    }) {
+    let receiver = params
+        .first()
+        .is_some_and(|param| param.role == ParamRole::Receiver);
+    let rest = params
+        .last()
+        .is_some_and(|param| param.role == ParamRole::Rest);
+    if let Some(misplaced) = params
+        .iter()
+        .enumerate()
+        .find(|(index, param)| match param.role {
+            ParamRole::Value => false,
+            ParamRole::Receiver => *index != 0,
+            ParamRole::Rest => *index + 1 != params.len(),
+        })
+    {
         return Err(CheckError::new(
             misplaced.1.span,
             "the receiver is the first parameter and the rest the last",
@@ -11431,11 +11465,9 @@ mod tests {
             model.expression_resolution(object.id),
             ExpressionResolution::Binding(_)
         ));
-        assert!(model.symbol_is_reassigned(
-            model
-                .identifier_symbol(forward.params[0].name.id)
-                .unwrap()
-        ));
+        assert!(
+            model.symbol_is_reassigned(model.identifier_symbol(forward.params[0].name.id).unwrap())
+        );
     }
 
     #[test]
@@ -12263,7 +12295,10 @@ mod tests {
         assert!(wrong.message.contains("expected `int`"), "{wrong}");
 
         let string = check("for(string value of \"text\"){}").unwrap_err();
-        assert!(string.message.contains("a typed array, a Set<T>"), "{string}");
+        assert!(
+            string.message.contains("a typed array, a Set<T>"),
+            "{string}"
+        );
     }
 
     #[test]
@@ -13441,5 +13476,4 @@ mod tests {
         assert!(model.is_reflected(class("Thrown")));
         assert!(!model.is_reflected(class("Private")));
     }
-
 }

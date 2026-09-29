@@ -15,7 +15,6 @@ pub mod call_graph;
 mod callable_inputs;
 mod cell_ssa;
 mod dataflow;
-pub(crate) mod ranges;
 mod demand;
 pub mod effects;
 mod entries;
@@ -44,6 +43,7 @@ mod product_javascript_tests;
 #[cfg(test)]
 mod product_publication_tests;
 pub mod publication;
+pub(crate) mod ranges;
 mod raw_domains;
 mod record_family;
 mod rewrite_lineage;
@@ -148,12 +148,12 @@ mod suspension_javascript_tests;
 mod recipe_descriptor_tests;
 
 pub use from_source::{from_checked_modules, from_checked_source, ModuleUnsupported, Unsupported};
-pub(crate) use from_source::{
-    from_checked_modules_with_rules, from_checked_source_with_rules, ConversionError,
-};
 /// The rule-free conversions, for tests that inspect conversion's own output.
 #[cfg(test)]
 pub(crate) use from_source::{from_checked_modules_admitted, from_checked_source_admitted};
+pub(crate) use from_source::{
+    from_checked_modules_with_rules, from_checked_source_with_rules, ConversionError,
+};
 pub use ids::*;
 pub use storage::{FrozenUnit, WorkingUnit};
 

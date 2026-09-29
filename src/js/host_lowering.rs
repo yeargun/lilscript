@@ -204,7 +204,11 @@ impl Module {
                 }
             }
         }
-        if self.exports.iter().any(|export| find(export.binding).is_some()) {
+        if self
+            .exports
+            .iter()
+            .any(|export| find(export.binding).is_some())
+        {
             for export in &mut self.tables_mut().exports {
                 if let Some(lowered) = find(export.binding) {
                     export.binding = lowered;
@@ -672,7 +676,9 @@ impl Lowering<'_, '_> {
             None => match name {
                 "undefined" => Expr::Literal(Literal::Undefined),
                 // Only a function's own `arguments`; an arrow reads its creator's.
-                "arguments" if self.functions.iter().any(|arrow| !arrow) => Expr::Host(Host::new(name)),
+                "arguments" if self.functions.iter().any(|arrow| !arrow) => {
+                    Expr::Host(Host::new(name))
+                }
                 "arguments" | "eval" => return Err(Stop::Refused),
                 _ => Expr::Host(Host::new(name)),
             },

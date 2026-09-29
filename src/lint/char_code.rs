@@ -292,7 +292,8 @@ impl<'src> Walk<'_, '_, 'src> {
             ExprKind::TypeCheck { value, .. }
             | ExprKind::Cast { value, .. }
             | ExprKind::Convert { value, .. } => self.expression(value),
-            ExprKind::Index { object, index, .. } | ExprKind::OptionalIndex { object, index, .. } => {
+            ExprKind::Index { object, index, .. }
+            | ExprKind::OptionalIndex { object, index, .. } => {
                 self.expression(object);
                 self.expression(index);
             }
