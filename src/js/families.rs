@@ -132,9 +132,10 @@ impl OutputFamilies {
 
     /// The alternative each family starts from under `codec`. Raw bytes seed
     /// every raw-shaped family on; a codec seeds only the loop-head spelling,
-    /// which was never measured larger there, and forwarded string
-    /// constants, the canonical form every objective had until they became a
-    /// family.
+    /// which was never measured larger there. A codec starts with string
+    /// constants named: a walk from forwarded ones judged naming them one
+    /// flip at a time and kept the forwarded form on the port that gains
+    /// most from names (2026-09-29).
     pub fn seed(codec: Objective) -> Self {
         match codec {
             Objective::Raw => Self {
@@ -151,7 +152,6 @@ impl OutputFamilies {
             },
             Objective::Gzip | Objective::Brotli => Self {
                 loop_heads: true,
-                string_constants: true,
                 ..Self::NONE
             },
         }
