@@ -2690,7 +2690,8 @@ Predicted:
   - Cases, against F4's totals: raw 61,698 → 60,722, gzip 57,032 → 56,426, Brotli 46,789 → 46,262.
   - Losses to the competitor: raw 276 → 235, gzip 315 → 255, Brotli 348 → 314.
   - Apps: Brotli 843 → 838 (Closure ADVANCED 834).
-  - 29 rows grew by 1–3 Brotli bytes, on tiny cases where a `|0` went, against 765 improvements. No total grew, so they are accepted with `--accept-growth`, and the baseline is `v1-1`'s.
+  - 29 rows grew by 1–3 Brotli bytes, on tiny cases where a `|0` went, against 765 improvements.
+  - The algorithms corpus's gzip total grew by one byte (3,490 → 3,491), so `--accept-growth` refused them. The baseline stays SC1's, and V2, which lets the codec keep `|0`, reruns it.
 - **Unpatched ports** against F4: all green.
 
   | Port | Raw | Gzip | Brotli |
