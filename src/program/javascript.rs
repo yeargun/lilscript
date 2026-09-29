@@ -614,12 +614,15 @@ fn form_head(
     module.pure_property_reads = contract.assumptions.pure_property_reads;
     module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
     module.int32_hints = int32_hints;
+    // The program's value ranges (M6.4b), once per program under its seal.
+    let ranges = program.ranges(super::call_graph::Seal::from_execution(contract.execution));
     let mut formation = Formation {
         program,
         uses,
         contract: *contract,
         demand,
         compact,
+        ranges,
         module,
         string_sums: Vec::new(),
         contexts,
@@ -1067,6 +1070,9 @@ struct RecordStorage<'a> {
 struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     budget: &'budget mut AllocationBudget<'ledger>,
     program: &'program Program<'src>,
+    /// The program's value ranges (M6.4b), met with formation's own number
+    /// facts.
+    ranges: std::sync::Arc<super::ranges::ProgramRanges>,
     uses: Option<&'program UseIndex>,
     contract: JavaScriptCompilationContract,
     demand: &'demand DemandPlan<'program, 'src>,
@@ -2159,7 +2165,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             return NumberFacts::UNKNOWN;
         }
         let data = self.data(unit);
-        match data.operations[data.values[value.index()].definition.index()].kind {
+        let local = match data.operations[data.values[value.index()].definition.index()].kind {
             OperationKind::Constant(Constant::Integer(value)) => {
                 NumberFacts::literal(f64::from(value))
             }
@@ -2167,7 +2173,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 NumberFacts::literal(f64::from_bits(bits))
             }
             _ => self.plan(unit).numbers[value.index()],
-        }
+        };
+        // The program's ranges (M6.4b), computed once for every formation:
+        // both are sound, so each value has what both prove.
+        local.meet(self.ranges.number(self.semantic(unit), value))
     }
 
     /// One admitted fixed-cost transfer per emitted numeric operation. Facts
