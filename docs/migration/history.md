@@ -8,34 +8,66 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 
 ## Index
 
-| Date | Record | Tasks | Branch |
-|---|---|---|---|
-| 2026-09-23 | [Where we started](#2026-09-23-where-we-started) | — | — |
-| 2026-09-23 | [M0: record and freeze](#2026-09-23-m0-record-and-freeze) | M0 | `one-compiler` |
-| 2026-09-24 | [M1: one compiler](#2026-09-24-m1-one-compiler) | M1.1–M1.9, M2.2, M2.6 | `one-compiler` |
-| 2026-09-24 | [Batch I: effects and initialization order](#2026-09-24-batch-i-effects-and-initialization-order) | M6.1–M6.3, M7.2, M6.5, M4.3 (part) | `m6-effects`, `m6-init` |
-| 2026-09-24 | [Green CI and the interim release](#2026-09-24-green-ci-and-the-interim-release) | M2.1, M2.8, M2.9 | `one-compiler-m2` |
-| 2026-09-24 | [Batch T: the terminal challenger stage](#2026-09-24-batch-t-the-terminal-challenger-stage) | M5.4, M9.2, M9.3 (first family) | `m5-terminal` |
-| 2026-09-27 | [Batch D: choices and data tables](#2026-09-27-batch-d-choices-and-data-tables) | M9.1 (first slice), M9.8, L2 spellings | `m9-data` |
-| 2026-09-27 | [Batch N: nominal identity](#2026-09-27-batch-n-nominal-identity) | M4.1 | `m4-nominal` |
-| 2026-09-27 | [katexlil released with its font metrics in LilScript](#2026-09-27-katexlil-released-with-its-font-metrics-in-lilscript) | step 1 | katexlil `07d90d6` |
-| 2026-09-27 | [Design version 1 and the plan's revision](#2026-09-27-design-version-1-and-the-plans-revision) | plan revision | `design-final` |
-| 2026-09-27 | [M3.3a: the delivery contract, first slice](#2026-09-27-m33a-the-delivery-contract-first-slice) | M3.3a | `m3-delivery` |
-| 2026-09-27 | [Batch A1: canonical formation without tree analysis](#2026-09-27-batch-a1-canonical-formation-without-tree-analysis) | M8.2 A1, M8.1 (imports), M2.3 (`print`), M9.5 (seed), M11.2 | `m8-a1` |
-| 2026-09-27 | [The tools, first part: M2.13, M2.5 and M2.14](#2026-09-27-the-tools-first-part-m213-m25-and-m214) | M2.13, M2.5, M2.14 | `m2-tools` |
-| 2026-09-28 | [Owner decisions: counted budgets, decide statically first, verify per batch](#2026-09-28-owner-decisions-counted-budgets-decide-statically-first-verify-per-batch) | AM1, L22, plan rules 3 and 8 | — |
-| 2026-09-28 | [Batch F1: the floor slice, first part](#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding) | M5.1, M6.4a, M7.8a | `m5-floor` |
-| 2026-09-28 | [Batch F2: the floor slice, second part](#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults) | M5.1, M7.5a, M7.3 | `m5-floor` |
-| 2026-09-28 | [Batch F3: the floor slice, third part](#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins) | M7.3, M5.1, M5.3b | `m5-floor` |
-| 2026-09-28 | [Batch B1: the counted walk](#2026-09-28-batch-b1-the-counted-walk-m35-first-part) | M3.5 | `m3-budget` |
-| 2026-09-28 | [Batch B1b: the upper levels try more](#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2) | M3.5, AM2 | `m3-budget` |
-| 2026-09-28 | [Batch B2: level 0 without a codec, the replay check, the audit lane, the counts](#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35) | M3.5 | `m3-budget` |
-| 2026-09-28 | [Batch B3: the objective and effort axes](#2026-09-28-batch-b3-the-objective-and-effort-axes-m31-first-slice-m35-codec-settings) | M3.1, M3.5 | `m3-budget` |
-| 2026-09-28 | [Batch S1: the dynamic type's syntax](#2026-09-28-batch-s1-the-dynamic-types-syntax-m42-m102-first-part) | M4.2, M10.2 | `language-slice-1` |
-| 2026-09-28 | [Owner decisions: compile time scales, test on a clock, track each change](#2026-09-28-owner-decisions-compile-time-scales-test-on-a-clock-track-each-change) | AM3, plan rules 3, 5 and 8 | — |
-| 2026-09-28 | [Batch S2: receivers and rest parameters](#2026-09-28-batch-s2-receivers-and-rest-parameters-m104-first-part) | M10.4 | `language-slice-1` |
-| 2026-09-28 | [Batch S3: the dynamic type's tests and conversions](#2026-09-28-batch-s3-the-dynamic-types-tests-and-conversions-m102-second-part) | M10.2 | `language-slice-1` |
-| 2026-09-28 | [Batch S4: iteration and spread](#2026-09-28-batch-s4-iteration-and-spread-m1016-m104-second-part) | M10.16, M10.4 | `language-slice-1` |
+| Date | Record |
+|---|---|
+| 2026-09-23 | [Where we started](#2026-09-23-where-we-started) |
+| 2026-09-23 | [M0: record and freeze](#2026-09-23-m0-record-and-freeze) |
+| 2026-09-24 | [M1: one compiler](#2026-09-24-m1-one-compiler) |
+| 2026-09-24 | [Batch I: effects and initialization order](#2026-09-24-batch-i-effects-and-initialization-order) |
+| 2026-09-24 | [Green CI and the interim release](#2026-09-24-green-ci-and-the-interim-release) |
+| 2026-09-24 | [Batch T: the terminal challenger stage](#2026-09-24-batch-t-the-terminal-challenger-stage) |
+| 2026-09-27 | [Batch D: choices and data tables](#2026-09-27-batch-d-choices-and-data-tables) |
+| 2026-09-27 | [Batch N: nominal identity](#2026-09-27-batch-n-nominal-identity) |
+| 2026-09-27 | [katexlil released with its font metrics in LilScript](#2026-09-27-katexlil-released-with-its-font-metrics-in-lilscript) |
+| 2026-09-27 | [Design version 1 and the plan's revision](#2026-09-27-design-version-1-and-the-plans-revision) |
+| 2026-09-27 | [M3.3a: the delivery contract, first slice](#2026-09-27-m33a-the-delivery-contract-first-slice) |
+| 2026-09-27 | [Batch A1: canonical formation without tree analysis](#2026-09-27-batch-a1-canonical-formation-without-tree-analysis) |
+| 2026-09-27 | [The tools, first part: M2.13, M2.5 and M2.14](#2026-09-27-the-tools-first-part-m213-m25-and-m214) |
+| 2026-09-28 | [Owner decisions: counted budgets, decide statically first, verify per batch](#2026-09-28-owner-decisions-counted-budgets-decide-statically-first-verify-per-batch) |
+| 2026-09-28 | [Batch F1: the floor slice, first part (edit kernel, DCE, exact values, folding)](#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding) |
+| 2026-09-28 | [Batch F2: the floor slice, second part (graft, removal-only inlining, typed defaults)](#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults) |
+| 2026-09-28 | [Batch F3: the floor slice, third part (parameters and returns, the tree twins)](#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins) |
+| 2026-09-28 | [Batch B1: the counted walk (M3.5, first part)](#2026-09-28-batch-b1-the-counted-walk-m35-first-part) |
+| 2026-09-28 | [Batch B1b: the upper levels try more (M3.5, AM2)](#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2) |
+| 2026-09-28 | [Batch B2: level 0 without a codec, the replay check, the audit lane, the counts (M3.5)](#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35) |
+| 2026-09-28 | [Batch B3: the objective and effort axes (M3.1 first slice, M3.5 codec settings)](#2026-09-28-batch-b3-the-objective-and-effort-axes-m31-first-slice-m35-codec-settings) |
+| 2026-09-28 | [Batch S1: the dynamic type's syntax (M4.2, M10.2 first part)](#2026-09-28-batch-s1-the-dynamic-types-syntax-m42-m102-first-part) |
+| 2026-09-28 | [Owner decisions: compile time scales, test on a clock, track each change](#2026-09-28-owner-decisions-compile-time-scales-test-on-a-clock-track-each-change) |
+| 2026-09-28 | [Batch S2: receivers and rest parameters (M10.4, first part)](#2026-09-28-batch-s2-receivers-and-rest-parameters-m104-first-part) |
+| 2026-09-28 | [Batch S3: the dynamic type's tests and conversions (M10.2, second part)](#2026-09-28-batch-s3-the-dynamic-types-tests-and-conversions-m102-second-part) |
+| 2026-09-28 | [Batch S4: iteration and spread (M10.16, M10.4 second part)](#2026-09-28-batch-s4-iteration-and-spread-m1016-m104-second-part) |
+| 2026-09-28 | [Batch S5: the fix-it on typed operands (M10.2, M4.2)](#2026-09-28-batch-s5-the-fix-it-on-typed-operands-m102-m42) |
+| 2026-09-28 | [Batch S6: identity tests, declared rest parameters, typed receivers (M10.7, M10.4)](#2026-09-28-batch-s6-identity-tests-declared-rest-parameters-typed-receivers-m107-m104) |
+| 2026-09-28 | [Batch S7: `unknown`, and the fix-it's last family (M4.2, M10.2, M10.4)](#2026-09-28-batch-s7-unknown-and-the-fix-its-last-family-m42-m102-m104) |
+| 2026-09-28 | [Batch K1: trusted crossings (M10.12, R1)](#2026-09-28-batch-k1-trusted-crossings-m1012-r1) |
+| 2026-09-28 | [Batch K2: the reflected set (M10.14, checker half)](#2026-09-28-batch-k2-the-reflected-set-m1014-checker-half) |
+| 2026-09-28 | [Batch B4: the walk's reserve (M3.5, AM2)](#2026-09-28-batch-b4-the-walks-reserve-m35-am2) |
+| 2026-09-28 | [Batch K3: the operation catalog (M4.6)](#2026-09-28-batch-k3-the-operation-catalog-m46) |
+| 2026-09-28 | [Batch K4: definite assignment, first batch (M10.13, R3)](#2026-09-28-batch-k4-definite-assignment-first-batch-m1013-r3) |
+| 2026-09-28 | [Batch K5: field initializers and the implicit-default warning (M10.13, R3)](#2026-09-28-batch-k5-field-initializers-and-the-implicit-default-warning-m1013-r3) |
+| 2026-09-28 | [Batch K6: the `debug` class (M10.11 core, R15)](#2026-09-28-batch-k6-the-debug-class-m1011-core-r15) |
+| 2026-09-28 | [Batch K7: typed intrinsics mean the originals (M10.15, R10)](#2026-09-28-batch-k7-typed-intrinsics-mean-the-originals-m1015-r10) |
+| 2026-09-28 | [Batch K8: the development-check lane (M10.9, first part; R11, R1)](#2026-09-28-batch-k8-the-development-check-lane-m109-first-part-r11-r1) |
+| 2026-09-28 | [Batch K9: R11's first batch (M10.9)](#2026-09-28-batch-k9-r11s-first-batch-m109) |
+| 2026-09-28 | [Batch K10: R2's first batch (M10.9)](#2026-09-28-batch-k10-r2s-first-batch-m109) |
+| 2026-09-28 | [Batch K11: crossings in the development-check lane (M10.12's lane, R1)](#2026-09-28-batch-k11-crossings-in-the-development-check-lane-m1012s-lane-r1) |
+| 2026-09-28 | [Batches K1–K4 and B4: the first run and its fix-ups](#2026-09-28-batches-k1k4-and-b4-the-first-run-and-its-fix-ups) |
+| 2026-09-28 | [Batch K12: R11's index precondition in production (M10.9, second batch, first part)](#2026-09-28-batch-k12-r11s-index-precondition-in-production-m109-second-batch-first-part) |
+| 2026-09-28 | [Batch K13: int32 hints, a codec-judged family (AM2 for R1, R10 and R11)](#2026-09-28-batch-k13-int32-hints-a-codec-judged-family-am2-for-r1-r10-and-r11) |
+| 2026-09-29 | [Batches K5–K13 and step 8's close: the second and third runs, and their fix-ups](#2026-09-29-batches-k5k13-and-step-8s-close-the-second-and-third-runs-and-their-fix-ups) |
+| 2026-09-29 | [Batch N1: node ids (M4.4)](#2026-09-29-batch-n1-node-ids-m44) |
+| 2026-09-29 | [Batch N2: checker facts transported (M4.3's rest)](#2026-09-29-batch-n2-checker-facts-transported-m43s-rest) |
+| 2026-09-29 | [Batch P1: the tree's first annotations (M5.2, first batch)](#2026-09-29-batch-p1-the-trees-first-annotations-m52-first-batch) |
+| 2026-09-29 | [Batch P2: the evaluation-behaviour column on operation nodes (M5.2)](#2026-09-29-batch-p2-the-evaluation-behaviour-column-on-operation-nodes-m52) |
+| 2026-09-29 | [Batch P3: the raw spelling dissolved, the printer's statement rewrite gone (M8.3, first half)](#2026-09-29-batch-p3-the-raw-spelling-dissolved-the-printers-statement-rewrite-gone-m83-first-half) |
+| 2026-09-29 | [Batch D1: the region-structured solver and the cell-SSA view (M5.5)](#2026-09-29-batch-d1-the-region-structured-solver-and-the-cell-ssa-view-m55) |
+| 2026-09-29 | [Batch J1: the edit journal and one rule scheduler (M5.2's journal, M5.3a)](#2026-09-29-batch-j1-the-edit-journal-and-one-rule-scheduler-m52s-journal-m53a) |
+| 2026-09-29 | [Batch O1: the program's initialization order on the tree (M6.5 through M5.2's columns)](#2026-09-29-batch-o1-the-programs-initialization-order-on-the-tree-m65-through-m52s-columns) |
+| 2026-09-29 | [Batch A2a: A2's small rules (the dead `let`, C9, C19)](#2026-09-29-batch-a2a-a2s-small-rules-the-dead-let-c9-c19) |
+| 2026-09-29 | [Batch SC1: string root constants, a codec-judged family (M7.4's choice)](#2026-09-29-batch-sc1-string-root-constants-a-codec-judged-family-m74s-choice) |
+| 2026-09-29 | [Batch F4: dead code after folding (M7.8a) and the folded branch's scope](#2026-09-29-batch-f4-dead-code-after-folding-m78a-and-the-folded-branchs-scope) |
+| 2026-09-29 | [Batch V1: value ranges, the int32-range tier (M6.4b, first part)](#2026-09-29-batch-v1-value-ranges-the-int32-range-tier-m64b-first-part) |
+| 2026-09-29 | [Batch V2: the ranges' parameters, the script guard, the old proof deleted, `\|0` as the codec judges (M6.4b)](#2026-09-29-batch-v2-the-ranges-parameters-the-script-guard-the-old-proof-deleted-0-as-the-codec-judges-m64b) |
 
 ---
 
@@ -2738,6 +2770,52 @@ Predicted:
 - **Ports:** jquerylil's and posthoglil's Brotli growth is judged away where the codec prefers the `|0`; the raw lanes keep V1's gains. Counting loops print as V1 printed them.
 - **CPU:** unchanged. The family was already a head-level challenger, and the view adds two rounds of solves per build.
 - **Tests:** the program-level test for parameters (one caller passing `n & 7` gives `[1,8]`; an exported body stays its type's), and every existing counting-loop expectation.
+
+**Landed** (binary `v2-1`, and a fix-up of two tests):
+- **Unit tests:** 1,635 pass. Two range tests failed on their premise. Their callers pass constants, so C1 now gives the outer functions' parameters the values passed instead of the type's range. The fix-up exports those functions, so outside callers may pass anything. The fix-up is test-only, and Y5's unit run checks it.
+- **Cases** against V1: every lane passes. The script lanes give back most of V1's gain, which came from the top-level cells that C2 withdraws. The module lanes shrink a little.
+
+  | Lane | Script | Module |
+  |---|---:|---:|
+  | Brotli | +76 | −3 |
+  | gzip | +77 | −12 |
+  | raw | +160 | −42 |
+- **Ratchet** (all three corpora compile as scripts):
+  - Cases against V1: raw 60,722 → 61,594, gzip 56,426 → 56,984, Brotli 46,262 → 46,703. Against F4's totals (46,789 Brotli) that leaves −86.
+  - Apps: unchanged at 838 Brotli.
+  - Algorithms: +3 Brotli, +1 gzip.
+  - Fourteen rows grow by 1–3 bytes (nested-loop-score-10, closure-capture-6, edge-closure-mutation, aggregate-ledger, dictionary-template-router).
+  - The baseline stays SC1's: both V1's and V2's totals are above it on some corpus.
+
+  C2 is a soundness fix, and it costs most of what V1 gained on script roots. The owner's Y5 answer (private roots) makes those roots the program's own, so Y5, the next batch, should take the gain back soundly.
+- **Unpatched ports** against V1: all green.
+
+  | Port | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | zodlil | −6 | +2 | +76 |
+  | motionlil | +604 | −29 | +57 |
+  | katexlil | +230 | +42 | +32 |
+  | markedlil | −955 | +58 | +9 |
+  | jquerylil | −485 | −1 | −6 |
+  | micromarklil | 0 | 0 | 0 |
+  | posthoglil | 0 | 0 | 0 |
+  | **total** | −612 | +72 | +168 |
+
+  The Brotli growth looks like plan-choice movement rather than `|0`. zodlil's `index.cjs` is +61 Brotli at −4 raw, and markedlil's ESM build is +36 at −118. The fleet total is under the ~400-byte level at which the fleet can judge a change (plan rule 8).
+- **CPU pairs** against V1:
+
+  | Port | Factor | Judged |
+  |---|---:|---:|
+  | markedlil | ×2.38 | 14 → 46 |
+  | motionlil | ×1.14 | 53 → 67 |
+  | jquerylil | ×1.09 | 44 → 50 |
+  | posthoglil | ×1.04 | 17 → 17 |
+  | katexlil | ×0.97 | 130 → 130 |
+  | micromarklil | ×0.89 | 36 → 36 |
+  | zodlil | ×0.86 | 39 → 33 |
+
+  The rises were not predicted: markedlil's walk judges three times as many candidates, and motionlil's and jquerylil's walks judge somewhat more. It is carried to the next steps (what the `int32_hints` challenger costs now).
+- **Deleted:** `src/program/javascript_int32.rs` (M6.4b's deletion of the old counter and cell proofs).
 
 ---
 
