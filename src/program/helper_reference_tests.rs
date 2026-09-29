@@ -120,7 +120,7 @@ fn mixed_reference_integer_loads_keep_unknown_domains_and_conversion_effects() {
             OperationKind::CheckPlace(_)=>assert_eq!(facts.behavior.reads,MemoryAccess::Unknown),
             _=>panic!("witness on another operation"),
         }}}
-        assert!(loads>=3&&writes>=1);assert!(family.frame_elision_allowed(JavaScriptExecution::Module));assert!(!family.frame_elision_allowed(JavaScriptExecution::Script));
+        assert!(loads>=3&&writes>=1);assert!(family.frame_elision_allowed(JavaScriptExecution::Module, true));assert!(!family.frame_elision_allowed(JavaScriptExecution::Script, false));
         family.discard(&mut ledger).unwrap();assert_eq!(ledger.retained_bytes(),baseline);uses.discard(&mut ledger).unwrap();assert_eq!(ledger.retained_bytes(),0);
     });
 }

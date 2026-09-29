@@ -1856,7 +1856,10 @@ impl<'src> Compilation<'src> {
             FamilyOutcome::Truncated(limit) => HelperOutcome::Truncated(limit),
             FamilyOutcome::Complete(family)
                 if !family
-                    .frame_elision_allowed(policy.javascript_contract().unwrap().execution) =>
+                    .frame_elision_allowed(
+                        policy.javascript_contract().unwrap().execution,
+                        policy.javascript_contract().unwrap().frames_hidden(),
+                    ) =>
             {
                 family.discard(&mut self.ledger)?;
                 HelperOutcome::Unknown(helper_family::UnknownReason::ObservableFrame)

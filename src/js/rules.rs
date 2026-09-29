@@ -115,7 +115,10 @@ impl Rule {
 /// What a build permits the rules and what its artifact chose.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Context<'a> {
-    pub(crate) strict: bool,
+    /// Host reflection over the program's frames is outside the contract
+    /// (strict code, or an application's world, Y5): a function's frame may
+    /// be elided or moved.
+    pub(crate) frames_hidden: bool,
     /// The contract assumes unpatched builtins: stores fold into literals
     /// under new keys as well.
     pub(crate) pristine: bool,
@@ -348,7 +351,7 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
         let Context {
-            strict,
+            frames_hidden: strict,
             pristine,
             prunes,
             numeric_lengths,

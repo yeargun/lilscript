@@ -506,7 +506,7 @@ pub(super) struct FormedHead {
 
 #[derive(Clone, Copy)]
 struct TailContext {
-    strict: bool,
+    frames_hidden: bool,
     pristine: bool,
     prunes: bool,
     numeric_lengths: bool,
@@ -879,9 +879,12 @@ fn form_head(
         }
         let numeric_lengths = formation.contract.assumptions.numeric_lengths;
         let year = formation.contract.ecmascript.year();
+        // Frames the rules may elide or move: strict code's, and every frame
+        // in an application's world (Y5's frames amendment).
+        let frames_hidden = formation.contract.frames_hidden();
         // The family-independent rules, to their fixed point (M5.3a).
         let context = js::rules::Context {
-            strict,
+            frames_hidden,
             pristine,
             prunes,
             numeric_lengths,
@@ -897,7 +900,7 @@ fn form_head(
             return Err(error.into());
         }
         tail = Some(TailContext {
-            strict,
+            frames_hidden,
             pristine,
             prunes,
             numeric_lengths,
@@ -952,7 +955,7 @@ fn form_tail(
         mut module, tail, ..
     } = head;
     let Some(TailContext {
-        strict,
+        frames_hidden,
         pristine,
         prunes,
         numeric_lengths,
@@ -974,7 +977,7 @@ fn form_tail(
     // their fixed point, then repeated strings, once no other rule reads a
     // literal (M5.3a).
     let context = js::rules::Context {
-        strict,
+        frames_hidden,
         pristine,
         prunes,
         numeric_lengths,
@@ -3097,7 +3100,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             crate::catalog::host_builtin(builtin)
                                 && (self.contract.assumptions.pristine_builtins
                                     || operands_first(builtin))
-                                && (self.contract.execution.guarantees_strict_execution()
+                                && (self.contract.frames_hidden()
                                     || runs_no_user_code(builtin))
                                 && (builtin != BuiltinCall::JsObject
                                     || arguments.len() % 2 == 0

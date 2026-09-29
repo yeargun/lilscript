@@ -346,7 +346,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             }
             for helper in implementations.helpers() {
                 budget.work(1)?;
-                if !helper.frame_elision_allowed(contract.execution) {
+                if !helper.frame_elision_allowed(contract.execution, contract.frames_hidden()) {
                     return Err(unsupported("observable helper frame in script output"));
                 }
             }

@@ -150,9 +150,15 @@ impl HelperFamily {
     pub(super) fn body_effects(&self) -> EvaluationBehavior {
         self.body_effects
     }
-    pub(super) fn frame_elision_allowed(&self, execution: JavaScriptExecution) -> bool {
-        self.execution == execution
-            && (!self.body_effects.may_reenter || execution.guarantees_strict_execution())
+    /// Whether the helper's frame may go under a build of `execution` whose
+    /// contract hides frames when `frames_hidden` (Y5's frames amendment):
+    /// code the helper reenters could otherwise see it.
+    pub(super) fn frame_elision_allowed(
+        &self,
+        execution: JavaScriptExecution,
+        frames_hidden: bool,
+    ) -> bool {
+        self.execution == execution && (!self.body_effects.may_reenter || frames_hidden)
     }
     pub(super) fn operation_facts(&self, operation: OpId) -> Option<HelperOperationFacts> {
         self.body_facts.get(operation.index()).copied()

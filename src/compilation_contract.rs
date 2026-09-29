@@ -92,3 +92,17 @@ pub struct JavaScriptCompilationContract {
     pub effects: JavaScriptEffectPolicy,
     pub checks: PreconditionChecks,
 }
+
+impl JavaScriptCompilationContract {
+    /// Whether host reflection over compiler-owned frames is outside the
+    /// contract, so a frame may be elided or moved: strict code shows no
+    /// caller to the code it calls, and in an application's world (owner
+    /// answer Y5, 2026-09-29: the frames amendment) no code the program does
+    /// not own may look at its frames. This is about reflection only; strict
+    /// mode's own semantics (`this`, `delete`, failed writes, mapped
+    /// `arguments`) follow `JavaScriptExecution::guarantees_strict_execution`.
+    pub fn frames_hidden(&self) -> bool {
+        self.execution.guarantees_strict_execution()
+            || self.world == JavaScriptWorld::ClosedApplication
+    }
+}
