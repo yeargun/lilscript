@@ -97,56 +97,148 @@ impl ProgramRanges {
                 }
             }
         }
-        for component in graph.components() {
-            for &unit in component {
-                let data = program.units[unit.index()].data();
-                let recursive = graph.recursive(unit);
-                let (owned, integral) = owned_cells(program, graph, unit);
-                let analysis = Ranges {
-                    program,
-                    data,
-                    owned,
-                    integral,
-                    values: RefCell::new(by_type_all(program, data)),
-                    callees: &callees[unit.index()],
-                    results: &results,
-                };
-                let mut entry = analysis.unreachable();
-                for &cell in &data.parameters {
-                    if let Some(ordinal) = analysis.ordinal(cell) {
-                        entry[ordinal] = Some(by_type(program, program.cells[cell.index()].ty));
-                    }
-                }
-                if dataflow::solve(data, &analysis, entry, |_| Ok::<(), ()>(())).is_err() {
-                    continue;
-                }
-                let values = analysis.values.into_inner();
-                // A body's result: the join of the values it returns (F4
-                // removed the returns no path reaches). A recursive body's
-                // is its type's.
-                if !recursive {
-                    let mut result: Option<NumberFacts> = None;
-                    for operation in &data.operations {
-                        if !matches!(operation.kind, OperationKind::Return) {
-                            continue;
-                        }
-                        let returned = data
-                            .operands(operation.operands)
-                            .and_then(|operands| operands.first().copied())
-                            .map_or(NumberFacts::UNKNOWN, |value| values[value.index()]);
-                        result = Some(match result {
-                            Some(result) => result.join(returned),
-                            None => returned,
-                        });
-                    }
-                    results[unit.index()] = result;
-                }
-                units[unit.index()] = values;
+        // Rounds: each solves every unit callees first. A parameter of a
+        // body whose complete call set is known reads the join of what its
+        // callers passed in the round before (the first round's parameters
+        // are their type's). Every round is sound, and each is at least as
+        // narrow as the one before, so stopping at any round is.
+        let mut formals: Vec<Option<Vec<NumberFacts>>> = vec![None; program.units.len()];
+        for _ in 0..ROUNDS {
+            solve_round(program, graph, &callees, &formals, &mut units, &mut results);
+            let next = passed(program, graph, &units);
+            if next == formals {
+                break;
             }
+            formals = next;
         }
         Self {
             deps: Deps::of_program(program),
             units,
+        }
+    }
+}
+
+/// Rounds of parameter joining (M6.4b): a call chain's ranges reach two
+/// calls deeper per round beyond the first.
+const ROUNDS: usize = 3;
+
+/// Per unit: the join, per parameter, of what every call of its complete
+/// call set passes, when every call passes each parameter as a value.
+fn passed(
+    program: &Program<'_>,
+    graph: &super::call_graph::CallGraph,
+    units: &[Vec<NumberFacts>],
+) -> Vec<Option<Vec<NumberFacts>>> {
+    let mut formals = vec![None; program.units.len()];
+    for frozen in &program.units {
+        let unit = frozen.id();
+        let Some(edges) = graph.complete_callers(unit) else {
+            continue;
+        };
+        if edges.is_empty() {
+            continue;
+        }
+        let parameters = frozen.data().parameters.len();
+        let mut joined: Vec<Option<NumberFacts>> = vec![None; parameters];
+        let usable = edges.iter().all(|edge| {
+            let caller = program.units[edge.caller.index()].data();
+            let Some(arguments) = caller
+                .calls
+                .get(edge.call.index())
+                .and_then(|site| caller.arguments(site.arguments))
+            else {
+                return false;
+            };
+            if arguments.len() != parameters {
+                return false;
+            }
+            arguments.iter().zip(&mut joined).all(|(argument, slot)| {
+                let CallArgument::Value(value) = *argument else {
+                    return false;
+                };
+                let facts = units[edge.caller.index()]
+                    .get(value.index())
+                    .copied()
+                    .unwrap_or(NumberFacts::UNKNOWN);
+                *slot = Some(match *slot {
+                    Some(joined) => joined.join(facts),
+                    None => facts,
+                });
+                true
+            })
+        });
+        if usable {
+            formals[unit.index()] = Some(
+                joined
+                    .into_iter()
+                    .map(|facts| facts.unwrap_or(NumberFacts::UNKNOWN))
+                    .collect(),
+            );
+        }
+    }
+    formals
+}
+
+/// One round: every unit solved callees first, with `formals` for the
+/// parameters where known.
+fn solve_round(
+    program: &Program<'_>,
+    graph: &super::call_graph::CallGraph,
+    callees: &[Vec<Option<UnitId>>],
+    formals: &[Option<Vec<NumberFacts>>],
+    units: &mut [Vec<NumberFacts>],
+    results: &mut [Option<NumberFacts>],
+) {
+    for component in graph.components() {
+        for &unit in component {
+            let data = program.units[unit.index()].data();
+            let recursive = graph.recursive(unit);
+            let (owned, integral) = owned_cells(program, graph, unit);
+            let analysis = Ranges {
+                program,
+                data,
+                owned,
+                integral,
+                values: RefCell::new(by_type_all(program, data)),
+                callees: &callees[unit.index()],
+                results: &*results,
+            };
+            let mut entry = analysis.unreachable();
+            for (position, &cell) in data.parameters.iter().enumerate() {
+                if let Some(ordinal) = analysis.ordinal(cell) {
+                    let typed = by_type(program, program.cells[cell.index()].ty);
+                    let passed = formals[unit.index()]
+                        .as_ref()
+                        .and_then(|formals| formals.get(position))
+                        .map_or(typed, |facts| facts.meet(typed));
+                    entry[ordinal] = Some(passed);
+                }
+            }
+            if dataflow::solve(data, &analysis, entry, |_| Ok::<(), ()>(())).is_err() {
+                continue;
+            }
+            let values = analysis.values.into_inner();
+            // A body's result: the join of the values it returns (F4
+            // removed the returns no path reaches). A recursive body's
+            // is its type's.
+            if !recursive {
+                let mut result: Option<NumberFacts> = None;
+                for operation in &data.operations {
+                    if !matches!(operation.kind, OperationKind::Return) {
+                        continue;
+                    }
+                    let returned = data
+                        .operands(operation.operands)
+                        .and_then(|operands| operands.first().copied())
+                        .map_or(NumberFacts::UNKNOWN, |value| values[value.index()]);
+                    result = Some(match result {
+                        Some(result) => result.join(returned),
+                        None => returned,
+                    });
+                }
+                results[unit.index()] = result;
+            }
+            units[unit.index()] = values;
         }
     }
 }

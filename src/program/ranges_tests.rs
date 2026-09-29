@@ -102,3 +102,19 @@ fn a_loop_that_grows_settles_by_widening() {
         "{bounds:?}"
     );
 }
+
+#[test]
+fn a_parameter_joins_what_its_complete_call_set_passes() {
+    // `inc`'s only caller passes `n & 7`: its parameter is in [0,7] from the
+    // second round on, and its result in [1,8].
+    let source =
+        "int inc(int x) { return x + 1; } int f(int n) { return inc(n & 7); } print(f(1000));";
+    assert_eq!(returned(source, "inc"), Some((1, 8)));
+    // An exported body may be called by anyone: its parameter is its type's.
+    let source = "export int inc(int x) { return x + 1; } int f(int n) { return inc(n & 7); } print(f(1000));";
+    assert!(
+        returned(source, "inc").is_some_and(|(low, high)| high - low > 1 << 31),
+        "{:?}",
+        returned(source, "inc")
+    );
+}
