@@ -2184,6 +2184,23 @@ Next (P2 onward): typed mutation helpers with the journal, then the evaluation-b
 
 **Landed** (binary `p1-1`, one commit: the module's storage sums change for both halves): 1,613 unit tests pass; every case lane passes with 0 artifacts changed against `n2-1`; the ratchet's 1,890 artifacts are byte-identical. `binding_classes`, `defined_parameters`, formation's literal list, its twelve hand remaps and the five passes' `protected` slices are gone.
 
+## 2026-09-29 Batch P2: the evaluation-behaviour column on operation nodes (M5.2)
+
+**Pre-registration** (written before the first build of the batch; base: P1's record).
+
+Why: the tree's legality tests read syntax where the program has facts. `quiet.rs`'s walk treats every call, construction, integer operation and `|0` as running code. So `let v=V;f(x+y|0,v)` never forwards `V`, though R1 makes `x+y|0` on `int`s a primitive operation, and a call to a function the effect analysis proves pure is treated like a host call. The demand plan already holds each IR operation's `EvaluationBehavior` (reads, writes, throw, divergence, re-entry, suspension; `facts.rs`'s local behaviour, which the architecture's evaluation column replaces).
+
+What the batch builds:
+- **The column.** `Module::behaviours`: for a call, construction, integer operation, negation or `|0` that formation forms from an operation, that operation's behaviour, sorted by node.
+- **Self-validating rows.** Until the journal lands, each row also holds the node it describes, and the arena renumbers both. A lookup answers only while the node at that id is still exactly that node, so a pass that rewrites a node in place drops its fact (a conservative top) without knowing the column exists. Inlining's template copies carry their nodes' rows, and a call site replaced by its template's root takes the root's row.
+- **The readers.**
+  - `quiet.rs`'s walk takes a node whose behaviour reads and writes no memory other code can change, cannot throw, and neither diverges, re-enters nor suspends, as it takes a literal: quiet when its operands are.
+  - `runs_no_user_code` takes such a call as running no user code: the program's own code, and no host code.
+
+Soundness: the behaviour is the operation's, from the effect analysis. The node is the operation's own, or a copy that evaluates the same callee on the same kind of arguments (inlining); a node rewritten in place loses its row.
+
+Predicted: more forwarding on typed code (Brotli smaller or equal on the ratchet and the ports, a few byte changes elsewhere); CPU: one row per operation node formed, and a comparison per lookup.
+
 ---
 
 ## Appendix: where milestones 001–014 went
