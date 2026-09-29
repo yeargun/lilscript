@@ -279,7 +279,12 @@ Open items that the batch records left, grouped by the task that owns them. An i
   - two site receipts need refreshing.
 - **Architecture amendment (§22):** the text "today the default strips it" is stale since A1.
 - **Owed by batch A1:** the case runner's CPU-time pair (rule 3).
-- **Y5:** the ratchet's `comparison/cases` compile as scripts with global roots, while every competitor recipe treats top-level bindings as private; `functions/nested-local` reaches its bar only as a module (batch F1).
+- **Y5, answered yes on 2026-09-29** (private roots): an application script's top-level bindings are the program's own unless declared global, and application scripts default to an IIFE. Implementation:
+  - Y5a: application scripts seal their roots as modules do;
+  - Y5b: the frames amendment (host reflection over compiler-owned frames is outside the contract);
+  - Y5c: the IIFE default, with M3.3b's formats.
+
+  Until Y5a lands, the ratchet's `comparison/cases` compile as scripts with global roots, while every competitor recipe treats top-level bindings as private.
 - **No owner yet. Each needs a task, or an owner ruling:**
   - structs crossing to the host or through generics are refused: an `extern` taking a struct, a struct union widened to `JsValue`, and a generic function taking a struct. The case ledger still names M1.9, a closed task, and the plan names no later one;
   - M4.1's gaps:
