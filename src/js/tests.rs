@@ -1203,7 +1203,10 @@ fn a_call_initializing_a_binding_its_function_reads_stays_a_call() {
     module.root_rows = vec![RootRow::new(0, Anchor::Anchored); 3];
     module.verify().unwrap();
     let mut budget = AllocationBudget::new(None);
-    assert_eq!(module.inline_single_calls(true, &mut budget).unwrap(), 0);
+    assert_eq!(
+        module.inline_single_calls(true, true, &mut budget).unwrap(),
+        0
+    );
     module.verify().unwrap();
 }
 
@@ -1289,8 +1292,14 @@ fn a_function_called_once_becomes_a_block_at_its_call() {
     let mut early = module.clone();
     early.regions[body.index()].statements.swap(0, 1);
     let mut budget = AllocationBudget::new(None);
-    assert_eq!(early.inline_single_calls(true, &mut budget).unwrap(), 0);
-    assert_eq!(module.inline_single_calls(true, &mut budget).unwrap(), 1);
+    assert_eq!(
+        early.inline_single_calls(true, true, &mut budget).unwrap(),
+        0
+    );
+    assert_eq!(
+        module.inline_single_calls(true, true, &mut budget).unwrap(),
+        1
+    );
     module.verify().unwrap();
     let javascript = module
         .render(PrintPolicy {

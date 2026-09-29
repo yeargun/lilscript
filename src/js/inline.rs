@@ -35,6 +35,7 @@ struct Template {
     /// The body is `{E}` rather than `(…)=>E`: its call yields `undefined`,
     /// so only a call whose value is discarded may become `E`.
     discards: bool,
+    strictness: u8,
 }
 
 /// Every expression and region that can run, with each expression's depth as
@@ -45,8 +46,19 @@ pub(super) struct Reach {
     /// Bindings mentioned by a function other than the one declaring them:
     /// a call can reach such a binding, and may write it.
     pub(super) captured: Vec<bool>,
+    /// Lexical execution contexts, relative to a sloppy root: bit 1 is
+    /// sloppy, bit 2 strict. A shared node reached in both contexts has
+    /// both bits and cannot be moved across a strictness boundary.
+    pub(super) strict_regions: Vec<u8>,
+    pub(super) strict_expressions: Vec<u8>,
     /// Function parameters: initialized before any code reads them.
     parameters: Vec<bool>,
+}
+
+/// A body may inherit the destination's mode only when both have one
+/// known, equal mode. Module execution makes every context strict.
+pub(super) fn same_strictness(left: u8, right: u8) -> bool {
+    matches!(left, 1 | 2) && left == right
 }
 
 impl Module {
@@ -59,6 +71,7 @@ impl Module {
     pub(crate) fn inline_expression_functions(
         &mut self,
         limit: usize,
+        frames_hidden: bool,
         strict: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
@@ -122,10 +135,9 @@ impl Module {
                 else {
                     continue;
                 };
-                // A sloppy script's user code, run from the body by a getter,
-                // conversion or call, would see the arrow's frame as its
-                // `arguments.callee.caller`: only a body that runs none loses it.
-                if !strict && !self.runs_no_user_code(body) {
+                // Reentered host code can observe a frame unless the
+                // contract hides it, independently of strict execution.
+                if !frames_hidden && !self.runs_no_user_code(body) {
                     continue;
                 }
                 if nodes > limit && calls[binding.index()] != 1 {
@@ -141,6 +153,7 @@ impl Module {
                     first,
                     prefix,
                     discards,
+                    strictness: reach.strict_regions[self.functions[function.index()].body.index()],
                 });
             }
         }
@@ -186,6 +199,9 @@ impl Module {
             let Some(found) = template(binding) else {
                 continue;
             };
+            if !strict && !same_strictness(found.strictness, reach.strict_expressions[id.index()]) {
+                continue;
+            }
             if found.discards && !discarded[id.index()] {
                 continue;
             }
@@ -698,25 +714,30 @@ impl Module {
         &self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Reach, AllocationError> {
-        let mut seen_regions = vec![false; self.regions.len()];
-        let mut seen = vec![false; self.expressions.len()];
         let mut reach = Reach {
             expressions: Vec::new(),
             regions: Vec::new(),
             captured: vec![false; self.bindings.len()],
+            strict_regions: vec![0; self.regions.len()],
+            strict_expressions: vec![0; self.expressions.len()],
             parameters: vec![false; self.bindings.len()],
         };
         // The function each binding is declared in, and each reference's.
         let mut declared: Vec<Option<Option<FunctionId>>> = vec![None; self.bindings.len()];
         let mut references: Vec<(BindingId, Option<FunctionId>)> = Vec::new();
-        let mut regions = vec![(self.root, 0usize, None::<FunctionId>)];
-        let mut pending: Vec<(ExprId, usize)> = Vec::new();
-        while let Some((region, depth, owner)) = regions.pop() {
+        let mut regions = vec![(self.root, 0usize, None::<FunctionId>, false)];
+        let mut pending: Vec<(ExprId, usize, bool)> = Vec::new();
+        while let Some((region, depth, owner, strict)) = regions.pop() {
             budget.work(Analysis, 1)?;
-            if std::mem::replace(&mut seen_regions[region.index()], true) {
+            let mask = if strict { 2 } else { 1 };
+            let seen = reach.strict_regions[region.index()];
+            if seen & mask != 0 {
                 continue;
             }
-            reach.regions.push(region);
+            reach.strict_regions[region.index()] |= mask;
+            if seen == 0 {
+                reach.regions.push(region);
+            }
             for statement in &self.regions[region.index()].statements {
                 budget.work(Analysis, 1)?;
                 match statement {
@@ -736,8 +757,8 @@ impl Module {
                     } => declared[binding.index()] = Some(owner),
                     _ => {}
                 }
-                statement.visit_expressions(|root| pending.push((root, depth + 1)));
-                statement.visit_regions(|child| regions.push((child, depth + 1, owner)));
+                statement.visit_expressions(|root| pending.push((root, depth + 1, strict)));
+                statement.visit_regions(|child| regions.push((child, depth + 1, owner, strict)));
                 if let Statement::Function { function, .. } = statement {
                     for parameter in &self.functions[function.index()].parameters {
                         declared[parameter.index()] = Some(Some(*function));
@@ -747,15 +768,22 @@ impl Module {
                         self.functions[function.index()].body,
                         depth + 2,
                         Some(*function),
+                        strict || self.functions[function.index()].strict,
                     ));
                 }
-                while let Some((id, at)) = pending.pop() {
+                while let Some((id, at, strict)) = pending.pop() {
                     budget.work(Analysis, 1)?;
-                    if std::mem::replace(&mut seen[id.index()], true) {
+                    let expression = &self.expressions[id.index()];
+                    let strict = strict || matches!(expression, Expr::Class { .. });
+                    let mask = if strict { 2 } else { 1 };
+                    let seen = reach.strict_expressions[id.index()];
+                    if seen & mask != 0 {
                         continue;
                     }
-                    reach.expressions.push((id, at));
-                    let expression = &self.expressions[id.index()];
+                    reach.strict_expressions[id.index()] |= mask;
+                    if seen == 0 {
+                        reach.expressions.push((id, at));
+                    }
                     if let Expr::Binding(binding) = expression {
                         references.push((*binding, owner));
                     }
@@ -768,10 +796,11 @@ impl Module {
                             self.functions[function.index()].body,
                             at + 2,
                             Some(function),
+                            strict || self.functions[function.index()].strict,
                         ));
                     }
                     let _ = expression.visit_children(|child| {
-                        pending.push((child, at + 1));
+                        pending.push((child, at + 1, strict));
                         Ok::<_, ()>(())
                     });
                 }
@@ -897,6 +926,7 @@ impl Module {
     /// Returns the number of inlined calls and the arena renumbering.
     pub(crate) fn inline_statement_functions(
         &mut self,
+        frames_hidden: bool,
         strict: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
@@ -984,7 +1014,7 @@ impl Module {
                 for &root in &roots {
                     fits = fits
                         && self.movable_statement(root, &declared.parameters, binding)
-                        && (strict || self.runs_no_user_code(root));
+                        && (frames_hidden || self.runs_no_user_code(root));
                 }
                 if fits {
                     bodies[binding.index()] = Some((function, roots));
@@ -1023,6 +1053,15 @@ impl Module {
                 let Some((function, _)) = &bodies[binding.index()] else {
                     continue;
                 };
+                let body = self.functions[function.index()].body;
+                if !strict
+                    && !same_strictness(
+                        reach.strict_regions[body.index()],
+                        reach.strict_regions[region.index()],
+                    )
+                {
+                    continue;
+                }
                 let parameters = &self.functions[function.index()].parameters;
                 if arguments.len() != parameters.len() {
                     continue;

@@ -119,6 +119,9 @@ pub(crate) struct Context<'a> {
     /// (strict code, or an application's world, Y5): a function's frame may
     /// be elided or moved.
     pub(crate) frames_hidden: bool,
+    /// The whole artifact executes in strict mode; frame privacy alone
+    /// cannot change failed writes, delete, or inherited strictness.
+    pub(crate) strict: bool,
     /// The contract assumes unpatched builtins: stores fold into literals
     /// under new keys as well.
     pub(crate) pristine: bool,
@@ -351,7 +354,8 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
         let Context {
-            frames_hidden: strict,
+            frames_hidden,
+            strict,
             pristine,
             prunes,
             numeric_lengths,
@@ -368,10 +372,11 @@ impl Module {
                 let _ = self.simplify_operators(numeric_lengths, year, budget)?;
             }
             Rule::InlineExpressionFunctions => {
-                let _ = self.inline_expression_functions(INLINE_LIMIT, strict, budget)?;
+                let _ =
+                    self.inline_expression_functions(INLINE_LIMIT, frames_hidden, strict, budget)?;
             }
             Rule::InlineStatementFunctions => {
-                let _ = self.inline_statement_functions(strict, budget)?;
+                let _ = self.inline_statement_functions(frames_hidden, strict, budget)?;
             }
             Rule::EliminateAliases => {
                 let _ = self.eliminate_aliases(budget)?;
@@ -421,7 +426,7 @@ impl Module {
                 let _ = self.drop_double_negations(budget)?;
             }
             Rule::InlineSingleCalls => {
-                let _ = self.inline_single_calls(strict, budget)?;
+                let _ = self.inline_single_calls(frames_hidden, strict, budget)?;
             }
             Rule::FlattenBlocks => {
                 let _ = self.flatten_blocks(budget)?;
@@ -430,7 +435,7 @@ impl Module {
                 let _ = self.compress_statements(statements, budget)?;
             }
             Rule::PlaceSingleCalls => {
-                let _ = self.place_single_calls(strict, budget)?;
+                let _ = self.place_single_calls(frames_hidden, strict, budget)?;
             }
             Rule::DropRedundantInitStores => {
                 let _ = self.drop_redundant_init_stores(budget)?;

@@ -1815,6 +1815,53 @@ fn class_bodies_in_a_classic_script_keep_sloppy_host_writes_out_of_the_class() {
 }
 
 #[test]
+fn application_class_forwarders_keep_sloppy_assignment_and_delete_semantics() {
+    // Y5 hides caller reflection, but a class is still strict. Moving one
+    // of these static bodies into its forwarding method would throw on
+    // the frozen property instead of ignoring the write or returning false.
+    for (method, expected) in [
+        (
+            "void poke(JsValue target) { target[\"x\"] = 1; }",
+            "undefined\n",
+        ),
+        (
+            "bool poke(JsValue target) { return JS.delete(target, \"x\"); }",
+            "false\n",
+        ),
+    ] {
+        let source = format!(
+            "extern JsValue Object; export class Writer {{ {method} }}\n\
+             export constructor Writer; JsValue writer = new Writer();\n\
+             print(JS.invoke(writer, \"poke\", JS.invoke(Object, \"freeze\", JS.object(\"x\", 0))));"
+        );
+        let compiled = compile_source(
+            &source,
+            &config(""),
+            ServiceOptions {
+                preserve_root_exports: false,
+                ..ServiceOptions::default()
+            },
+        )
+        .unwrap();
+        let javascript = compiled.javascript(Objective::Brotli).unwrap().javascript();
+        let output = Command::new("node")
+            .args(["-e", javascript])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{javascript}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            expected,
+            "{javascript}"
+        );
+    }
+}
+
+#[test]
 fn the_objective_codec_settings_judge_report_and_fingerprint_the_build() {
     // Law B2 (M3.5): the judge is the configured codec, and its settings are
     // objective configuration.

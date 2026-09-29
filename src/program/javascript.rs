@@ -507,6 +507,7 @@ pub(super) struct FormedHead {
 #[derive(Clone, Copy)]
 struct TailContext {
     frames_hidden: bool,
+    strict: bool,
     pristine: bool,
     prunes: bool,
     numeric_lengths: bool,
@@ -885,6 +886,7 @@ fn form_head(
         // The family-independent rules, to their fixed point (M5.3a).
         let context = js::rules::Context {
             frames_hidden,
+            strict,
             pristine,
             prunes,
             numeric_lengths,
@@ -901,6 +903,7 @@ fn form_head(
         }
         tail = Some(TailContext {
             frames_hidden,
+            strict,
             pristine,
             prunes,
             numeric_lengths,
@@ -956,6 +959,7 @@ fn form_tail(
     } = head;
     let Some(TailContext {
         frames_hidden,
+        strict,
         pristine,
         prunes,
         numeric_lengths,
@@ -978,6 +982,7 @@ fn form_tail(
     // literal (M5.3a).
     let context = js::rules::Context {
         frames_hidden,
+        strict,
         pristine,
         prunes,
         numeric_lengths,

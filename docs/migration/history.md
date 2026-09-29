@@ -2849,6 +2849,10 @@ Predicted:
 - **Compile work:** root sealing reuses the existing analyses; the frame contract is a constant-time query. Script builds can do more rule work and follow different search paths as newly legal candidates become available. Module candidate counts should stay unchanged. Compare the seven frozen main entries against `v2-1` in three alternating CPU pairs; report any changed counts and the bytes they buy.
 - **Runtime:** fewer calls and temporary products in script output, with ordinary effects and evaluation order preserved. No new runtime operations; strict-mode semantics remain tied to execution. Frame reflection and undeclared access to private roots are outside the application contract.
 
+**Verification amendments (2026-09-30, before rebuilding the fixes).**
+- **C4, strictness at inlining sites:** the first unit run found a script's sloppy property write moved into a strict class method. Frame privacy does not authorize that. The existing reachability walk records lexical strictness, including class bodies and nested functions; the four frame-moving rules preserve it in scripts. This reuses the walk's visited buffers, adds constant work per visited node and no new search candidate. Module legality is unchanged. Runtime regressions cover frozen-property writes and deletion.
+- V2's range fixture also needs its second outer function exported: otherwise its constant caller proves `[7,7]`, rather than the interval the test intends to exercise.
+
 Verification starts from the six rebased commits `67848cbc` through `1c4de0e5` on `cebc5928`. The first check also covers V2's two test-only repairs (`3bf39765`). Y5 changes the contract used by existing rules; it introduces no new exact rule or heuristic.
 
 ---

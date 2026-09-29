@@ -168,24 +168,25 @@ impl Module {
     /// position and stores its value, so the block ends right after it. An
     /// early return would need a one-iteration loop to leave
     /// (`for(;;){…x=v;break…}`), which costs more than the call it replaces:
-    /// such functions stay. The body keeps no frame a strict caller could
-    /// see, reads no `this`, `arguments` or `super` of its own, and does not
+    /// such functions stay. The contract hides the body's frame, and it
+    /// reads no `this`, `arguments` or `super` of its own, and does not
     /// suspend; its scopes are renewed under the call's. The declaring
     /// region's scope encloses the call, and no call can run before the
     /// declaration: the call stands in a statement after it that is not a
     /// hoisted function. Returns how many calls were inlined.
     pub(crate) fn inline_single_calls(
         &mut self,
+        frames_hidden: bool,
         strict: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
-        if !strict {
+        if !frames_hidden {
             return Ok(0);
         }
         let mut inlined = 0;
         // One call per round: each edit moves statements and scopes.
         for _ in 0..256 {
-            let Some(found) = self.single_call_candidate(budget)? else {
+            let Some(found) = self.single_call_candidate(strict, budget)? else {
                 break;
             };
             self.inline_single_call(found, budget)?;
@@ -197,6 +198,7 @@ impl Module {
     #[allow(clippy::type_complexity)]
     fn single_call_candidate(
         &self,
+        strict: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<
         Option<(
@@ -273,6 +275,14 @@ impl Module {
                 // hoists nothing. A call inside the function's own body is
                 // its recursion, never a place for the body.
                 let own = self.functions[function.index()].body;
+                if !strict
+                    && !super::inline::same_strictness(
+                        reach.strict_regions[own.index()],
+                        reach.strict_regions[region.index()],
+                    )
+                {
+                    continue;
+                }
                 let mut path = (region, index);
                 let mut encloses = false;
                 for _ in 0..verify::MAX_NESTING * 4 {
@@ -348,8 +358,8 @@ impl Module {
     ///   function created there would see;
     /// - a root declaration and the root statement holding the call come
     ///   from one source module, which multi-file delivery keeps together;
-    /// - execution is strict: a sloppy frame shows its function to the code
-    ///   it calls;
+    /// - the contract hides frames, and moving the function preserves its
+    ///   inherited strictness;
     /// - the moved body fits within the nesting limit.
     ///
     /// The body's scopes are renewed under the call's region. Returns how
@@ -357,12 +367,13 @@ impl Module {
     /// renumbered.
     pub(crate) fn place_single_calls(
         &mut self,
+        frames_hidden: bool,
         strict: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
-        // A sloppy frame is visible to the code it calls, and with it the
-        // function's identity: only strict execution hides where it was made.
-        if !strict {
+        // A frame may move only when host reflection over it is outside
+        // the contract. Its inherited execution mode must still be kept.
+        if !frames_hidden {
             return Ok((0, None));
         }
         let mut placed = 0;
@@ -371,7 +382,7 @@ impl Module {
         // the others it moves; a function moved into another's body is taken
         // with that body in a later round.
         for _ in 0..8 {
-            let mut moves = self.single_call_placements(budget)?;
+            let mut moves = self.single_call_placements(strict, budget)?;
             if moves.is_empty() {
                 break;
             }
@@ -408,6 +419,7 @@ impl Module {
     /// The functions `place_single_calls` moves in one round.
     fn single_call_placements(
         &self,
+        strict: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<Placement>, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
@@ -511,6 +523,15 @@ impl Module {
                     || self.bindings[binding.index()].pinned
                     || !matches!(declared.name, FunctionName::Unobserved)
                     || (declared.arrow && !self.frame_free(function))
+                {
+                    continue;
+                }
+                if !strict
+                    && !declared.strict
+                    && !super::inline::same_strictness(
+                        reach.strict_regions[declared.body.index()],
+                        reach.strict_regions[region.index()],
+                    )
                 {
                     continue;
                 }
