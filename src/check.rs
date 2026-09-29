@@ -11688,7 +11688,13 @@ mod tests {
         );
         let span = Span { start: 10, end: 11 };
         let nodes = crate::ast::SourceNodes::default();
+        // The identifier is a node of its own (M4.4), allocated first; the
+        // expression takes the next id.
         let expression = nodes.expression(ExprKind::Ident(nodes.ident("defaultValue", span)));
+        let unrelated = || SourceInfo {
+            expression: None,
+            resolution: ExpressionResolution::None,
+        };
         let pending = DefaultValue::PendingIdentifier {
             expression: expression.id,
             span,
@@ -11705,14 +11711,20 @@ mod tests {
         });
         let mut first = original.clone();
         let mut second = original.clone();
-        let first_source = [SourceInfo {
-            expression: Some(&expression),
-            resolution: ExpressionResolution::Binding(SymbolId(41)),
-        }];
-        let second_source = [SourceInfo {
-            expression: Some(&expression),
-            resolution: ExpressionResolution::Binding(SymbolId(82)),
-        }];
+        let first_source = [
+            unrelated(),
+            SourceInfo {
+                expression: Some(&expression),
+                resolution: ExpressionResolution::Binding(SymbolId(41)),
+            },
+        ];
+        let second_source = [
+            unrelated(),
+            SourceInfo {
+                expression: Some(&expression),
+                resolution: ExpressionResolution::Binding(SymbolId(82)),
+            },
+        ];
         finalize_default_bindings_in_signature(&mut first, &first_source, false).unwrap();
         finalize_default_bindings_in_signature(&mut second, &second_source, false).unwrap();
         fn default<'src>(signature: &FunctionType<'src>) -> DefaultValue<'src> {

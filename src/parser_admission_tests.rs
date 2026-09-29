@@ -277,7 +277,9 @@ fn multiple_programs_preserve_heap_free_identities_after_collection_drop() {
     drop(programs);
     arena.with_ledger(|ledger, _| assert_eq!(ledger.retained_bytes(), bytes));
     drop(arena);
-    assert!(identities.iter().all(|identity| identity.len() == 1));
+    // Each program's nodes: the function's name, its `this` and the
+    // returned literal (M4.4).
+    assert!(identities.iter().all(|identity| identity.len() == 3));
     assert_eq!(ledger.retained_bytes(), 0);
 }
 

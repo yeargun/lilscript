@@ -214,7 +214,8 @@ fn incremental_program_list_preserves_identities_without_reentering_parser_ledge
     drop(programs);
     drop(syntax);
     assert_eq!(admitted_arena_activity_for_test(), (before.0, before.1 + 2));
-    assert_eq!((first_identity.len(), second_identity.len()), (1, 1));
+    // Each program's nodes: its declared name and its literal (M4.4).
+    assert_eq!((first_identity.len(), second_identity.len()), (2, 2));
     assert_eq!(first, "int first=7;");
     assert_eq!(second, "int second=9;");
     assert_eq!(
