@@ -265,6 +265,23 @@ impl Module {
             Expr::Construct { callee, arguments } if self.pristine_builtins => {
                 self.regex_literal(*callee, arguments, es2018)
             }
+            // `globalThis.RegExp` is `RegExp` (M8.2 A2, diagnosis C19): an
+            // ECMAScript builtin is a property of the global object, and
+            // under unpatched builtins (R10) reading it either way gives the
+            // same value. Naming never gives a binding a host name the tree
+            // reads, so the bare name cannot be captured.
+            Expr::Member {
+                object,
+                property: Property::Named(name),
+            } if self.pristine_builtins
+                && matches!(
+                    crate::catalog::host_kind(name),
+                    crate::catalog::HostKind::Standard(_)
+                )
+                && self.global_object(*object) =>
+            {
+                Some(Expr::Host(name.as_str().into()))
+            }
             // `o["name"]` is `o.name`: one spelling for every rule that reads a
             // property by name.
             Expr::Member {
@@ -420,6 +437,25 @@ impl Module {
                 right,
             } if self.empty_string(*right) => Some(*left),
             _ => None,
+        }
+    }
+
+    /// `globalThis`: the host's name, or a declared extern of that spelling
+    /// that is not an import and that no code assigns.
+    fn global_object(&self, id: ExprId) -> bool {
+        match &self.expressions[id.index()] {
+            Expr::Host(host) => host.name == "globalThis",
+            Expr::Binding(binding) => {
+                let declared = &self.bindings[binding.index()];
+                declared.pinned
+                    && declared.spelling == "globalThis"
+                    && !self.imports.iter().any(|import| import.binding == *binding)
+                    && !self.expressions.iter().any(|expression| {
+                        matches!(expression, Expr::Assign { target, .. }
+                            if matches!(self.expressions[target.index()], Expr::Binding(found) if found == *binding))
+                    })
+            }
+            _ => false,
         }
     }
 
