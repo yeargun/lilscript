@@ -806,7 +806,11 @@ impl<'p, 'src> Proof<'p, 'src> {
         if let Some(index) = self.subjects.nodes[node].locator {
             return Ok(index);
         }
-        if budget.request.execution != JavaScriptExecution::Module {
+        // A body's incoming values are the program's only where its roots
+        // are sealed (every execution since owner answer Y5).
+        if super::call_graph::Seal::from_execution(budget.request.execution)
+            != super::call_graph::Seal::Module
+        {
             return Err(unknown(UnknownReason::ExecutionBoundary));
         }
         let index = if self.supplied_for_body(body, budget)? {

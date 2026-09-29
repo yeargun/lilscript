@@ -24,7 +24,7 @@ pub(in crate::program) fn shared_transport_support<E>(
     use crate::program::callable_inputs::InputScope;
     work(1)?;
     let inputs = layout.inputs();
-    if execution != JavaScriptExecution::Module
+    if super::call_graph::Seal::from_execution(execution) != super::call_graph::Seal::Module
         || !inputs.runtime_inputs_sealed()
         || inputs.scope() != InputScope::Body(layout.body())
         || inputs.producers().is_empty()

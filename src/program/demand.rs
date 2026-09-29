@@ -329,17 +329,23 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         let mut budget = Budget::new(budget);
         if let Some(implementations) = implementations {
             budget.work(1)?;
-            if contract.execution != crate::compilation_contract::JavaScriptExecution::Module {
+            // Private transport and private inputs change a function's
+            // parameters: they need the program's own roots and frames no
+            // host reflects over (an application's, owner answer Y5).
+            if super::call_graph::Seal::from_execution(contract.execution)
+                != super::call_graph::Seal::Module
+                || !contract.frames_hidden()
+            {
                 if implementations.functions().len() != 0 {
                     return Err(unsupported(
-                        "private product transport requires module execution",
+                        "private product transport requires sealed roots and hidden frames",
                     ));
                 }
                 for family in implementations.products() {
                     budget.work(1)?;
                     if family.requires_module() {
                         return Err(unsupported(
-                            "private product inputs require module execution",
+                            "private product inputs require sealed roots and hidden frames",
                         ));
                     }
                 }

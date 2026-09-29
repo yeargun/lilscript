@@ -8,7 +8,6 @@ use super::product_family::{
 };
 use super::uses::UseIndex;
 use super::*;
-use crate::compilation_contract::JavaScriptExecution;
 use crate::compilation_policy::{BudgetError, BudgetLedger, WorkDomain};
 use crate::primitive::ParameterPassing;
 use std::mem::size_of;
@@ -121,7 +120,9 @@ fn discover(
     budget: &mut Attempt<'_>,
 ) -> ResultIn<FunctionLayout> {
     product_family::check_index(program, uses, coherent, budget)?;
-    if budget.request.execution != JavaScriptExecution::Module {
+    if super::call_graph::Seal::from_execution(budget.request.execution)
+        != super::call_graph::Seal::Module
+    {
         return Err(unknown(UnknownReason::ExecutionBoundary));
     }
     let data = program
