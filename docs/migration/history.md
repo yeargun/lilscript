@@ -2558,6 +2558,44 @@ Predicted:
 - **At the seed:** outputs may still differ, because strings now forward in the tail, after the head's rules ran without them.
 - **CPU:** one more challenger per terminal pass, about one formation more per pass.
 
+**Landed** (binary `sc1-1`, built from C1–C3; identical to the `sc1-off` binary measured on the ports):
+- **First run** (`a2a-2`, seed on, with A2a's C2 and C3 under it):
+  - **Unit tests:** failed only NO3: the family's documentation named two ports, and is now worded generically.
+  - **Cases and ratchet:** pass.
+  - **Ports** against O1: motionlil −563 Brotli, zodlil −39 (C3), the rest unchanged, fleet −602.
+  - **CPU:** within ±11% except zodlil ×0.71.
+  - katexlil's main file did not move: its walk tried naming the strings in each of three passes and rejected it (+27 to +85). A walk from forwarded strings picks the other families for them, and one flip lands in a worse place.
+- **The seed** (C3). Codecs seed string constants named; raw keeps them forwarded. On the main entries against O1:
+
+  | Build | katexlil | micromarklil | motionlil | Main-entry total |
+  |---|---:|---:|---:|---:|
+  | seed on | 0 | 0 | 0 | −1 Brotli |
+  | seed off | −159 | 0 (its walk forwards them again) | +77 | −83 Brotli |
+
+  On the unpatched ports against O1, with the seed off: katexlil −1,103 Brotli (raw −107,485, gzip −4,591), motionlil −563, zodlil −39, posthoglil −2. **Total −1,707 Brotli** (the seed-on run's total was −602). All green.
+- **Unit tests** at C3: one test expected string constants forwarded under a codec objective. It now checks that the raw objective forwards them and a codec names them. Fixed in a fix-up.
+- **Cases** against O1: every lane passes; four artifacts change (−4 to +8).
+- **Ratchet:** one row grew by 1 gzip byte (`string-chars-aggregate`), against 90 improvements.
+  - Totals: raw 61,698 (−20), gzip 57,032 (+1 against O1), Brotli 46,789 (−9).
+  - No total grew against the baseline, so the row is accepted with `--accept-growth`, and the baseline is `sc1-1`'s.
+- **CPU pairs** against O1:
+
+  | Port | Factor | Judged |
+  |---|---:|---:|
+  | katexlil | ×2.21 | 57 → 138 |
+  | posthoglil | ×1.11 | |
+  | jquerylil | ×1.10 | |
+  | micromarklil | ×1.06 | |
+  | markedlil | ×1.01 | |
+  | motionlil | ×0.99 | |
+  | zodlil | ×0.73 | |
+
+  - From the named seed, katexlil's walk keeps finding smaller trees and runs more passes: 46 s → 102 s for −1,103 Brotli.
+  - Level 13 is the size-first level (AM2, 2026-09-28).
+  - The CPU returns with M5.7's incremental tail, which re-forms only what a challenger changes.
+
+A2a's C2 and C3 land with this batch.
+
 ---
 
 ## Appendix: where milestones 001–014 went

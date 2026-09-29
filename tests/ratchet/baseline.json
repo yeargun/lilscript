@@ -3,8 +3,8 @@
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
  "recorded": "2026-09-29",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/p2-1/lilscript",
-  "sha256": "bd513f79d2000d96a6aceb9d7a8484e5de235244c5005489ff9220a73992af94",
+  "source": "/home/azureuser/lilscript-work/bin/sc1-1/lilscript",
+  "sha256": "7110bef7dcd1e361e844f6adf2ebd8c6b2f582bfe1c96c1a98e0e1a94f40d00a",
   "version": "lilscript 0.1.0",
   "label": null
  },
@@ -12,17 +12,17 @@
  "counts": {
   "cases": {
    "raw": {
-    "competitor": 278,
+    "competitor": 276,
     "closure": 0,
     "old": 607
    },
    "gzip9": {
-    "competitor": 317,
+    "competitor": 315,
     "closure": 0,
     "old": 591
    },
    "brotli11": {
-    "competitor": 350,
+    "competitor": 348,
     "closure": 0,
     "old": 595
    }
@@ -67,36 +67,36 @@
    "raw": {
     "competitor": {
      "items": 612,
-     "ours": 61784,
+     "ours": 61698,
      "bar": 58285
     },
     "old": {
      "items": 612,
-     "ours": 61784,
+     "ours": 61698,
      "bar": 44195
     }
    },
    "gzip9": {
     "competitor": {
      "items": 612,
-     "ours": 57078,
+     "ours": 57032,
      "bar": 54669
     },
     "old": {
      "items": 610,
-     "ours": 56891,
+     "ours": 56845,
      "bar": 45206
     }
    },
    "brotli11": {
     "competitor": {
      "items": 612,
-     "ours": 46833,
+     "ours": 46789,
      "bar": 43541
     },
     "old": {
      "items": 611,
-     "ours": 46736,
+     "ours": 46692,
      "bar": 33656
     }
    }
@@ -105,51 +105,51 @@
    "raw": {
     "competitor": {
      "items": 7,
-     "ours": 1232,
+     "ours": 1216,
      "bar": 1527
     },
     "closure": {
      "items": 7,
-     "ours": 1232,
+     "ours": 1216,
      "bar": 1332
     },
     "old": {
      "items": 7,
-     "ours": 1232,
+     "ours": 1216,
      "bar": 802
     }
    },
    "gzip9": {
     "competitor": {
      "items": 7,
-     "ours": 1018,
+     "ours": 1011,
      "bar": 1053
     },
     "closure": {
      "items": 7,
-     "ours": 1018,
+     "ours": 1011,
      "bar": 982
     },
     "old": {
      "items": 7,
-     "ours": 1018,
+     "ours": 1011,
      "bar": 711
     }
    },
    "brotli11": {
     "competitor": {
      "items": 7,
-     "ours": 849,
+     "ours": 843,
      "bar": 870
     },
     "closure": {
      "items": 7,
-     "ours": 849,
+     "ours": 843,
      "bar": 834
     },
     "old": {
      "items": 7,
-     "ours": 849,
+     "ours": 843,
      "bar": 558
     }
    }
@@ -158,51 +158,51 @@
    "raw": {
     "competitor": {
      "items": 11,
-     "ours": 5770,
+     "ours": 5758,
      "bar": 6210
     },
     "closure": {
      "items": 11,
-     "ours": 5770,
+     "ours": 5758,
      "bar": 4522
     },
     "old": {
      "items": 11,
-     "ours": 5770,
+     "ours": 5758,
      "bar": 3995
     }
    },
    "gzip9": {
     "competitor": {
      "items": 11,
-     "ours": 3491,
+     "ours": 3490,
      "bar": 3440
     },
     "closure": {
      "items": 11,
-     "ours": 3491,
+     "ours": 3490,
      "bar": 3031
     },
     "old": {
      "items": 11,
-     "ours": 3491,
+     "ours": 3490,
      "bar": 2662
     }
    },
    "brotli11": {
     "competitor": {
      "items": 11,
-     "ours": 3185,
+     "ours": 3184,
      "bar": 3039
     },
     "closure": {
      "items": 11,
-     "ours": 3185,
+     "ours": 3184,
      "bar": 2703
     },
     "old": {
      "items": 11,
-     "ours": 3185,
+     "ours": 3184,
      "bar": 2305
     }
    }
@@ -212,7 +212,7 @@
   "algorithms/aggregate-ledger": {
    "raw": {
     "state": "pass",
-    "size": 327
+    "size": 323
    },
    "gzip9": {
     "state": "pass",
@@ -268,7 +268,7 @@
   "algorithms/large-event-analytics": {
    "raw": {
     "state": "pass",
-    "size": 1064
+    "size": 1060
    },
    "gzip9": {
     "state": "pass",
@@ -296,15 +296,15 @@
   "algorithms/shape-invoice-pipeline": {
    "raw": {
     "state": "pass",
-    "size": 648
+    "size": 644
    },
    "gzip9": {
     "state": "pass",
-    "size": 331
+    "size": 330
    },
    "brotli11": {
     "state": "pass",
-    "size": 313
+    "size": 312
    }
   },
   "algorithms/state-machine-parser": {
@@ -436,15 +436,15 @@
   "apps/optimizer-pressure": {
    "raw": {
     "state": "pass",
-    "size": 204
+    "size": 188
    },
    "gzip9": {
     "state": "pass",
-    "size": 140
+    "size": 133
    },
    "brotli11": {
     "state": "pass",
-    "size": 108
+    "size": 102
    }
   },
   "apps/text-report": {
@@ -909,15 +909,15 @@
   "cases/canonical/functions/nested-local": {
    "raw": {
     "state": "pass",
-    "size": 25
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 43
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 29
+    "size": 20
    }
   },
   "cases/canonical/host/math-max": {
@@ -1189,15 +1189,15 @@
   "cases/canonical/wins/optimizer-pressure": {
    "raw": {
     "state": "pass",
-    "size": 204
+    "size": 188
    },
    "gzip9": {
     "state": "pass",
-    "size": 140
+    "size": 133
    },
    "brotli11": {
     "state": "pass",
-    "size": 108
+    "size": 102
    }
   },
   "cases/canonical/wins/point-batch": {
@@ -2159,7 +2159,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 123
+    "size": 122
    },
    "brotli11": {
     "state": "pass",
@@ -2173,7 +2173,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 122
+    "size": 121
    },
    "brotli11": {
     "state": "pass",
@@ -2187,7 +2187,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 124
+    "size": 123
    },
    "brotli11": {
     "state": "pass",
@@ -2201,11 +2201,11 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 124
+    "size": 122
    },
    "brotli11": {
     "state": "pass",
-    "size": 104
+    "size": 101
    }
   },
   "cases/catalog/closure/edge-closure-mutation-3nn1n5": {
@@ -2215,7 +2215,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 124
+    "size": 122
    },
    "brotli11": {
     "state": "pass",
@@ -2229,7 +2229,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 123
+    "size": 122
    },
    "brotli11": {
     "state": "pass",
@@ -2243,7 +2243,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 124
+    "size": 122
    },
    "brotli11": {
     "state": "pass",
@@ -2257,7 +2257,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 122
+    "size": 121
    },
    "brotli11": {
     "state": "pass",
@@ -2271,7 +2271,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 124
+    "size": 123
    },
    "brotli11": {
     "state": "pass",
@@ -2285,7 +2285,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 125
+    "size": 124
    },
    "brotli11": {
     "state": "pass",
@@ -4591,15 +4591,15 @@
   "cases/catalog/control/frontier-inline-for": {
    "raw": {
     "state": "pass",
-    "size": 178
+    "size": 158
    },
    "gzip9": {
     "state": "pass",
-    "size": 135
+    "size": 127
    },
    "brotli11": {
     "state": "pass",
-    "size": 114
+    "size": 108
    }
   },
   "cases/catalog/control/if-chain-0": {
@@ -6705,15 +6705,15 @@
   "cases/catalog/integer/semantic-integer-min-div-neg-one": {
    "raw": {
     "state": "pass",
-    "size": 30
+    "size": 25
    },
    "gzip9": {
     "state": "pass",
-    "size": 50
+    "size": 45
    },
    "brotli11": {
     "state": "pass",
-    "size": 34
+    "size": 29
    }
   },
   "cases/catalog/integer/semantic-integer-radix-formatting": {
@@ -8366,7 +8366,7 @@
   "cases/catalog/string/edge-string-utf16-accent": {
    "raw": {
     "state": "pass",
-    "size": 167
+    "size": 165
    },
    "gzip9": {
     "state": "pass",
@@ -8436,7 +8436,7 @@
   "cases/catalog/string/edge-string-utf16-miss": {
    "raw": {
     "state": "pass",
-    "size": 170
+    "size": 166
    },
    "gzip9": {
     "state": "pass",
@@ -8580,7 +8580,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 127
+    "size": 128
    },
    "brotli11": {
     "state": "pass",
@@ -8668,13 +8668,13 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 66
+    "size": 64
    }
   },
   "cases/catalog/string/string-concat-closed-world": {
    "raw": {
     "state": "pass",
-    "size": 80
+    "size": 79
    },
    "gzip9": {
     "state": "pass",
@@ -8702,7 +8702,7 @@
   "cases/catalog/string/string-concat-compress-brotli": {
    "raw": {
     "state": "pass",
-    "size": 85
+    "size": 82
    },
    "gzip9": {
     "state": "pass",
@@ -8738,7 +8738,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 69
+    "size": 65
    }
   },
   "cases/catalog/string/string-concat-inline-call": {
@@ -8772,7 +8772,7 @@
   "cases/catalog/string/string-concat-mangle-identifier": {
    "raw": {
     "state": "pass",
-    "size": 87
+    "size": 84
    },
    "gzip9": {
     "state": "pass",
@@ -8786,7 +8786,7 @@
   "cases/catalog/string/string-concat-scalar-replace": {
    "raw": {
     "state": "pass",
-    "size": 84
+    "size": 81
    },
    "gzip9": {
     "state": "pass",
@@ -8800,7 +8800,7 @@
   "cases/catalog/string/string-concat-struct-layout": {
    "raw": {
     "state": "pass",
-    "size": 82
+    "size": 80
    },
    "gzip9": {
     "state": "pass",
@@ -8814,7 +8814,7 @@
   "cases/catalog/string/string-concat-typed-aggregate": {
    "raw": {
     "state": "pass",
-    "size": 84
+    "size": 82
    },
    "gzip9": {
     "state": "pass",
@@ -8822,7 +8822,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 67
+    "size": 64
    }
   },
   "cases/catalog/string/string-index-Ab": {
@@ -9136,15 +9136,15 @@
   "cases/catalog/winner/win-optimizer-pressure": {
    "raw": {
     "state": "pass",
-    "size": 204
+    "size": 188
    },
    "gzip9": {
     "state": "pass",
-    "size": 140
+    "size": 133
    },
    "brotli11": {
     "state": "pass",
-    "size": 108
+    "size": 102
    }
   },
   "cases/catalog/winner/win-point-batch": {
