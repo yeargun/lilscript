@@ -1527,7 +1527,10 @@ impl Module {
     ) -> Result<bool, AllocationError> {
         budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
         Ok(match &self.expressions[value.index()] {
-            Expr::Literal(_) | Expr::Function(_) => true,
+            // A regular-expression literal creates a fresh object and cannot
+            // throw: its pattern was validated when it became a literal
+            // (M8.2 A2, diagnosis C9).
+            Expr::Literal(_) | Expr::Function(_) | Expr::Regex(_) => true,
             // `-5`, `!0`, `typeof "a"`: an operator on a primitive literal
             // converts nothing that could run code.
             Expr::Unary { value, .. } => {
