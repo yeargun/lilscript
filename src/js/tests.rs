@@ -1870,3 +1870,64 @@ fn a_for_of_exit_becomes_a_break_only_when_it_evaluates_nothing() {
         assert_eq!(matches!(exit, Statement::Break), literal, "{exit:?}");
     }
 }
+
+/// A regular-expression literal only creates (M8.2 A2, diagnosis C9): an
+/// unreferenced declaration of one goes whole.
+#[test]
+fn an_unreferenced_regular_expression_goes() {
+    let mut module = Module::default();
+    let root = RegionId::new(0);
+    let dead = binding(&mut module, root, 0, "dead");
+    let pattern = expr(&mut module, Expr::Regex("/a+/g".into()));
+    module.regions[0].statements.push(Statement::Let {
+        binding: dead,
+        value: Some(pattern),
+    });
+    module
+        .drop_unreferenced_functions(&mut AllocationBudget::new(None))
+        .unwrap();
+    assert!(module.regions[0].statements.is_empty());
+}
+
+/// `globalThis.RegExp` is `RegExp` under unpatched builtins (M8.2 A2,
+/// diagnosis C19), and then a constructed literal pattern is a literal.
+#[test]
+fn a_builtin_read_through_the_global_object_is_the_builtin() {
+    let mut module = Module::default();
+    module.pristine_builtins = true;
+    let global = host(&mut module, "globalThis");
+    let member = expr(
+        &mut module,
+        Expr::Member {
+            object: global,
+            property: Property::Named("RegExp".into()),
+        },
+    );
+    let pattern = expr(
+        &mut module,
+        Expr::Literal(Literal::String(crate::literal::StringValue::from("a+"))),
+    );
+    let construct = expr(
+        &mut module,
+        Expr::Construct {
+            callee: member,
+            arguments: vec![pattern],
+        },
+    );
+    capture(&mut module, construct);
+    // Not a standard builtin: the host global stays a property read.
+    let global = host(&mut module, "globalThis");
+    let file = expr(
+        &mut module,
+        Expr::Member {
+            object: global,
+            property: Property::Named("File".into()),
+        },
+    );
+    capture(&mut module, file);
+    module
+        .simplify_operators(false, 2022, &mut AllocationBudget::new(None))
+        .unwrap();
+    assert_eq!(module.expressions[construct.index()], Expr::Regex("/a+/".into()));
+    assert!(matches!(module.expressions[file.index()], Expr::Member { .. }));
+}
