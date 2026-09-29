@@ -41,6 +41,8 @@ pub(crate) use literal_output::{LiteralAlternative, WeakLiteralObservation};
 #[cfg(test)]
 mod imports_tests;
 mod inline;
+mod journal;
+pub(crate) use journal::Journal;
 #[cfg(test)]
 mod literal_output_tests;
 mod naming;
@@ -1015,6 +1017,9 @@ pub struct Module {
     /// (M5.2's evaluation-behaviour column), sorted by node. A row answers
     /// only while the node at its id is still the one it describes.
     pub(crate) behaviours: Vec<BehaviourRow>,
+    /// What the running rule changed (M5.2's journal): every edit of the
+    /// tree goes through a helper that records it (`journal.rs`).
+    pub(crate) journal: Journal,
     pub regions: Vec<Region>,
     pub functions: Vec<Function>,
     pub scopes: Vec<Option<ScopeId>>,
@@ -1110,6 +1115,7 @@ impl Module {
     /// Root statements `from` were folded into root statement `into`, which
     /// stands before them: their rows join its row and leave.
     pub(crate) fn fuse_roots(&mut self, into: usize, from: std::ops::Range<usize>) {
+        self.tables_mut();
         let fused = self.root_rows[from.clone()]
             .iter()
             .fold(self.root_rows[into], |row, other| row.fuse(*other));
@@ -1130,6 +1136,7 @@ impl Module {
 
     /// Remove statement `index` of `region`, with its row at the root.
     pub(crate) fn remove_statement(&mut self, region: usize, index: usize) -> Statement {
+        self.journal_region(region);
         let statement = self.regions[region].statements.remove(index);
         if self.rows_of(region) && index < self.root_rows.len() {
             self.root_rows.remove(index);
@@ -1141,7 +1148,10 @@ impl Module {
     /// at the root, `into`'s row joins `from`'s (Anchored wins).
     pub(crate) fn fuse_row(&mut self, region: usize, from: usize, into: usize) {
         if self.rows_of(region) && from < self.root_rows.len() && into < self.root_rows.len() {
-            self.root_rows[into] = self.root_rows[into].fuse(self.root_rows[from]);
+            let fused = self.root_rows[into].fuse(self.root_rows[from]);
+            if fused != self.root_rows[into] {
+                self.tables_mut().root_rows[into] = fused;
+            }
         }
     }
 
@@ -1162,6 +1172,7 @@ impl Module {
     /// which stands before them: they leave, and at the root their rows
     /// join `into`'s.
     pub(crate) fn drain_into(&mut self, region: usize, into: usize, from: std::ops::Range<usize>) {
+        self.journal_region(region);
         self.regions[region].statements.drain(from.clone());
         if self.rows_of(region) {
             let end = from.end.min(self.root_rows.len());
@@ -1174,6 +1185,7 @@ impl Module {
     /// Move statement `from` of `region` to `to` (a position after the
     /// removal), with its row at the root.
     pub(crate) fn move_statement(&mut self, region: usize, from: usize, to: usize) {
+        self.journal_region(region);
         let moved = self.regions[region].statements.remove(from);
         self.regions[region].statements.insert(to, moved);
         if self.rows_of(region) && from < self.root_rows.len() {
@@ -1191,6 +1203,7 @@ impl Module {
         statement: Statement,
         row: RootRow,
     ) {
+        self.journal_region(region);
         self.regions[region].statements.insert(at, statement);
         if self.rows_of(region) && at <= self.root_rows.len() {
             self.root_rows.insert(at, row);
@@ -1206,6 +1219,7 @@ impl Module {
     ) -> Result<(), AllocationError> {
         let root = self.root.index();
         let recorded = !self.root_rows.is_empty();
+        self.journal_region(root);
         budget.push(
             AllocationClass::Retained,
             &mut self.regions[root].statements,
@@ -1225,6 +1239,7 @@ impl Module {
     ) {
         let root = self.root.index();
         let recorded = !self.root_rows.is_empty();
+        self.journal_region(root);
         self.regions[root].statements.splice(0..0, statements);
         if recorded {
             self.root_rows.splice(0..0, rows);
@@ -1240,6 +1255,7 @@ impl Module {
         statements: Vec<Statement>,
         rows: impl FnOnce(&[RootRow]) -> Vec<RootRow>,
     ) {
+        self.journal_region(region);
         self.regions[region]
             .statements
             .splice(range.clone(), statements);
@@ -1251,6 +1267,7 @@ impl Module {
 
     /// Drop every statement of `region` from `from` on, with their rows.
     pub(crate) fn truncate_statements(&mut self, region: usize, from: usize) {
+        self.journal_region(region);
         self.regions[region].statements.truncate(from);
         if self.rows_of(region) && from < self.root_rows.len() {
             self.root_rows.truncate(from);
@@ -1272,24 +1289,30 @@ impl Module {
         &mut self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
-        let expressions = &self.expressions;
         let mut elided = 0;
-        for region in &mut self.regions {
+        for region in 0..self.regions.len() {
             budget.work(
                 crate::compilation_policy::WorkKind::Analysis,
-                1 + region.statements.len() as u64,
+                1 + self.regions[region].statements.len() as u64,
             )?;
-            for statement in &mut region.statements {
-                if let Statement::Let { value, .. } | Statement::Return(value) = statement {
-                    if value.is_some_and(|value| {
-                        matches!(
-                            expressions[value.index()],
-                            Expr::Literal(Literal::Undefined)
-                        )
-                    }) {
+            for index in 0..self.regions[region].statements.len() {
+                let (Statement::Let {
+                    value: Some(value), ..
+                }
+                | Statement::Return(Some(value))) = self.regions[region].statements[index]
+                else {
+                    continue;
+                };
+                if matches!(
+                    self.expressions[value.index()],
+                    Expr::Literal(Literal::Undefined)
+                ) {
+                    if let Statement::Let { value, .. } | Statement::Return(value) =
+                        &mut self.statements_mut(region)[index]
+                    {
                         *value = None;
-                        elided += 1;
                     }
+                    elided += 1;
                 }
             }
         }
@@ -1297,10 +1320,13 @@ impl Module {
             crate::compilation_policy::WorkKind::Analysis,
             self.functions.len() as u64,
         )?;
-        for function in &self.functions {
-            let statements = &mut self.regions[function.body.index()].statements;
-            if matches!(statements.last(), Some(Statement::Return(None))) {
-                statements.pop();
+        for function in 0..self.functions.len() {
+            let body = self.functions[function].body.index();
+            if matches!(
+                self.regions[body].statements.last(),
+                Some(Statement::Return(None))
+            ) {
+                self.statements_mut(body).pop();
                 elided += 1;
             }
         }
@@ -1436,10 +1462,14 @@ impl Module {
                 }
             }
             for &(_, target, binding, value) in &merges {
-                self.regions[region].statements[target] = Statement::Let {
-                    binding,
-                    value: Some(value),
-                };
+                self.set_statement(
+                    region,
+                    target,
+                    Statement::Let {
+                        binding,
+                        value: Some(value),
+                    },
+                );
             }
             for &(index, target, ..) in &merges {
                 self.fuse_row(region, index, target);
@@ -1582,8 +1612,9 @@ impl Module {
                 _ => None,
             };
             if let Some(folded) = folded {
-                self.expressions[id.index()] = folded;
-                folds += 1;
+                if self.set_expression(id, folded) {
+                    folds += 1;
+                }
             }
         }
         Ok(folds)
@@ -1644,7 +1675,8 @@ impl Module {
                             else {
                                 break;
                             };
-                            self.expressions[id.index()] = self.expressions[twice.index()].clone();
+                            let node = self.expressions[twice.index()].clone();
+                            self.set_expression(id, node);
                             edits += 1;
                         }
                     }
@@ -1870,7 +1902,7 @@ impl Module {
                     index += 1;
                     continue;
                 }
-                self.regions[region].statements[index].replace_root(id);
+                self.statements_mut(region)[index].replace_root(id);
                 folded += end - index - 1;
                 self.drain_into(region, index, index + 1..end);
                 index += 1;
@@ -2057,7 +2089,7 @@ impl Module {
                         .parameters
                         .contains(&parameter)
                 {
-                    self.regions[body.index()].statements.remove(index);
+                    self.remove_statement(body.index(), index);
                     dropped += 1;
                 } else {
                     index += 1;
@@ -2138,7 +2170,7 @@ impl Module {
                     continue;
                 };
                 if checked.iter().copied().eq(first..count) {
-                    self.functions[function.index()].length = Some(first);
+                    self.function_mut(function).length = Some(first);
                     changed += 1;
                 }
             }
@@ -2250,7 +2282,7 @@ impl Module {
             }
             if keep < arguments.len() {
                 dropped += arguments.len() - keep;
-                if let Expr::Call { arguments, .. } = &mut self.expressions[id.index()] {
+                if let Expr::Call { arguments, .. } = self.expression_mut(id) {
                     arguments.truncate(keep);
                 }
             }
@@ -2725,7 +2757,7 @@ impl Module {
                 let target_region = nested.map_or(region, |inner| inner.index());
                 match leaf {
                     Leaf::Root => {
-                        self.regions[target_region].statements[target_statement].replace_root(value)
+                        self.statements_mut(target_region)[target_statement].replace_root(value)
                     }
                     Leaf::Child(parent) => {
                         let target = binding;
@@ -2749,7 +2781,7 @@ impl Module {
                         // created after its new parent (a literal a store fold
                         // rebuilt) waits for the renumbering below.
                         disordered |= value.index() > parent.index();
-                        self.expressions[parent.index()].remap_children(|child| {
+                        self.expression_mut(parent).remap_children(|child| {
                             if child == slot {
                                 value
                             } else {
@@ -3353,6 +3385,7 @@ impl Module {
             choice_sites: Vec::new(),
             observed_literals: Vec::new(),
             behaviours: Vec::new(),
+            journal: Journal::default(),
         })
     }
 

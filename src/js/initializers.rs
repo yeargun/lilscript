@@ -364,7 +364,7 @@ impl Module {
                 }
             }
             for &at in redundant.iter().rev() {
-                self.regions[body.index()].statements.remove(at);
+                self.remove_statement(body.index(), at);
             }
             dropped += redundant.len();
             if self.regions[body.index()].statements.is_empty()
@@ -409,10 +409,12 @@ impl Module {
                     self.remove_statement(region.index(), index);
                 }
                 Site::Item(sequence, _, call) => {
-                    if let Expr::Sequence(items) = &mut self.expressions[sequence.index()] {
+                    if let Expr::Sequence(items) = &self.expressions[sequence.index()] {
                         if let Some(at) = items.iter().position(|&item| item == call) {
                             if items.len() > 2 {
-                                items.remove(at);
+                                if let Expr::Sequence(items) = self.expression_mut(sequence) {
+                                    items.remove(at);
+                                }
                             }
                         }
                     }

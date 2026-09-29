@@ -2736,12 +2736,15 @@ fn create_setters(
             let Expr::Assign { target, value } = module.expressions[assign.index()] else {
                 continue;
             };
-            module.expressions[target.index()] = Expr::Binding(setter);
-            module.expressions[assign.index()] = Expr::Call {
-                callee: target,
-                arguments: vec![value],
-                invocation: crate::primitive::Invocation::Reference,
-            };
+            module.set_expression(target, Expr::Binding(setter));
+            module.set_expression(
+                assign,
+                Expr::Call {
+                    callee: target,
+                    arguments: vec![value],
+                    invocation: crate::primitive::Invocation::Reference,
+                },
+            );
         }
     }
     Ok(setters)

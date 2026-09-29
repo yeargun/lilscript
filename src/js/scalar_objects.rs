@@ -151,11 +151,10 @@ impl Module {
                     .find(|(name, _)| name == key)
                     .map(|(_, field)| *field);
                 if let Some(field) = field {
-                    self.expressions[member.index()] = Expr::Binding(field);
+                    self.set_expression(*member, Expr::Binding(field));
                 }
             }
-            self.regions[region.index()]
-                .statements
+            self.statements_mut(region.index())
                 .splice(index..=index, lets);
         }
         Ok(replaced)

@@ -246,7 +246,7 @@ impl Module {
             let mut placed = vec![false; arguments.len()];
             let root =
                 self.clone_template(found, found.body, &arguments, &mut placed, origin, budget)?;
-            self.expressions[site.index()] = root;
+            self.set_expression(site, root);
             // The site now evaluates the template's root.
             self.copy_behaviour_in(found.body, site, budget)?;
         }
@@ -880,6 +880,8 @@ impl Module {
             whole
         });
         self.behaviours.sort_unstable_by_key(|row| row.expression);
+        // And the journal's nodes (M5.2).
+        self.journal.renumber(&map);
         Ok(map)
     }
 }
@@ -1266,10 +1268,10 @@ impl Module {
                 replacement[index] = target;
             }
             budget.work(Analysis, self.expressions.len() as u64)?;
-            for expression in &mut self.expressions {
-                if let Expr::Binding(binding) = expression {
+            for index in 0..self.expressions.len() {
+                if let Expr::Binding(binding) = self.expressions[index] {
                     if let Some(source) = replacement[binding.index()] {
-                        *binding = source;
+                        self.set_expression(ExprId::new(index), Expr::Binding(source));
                     }
                 }
             }
@@ -1609,7 +1611,7 @@ impl Module {
                 };
                 match replacement {
                     Some(replacement) => {
-                        self.expressions[member.index()] = replacement;
+                        self.set_expression(member, replacement);
                         replaced += 1;
                     }
                     None => every = false,
@@ -1671,7 +1673,7 @@ impl Module {
         for export in &self.exports {
             escaped[export.binding.index()] = true;
         }
-        let mut changed = 0;
+        let mut unobserved = Vec::new();
         for &region in &reach.regions {
             for statement in &self.regions[region.index()].statements {
                 let Statement::Let {
@@ -1688,11 +1690,13 @@ impl Module {
                     && !self.bindings[binding.index()].pinned
                     && self.functions[function.index()].name != FunctionName::Unobserved
                 {
-                    self.functions[function.index()].name = FunctionName::Unobserved;
-                    changed += 1;
+                    unobserved.push(function);
                 }
             }
         }
-        Ok(changed)
+        for &function in &unobserved {
+            self.function_mut(function).name = FunctionName::Unobserved;
+        }
+        Ok(unobserved.len())
     }
 }

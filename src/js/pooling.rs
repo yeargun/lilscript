@@ -87,11 +87,14 @@ impl Module {
             )?;
             let separator =
                 self.expression_in(Expr::Literal(Literal::String(separator)), None, budget)?;
-            self.expressions[id.index()] = Expr::Call {
-                callee,
-                arguments: vec![separator],
-                invocation: Invocation::Reference,
-            };
+            self.set_expression(
+                id,
+                Expr::Call {
+                    callee,
+                    arguments: vec![separator],
+                    invocation: Invocation::Reference,
+                },
+            );
             packed += 1;
         }
         if packed == 0 {
@@ -161,8 +164,8 @@ impl Module {
                 },
                 budget,
             )?;
-            for site in sites {
-                self.expressions[site.index()] = Expr::Binding(binding);
+            for &site in sites {
+                self.set_expression(site, Expr::Binding(binding));
             }
             let literal = self.expression_in(Expr::Literal(value.literal()), None, budget)?;
             statements.push(Statement::Let {

@@ -117,8 +117,8 @@ impl Module {
                     self.regions[body.index()].statements.last()
                 {
                     if !self.continues(body, budget)? && self.outside_body(last, body, budget)? {
-                        self.regions[body.index()].statements.pop();
-                        self.regions[region.index()].statements[index] = Statement::Loop {
+                        self.statements_mut(body.index()).pop();
+                        self.statements_mut(region.index())[index] = Statement::Loop {
                             condition,
                             update: Some(last),
                             body,
@@ -142,7 +142,7 @@ impl Module {
                 && self.exits_at_end(region, yes, frames)
                 && self.tail_movable(region, index, budget)?
             {
-                self.regions[yes.index()].statements.pop();
+                self.statements_mut(yes.index()).pop();
                 let rest = self.tail_region(region, index, budget)?;
                 let statement = if self.regions[yes.index()].statements.is_empty() {
                     let negated = match self.negated(condition, budget)? {
@@ -168,7 +168,7 @@ impl Module {
                         no: Some(rest),
                     }
                 };
-                self.regions[region.index()].statements[index] = statement;
+                self.statements_mut(region.index())[index] = statement;
                 changed += 1;
                 continue;
             }
@@ -192,7 +192,7 @@ impl Module {
                         None,
                         budget,
                     )?;
-                    self.regions[region.index()].statements[index] = Statement::If {
+                    self.statements_mut(region.index())[index] = Statement::If {
                         condition: both,
                         yes: inner_yes,
                         no: None,
@@ -222,7 +222,7 @@ impl Module {
                     None,
                     budget,
                 )?;
-                self.regions[region.index()].statements[index] = Statement::Return(Some(value));
+                self.statements_mut(region.index())[index] = Statement::Return(Some(value));
                 changed += 1;
                 index += 1;
                 continue;
@@ -371,7 +371,7 @@ impl Module {
                     self.adopt(no, region, budget)?;
                 }
                 let value = self.expression_in(replacement, None, budget)?;
-                self.regions[region.index()].statements[index] = Statement::Evaluate(value);
+                self.statements_mut(region.index())[index] = Statement::Evaluate(value);
                 changed += 1;
             }
             index += 1;
@@ -559,8 +559,8 @@ impl Module {
             if !self.same_statement(&a, &b, budget)? {
                 break;
             }
-            self.regions[yes.index()].statements.pop();
-            self.regions[no.index()].statements.pop();
+            self.statements_mut(yes.index()).pop();
+            self.statements_mut(no.index()).pop();
             moved.push(a);
         }
         if moved.is_empty() {
@@ -601,7 +601,7 @@ impl Module {
                     }
                     Statement::Block(inner) => regions.push(inner),
                     _ if self.same_statement(&statement, exit, budget)? => {
-                        self.regions[region.index()].statements[index] = Statement::Break;
+                        self.statements_mut(region.index())[index] = Statement::Break;
                         replaced += 1;
                     }
                     _ => {}
@@ -650,7 +650,7 @@ impl Module {
             }
             (false, no) => Statement::If { condition, yes, no },
         };
-        self.regions[region.index()].statements[index] = statement;
+        self.statements_mut(region.index())[index] = statement;
         Ok(())
     }
 
@@ -897,7 +897,7 @@ impl Module {
                     _ => continue,
                 }
             };
-            self.expressions[id.index()] = Expr::Binary { op, left, right };
+            self.set_expression(id, Expr::Binary { op, left, right });
             changed += 1;
         }
         Ok(changed)
@@ -969,7 +969,7 @@ impl Module {
             }
             _ => return Ok(None),
         };
-        self.expressions[condition.index()] = flipped;
+        self.set_expression(condition, flipped);
         Ok(Some(condition))
     }
 
@@ -1078,10 +1078,10 @@ impl Module {
         for statement in &rest {
             budget.work(Analysis, 1)?;
             if let Statement::Let { binding, .. } = statement {
-                self.bindings[binding.index()].scope = scope;
+                self.binding_mut(*binding).scope = scope;
             }
         }
-        self.regions[tail.index()].statements = rest;
+        *self.statements_mut(tail.index()) = rest;
         self.rescope(tail, parent, budget)?;
         Ok(tail)
     }
@@ -1239,11 +1239,7 @@ impl Module {
             self.regions[outer.index()].scope,
         );
         budget.work(Analysis, self.scopes.len() as u64)?;
-        for parent in self.scopes.iter_mut().flatten() {
-            if *parent == inner {
-                *parent = outer;
-            }
-        }
+        self.reparent_scopes(inner, outer);
         Ok(())
     }
 
@@ -1367,7 +1363,7 @@ impl Module {
                 self.adopt(yes, RegionId::new(region), budget)?;
                 match assignment {
                     None => {
-                        self.regions[region].statements[index] = Statement::Let {
+                        self.statements_mut(region)[index] = Statement::Let {
                             binding,
                             value: Some(combined),
                         };
@@ -1383,7 +1379,7 @@ impl Module {
                             budget,
                         )?;
                         let _ = root_expression;
-                        self.regions[region].statements[index] = Statement::Evaluate(assigned);
+                        self.statements_mut(region)[index] = Statement::Evaluate(assigned);
                     }
                 }
                 self.remove_statement_into(region, index + 1, index);
@@ -1477,7 +1473,7 @@ impl Module {
                 if let Some(no) = no {
                     self.adopt(no, RegionId::new(region), budget)?;
                 }
-                self.regions[region].statements[index] = Statement::Return(Some(combined));
+                self.statements_mut(region)[index] = Statement::Return(Some(combined));
                 if next {
                     self.remove_statement_into(region, index + 1, index);
                 }

@@ -1532,7 +1532,7 @@ impl Module {
                     self.columns_call(decoder, &columns, budget)?
                 }
             };
-            if let Statement::Let { value, .. } = &mut self.regions[root].statements[index] {
+            if let Statement::Let { value, .. } = &mut self.statements_mut(root)[index] {
                 *value = Some(call);
             }
         }
@@ -1870,7 +1870,7 @@ impl Emit<'_, '_, '_> {
     /// A binding that only ever holds a number: the printer spells its
     /// `x=x+1` as `x++`.
     fn numeric(&mut self, binding: BindingId) -> Result<(), AllocationError> {
-        self.module.bindings[binding.index()].class = Some(ValueClass::Number);
+        self.module.binding_mut(binding).class = Some(ValueClass::Number);
         Ok(())
     }
 

@@ -36,19 +36,15 @@ impl Module {
                 let outer_scope = self.regions[region].scope;
                 let inner_scope = self.regions[inner.index()].scope;
                 budget.work(Analysis, (self.bindings.len() + self.scopes.len()) as u64)?;
-                for binding in &mut self.bindings {
-                    if binding.scope == inner_scope {
-                        binding.scope = outer_scope;
+                for binding in 0..self.bindings.len() {
+                    if self.bindings[binding].scope == inner_scope {
+                        self.binding_mut(BindingId::new(binding)).scope = outer_scope;
                     }
                 }
-                for parent in self.scopes.iter_mut().flatten() {
-                    if *parent == inner_scope {
-                        *parent = outer_scope;
-                    }
-                }
-                let moved = std::mem::take(&mut self.regions[inner.index()].statements);
+                self.reparent_scopes(inner_scope, outer_scope);
+                let moved = std::mem::take(self.statements_mut(inner.index()));
                 let count = moved.len();
-                self.regions[region].statements.splice(index..=index, moved);
+                self.statements_mut(region).splice(index..=index, moved);
                 flattened += 1;
                 // The spliced statements may hold blocks of their own.
                 if count == 0 {
@@ -106,13 +102,9 @@ impl Module {
                 }
                 let outer_scope = self.regions[region].scope;
                 budget.work(Analysis, self.scopes.len() as u64)?;
-                for parent in self.scopes.iter_mut().flatten() {
-                    if *parent == inner_scope {
-                        *parent = outer_scope;
-                    }
-                }
-                let moved = std::mem::take(&mut self.regions[inner.index()].statements);
-                self.regions[region].statements.splice(index..=index, moved);
+                self.reparent_scopes(inner_scope, outer_scope);
+                let moved = std::mem::take(self.statements_mut(inner.index()));
+                self.statements_mut(region).splice(index..=index, moved);
                 dropped += 1;
                 // The spliced statements may be bare blocks themselves.
             }
@@ -392,7 +384,7 @@ impl Module {
                 // A function literal is a value, not a reference with a base.
                 if let Expr::Call {
                     callee, invocation, ..
-                } = &mut self.expressions[placement.call.index()]
+                } = self.expression_mut(placement.call)
                 {
                     *callee = placement.value;
                     *invocation = Invocation::Value;
@@ -766,12 +758,12 @@ impl Module {
                 value: Some(argument),
             })
             .collect();
-        statements.append(&mut self.regions[body.index()].statements);
+        statements.append(self.statements_mut(body.index()));
         // `return f(a)` returns `undefined` from a body that ends.
         if matches!(site, Site::Return) && falls {
             statements.push(Statement::Return(None));
         }
-        self.regions[body.index()].statements = statements;
+        *self.statements_mut(body.index()) = statements;
         // Renew the scopes of everything now under the body, the arguments'
         // functions included, under the call's scope, parents first.
         self.rescope(body, self.regions[region.index()].scope, budget)?;
@@ -914,7 +906,7 @@ impl Module {
             if old.index() < map.len() {
                 map[old.index()] = Some(fresh);
             }
-            self.regions[region.index()].scope = fresh;
+            self.set_region_scope(region, fresh);
             let mut children = Vec::new();
             for statement in &self.regions[region.index()].statements {
                 statement.visit_regions(|child| children.push(child));
@@ -940,11 +932,22 @@ impl Module {
             }
         }
         budget.work(Analysis, self.bindings.len() as u64)?;
-        for binding in &mut self.bindings {
-            if let Some(Some(fresh)) = map.get(binding.scope.index()) {
-                binding.scope = *fresh;
+        for binding in 0..self.bindings.len() {
+            if let Some(&Some(fresh)) = map.get(self.bindings[binding].scope.index()) {
+                self.binding_mut(BindingId::new(binding)).scope = fresh;
             }
         }
         Ok(())
+    }
+
+    /// Scopes whose parent is `from` take `to` as their parent.
+    pub(super) fn reparent_scopes(&mut self, from: ScopeId, to: ScopeId) {
+        if self.scopes.iter().any(|parent| *parent == Some(from)) {
+            for parent in self.tables_mut().scopes.iter_mut().flatten() {
+                if *parent == from {
+                    *parent = to;
+                }
+            }
+        }
     }
 }

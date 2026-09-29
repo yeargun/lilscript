@@ -76,7 +76,8 @@ impl Module {
             }
         }
         for &(read, value) in &rewrites {
-            self.expressions[read.index()] = self.expressions[value.index()].clone();
+            let node = self.expressions[value.index()].clone();
+            self.set_expression(read, node);
         }
         Ok(rewrites.len())
     }

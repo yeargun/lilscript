@@ -62,7 +62,7 @@ impl Module {
                 callee,
                 arguments,
                 invocation,
-            } = &mut self.expressions[call.index()]
+            } = self.expression_mut(call)
             {
                 *callee = method;
                 arguments.remove(0);

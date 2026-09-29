@@ -197,24 +197,29 @@ impl Module {
                 .map(|index| redirect[index].1)
         };
         budget.work(Analysis, self.expressions.len() as u64)?;
-        for expression in &mut self.expressions {
-            if let Expr::Binding(binding) = expression {
-                if let Some(lowered) = find(*binding) {
-                    *binding = lowered;
+        for index in 0..self.expressions.len() {
+            if let Expr::Binding(binding) = self.expressions[index] {
+                if let Some(lowered) = find(binding) {
+                    self.set_expression(ExprId::new(index), Expr::Binding(lowered));
                 }
             }
         }
-        for export in &mut self.exports {
-            if let Some(lowered) = find(export.binding) {
-                export.binding = lowered;
+        if self.exports.iter().any(|export| find(export.binding).is_some()) {
+            for export in &mut self.tables_mut().exports {
+                if let Some(lowered) = find(export.binding) {
+                    export.binding = lowered;
+                }
             }
         }
-        self.imports.retain(|import| {
-            !import
+        let lowered = |import: &Import| {
+            import
                 .source
                 .as_unicode()
                 .is_some_and(|source| delivery.position(source).is_some())
-        });
+        };
+        if self.imports.iter().any(lowered) {
+            self.tables_mut().imports.retain(|import| !lowered(import));
+        }
         // An imported module evaluates before its importer.
         let count = statements.len();
         let root = self.root.index();

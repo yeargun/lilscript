@@ -106,8 +106,9 @@ impl Module {
                 if let Some(replacement) =
                     self.simplified(ExprId::new(index), numeric_lengths, year)
                 {
-                    self.expressions[index] = replacement;
-                    edits += 1;
+                    if self.set_expression(ExprId::new(index), replacement) {
+                        edits += 1;
+                    }
                 }
             }
             if edits == before {

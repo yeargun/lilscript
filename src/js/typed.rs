@@ -89,7 +89,7 @@ impl Module {
                     } else {
                         continue;
                     };
-                    self.expressions[test.index()] = if op == Binary::NotEqual {
+                    let node = if op == Binary::NotEqual {
                         self.expressions[tested.index()].clone()
                     } else {
                         Expr::Unary {
@@ -97,6 +97,7 @@ impl Module {
                             value: tested,
                         }
                     };
+                    self.set_expression(test, node);
                     rewritten += 1;
                 }
                 _ => {}
@@ -242,7 +243,7 @@ impl Module {
                 callee,
                 arguments,
                 invocation,
-            } = &mut self.expressions[call.index()]
+            } = self.expression_mut(call)
             {
                 *callee = member;
                 arguments.remove(0);
