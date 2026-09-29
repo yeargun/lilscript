@@ -118,7 +118,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 ### M5 The machinery: 1 of 8 · [plan](plan.md#m5-the-machinery)
 
 - [ ] M5.1 Program edit kernel, DCE on both targets: step 5. *F1: DCE on both targets and the kernel's first part; F2: the graft. Open: signature changes (F3), `UseIndex`, deleting `drop_unreferenced_functions`*
-- [ ] M5.2 Tree annotations and journal (absorbs M8.1): step 9
+- [ ] M5.2 Tree annotations and journal (absorbs M8.1): step 9. *Partly (P1, 2026-09-29): binding classes and defined parameters on the binding, observed literals on the module and renumbered by it (the hand remaps and the `protected` protocol are gone). Open: the journal, the evaluation-behaviour and binding-fact columns and the deletions they allow (`quiet.rs` first), the rest of the table*
 - [ ] M5.3a Scheduler: step 9
 - [ ] M5.3b Transitional rules deleted: steps 10–12, each with its replacement
 - [x] M5.4 Monotone selection and the terminal slot: 2026-09-24 (batch T). Monotone across levels closes with M3.5

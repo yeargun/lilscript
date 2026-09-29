@@ -2182,6 +2182,8 @@ Predicted: byte-identical output. Tests that sum a module's retained storage fol
 
 Next (P2 onward): typed mutation helpers with the journal, then the evaluation-behaviour and binding-fact columns that let `quiet.rs` go (L20: only once they pass their debug verification).
 
+**Landed** (binary `p1-1`, one commit: the module's storage sums change for both halves): 1,613 unit tests pass; every case lane passes with 0 artifacts changed against `n2-1`; the ratchet's 1,890 artifacts are byte-identical. `binding_classes`, `defined_parameters`, formation's literal list, its twelve hand remaps and the five passes' `protected` slices are gone.
+
 ---
 
 ## Appendix: where milestones 001–014 went
