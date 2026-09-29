@@ -841,6 +841,8 @@ pub struct Symbol<'src> {
     pub span: Span,
     /// The declaring identifier, in its module's source (M4.4).
     pub node: SourceNodeId,
+    /// What the declaration says of its calls (M4.3).
+    pub attributes: Attributes,
     /// Classification belongs to the canonical declaration, including extern
     /// aliases shared by several checked modules.
     origin: DeclarationOrigin,
@@ -849,6 +851,16 @@ pub struct Symbol<'src> {
     /// across source owners; this is source-binding knowledge, not a use count
     /// for a rewritten program.
     identifier_occurrences: usize,
+}
+
+/// A declaration's attributes (M4.3): `pure` (R15: its calls observe and
+/// change nothing) and `debug` (its calls are logging, which `strip_debug`
+/// drops). An extern's attributes are part of its contract, the same in
+/// every module that declares it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Attributes {
+    pub pure: bool,
+    pub debug: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3181,6 +3193,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         })
                     };
                     let id = self.declare(function.name, ty)?;
+                    self.declarations.symbols[id.0 as usize].attributes = Attributes {
+                        pure: function.declared_pure,
+                        debug: function.declared_debug,
+                    };
                     // A named function exists from instantiation.
                     self.declarations.module_bindings.remove(&id);
                 }
@@ -3194,7 +3210,32 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             signature: signature.clone(),
                         })
                     };
-                    self.declare_foreign(extern_decl.name, ty, true)?;
+                    let repeated = self.module.is_some()
+                        && self
+                            .declarations
+                            .foreign_symbols
+                            .contains_key(extern_decl.name.name);
+                    let symbol = self.declare_foreign(extern_decl.name, ty, true)?;
+                    let attributes = Attributes {
+                        pure: extern_decl.declared_pure,
+                        debug: extern_decl.declared_debug,
+                    };
+                    let recorded = &mut self.declarations.symbols[symbol.0 as usize].attributes;
+                    if repeated && *recorded != attributes {
+                        return Err(AdmittedCheckError::new(
+                            extern_decl.name.span,
+                            format!(
+                                "conflicting extern contracts for `{}`: another module declares it {}",
+                                extern_decl.name.name,
+                                match (recorded.pure, recorded.debug) {
+                                    (true, _) => "pure",
+                                    (_, true) => "debug",
+                                    _ => "without attributes",
+                                }
+                            ),
+                        ));
+                    }
+                    *recorded = attributes;
                     let mut names = AHashMap::default();
                     for (param, ty) in extern_decl.params.iter().zip(signature.params.iter()) {
                         if names.insert(param.name.name, param.name.span).is_some() {
@@ -9415,6 +9456,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             ty,
             span: ident.span,
             node: ident.id,
+            attributes: Attributes::default(),
             origin: DeclarationOrigin::Source,
             identifier_occurrences: 0,
         };
@@ -9449,6 +9491,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             ty,
             span: ident.span,
             node: ident.id,
+            attributes: Attributes::default(),
             origin: DeclarationOrigin::Source,
             identifier_occurrences: 0,
         };

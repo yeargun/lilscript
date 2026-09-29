@@ -897,21 +897,23 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     let name = self.string(function.name.name)?;
                     self.units[id.index()].function_name = Some(name);
                     let cell = self.cell(function.name)?;
+                    let attributes = self.attributes(function.name)?;
                     self.units[id.index()].callable_type =
                         Some(self.program.cells[cell.index()].ty);
                     let data = &mut building_table(&mut self.program.cells)[cell.index()];
                     data.binding = CellBinding::Function(id);
-                    data.declared_pure = function.declared_pure;
-                    data.debug = function.declared_debug;
+                    data.declared_pure = attributes.pure;
+                    data.debug = attributes.debug;
                 }
                 // The shared declaration owner already classified these
                 // cells; foreign declarations have no source body to register.
                 // A `pure extern` is a trusted declaration attribute.
                 Item::Extern(declaration) => {
                     let cell = self.cell(declaration.name)?;
+                    let attributes = self.attributes(declaration.name)?;
                     let data = &mut building_table(&mut self.program.cells)[cell.index()];
-                    data.declared_pure = declaration.declared_pure;
-                    data.debug = declaration.declared_debug;
+                    data.declared_pure = attributes.pure;
+                    data.debug = attributes.debug;
                 }
                 Item::ExternGlobal(_) => {}
                 Item::Struct(declaration) => {
@@ -1420,6 +1422,17 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             Export { name, target },
         )?;
         Ok(())
+    }
+    /// The attributes the checker recorded on a declaration (M4.3).
+    fn attributes(
+        &self,
+        name: ast::Ident<'src>,
+    ) -> Result<crate::check::Attributes, ConversionError> {
+        let symbol = self.semantics.identifier_symbol(name.id).ok_or(Unsupported {
+            span: name.span,
+            feature: "missing checked declaration",
+        })?;
+        Ok(self.semantics.symbols()[symbol.0 as usize].attributes)
     }
     fn cell(&self, name: ast::Ident<'src>) -> Result<CellId, ConversionError> {
         let symbol = self
@@ -2300,7 +2313,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         }
         for member in declaration.members {
             self.work(1)?;
-            let (name, member_id, this, signature) = match member {
+            let (name, member_id, this, signature, pure) = match member {
                 ast::ClassMember::Field(_) => continue,
                 ast::ClassMember::Method(function) => {
                     if function.is_async || function.is_generator {
@@ -2318,6 +2331,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         Some(method.member),
                         function.this,
                         method.signature.clone(),
+                        method.declared_pure,
                     )
                 }
                 ast::ClassMember::Constructor(constructor) => {
@@ -2325,7 +2339,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         span: constructor.span,
                         feature: "missing checked constructor",
                     })?;
-                    (None, None, constructor.this, signature)
+                    (None, None, constructor.this, signature, false)
                 }
             };
             let this_cell = self.cell(this)?;
@@ -2375,10 +2389,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             data.binding = CellBinding::Function(unit);
             data.ty = callable;
             data.reassigned = false;
-            data.declared_pure = match member {
-                ast::ClassMember::Method(function) => function.declared_pure,
-                _ => false,
-            };
+            data.declared_pure = pure;
             // A function cell holds its unit under the unit's own name.
             let function_name = if constructor {
                 self.string(declaration.name.name)?

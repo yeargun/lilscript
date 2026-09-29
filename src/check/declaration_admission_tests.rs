@@ -33,6 +33,7 @@ fn symbol(index: usize) -> Symbol<'static> {
         ty: Type::Array(Box::new(Type::Int)),
         span: Span::new(index, index + 1),
         node: SourceNodeId::detached(index as u32),
+        attributes: Attributes::default(),
         origin: DeclarationOrigin::Source,
         identifier_occurrences: 0,
     }
