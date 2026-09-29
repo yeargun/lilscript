@@ -2158,6 +2158,8 @@ Changes:
 
 Predicted: byte-identical output everywhere against `n1-1`.
 
+**Landed** (binary `n2-1`): 1,613 unit tests pass (C3 adds a test that a module declaring an extern with other attributes is refused); every case lane passes with 0 artifacts changed against `n1-1`; the ratchet's 1,890 artifacts are byte-identical.
+
 ---
 
 ## Appendix: where milestones 001–014 went
