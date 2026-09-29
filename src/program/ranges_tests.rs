@@ -1,0 +1,99 @@
+//! Value ranges (M6.4b): a counting loop bounds its counter, a cell carries
+//! its range, a callee's returns bound its result, and a loop that grows
+//! settles by widening.
+use super::super::call_graph::Seal;
+use super::*;
+
+fn program<'src>(arena: &'src bumpalo::Bump, source: &'src str) -> Program<'src> {
+    let syntax = crate::parse_source(arena, source)
+        .unwrap_or_else(|error| panic!("parse: {error:?}\n{source}"));
+    let checked =
+        crate::analyze(&syntax).unwrap_or_else(|error| panic!("check: {error:?}\n{source}"));
+    let program = from_checked_source(&syntax, &checked)
+        .unwrap_or_else(|error| panic!("convert: {error:?}\n{source}"));
+    program.verify().unwrap();
+    program
+}
+
+fn unit_named(program: &Program<'_>, name: &str) -> UnitId {
+    let index = program
+        .units
+        .iter()
+        .position(|unit| {
+            unit.data()
+                .function_name
+                .is_some_and(|label| program.strings[label.index()].as_unicode() == Some(name))
+        })
+        .unwrap_or_else(|| panic!("no unit named {name}"));
+    UnitId::from_index(index).unwrap()
+}
+
+/// The bounds of the value `function` returns (its last `return`).
+fn returned(source: &str, function: &str) -> Option<(i64, i64)> {
+    let arena = bumpalo::Bump::new();
+    let program = program(&arena, source);
+    let ranges = program.ranges(Seal::Module);
+    let unit = unit_named(&program, function);
+    let data = program.units[unit.index()].data();
+    let value = data
+        .operations
+        .iter()
+        .rev()
+        .find(|operation| matches!(operation.kind, OperationKind::Return))
+        .and_then(|operation| data.operands(operation.operands)?.first().copied())
+        .expect("a returned value");
+    ranges.number(unit, value).integer_bounds()
+}
+
+/// The bounds of every `int` addition's raw result in `function`, before its
+/// ToInt32 (what decides whether the `|0` is needed).
+fn additions(source: &str, function: &str) -> Vec<Option<(i64, i64)>> {
+    let arena = bumpalo::Bump::new();
+    let program = program(&arena, source);
+    let ranges = program.ranges(Seal::Module);
+    let unit = unit_named(&program, function);
+    let data = program.units[unit.index()].data();
+    data.operations
+        .iter()
+        .filter(|operation| {
+            matches!(operation.kind, OperationKind::IntBinary(op) if op == crate::primitive::IntBinary::Add)
+        })
+        .map(|operation| {
+            let operands = data.operands(operation.operands).unwrap();
+            let left = ranges.number(unit, operands[0]);
+            let right = ranges.number(unit, operands[1]);
+            left.binary(crate::js::Binary::Add, right).integer_bounds()
+        })
+        .collect()
+}
+
+#[test]
+fn a_counting_loop_bounds_its_counter() {
+    let source = "int count(int n) { int s = 0; for (int i = 0; i < n; i += 1) { s = s ^ i; } return s; } print(count(5));";
+    // `i += 1` reads `i <= n - 1 <= 2^31 - 2`: the sum stays in int32.
+    let sums = additions(source, "count");
+    assert!(
+        sums.iter()
+            .any(|bounds| bounds.is_some_and(|(low, high)| low >= 0 && high <= i32::MAX as i64)),
+        "{sums:?}"
+    );
+}
+
+#[test]
+fn a_cell_carries_its_range_and_a_callee_its_result() {
+    let source = "int scaled(int n) { int t = n & 255; t = t * 3; return t + 1; } print(scaled(1000));";
+    assert_eq!(returned(source, "scaled"), Some((1, 766)));
+    let source = "int clamp(int v) { if (v < -120) { return -120; } if (v > 120) { return 120; } return v; }
+int twice(int a) { return clamp(a) + clamp(a); } print(twice(7));";
+    assert_eq!(returned(source, "clamp"), Some((-120, 120)));
+    assert_eq!(returned(source, "twice"), Some((-240, 240)));
+}
+
+#[test]
+fn a_loop_that_grows_settles_by_widening() {
+    let source = "int grow(int n) { int x = 1; while (x < n) { x = x * 2 + 1; } return x; } print(grow(100));";
+    // Settled (the solve did not give up): the loop's exit reads `x >= n`,
+    // and `x` is an int32 whatever it grew to.
+    let bounds = returned(source, "grow");
+    assert!(bounds.is_some_and(|(low, high)| low >= i32::MIN as i64 && high <= i32::MAX as i64), "{bounds:?}");
+}

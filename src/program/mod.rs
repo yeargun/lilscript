@@ -15,6 +15,7 @@ pub mod call_graph;
 mod callable_inputs;
 mod cell_ssa;
 mod dataflow;
+pub(crate) mod ranges;
 mod demand;
 pub mod effects;
 mod entries;

@@ -9,6 +9,7 @@
 use super::call_graph::Seal;
 use super::effects::ProgramEffects;
 use super::initialization::ProgramInitialization;
+use super::ranges::ProgramRanges;
 use super::*;
 use std::sync::{Arc, OnceLock};
 
@@ -93,6 +94,8 @@ struct Slots {
     /// beside them, under structural (script) and module sealing of root
     /// storage.
     effects: [OnceLock<Arc<ProgramEffects>>; 2],
+    /// Indexed by `Seal`: value ranges (M6.4b), read by every formation.
+    ranges: [OnceLock<Arc<ProgramRanges>>; 2],
 }
 
 impl Clone for ProgramViews {
@@ -102,6 +105,19 @@ impl Clone for ProgramViews {
 }
 
 impl<'src> Program<'src> {
+    /// The value ranges under `seal` (`ranges.rs`), computed once per
+    /// program from its effects' call graph.
+    pub fn ranges(&self, seal: Seal) -> Arc<ProgramRanges> {
+        let slot = &self.views.slots.ranges[seal as usize];
+        let build = || Arc::new(ProgramRanges::build(self, &self.effects(seal), seal));
+        let cached = slot.get_or_init(build);
+        if cached.deps().valid_for(self) {
+            Arc::clone(cached)
+        } else {
+            build()
+        }
+    }
+
     /// The initialization facts under `seal` (`initialization.rs`), built
     /// with the effect summaries they need and that read them.
     pub fn initialization_facts(&self, seal: Seal) -> Arc<ProgramInitialization> {
