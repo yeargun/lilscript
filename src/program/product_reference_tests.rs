@@ -227,6 +227,8 @@ fn reference_query_refusal_and_callback_unwind_release_the_existing_attempt() {
             }));
             assert!(panic.is_err());
             assert_eq!(ledger.retained_bytes(), baseline);
+            // An application script's roots are sealed as a module's (owner
+            // answer Y5): its family is the module's.
             let mut script = request();
             script.execution = JavaScriptExecution::Script;
             let result = analyze(
@@ -238,10 +240,10 @@ fn reference_query_refusal_and_callback_unwind_release_the_existing_attempt() {
                 WorkDomain::Optional,
             )
             .unwrap();
-            assert!(matches!(
-                result.outcome,
-                Outcome::Unknown(UnknownReason::ExecutionBoundary)
-            ));
+            let Outcome::Complete(family) = result.outcome else {
+                panic!("script family: {:?}", result.outcome)
+            };
+            family.discard(&mut ledger).unwrap();
             assert_eq!(ledger.retained_bytes(), baseline);
             uses.discard(&mut ledger).unwrap();
             assert_eq!(ledger.retained_bytes(), 0);

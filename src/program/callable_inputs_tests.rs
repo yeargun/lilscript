@@ -151,7 +151,7 @@ fn execution_seal_is_explicit_and_opaque_callable_uses_never_become_closed_input
                 let mut allocation =
                     AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
                 let mut meter = Meter(&mut allocation);
-                let script = CallObservations::from_execution(JavaScriptExecution::Script);
+                let script = CallObservations::from_seal(Seal::StructuralOnly);
                 assert!(matches!(
                     CallableInputs::for_body(program, &uses, body, script, &mut meter).unwrap(),
                     InputOutcome::Unknown(UnknownReason::ExecutionBoundary)

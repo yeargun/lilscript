@@ -205,7 +205,9 @@ fn direct_parameter_knowledge_requires_an_explicit_module_execution_seal() {
             let uses = UseIndex::build(program, &mut ledger, WorkDomain::Baseline).unwrap();
             for (input, expected) in [
                 (DomainInputs::empty(), false),
-                (inputs(JavaScriptExecution::Script), false),
+                // An application script's roots are sealed as a module's
+                // (owner answer Y5).
+                (inputs(JavaScriptExecution::Script), true),
                 (inputs(JavaScriptExecution::Module), true),
             ] {
                 let mut allocation =

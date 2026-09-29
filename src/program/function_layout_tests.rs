@@ -167,9 +167,11 @@ fn layout_admission_script_and_discard_orders_preserve_original_charges() {
             let result=analyze(program,&uses,body(program,"read"),request,&mut ledger,WorkDomain::Optional).unwrap();
             assert!(matches!(result.outcome,FamilyOutcome::Truncated(found) if found==reason));assert_eq!(ledger.retained_bytes(),before);
         }
+        // An application script's roots are sealed as a module's (owner
+        // answer Y5): its layout is the module's.
         let mut script=request();script.execution=JavaScriptExecution::Script;
         let result=analyze(program,&uses,body(program,"read"),script,&mut ledger,WorkDomain::Optional).unwrap();
-        assert!(matches!(result.outcome,FamilyOutcome::Unknown(UnknownReason::ExecutionBoundary)));assert_eq!(ledger.retained_bytes(),before);
+        let FamilyOutcome::Complete(layout)=result.outcome else{panic!("script layout: {:?}",result.outcome)};layout.discard(&mut ledger).unwrap();assert_eq!(ledger.retained_bytes(),before);
         let layout=complete(program,&uses,body(program,"read"),&mut ledger);uses.discard(&mut ledger).unwrap();
         assert_eq!(ledger.retained_bytes(),layout.retained_bytes());layout.discard(&mut ledger).unwrap();assert_eq!(ledger.retained_bytes(),0);
     });

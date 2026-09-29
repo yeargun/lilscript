@@ -316,6 +316,9 @@ fn inactive_transport_keeps_stale_and_script_guards_at_their_owners() {
         let checkpoint = compiler.slots[slot].checkpoint.as_ref().unwrap();
         let map = checkpoint.implementations.as_ref().unwrap();
         let layout = map.functions().next().unwrap();
+        // A script's roots are sealed as a module's (owner answer Y5), so its
+        // support is the module's; a library script's frames stay visible to
+        // the host, and its demand refuses private transport.
         assert_eq!(
             shared_transport_support(
                 map,
@@ -324,10 +327,11 @@ fn inactive_transport_keeps_stale_and_script_guards_at_their_owners() {
                 |_| Ok::<_, ()>(())
             )
             .unwrap(),
-            SharedTransportSupport::MayApply
+            SharedTransportSupport::AllCreatorsInline
         );
         let mut script = *fixture.policy.javascript_contract().unwrap();
         script.execution = JavaScriptExecution::Script;
+        assert!(!script.frames_hidden());
         assert!(matches!(
             DemandPlan::build(
                 &checkpoint.semantic.program,
