@@ -35,6 +35,36 @@ pub use modules::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SymbolId(pub u32);
 
+/// The operation an arithmetic operator resolves to (M4.3): an int32
+/// operation where its value is an `int` (or an enum's), otherwise the
+/// operator itself, on numbers, strings or booleans. The checker decides it
+/// once, for a binary expression by its result and for a compound
+/// assignment or an update by its target; lowering reads it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResolvedOperator {
+    Int(crate::primitive::IntBinary),
+    Plain(BinaryOp),
+}
+
+impl ResolvedOperator {
+    fn of(op: BinaryOp, value: &Type<'_>) -> Self {
+        use crate::primitive::IntBinary;
+        let int = match op {
+            BinaryOp::Add => Some(IntBinary::Add),
+            BinaryOp::Sub => Some(IntBinary::Subtract),
+            BinaryOp::Mul => Some(IntBinary::Multiply),
+            BinaryOp::Div => Some(IntBinary::Divide),
+            BinaryOp::Mod => Some(IntBinary::Remainder),
+            BinaryOp::UnsignedShiftRight => Some(IntBinary::UnsignedShiftRight),
+            _ => None,
+        };
+        match int {
+            Some(int) if matches!(value, Type::Int | Type::Enum(_)) => Self::Int(int),
+            _ => Self::Plain(op),
+        }
+    }
+}
+
 /// A call whose identity was resolved by semantic analysis rather than by a
 /// runtime binding. Keeping this fact in the semantic model prevents later
 /// stages from guessing from identifier spelling (and therefore accidentally
@@ -996,6 +1026,9 @@ struct ModuleFacts<'ast, 'src> {
     enum_variant_values: AHashMap<SourceNodeId, i64>,
     /// A dynamic import's module, by the import expression.
     dynamic_import_modules: AHashMap<SourceNodeId, u32>,
+    /// An arithmetic operator's resolution, by its binary, compound
+    /// assignment or update expression (M4.3).
+    resolved_operators: AHashMap<SourceNodeId, ResolvedOperator>,
     /// Direct module checking: a dynamically imported module's runtime
     /// exports, resolved through its interface rather than a merged scope.
     dynamic_export_symbols: AHashMap<(u32, &'src str), SymbolId>,
@@ -1117,6 +1150,7 @@ impl<'ast, 'src> ModuleFacts<'ast, 'src> {
             identifier_symbols: AHashMap::default(),
             enum_variant_values: AHashMap::default(),
             dynamic_import_modules: AHashMap::default(),
+            resolved_operators: AHashMap::default(),
             dynamic_export_symbols: AHashMap::default(),
             used_dynamic_exports: AHashSet::default(),
             deferred_initialization: AHashSet::default(),
@@ -1439,6 +1473,10 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().dynamic_operation(id)
     }
 
+    pub(crate) fn resolved_operator(&self, node: SourceNodeId) -> Option<ResolvedOperator> {
+        self.view().resolved_operator(node)
+    }
+
     pub(crate) fn resolved_intrinsic(
         &self,
         id: SourceNodeId,
@@ -1613,6 +1651,11 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
             ExpressionResolution::Dynamic(builtin) => Some(builtin),
             _ => None,
         }
+    }
+
+    /// The operation the arithmetic operator at `node` resolved to (M4.3).
+    pub(crate) fn resolved_operator(&self, node: SourceNodeId) -> Option<ResolvedOperator> {
+        self.facts.resolved_operators.get(&node).copied()
     }
 
     pub(crate) fn resolved_intrinsic(
@@ -5244,6 +5287,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     let result =
                         self.analyze_binary(binary_op, &target_type, &value_type, *span)?;
                     self.require_assignable(&target_type, &result, *span)?;
+                    // The operation takes the target's type: it stores there.
+                    self.facts
+                        .resolved_operators
+                        .insert(expr.id, ResolvedOperator::of(binary_op, &target_type));
                     target_type.clone()
                 };
                 self.invalidate_assigned_narrowing(target);
@@ -5279,6 +5326,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ));
                 }
                 self.invalidate_assigned_narrowing(target);
+                let binary_op = match op {
+                    UpdateOp::Increment => BinaryOp::Add,
+                    UpdateOp::Decrement => BinaryOp::Sub,
+                };
+                self.facts
+                    .resolved_operators
+                    .insert(expr.id, ResolvedOperator::of(binary_op, &target_type));
                 target_type
             }
             Expr {
@@ -5630,7 +5684,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                     self.resolve_dynamic(expression.id, builtin);
                                     result
                                 }
-                                None => self.analyze_binary(*op, &left, &ty, *span)?,
+                                None => {
+                                    let result = self.analyze_binary(*op, &left, &ty, *span)?;
+                                    self.facts
+                                        .resolved_operators
+                                        .insert(expression.id, ResolvedOperator::of(*op, &result));
+                                    result
+                                }
                             };
                             narrowing = if matches!(op, BinaryOp::And | BinaryOp::Or) {
                                 left_narrowing.join(narrowing, expression, *op)

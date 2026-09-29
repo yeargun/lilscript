@@ -4061,21 +4061,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         Ok(())
     }
 
-    fn binary_kind(&self, op: BinaryOp, ty: TypeId) -> OperationKind {
-        let integer = matches!(self.program.types[ty.index()], Type::Int | Type::Enum(_));
-        let int = match op {
-            BinaryOp::Add => Some(IntBinary::Add),
-            BinaryOp::Sub => Some(IntBinary::Subtract),
-            BinaryOp::Mul => Some(IntBinary::Multiply),
-            BinaryOp::Div => Some(IntBinary::Divide),
-            BinaryOp::Mod => Some(IntBinary::Remainder),
-            BinaryOp::UnsignedShiftRight => Some(IntBinary::UnsignedShiftRight),
-            _ => None,
-        };
-        if let Some(op) = int.filter(|_| integer) {
-            OperationKind::IntBinary(op)
-        } else {
-            OperationKind::Binary(op)
+    /// The operation the checker resolved an arithmetic operator to (M4.3):
+    /// a binary expression, a compound assignment or an update.
+    fn operator(&self, expr: &ast::Expr<'ast, 'src>) -> Result<OperationKind, ConversionError> {
+        match self.semantics.resolved_operator(expr.id) {
+            Some(crate::check::ResolvedOperator::Int(op)) => Ok(OperationKind::IntBinary(op)),
+            Some(crate::check::ResolvedOperator::Plain(op)) => Ok(OperationKind::Binary(op)),
+            None => self.unsupported(expr.span(), "an operator the checker did not resolve"),
         }
     }
     fn eager_binary(&self, expr: &ast::Expr<'ast, 'src>) -> bool {
@@ -4094,7 +4086,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let mut values = Vec::new();
         while let Some((expr, ready)) = pending.pop() {
             self.work(1)?;
-            if let ExprKind::Binary { op, lhs, rhs, .. } = &expr.kind {
+            if let ExprKind::Binary { lhs, rhs, .. } = &expr.kind {
                 if self.eager_binary(expr) {
                     if !ready {
                         self.budget.extend_copy(
@@ -4107,7 +4099,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     let right = values.pop().unwrap();
                     let left = values.pop().unwrap();
                     let ty = self.expression_type(expr)?;
-                    let kind = self.binary_kind(*op, ty);
+                    let kind = self.operator(expr)?;
                     let value = self.value(
                         unit,
                         region,
@@ -4627,24 +4619,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         span,
                     )?
                 } else if let Some(old) = old {
-                    let op = match op {
-                        AssignmentOp::Add => BinaryOp::Add,
-                        AssignmentOp::Sub => BinaryOp::Sub,
-                        AssignmentOp::Mul => BinaryOp::Mul,
-                        AssignmentOp::Div => BinaryOp::Div,
-                        AssignmentOp::Mod => BinaryOp::Mod,
-                        AssignmentOp::BitAnd => BinaryOp::BitAnd,
-                        AssignmentOp::BitOr => BinaryOp::BitOr,
-                        AssignmentOp::Xor => BinaryOp::Xor,
-                        AssignmentOp::ShiftLeft => BinaryOp::ShiftLeft,
-                        AssignmentOp::ShiftRight => BinaryOp::ShiftRight,
-                        AssignmentOp::UnsignedShiftRight => BinaryOp::UnsignedShiftRight,
-                        _ => unreachable!(),
-                    };
                     self.value(
                         unit,
                         region,
-                        self.binary_kind(op, ty),
+                        self.operator(expr)?,
                         &[old, rhs],
                         ty,
                         origin,
@@ -4657,9 +4635,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 self.effect(unit, region, OperationKind::Store(place), &[copied], span)?;
                 return Ok(value);
             }
-            ExprKind::Update {
-                op, target, prefix, ..
-            } => {
+            ExprKind::Update { target, prefix, .. } => {
                 let place = self.place(unit, region, target)?;
                 self.prepare_mutable_place(unit, region, place, false, target.span())?;
                 let old = self.value(
@@ -4685,15 +4661,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     None,
                     span,
                 )?;
-                let binary = if *op == ast::UpdateOp::Increment {
-                    BinaryOp::Add
-                } else {
-                    BinaryOp::Sub
-                };
                 let value = self.value(
                     unit,
                     region,
-                    self.binary_kind(binary, ty),
+                    self.operator(expr)?,
                     &[old, one],
                     ty,
                     origin,
