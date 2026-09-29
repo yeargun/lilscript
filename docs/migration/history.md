@@ -1963,6 +1963,132 @@ Predicted:
 - The ports keep their gains where the codec says they are gains (a fleet total no larger than the second run's).
 - CPU: one extra head formation per terminal stage that tries the family.
 
+## 2026-09-29 Batches K5–K13 and step 8's close: the second and third runs, and their fix-ups
+
+The second run (binary `k9-1`: K1–K9 with the first run's fix-ups) and the third (`k13-1`: K1–K13 with every fix-up before it) both ran against `s7-1`, the last landed binary. The fix-ups the third run found are commits at the tip, measured on `k13-2` (below).
+
+**Second run (`k9-1`), what it found** (fixed before the third):
+- **Unit tests:** 17 failures.
+  - Counts and oracles that K1, K7 and K9 moved: the admission work counts (the scan's own unit), the frozen operator oracle (R11's operands), the binary64 and tables tests, a K7 test that asserted `length|0`.
+  - Tests of replaced builtins and of unsound narrowings, gone with R10 and R1.
+  - A regex literal's `source` (the K7 fix-up in the first record).
+  - Narrowing of another module's binding.
+- **motionlil refused** at `stagger.lil:41` and `consumer.lil:62`: the first fix-up's narrowing rules were stricter than soundness needs. Refined:
+  - an inherited narrowing is masked inside a lambda only for a binding its declaring body assigns;
+  - a narrowing the lambda makes itself holds until an await or a yield;
+  - a host binding stays narrowed until code runs.
+- **The `unwrap_barrier` case:** an extern global narrows until a call.
+- **`migration/char-code`** re-reported a `charCodeAt` already under `| 0`, so the rewrite never reached a fixed point.
+- **The fold round** did not follow a chain of substitutions made in the same round, and every fix-patched build failed with "unsupported source: program rules". The round now resolves each substitution through the chain.
+- **CPU pairs:**
+
+  | Port | Factor |
+  |---|---:|
+  | markedlil | ×1.675 (the walk judges 21 moves, 9 before: B4) |
+  | posthoglil | ×1.366 |
+  | zodlil | ×1.056 |
+  | katexlil | ×0.976 |
+  | jquerylil | ×0.986 |
+
+**Third run (`k13-1`), what it found:**
+- **Unit tests:** 1,606 passed, 6 failed.
+  - Narrowing: `narrowed_type` returned nothing outside every body (an analyzer driven expression by expression), so a test's narrowing never held.
+  - The substitution test's oracle predates R2's `T??` is `T?`.
+  - Timing: K13's other head is a head formation the test did not count.
+  - The terminal test asserted that raw and Brotli keep different families on its program. Since R10 and R11 they keep the same nine.
+  - `declared_locals_run` and `field_initializers_run_at_construction`: dead-code elimination dropped a `Declare` (next item).
+- **Cases:** six lanes of `definite_assignment` refused in production ("binding has no declaration"). The demand plan kept a declared cell's stores and reads but not its `Declare`, which fell to the default arm; `Declare` now waits on the cell's storage as `Initialize` does. Totals against `s7-1`, all lanes passing otherwise:
+
+  | Lane | Script | Module |
+  |---|---:|---:|
+  | production Brotli | 39,160 → 38,284 (−876) | 37,268 → 36,520 (−748) |
+  | production gzip | −899 | −764 |
+  | production raw | −1,875 | −1,730 |
+  | formation-only Brotli | −241 | −244 |
+- **Monotone and replay:** pass at every listed level; 45,513 recorded stops replayed.
+- **Ratchet** against `s7-1`:
+
+  | Corpus | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | cases | 64,807 → 62,330 | 58,522 → 57,497 | 48,573 → 47,249 |
+  | apps | 1,359 → 1,246 | 1,078 → 1,026 | 920 → 861 |
+  | algorithms | 6,047 → 5,798 | 3,542 → 3,505 | 3,233 → 3,197 |
+
+  Brotli losses to the competitor bar: cases 422 → 368, apps 5 → 4. The apps now beat the competitor total (861 against 870). Sixteen rows blocked, on 7 items that grew 1 to 4 Brotli bytes: three nested-struct variants, `string-concat-typed-aggregate`, `minmax-scan`, `edge-string-utf16-accent` and `-empty`, and `algorithms/helper-sharing`. The mechanism is a pair of moves the walk tries one at a time:
+  - `nested-struct-3-1-4-1-5-9`: int32 hints alone +3, block-scoped loop heads alone +2, both together is `s7-1`'s artifact, −1;
+  - `edge-string-utf16-empty`: hints alone +0, a pooled `"lilscript"` alone +3, both −4. K7 made the second root-constant forwarding unconditional, and it forwards the literal into all five reads.
+- **Unpatched ports:** all green. Against `s7-1`:
+
+  | Port | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | markedlil | +519 | −88 | −83 |
+  | zodlil | +210 | −139 | −56 |
+  | katexlil | +8,797 | +929 | +749 |
+  | jquerylil | +155 | −55 | +17 |
+  | posthoglil | +564 | −27 | −106 |
+  | motionlil | −161 | −65 | −240 |
+  | micromarklil | −176 | +43 | +108 |
+
+  katexlil's +749 is walk path dependence. On its entry the level-0 artifact is 23 bytes larger (60 fewer `|0`, 84 more `return`s). The statement families `s7-1` kept (conditional values, exit points, conditional returns) are each rejected alone in the new walk, which ends at 60,022 against 59,937. On the frozen CPU snapshot of the same port the walk runs 9 passes and ends 94 bytes under `s7-1`. micromarklil's and jquerylil's are tens of bytes per artifact in both directions.
+- **Fix-patched ports (production):** all green. Against `s7-1`'s fix-patched run: raw +82,720, gzip −19,483, Brotli −12,476. katexlil −11,727, motionlil −437, posthoglil −106, zodlil −93, jquerylil −75, markedlil −61, micromarklil +23. katexlil's patched build takes 871 s against 1,536 s.
+- **Development-check lane** (K8's index checks, K11's crossing checks, on the fix-patched ports): five ports green. Two found port-source violations, as the lane is meant to:
+  - micromarklil (1,796 failing tests, then 1,236): its HTML compiler reads the last chunk of an empty buffer, and the last flag of the tight stack outside any list. Upstream reads past the end and treats `undefined` as nothing.
+  - motionlil (5): `parseFloat` was declared on `string` and given numbers through `asStr`; the numeric mixer claimed its second endpoint a `float` (`mix(0, "10")`); `noop` was a `float` identity while the frame loop and the public API pass it any value.
+
+  Fixed in the ports' sources (local commits `micromarklil d2c2fd1`, `motionlil f6bc890`). Their output behaves as before, and both are green in production and in the lane. K12's gate holds: every port is green in the development lane. None of the findings was a read whose production meaning K12 changed.
+- **CPU pairs:**
+
+  | Port | Factor | Note |
+  |---|---:|---|
+  | markedlil | ×1.013 | |
+  | zodlil | ×2.455 | judged 9 → 18; overlapped a type check |
+  | posthoglil | ×1.728 | judged 11 → 23; overlapped a type check |
+  | micromarklil | ×0.988 | |
+  | katexlil | ×2.210 | frozen snapshot: 9 passes instead of 4, judged 66 → 156, 94 bytes smaller |
+  | jquerylil | ×0.987 | |
+  | motionlil | ×0.786 | |
+
+  The port builds show no such growth (katexlil 140 s → 139 s unpatched). The int32-hints trial rendered identical bytes in each of katexlil's 9 passes: it formed a tail and rendered for nothing.
+- **Rewrite census** (first pass, the K5–K10 fixes): implicit defaults 20 (markedlil 5, zodlil 2, motionlil 13); `char-code` 21; a `debug` declaration 1 (jquerylil); absences 216 reported, 0 of them in markedlil.
+
+**Owner, 2026-09-29, on the growths:** "we cant always win, we must accept loss sometimes.. for pragmatistic approaching of the problem.. maybe this lose can mean better win else and its a step through global maximum .. be clever, and pragmatic.. overall general win might be a win for real." So a batch is judged by its totals (ratchet, cases, fleet), and a scattered growth of a few bytes on one item, or walk path dependence on one port, does not block when the overall wins. Extra search stays only if it pays for its compile time.
+
+**Fix-ups after the third run** (commits at the tip):
+- **Narrowing:** outside every body a narrowing holds as made.
+- **Demand:** a `Declare` lives while its cell's storage does.
+- **Tests:**
+  - the substitution oracle follows R2;
+  - the timing test counts the heads the stage reports, a new `heads` count;
+  - the terminal test asserts that the three codecs do not all judge alike, and counts every start the portfolio does not hold as a restart;
+  - K5's test keeps its derived class as JavaScript's through `export constructor`, the declared boundary. A plain `export class` failed in the single-source harness only: that path publishes a class's name as a value, where the module path publishes a type (a separate task).
+- **The int32-hints family skips an inert head.** Formation counts the reads and call results the family would hint, whatever its value. A head with none, and with no integer intrinsic the printer would hint, marks the family inert, and the walk records the trial a duplicate without forming a tail. katexlil's walk formed and rendered one for nothing in each of its 9 passes.
+
+**Fourth run (`k13-2`, the fix-ups with two restarts behind a temporary switch):**
+- **Unit tests:** 1,606 passed, 6 failed: five terminal tests that recognized a restart by its `naming:` prefix, and K5's test (above). Both fixed.
+- **Cases:** pass in every lane, `definite_assignment` included.
+- **The restarts, on and off:** one from A0 with the other int32 hints, one under the other objective's family seed, each walked in passes of its own as the naming restarts are. They would reach the pairs above.
+
+  | | Restarts on | Restarts off |
+  |---|---:|---:|
+  | Ratchet, cases Brotli | 47,242 | 47,249 |
+  | Blocking rows | 9 | 16 |
+  | katexlil (port entry, frozen entry) | 60,022, 60,025 | same |
+  | zodlil, posthoglil, markedlil | same bytes | |
+  | CPU: zodlil, posthoglil, markedlil | +11%, +22%, +13% | |
+  | CPU: katexlil | +0.4% to +2% | |
+
+  On the ports the seed restart is pruned at its start every time and the hints restart ends rejected. They buy 7 bytes on the ratchet for a tenth to a fifth more compile time on the typed ports. Under the owner's ruling they do not pay, so they are not landed. The 16 rows (7 items, 1 to 4 Brotli bytes each) stand as accepted losses against the totals above.
+
+**Final check (`k13-3`, the landed code):** 1,612 unit tests pass, and the ratchet's 1,890 artifacts are byte-identical to `k13-2`'s restarts-off run.
+
+Step 8 closes with this record. Carried:
+- R2's second batch: normalize at the crossings instead of the producers, with the refusals (draft kept at `~/lilscript-work/portwork/k12-r2-draft.patch`);
+- R11's `a.get(i)` returning `T?`, and `charCodeAt` returning a number, at the port releases (M12.4);
+- the refusals of every warning K4–K10 added, each with its port's release (M12.4);
+- the ports' source fixes the development lane found (micromarklil, motionlil), committed locally, published with the ports;
+- the implicit default a field keeps when `init` assigns it (`this.later=0;this.later=…`), a store a later rule can drop;
+- a generic function value instantiated at a function type (`noop<T>` where `func(float)->float` is expected), refused today: the checker's gap, found by motionlil.
+
 ---
 
 ## Appendix: where milestones 001–014 went

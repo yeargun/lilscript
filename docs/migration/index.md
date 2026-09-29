@@ -2,23 +2,23 @@
 
 The one-compiler migration as a to-do list. [plan.md](plan.md) says what each task is and the order the work goes in. [history.md](history.md) records what each batch landed, measured and left open.
 
-**Updated 2026-09-28**, at batch B3 on `finer/059-idiom-directed-naming`. Every batch branch is merged there.
+**Updated 2026-09-29**, at step 8's close on `finer/059-idiom-directed-naming`. Every batch branch is merged there.
 
 ## Where we are
 
 - **Done:**
   - M0 and M1: there has been one compiler since 2026-09-24.
   - The interim release.
-  - Batches I, T, D, N, A1, F1, F2, F3, B1, B1b, B2, B3, S1, S2 and S3, and M3.3a.
+  - Batches I, T, D, N, A1, F1–F3, B1–B4, S1–S7 and K1–K13, and M3.3a.
   - Three of the tools: M2.13, M2.5 and M2.14.
-  - Of the plan's 13 steps, steps 1, 4, 5 and 6's critical path are done, and steps 2 and 3 are partly done.
-- **Next on the critical path:** step 7, language slice 1. S1–S3 landed `JsValue`'s ordinary syntax, its tests and conversions, and receiver and rest lambdas, with the `migration/js-builtin` fix-it: the seven ports' `JS.*` mentions fell 93%, every suite is green, and the rewrite is a Brotli win on katexlil (−298) and neutral elsewhere. Next: spread arguments (M10.4's second part), iteration (M10.16), and identity tests on classes (M10.7). B3 closed step 6's critical path: `[objective]` with the codec settings and `[effort]` (schema v3), with the judge now the configured codec. Before it, B2 landed level 0 without a codec, the replay check, the audit lane (0 misses on the ports) and the counts. B1 landed the counted walk. Under the owner's amendment AM2 (size first from the default level up), B1b made level 13 walk several starts to their fixed points after the structural search. Level 13 now matches or beats F3 on every case and frozen entry, at up to 2.3× the CPU on katexlil.
+  - Of the plan's 13 steps, steps 1, 4, 5, 7 and 8 and step 6's critical path are done, and steps 2 and 3 are partly done.
+- **Next on the critical path:** step 9, the machinery: M4.3 and M4.4 (node ids: identifiers carry them and the checker's facts are keyed by them), then M5.2, M5.5, M5.3a, batch A2 and M8.3's first half. Step 8 landed the core language rules: trusted crossings (R1), sound narrowing, definite assignment and field initializers (R3), typed intrinsics (R10), R11's integers and index precondition with a development-check lane, R2's first batch, the `debug` class (R15) and the operation catalog. Against step 7's binary the ratchet's cases are −1,324 Brotli (−2.7%) and −2,477 raw, the apps 861 Brotli beat the competitor's 870, and the fix-patched fleet is −12,476 Brotli.
 - **Also open, off the critical path:**
   - Step 2: the layout commit, then M3.3b with M3.8a, then motionlil compiler-written (M12.2).
   - Step 6's rest: M3.4 (the public API and several codecs per objective) after S1; `-j` scoring after M5.6.
   - Step 3: M2.10, M2.11, M2.12 and M2.15.
 - **Largest gaps:**
-  - **Program rules are young.** F1 and F2 added DCE, folding and removal-only inlining on the Program IR: production module lanes −1,174 Brotli since A1, but `comparison/apps` is still 926 Brotli against 834 for Closure ADVANCED and 558 for the old route, because the ratchet's script lanes cannot seal their roots while every competitor treats top-level bindings as private: Y5.
+  - **Program rules are young.** F1 and F2 added DCE, folding and removal-only inlining on the Program IR, and step 8's typed semantics took `comparison/apps` to 861 Brotli, against 834 for Closure ADVANCED and 558 for the old route. The ratchet's script lanes cannot seal their roots while every competitor treats top-level bindings as private: Y5.
   - **Compile time.** Under AM2 the default level buys size with time: katexlil takes about 43 s at level 13 (F3 18.1 s, frozen pre-M1 4.62 s), 24 s with the Brotli judge at quality 9. Under AM3 there is no target in seconds: each phase's work must scale linearly with the program at levels 0–12, and its cost per unit of program is compared with the previous binary's. M5.7 (incremental formation) and M3.9 (the decision lock) are where level 13's time comes back.
   - **Runtime.** katexlil's steady state in Node is 1.047× upstream KaTeX (after A1). M2.12's runtime ledger will track every port.
 - **Owner rulings pending:** Y2–Y7 (architecture §21.1). None of them blocks the critical path. Y1 was answered yes on 2026-09-28: types are guarantees, and the runtime carries no conversion the source did not write (M10.12 is unblocked).
@@ -28,6 +28,7 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
   - Law L22: decide statically first.
   - Implement the whole plan.
   - Amendment AM2: size first from the default level up. Levels 1–12 may be faster and a little larger; 13 and above never grow because of a change, and each level above tries more.
+- **Owner ruling of 2026-09-29:** "we cant always win, we must accept loss sometimes ... overall general win might be a win for real." A batch is judged by its totals (ratchet, cases, fleet); scattered growths of a few bytes, and walk path dependence on one port, do not block when the overall wins, and extra search stays only if it pays for its compile time (history, step 8's close).
   - Amendment AM3: compile time has no target in seconds, since programs grow. It is judged by how each phase's work scales with the program, by its cost per unit of program against the previous binary, and by the bytes the work buys.
   - Test about every 20 minutes of work or after a critical part, not after each change. Each batch lists its changes (C1, C2, …) and commits them one by one, so a surprise is bisected to its change (plan rules 5 and 8).
 - **Batch records:** [M1](history.md#2026-09-24-m1-one-compiler), [I](history.md#2026-09-24-batch-i-effects-and-initialization-order), [release](history.md#2026-09-24-green-ci-and-the-interim-release), [T](history.md#2026-09-24-batch-t-the-terminal-challenger-stage), [D](history.md#2026-09-27-batch-d-choices-and-data-tables), [N](history.md#2026-09-27-batch-n-nominal-identity), [design v1](history.md#2026-09-27-design-version-1-and-the-plans-revision), [M3.3a](history.md#2026-09-27-m33a-the-delivery-contract-first-slice), [A1](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis), [tools](history.md#2026-09-27-the-tools-first-part-m213-m25-and-m214), [F1](history.md#2026-09-28-batch-f1-the-floor-slice-first-part-edit-kernel-dce-exact-values-folding), [F2](history.md#2026-09-28-batch-f2-the-floor-slice-second-part-graft-removal-only-inlining-typed-defaults), [F3](history.md#2026-09-28-batch-f3-the-floor-slice-third-part-parameters-and-returns-the-tree-twins), [B1](history.md#2026-09-28-batch-b1-the-counted-walk-m35-first-part), [B1b](history.md#2026-09-28-batch-b1b-the-upper-levels-try-more-m35-am2), [B2](history.md#2026-09-28-batch-b2-level-0-without-a-codec-the-replay-check-the-audit-lane-the-counts-m35), [B3](history.md#2026-09-28-batch-b3-the-objective-and-effort-axes-m31-first-slice-m35-codec-settings), [S1](history.md#2026-09-28-batch-s1-the-dynamic-types-syntax-m42-m102-first-part), [S2](history.md#2026-09-28-batch-s2-receivers-and-rest-parameters-m104-first-part), [S3](history.md#2026-09-28-batch-s3-the-dynamic-types-tests-and-conversions-m102-second-part).
@@ -43,7 +44,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [x] **5** Floor slice: M5.1, M6.4a, M7.8a, M7.3, M7.5a: 2026-09-28 (batches F1–F3). Carried: M5.1's `UseIndex` and `drop_unreferenced_functions`, M6.4a's finite sets, the tree twins (measured, kept)
 - [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Critical path done 2026-09-28* (B1, B1b, B2, B3: M3.5's walk, AM2's upper levels, M3.1's first slice). Open: M3.4 after S1, `-j` scoring after M5.6
 - [x] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16: 2026-09-28 (batches S1–S7; the fix-it takes the reference ports' `JS.*` from 14,335 to 355, −97.5%). Carried: the refusal of the spellings lands with each port's release (M12.4); M4.2's type parameters by id and interned types go to step 9 with M4.4
-- [ ] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half), M10.12 (Y1 answered yes 2026-09-28)
+- [x] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half), M10.12: 2026-09-29 (batches K1–K13, B4; the ratchet's cases −1,324 Brotli, the fix-patched fleet −12,476). Carried: R2's second batch, `a.get(i)`, the refusals with each port's release (M12.4), M4.6's IR operation identity (M5.2) and platform recognitions (M10.17)
 - [ ] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half)
 - [ ] **10** Facts and the rest of the floor: M6.4b, M6.6, M6.7, M6.8, then M7.1, M7.4, M7.5, M7.6, M7.7, M7.8, M7.9, M8.5, M7.10, with M5.3b; M5.7, M8.3 (second half); M4.5, M11.1, M11.11, and M11.5 right after M7
 - [ ] **11** One choice system: M10.3, M9.1's rest, M9.2's gzip row, M9.3 per site, M9.5, M9.6, M9.7, M9.8's rest, M9.9–M9.12, M10.19, M3.3c with M3.8b
@@ -90,7 +91,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 
 ### M3 Configuration, public API, delivery contract, budget model: 1 of 13 · [plan](plan.md#m3-honest-configuration-one-public-api-delivery-contract-the-budget-model)
 
-- [ ] M3.1 Schema v3. *Partly:* `[target.javascript] format` (`esm` only) and `[delivery]` with the `[bundle]` translator came with M3.3a; the first slice (`[objective]` with codec settings, `[effort]`, the renames) with B3, 2026-09-28. Open: `format` with M3.3b, `[resources]` with M5.6, `[performance]` with M2.12, `checks` with M10.9
+- [ ] M3.1 Schema v3. *Partly:* `[target.javascript] format` (`esm` only) and `[delivery]` with the `[bundle]` translator came with M3.3a; the first slice (`[objective]` with codec settings, `[effort]`, the renames) with B3, 2026-09-28. Open: `format` with M3.3b, `[resources]` with M5.6, `[performance]` with M2.12. `javascript.checks` came with K8 (M10.9)
 - [ ] M3.2 Family registry: step 6
 - [x] M3.3a Delivery, first slice (several entries, preserve-modules, lazy files, plan verifier, manifest v3): 2026-09-27
 - [ ] M3.3b Formats: step 2. Work in progress is saved as `~/lilscript-work/portwork/m3.3b-wip.patch`
@@ -98,7 +99,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] M3.3d Lazy effects and cycles: step 13
 - [ ] M3.3e Ports, with M12.2: step 2 for motionlil
 - [ ] M3.4 Public API and shared formation: step 6, after S1
-- [ ] M3.5 The budget model, counted (AM1): step 6. *Partly (B1, B1b, B2, B3): the proxy judge, schedule v2, one list walked in passes, several starts from level 13 (AM2), the memo, level 0 without a codec, the replay check, the audit lane, counts, `scripts/monotone.mjs`, the codec settings. Open: `-j` scoring (after M5.6)*
+- [ ] M3.5 The budget model, counted (AM1): step 6. *Partly (B1, B1b, B2, B3, B4): the proxy judge, schedule v2, one list walked in passes, several starts from level 13 (AM2), the memo, level 0 without a codec, the replay check, the audit lane, counts, `scripts/monotone.mjs`, the codec settings, the walk's reserve in the search (B4). Open: `-j` scoring (after M5.6)*
 - M3.6 Codec pool: merged into M3.5
 - [ ] M3.7 Environment variables: step 6
 - [ ] M3.8a Consumer-shakeable delivery, first half: step 2, with M3.3b
@@ -112,7 +113,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] M4.3 Checker facts transported. *Partly:* `assigned` split into `reassigned` and `observable_before_initialization`, with `ReadInitialization` (batch I). The rest is step 9
 - [ ] M4.4 Node ids: step 9
 - [ ] M4.5 Contracts and capabilities at check time: step 10
-- [ ] M4.6 Operation catalog: step 8
+- [ ] M4.6 Operation catalog: step 8. *Partly (K3, K7): `src/catalog.rs` declares the intrinsics' and builtins' attributes, host nodes carry their identity (`Host { name, kind }`), a typed literal `RegExp` is a regex literal. Open: one operation identity in the IR (with M5.2), `hasOwnProperty.call` and effect-free constructions in the IR (M10.17)*
 
 ### M5 The machinery: 1 of 8 · [plan](plan.md#m5-the-machinery)
 
@@ -185,12 +186,12 @@ A fact counts as landed only once its re-derivations are deleted (plan rule 2).
 - [x] M10.4 Receivers and variadics (R7): 2026-09-28 (S2, S4, S6, S7). Receiver and rest lambdas, typed receivers, spread arguments, declared rest parameters, and forwarding adapters. Carried: jquerylil's `extern JsValue this/arguments` (32 sites), a port patch with the refusal (M12.4)
 - [x] M10.7 Identity tests (R13): 2026-09-28 (S6). `is` and `as?` on classes as `instanceof`, with the second marking step; native refuses them until M11
 - [x] M10.16 Iteration (R14): 2026-09-28 (S4). `for` over sets, maps (key and value) and `JsValue`s. Carried: the codec-judged lowering choice, with M9.12
-- [ ] M10.13 Definite assignment (R3), two batches: step 8
-- [ ] M10.9 Absence and integers (R2, R11), two batches: step 8
-- [ ] M10.15 Typed intrinsics (R10): step 8
-- [ ] M10.11 Effects and pins (R15, R9): the `debug` class at step 8; termination (after Y4) and pins at step 12
-- [ ] M10.14 Reflection (R6): the checker half at step 8; constructibility (after Y3) at step 12
-- [ ] M10.12 Trusted crossings (R1): step 8 (Y1 answered yes, 2026-09-28)
+- [ ] M10.13 Definite assignment (R3), two batches: step 8. *Batch 1 (K4, K5): locals declared without a value, field initializers, `migration/implicit-default` with its fix. Batch 2, the refusal, with each port's release (M12.4)*
+- [ ] M10.9 Absence and integers (R2, R11), two batches: step 8. *Batch 1 (K8–K10): the development-check lane, float `%`, ToInt32 bitwise operands, `codeUnitAt`, `migration/char-code` and `migration/absence` with their fixes, `T??` is `T?`. Batch 2, R11's part (K12, K13): the index precondition in production, the int32-hints family. Open: R2's second batch (normalize at crossings, the refusals), `a.get(i)`, `charCodeAt` returning a number (M12.4)*
+- [x] M10.15 Typed intrinsics (R10): 2026-09-29 (K7; `assume_pristine_builtins` covers `JsValue` operations only)
+- [ ] M10.11 Effects and pins (R15, R9): the `debug` class at step 8; termination (after Y4) and pins at step 12. *The `debug` class (K6): the modifier, `strip_debug`, `migration/debug-class`*
+- [ ] M10.14 Reflection (R6): the checker half at step 8; constructibility (after Y3) at step 12. *The checker half (K2): the reflected set*
+- [x] M10.12 Trusted crossings (R1): 2026-09-29 (K1: no conversion the source did not write; sound narrowing; K11: crossing checks in the development lane)
 - [ ] M10.3 Const data (R9): step 11
 - [ ] M10.19 Specialization over const data (R9): step 11
 - [ ] M10.1 Shapes (R5): step 12
