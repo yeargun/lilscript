@@ -1,3 +1,4 @@
+use super::call_graph::Seal;
 use super::callable_inputs::*;
 use super::raw_domains::Admission;
 use super::record_family::OpRef;
