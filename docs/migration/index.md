@@ -118,11 +118,11 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 ### M5 The machinery: 1 of 8 · [plan](plan.md#m5-the-machinery)
 
 - [ ] M5.1 Program edit kernel, DCE on both targets: step 5. *F1: DCE on both targets and the kernel's first part; F2: the graft. Open: signature changes (F3), `UseIndex`, deleting `drop_unreferenced_functions`*
-- [ ] M5.2 Tree annotations and journal (absorbs M8.1): step 9. *Partly (P1, 2026-09-29): binding classes and defined parameters on the binding, observed literals on the module and renumbered by it (the hand remaps and the `protected` protocol are gone); P2: the evaluation-behaviour column on operation nodes, from the program's effect facts, read by `quiet.rs` and `runs_no_user_code` (ratchet cases −416 Brotli, ports −1,035). Open: the journal, the binding-fact column (with M6.5) and the deletions they allow (`quiet.rs` first), the rest of the table*
-- [ ] M5.3a Scheduler: step 9
+- [ ] M5.2 Tree annotations and journal (absorbs M8.1): step 9. *Partly (P1, 2026-09-29): binding classes and defined parameters on the binding, observed literals on the module and renumbered by it (the hand remaps and the `protected` protocol are gone); P2: the evaluation-behaviour column on operation nodes, from the program's effect facts, read by `quiet.rs` and `runs_no_user_code` (ratchet cases −416 Brotli, ports −1,035); S1: the journal, typed helpers checked against the actual difference in test and debug builds. Open: the binding-fact column (with M6.5) and the deletions they allow (`quiet.rs` first), the rest of the table*
+- [ ] M5.3a Scheduler: step 9. *Partly (S1, 2026-09-29): one fixed-point scheduler for the program rules and the JS target rules; the hand-written chain is gone, every transitional rule names its deleting task, four fact-free rules are classified (cases −420/−345/−619 Brotli/gzip/raw on script, fleet −377 Brotli). Open: the program rules' structural order over SCCs with a dirty worklist, and classifying the rest as their legality moves to the columns*
 - [ ] M5.3b Transitional rules deleted: steps 10–12, each with its replacement
 - [x] M5.4 Monotone selection and the terminal slot: 2026-09-24 (batch T). Monotone across levels closes with M3.5
-- [ ] M5.5 Dataflow and views: step 9
+- [x] M5.5 Dataflow and views: 2026-09-29 (D1: the call graph with SCCs was M6.1's; one region-structured forward solver and the cell-SSA view, read first by M7.4 and M6.4b)
 - [ ] M5.6 Resource accounting: counts (AM1), retiring the allocation-exact ledgers; independent of M3.5
 - [ ] M5.7 Incremental tail: step 10
 

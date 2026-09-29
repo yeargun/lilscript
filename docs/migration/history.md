@@ -2359,6 +2359,62 @@ Predicted:
 - **CPU:** up on formation. Each rule set takes at least two rounds (the last confirms). Formation is about 15% of markedlil's and 20% of katexlil's compile time (`LILSCRIPT_TIMING`, `p3-1`: 184 of 1,240 ms and 14.3 of 72.2 s), so expect +5% to +15%. The remedy is M5.7's dirty-unit scheduling.
 - **D1:** the solver and the cell-SSA view have no reader yet; this batch's runs verify them.
 
+**Landed** (binary `s1-1`, and a fix-up):
+- **Unit tests:** 1,626 pass, with the journal checked on every rule application in every formation the suite runs. The checks found no unrecorded edit. The first run found five failures, fixed in the fix-up:
+  - `encode_tables` recorded its choice sites afresh on each run, so the round confirming the fixed point erased them. It now records each site once, and the tail clears them when it starts: a rule must be idempotent in what it records, not only in what it edits.
+  - The per-round verification counted as a formation in the phase counters. It is now untimed.
+  - Two syntax tests follow the fixed point:
+    - the early namespace read is now inlined at its call, which runs after the literal, so an escaping closure keeps the case;
+    - the token's fields are read as their values, and no literal is left.
+  - The NO3 entry moves with the inline limit.
+- **Cases** against `p3-1`: every lane passes.
+
+  | Lane | Script | Module |
+  |---|---:|---:|
+  | Brotli | −420 (33 artifacts) | −181 (30 artifacts) |
+  | gzip | −345 | −183 |
+  | raw | −619 | −275 |
+
+  Per lane, 1–5 artifacts grow (at most +13 bytes together) and 21–30 shrink.
+- **Ratchet:** passes against `p2-1`'s baseline.
+  - Cases: Brotli 46,833 → 46,798, gzip 57,078 → 57,031, raw 61,784 → 61,718.
+  - Apps: 849 → 843 Brotli, and 870 is the competitor.
+  - Loss rows: 2,862 → 2,856.
+- **Unpatched ports** against `p3-1`: all green.
+
+  | Port | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | katexlil | −7,486 | −450 | −467 |
+  | motionlil | +828 | −141 | −119 |
+  | zodlil | +1,048 | +141 | −19 |
+  | markedlil | −215 | +68 | +59 |
+  | micromarklil | +948 | +92 | +169 |
+  | jquerylil, posthoglil | 0 | 0 | 0 |
+  | **total** | −4,877 | −290 | −377 |
+
+  The raw growths on zodlil, micromarklil and motionlil are the transitional inliner at its fixed point. A body that other rules shrank below the limit is now copied to every call. That is the duplicating case M9.1 turns into a choice. Brotli absorbs most of it.
+- **CPU pairs** against `p3-1`:
+
+  | Port | Factor | Judged |
+  |---|---:|---:|
+  | markedlil | ×1.20 | 13 → 13 |
+  | zodlil | ×1.53 | 24 → 45 |
+  | posthoglil | ×1.15 | 24 → 24 |
+  | micromarklil | ×0.91 | 25 → 19 |
+  | katexlil | ×0.88 | 118 → 90 |
+  | jquerylil | ×1.10 | 42 → 38 |
+  | motionlil | ×1.27 | 35 → 36 |
+
+  - Each rule set takes one more round than it needs to change something (the round that confirms), which is the cost where the walk judges the same count.
+  - zodlil's walk judges almost twice as many candidates.
+  - katexlil's and micromarklil's walks judge fewer, and run faster.
+  - M5.7's dirty-unit scheduling is the remedy the plan names: a confirming round re-runs only the rules whose inputs changed.
+- **D1** is verified with this batch: its solver and view have no reader, and every run above includes them.
+
+The fixed point is worth more than any hand order the chain had: every codec gains on the cases, and the fleet gains on all three. The owner's ruling of 2026-09-29 applies to the scattered growths (markedlil +59 and micromarklil +169 Brotli) and to the CPU. M5.3a is partly done:
+- landed: the chain is gone, the scheduler runs both rule kinds, and every transitional rule names its deleting task;
+- open: the program rules' structural order over SCCs with a dirty worklist, and classifying the remaining JS target rules as their legality moves to the columns (M5.2).
+
 ---
 
 ## Appendix: where milestones 001–014 went
