@@ -1816,28 +1816,9 @@ impl Module {
                     Statement::Function { binding, .. } => unused(*binding),
                     _ => false,
                 };
-                // A declaration no code references whose value has effects
-                // is its value (M8.2 A2's dead `let`): `let x=f()` is `f()`.
-                // A class value keeps its declaration: the binding may name
-                // it.
-                let evaluated = match self.regions[region].statements[index] {
-                    Statement::Let {
-                        binding,
-                        value: Some(value),
-                    } if !drop && unused(binding) => (!matches!(
-                        self.expressions[value.index()],
-                        Expr::Class { .. } | Expr::Function(_)
-                    ))
-                    .then_some(value),
-                    _ => None,
-                };
                 if drop {
                     self.remove_statement(region, index);
                     *dropped += 1;
-                } else if let Some(value) = evaluated {
-                    self.set_statement(region, index, Statement::Evaluate(value));
-                    *dropped += 1;
-                    index += 1;
                 } else {
                     index += 1;
                 }
