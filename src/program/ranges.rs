@@ -20,7 +20,9 @@
 //!   type's full range, so every loop settles.
 //!
 //! Any other value is what its type guarantees (R1): an `int` is an int32
-//! Number, a `float` a Number. **Calls.** A call of a known body reads that
+//! Number, a `float` a Number. A classic script's top-level cell is the
+//! exception, a global another script may write: a load of it proves
+//! nothing. **Calls.** A call of a known body reads that
 //! body's result range, the join of its returns; bodies are solved callees
 //! first, and a recursive body's result is its type's. Parameters are their
 //! type's (joining arguments over complete call sets is the next step).
@@ -66,7 +68,7 @@ impl ProgramRanges {
         &self.deps
     }
 
-    pub(super) fn build(program: &Program<'_>, effects: &ProgramEffects, _seal: Seal) -> Self {
+    pub(super) fn build(program: &Program<'_>, effects: &ProgramEffects, seal: Seal) -> Self {
         let graph = effects.graph();
         let mut units: Vec<Vec<NumberFacts>> = program
             .units
@@ -104,7 +106,15 @@ impl ProgramRanges {
         // narrow as the one before, so stopping at any round is.
         let mut formals: Vec<Option<Vec<NumberFacts>>> = vec![None; program.units.len()];
         for _ in 0..ROUNDS {
-            solve_round(program, graph, &callees, &formals, &mut units, &mut results);
+            solve_round(
+                program,
+                graph,
+                seal == Seal::StructuralOnly,
+                &callees,
+                &formals,
+                &mut units,
+                &mut results,
+            );
             let next = passed(program, graph, &units);
             if next == formals {
                 break;
@@ -181,9 +191,11 @@ fn passed(
 
 /// One round: every unit solved callees first, with `formals` for the
 /// parameters where known.
+#[allow(clippy::too_many_arguments)]
 fn solve_round(
     program: &Program<'_>,
     graph: &super::call_graph::CallGraph,
+    script: bool,
     callees: &[Vec<Option<UnitId>>],
     formals: &[Option<Vec<NumberFacts>>],
     units: &mut [Vec<NumberFacts>],
@@ -193,10 +205,11 @@ fn solve_round(
         for &unit in component {
             let data = program.units[unit.index()].data();
             let recursive = graph.recursive(unit);
-            let (owned, integral) = owned_cells(program, graph, unit);
+            let (owned, integral) = owned_cells(program, graph, script, unit);
             let analysis = Ranges {
                 program,
                 data,
+                script,
                 owned,
                 integral,
                 values: RefCell::new(by_type_all(program, data)),
@@ -265,6 +278,7 @@ fn by_type_all(program: &Program<'_>, data: &UnitData) -> Vec<NumberFacts> {
 fn owned_cells(
     program: &Program<'_>,
     graph: &super::call_graph::CallGraph,
+    script: bool,
     unit: UnitId,
 ) -> (Vec<Option<usize>>, Vec<bool>) {
     let mut ordinals = vec![None; program.cells.len()];
@@ -275,7 +289,11 @@ fn owned_cells(
         }
         let id = CellId::from_index(index).expect("a cell index");
         let storage = graph.storage(id);
-        if storage.referenced || storage.shared || program.is_reference_parameter(id) {
+        if storage.referenced
+            || storage.shared
+            || program.is_reference_parameter(id)
+            || open(program, script, id)
+        {
             continue;
         }
         let integer = match program.ty(cell.ty) {
@@ -289,11 +307,23 @@ fn owned_cells(
     (ordinals, integral)
 }
 
+/// A classic script's top-level cell: a global lexical binding another
+/// script may write, so a load of it proves nothing, not even its type
+/// (as `javascript_int32.rs` treats it; owner question Y5).
+fn open(program: &Program<'_>, script: bool, cell: CellId) -> bool {
+    script
+        && program
+            .unit(program.cells[cell.index()].owner)
+            .is_some_and(|owner| owner.kind == UnitKind::ModuleInitialization)
+}
+
 /// The unit's analysis: per owned cell, the facts of its current value
 /// (`None` where no path has written it yet).
 struct Ranges<'a, 'p> {
     program: &'a Program<'p>,
     data: &'a UnitData,
+    /// A classic script's execution (`open`).
+    script: bool,
     owned: Vec<Option<usize>>,
     /// Per ordinal: the cell is an `int`.
     integral: Vec<bool>,
@@ -452,6 +482,13 @@ impl Ranges<'_, '_> {
                 .map_or(NumberFacts::UNKNOWN, |&value| self.value(value))
         };
         let by_type = by_type(program, data.values[result.index()].ty);
+        if let OperationKind::Load(place) = op.kind {
+            if let Place::Cell(cell) = data.places[place.index()] {
+                if open(program, self.script, cell) {
+                    return Some(NumberFacts::UNKNOWN);
+                }
+            }
+        }
         Some(
             match op.kind {
                 OperationKind::Constant(Constant::Integer(value)) => {
