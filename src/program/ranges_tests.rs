@@ -81,8 +81,9 @@ fn a_counting_loop_bounds_its_counter() {
 
 #[test]
 fn a_cell_carries_its_range_and_a_callee_its_result() {
-    let source =
-        "int scaled(int n) { int t = n & 255; t = t * 3; return t + 1; } print(scaled(1000));";
+    // Exported, so its parameter is its type's (a caller outside the
+    // program may pass anything).
+    let source = "export int scaled(int n) { int t = n & 255; t = t * 3; return t + 1; } print(scaled(1000));";
     assert_eq!(returned(source, "scaled"), Some((1, 766)));
     let source =
         "int clamp(int v) { if (v < -120) { return -120; } if (v > 120) { return 120; } return v; }
@@ -105,11 +106,15 @@ fn a_loop_that_grows_settles_by_widening() {
 
 #[test]
 fn a_parameter_joins_what_its_complete_call_set_passes() {
-    // `inc`'s only caller passes `n & 7`: its parameter is in [0,7] from the
-    // second round on, and its result in [1,8].
+    // `inc`'s only caller passes `n & 7`, `n` being any int (`f` is
+    // exported): its parameter is in [0,7] from the second round on, and
+    // its result in [1,8]. Unexported, `f`'s own caller passes 1000, and
+    // `inc` knows its argument exactly.
+    let source = "int inc(int x) { return x + 1; } export int f(int n) { return inc(n & 7); } print(f(1000));";
+    assert_eq!(returned(source, "inc"), Some((1, 8)));
     let source =
         "int inc(int x) { return x + 1; } int f(int n) { return inc(n & 7); } print(f(1000));";
-    assert_eq!(returned(source, "inc"), Some((1, 8)));
+    assert_eq!(returned(source, "inc"), Some((1, 1)));
     // An exported body may be called by anyone: its parameter is its type's.
     let source = "export int inc(int x) { return x + 1; } int f(int n) { return inc(n & 7); } print(f(1000));";
     assert!(
