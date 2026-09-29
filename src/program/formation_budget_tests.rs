@@ -66,6 +66,8 @@ fn module_storage(module: &js::Module) -> u64 {
                 _ => 0,
             })
             .sum::<u64>()
+        + bytes(&module.settled)
+        + bytes(&module.first_runs)
         + bytes(&module.functions)
         + bytes(&module.bindings)
         + bytes(&module.exports)

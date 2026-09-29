@@ -514,6 +514,11 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
     pub(super) fn prunes(&self) -> bool {
         self.mode == DemandMode::Prune
     }
+    /// The program's initialization owner (M6.5), which formation carries
+    /// onto the tree's bindings and functions.
+    pub(super) fn initialization(&self) -> &super::initialization::ProgramInitialization {
+        self.effects.initialization()
+    }
     /// One operation's effects in its named unit, as the unit's summary
     /// joined them: the per-operation answer root anchors read (plan M3.3).
     pub(super) fn operation_behavior(

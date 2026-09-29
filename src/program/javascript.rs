@@ -845,6 +845,20 @@ fn form_head(
         drop(formation);
         return Err(error);
     }
+    // When each function formed from a unit may first run (M6.5): the
+    // program's order, carried for the rules that ask which code runs after
+    // a root binding holds its value.
+    for index in 0..formation.unit_functions.len() {
+        let (unit, function) = formation.unit_functions[index];
+        let point = formation.demand.initialization().first_run(unit).ordinal();
+        if let Err(error) = formation
+            .module
+            .first_run_in(function, point, formation.budget)
+        {
+            drop(formation);
+            return Err(error.into());
+        }
+    }
     // One-use forwarding: a checked target edit on the finished tree, part
     // of target compaction.
     let mut tail = None;
@@ -1910,6 +1924,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 // What the cell holds, for the tree's type-directed edits.
                 self.module.bindings[binding.index()].class =
                     value_class(&self.program.types[cell.ty.index()]);
+                // When the program settles a module cell (M6.5): reads in
+                // code that cannot run before then find its value.
+                if !inline {
+                    if let Some(point) = self.demand.initialization().settled(cell_id) {
+                        self.module
+                            .settle_in(binding, point.ordinal(), self.budget)?;
+                    }
+                }
                 cells[self.demand.cell_ordinal(cell_id)] = Some(binding);
                 if inline {
                     // Each occurrence has private scalar cells in the caller

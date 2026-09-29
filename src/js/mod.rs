@@ -1021,6 +1021,14 @@ pub struct Module {
     /// What the running rule changed (M5.2's journal): every edit of the
     /// tree goes through a helper that records it (`journal.rs`).
     pub(crate) journal: Journal,
+    /// The program's initialization order on the tree (M6.5, carried by
+    /// M5.2's binding and function columns), in the program's root points:
+    /// by binding, the point that settles the module cell a formed binding
+    /// stores; by function, the first point during which the unit a formed
+    /// function runs may run. A binding or function a rule creates has
+    /// neither, and `quiet.rs` orders it by the tree alone.
+    pub(crate) settled: Vec<Option<u32>>,
+    pub(crate) first_runs: Vec<Option<u32>>,
     pub regions: Vec<Region>,
     pub functions: Vec<Function>,
     pub scopes: Vec<Option<ScopeId>>,
@@ -1080,6 +1088,19 @@ pub struct Module {
     /// offers, seeds and applied under the artifact's `ChoiceMap`. The
     /// terminal stage reads them to offer the other alternatives.
     pub choice_sites: Vec<ChoiceSite>,
+}
+
+/// Make `index` a slot of an id-indexed column, charged as retained output.
+fn grow_column(
+    column: &mut Vec<Option<u32>>,
+    index: usize,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
+    if index >= column.len() {
+        budget.reserve_vec(AllocationClass::Retained, column, index + 1 - column.len())?;
+        column.resize(index + 1, None);
+    }
+    Ok(())
 }
 
 impl Default for Module {
@@ -3387,7 +3408,35 @@ impl Module {
             observed_literals: Vec::new(),
             behaviours: Vec::new(),
             journal: Journal::default(),
+            settled: Vec::new(),
+            first_runs: Vec::new(),
         })
+    }
+
+    /// Record that `binding` stores a module cell the program settles at
+    /// root point `point` (M6.5).
+    pub(crate) fn settle_in(
+        &mut self,
+        binding: BindingId,
+        point: u32,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        grow_column(&mut self.settled, binding.index(), budget)?;
+        self.settled[binding.index()] = Some(point);
+        Ok(())
+    }
+
+    /// Record that `function` runs a unit the program may first run during
+    /// root point `point` (M6.5).
+    pub(crate) fn first_run_in(
+        &mut self,
+        function: FunctionId,
+        point: u32,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        grow_column(&mut self.first_runs, function.index(), budget)?;
+        self.first_runs[function.index()] = Some(point);
+        Ok(())
     }
 
     /// The behaviour recorded for the operation node at `id`, while that
@@ -3498,6 +3547,8 @@ impl Module {
             bytes(&self.origins)?,
             bytes(&self.observed_literals)?,
             bytes(&self.behaviours)?,
+            bytes(&self.settled)?,
+            bytes(&self.first_runs)?,
             bytes(&self.regions)?,
             bytes(&self.functions)?,
             bytes(&self.scopes)?,
