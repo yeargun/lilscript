@@ -11,9 +11,13 @@
 //! closure, or a load of storage that denotes the body. Storage denotes a body
 //! when it is initialized exactly once, from a value that denotes the body,
 //! and is never written, passed by reference or supplied by the host. Root
-//! (module-level) storage is sealed only in module execution: a classic
-//! script's globals are writable by other scripts, so under
-//! `Seal::StructuralOnly` a load of root storage denotes nothing. A load that
+//! (module-level) storage is sealed in every build the compiler makes: a
+//! module's roots are its own, and so, since owner answer Y5 (2026-09-29),
+//! are an application script's (its top-level bindings are private to the
+//! program unless declared global; a library is always a module). Under
+//! `Seal::StructuralOnly`, kept for a script whose globals other scripts
+//! share (no contract requests one today), a load of root storage denotes
+//! nothing. A load that
 //! runs before the one initialization throws before any call happens, so the
 //! call can only ever run the denoted body. This is the rule
 //! `callable_inputs` applies to one producer at a time, stated once for the
@@ -34,11 +38,14 @@ pub enum Seal {
 }
 
 impl Seal {
+    /// The sealing of a build's root storage: sealed for a module, and
+    /// for a classic script, which is always an application's (owner answer
+    /// Y5, 2026-09-29: its roots are the program's own unless declared
+    /// global). `StructuralOnly` is for a script sharing its globals with
+    /// other scripts, which no contract requests today.
     pub fn from_execution(execution: JavaScriptExecution) -> Self {
-        if execution == JavaScriptExecution::Module {
-            Self::Module
-        } else {
-            Self::StructuralOnly
+        match execution {
+            JavaScriptExecution::Module | JavaScriptExecution::Script => Self::Module,
         }
     }
 }

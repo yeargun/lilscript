@@ -17,9 +17,12 @@ pub(super) struct CallObservations {
 }
 impl CallObservations {
     pub(super) fn from_execution(execution: JavaScriptExecution) -> Self {
-        Self {
-            seal: Seal::from_execution(execution),
-        }
+        Self::from_seal(Seal::from_execution(execution))
+    }
+    /// Observations under an explicit sealing: `StructuralOnly` for a script
+    /// whose globals other scripts share.
+    pub(super) fn from_seal(seal: Seal) -> Self {
+        Self { seal }
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
