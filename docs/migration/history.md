@@ -2225,6 +2225,36 @@ Predicted: more forwarding on typed code (Brotli smaller or equal on the ratchet
 
   katexlil's step 8 regression (+749) is more than reversed. micromarklil pays about 23 bytes per artifact for forwarding it does not compress as well: a local loss under the overall win.
 
+## 2026-09-29 Batch P3: the raw spelling dissolved, the printer's statement rewrite gone (M8.3, first half)
+
+**Pre-registration** (written before the first build of the batch; base: P2's record).
+
+Why: M8.3 wants a pure printer. `Plan::raw_spelling` bundles five spellings the codec cannot judge separately:
+- self-named functions (naming);
+- the root's most read bindings taking the shortest names (naming);
+- compound assignments (printer);
+- the least-escaping quote (printer);
+- logical statements, which it forces on.
+
+Under it the printer also rewrites structure: `if(c)return a;return b` as `return c?a:b`, consuming the next statement, the same rewrite the tail's conditional-return and conditional-value families make on the tree.
+
+What the batch builds:
+- **Five members, each its own family.**
+  - Naming: `self_named` and `read_order`, in the naming plan.
+  - Printing: `compound_assignments` and `quotes`, output families that formation writes onto the module as print decisions, as the loop-head and logical-statement ones are. The printer reads the module, never the naming plan.
+  - Logical statements: a family on its own, no longer forced by any other.
+
+  Their challengers replace `raw-spelling` in the schedule, in its place: `self-named-functions`, `read-order`, `compound-assignments`, `quotes`. The two naming ones form nothing and only re-render. The raw objective seeds all five on, as the bundle was; the codecs seed them off.
+- **The printer's conditional statement goes.** `return c?a:b` and `x=c?a:b` come from the tree's statement families only.
+
+Loop heads and logical statements stay module-wide for now; per-site spelling attributes are M9.3's per-site choices.
+
+Predicted:
+- The raw seed prints what the bundle printed, except where the printer's rewrite caught a site the statement families left.
+- Each objective's walk can keep a member alone. Brotli and gzip were measured to want some of them off inside the bundle: quotes +53 and +80 on two ports, read order +647 on zodlil.
+- A codec objective can now try members one at a time (they seed off), and the raw objective can drop one it measures larger.
+- CPU: three more challengers per pass, two of them render-only.
+
 ---
 
 ## Appendix: where milestones 001–014 went
