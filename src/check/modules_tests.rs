@@ -82,6 +82,48 @@ fn module_alias_binding_types_borrow_the_canonical_nested_payload() {
         .identifier_index_is_consistent(&checked.facts));
 }
 
+/// An extern's attributes are part of its contract (M4.3): the same
+/// attributes in every module that declares it, and the symbol carries them.
+#[test]
+fn an_extern_declares_its_attributes_the_same_in_every_module() {
+    let arena = Bump::new();
+    let check = |sources: [&str; 2]| {
+        let programs: Vec<_> = sources
+            .iter()
+            .map(|source| parse_source(&arena, source).unwrap())
+            .collect();
+        analyze_modules(&programs, &graph(&sources, &[&[1], &[]], &[1, 0]))
+            .map(|checked| {
+                let host = checked
+                    .symbols()
+                    .iter()
+                    .find(|symbol| symbol.name == "host")
+                    .unwrap();
+                host.attributes
+            })
+            .map_err(|error| (error.module, error.error.message))
+    };
+    let pure = Attributes {
+        pure: true,
+        debug: false,
+    };
+    assert_eq!(
+        check([
+            "import \"./other\";pure extern int host(int value);",
+            "pure extern int host(int value);",
+        ]),
+        Ok(pure)
+    );
+    let (module, message) = check([
+        "import \"./other\";pure extern int host(int value);",
+        "extern int host(int value);",
+    ])
+    .unwrap_err();
+    assert_eq!(module, 1);
+    assert!(message.contains("conflicting extern contracts"), "{message}");
+    assert!(message.contains("pure"), "{message}");
+}
+
 #[test]
 fn repeated_foreign_binding_types_share_contracts_but_keep_detached_parameters_distinct() {
     let sources = [
