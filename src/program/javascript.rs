@@ -296,6 +296,21 @@ impl From<AllocationError> for FormationError {
         Self::Allocation(error)
     }
 }
+impl From<js::rules::RuleError> for FormationError {
+    fn from(error: js::rules::RuleError) -> Self {
+        match error {
+            js::rules::RuleError::Allocation(error) => Self::Allocation(error),
+            // A compiler bug fails the build with its diagnostic
+            // (architecture §8.2); the build ends, so the text may live on.
+            js::rules::RuleError::Bug(message) => Self::Unsupported(Unsupported {
+                span: Span::default(),
+                feature: Box::leak(
+                    format!("JavaScript target rules (a compiler bug): {message}").into_boxed_str(),
+                ),
+            }),
+        }
+    }
+}
 impl From<Unsupported> for FormationError {
     fn from(error: Unsupported) -> Self {
         Self::Unsupported(error)
@@ -838,10 +853,8 @@ fn form_head(
         // Removing an unused declaration or a bare inert statement is dead-code
         // elimination, which its own permission governs.
         let prunes = formation.demand.prunes();
-        // Bodies up to six nodes: measured best on the reference ports (a
-        // limit of 3 keeps markedlil 97 bytes larger; 10 and 20 add nothing).
         let strict = formation.contract.execution.guarantees_strict_execution();
-        // Delivered host modules become target code, so every edit below
+        // Delivered host modules become target code, so every rule below
         // reaches them as well; they are strict, as the output must be.
         if let (true, Some(hosts)) = (strict, hosts) {
             if let Err(error) = formation.module.lower_hosts(hosts, formation.budget) {
@@ -849,133 +862,22 @@ fn form_head(
                 return Err(error.into());
             }
         }
-        // Exact folds first: an inlining candidate is judged by its size, so
-        // `!!Number.isInteger(v)` should already read `Number.isInteger(v)`.
         let numeric_lengths = formation.contract.assumptions.numeric_lengths;
         let year = formation.contract.ecmascript.year();
-        // `x.m.call(x,…)` is `x.m(…)` for the operator rules too
-        // (`+Number.parseInt(s)` needs no `+`).
+        // The family-independent rules, to their fixed point (M5.3a).
+        let context = js::rules::Context {
+            strict,
+            pristine,
+            prunes,
+            numeric_lengths,
+            year,
+            statements: js::StatementSpellings::NONE,
+            choices: None,
+        };
         if let Err(error) = formation
             .module
-            .self_method_calls(formation.budget)
-            .and_then(|_| {
-                formation
-                    .module
-                    .simplify_operators(numeric_lengths, year, formation.budget)
-            })
+            .run_rules(js::rules::HEAD, &context, formation.budget)
         {
-            drop(formation);
-            return Err(error.into());
-        }
-        let inlined = formation
-            .module
-            .inline_expression_functions(6, strict, formation.budget);
-        let inlined = inlined.map(|_| ());
-        let inlined = inlined.and_then(|()| {
-            // A body copied into its caller may still call a function whose
-            // own inlining edited the original: a later round inlines the copy.
-            for _ in 0..3 {
-                if formation
-                    .module
-                    .inline_statement_functions(strict, formation.budget)?
-                    .1
-                    .is_none()
-                {
-                    break;
-                }
-            }
-            formation.module.eliminate_aliases(formation.budget)?;
-            Ok(())
-        });
-        let inlined = inlined.and_then(|()| {
-            // Inlined host helpers meet their receivers: `call1(o.m,o,x)`.
-            formation.module.self_method_calls(formation.budget)?;
-            formation
-                .module
-                .fold_literal_operations(formation.budget)?;
-            formation
-                .module
-                .simplify_operators(numeric_lengths, year, formation.budget)
-                .map(|_| ())
-        });
-        if let Err(error) = inlined {
-            drop(formation);
-            return Err(error.into());
-        }
-        // Literal root constants are their literal wherever they are
-        // initialized (by initialization order).
-        let edited = formation
-            .module
-            .forward_root_constants(formation.budget)
-            .and_then(|_| formation.module.forward_single_uses(formation.budget))
-            .and_then(|_| {
-                formation.module.elide_undefined(formation.budget)?;
-                // `let o;o={…}` must meet as `let o={…}` before stores fold.
-                formation
-                    .module
-                    .merge_declarations(prunes, formation.budget)?;
-                // `let t=a;if(!t)t=b` is `let t=a||b`, as the source wrote it,
-                // and `if(t)return t;return b` is `return t||b`; the tested
-                // value then often has one read left, where it moves once
-                // namespaces have flattened (below).
-                let logical = formation
-                    .module
-                    .fold_logical_assignments(year >= 2020, formation.budget)?
-                    + formation
-                        .module
-                        .fold_logical_returns(year >= 2020, formation.budget)?;
-                // `let N;N=M` merged into `let N=M` is an alias to remove before
-                // namespace objects flatten; flattening can leave functions
-                // only called, whose names nothing reads any more.
-                formation.module.eliminate_aliases(formation.budget)?;
-                if formation
-                    .module
-                    .flatten_constant_objects(formation.budget)?
-                    != 0
-                {
-                    formation.module.unobserve_called_names(formation.budget)?;
-                }
-                // Typed callers pass every typed argument: their callees'
-                // defaults for those never apply.
-                formation
-                    .module
-                    .drop_typed_default_checks(formation.budget)?;
-                // Field initializers become their stores, for the fold to
-                // take: stores to the instance literal's own keys, which no
-                // inherited setter sees (R10: nothing here assumes pristine
-                // builtins).
-                formation.module.inline_initializers(formation.budget)?;
-                fold_stores(&mut formation.module, pristine, formation.budget)?;
-                // Stores folded into their literals no longer run before the
-                // constants declared after them.
-                formation.module.forward_root_constants(formation.budget)?;
-                formation.module.drop_double_negations(formation.budget)?;
-                if logical != 0 {
-                    formation.module.forward_single_uses(formation.budget)?;
-                }
-                // Forwarding and folds bring operators next to each other.
-                formation
-                    .module
-                    .simplify_operators(numeric_lengths, year, formation.budget)?;
-                Ok(0)
-            });
-        if let Err(error) = edited {
-            drop(formation);
-            return Err(error.into());
-        }
-        // Store folds and forwarding leave single-expression functions that
-        // were several statements when inlining first ran: a builder's
-        // `let o={};o.k=v;return o` is now `()=>({k:v})`.
-        if let Err(error) = formation
-            .module
-            .inline_expression_functions(6, strict, formation.budget)
-        {
-            drop(formation);
-            return Err(error.into());
-        }
-        // Calls through the host's call machinery that name plain calls:
-        // `x.m.call(x,…)`.
-        if let Err(error) = formation.module.self_method_calls(formation.budget) {
             drop(formation);
             return Err(error.into());
         }
@@ -1053,129 +955,33 @@ fn form_tail(
     module.compound_assignments = families.compound_assignments;
     module.quotes = families.quotes;
     // The tail edits storage the head admitted, and can release it: it runs
-    // in the scope that owns the head's charges.
-    let mut formation = Tail {
-        module: &mut module,
-        budget,
-    };
-    let result = formation.run(
-        families,
-        choices,
+    // in the scope that owns the head's charges. The artifact's families to
+    // their fixed point, then repeated strings, once no other rule reads a
+    // literal (M5.3a).
+    let context = js::rules::Context {
         strict,
         pristine,
         prunes,
         numeric_lengths,
         year,
-    );
-    drop(formation);
+        statements: families.statements,
+        choices: Some(choices),
+    };
+    let result = module
+        .run_rules(&js::rules::tail(&families, prunes), &context, budget)
+        .and_then(|_| {
+            if families.string_pooling {
+                module.run_rules(js::rules::POOLING, &context, budget)
+            } else {
+                Ok(0)
+            }
+        });
     match result {
-        Ok(()) => Ok(module),
+        Ok(_) => Ok(module),
         Err(error) => {
             drop(module);
             Err(error.into())
         }
-    }
-}
-
-/// The tree while the family tail edits it.
-struct Tail<'a, 'b> {
-    module: &'a mut js::Module,
-    budget: &'a mut AllocationBudget<'b>,
-}
-
-impl Tail<'_, '_> {
-    #[allow(clippy::too_many_arguments)]
-    fn run(
-        &mut self,
-        families: js::OutputFamilies,
-        choices: &js::ChoiceMap,
-        strict: bool,
-        pristine: bool,
-        prunes: bool,
-        numeric_lengths: bool,
-        year: u16,
-    ) -> Result<(), AllocationError> {
-        let formation = self;
-        let edited = Ok::<_, AllocationError>(()).and_then(|()| {
-            // Functions with one call, as statements, take its place;
-            // their parameters are then copies to forward.
-            if families.block_inlining
-                && formation
-                    .module
-                    .inline_single_calls(strict, formation.budget)?
-                    != 0
-            {
-                formation.module.eliminate_aliases(formation.budget)?;
-                formation.module.forward_single_uses(formation.budget)?;
-            }
-            if families.flat_blocks {
-                formation.module.flatten_blocks(formation.budget)?;
-            }
-            // Redundant exits and repeated statements go under every
-            // objective; the statement spellings are this artifact's choice.
-            // Only spelled statements make new conditionals and stores for
-            // the folds below.
-            if formation
-                .module
-                .compress_statements(families.statements, formation.budget)?
-                != 0
-                && families.statements != js::StatementSpellings::NONE
-            {
-                // A store of a conditional is a store the fold can take.
-                fold_stores(formation.module, pristine, formation.budget)?;
-                // Conditionals built from statements meet the operator
-                // rules for the first time (`x===void 0?null:x`).
-                formation
-                    .module
-                    .simplify_operators(numeric_lengths, year, formation.budget)?;
-            }
-            // A function left with one call is created there.
-            formation
-                .module
-                .place_single_calls(strict, formation.budget)?;
-            // Initializer stores the construction literal already holds.
-            formation
-                .module
-                .drop_redundant_init_stores(formation.budget)?;
-            // Objects only read and written through their fields are those
-            // fields.
-            formation
-                .module
-                .scalarize_member_objects(formation.budget)?;
-            if prunes {
-                formation
-                    .module
-                    .drop_unreferenced_functions(formation.budget)?;
-            }
-            formation.module.drop_unreachable(formation.budget)?;
-            // Regrouped where the printer lists them: method stores into
-            // one prototype, uninitialized declarations into the one before.
-            formation.module.group_prototype_stores(formation.budget)?;
-            formation.module.join_empty_declarations(formation.budget)?;
-            formation.module.drop_bare_blocks(formation.budget)?;
-            // What the source types allow: truthiness for nullable objects,
-            // array methods on bindings that only hold arrays.
-            formation.module.truthy_null_tests(formation.budget)?;
-            formation.module.array_receiver_calls(formation.budget)?;
-            // Constant data tables: the literal, or an encoding decoded
-            // once where the literal stood, as the artifact's choice map
-            // names (M9.8; its seed when the map names none).
-            formation.module.encode_tables(choices, formation.budget)?;
-            formation.module.drop_default_arguments(formation.budget)?;
-            formation.module.native_default_lengths(formation.budget)?;
-            Ok(0)
-        });
-        // Repeated strings last, once no other edit reads a literal: packed
-        // arrays, then root constants.
-        let edited = edited.and_then(|_| {
-            if !families.string_pooling {
-                return Ok(0);
-            }
-            formation.module.pack_string_arrays(formation.budget)?;
-            formation.module.pool_strings(formation.budget)
-        });
-
-        edited.map(|_| ())
     }
 }
 
@@ -1205,29 +1011,6 @@ fn value_class(ty: &Type<'_>) -> Option<js::ValueClass> {
         other if object(other) => Some(js::ValueClass::Object),
         _ => None,
     }
-}
-
-/// Stores into a fresh literal fold into it (`fold_object_stores`), and a
-/// literal that took its stores often has one reader left. Forwarded there,
-/// as the value of its parent's store, it leaves that store next to the
-/// parent's others: a few rounds fold a tree of objects built by stores into
-/// one literal.
-/// Without pristine builtins only stores to keys a literal already has fold
-/// (`new_keys`).
-fn fold_stores(
-    module: &mut js::Module,
-    new_keys: bool,
-    budget: &mut AllocationBudget<'_>,
-) -> Result<(), AllocationError> {
-    for _ in 0..4 {
-        if module.fold_object_stores(new_keys, budget)? == 0 {
-            break;
-        }
-        if module.forward_single_uses(budget)?.0 == 0 {
-            break;
-        }
-    }
-    Ok(())
 }
 
 struct FormationContext {

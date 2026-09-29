@@ -97,6 +97,15 @@ impl RuleReceipt {
     }
 }
 
+/// The program rules, in their structural order (architecture §8.3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProgramRule {
+    Fold,
+    Inline,
+    Parameters,
+    DeadCode,
+}
+
 /// Every round removes operations or calls and adds no operation, so rounds
 /// are bounded by the program's size; inlining a chain of calls takes a
 /// round per independent set, logarithmic in its depth. This ceiling only
@@ -115,48 +124,54 @@ pub(crate) fn optimize<'src>(
         return Ok((program, receipt));
     }
     let mut editor = edit::Editor::new(program);
-    loop {
-        if receipt.rounds == ROUND_CEILING {
-            return Err("program rules did not reach a fixed point".into());
-        }
-        receipt.rounds += 1;
-        let mut changed = false;
-        if request.fold {
-            let effects = editor.program().effects(request.seal);
-            let values = values::ProgramValues::compute(editor.program(), &effects, request.seal);
-            changed |= fold::apply(&mut editor, &values, &effects, &mut receipt);
-            editor.commit()?;
-        }
-        if request.inlining() {
-            let effects = editor.program().effects(request.seal);
-            changed |= inline::apply(&mut editor, &effects, &mut receipt)
-                .map_err(|error| format!("program rules, inlining: {error}"))?;
-            editor.commit()?;
-        }
-        if request.dead_code {
-            // Unread parameters and unused results are dead code; constant
-            // parameters are folding.
-            let effects = editor.program().effects(request.seal);
-            let values = values::ProgramValues::compute(editor.program(), &effects, request.seal);
-            changed |= params::apply(&mut editor, &effects, &values, request.fold, &mut receipt)
-                .map_err(|error| format!("program rules, parameters: {error}"))?;
-            editor.commit()?;
-        }
-        if request.dead_code {
-            let effects = editor.program().effects(request.seal);
-            changed |= dce::apply(&mut editor, &effects, request.seal, &mut receipt);
-            editor.commit()?;
-        }
-        if cfg!(debug_assertions) {
-            editor
-                .program()
-                .verify()
-                .map_err(|error| format!("program rules, round {}: {error}", receipt.rounds))?;
-        }
-        if !changed {
-            break;
-        }
+    let mut rules = Vec::with_capacity(4);
+    if request.fold {
+        rules.push(ProgramRule::Fold);
     }
+    if request.inlining() {
+        rules.push(ProgramRule::Inline);
+    }
+    if request.dead_code {
+        rules.extend([ProgramRule::Parameters, ProgramRule::DeadCode]);
+    }
+    receipt.rounds = crate::schedule::fixed_point(
+        &mut editor,
+        &rules,
+        ROUND_CEILING,
+        |editor, rule| {
+            let effects = editor.program().effects(request.seal);
+            let changed = match rule {
+                ProgramRule::Fold => {
+                    let values =
+                        values::ProgramValues::compute(editor.program(), &effects, request.seal);
+                    fold::apply(editor, &values, &effects, &mut receipt)
+                }
+                ProgramRule::Inline => inline::apply(editor, &effects, &mut receipt)
+                    .map_err(|error| format!("program rules, inlining: {error}"))?,
+                // Unread parameters and unused results are dead code;
+                // constant parameters are folding.
+                ProgramRule::Parameters => {
+                    let values =
+                        values::ProgramValues::compute(editor.program(), &effects, request.seal);
+                    params::apply(editor, &effects, &values, request.fold, &mut receipt)
+                        .map_err(|error| format!("program rules, parameters: {error}"))?
+                }
+                ProgramRule::DeadCode => dce::apply(editor, &effects, request.seal, &mut receipt),
+            };
+            editor.commit()?;
+            Ok(changed)
+        },
+        |editor, round| {
+            if cfg!(debug_assertions) {
+                editor
+                    .program()
+                    .verify()
+                    .map_err(|error| format!("program rules, round {round}: {error}"))?;
+            }
+            Ok(())
+        },
+        |_| "program rules did not reach a fixed point".to_string(),
+    )?;
     let program = editor.finish()?;
     program
         .verify()

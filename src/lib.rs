@@ -32,6 +32,7 @@ pub mod parser;
 pub mod primitive;
 pub mod program;
 pub(crate) mod scalar_transfer;
+pub(crate) mod schedule;
 #[cfg(test)]
 mod scalar_transfer_tests;
 pub mod span;

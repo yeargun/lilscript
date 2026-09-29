@@ -57,6 +57,7 @@ mod output_policy_tests;
 mod pooling;
 mod print;
 mod quiet;
+pub(crate) mod rules;
 mod simplify;
 mod statements;
 pub(crate) use simplify::literal_array_projection;
