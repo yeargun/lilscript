@@ -19,8 +19,8 @@
     {
       "file": "src/js/families.rs",
       "name": "katex",
-      "count": 2,
-      "reason": "Family seeds and the raw spelling's prior are justified by katexlil measurements.",
+      "count": 3,
+      "reason": "Family seeds and the raw spelling's prior are justified by katexlil measurements. The quotes family's note cites katexlil's `' class=\"'` strings (+80), moved from the printer with the rule (M8.3).",
       "owner": "M9.10 (priors calibrated on the corpora, never on ports)"
     },
     {
@@ -94,20 +94,6 @@
       "owner": "M8.7 (M9.5's one allocator)"
     },
     {
-      "file": "src/js/print.rs",
-      "name": "katex",
-      "count": 1,
-      "reason": "The string-quote rule is justified by katexlil's `' class=\"'` strings (+80); listed in the plan's port-shaped inventory (`js/print.rs:779`).",
-      "owner": "M8.7 (a spelling choice, M8.3/M9.3)"
-    },
-    {
-      "file": "src/js/print.rs",
-      "name": "react-markdown",
-      "count": 1,
-      "reason": "The same string-quote rule is justified by react-markdown's entity table (-7,008 raw, +53 Brotli).",
-      "owner": "M8.7 (a spelling choice, M8.3/M9.3)"
-    },
-    {
       "file": "src/js/statements.rs",
       "name": "jquery",
       "count": 1,
@@ -141,6 +127,13 @@
       "count": 1,
       "reason": "Batch A1's module documentation cites the katex-perf diagnosis of 2026-09-27 (shared receiver adapters turn a call site megamorphic) as the evidence for law P1's method formation.",
       "owner": "M8.7 (the evidence moves to the plan record; the law is stated generically)"
+    },
+    {
+      "file": "src/js/families.rs",
+      "name": "react-markdown",
+      "count": 1,
+      "reason": "The quotes family's note cites react-markdown's entity table (-7,008 raw, +53 Brotli), moved from the printer with the rule (M8.3).",
+      "owner": "M8.7 (a spelling choice, M8.3/M9.3)"
     }
   ]
 }

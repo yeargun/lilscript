@@ -451,8 +451,8 @@ fn a_vetoed_family_is_never_formed() {
     check_spellings(&compiled, "brotli");
     for trial in trials(stage(&compiled)) {
         match trial["challenger"].as_str().unwrap() {
-            // The naming plan's spelling needs no formation permission.
-            "raw-spelling" => assert_ne!(outcome(trial), "vetoed"),
+            // The naming plan's members need no formation permission.
+            "self-named-functions" | "read-order" => assert_ne!(outcome(trial), "vetoed"),
             _ => assert!(matches!(outcome(trial), "vetoed" | "duplicate"), "{trial}"),
         }
     }

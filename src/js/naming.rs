@@ -26,8 +26,8 @@ pub struct Plan {
     pub self_named: bool,
     /// The root's most read bindings take its shortest names, as a frequency
     /// renamer gives them (esbuild's top-level slots); otherwise declaration
-    /// order. A codec prefers the declaration order (measured +647 Brotli on
-    /// zodlil): a family of its own (M8.3).
+    /// order, which a codec prefers (measured where the order is computed): a
+    /// family of its own (M8.3).
     pub read_order: bool,
 }
 

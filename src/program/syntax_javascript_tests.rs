@@ -445,7 +445,7 @@ fn a_raw_plan_names_functions_themselves_and_keeps_their_names_exact() {
 }
 
 #[test]
-fn a_raw_plan_spells_statements_in_their_shortest_exact_forms() {
+fn the_raw_seed_spells_statements_in_their_shortest_exact_forms() {
     let source = r#"
         extern void show(JsValue value);
         export JsValue pick(bool flag, int limit) {
@@ -463,8 +463,28 @@ fn a_raw_plan_spells_statements_in_their_shortest_exact_forms() {
         show(pick(true, 3));
         show(pick(false, 1));
     "#;
-    let raw = compile_plan(source, PRISTINE, Plan::spelled(Style::Global, true));
-    let coded = compile_plan(source, PRISTINE, Plan::new(Style::Global));
+    // The raw objective's seed families at level 0 (no walk): since M8.3
+    // the statement forms and `+=` are families, not the naming plan's.
+    let seeded = |codec: &str| {
+        let config: crate::config::ProjectConfig = toml::from_str(&format!(
+            "objective.codecs='{codec}'\neffort.level=0\n{PRISTINE}"
+        ))
+        .unwrap();
+        let compiled =
+            crate::build::compile_source(source, &config, crate::build::ServiceOptions::default())
+                .unwrap();
+        let objective = match codec {
+            "raw" => crate::js::selection::Objective::Raw,
+            _ => crate::js::selection::Objective::Brotli,
+        };
+        compiled
+            .javascript(objective)
+            .unwrap()
+            .javascript()
+            .to_string()
+    };
+    let raw = seeded("raw");
+    let coded = seeded("brotli");
     // `total+=1.5`, `label=flag?…:…` and `return total>3?…:…`.
     assert!(raw.contains("+=1.5"), "{raw}");
     assert!(!raw.contains("else"), "{raw}");
