@@ -23,7 +23,7 @@ use crate::primitive::{IntBinary, Intrinsic};
 pub(crate) mod admission;
 mod calls;
 pub mod choices;
-pub use choices::{AltId, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite};
+pub use choices::{AltId, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite, SiteId};
 mod declarations;
 pub(crate) mod delivery;
 mod families;

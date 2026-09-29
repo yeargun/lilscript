@@ -46,7 +46,7 @@
 //! `AliasStrings` pools repeated strings; Terser, esbuild and Oxc print data
 //! literals as written; none has a codec to judge an encoding.
 use super::choices::{
-    seed, AltId, ChoiceAlternative, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite,
+    seed, AltId, ChoiceAlternative, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite, SiteId,
 };
 use super::print::number_spelling;
 use super::*;
@@ -1456,7 +1456,10 @@ impl Module {
             }
             let key = ChoiceKey {
                 family: ChoiceFamily::DataEncoding,
-                site: binding.index() as u32,
+                site: match self.bindings[binding.index()].source_symbol {
+                    Some(symbol) => SiteId::Symbol(symbol.0),
+                    None => SiteId::Formed(binding.index() as u32),
+                },
             };
             let seed = seed(&alternatives);
             let applied = choices

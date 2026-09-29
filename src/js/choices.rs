@@ -35,7 +35,16 @@ pub enum ChoiceFamily {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChoiceKey {
     pub family: ChoiceFamily,
-    pub site: u32,
+    pub site: SiteId,
+}
+
+/// A site's identity (M4.4): the source symbol its binding declares, or, for
+/// a binding formation creates, the binding's ordinal in the tree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SiteId {
+    Symbol(u32),
+    Formed(u32),
 }
 
 /// One alternative of a site, named by its family. `AltId(0)` is the
@@ -163,7 +172,7 @@ mod tests {
     const fn key(site: u32) -> ChoiceKey {
         ChoiceKey {
             family: ChoiceFamily::DataEncoding,
-            site,
+            site: SiteId::Symbol(site),
         }
     }
 

@@ -338,11 +338,11 @@ fn a_terminal_formation_of_the_winners_own_assignment_is_the_winner() {
 #[test]
 fn the_choice_schedule_resets_every_site_at_once_then_orders_by_stake() {
     use crate::js::choices::ChoiceAlternative;
-    use crate::js::{AltId, ChoiceFamily, ChoiceKey, ChoiceSite};
+    use crate::js::{AltId, ChoiceFamily, ChoiceKey, ChoiceSite, SiteId};
     let site = |site: u32, savings: &[(u8, i64)], applied: u8| ChoiceSite {
         key: ChoiceKey {
             family: ChoiceFamily::DataEncoding,
-            site,
+            site: SiteId::Symbol(site),
         },
         name: format!("t{site}"),
         alternatives: savings
