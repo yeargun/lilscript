@@ -451,3 +451,42 @@ fn bitwise_identities_of_an_int_are_the_int() {
         );
     });
 }
+
+/// A folded branch that ends in an exit joins its region, and what follows
+/// the exit is unreachable and goes (M7.8a's dead code after folding): the
+/// body is one `return`, which the removal-only inliner takes, and the
+/// call folds to its value (the catalog's `number/clamp` family).
+#[test]
+fn a_folded_exit_leaves_one_return_that_inlines() {
+    let source = "int clamp(int value, int lo, int hi) {
+  if (value < lo) { return lo; }
+  if (value > hi) { return hi; }
+  return value;
+}
+print(clamp(-2, 0, 10));";
+    optimized(source, MODULE, |program, receipt| {
+        assert!(receipt.unreachable_operations >= 1, "{receipt:?}");
+        assert_eq!(receipt.inlined_calls, 1, "{receipt:?}");
+        assert_eq!(count(program, |kind| matches!(kind, OperationKind::Return)), 0);
+    });
+}
+
+/// After a `return` inside a loop's body nothing of that body runs.
+#[test]
+fn operations_after_an_exit_go_and_initializations_stay_whole() {
+    let source = "int first(int n) {
+  int total = 0;
+  for (int i = 0; i < n; i += 1) {
+    total += i;
+    return total;
+    print(i);
+  }
+  return total;
+}
+print(first(3));
+print(first(0));";
+    // The run matches the interpreter's (`optimized` checks it).
+    optimized(source, MODULE, |_, receipt| {
+        assert!(receipt.unreachable_operations >= 1, "{receipt:?}");
+    });
+}

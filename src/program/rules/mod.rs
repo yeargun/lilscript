@@ -22,6 +22,7 @@ mod edit;
 mod fold;
 mod inline;
 mod params;
+mod unreachable;
 mod values;
 
 #[cfg(test)]
@@ -68,6 +69,8 @@ pub(crate) struct RuleReceipt {
     pub(crate) retired_functions: u32,
     /// Bodies nothing creates any more, emptied: they use nothing.
     pub(crate) emptied_units: u32,
+    /// Operations no path reaches, removed.
+    pub(crate) unreachable_operations: u32,
     /// Calls replaced by a copy of their body, and the bodies copied.
     pub(crate) inlined_calls: u32,
     pub(crate) inlined_bodies: u32,
@@ -88,6 +91,7 @@ impl RuleReceipt {
             "removed_stores": self.removed_stores,
             "retired_functions": self.retired_functions,
             "emptied_units": self.emptied_units,
+            "unreachable_operations": self.unreachable_operations,
             "inlined_calls": self.inlined_calls,
             "inlined_bodies": self.inlined_bodies,
             "dropped_parameters": self.dropped_parameters,
@@ -145,6 +149,10 @@ pub(crate) fn optimize<'src>(
     if request.fold {
         rules.push(ProgramRule::Fold);
     }
+    // Operations no path reaches go before inlining judges a body's exits.
+    if request.dead_code {
+        rules.push(ProgramRule::Unreachable);
+    }
     if request.inlining() {
         rules.push(ProgramRule::Inline);
     }
@@ -163,6 +171,7 @@ pub(crate) fn optimize<'src>(
                         values::ProgramValues::compute(editor.program(), &effects, request.seal);
                     fold::apply(editor, &values, &effects, &mut receipt)
                 }
+                ProgramRule::Unreachable => unreachable::apply(editor, &mut receipt),
                 ProgramRule::Inline => inline::apply(editor, &effects, &mut receipt)
                     .map_err(|error| format!("program rules, inlining: {error}"))?,
                 // Unread parameters and unused results are dead code;
