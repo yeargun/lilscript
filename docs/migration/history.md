@@ -2201,6 +2201,30 @@ Soundness: the behaviour is the operation's, from the effect analysis. The node 
 
 Predicted: more forwarding on typed code (Brotli smaller or equal on the ratchet and the ports, a few byte changes elsewhere); CPU: one row per operation node formed, and a comparison per lookup.
 
+**Landed** (binary `p2-1`):
+- **Unit tests:** 1,613 pass, the storage-sum tests included (a row's copied arguments are charged).
+- **Cases:** every lane passes. The production script lanes carry the change: Brotli −520 (31 artifacts), gzip −541, raw −788. Module lanes −5, −3, −4 (1 artifact); C unchanged.
+- **Ratchet** against `p1-1`:
+
+  | Corpus | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | cases | 62,330 → 61,784 | 57,497 → 57,078 | 47,249 → 46,833 |
+  | apps | 1,246 → 1,232 | 1,026 → 1,018 | 861 → 849 |
+  | algorithms | 5,798 → 5,770 | 3,505 → 3,491 | 3,197 → 3,185 |
+
+  Brotli losses to the competitor bar: cases 368 → 350, apps 4 → 3. No new growth: the 16 blocking rows are step 8's. Under the owner's ruling they are accepted into the baseline with the new `--accept-growth`, which accepts growth only when no corpus total grew; the baseline is now `p2-1`'s.
+- **Unpatched ports** against `k13-1` (N1, N2 and P1 were byte-identical): all green.
+
+  | Port | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | katexlil | −8,204 | −1,328 | −829 |
+  | motionlil | +394 | −4 | −414 |
+  | micromarklil | +934 | +223 | +208 |
+  | markedlil, zodlil, posthoglil, jquerylil | 0 | 0 | 0 |
+  | **total** | −6,876 | −1,109 | −1,035 |
+
+  katexlil's step 8 regression (+749) is more than reversed. micromarklil pays about 23 bytes per artifact for forwarding it does not compress as well: a local loss under the overall win.
+
 ---
 
 ## Appendix: where milestones 001–014 went
