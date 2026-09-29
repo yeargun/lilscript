@@ -1,7 +1,7 @@
 # Migration plan: one compiler
 
 Revision 2026-09-27, for version 1 of the design. **This is the only plan.** It does three things:
-1. It takes the codebase from two compilers in one binary to the single compiler described in [future-architecture.md](../future-architecture.md) (done in M1).
+1. It takes the codebase from two compilers in one binary to the single compiler described in [future-architecture.md](../future-architecture.md) (M1).
 2. It carries that compiler to version 1 of the design: the language contract [language.md](../language.md) and the compiler [future-architecture.md](../future-architecture.md).
 3. It carries both to winning every maintained library under every objective, in both the open and the closed world, at runtime parity, with compile time that scales with the program (architecture AM3).
 
@@ -85,13 +85,13 @@ Each phase's state is in [index.md](index.md).
 
 ### M0 Record and freeze
 
-Done 2026-09-23: [the M0 record](history.md#2026-09-23-m0-record-and-freeze).
+See [the M0 record](history.md#2026-09-23-m0-record-and-freeze).
 
 ### M1 One compiler: the old route leaves the product
 
 **Goal.** No route switch, no old-route code, no old-route tests. `--backend`, `[compiler] backend` and `CompilerBackend` are gone, and every tool compiles through the one compiler.
 
-Done 2026-09-24. The tasks M1.1–M1.9 as planned, and what M1 did, are in [the M1 record](history.md#2026-09-24-m1-one-compiler).
+The tasks M1.1–M1.9, and what M1 did, are in [the M1 record](history.md#2026-09-24-m1-one-compiler).
 
 **What M1 does not restore.** The old route had these; each is owned.
 
@@ -102,14 +102,11 @@ Done 2026-09-24. The tasks M1.1–M1.9 as planned, and what M1 did, are in [the 
 | Native `Record<T>`/JSON, and the user-facing C extern ABI | Refused; the `scripts/verify.sh` extern-ABI step and the differential's native `Record` lane become ledgered expected failures | M11.3, M11.4 |
 | Native stack and region storage | Absent | M11.5 |
 | Name-keyed host helpers: extern names given built-in JS bodies, such as jQuery's `isWindowValue`, lil-solidjs's `DOM_RECONCILE`, `objectHasOwn` and `mathMax` | **Dropped by design.** Ports declare host modules or use `JS.*` and the catalog (M10.2); jquerylil, motionlil, monacolil and lil-solidjs are checked in M1.8 | — |
-| Same-named private classes in two modules; `export constructor` | Landed in M4.1 (2026-09-27): per-module nominal scopes; published classes stay JavaScript classes | M4.1 |
 | Unrolling of `inline for`; `@pool` | Ignored | M10.11 |
 | Record spread construction | Refused | M10 decision (M10.8) |
 | `public_aggregate_abi = "positional"`, `function_scope`, `idiom_directed_naming`, `[mangle] properties`, profile-guided optimization | Refused or no effect (warned) | Positional: refused (D2). Module wrapper: M3.1 `format`. Naming: M9.5. Typed property renaming: M9.6 |
-| preserve-modules chunks and lazy `import()` chunks | Already broken on the one compiler (reproduced: `chunks: []`) | M3.3; closed by M3.3a (a file per module, lazily loaded files) |
 | Source maps | Not supported (the parallel `codex/source-maps` branches are built on the old route) | M8.6 |
 
-**Exit.** M1 closed on 2026-09-24; its exit list is in [the M1 record](history.md#2026-09-24-m1-one-compiler).
 
 ### M2 Verification ladder, baseline and interim release
 
@@ -259,7 +256,7 @@ These pass L3, run in the scheduler's fixed structural order, are target-neutral
 | Task | Content |
 |---|---|
 | M8.1 Formation writes annotations | *Merged into M5.2* (the annotation columns) and batch A1 (import identity `(source, imported)`, diagnosis C18) |
-| M8.2 Canonical forms | **Batch A1** (done; its text as planned, its pre-registration and its results are in [the A1 record](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis)): a method is its own function (law P1), observed classes print with their bodies (C1), operands are not spilled (C3), one decoder per schema, imports by identity (C18, from M8.1), `print` never stripped (M2.3), naming's seed at every level (M9.5) and native arithmetic (M11.2).<br>**Batch A2 (after M2.5, M4.6 and M5.2):** `let x; x = E` fusion and dead `let` with a discardable initializer as JS target rules on the binding and evaluation columns, with the TDZ and loop-capture legality (C4a); C9 through the catalog; `globalThis.<ECMAScript builtin>` as the builtin under R10 (C19); `fold_logical_assignments`/`fold_logical_returns` replaced by canonical formation of the constructs they recover. The overwritten-default drop is not a formation recognizer: R3 removes implicit defaults and M7.7 removes overwritten stores.<br>**The rest, each in its replacement's batch (L20):** constructions by the layout choice (M9.7: `inline_initializers`, `drop_redundant_init_stores`); defaults by the transport (M7.3: `drop_default_arguments`, `native_default_lengths`, `drop_typed_default_checks`); receivers (M10.4, M10.7 and M6.4b: `self_method_calls` except for user-written `JS.call`, `array_receiver_calls`) |
+| M8.2 Canonical forms | **Batch A1** ([record](history.md#2026-09-27-batch-a1-canonical-formation-without-tree-analysis)): a method is its own function (law P1), observed classes print with their bodies (C1), operands are not spilled (C3), one decoder per schema, imports by identity (C18, from M8.1), `print` never stripped (M2.3), naming's seed at every level (M9.5) and native arithmetic (M11.2).<br>**Batch A2 (after M2.5, M4.6 and M5.2):** `let x; x = E` fusion and dead `let` with a discardable initializer as JS target rules on the binding and evaluation columns, with the TDZ and loop-capture legality (C4a); C9 through the catalog; `globalThis.<ECMAScript builtin>` as the builtin under R10 (C19); `fold_logical_assignments`/`fold_logical_returns` replaced by canonical formation of the constructs they recover. The overwritten-default drop is not a formation recognizer: R3 removes implicit defaults and M7.7 removes overwritten stores.<br>**The rest, each in its replacement's batch (L20):** constructions by the layout choice (M9.7: `inline_initializers`, `drop_redundant_init_stores`); defaults by the transport (M7.3: `drop_default_arguments`, `native_default_lengths`, `drop_typed_default_checks`); receivers (M10.4, M10.7 and M6.4b: `self_method_calls` except for user-written `JS.call`, `array_receiver_calls`) |
 | M8.3 Pure printer (before any further spelling family) | Structure rewrites leave the printer (`return c?a:b` consuming the next statement, logical statements, loop heads: `src/js/print.rs:523-560,1744-1795`) and become spelling attributes set per site. The `raw_spelling` bundle (`src/js/naming.rs:20-28`) is dissolved into its members, each its own family; the printer stops consulting the naming plan. After M5.2. *Second half, after M6.4b:* `\|0` and `++` come from facts |
 | M8.4 Host modules | A typed Oxc visitor produces host units; the ESTree JSON walk is deleted |
 | M8.5 Runtime helpers | The table decoders, reference helpers and D2 adapters are written as LilScript prelude code (`src/prelude/`), compiled through the pipeline, merged by M7.10 under P1 and demand-pruned. Share-or-specialize per schema is a choice (M9) |
@@ -526,7 +523,7 @@ Every task that was open at this revision (2026-09-27), what it needs, and the "
 | 12 The rest of M10 | 5–8 |
 | 13 Qualification and native | 8–14 |
 
-About 55–85 batches after the tools. Recent throughput was four batches in three days with a parallel session (T and I on 2026-09-24, D and N on 2026-09-27); the estimate assumes about one batch per working day on this host.
+About 55–85 batches after the tools.
 
 **Verification cost per batch on this host** (estimates): unit tests and the case runner about 45 minutes; the reference port suites with the family about an hour; the perf lanes in a quiet window about an hour, run first when the burstable host's CPU credits are full. So about 2–3 hours per batch; the per-phase fleet, held-out set and contract cells add about 3–4 hours.
 
