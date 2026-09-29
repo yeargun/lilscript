@@ -2522,6 +2522,42 @@ Predicted:
 - **CPU:** unchanged.
 - **Tests:** two JS-tree tests (an unreferenced declaration, the global object's builtin).
 
+**Landed:** C2 and C3; C1 was measured and withdrawn.
+- **First run** (binary `a2a-1`, all three changes):
+  - **Unit tests:** 1,629 pass.
+  - **Cases:** one artifact per lane changes, by −8 to +1.
+  - **Ratchet:** passes.
+  - **Unpatched ports:** katexlil +444 Brotli (+10,876 raw over its ten builds), zodlil −39, fleet +405.
+  - **CPU:** katexlil ×1.76 (judged 57 → 103).
+- **Attribution** on the main entries (`scratch/mainsizes.py`, frozen level-13 entries):
+  - Without C2 (E1), every port is byte-identical to `a2a-1`.
+  - Without C1 (E3), katexlil is byte-identical to O1, and zodlil keeps C3's change.
+  - So C1's edit, which locally deletes dead code (three unreferenced functions in katexlil), moves katexlil's walk to other spelling and table choices and a worse optimum: +45 Brotli per build.
+  - C1 is withdrawn until selection cannot fall below the previous compiler on a local improvement. Small changes land per port (the fleet law), and this one loses on its port.
+- **E2** (A2a with string constants kept named) measured string forwarding's two signs; it is SC1's evidence below.
+- **C2 and C3** were verified together with SC1 in the next run; see SC1's record.
+
+## 2026-09-29 Batch SC1: string root constants, a codec-judged family (M7.4's choice)
+
+**Pre-registration** (drafted before the batch's first build and committed after it; base: A2a's record). The first build happened by accident: A2a's second verification compiled the working tree while this batch's edits were in it. So that run (`a2a-2`) is this batch's first run, with A2a's C2 and C3 under it.
+
+Why: `forward_root_constants` moved every literal root constant into its reads, "whatever its length and whatever the objective" (013-T7.4). O1's stronger initialization facts forward many more of them. The 2026-09 record had already measured strings as a choice: katexlil's string constants cost +132 when forwarded, and the gate it recorded was "exact for numbers, booleans, `null` and `undefined`; challenger for strings, per constant". The plan says the same: settled constants of a few tokens by rule, longer values a coupled choice (M7.4, architecture §8.2).
+
+A2a's E2 build (string constants kept named) measured both signs on the main entries against O1:
+- katexlil −193 Brotli (−238 against A2a);
+- micromarklil +264;
+- motionlil +77;
+- posthoglil +30.
+
+What the batch builds:
+- **C1. The head forwards scalar root constants only**: numbers, booleans, `null` and `undefined`, by rule, as before.
+- **C2. A family**, `string_constants`: the tail forwards string root constants when it is on. Every objective seeds it on, which is today's form, and a new terminal challenger (`string-constants`, second in the schedule) turns it off when the codec says the artifact shrinks.
+
+Predicted:
+- **Output:** katexlil keeps its string constants named under Brotli, about −200 per build; micromarklil keeps them forwarded; the others take whichever the codec prefers.
+- **At the seed:** outputs may still differ, because strings now forward in the tail, after the head's rules ran without them.
+- **CPU:** one more challenger per terminal pass, about one formation more per pass.
+
 ---
 
 ## Appendix: where milestones 001–014 went
