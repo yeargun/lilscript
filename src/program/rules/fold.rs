@@ -34,6 +34,10 @@ use std::collections::HashMap;
 enum Fold {
     /// Keep `region` of the operation, as a block.
     Block { op: OpId, region: RegionId },
+    /// Keep `region` of the operation in its place: its cells' scope is
+    /// unobservable (they own no storage), so its operations join the
+    /// enclosing region, where the exits they hold end it.
+    Inline { op: OpId, region: RegionId },
     /// The operation does nothing.
     Remove { op: OpId },
     /// Keep `region` in the operation's place; its result replaces the
@@ -151,6 +155,7 @@ pub(super) fn apply(
         for fold in plan.folds {
             match fold {
                 Fold::Block { op, region } => edit::make_block(data, op, region),
+                Fold::Inline { op, region } => edit::splice(data, cells, unit, op, region),
                 Fold::Remove { op } => edit::detach(data, op),
                 Fold::Splice {
                     op,
@@ -202,6 +207,19 @@ fn plan(
                 structural(program, values, &behaviors, unit, data, op)
             };
             let folded = fold.is_some();
+            // A kept branch whose own cells own no storage needs no scope.
+            let fold = fold.map(|fold| match fold {
+                Fold::Block { op, region }
+                    if program.cells.iter().all(|cell| {
+                        cell.owner != unit
+                            || cell.region != region
+                            || super::scalar(program, cell.ty)
+                    }) =>
+                {
+                    Fold::Inline { op, region }
+                }
+                fold => fold,
+            });
             plan.folds.extend(fold);
             for child in operation.kind.child_regions() {
                 stack.push((child, inside || folded));

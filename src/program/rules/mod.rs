@@ -97,10 +97,27 @@ impl RuleReceipt {
     }
 }
 
+/// Types whose values own no storage a scope releases: numbers, booleans,
+/// enums, and host values (`JsValue`), which only JavaScript's collected
+/// heap carries (a native build refuses them).
+fn scalar(program: &Program<'_>, ty: TypeId) -> bool {
+    matches!(
+        program.ty(ty),
+        Some(
+            crate::check::Type::Int
+                | crate::check::Type::Float
+                | crate::check::Type::Bool
+                | crate::check::Type::Enum(_)
+                | crate::check::Type::Dynamic
+        )
+    )
+}
+
 /// The program rules, in their structural order (architecture §8.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProgramRule {
     Fold,
+    Unreachable,
     Inline,
     Parameters,
     DeadCode,
