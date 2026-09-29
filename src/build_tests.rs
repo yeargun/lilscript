@@ -1858,3 +1858,27 @@ fn the_objective_codec_settings_judge_report_and_fingerprint_the_build() {
     .unwrap();
     assert_eq!(artifact.sizes().get(Objective::Brotli), Some(judged));
 }
+
+/// Owner answer Y5 (2026-09-29): an application script's top-level bindings
+/// are the program's own unless declared global, so its roots seal as a
+/// module's do. A top-level function called once with constants folds to
+/// its value and goes (the catalog's `number/clamp` family, which the
+/// competitor bars print as the constant).
+#[test]
+fn an_application_scripts_roots_are_the_programs_own() {
+    let source = "int clamp(int value, int lo, int hi) { if (value < lo) { return lo; } if (value > hi) { return hi; } return value; } print(clamp(-2, 0, 10));";
+    let compiled = compile_source(
+        source,
+        &config(""),
+        ServiceOptions {
+            preserve_root_exports: false,
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    let javascript = compiled
+        .javascript(Objective::Brotli)
+        .expect("the Brotli artifact")
+        .javascript();
+    assert_eq!(javascript.trim(), "console.log(0);", "{javascript}");
+}
