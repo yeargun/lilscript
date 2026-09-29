@@ -87,7 +87,7 @@ fn a_cell_carries_its_range_and_a_callee_its_result() {
     assert_eq!(returned(source, "scaled"), Some((1, 766)));
     let source =
         "int clamp(int v) { if (v < -120) { return -120; } if (v > 120) { return 120; } return v; }
-int twice(int a) { return clamp(a) + clamp(a); } print(twice(7));";
+export int twice(int a) { return clamp(a) + clamp(a); } print(twice(7));";
     assert_eq!(returned(source, "clamp"), Some((-120, 120)));
     assert_eq!(returned(source, "twice"), Some((-240, 240)));
 }
