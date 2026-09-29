@@ -2858,6 +2858,8 @@ Predicted:
 
 Verification starts from the six rebased commits `67848cbc` through `1c4de0e5` on `cebc5928`. The first check also covers V2's two test-only repairs (`3bf39765`). Y5 changes the contract used by existing rules; it introduces no new exact rule or heuristic.
 
+**C7, verification fixtures:** the expanded port run found probelil's retired positional-ABI setting and two more stale site receipts (mdast-util-to-hastlil and remark-rehypelil). The pinned V2 binary reproduces all five failure names, and both markdown ports' delivered files are byte-identical between V2 and Y5. A one-line probelil migration patch drops the refused setting; its optimized and formation-only lanes then match the existing 42-line oracle. The two site checks join the receipt ledger under M12.2; their behavior tests remain required. These repairs change no compiler code or expected program output.
+
 ---
 
 ## Appendix: where milestones 001–014 went

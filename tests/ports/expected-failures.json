@@ -42,6 +42,24 @@
       "owner": "M12.2 (the port's rebuild on the current compiler refreshes its receipts)"
     },
     {
+      "port": "mdast-util-to-hastlil",
+      "tests": [
+        "shows the sizes of the files that ship",
+        "site"
+      ],
+      "reason": "The site receipt records to-hast.esm.js as 16,520 bytes, while both V2 (d6fb2e01ec83313b) and Y5 (d786769853487741) rebuild it at 16,258. The same two failure names reproduce on both binaries, all five delivered artifacts have identical hashes, and the behavior tests pass. Evidence: ~/lilscript-work/out/y5/ports-v2-check.json and ports-y5-1.json.",
+      "owner": "M12.2 (the port's rebuild on the current compiler refreshes its receipts)"
+    },
+    {
+      "port": "remark-rehypelil",
+      "tests": [
+        "shows the sizes of the files that ship",
+        "site"
+      ],
+      "reason": "The site receipt records remark-rehype.esm.js as 16,701 bytes, while both V2 (d6fb2e01ec83313b) and Y5 (d786769853487741) rebuild it at 16,429. The same two failure names reproduce on both binaries, all five delivered artifacts have identical hashes, and the behavior tests pass. Evidence: ~/lilscript-work/out/y5/ports-v2-check.json and ports-y5-1.json.",
+      "owner": "M12.2 (the port's rebuild on the current compiler refreshes its receipts)"
+    },
+    {
       "port": "zodlil",
       "tests": [
         "no built-in pattern is ReDoS-vulnerable",

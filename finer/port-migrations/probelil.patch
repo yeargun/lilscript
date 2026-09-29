@@ -1,0 +1,10 @@
+--- a/lilscript.toml
++++ b/lilscript.toml
+@@ -13,7 +13,6 @@
+ priority = "size-first"
+ optimization_level = 13
+ cost_model = "brotli"
+-public_aggregate_abi = "positional"
+ assume_pristine_builtins = true
+ strip_console = false
+ pool_numeric_literals = true
