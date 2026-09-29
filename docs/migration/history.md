@@ -2129,6 +2129,35 @@ Predicted:
 - Byte-identical output on the cases and the ratchet against `k13-3`, except where two data-table sites tie on stake. The key breaks such ties, and the new order lists symbols before formed bindings.
 - CPU neutral.
 
+**Landed** (binary `n1-1`):
+- **Unit tests:** 1,609 passed, 3 failed. Two counted a program's nodes without its identifiers, and one built an expression whose identifier took the id before it. Fixed; the 3 pass.
+- **Cases:** all lanes pass; 0 of 4,431 artifacts changed against `k13-3`, and the walk counts are identical.
+- **Ratchet:** all 1,890 artifacts byte-identical to `k13-3`'s. No data-table tie changed order on these corpora.
+- Carried: statement ids to M5.2 (above); type parameters by id and interned types (M4.2's rest), batch N3.
+
+## 2026-09-29 Batch N2: checker facts transported (M4.3's rest)
+
+**Pre-registration** (written before the first build of the batch; base: N1's last commit).
+
+Why: lowering still decides two things from syntax and types that the checker already knows. It picks an int32 operation from an expression's result type, and it reads `pure` and `debug` off the declarations' syntax (M4.3: the checker records, elaboration reads).
+
+What the batch builds:
+- **`ResolvedOperator`.** The checker records how each arithmetic operator resolves:
+  - `Int(IntBinary)` where the value is an `int` (or an enum's);
+  - otherwise `Plain(BinaryOp)`.
+
+  It decides for a binary expression by its result, and for a compound assignment or an update by its target. Lowering reads it, and `binary_kind`, its re-derivation from result types, goes. Arithmetic needs `int` or `float` operands, so a result type is always concrete and the decision is lowering's exactly.
+- **Declaration attributes.** A symbol records `Attributes { pure, debug }`, and lowering reads them from the symbol (a method's `pure` from its checked info). An extern's attributes are part of its contract: a module that declares an extern with other attributes than another module's is refused, as a different type is. Today the last module's declaration wins. No reference port declares an extern two ways.
+- **Ambient `this` and `arguments`:** nothing to build. The checker declares a method's and a constructor's `this` (an identifier since N1) and a receiver lambda's `this` parameter, and R7's rest parameters replaced `arguments`.
+
+Carried: parameter defaults on declarations. Moving them out of function types means a function type carries optionality and the callee applies a default (R2's "defaults apply to omitted or absent arguments"), a language-level change. It is its own batch after N3.
+
+Changes:
+- **C1.** `ResolvedOperator`.
+- **C2.** Declaration attributes.
+
+Predicted: byte-identical output everywhere against `n1-1`.
+
 ---
 
 ## Appendix: where milestones 001–014 went

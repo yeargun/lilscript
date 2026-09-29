@@ -111,7 +111,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [x] M4.1 Nominal identity: 2026-09-27 (batch N)
 - [ ] M4.2 The dynamic type, with M10.2: step 7. *Partly (S1, S7):* `Type::Dynamic` is a type, and `unknown` (S7). Open: type parameters by id and interned types, moved to step 9 with M4.4
 - [ ] M4.3 Checker facts transported. *Partly:* `assigned` split into `reassigned` and `observable_before_initialization`, with `ReadInitialization` (batch I). The rest is step 9
-- [ ] M4.4 Node ids: step 9
+- [ ] M4.4 Node ids: step 9. *Partly (N1, 2026-09-29): identifiers carry node ids, the checker's facts are keyed by node, choice keys name a source identity. Open: statement ids (with M5.2), type parameters by id and interned types (M4.2's rest, N3)*
 - [ ] M4.5 Contracts and capabilities at check time: step 10
 - [ ] M4.6 Operation catalog: step 8. *Partly (K3, K7): `src/catalog.rs` declares the intrinsics' and builtins' attributes, host nodes carry their identity (`Host { name, kind }`), a typed literal `RegExp` is a regex literal. Open: one operation identity in the IR (with M5.2), `hasOwnProperty.call` and effect-free constructions in the IR (M10.17)*
 
