@@ -1574,17 +1574,24 @@ fn a_literal_root_constant_is_its_literal_where_it_is_initialized() {
         show(JS.box(label(2)));
         show(JS.box(label(limit)));
     "#;
-    let javascript = compile_with(source, PRISTINE);
-    // Nothing runs before the constants hold their values: every read is
-    // the literal, and no name is left.
-    assert!(
-        !javascript.contains("=\"thematicBreak\"") && javascript.contains(">=3"),
-        "{javascript}"
-    );
-    assert_eq!(
-        run(&javascript, SHOW),
-        "\"thematicBreak\"\n\"thematicBreak!\"\n"
-    );
+    // Nothing runs before the constants hold their values: every read of the
+    // number is the literal. A string constant is the `string_constants`
+    // family's choice (M7.4): the raw objective seeds it forwarded, so no
+    // name is left there; a codec seeds it named.
+    let raw = "objective.codecs=\"raw\"\n[javascript]\nassume_pristine_builtins=true\n";
+    for (config, forwarded) in [(raw, true), (PRISTINE, false)] {
+        let javascript = compile_with(source, config);
+        assert!(javascript.contains(">=3"), "{javascript}");
+        assert_eq!(
+            !javascript.contains("=\"thematicBreak\""),
+            forwarded,
+            "{javascript}"
+        );
+        assert_eq!(
+            run(&javascript, SHOW),
+            "\"thematicBreak\"\n\"thematicBreak!\"\n"
+        );
+    }
 }
 
 #[test]
