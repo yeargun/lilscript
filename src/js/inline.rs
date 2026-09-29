@@ -247,6 +247,8 @@ impl Module {
             let root =
                 self.clone_template(found, found.body, &arguments, &mut placed, origin, budget)?;
             self.expressions[site.index()] = root;
+            // The site now evaluates the template's root.
+            self.copy_behaviour_in(found.body, site, budget)?;
         }
         if sites.is_empty() {
             return Ok((0, None));
@@ -598,6 +600,9 @@ impl Module {
             } => true,
             Expr::Conditional { .. } | Expr::Array(_) | Expr::Sequence(_) => true,
             Expr::Object(entries) => entries.iter().all(|(key, _)| self.literal_key(key)),
+            // The program's facts (M5.2's behaviour column): a call or an
+            // operation that runs only the program's own code, quietly.
+            _ if self.behaviour(root).is_some_and(Behaviour::quiet) => true,
             _ => false,
         };
         let mut children = true;
@@ -674,7 +679,10 @@ impl Module {
                 None => {
                     let copy =
                         self.clone_template(template, child, arguments, placed, origin, budget)?;
-                    self.expression_in(copy, origin, budget)?
+                    let id = self.expression_in(copy, origin, budget)?;
+                    // The copy evaluates as the template's node does.
+                    self.copy_behaviour_in(child, id, budget)?;
+                    id
                 }
             };
             replaced.push(id);
@@ -855,6 +863,23 @@ impl Module {
             .retain_mut(|alternative| alternative.remap(&map));
         self.observed_literals
             .sort_unstable_by_key(|alternative| alternative.expression());
+        // So do the behaviour rows, and the nodes they describe.
+        self.behaviours.retain_mut(|row| {
+            let Some(expression) = map[row.expression.index()] else {
+                return false;
+            };
+            let mut whole = true;
+            row.node.remap_children(|child| match map[child.index()] {
+                Some(child) => child,
+                None => {
+                    whole = false;
+                    child
+                }
+            });
+            row.expression = expression;
+            whole
+        });
+        self.behaviours.sort_unstable_by_key(|row| row.expression);
         Ok(map)
     }
 }

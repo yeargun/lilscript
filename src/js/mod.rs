@@ -849,6 +849,44 @@ pub struct Binding {
     pub defined: bool,
 }
 
+/// What evaluating an operation node does, from the program's effect
+/// facts (M5.2's evaluation-behaviour column): whether it reads or writes
+/// memory other code can change, throws, diverges, re-enters the program or
+/// suspends. Operands are their own nodes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Behaviour {
+    pub(crate) reads: bool,
+    pub(crate) writes: bool,
+    pub(crate) throws: bool,
+    pub(crate) diverges: bool,
+    pub(crate) reenters: bool,
+    pub(crate) suspends: bool,
+}
+
+impl Behaviour {
+    /// Changes and observes nothing another evaluation could, cannot throw,
+    /// and ends: its value is its operands' function.
+    pub(crate) fn quiet(self) -> bool {
+        !(self.reads || self.writes || self.throws || self.diverges || self.reenters || self.suspends)
+    }
+}
+
+/// One row of the behaviour column: the node it describes, as it stood.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct BehaviourRow {
+    expression: ExprId,
+    node: Expr,
+    behaviour: Behaviour,
+}
+
+impl BehaviourRow {
+    /// The node the row describes.
+    #[cfg(test)]
+    pub(crate) fn node(&self) -> &Expr {
+        &self.node
+    }
+}
+
 /// A binding's value class, from the source type of what it holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValueClass {
@@ -973,6 +1011,10 @@ pub struct Module {
     /// arena renumbers them with their expressions, and every pass leaves
     /// them where they are.
     pub(crate) observed_literals: Vec<LiteralAlternative>,
+    /// What evaluating an operation node does, from the program's facts
+    /// (M5.2's evaluation-behaviour column), sorted by node. A row answers
+    /// only while the node at its id is still the one it describes.
+    pub(crate) behaviours: Vec<BehaviourRow>,
     pub regions: Vec<Region>,
     pub functions: Vec<Function>,
     pub scopes: Vec<Option<ScopeId>>,
@@ -3302,7 +3344,75 @@ impl Module {
             int32_hints: false,
             choice_sites: Vec::new(),
             observed_literals: Vec::new(),
+            behaviours: Vec::new(),
         })
+    }
+
+    /// The behaviour recorded for the operation node at `id`, while that
+    /// node is still the one it describes.
+    pub(crate) fn behaviour(&self, id: ExprId) -> Option<Behaviour> {
+        let row = self
+            .behaviours
+            .binary_search_by_key(&id, |row| row.expression)
+            .ok()
+            .map(|index| &self.behaviours[index])?;
+        (self.expressions.get(id.index()) == Some(&row.node)).then_some(row.behaviour)
+    }
+
+    /// Record `behaviour` for the operation node at `id` as it stands now,
+    /// replacing an earlier row for that id.
+    pub(crate) fn record_behaviour_in(
+        &mut self,
+        id: ExprId,
+        behaviour: Behaviour,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        let node = self.expressions[id.index()].clone();
+        // A call's arguments are the one storage a copied node owns.
+        if let Expr::Call { arguments, .. } | Expr::Construct { arguments, .. } = &node {
+            budget.retain(
+                AllocationClass::Retained,
+                (arguments.capacity() * std::mem::size_of::<ExprId>()) as u64,
+            )?;
+        }
+        let row = BehaviourRow {
+            expression: id,
+            node,
+            behaviour,
+        };
+        match self
+            .behaviours
+            .binary_search_by_key(&id, |row| row.expression)
+        {
+            Ok(index) => self.behaviours[index] = row,
+            Err(index) => {
+                budget.reserve_vec(AllocationClass::Retained, &mut self.behaviours, 1)?;
+                self.behaviours.insert(index, row);
+            }
+        }
+        Ok(())
+    }
+
+    /// Carry the row of `from` to `to`, a node that evaluates the same way
+    /// (a copy); `to` loses its own row when `from` has none.
+    pub(crate) fn copy_behaviour_in(
+        &mut self,
+        from: ExprId,
+        to: ExprId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        match self.behaviour(from) {
+            Some(behaviour) => self.record_behaviour_in(to, behaviour, budget),
+            None => {
+                if let Ok(index) = self
+                    .behaviours
+                    .binary_search_by_key(&to, |row| row.expression)
+                {
+                    self.behaviours.remove(index);
+                }
+                Ok(())
+            }
+        }
     }
 
     /// Whether the literal at `id` is observed only for truthiness or
@@ -3345,6 +3455,7 @@ impl Module {
             bytes(&self.expressions)?,
             bytes(&self.origins)?,
             bytes(&self.observed_literals)?,
+            bytes(&self.behaviours)?,
             bytes(&self.regions)?,
             bytes(&self.functions)?,
             bytes(&self.scopes)?,

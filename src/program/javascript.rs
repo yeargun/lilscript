@@ -617,6 +617,7 @@ fn form_head(
         crossing_checks: Vec::new(),
         int32_hints,
         hint_sites: 0,
+        forming: None,
         unit_functions: Vec::new(),
         foreign_bindings: Vec::new(),
         stable_cells: Vec::new(),
@@ -1288,6 +1289,10 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     /// The reads and call results the family hints, counted whatever its
     /// value.
     hint_sites: usize,
+    /// The operation `ordinary_expression` is forming (its unit, its id, and
+    /// the operation itself, by address), whose node takes the operation's
+    /// behaviour when that operation's value is saved (M5.2).
+    forming: Option<(UnitId, OpId, *const Operation)>,
     /// Each formed function unit's target function, for export reflection.
     unit_functions: Vec<(UnitId, js::FunctionId)>,
     /// One ES import binding per foreign cell with an `import extern` source.
@@ -3050,6 +3055,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         operation: &Operation,
         value: js::ExprId,
     ) -> Result<Option<js::ExprId>, FormationError> {
+        self.record_behaviour(operation, value)?;
         if operation.result.is_some_and(|result| {
             self.demand
                 .string_value(self.semantic(unit), result)
@@ -4259,6 +4265,93 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     }
 
     fn ordinary_expression(
+        &mut self,
+        unit: ContextId,
+        operation_id: OpId,
+        operation: &Operation,
+    ) -> Result<Option<js::ExprId>, FormationError> {
+        let previous =
+            self.forming
+                .replace((self.semantic(unit), operation_id, std::ptr::from_ref(operation)));
+        let formed = self.ordinary_expression_of(unit, operation_id, operation);
+        self.forming = previous;
+        formed
+    }
+
+    /// The operation node `value` holds, with its recipe's wrappers (`void`,
+    /// `|0`), takes the behaviour of the operation being formed (M5.2): a
+    /// call, a construction, an operator or an integer operation.
+    fn record_behaviour(
+        &mut self,
+        saved: &Operation,
+        value: js::ExprId,
+    ) -> Result<(), FormationError> {
+        // Only the operation being formed: a nested path saves its own.
+        let Some((unit, operation, formed)) = self.forming else {
+            return Ok(());
+        };
+        if !std::ptr::eq(saved, formed) {
+            return Ok(());
+        }
+        let operation_node = |expression: &js::Expr| {
+            matches!(
+                expression,
+                js::Expr::Call { .. }
+                    | js::Expr::Construct { .. }
+                    | js::Expr::Binary { .. }
+                    | js::Expr::IntBinary { .. }
+                    | js::Expr::IntNegate(_)
+                    | js::Expr::ToInt32(_)
+            )
+        };
+        let mut nodes = Vec::new();
+        let mut node = value;
+        loop {
+            match &self.module.expressions[node.index()] {
+                js::Expr::Unary {
+                    op: js::Unary::Void,
+                    value,
+                } => {
+                    nodes.push(node);
+                    node = *value;
+                }
+                js::Expr::ToInt32(inner)
+                    if operation_node(&self.module.expressions[inner.index()]) =>
+                {
+                    nodes.push(node);
+                    node = *inner;
+                }
+                expression => {
+                    if operation_node(expression) {
+                        nodes.push(node);
+                    } else {
+                        nodes.clear();
+                    }
+                    break;
+                }
+            }
+        }
+        if nodes.is_empty() {
+            return Ok(());
+        }
+        let Some(behavior) = self.demand.operation_behavior(unit, operation) else {
+            return Ok(());
+        };
+        let behaviour = js::Behaviour {
+            reads: behavior.reads != super::facts::MemoryAccess::None,
+            writes: behavior.writes != super::facts::MemoryAccess::None,
+            throws: behavior.may_throw,
+            diverges: behavior.may_diverge,
+            reenters: behavior.may_reenter,
+            suspends: behavior.may_suspend,
+        };
+        for node in nodes {
+            self.module.record_behaviour_in(node, behaviour, self.budget)?;
+        }
+        Ok(())
+    }
+
+    fn ordinary_expression_of(
         &mut self,
         unit: ContextId,
         operation_id: OpId,

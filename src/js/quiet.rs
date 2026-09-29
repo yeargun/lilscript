@@ -488,6 +488,12 @@ impl Module {
             Walk::Quiet => Walk::Stop,
             found => found,
         };
+        // An operation the program's facts show quiet (M5.2's behaviour
+        // column) is quiet with its operands; any other may run code.
+        let judged = |module: &Self, walk: Walk| match walk {
+            Walk::Quiet if module.behaviour(id).is_some_and(Behaviour::quiet) => Walk::Quiet,
+            walk => runs(walk),
+        };
         Ok(match &self.expressions[id.index()] {
             Expr::Binding(binding) if *binding == search.binding => Walk::Found(parent, depth),
             Expr::Binding(binding) => {
@@ -573,7 +579,7 @@ impl Module {
                 Binary::StrictEqual | Binary::StrictNotEqual => {
                     operands(self, &[*left, *right], budget)?
                 }
-                _ => runs(operands(self, &[*left, *right], budget)?),
+                _ => judged(self, operands(self, &[*left, *right], budget)?),
             },
             Expr::Conditional { condition, yes, no } => {
                 match self.walk_quiet(*condition, here, below, search, budget)? {
@@ -595,7 +601,7 @@ impl Module {
                 let mut parts = Vec::with_capacity(arguments.len() + 1);
                 parts.push(*callee);
                 parts.extend_from_slice(arguments);
-                runs(operands(self, &parts, budget)?)
+                judged(self, operands(self, &parts, budget)?)
             }
             Expr::Intrinsic {
                 receiver,
@@ -608,14 +614,18 @@ impl Module {
                 runs(operands(self, &parts, budget)?)
             }
             Expr::ConstructIntrinsic { arguments, .. } => runs(operands(self, arguments, budget)?),
-            // A spread iterates, a conversion calls `valueOf`, a suspension
-            // lets other code run.
-            Expr::ToInt32(value)
-            | Expr::IntNegate(value)
-            | Expr::Spread(value)
-            | Expr::Await(value)
-            | Expr::Yield { value, .. } => runs(operands(self, &[*value], budget)?),
-            Expr::IntBinary { left, right, .. } => runs(operands(self, &[*left, *right], budget)?),
+            // A conversion calls `valueOf` unless the facts show the operand
+            // a primitive; a spread iterates, a suspension lets other code
+            // run.
+            Expr::ToInt32(value) | Expr::IntNegate(value) => {
+                judged(self, operands(self, &[*value], budget)?)
+            }
+            Expr::Spread(value) | Expr::Await(value) | Expr::Yield { value, .. } => {
+                runs(operands(self, &[*value], budget)?)
+            }
+            Expr::IntBinary { left, right, .. } => {
+                judged(self, operands(self, &[*left, *right], budget)?)
+            }
             Expr::Assign { target, value } => {
                 // The target's parts, below the target, then the value; the
                 // store itself is an effect.

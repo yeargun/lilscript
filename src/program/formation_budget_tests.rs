@@ -55,6 +55,17 @@ fn module_storage(module: &js::Module) -> u64 {
     let mut total = bytes(&module.expressions)
         + bytes(&module.origins)
         + bytes(&module.observed_literals)
+        + bytes(&module.behaviours)
+        + module
+            .behaviours
+            .iter()
+            .map(|row| match row.node() {
+                js::Expr::Call { arguments, .. } | js::Expr::Construct { arguments, .. } => {
+                    bytes(arguments)
+                }
+                _ => 0,
+            })
+            .sum::<u64>()
         + bytes(&module.functions)
         + bytes(&module.bindings)
         + bytes(&module.exports)
