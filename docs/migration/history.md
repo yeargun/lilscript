@@ -2497,6 +2497,25 @@ M6.5's first consumer is now the tree: `settled` and `first_run` reach the rules
 - `quiet.rs`'s own order stays as the fallback for what rules create;
 - deleting it waits for transfers on rule-created bindings and functions (M5.2).
 
+## 2026-09-29 Batch B2: A2's small rules (the dead `let`, C9, C19)
+
+**Pre-registration** (written before the first build of the batch; base: B1's record).
+
+Why: batch A2 lists these as JS target rules on the tree's columns: `let x; x = E` fusion, a dead `let` whose initializer is discardable, C9 (known pure constructions) and C19 (`globalThis.<builtin>`). B1 brought the fusion to the tail; this batch takes the other three. `s1-1`'s outputs:
+- zodlil reads `globalThis.RegExp` and constructs `new globalThis.RegExp("…")` with a literal pattern;
+- the tree keeps a declaration no code reads when its value has effects (`let x=f()`) whole;
+- a regular-expression literal counts as an effect.
+
+What the batch builds:
+- **C1. A dead `let` keeps only its effects.** `let x=E`, where no code references `x`, becomes `E;` when `E` is not inert. An inert value still goes whole. A class or function value keeps its declaration, since the binding may name it. The rule runs under the dead-code permission, like the drop it extends.
+- **C2. A regular-expression literal is inert** (C9): it creates a fresh object and cannot throw, because its pattern was validated when it became a literal. An unread `new RegExp("…")` of literals, which `simplify_operators` already spells as a literal under unpatched builtins, then goes as dead code.
+- **C3. `globalThis.X` is `X`** for an ECMAScript builtin `X` under unpatched builtins (C19, R10). `globalThis` may be the host's name, or a declared extern of that spelling that is neither an import nor assigned. Naming never gives a binding a host name the tree reads. A constructed literal pattern then becomes a literal.
+
+Predicted:
+- **Output:** smaller by a few bytes per site: zodlil first; other ports only where unread declarations with effects remain.
+- **CPU:** unchanged.
+- **Tests:** two JS-tree tests (an unreferenced declaration, the global object's builtin).
+
 ---
 
 ## Appendix: where milestones 001–014 went
