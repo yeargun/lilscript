@@ -9235,7 +9235,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .enumerate()
             .rev()
             .find_map(|(index, scope)| scope.get(&symbol).map(|ty| (index, ty)))?;
-        let current = self.bodies.len().checked_sub(1)?;
+        // Outside every body (an analyzer driven expression by expression)
+        // nothing nests: the narrowing holds as made.
+        let Some(current) = self.bodies.len().checked_sub(1) else {
+            return Some(ty);
+        };
         let made_in = self
             .narrowing_bases
             .iter()
