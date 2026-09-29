@@ -1818,15 +1818,15 @@ fn class_bodies_in_a_classic_script_keep_sloppy_host_writes_out_of_the_class() {
 fn application_class_forwarders_keep_sloppy_assignment_and_delete_semantics() {
     // Y5 hides caller reflection, but a class is still strict. Moving one
     // of these static bodies into its forwarding method would throw on
-    // the frozen property instead of ignoring the write or returning false.
+    // the frozen property instead of leaving it unchanged.
     for (method, expected) in [
         (
             "void poke(JsValue target) { target[\"x\"] = 1; }",
             "undefined\n",
         ),
         (
-            "bool poke(JsValue target) { return JS.delete(target, \"x\"); }",
-            "false\n",
+            "void poke(JsValue target) { JS.delete(target, \"x\"); }",
+            "undefined\n",
         ),
     ] {
         let source = format!(
@@ -1834,8 +1834,10 @@ fn application_class_forwarders_keep_sloppy_assignment_and_delete_semantics() {
              export constructor Writer; JsValue writer = new Writer();\n\
              print(JS.invoke(writer, \"poke\", JS.invoke(Object, \"freeze\", JS.object(\"x\", 0))));"
         );
-        let compiled = compile_source(
-            &source,
+        let scratch = Scratch::new();
+        std::fs::write(scratch.0.join("writer.lil"), source).unwrap();
+        let compiled = compile_path(
+            &scratch.0.join("writer.lil"),
             &config(""),
             ServiceOptions {
                 preserve_root_exports: false,
