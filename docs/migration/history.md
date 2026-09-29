@@ -2817,6 +2817,40 @@ Predicted:
   The rises were not predicted: markedlil's walk judges three times as many candidates, and motionlil's and jquerylil's walks judge somewhat more. It is carried to the next steps (what the `int32_hints` challenger costs now).
 - **Deleted:** `src/program/javascript_int32.rs` (M6.4b's deletion of the old counter and cell proofs).
 
+## 2026-09-30 Batch Y5: an application script owns its roots and frames (owner answer Y5, halves a and b)
+
+**Pre-registration** (written before the first build of the batch; base: V2's record).
+
+Why: the owner answered Y5 yes on 2026-09-29, choosing private roots. An application script's top-level bindings belong to the program unless declared global, host reflection over its frames is outside the contract, and application scripts default to an IIFE. Until now a classic script's roots were unsealed (`Seal::StructuralOnly`: other scripts may write its globals), and its frames were treated as visible, since a sloppy frame shows its function to the code it calls. So in script builds:
+- the program rules could not fold, forward or retire top-level code;
+- the tree's block inlining and call placement were off;
+- helper and wrapper frames stayed.
+
+The ratchet's three corpora compile as scripts, as do the ports' CommonJS and UMD builds.
+
+What the batch builds:
+- **C1 (Y5a). `Seal::from_execution` seals a script's roots as a module's.** A script is always an application's (a library is always a module). `StructuralOnly` stays for a script sharing its globals with other scripts, which no contract requests today.
+- **C1b.** The families' sealing gates read the seal instead of the execution: product inputs, function layouts and shared transport. The demand plan's private transport also asks for hidden frames (C3), so a library script, which no policy builds today, still refuses it.
+- **C2.** A service test: an application script folds `print(clamp(-2, 0, 10))` to `console.log(0)`.
+- **C3 (Y5b). `JavaScriptCompilationContract::frames_hidden()`**: strict execution, or an application's world. It decides where a frame may go:
+  - the tree's inliners and call placement;
+  - helper frame elision;
+  - a wrapper replaced by the builtin it forwards to.
+
+  Strict mode's own semantics (`this`, `delete`, failed writes, mapped `arguments`) still follow the execution.
+
+Not in this batch: the IIFE default (Y5c), which needs M3.3b's formats.
+
+Predicted:
+- **Ratchet:** the script lanes gain what modules had. Algorithms was about −256 Brotli in the 2026-09 review, and the clamp and if-chain catalog families print their constant. V2's script-lane growth returns too, since the ranges' script guard reads the seal.
+- **Ports:** their CommonJS and UMD builds may change. Their globals are set by explicit host writes, which stay.
+- **Tests:** tests that encode the old contract (a script's roots unsealed) need explicit `StructuralOnly` constructions or the new expectation. Six are known before the first build: callable inputs, function layout, function support, product reference, raw domains and the frame contract.
+- **Risk:** a port whose script build relies on reading one of its top-level bindings as a global by name. The ports' suites check it.
+- **Compile work:** root sealing reuses the existing analyses; the frame contract is a constant-time query. Script builds can do more rule work and follow different search paths as newly legal candidates become available. Module candidate counts should stay unchanged. Compare the seven frozen main entries against `v2-1` in three alternating CPU pairs; report any changed counts and the bytes they buy.
+- **Runtime:** fewer calls and temporary products in script output, with ordinary effects and evaluation order preserved. No new runtime operations; strict-mode semantics remain tied to execution. Frame reflection and undeclared access to private roots are outside the application contract.
+
+Verification starts from the six rebased commits `67848cbc` through `1c4de0e5` on `cebc5928`. The first check also covers V2's two test-only repairs (`3bf39765`). Y5 changes the contract used by existing rules; it introduces no new exact rule or heuristic.
+
 ---
 
 ## Appendix: where milestones 001–014 went
