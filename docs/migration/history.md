@@ -2100,6 +2100,35 @@ Step 8 closes with this record. Carried:
 - the implicit default a field keeps when `init` assigns it (`this.later=0;this.later=…`), a store a later rule can drop;
 - a generic function value instantiated at a function type (`noop<T>` where `func(float)->float` is expected), refused today: the checker's gap, found by motionlil.
 
+## 2026-09-29 Batch N1: node ids (M4.4)
+
+**Pre-registration** (written before the first build of the batch; base: step 8's merge, `2a647409`).
+
+Why: a span is a location, not an identity. Two nodes can share one (generated syntax, an export of a declaration's own name), and a fact keyed by span makes every consumer carry spans to ask about a node. M5.2's annotation columns need node identities first (plan step 9: M4.4 before M5.2).
+
+What the batch builds:
+- **Identifiers carry node ids.** `Ident` gets `id: SourceNodeId`, allocated by the parser's node sequence like an expression's, and a function's and a constructor's `this` is an identifier of its own.
+- **The checker's facts are keyed by node; the span-keyed maps are deleted.**
+  - An identifier's symbol and a declaration's binding, by identifier.
+  - A type test's target and an optional access's present type, by expression.
+  - An enum variant's value, by the variant's identifier (in `E.V` and in a `match` pattern).
+  - A dynamic import's module, by expression.
+  - The module bindings declared ahead of their module's items, by declaring identifier.
+
+  A symbol records its declaring identifier (`Symbol::node`), and an interface import its local identifier, so a consumer holding a symbol can ask about its declaration.
+- **The consumers look up by node:** lowering, the interpreter, the lints and the language server. The lint's identifier walk moves to `ast_walk` with the expression walk and yields identifiers. The language server renames through them instead of re-lexing, and the checker's default-arrow capture tests read an arrow's identifiers instead of comparing spans.
+- **Choice keys name a source identity** (`SiteId`): a data table's key is the source symbol of the binding it initializes, or the binding's tree ordinal where formation created the binding.
+
+Declarations are identified by their declaring identifier's node. Statement ids are carried to M5.2: no fact about a statement exists yet, and its first column gives statements their ids.
+
+Changes:
+- **C1.** Identifiers carry node ids, the checker's facts are keyed by node, and the consumers follow, with the shared walk.
+- **C2.** Choice keys name a source identity.
+
+Predicted:
+- Byte-identical output on the cases and the ratchet against `k13-3`, except where two data-table sites tie on stake. The key breaks such ties, and the new order lists symbols before formed bindings.
+- CPU neutral.
+
 ---
 
 ## Appendix: where milestones 001–014 went
