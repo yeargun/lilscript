@@ -234,9 +234,12 @@ fn old_substitute_type<'src>(
         Type::Generator(value) => {
             Type::Generator(Box::new(old_substitute_type(value, substitutions)))
         }
-        Type::Nullable(inner) => {
-            Type::Nullable(Box::new(old_substitute_type(inner, substitutions)))
-        }
+        // R2: `T??` is `T?`, so a nullable parameter bound to a nullable
+        // type (or to `null`) stays one level deep.
+        Type::Nullable(inner) => match old_substitute_type(inner, substitutions) {
+            absent @ (Type::Nullable(_) | Type::Null) => absent,
+            inner => Type::Nullable(Box::new(inner)),
+        },
         Type::Union(members) => normalize_union(
             members
                 .iter()

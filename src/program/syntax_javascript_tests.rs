@@ -2242,7 +2242,8 @@ fn declared_locals_run() {
 
 /// Field initializers (R3): each construction evaluates a field's own
 /// initializer before `init`, a fresh value every time and the base's first,
-/// for a generic class, a derived class and a class kept as JavaScript's.
+/// for a generic class and for a derived class kept as JavaScript's (its
+/// constructor is exported), where they run after `super()`.
 #[test]
 fn field_initializers_run_at_construction() {
     let javascript = compile_with(
@@ -2254,13 +2255,13 @@ fn field_initializers_run_at_construction() {
             T[] items = [];
             int limit = 3;
         }
-        export class Base {
+        class Base {
             int base = 40 + 2;
             string[] names = ["a"];
             int id = serial();
             init() { }
         }
-        export class Counter extends Base {
+        class Counter extends Base {
             int count = 5;
             int later;
             init(int start) {
@@ -2268,6 +2269,7 @@ fn field_initializers_run_at_construction() {
                 this.later = this.count + start;
             }
         }
+        export constructor Counter;
         export int total(int start) {
             Counter c = new Counter(start);
             c.names.push("b");
@@ -2467,3 +2469,4 @@ fn development_checks_export_parameters() {
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(String::from_utf8(output.stdout).unwrap(), "[9,\"TypeError\"]\n", "{javascript}");
 }
+
