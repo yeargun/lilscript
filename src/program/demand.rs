@@ -1372,7 +1372,9 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                 OperationKind::CheckPlace(_) | OperationKind::PrepareReference { .. } => {
                     self.need_operation(id, operation, budget)?;
                 }
-                OperationKind::Initialize(cell) => {
+                // A declaration without a value (R3) lives while its cell's
+                // storage does: the stores that assign it declare nothing.
+                OperationKind::Initialize(cell) | OperationKind::Declare(cell) => {
                     let storage = self.cell_storage(id, cell, budget)?;
                     self.wait_for(storage, id, operation, budget)?;
                 }
