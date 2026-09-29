@@ -2718,6 +2718,27 @@ Predicted:
 
   The walks judge more on trees whose `|0` spellings changed. That is another reason V2 ties the elision to the codec-judged family.
 
+## 2026-09-29 Batch V2: the ranges' parameters, the script guard, the old proof deleted, `|0` as the codec judges (M6.4b)
+
+**Pre-registration** (written before the first build of the batch; base: V1's record).
+
+Why: V1 left four things to do.
+- Parameters are their type's, although M6.4b's fact is per value, formal and result.
+- A classic script's top-level cell was given its type's range, a soundness gap.
+- `javascript_int32.rs`'s counter and cell proofs still run beside the fact that covers them, when the plan's rule 2 wants them deleted.
+- Removing a range-proven `|0` costs Brotli on some builds (jquerylil +208, posthoglil +154). The owner, 2026-09-29: compression-first builds need not care about `|0`.
+
+What the batch builds:
+- **C1. Parameters join what their complete call set passes**, in rounds. Each round solves every unit callees first, and a body with a known complete call set reads, per parameter, the join of the arguments its callers passed in the round before. Every round is sound and at least as narrow as the one before; three rounds.
+- **C2. A classic script's top-level cell proves nothing**: its loads are unknown and it is never flow-tracked.
+- **C3. `javascript_int32.rs` goes.** A counting loop's counter is bounded by the test's narrowing and the head's widening, and an `int` load is its type's except in C2's case.
+- **C4. Range-proven elision follows `int32_hints`.** Under that family the artifact keeps the compiler's earlier `|0` spellings. Its challenger runs first in every walk, so a codec keeps them where its repeat matching prefers them. The raw objective's seed elides them.
+
+Predicted:
+- **Ports:** jquerylil's and posthoglil's Brotli growth is judged away where the codec prefers the `|0`; the raw lanes keep V1's gains. Counting loops print as V1 printed them.
+- **CPU:** unchanged. The family was already a head-level challenger, and the view adds two rounds of solves per build.
+- **Tests:** the program-level test for parameters (one caller passing `n & 7` gives `[1,8]`; an exported body stays its type's), and every existing counting-loop expectation.
+
 ---
 
 ## Appendix: where milestones 001–014 went
