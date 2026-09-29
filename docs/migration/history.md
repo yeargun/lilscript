@@ -2298,6 +2298,29 @@ Predicted:
 
   The three added challengers are the cost. The members now judged one by one buy the ports' −383 at level 13, where size comes first (AM2 as ruled on 2026-09-29).
 
+## 2026-09-29 Batch D1: the region-structured solver and the cell-SSA view (M5.5)
+
+**Pre-registration** (written before the first build of the batch; base: P3's record).
+
+Why: M7.4's reaching-definition forwarding and M6.4b's ranges need flow-sensitive facts on the Program IR. The IR is region-structured and its values are already SSA, but a cell (a mutable local) has no view of what each load reads (M5.5: "one region-structured dataflow solver; the cell-SSA view"). The call graph with its SCCs, M5.5's first part, is already `call_graph.rs` (M6.1, computed with the effects).
+
+What the batch builds:
+- **`dataflow.rs`, one forward solver** over a unit's region tree. An analysis gives a state, a join and a transfer; the solver gives the flow:
+  - branches join;
+  - loops iterate to a fixed point, with `break` and `continue` routed to their loop and a test that is the constant `true` never exiting;
+  - a catch starts from the join of its body's states;
+  - a finally region's result reaches every target it guards;
+  - `return` and `throw` end a flow.
+
+  A loop still unsettled after one iteration per operation (plus two) ends the solve as `Unsettled`, never with a partial answer.
+- **`cell_ssa.rs`, the cell-SSA view.** For each whole-cell load of a cell only its owner defines (no other unit writes it, no call takes it by reference), the definitions that may reach it: the entry (a parameter), an initialization, a declaration, a store to the cell or to a field of it, a `for…in`/`for…of` binding, or a catch binding.
+
+Changes:
+- **C1.** The solver, with tests (reachability after abrupt exits, a lattice that never settles).
+- **C2.** The view, with tests (a straight line, branches, a loop, a `break`, a cell a nested function writes).
+
+Predicted: byte-identical output; its first reader is F1 (M7.4), verified with it.
+
 ---
 
 ## Appendix: where milestones 001–014 went
