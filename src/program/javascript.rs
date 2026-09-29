@@ -967,6 +967,8 @@ fn form_tail(
         statements: families.statements,
         choices: Some(choices),
     };
+    // The tail's choice sites are this artifact's own.
+    module.choice_sites.clear();
     let result = module
         .run_rules(&js::rules::tail(&families, prunes), &context, budget)
         .and_then(|_| {

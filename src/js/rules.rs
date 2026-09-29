@@ -248,8 +248,7 @@ impl Module {
             |module, rule| module.apply_rule(rule, context, budget),
             |module, round| {
                 if cfg!(any(test, debug_assertions)) {
-                    module
-                        .verify()
+                    verify::check(module, &mut AllocationBudget::new(None))
                         .map_err(|error| RuleError::Bug(format!("round {round}: {error}")))?;
                 }
                 Ok(())

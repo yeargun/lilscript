@@ -1349,14 +1349,15 @@ impl Module {
 
     /// The data-encoding family (M9.8) on the root's constant tables: every
     /// site with an alternative the estimator says saves bytes is recorded
-    /// in `choice_sites`, and takes the alternative `choices` names, or its
-    /// seed. Returns how many tables are encoded.
+    /// in `choice_sites`, once, and takes the alternative `choices` names,
+    /// or its seed. A table kept as its literal is found again by the
+    /// scheduler's next round: its site is already recorded. Returns how
+    /// many tables are encoded.
     pub(crate) fn encode_tables(
         &mut self,
         choices: &ChoiceMap,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
-        self.choice_sites.clear();
         let root = self.root.index();
         let mut sites: Vec<(usize, BindingId, Node)> = Vec::new();
         for (index, statement) in self.regions[root].statements.iter().enumerate() {
@@ -1459,6 +1460,9 @@ impl Module {
                     None => SiteId::Formed(binding.index() as u32),
                 },
             };
+            if self.choice_sites.iter().any(|site| site.key == key) {
+                continue;
+            }
             let seed = seed(&alternatives);
             let applied = choices
                 .get(key)

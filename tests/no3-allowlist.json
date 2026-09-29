@@ -115,7 +115,7 @@
       "owner": "M9.8 (legality by declaration after M10.3; the evidence moves to the plan record)"
     },
     {
-      "file": "src/program/javascript.rs",
+      "file": "src/js/rules.rs",
       "name": "marked",
       "count": 1,
       "reason": "The inline limit (6) is justified by markedlil (a limit of 3 keeps it 97 bytes larger).",

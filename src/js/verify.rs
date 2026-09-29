@@ -92,6 +92,15 @@ pub(super) fn verify_in(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Structure, OutputError> {
     let _timing = crate::timing::TARGET_VERIFY.scope(0);
+    check(module, budget)
+}
+
+/// `verify_in` without its timing: the rule scheduler's check after each
+/// round in test and debug builds, which the phase counters do not count.
+pub(super) fn check(
+    module: &Module,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Structure, OutputError> {
     use AllocationClass::Scratch;
     budget.work(WorkKind::Analysis, 2)?;
     if module.origins.len() != module.expressions.len() {

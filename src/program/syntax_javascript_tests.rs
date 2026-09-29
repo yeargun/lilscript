@@ -624,11 +624,10 @@ fn a_reset_method_and_its_stores_fold_into_the_constructed_literal() {
     );
     // `reset` inlines at its one call, its stores replace the literal's own
     // entries in place, and the constructor, now `()=>({…})` with one call,
-    // inlines too: the token is the literal itself.
-    assert!(
-        javascript.contains("{kind:3,raw:\"x\",text:\"\",task:!1}"),
-        "{javascript}"
-    );
+    // inlines too: the token is the literal itself, and its fields, only
+    // read, are its values.
+    assert!(javascript.contains("show(Object(3))"), "{javascript}");
+    assert!(!javascript.contains("kind:"), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "3\n\"x\"\nfalse\n");
 }
 
@@ -1140,9 +1139,11 @@ fn a_namespace_is_flattened_where_its_reads_run_after_it() {
     let javascript = compile_with(
         r#"
         extern void show(JsValue value);
+        extern void keep(JsValue value);
         JsValue ns = JS.undefined();
         JsValue early = JS.undefined();
         early = (JsValue x) => JS.invoke(ns, "twice", x);
+        keep(early);
         JsValue twice = JS.undefined();
         twice = (JsValue x) => JS.add(JS.add(x, x), JS.array(x)["length"]);
         JsValue lit = JS.object("twice", twice, "name", "ns");
@@ -1155,9 +1156,13 @@ fn a_namespace_is_flattened_where_its_reads_run_after_it() {
         PRISTINE,
     );
     // `late` is created after `ns` holds the literal: its reads are the
-    // member itself. `early` exists before then, so its read stays.
+    // member itself. `early` exists before then, and host code may call it
+    // then, so its read stays; its own call runs after, and may inline.
     assert_eq!(javascript.matches(".twice(").count(), 1, "{javascript}");
-    assert_eq!(run(&javascript, SHOW), "3\n[5,7]\n");
+    assert_eq!(
+        run(&javascript, &format!("{SHOW}globalThis.keep=()=>{{}};")),
+        "3\n[5,7]\n"
+    );
 }
 
 #[test]
