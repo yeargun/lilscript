@@ -2446,6 +2446,57 @@ Predicted:
 - **CPU:** unchanged; two small copies per `order()`.
 - **Tests:** a new syntax test forwards a constant into a function the call graph runs after it, and runs it.
 
+**Landed** (binary `b1-1`, and a fix-up of the new test's source order; the checker refuses a function that reads a constant declared after it):
+- **Unit tests:** 1,627 pass, including the new syntax test: a root constant reaches a function the call graph runs after it, and the function runs.
+- **Cases** against `s1-1`: every lane passes; four artifacts change, all smaller.
+
+  | Lane | Script | Module |
+  |---|---:|---:|
+  | Brotli | −5 | −17 |
+  | gzip | −7 | −15 |
+  | raw | −19 | −33 |
+
+  The corpus seldom has early functions that read root constants, or statement-built stores.
+- **Ratchet:** passes; the totals are those of S1.
+- **Unpatched ports** against `s1-1`: all green.
+
+  | Port | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | katexlil | −14,343 | −5,601 | −5,026 |
+  | micromarklil | −298 | −781 | −953 |
+  | zodlil | −1,746 | −493 | −285 |
+  | posthoglil | +184 | −93 | −121 |
+  | jquerylil | +2,560 | +95 | +17 |
+  | markedlil | −20 | −31 | +28 |
+  | motionlil | −1,063 | −156 | +184 |
+  | **total** | −14,726 | −7,060 | −6,156 |
+
+  - katexlil's total is its ten builds of one bundle, each about −500 Brotli (the main file 60,959 → 60,434, −0.9%).
+  - micromarklil's builds are about −145 each.
+  - motionlil's growth is spread over 193 of its 622 parts, most of them under 600 bytes, where Brotli moves by tens of bytes for a few raw ones.
+  - jquerylil's raw growth is string constants that now reach more functions. Every literal forwards, and the codec keeps the repeats.
+- **CPU pairs** against `s1-1`:
+
+  | Port | Factor | Judged |
+  |---|---:|---:|
+  | markedlil | ×0.99 | 13 → 13 |
+  | zodlil | ×0.57 | 45 → 22 |
+  | posthoglil | ×0.73 | 24 → 16 |
+  | micromarklil | ×0.97 | 19 → 18 |
+  | katexlil | ×0.72 | 90 → 57 |
+  | jquerylil | ×0.93 | 38 → 29 |
+  | motionlil | ×1.01 | 36 → 36 |
+
+  The walks judge fewer candidates on smaller trees. This undoes most of S1's slowdown.
+
+The program's order is worth far more than the prediction: the fleet is −6,156 Brotli, against about −300 predicted. Most of it is katexlil, where both halves act on the same functions:
+- a root constant forwarded into an early function;
+- a statement-built store fused with its declaration and then forwarded.
+
+M6.5's first consumer is now the tree: `settled` and `first_run` reach the rules through formation, so the initialization owner's third answer ("per access") is the only one the tree does not read yet. What remains open:
+- `quiet.rs`'s own order stays as the fallback for what rules create;
+- deleting it waits for transfers on rule-created bindings and functions (M5.2).
+
 ---
 
 ## Appendix: where milestones 001–014 went
