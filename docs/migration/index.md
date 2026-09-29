@@ -6,27 +6,22 @@ The one-compiler migration as a checklist. [plan.md](plan.md) says what each tas
 
 ## Now
 
-- **Branch:** `finer/059-idiom-directed-naming`. The last landed batch is V2 (M6.4b's ranges), on 2026-09-29.
+- **Branch:** `finer/059-idiom-directed-naming`. The last landed batch is Y5a/b (private application roots and frames), on 2026-09-30.
 - **Steps:**
   - done: 1, 4, 5, 7, 8 and 9, and step 6's critical path;
   - partly done: 2 and 3;
   - under way: 10.
-- **Ratchet baseline:** still SC1's. V1 and V2 each left the algorithms total a few bytes above it. Re-accept it after Y5.
+- **Ratchet baseline:** Y5, accepted under the owner's totals rule.
 
 ## Next steps
 
-1. **Land Y5.** The owner answered it on 2026-09-29: private roots.
-   - Written: Y5a (an application script seals its roots, and the families' gates read the seal) and Y5b (an application hides its frames).
-   - They are committed on the local branch `step10-v1` (`~/lilscript-work/wt/v1`) but not yet verified.
-   - To land: run the batch chain, fix what the unit run finds, then land. The pre-registration draft is `~/lilscript-work/scratch/y5-prereg.md`.
-   - Y5 also takes back what V2's script guard gave up.
-2. **Step 10, structural rules first.** Shrink operations, bindings and functions; do not chase `|0` under codecs.
+1. **Step 10, structural rules first.** Shrink operations, bindings and functions; do not chase `|0` under codecs.
    - M7.8's rest: known-method folds from the catalog, evaluation of small pure functions called with constant arguments, and string-literal sums. This is where Closure ADVANCED leads on apps and algorithms.
    - M6.6 (escape), then M7.9 (scalar replacement, and store copies that move rather than copy). This is flattening, and it deletes the tuple rebuild per field write.
    - M7.5's rest: tail returns, closures created inside bodies, and bodies across modules.
    - Then M7.1, M7.7, M7.6, M6.7, M6.8, M8.5 and M7.10, with M5.3b deleting each transitional rule as its replacement lands.
-3. **Compile time.** Since V2, markedlil's walk judges three times as many candidates (×2.4 CPU), and motionlil's and jquerylil's judge somewhat more. Find what the `int32_hints` challenger now costs, then M5.7 (the incremental tail).
-4. **Off the critical path:**
+2. **Compile time.** V2's markedlil trace adds a walk from the structural-search winner; both it and the level-0 walk reach the same score. The extra `int32_hints` trials explain only part of the work. Reduce repeated formation and judging through M5.7 (the incremental tail), preserving the general search contract; the trace and costs are in Y5's history record.
+3. **Off the critical path:**
    - step 2: the layout commit, M3.3b with M3.8a, then motionlil compiler-written;
    - step 3's tools: M2.10, M2.11, M2.12 and M2.15;
    - M3.4.
@@ -144,7 +139,7 @@ A fact is landed only when its re-derivations are deleted (plan rule 2).
 
 - [ ] M7.1 Removal: step 10
 - [x] M7.2 Discarded effect-free calls
-- [x] M7.3 Parameters and returns (the three default passes stay until Y5 lands)
+- [~] M7.3 Parameters and returns. Open: callee-built defaults and deletion of the three tree passes (M5.3b)
 - [~] M7.4 Root constants, defines, forwarding. Landed: scalar constants by rule, string constants as a codec-judged family. Open: defines, deleting `eliminate_aliases` and `forward_root_constants`
 - [x] M7.5a Removal-only inlining
 - [ ] M7.5 Inlining, the rest: step 10
@@ -271,7 +266,7 @@ Open items the batches left, by owning task. An item leaves when its owner lands
 - **M12.2:**
   - the nominal rename reverts (`~/lilscript-work/portwork/nominal/`);
   - mobxlil's development bundle and its host globals;
-  - two site receipts.
+  - four site receipts.
 - **Architecture §22:** "today the default strips it" is stale.
 - **A1:** the case runner's CPU-time pair.
 - **No owner yet:**

@@ -68,6 +68,7 @@ Before 2026-09-23 (milestones 001–013, their receipts and the Closure ADVANCED
 | 2026-09-29 | [Batch F4: dead code after folding (M7.8a) and the folded branch's scope](#2026-09-29-batch-f4-dead-code-after-folding-m78a-and-the-folded-branchs-scope) |
 | 2026-09-29 | [Batch V1: value ranges, the int32-range tier (M6.4b, first part)](#2026-09-29-batch-v1-value-ranges-the-int32-range-tier-m64b-first-part) |
 | 2026-09-29 | [Batch V2: the ranges' parameters, the script guard, the old proof deleted, `\|0` as the codec judges (M6.4b)](#2026-09-29-batch-v2-the-ranges-parameters-the-script-guard-the-old-proof-deleted-0-as-the-codec-judges-m64b) |
+| 2026-09-30 | [Batch Y5: an application script owns its roots and frames](#2026-09-30-batch-y5-an-application-script-owns-its-roots-and-frames-owner-answer-y5-halves-a-and-b) |
 
 ---
 
@@ -2859,6 +2860,60 @@ Predicted:
 Verification starts from the six rebased commits `67848cbc` through `1c4de0e5` on `cebc5928`. The first check also covers V2's two test-only repairs (`3bf39765`). Y5 changes the contract used by existing rules; it introduces no new exact rule or heuristic.
 
 **C7, verification fixtures:** the expanded port run found probelil's retired positional-ABI setting and two more stale site receipts (mdast-util-to-hastlil and remark-rehypelil). The pinned V2 binary reproduces all five failure names, and both markdown ports' delivered files are byte-identical between V2 and Y5. A one-line probelil migration patch drops the refused setting; its optimized and formation-only lanes then match the existing 42-line oracle. The two site checks join the receipt ledger under M12.2; their behavior tests remain required. These repairs change no compiler code or expected program output.
+
+**Landed.** C1–C3 implement private application roots and frames. C4 keeps frame privacy separate from lexical strictness: a sloppy write or delete cannot become strict when a body moves into a class. C5 repairs pre-existing delivery metadata, C6 is the separate rustfmt-only cleanup, and C7 repairs the verification fixtures. The V2 range tests now pass, including the second outer function that still needed an export to keep its parameter range open.
+
+**Evidence.** Release binary `~/lilscript-work/bin/y5-1/lilscript`, built from `f44a5eb0`, SHA-256 `d786769853487741caa076aeecbfca41a1937da2f211607434c8337ce02c6d9e`; codec SHA-256 `485c57a20bc692218e105c005f3a3271faeda6b9e517cf267bfedc4042076141`. C7 and the landing record change no compiler source. Reports are under `~/lilscript-work/out/y5/`, logs under `~/lilscript-work/logs/y5-*`.
+
+- **Checks:** `cargo check`; the assertion-enabled library suite (`--profile release-assert`, 1,639 passed, nine ignored); 22 release binary tests; codec contracts; runner tests; formatting and documentation links. The library suite uses `RUST_MIN_STACK=16777216`, as earlier batches do.
+- **Cases:** 399 cases over 18 lanes, no unexpected failure. Production script totals against V2:
+
+  | Objective | V2 | Y5 | Delta |
+  |---|---:|---:|---:|
+  | Raw | 66,755 | 62,095 | −4,660 |
+  | Gzip | 46,305 | 43,057 | −3,248 |
+  | Brotli | 38,062 | 35,047 | −3,015 |
+
+  Every comparable module and native artifact is byte-identical. Script exact judgments change from 1,672 to 1,459 for raw, 889 to 983 for gzip, and 4,294 to 4,044 for Brotli. Report: `cases-y5-1.json`.
+- **Ratchet:** 642 items, 1,890 passing lanes and 36 existing ledgered failures. Against V2:
+
+  | Corpus | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | Cases | −6,411 | −4,495 | −4,085 |
+  | Apps | −93 | −66 | −74 |
+  | Algorithms | −670 | −297 | −287 |
+
+  All nine totals also shrink against the accepted SC1 baseline. `--update-baseline --accept-growth` accepts 49 local loss-growth rows under the owner's totals rule and writes the Y5 baseline; there is no new unledgered failure or loss. `ratchet-y5-1.json` preserves the initial comparison with SC1, including its pre-acceptance `fail` verdict. `accepted-baseline-check.json` re-evaluates those completed results against the new baseline and ledger, with no recompilation, and passes.
+
+  Apps total 764 Brotli against Closure ADVANCED's 834, though four of seven individual apps still lose. Algorithms total 2,900 against 2,703, with nine of eleven losing. Step 10 remains open.
+- **Ports:** all seven primary reference suites pass; all 681 compared shipped files are byte-identical to V2. Unified and react-markdown also pass. The four markdown ports' only failures are the site receipts owned by M12.2. The two newly listed receipt failures reproduce on V2 with identical delivered bytes (`ports-v2-check.json`). Probelil passes both lanes on V2 and Y5 with the same one-line migration patch, against its existing oracle (`probe-v2-1.json`, `probe-y5-1.json`). The original expanded run is `ports-y5-1.json`; `accepted-ports-check.json` applies the repaired ledger and the separately rerun probe to the completed results: all 14 ports covered, no unledgered failure. No passing primary suite was rebuilt for a receipt-only change.
+- **CPU pairs:** seven frozen main entries at level 13, one warm-up per binary and three alternating measured pairs, against `v2-1`. No concurrent compiler job; recorded load ranges from 0.69 to 1.61.
+
+  | Port | V2 CPU seconds | Y5 CPU seconds | Factor | Judged, unchanged |
+  |---|---:|---:|---:|---:|
+  | markedlil | 3.914 | 3.957 | ×1.011 | 46 |
+  | zodlil | 8.985 | 9.023 | ×1.004 | 33 |
+  | posthoglil | 0.703 | 0.709 | ×1.009 | 17 |
+  | micromarklil | 6.583 | 6.597 | ×1.002 | 36 |
+  | katexlil | 94.996 | 95.966 | ×1.010 | 130 |
+  | jquerylil | 35.086 | 35.269 | ×1.005 | 50 |
+  | motionlil | 34.166 | 34.486 | ×1.009 | 67 |
+
+  All output sizes and all recorded search counts (probes, structures, examined, judged, pruned, passes and starts) are unchanged. Median CPU rises range from 0.2% to 1.1%; these are reported medians, not a significance claim, since the existing runner does not retain individual samples or their spread. The strictness walk reuses the visited buffers and remains bounded by two lexical contexts per node. Report: `cpu-pairs-y5.json`.
+
+- **Runtime:** case oracles, host-access order in the algorithm corpus, the strictness regressions and the ports' suites pass. Primary port output is identical to V2. No runtime speed claim is made; the dedicated perf runner and structural runtime counters remain M2.12.
+
+**Markedlil's V2 compile-time change, explained.** The frozen level-13 main entry, with `--explain json` on `v1-1`, `v2-1` and `y5-1`, reproduces the 14 → 46 exact judgments. Structural discovery itself remains five proposals, two structures, six renders and five codec probes. What changes is the terminal walk:
+
+| Binary | Walk | Passes | Exact judgments | Start → finish, Brotli |
+|---|---|---:|---:|---:|
+| V1 | level-0 | 2 | 14 | 9,176 → 9,171 |
+| V2 / Y5 | search winner | 3 | 31 | 9,170 → 9,158 |
+| V2 / Y5 | level-0 | 2 | 15 | 9,179 → 9,158 |
+
+V1's structural search ties its initial score, so only the level-0 artifact is walked. V2's search improves the initial score and adds a second walk. That walk keeps quotes (−2), logical statements (−6) and block inlining (−4); the level-0 walk reaches the same score by conditional values (−21). The naming restarts are proxy-pruned in all three binaries. The extra walk accounts for 31 of the 32 additional judgments. `int32-hints` itself rises from two trials to five, all rejected in V2/Y5: only three of the additional judgments. V2 buys 13 final Brotli bytes against V1 on this entry. Y5 has the same trace and final artifact hash as V2. Evidence: `marked-search/*-summary.json` and the full reports beside them. This identifies the changed search path, not the individual V2 commit that first causes it; no port-specific search threshold was added.
+
+**Open.** Y5c's IIFE default is M3.3b. Callee-built defaults and measured deletion of `drop_typed_default_checks`, `drop_default_arguments` and `native_default_lengths` remain M7.3 / M5.3b. The structural folds (M7.8), escape and scalar replacement (M6.6 / M7.9), then the rest of inlining (M7.5) retain their order. Reusing formation and scores across the search paths is M5.7; the trace above gives a concrete repeated-work case. Site receipts remain M12.2.
 
 ---
 
