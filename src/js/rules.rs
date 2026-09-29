@@ -20,6 +20,7 @@
 //! Test and debug builds check every rule's journal against the actual
 //! difference (`journal.rs`) and verify the tree after every round.
 
+use super::root_constants::ConstantKind;
 use super::*;
 
 /// One rule of the JavaScript target.
@@ -145,8 +146,9 @@ pub(crate) const HEAD: &[Rule] = &[
     Rule::InlineStatementFunctions,
     Rule::EliminateAliases,
     Rule::FoldLiteralOperations,
-    // Literal root constants are their literal wherever they are
-    // initialized (by initialization order).
+    // Literal root constants of a few characters are their literal
+    // wherever they are initialized (by initialization order); strings are
+    // the tail's `string_constants` family.
     Rule::ForwardRootConstants,
     Rule::ForwardSingleUses,
     Rule::ElideUndefined,
@@ -367,7 +369,10 @@ impl Module {
                 let _ = self.fold_literal_operations(budget)?;
             }
             Rule::ForwardRootConstants => {
-                let _ = self.forward_root_constants(budget)?;
+                let _ = self.forward_root_constants(ConstantKind::Scalar, budget)?;
+            }
+            Rule::ForwardRootStrings => {
+                let _ = self.forward_root_constants(ConstantKind::String, budget)?;
             }
             Rule::ForwardSingleUses => {
                 let _ = self.forward_single_uses(budget)?;

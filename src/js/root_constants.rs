@@ -8,23 +8,35 @@
 //! left unread is pruned later with the other unused ones; an exported one
 //! stays for its importers.
 //!
-//! Every literal moves, whatever its length and whatever the objective
-//! (Closure's `InlineVariables` for immutable values): this is the
-//! canonical form. Whether a repeated literal is better read through a name
-//! is a separate choice, made once for all literals of the program, by the
-//! objective: `pool_strings` shares them under the raw objective (Closure's
-//! `AliasStrings`), and a codec objective keeps the repeated text it
-//! matches.
+//! A number, boolean, `null` or `undefined` moves by rule, whatever the
+//! objective (Closure's `InlineVariables` for immutable values): a few
+//! characters, the canonical form. A string moves as the artifact's
+//! `string_constants` family says (M7.4: a longer value's forwarding is a
+//! choice): measured on 2026-09-29, one reference port's main file is 238
+//! Brotli bytes smaller with its string constants named and another's 264
+//! larger (the plan record names them). Whether a literal repeated where it
+//! stands is better read through a new name is the pooling family's choice
+//! (Closure's `AliasStrings`).
 use super::quiet::Owner;
 use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 
+/// Which root constants a pass forwards.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ConstantKind {
+    /// Numbers, booleans, `null` and `undefined`: a few characters, by rule.
+    Scalar,
+    /// Strings: the `string_constants` family's choice (M7.4).
+    String,
+}
+
 impl Module {
-    /// Reads of literal root constants become the literal. An observed
-    /// literal, which has a scored spelling, stays where it is. Returns how
-    /// many reads.
+    /// Reads of literal root constants of `kind` become the literal. An
+    /// observed literal, which has a scored spelling, stays where it is.
+    /// Returns how many reads.
     pub(crate) fn forward_root_constants(
         &mut self,
+        kind: ConstantKind,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let frames = self.frames(budget)?;
@@ -47,7 +59,10 @@ impl Module {
             if order.written(binding) || self.observed(value) {
                 continue;
             }
-            if matches!(self.expressions[value.index()], Expr::Literal(_)) {
+            if let Expr::Literal(literal) = &self.expressions[value.index()] {
+                if matches!(literal, Literal::String(_)) != (kind == ConstantKind::String) {
+                    continue;
+                }
                 values[binding.index()] = Some((index, value));
                 any = true;
             }

@@ -8,9 +8,10 @@
 //!   constant, `let s="text"`, declared ahead of every other statement
 //!   (Closure's `AliasStrings`, for numbers too). A primitive read yields
 //!   the literal's value wherever it stood, and the constant is initialized
-//!   before any code runs. Root constants were canonicalized into their
-//!   literals first (`forward_root_constants`), so this is the one place a
-//!   repeated literal gets a name.
+//!   before any code runs. Scalar root constants were canonicalized into
+//!   their literals first (`forward_root_constants`), and string ones where
+//!   the `string_constants` family says so, so this is where a literal
+//!   repeated where it stands gets a name.
 //!
 //! A codec already matches repeated text, and a joined string or a name
 //! breaks the match, so a codec objective keeps the literals.
