@@ -239,25 +239,60 @@ impl Ranges<'_, '_> {
             Some(until) => operations.iter().position(|op| *op == until)?,
             None => operations.len(),
         };
-        let writes = operations[start + 1..end].iter().any(|op| {
-            match data.operations[op.index()].kind {
-                OperationKind::Store(place) => {
-                    matches!(data.places[place.index()], Place::Cell(written) if written == cell)
-                }
-                OperationKind::Initialize(written) | OperationKind::Declare(written) => {
-                    written == cell
-                }
-                // A nested statement may write it.
-                ref kind => kind.child_regions().next().is_some(),
-            }
-        });
+        let writes = operations[start + 1..end]
+            .iter()
+            .any(|&op| self.writes(op, cell));
         (!writes).then_some(cell)
     }
 
-    /// Narrow the state by the outcome of the comparison `condition`.
+    /// Whether `operation`, or anything in the regions it holds, writes
+    /// `cell`. A call cannot: nothing outside the owner reaches an owned
+    /// cell.
+    fn writes(&self, operation: OpId, cell: CellId) -> bool {
+        let data = self.data;
+        let kind = &data.operations[operation.index()].kind;
+        let direct = match *kind {
+            OperationKind::Store(place) => {
+                matches!(data.places[place.index()], Place::Cell(written) if written == cell)
+            }
+            OperationKind::Initialize(written) | OperationKind::Declare(written) => written == cell,
+            OperationKind::ForIn { key: written, .. } | OperationKind::ForOf { item: written, .. } => {
+                written == cell
+            }
+            _ => false,
+        };
+        direct
+            || kind.child_regions().any(|region| {
+                data.regions[region.index()]
+                    .operations
+                    .iter()
+                    .any(|&op| self.writes(op, cell))
+            })
+    }
+
+    /// Narrow the state by the outcome of the comparison `condition`. When
+    /// `a && b` holds both hold, and when `a || b` fails both fail: each
+    /// side narrows in turn (the right side's comparison is read up to its
+    /// own region's end).
     fn narrow(&self, condition: ValueId, until: Option<OpId>, holds: bool, state: &mut [Option<NumberFacts>]) {
         let data = self.data;
         let definition = &data.operations[data.values[condition.index()].definition.index()];
+        if let OperationKind::ShortCircuit { kind, right } = definition.kind {
+            let both = match kind {
+                ShortCircuit::BooleanAnd | ShortCircuit::JavaScriptAnd => holds,
+                ShortCircuit::BooleanOr | ShortCircuit::JavaScriptOr => !holds,
+                ShortCircuit::Nullish => false,
+            };
+            if both {
+                if let Some(&left) = data.operands(definition.operands).and_then(|o| o.first()) {
+                    self.narrow(left, until, holds, state);
+                }
+                if let Some(result) = data.regions[right.index()].result {
+                    self.narrow(result, None, holds, state);
+                }
+            }
+            return;
+        }
         let OperationKind::Binary(op) = definition.kind else {
             return;
         };
