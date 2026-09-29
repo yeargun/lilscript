@@ -1136,17 +1136,18 @@ fn a_function_of_one_statement_is_inlined_where_its_value_is_discarded() {
 
 #[test]
 fn a_root_constant_reaches_a_function_the_call_graph_runs_after_it() {
-    // `reader` is declared before `helper(1)` runs program code, so the
-    // tree's own order must assume it may run before `K` holds its value.
-    // The program's initialization owner (M6.5) knows only the last two
-    // statements call it: `K` is its literal there, and the body folds.
+    // A named function exists from the module's start, and `helper(1)`
+    // runs program code before `K` holds its value: the tree's own order
+    // must assume `reader` may run then. The program's initialization owner
+    // (M6.5) knows only the last two statements call it: `K` is its
+    // literal there.
     let javascript = compile_with(
         r#"
         extern void show(JsValue value);
         int helper(int x) { return x + 1; }
-        int reader(int x) { return x * K + x * K * 3 + K * 4; }
         show(JS.box(helper(1)));
         int K = 21;
+        int reader(int x) { return x * K + x * K * 3 + K * 4; }
         show(JS.box(reader(1)));
         show(JS.box(reader(2)));
         "#,
