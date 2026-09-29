@@ -2596,6 +2596,30 @@ Predicted:
 
 A2a's C2 and C3 land with this batch.
 
+## 2026-09-29 Batch F4: dead code after folding (M7.8a) and the folded branch's scope
+
+**Pre-registration** (written before the first build of the batch; base: SC1's record).
+
+Why: the catalog's `number/clamp` family (12 cases) loses 34–38 Brotli per case to a competitor that prints the constant. Here `print(clamp(-2, 0, 10))` becomes `console.log((()=>0)())`:
+- The program rules fold the constant parameters and both branches (receipt: 3 values, 2 branches, 3 parameters).
+- A kept branch stays a `Block`, and the tail after it (`return value`) stays too.
+- The body therefore has two returns, and the removal-only inliner, which wants one exit, refuses it.
+- Formation then places the one-call function at its call as an IIFE that no rule removes.
+
+What the batch builds:
+- **C1. A kept branch whose own cells own no storage is spliced into the enclosing region** (`edit::splice`): its scope is unobservable. A branch declaring a cell of an owned type stays a block, since native releases that storage at the scope's end.
+- **C2. Unreachable operations go**: a program rule (`rules/unreachable.rs`) on the region-structured solver with a two-point reachability lattice. It is D1's first production consumer.
+  - It runs before inlining in each round, under the dead-code permission.
+  - A declaration stays, since a closure created earlier may still name its cell.
+  - A region whose unreachable part initializes a cell is left whole, since the kept initialization reads a value computed before it.
+  - The receipt counts what goes (`unreachable_operations`).
+
+Predicted:
+- **Cases:** the clamp and if-chain families print the constant, −30 to −38 Brotli per case in the ratchet.
+- **Ports:** little change, since folded constant branches are rare in libraries.
+- **CPU:** one solver pass per created unit per round.
+- **Tests:** two program-rule tests. The clamp body leaves one return, which inlines; operations after an exit in a loop's body go.
+
 ---
 
 ## Appendix: where milestones 001–014 went
