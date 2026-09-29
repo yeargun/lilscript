@@ -52,6 +52,11 @@ pub(super) struct Order {
     /// by root statement `c` cannot run before `runs_from[c]`: only running
     /// code can call it, and importers call exports after the whole root.
     runs_from: Vec<usize>,
+    /// The program's order (M6.5), where formation carried it: the root
+    /// point settling each binding's module cell, and the first point
+    /// during which each function may run.
+    settled: Vec<Option<u32>>,
+    first_runs: Vec<Option<u32>>,
 }
 
 impl Order {
@@ -70,8 +75,19 @@ impl Order {
     }
 
     /// Whether a root binding declared by statement `declared` holds its
-    /// value whenever `function` runs.
+    /// value whenever `function` runs. The program's initialization owner
+    /// answers first: the cell settles before the first point during which
+    /// the function's unit may run, by the call graph rather than by which
+    /// root statements run code at all.
     pub(super) fn initialized_in(&self, binding: BindingId, function: FunctionId) -> bool {
+        let settled = self.settled.get(binding.index()).copied().flatten();
+        let first = self.first_runs.get(function.index()).copied().flatten();
+        if settled
+            .zip(first)
+            .is_some_and(|(settled, first)| first > settled)
+        {
+            return true;
+        }
         match (self.declared[binding.index()], self.first_run(function)) {
             (Some(Moment::Hoisted), _) => true,
             (Some(Moment::At(declared)), Some(first)) => declared < first,
@@ -263,6 +279,8 @@ impl Module {
             created,
             owner,
             runs_from,
+            settled: budget.copy_slice(AllocationClass::Scratch, &self.settled)?,
+            first_runs: budget.copy_slice(AllocationClass::Scratch, &self.first_runs)?,
         })
     }
 

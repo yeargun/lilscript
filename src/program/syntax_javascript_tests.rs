@@ -1135,6 +1135,28 @@ fn a_function_of_one_statement_is_inlined_where_its_value_is_discarded() {
 }
 
 #[test]
+fn a_root_constant_reaches_a_function_the_call_graph_runs_after_it() {
+    // `reader` is declared before `helper(1)` runs program code, so the
+    // tree's own order must assume it may run before `K` holds its value.
+    // The program's initialization owner (M6.5) knows only the last two
+    // statements call it: `K` is its literal there, and the body folds.
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        int helper(int x) { return x + 1; }
+        int reader(int x) { return x * K + x * K * 3 + K * 4; }
+        show(JS.box(helper(1)));
+        int K = 21;
+        show(JS.box(reader(1)));
+        show(JS.box(reader(2)));
+        "#,
+        PRISTINE,
+    );
+    assert!(javascript.contains("*21"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "2\n168\n252\n");
+}
+
+#[test]
 fn a_namespace_is_flattened_where_its_reads_run_after_it() {
     let javascript = compile_with(
         r#"
