@@ -156,6 +156,65 @@ impl NumberFacts {
         }
     }
 
+    /// What both facts prove of one value: each is a sound description of
+    /// it, so their intersection is too. Two facts that cannot describe one
+    /// value (disjoint ranges) prove nothing about it here: the value is not
+    /// computed, and either answer is sound.
+    pub(crate) fn meet(self, other: Self) -> Self {
+        if !self.is_number() {
+            return other;
+        }
+        if !other.is_number() {
+            return self;
+        }
+        let integers = match (self.integers, other.integers) {
+            (Some(a), Some(b)) => {
+                let (minimum, maximum) = (a.minimum.max(b.minimum), a.maximum.min(b.maximum));
+                if minimum > maximum {
+                    return self;
+                }
+                Some(IntegerBounds { minimum, maximum })
+            }
+            (range, None) | (None, range) => range,
+        };
+        let mut flags = NUMBER | (self.flags & other.flags & (POSITIVE_ZERO | NEGATIVE_ZERO));
+        // A range without zero admits neither zero.
+        if integers.is_some_and(|range| range.minimum > 0 || range.maximum < 0) {
+            flags &= NUMBER;
+        }
+        Self { integers, flags }
+    }
+
+    /// The value, known to be at most `maximum` (a comparison's outcome),
+    /// when it is an integer: its range narrows. Nothing is learned about a
+    /// value not known to be an integer.
+    pub(crate) fn at_most(self, maximum: i64) -> Self {
+        match self.integers {
+            Some(range) if maximum >= range.minimum && maximum < range.maximum => Self {
+                integers: Some(IntegerBounds {
+                    minimum: range.minimum,
+                    maximum,
+                }),
+                flags: if maximum < 0 { NUMBER } else { self.flags },
+            },
+            _ => self,
+        }
+    }
+
+    /// The value, known to be at least `minimum`, when it is an integer.
+    pub(crate) fn at_least(self, minimum: i64) -> Self {
+        match self.integers {
+            Some(range) if minimum <= range.maximum && minimum > range.minimum => Self {
+                integers: Some(IntegerBounds {
+                    minimum,
+                    maximum: range.maximum,
+                }),
+                flags: if minimum > 0 { NUMBER } else { self.flags },
+            },
+            _ => self,
+        }
+    }
+
     pub(crate) fn unary(self, op: Unary) -> Self {
         if !self.is_number() {
             // Unary + uses ToNumber: BigInt and invalid host coercions throw,
