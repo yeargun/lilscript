@@ -189,6 +189,9 @@ pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
         // conditionals built from statements meet the operator rules.
         Rule::FoldObjectStores,
         Rule::SimplifyOperators,
+        // `let c;c=x?a:b`, built from statements, is `let c=x?a:b` (M8.2
+        // A2's declaration fusion), and then a single use to forward.
+        Rule::MergeDeclarations,
         // A function left with one call is created there.
         Rule::PlaceSingleCalls,
         Rule::DropRedundantInitStores,
