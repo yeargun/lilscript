@@ -953,6 +953,10 @@ pub struct RootRow {
     pub module: u32,
     pub anchor: Anchor,
     pub origin: RowOrigin,
+    /// The program's root point of the last operation the statement was
+    /// formed from (M6.5): code the program first runs later cannot run
+    /// before the statement completes. None for a statement a rule created.
+    pub point: Option<u32>,
 }
 
 /// Where a root statement comes from.
@@ -972,7 +976,12 @@ impl RootRow {
             module,
             anchor,
             origin: RowOrigin::Source,
+            point: None,
         }
+    }
+    /// The row formed at program root point `point`.
+    pub const fn at(self, point: Option<u32>) -> Self {
+        Self { point, ..self }
     }
     /// A statement a rule created that only defines, beside `module`.
     pub const fn synthetic(module: u32) -> Self {
@@ -980,10 +989,12 @@ impl RootRow {
             module,
             anchor: Anchor::Definition,
             origin: RowOrigin::Synthetic,
+            point: None,
         }
     }
     /// The row of a statement that now holds both statements' code:
-    /// `Anchored` wins.
+    /// `Anchored` wins, and it completes at the later point (unknown when
+    /// either is).
     pub fn fuse(self, other: Self) -> Self {
         Self {
             anchor: if self.anchor == Anchor::Anchored || other.anchor == Anchor::Anchored {
@@ -991,6 +1002,10 @@ impl RootRow {
             } else {
                 Anchor::Definition
             },
+            point: self
+                .point
+                .zip(other.point)
+                .map(|(this, other)| this.max(other)),
             ..self
         }
     }

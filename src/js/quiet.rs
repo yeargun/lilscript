@@ -340,7 +340,12 @@ impl Module {
         match owner {
             Owner::Root(at) => at > index,
             Owner::Function(function) => {
-                order.first_run(function).is_some_and(|first| first > index)
+                // The program's answer first (M6.5): the function's unit
+                // first runs after the statement's last operation.
+                let first = order.first_runs.get(function.index()).copied().flatten();
+                let point = self.root_rows.get(index).and_then(|row| row.point);
+                first.zip(point).is_some_and(|(first, point)| first > point)
+                    || order.first_run(function).is_some_and(|first| first > index)
             }
         }
     }

@@ -640,6 +640,7 @@ fn form_head(
         int32_cells: Vec::new(),
         current_module: 0,
         anchor: js::Anchor::Anchored,
+        point: None,
         classify_roots: false,
         this_cells: Vec::new(),
         arguments_cells: Vec::new(),
@@ -1113,6 +1114,9 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     current_module: u32,
     /// The anchor of the root statements being formed (plan M3.3).
     anchor: js::Anchor,
+    /// The program's root point of the operation being formed, while a
+    /// module's evaluation forms root statements (M6.5).
+    point: Option<u32>,
     /// Forming a module's evaluation: each root statement's anchor comes
     /// from the operations it is formed from.
     classify_roots: bool,
@@ -1603,7 +1607,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         self.push_statement(
             region,
             statement,
-            js::RootRow::new(self.current_module, anchor),
+            js::RootRow::new(self.current_module, anchor).at(self.point),
         )
     }
     /// A root statement formation creates for the whole program, not for the
@@ -5099,6 +5103,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 };
             }
             let operation_id = operations[cursor];
+            if classify {
+                self.point = self.root_point(unit, operation_id);
+            }
             let is_prepare = matches!(
                 self.data(unit).operations[operation_id.index()].kind,
                 OperationKind::PrepareCall(_)
@@ -5339,6 +5346,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     if let Some(expression) =
                         self.scheduled_expression(unit, &operations, &mut cursor)?
                     {
+                        // The statement completes with the last operation
+                        // it took.
+                        if classify {
+                            self.point = self.root_point(unit, operations[cursor - 1]);
+                        }
                         self.statement(target_region, js::Statement::Evaluate(expression))?;
                     }
                     continue;
@@ -5347,7 +5359,18 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             cursor += 1;
             self.statement(target_region, statement)?;
         }
+        if classify {
+            self.point = None;
+        }
         Ok(())
+    }
+
+    /// The program's root point of `operation` of `unit`'s evaluation.
+    fn root_point(&self, unit: ContextId, operation: OpId) -> Option<u32> {
+        self.demand
+            .initialization()
+            .root_point(self.semantic(unit), operation)
+            .map(|point| point.ordinal())
     }
 }
 

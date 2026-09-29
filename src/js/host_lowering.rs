@@ -239,6 +239,7 @@ impl Module {
                 module: first,
                 anchor,
                 origin: RowOrigin::Host,
+                point: None,
             }),
         );
         Ok(true)

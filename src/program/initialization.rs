@@ -563,6 +563,16 @@ impl ProgramInitialization {
             .unwrap_or(RootPoint::FIRST)
     }
 
+    /// The root point of `operation` of `unit`, when the unit is a
+    /// statically ordered module initializer.
+    pub fn root_point(&self, unit: UnitId, operation: OpId) -> Option<RootPoint> {
+        self.statements
+            .get(unit.index())?
+            .as_ref()?
+            .get(operation.index())
+            .copied()
+    }
+
     /// Whether code the program does not see may run at a point.
     pub fn hazard(&self, point: RootPoint) -> bool {
         self.hazards.get(point.0 as usize).copied().unwrap_or(true)
