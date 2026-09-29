@@ -309,7 +309,7 @@ fn owned_cells(
 
 /// A classic script's top-level cell: a global lexical binding another
 /// script may write, so a load of it proves nothing, not even its type
-/// (as `javascript_int32.rs` treats it; owner question Y5).
+/// (owner question Y5).
 fn open(program: &Program<'_>, script: bool, cell: CellId) -> bool {
     script
         && program

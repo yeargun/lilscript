@@ -32,8 +32,6 @@ use crate::scalar_transfer::NumberFacts;
 mod checks;
 #[path = "javascript_host.rs"]
 mod host;
-#[path = "javascript_int32.rs"]
-mod int32;
 #[path = "javascript_methods.rs"]
 mod methods;
 #[path = "javascript_product_calls.rs"]
@@ -640,7 +638,6 @@ fn form_head(
         foreign_bindings: Vec::new(),
         stable_cells: Vec::new(),
         arguments_read: None,
-        int32_cells: Vec::new(),
         current_module: 0,
         anchor: js::Anchor::Anchored,
         point: None,
@@ -1114,8 +1111,6 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     string_sums: Vec<js::ExprId>,
     /// Whether any unit reads `arguments`, computed on first need.
     arguments_read: Option<bool>,
-    /// Per cell, whether every write is an int32 Number; built on first need.
-    int32_cells: Vec<u8>,
     /// The source module whose root statements are being formed.
     current_module: u32,
     /// The anchor of the root statements being formed (plan M3.3).
@@ -2083,7 +2078,6 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 data.values.len(),
                 NumberFacts::UNKNOWN,
             )?;
-            self.counter_facts(context, &mut numbers)?;
             numbers
         } else {
             Vec::new()
