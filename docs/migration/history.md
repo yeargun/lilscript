@@ -2255,6 +2255,49 @@ Predicted:
 - A codec objective can now try members one at a time (they seed off), and the raw objective can drop one it measures larger.
 - CPU: three more challengers per pass, two of them render-only.
 
+**Landed** (binary `p3-1`, and a fix-up of three tests and the NO3 ledger):
+- **Unit tests:** 1,613 pass after the fix-up.
+  - The veto test lets the naming members run without formation.
+  - The shortest-forms test reads the raw seed's families at level 0.
+  - The quote rule's two ledgered measurements moved with it to `families.rs`.
+- **Cases:** every lane passes; raw is unchanged in every lane, so the raw seed prints what the bundle printed.
+
+  | Lane | Script | Module |
+  |---|---:|---:|
+  | Brotli | −10 (9 artifacts) | −12 (8 artifacts) |
+  | gzip | −4 | −3 |
+  | raw | 0 | 0 |
+
+  The walk examines about 18% more positions.
+- **Ratchet:** passes against `p2-1`'s baseline; totals unchanged.
+- **Unpatched ports** against `p2-1`: all green.
+
+  | Port | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | micromarklil | −1,427 | −245 | −309 |
+  | katexlil | −1,047 | −203 | −205 |
+  | jquerylil | −290 | −35 | −171 |
+  | markedlil | −8 | −22 | −43 |
+  | zodlil | 0 | 0 | 0 |
+  | posthoglil | +270 | +144 | +25 |
+  | motionlil | +501 | +107 | +320 |
+  | **total** | −2,001 | −254 | −383 |
+
+  micromarklil's P2 loss is more than reversed. motionlil's growth is spread over 205 of its 623 small artifacts.
+- **CPU pairs** against `p2-1`:
+
+  | Port | Factor | Judged |
+  |---|---:|---:|
+  | markedlil | ×1.17 | 9 → 13 |
+  | zodlil | ×1.21 | 18 → 24 |
+  | posthoglil | ×1.04 | 23 → 24 |
+  | micromarklil | ×1.86 | 10 → 25 |
+  | katexlil | ×1.13 | 102 → 118 |
+  | jquerylil | ×1.04 | 33 → 42 |
+  | motionlil | ×0.95 | 38 → 35 |
+
+  The three added challengers are the cost. The members now judged one by one buy the ports' −383 at level 13, where size comes first (AM2 as ruled on 2026-09-29).
+
 ---
 
 ## Appendix: where milestones 001–014 went

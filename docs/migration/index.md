@@ -159,7 +159,7 @@ A fact counts as landed only once its re-derivations are deleted (plan rule 2).
 
 - M8.1 Formation writes annotations: merged into M5.2 and batch A1 (A1's part, import identity, is done)
 - [ ] M8.2 Canonical forms. *Partly:* batch A1 was done on 2026-09-27. A2 is at step 9, and the rest lands with each replacement
-- [ ] M8.3 Pure printer: first half at step 9, second half at step 10
+- [ ] M8.3 Pure printer: first half at step 9, second half at step 10. *First half partly (P3, 2026-09-29): the raw spelling dissolved into five families (self-named functions, read order, compound assignments, quotes, logical statements), the printer reads the module and never the naming plan, and its statement-consuming conditional is gone (ports −383 Brotli). Open: loop heads and logical statements as per-site spelling attributes (with M9.3)*
 - [ ] M8.4 Host modules: step 10
 - [ ] M8.5 Runtime helpers as prelude code: step 10
 - [ ] M8.6 Source maps: step 13
