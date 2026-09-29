@@ -454,8 +454,8 @@ fn bitwise_identities_of_an_int_are_the_int() {
 
 /// A folded branch that ends in an exit joins its region, and what follows
 /// the exit is unreachable and goes (M7.8a's dead code after folding): the
-/// body is one `return`, which the removal-only inliner takes, and the
-/// call folds to its value (the catalog's `number/clamp` family).
+/// body's one `return` gives the call an exact result, the call folds to it,
+/// and the function is retired (the catalog's `number/clamp` family).
 #[test]
 fn a_folded_exit_leaves_one_return_that_inlines() {
     let source = "int clamp(int value, int lo, int hi) {
@@ -466,7 +466,7 @@ fn a_folded_exit_leaves_one_return_that_inlines() {
 print(clamp(-2, 0, 10));";
     optimized(source, MODULE, |program, receipt| {
         assert!(receipt.unreachable_operations >= 1, "{receipt:?}");
-        assert_eq!(receipt.inlined_calls, 1, "{receipt:?}");
+        assert_eq!(receipt.inlined_calls + receipt.retired_functions, 1, "{receipt:?}");
         assert_eq!(count(program, |kind| matches!(kind, OperationKind::Return)), 0);
     });
 }

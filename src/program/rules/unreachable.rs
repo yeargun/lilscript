@@ -10,7 +10,8 @@
 //! reaches it: a closure created earlier may still name its cell, whose
 //! temporal dead zone then never ends, and that is the program's meaning. A
 //! region whose unreachable part initializes a cell is left whole, since
-//! the kept initialization reads a value computed before it.
+//! the kept initialization reads a value computed before it, and so is a
+//! region that yields a value, whose result names one of its operations.
 //!
 //! Prior art: Closure's `UnreachableCodeElimination` (on its control-flow
 //! graph, `closure-compiler@0da58e1`), Terser's `dead_code`
@@ -59,13 +60,17 @@ pub(super) fn apply(editor: &mut Editor<'_>, receipt: &mut RuleReceipt) -> bool 
         while let Some(region) = regions.pop() {
             let operations = &data.regions[region.index()].operations;
             let unreached = |op: &&OpId| !*solution.before(**op);
-            let initializes = operations.iter().filter(unreached).any(|op| {
-                matches!(data.operations[op.index()].kind, OperationKind::Initialize(_))
-            });
+            // A region that yields a value (a branch of an expression, a
+            // loop's test or update) keeps its operations: its result names
+            // one of them.
+            let keeps = data.regions[region.index()].result.is_some()
+                || operations.iter().filter(unreached).any(|op| {
+                    matches!(data.operations[op.index()].kind, OperationKind::Initialize(_))
+                });
             for &op in operations {
                 let kind = &data.operations[op.index()].kind;
                 if !*solution.before(op) {
-                    if !initializes && !matches!(kind, OperationKind::Declare(_)) {
+                    if !keeps && !matches!(kind, OperationKind::Declare(_)) {
                         dead.push(op);
                     }
                     continue;
