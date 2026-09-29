@@ -2620,6 +2620,63 @@ Predicted:
 - **CPU:** one solver pass per created unit per round.
 - **Tests:** two program-rule tests. The clamp body leaves one return, which inlines; operations after an exit in a loop's body go.
 
+**Landed** (binary `f4-1`, and two fix-ups):
+- **Fix-ups:**
+  - A region that yields a value (a loop's update) keeps its unreachable operations, since its result names one of them.
+  - The tests follow what the rules do. Once the unreachable returns go, the clamp call folds to its exact result and the function is retired, not inlined. Conversion already drops dead statements written in the source, so the loop test folds its exit instead.
+- **Unit tests:** at the build, one F4 test failed on its premise (see the fix-ups); every other test passed, and the fixed test runs with V1's suite.
+- **Cases** against `sc1-1`: every lane passes.
+
+  | Lane | Script | Module |
+  |---|---:|---:|
+  | Brotli | −2 | −29 |
+  | gzip | −1 | −57 |
+  | raw | −2 | −62 |
+
+  The C lane is −336 bytes.
+- **Ratchet:** passes, totals unchanged. Its catalog cases compile as classic scripts (`--target js`), where `clamp` is a global another script may reassign. There our contract keeps the function and its call (owner question Y5), while the competitor bar assumes it owns the top level. As a module, `print(clamp(-2, 0, 10))` now compiles to `console.log(0)`.
+- **Unpatched ports** against SC1: all green. Only katexlil changes: raw −3,304, gzip −726, Brotli +67.
+  - Its module builds shrink (esm, closed and mjs −96 Brotli each; the raw builds −60).
+  - Its CommonJS and UMD builds grow (+59, +162, +162) after a +360-byte tree. In those script-like builds the rules barely apply, so the change is in the walk's path, not in the rules' edits.
+  - The fleet total is inside the band a fleet total cannot judge (the fleet law); per port, the module builds win.
+- **CPU pairs** against SC1: every port ×0.99–×1.04 (katexlil ×0.995, judged 138 → 130).
+
+M7.8a gains its dead code after folding, and M5.5's solver its first production consumer. Two things stay open. Folding the calls of a script's own top-level functions waits for owner question Y5. Choosing a tail-returning body's single exit is M7.5's.
+
+## 2026-09-29 Batch V1: value ranges, the int32-range tier (M6.4b, first part)
+
+**Pre-registration** (written before the first build of the batch; base: F4's record).
+
+Why: formation decides each `int` operation's `|0` from number facts it computes alone, per unit:
+- constants;
+- the arithmetic between them;
+- a counting loop's counter (`javascript_int32.rs`).
+
+It cannot see a range through a cell (`t=n&255; t=t*3`), a callee's result (a clamp's returns), or a branch outside a counting loop. The ports' main files print `|0` at 60 sites (katexlil), 80 (markedlil), 23 (zodlil), 19 (micromarklil) and 24 (posthoglil). katexlil's 2026-09 splice measured −72 Brotli with every one stripped, which is the upper bound.
+
+What the batch builds:
+- **C1. Two hooks on the region solver:** a branch's outcome narrows the state entering each side (an `if`, and a loop's body and exit), and a loop head widens after its first iteration.
+- **C2. `NumberFacts` gains `meet`** (two sound facts intersect) **and `at_most` / `at_least`** (a comparison's bound).
+- **C3. `ProgramRanges`, a program view** computed once per program and read by every formation.
+  - Each value's facts follow formation's own transfers.
+  - Cells only their owner touches flow per path. A comparison of such a cell's load narrows it on each side of the branch it decides, and a growing loop head widens to the type's range.
+  - A call of a known body reads that body's result range, the join of its returns. Bodies are solved callees first; a recursive body's result is its type's.
+  - Parameters are their type's.
+- **C4. Formation meets its number facts with the program's.** Both are sound, so each value has what both prove, and an `int` operation proven to stay in int32 prints without `|0`.
+
+Not in this batch:
+- parameters joined over complete call sets;
+- primitive classes (`+""`, unary `+`, concatenation);
+- deleting `javascript_int32.rs`'s proofs, `NumberFacts`' formation-side sources, `raw_domains.rs` and the binding-class derivation, which waits until the program's facts cover what they prove.
+
+Predicted:
+- **Output:** fewer `|0` on every `int`-heavy port (2 raw bytes per site) and small Brotli gains.
+- **Correctness:** no miscompile, since the facts only narrow where the language guarantees them. The ports' suites and the cases' oracles check it.
+- **CPU:** one more whole-program view per build, one solver pass per unit.
+- **Tests:**
+  - three program-level tests: a counting loop, a cell with a callee's result, a growing loop that settles;
+  - two syntax tests: a range through a cell, and a callee's result bounding its caller's arithmetic, both printed without `|0` and run.
+
 ---
 
 ## Appendix: where milestones 001–014 went

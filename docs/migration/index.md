@@ -165,7 +165,7 @@ A fact counts as landed only once its re-derivations are deleted (plan rule 2).
 - [ ] M7.5 Inlining, the rest: step 10
 - [ ] M7.6 Namespaces and emulated methods: step 10
 - [ ] M7.7 Fields: step 10
-- [x] M7.8a Literal and branch folding: 2026-09-28 (batch F1)
+- [x] M7.8a Literal and branch folding: 2026-09-28 (batch F1); dead code after folding and the folded branch's scope, 2026-09-29 (F4)
 - [ ] M7.8 Folding, the rest: step 10
 - [ ] M7.9 Scalar replacement and store-copy elision: step 10
 - [ ] M7.10 Identical units: step 10, after M8.5
