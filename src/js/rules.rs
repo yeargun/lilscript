@@ -33,6 +33,7 @@ pub(crate) enum Rule {
     EliminateAliases,
     FoldLiteralOperations,
     ForwardRootConstants,
+    ForwardRootStrings,
     ForwardSingleUses,
     ElideUndefined,
     MergeDeclarations,
@@ -83,6 +84,8 @@ impl Rule {
             | Self::InlineSingleCalls
             | Self::PlaceSingleCalls => "M7.5a (removing case), M9.1 (duplicating case)",
             Self::EliminateAliases | Self::ForwardRootConstants => "M7.4",
+            // The family's choice goes to the choice system (M9.1).
+            Self::ForwardRootStrings => "M7.4 and M9.1",
             Self::FlattenConstantObjects | Self::UnobserveCalledNames => "M7.6",
             Self::InlineInitializers | Self::DropRedundantInitStores | Self::FoldObjectStores => {
                 "M9.7 and M7.7"
@@ -174,6 +177,11 @@ pub(crate) const HEAD: &[Rule] = &[
 /// passes that follow them.
 pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
     let mut rules = Vec::with_capacity(24);
+    // String root constants read as their literals, when the artifact's
+    // family says so (M7.4's longer values: a choice).
+    if families.string_constants {
+        rules.push(Rule::ForwardRootStrings);
+    }
     if families.block_inlining {
         // Functions with one call, as statements, take its place; their
         // parameters are then copies to forward.

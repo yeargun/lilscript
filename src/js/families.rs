@@ -81,6 +81,13 @@ pub struct OutputFamilies {
     /// String arrays packed as one split string, then repeated strings and
     /// numbers read through one binding (Closure's AliasStrings).
     pub string_pooling: bool,
+    /// Root constants holding a string read as their literal wherever they
+    /// are initialized, rather than through their name (M7.4: a longer
+    /// value's forwarding is a choice, and numbers, booleans, `null` and
+    /// `undefined` forward by rule). Measured both ways on 2026-09-29 over
+    /// the reference ports' main files: named, one is 238 Brotli bytes
+    /// smaller and another 264 larger (the record names them).
+    pub string_constants: bool,
     /// Print `{let i=v;for(;c;u)b}` as `for(let i=v;c;u)b`.
     pub loop_heads: bool,
     /// Print `if(c)e;` as `c&&e;` (and `if(!c)e;` as `c||e;`) where neither
@@ -115,6 +122,7 @@ impl OutputFamilies {
         flat_blocks: false,
         statements: StatementSpellings::NONE,
         string_pooling: false,
+        string_constants: false,
         loop_heads: false,
         logical_statements: false,
         compound_assignments: false,
@@ -124,7 +132,9 @@ impl OutputFamilies {
 
     /// The alternative each family starts from under `codec`. Raw bytes seed
     /// every raw-shaped family on; a codec seeds only the loop-head spelling,
-    /// which was never measured larger there.
+    /// which was never measured larger there, and forwarded string
+    /// constants, the canonical form every objective had until they became a
+    /// family.
     pub fn seed(codec: Objective) -> Self {
         match codec {
             Objective::Raw => Self {
@@ -132,6 +142,7 @@ impl OutputFamilies {
                 flat_blocks: true,
                 statements: StatementSpellings::ALL,
                 string_pooling: true,
+                string_constants: true,
                 loop_heads: true,
                 logical_statements: true,
                 compound_assignments: true,
@@ -140,6 +151,7 @@ impl OutputFamilies {
             },
             Objective::Gzip | Objective::Brotli => Self {
                 loop_heads: true,
+                string_constants: true,
                 ..Self::NONE
             },
         }
@@ -216,12 +228,14 @@ pub enum Challenger {
     ConditionalReturns,
     LogicalBranches,
     Int32Hints,
+    StringConstants,
 }
 
 impl Challenger {
     /// The declared schedule.
-    pub const ORDER: [Self; 16] = [
+    pub const ORDER: [Self; 17] = [
         Self::Int32Hints,
+        Self::StringConstants,
         Self::ConditionalValues,
         Self::ExitPoints,
         Self::LoopFusion,
@@ -257,6 +271,7 @@ impl Challenger {
             Self::ConditionalReturns => "conditional-returns",
             Self::LogicalBranches => "logical-branches",
             Self::Int32Hints => "int32-hints",
+            Self::StringConstants => "string-constants",
         }
     }
 
@@ -299,6 +314,7 @@ impl Challenger {
             Self::BlockInlining => families.block_inlining ^= true,
             Self::FlatBlocks => families.flat_blocks ^= true,
             Self::StringPooling => families.string_pooling ^= true,
+            Self::StringConstants => families.string_constants ^= true,
         }
         next
     }

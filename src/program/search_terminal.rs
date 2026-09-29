@@ -305,6 +305,7 @@ fn spelling_names(spelling: Spelling) -> Vec<&'static str> {
         ),
         (statements.logical_branches, Challenger::LogicalBranches),
         (families.int32_hints, Challenger::Int32Hints),
+        (families.string_constants, Challenger::StringConstants),
     ]
     .into_iter()
     .filter_map(|(on, challenger)| on.then_some(challenger.name()))
