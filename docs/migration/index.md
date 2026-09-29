@@ -21,7 +21,7 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
   - M8.3's dissolved raw spelling (P3);
   - string root constants as a codec-judged family (SC1).
 
-  Against P2's base the unpatched fleet is about −8,300 Brotli, most of it O1's initialization facts (−6,156).
+  Against P2's base the unpatched fleet is about −8,600 Brotli, most of it O1's initialization facts (−6,156).
 - **Also open, off the critical path:**
   - Step 2: the layout commit, then M3.3b with M3.8a, then motionlil compiler-written (M12.2).
   - Step 6's rest: M3.4 (the public API and several codecs per objective) after S1; `-j` scoring after M5.6.
@@ -54,7 +54,7 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Critical path done 2026-09-28* (B1, B1b, B2, B3: M3.5's walk, AM2's upper levels, M3.1's first slice). Open: M3.4 after S1, `-j` scoring after M5.6
 - [x] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16: 2026-09-28 (batches S1–S7; the fix-it takes the reference ports' `JS.*` from 14,335 to 355, −97.5%). Carried: the refusal of the spellings lands with each port's release (M12.4); M4.2's type parameters by id and interned types go to step 9 with M4.4
 - [x] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half), M10.12: 2026-09-29 (batches K1–K13, B4; the ratchet's cases −1,324 Brotli, the fix-patched fleet −12,476). Carried: R2's second batch, `a.get(i)`, the refusals with each port's release (M12.4), M4.6's IR operation identity (M5.2) and platform recognitions (M10.17)
-- [x] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half): 2026-09-29 (batches N1, N2, P1–P3, D1, J1, O1, A2a, SC1; the unpatched fleet about −8,300 Brotli against P2's base, O1 alone −6,156). Carried:
+- [x] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half): 2026-09-29 (batches N1, N2, P1–P3, D1, J1, O1, A2a, SC1; the unpatched fleet about −8,600 Brotli against P2's base, O1 alone −6,156). Carried:
   - M4.4 and M4.2: statement ids, type parameters by id and interned types.
   - M4.3: parameter defaults on declarations.
   - M5.2: transfers for rule-created facts and the deletions they allow, with M6's landings at step 10 (`quiet.rs`'s order first).
