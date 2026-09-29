@@ -9,10 +9,19 @@ The one-compiler migration as a to-do list. [plan.md](plan.md) says what each ta
 - **Done:**
   - M0 and M1: there has been one compiler since 2026-09-24.
   - The interim release.
-  - Batches I, T, D, N, A1, F1–F3, B1–B4, S1–S7 and K1–K13, and M3.3a.
+  - Batches I, T, D, N, A1, F1–F3, B1–B4, S1–S7, K1–K13, N1–N2, P1–P3, D1, J1, O1, A2a and SC1, and M3.3a.
   - Three of the tools: M2.13, M2.5 and M2.14.
-  - Of the plan's 13 steps, steps 1, 4, 5, 7 and 8 and step 6's critical path are done, and steps 2 and 3 are partly done.
-- **Next on the critical path:** step 9, the machinery: M4.3 and M4.4 (node ids: identifiers carry them and the checker's facts are keyed by them), then M5.2, M5.5, M5.3a, batch A2 and M8.3's first half. Step 8 landed the core language rules: trusted crossings (R1), sound narrowing, definite assignment and field initializers (R3), typed intrinsics (R10), R11's integers and index precondition with a development-check lane, R2's first batch, the `debug` class (R15) and the operation catalog. Against step 7's binary the ratchet's cases are −1,324 Brotli (−2.7%) and −2,477 raw, the apps 861 Brotli beat the competitor's 870, and the fix-patched fleet is −12,476 Brotli.
+  - Of the plan's 13 steps, steps 1, 4, 5, 7, 8 and 9 and step 6's critical path are done, and steps 2 and 3 are partly done.
+- **Next on the critical path:** step 10, facts and the rest of the floor: the floor's dead code after folding (F4), M6.4b's ranges, then M7's rules with M5.3b's deletions. Step 9 landed the machinery:
+  - node ids and the checker's facts transported (N1, N2);
+  - the tree's annotation columns (P1, P2, O1) and its edit journal (J1);
+  - one fixed-point scheduler for both rule kinds (J1);
+  - the region solver and cell SSA (D1);
+  - A2's rules (O1's fusion, A2a);
+  - M8.3's dissolved raw spelling (P3);
+  - string root constants as a codec-judged family (SC1).
+
+  Against P2's base the unpatched fleet is about −8,300 Brotli, most of it O1's initialization facts (−6,156).
 - **Also open, off the critical path:**
   - Step 2: the layout commit, then M3.3b with M3.8a, then motionlil compiler-written (M12.2).
   - Step 6's rest: M3.4 (the public API and several codecs per objective) after S1; `-j` scoring after M5.6.
@@ -45,7 +54,13 @@ The plan's [order of work](plan.md#order-of-work). The critical path runs throug
 - [ ] **6** Budget model, counted (AM1): M3.1 (first slice), M3.4, M3.5; then M3.2, M3.9, M5.6, M3.7 as needed. *Critical path done 2026-09-28* (B1, B1b, B2, B3: M3.5's walk, AM2's upper levels, M3.1's first slice). Open: M3.4 after S1, `-j` scoring after M5.6
 - [x] **7** Language slice 1: M4.2 with M10.2, then M10.4, M10.7, M10.16: 2026-09-28 (batches S1–S7; the fix-it takes the reference ports' `JS.*` from 14,335 to 355, −97.5%). Carried: the refusal of the spellings lands with each port's release (M12.4); M4.2's type parameters by id and interned types go to step 9 with M4.4
 - [x] **8** The core: M4.6, M10.13, M10.9, M10.15, M10.11 (`debug` class), M10.14 (checker half), M10.12: 2026-09-29 (batches K1–K13, B4; the ratchet's cases −1,324 Brotli, the fix-patched fleet −12,476). Carried: R2's second batch, `a.get(i)`, the refusals with each port's release (M12.4), M4.6's IR operation identity (M5.2) and platform recognitions (M10.17)
-- [ ] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half)
+- [x] **9** Machinery: M4.3, M4.4, M5.2, M5.5, M5.3a, M8.2 A2, M8.3 (first half): 2026-09-29 (batches N1, N2, P1–P3, D1, J1, O1, A2a, SC1; the unpatched fleet about −8,300 Brotli against P2's base, O1 alone −6,156). Carried:
+  - M4.4 and M4.2: statement ids, type parameters by id and interned types.
+  - M4.3: parameter defaults on declarations.
+  - M5.2: transfers for rule-created facts and the deletions they allow, with M6's landings at step 10 (`quiet.rs`'s order first).
+  - M5.7: the program rules' SCC worklist.
+  - A2: `fold_logical_*` as canonical formation, and the dead `let` (withdrawn, since it moves katexlil's walk).
+  - M9.3: per-site spellings (M8.3's rest).
 - [ ] **10** Facts and the rest of the floor: M6.4b, M6.6, M6.7, M6.8, then M7.1, M7.4, M7.5, M7.6, M7.7, M7.8, M7.9, M8.5, M7.10, with M5.3b; M5.7, M8.3 (second half); M4.5, M11.1, M11.11, and M11.5 right after M7
 - [ ] **11** One choice system: M10.3, M9.1's rest, M9.2's gzip row, M9.3 per site, M9.5, M9.6, M9.7, M9.8's rest, M9.9–M9.12, M10.19, M3.3c with M3.8b
 - [ ] **12** The rest of M10: M10.1, M10.8, M10.5, M10.6, M10.18, M10.10, M10.17, M10.14's constructibility (after Y3), M10.11's termination (after Y4) and pins
@@ -145,7 +160,7 @@ A fact counts as landed only once its re-derivations are deleted (plan rule 2).
 - [ ] M7.1 Removal: step 10
 - [x] M7.2 Discarded effect-free calls: 2026-09-24 (batch I)
 - [x] M7.3 Parameters and returns: 2026-09-28 (batches F2, F3). *Signatures change per coupling class. The three default passes stay: measured, they still act on script roots and callee-built defaults (Y5)*
-- [ ] M7.4 Root constants, defines, forwarding: step 10
+- [ ] M7.4 Root constants, defines, forwarding: step 10. *Partly (SC1, 2026-09-29): scalar root constants forward by rule, string ones as the codec-judged `string_constants` family (fleet −1,707 Brotli)*
 - [x] M7.5a Removal-only inlining: 2026-09-28 (batch F2), first version: one exit, no function created inside, one module. *Tail returns, closures inside bodies and cross-module bodies go to M7.5; the tree inliners stay until then*
 - [ ] M7.5 Inlining, the rest: step 10
 - [ ] M7.6 Namespaces and emulated methods: step 10
@@ -158,7 +173,7 @@ A fact counts as landed only once its re-derivations are deleted (plan rule 2).
 ### M8 Canonical formation and the pure printer: 0 of 6 · [plan](plan.md#m8-canonical-formation-and-the-pure-printer)
 
 - M8.1 Formation writes annotations: merged into M5.2 and batch A1 (A1's part, import identity, is done)
-- [ ] M8.2 Canonical forms. *Partly:* batch A1 was done on 2026-09-27. A2 is at step 9, and the rest lands with each replacement
+- [ ] M8.2 Canonical forms. *Partly:* batch A1 was done on 2026-09-27; A2 partly on 2026-09-29 (O1: declaration fusion in the tail; A2a: C9's regex literals, C19's `globalThis` builtins; the dead `let` withdrawn, `fold_logical_*` as formation open). The rest lands with each replacement
 - [ ] M8.3 Pure printer: first half at step 9, second half at step 10. *First half partly (P3, 2026-09-29): the raw spelling dissolved into five families (self-named functions, read order, compound assignments, quotes, logical statements), the printer reads the module and never the naming plan, and its statement-consuming conditional is gone (ports −383 Brotli). Open: loop heads and logical statements as per-site spelling attributes (with M9.3)*
 - [ ] M8.4 Host modules: step 10
 - [ ] M8.5 Runtime helpers as prelude code: step 10
