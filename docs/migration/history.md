@@ -2677,6 +2677,46 @@ Predicted:
   - three program-level tests: a counting loop, a cell with a callee's result, a growing loop that settles;
   - two syntax tests: a range through a cell, and a callee's result bounding its caller's arithmetic, both printed without `|0` and run.
 
+**Landed** (binary `v1-1`, and a fix-up of one test):
+- **Unit tests:** 1,635 pass. One failed on its premise: an `int` product keeps its `|0`, because `-1*0` is `-0` and an `int` never is. The test now adds.
+- **Cases** against F4: every lane passes, and every lane shrinks (31 script and 17 module artifacts change).
+
+  | Lane | Script | Module |
+  |---|---:|---:|
+  | Brotli | −90 | −20 |
+  | gzip | −83 | −38 |
+  | raw | −182 | −86 |
+- **Ratchet:**
+  - Cases, against F4's totals: raw 61,698 → 60,722, gzip 57,032 → 56,426, Brotli 46,789 → 46,262.
+  - Losses to the competitor: raw 276 → 235, gzip 315 → 255, Brotli 348 → 314.
+  - Apps: Brotli 843 → 838 (Closure ADVANCED 834).
+  - 29 rows grew by 1–3 Brotli bytes, on tiny cases where a `|0` went, against 765 improvements. No total grew, so they are accepted with `--accept-growth`, and the baseline is `v1-1`'s.
+- **Unpatched ports** against F4: all green.
+
+  | Port | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | katexlil | +1,117 | −639 | −213 |
+  | micromarklil | −742 | −119 | −185 |
+  | markedlil | +50 | −85 | −161 |
+  | zodlil | −1,967 | −226 | −82 |
+  | motionlil | −485 | −25 | +19 |
+  | posthoglil | +1,000 | +60 | +154 |
+  | jquerylil | −1,795 | −73 | +208 |
+  | **total** | −2,822 | −1,107 | −260 |
+
+  jquerylil's and posthoglil's builds all grow under Brotli. That is the owner's point of 2026-09-29: under a codec a repeated `|0` costs almost nothing, and removing it can cost more. V2 ties range-proven elision to the codec-judged `int32_hints` family.
+- **A soundness gap, found after the build.** The view gave a classic script's top-level `int` cell its type's range. Another script may write that global, so a load of it proves nothing (`javascript_int32.rs`'s rule). The gap needs a narrow range built on such a load (say, after a remainder), and an outside script writing a non-integer into it. V2's first change closes it.
+- **CPU pairs** against F4:
+
+  | Port | Factor | Judged |
+  |---|---:|---:|
+  | zodlil | ×2.35 | 14 → 39 |
+  | micromarklil | ×1.71 | 19 → 36 |
+  | motionlil | ×1.19 | 36 → 53 |
+  | the others | ×0.93 to ×1.00 | |
+
+  The walks judge more on trees whose `|0` spellings changed. That is another reason V2 ties the elision to the codec-judged family.
+
 ---
 
 ## Appendix: where milestones 001–014 went
