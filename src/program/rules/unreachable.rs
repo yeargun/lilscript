@@ -65,7 +65,10 @@ pub(super) fn apply(editor: &mut Editor<'_>, receipt: &mut RuleReceipt) -> bool 
             // one of them.
             let keeps = data.regions[region.index()].result.is_some()
                 || operations.iter().filter(unreached).any(|op| {
-                    matches!(data.operations[op.index()].kind, OperationKind::Initialize(_))
+                    matches!(
+                        data.operations[op.index()].kind,
+                        OperationKind::Initialize(_)
+                    )
                 });
             for &op in operations {
                 let kind = &data.operations[op.index()].kind;

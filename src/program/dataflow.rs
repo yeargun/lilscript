@@ -198,29 +198,37 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                         OperationKind::Constant(Constant::Boolean(true))
                     )
                 });
-                self.fixed_point(state, |solver, head| {
-                    let tested = solver.region(test, head)?;
-                    let mut entered = tested.clone();
-                    solver.analysis.branch(unit, operation, true, &mut entered);
-                    let bodied = solver.region(body, entered)?;
-                    let exits = if endless {
-                        solver.analysis.unreachable()
-                    } else {
-                        let mut left = tested;
-                        solver.analysis.branch(unit, operation, false, &mut left);
-                        left
-                    };
-                    Ok((exits, bodied))
-                }, Some(update))?
+                self.fixed_point(
+                    state,
+                    |solver, head| {
+                        let tested = solver.region(test, head)?;
+                        let mut entered = tested.clone();
+                        solver.analysis.branch(unit, operation, true, &mut entered);
+                        let bodied = solver.region(body, entered)?;
+                        let exits = if endless {
+                            solver.analysis.unreachable()
+                        } else {
+                            let mut left = tested;
+                            solver.analysis.branch(unit, operation, false, &mut left);
+                            left
+                        };
+                        Ok((exits, bodied))
+                    },
+                    Some(update),
+                )?
             }
             OperationKind::ForIn { body, .. } | OperationKind::ForOf { body, .. } => {
-                self.fixed_point(state, |solver, head| {
-                    let mut entered = head.clone();
-                    analysis.transfer(unit, operation, &mut entered);
-                    let bodied = solver.region(body, entered)?;
-                    // The loop exits from its head, before the next binding.
-                    Ok((head, bodied))
-                }, None)?
+                self.fixed_point(
+                    state,
+                    |solver, head| {
+                        let mut entered = head.clone();
+                        analysis.transfer(unit, operation, &mut entered);
+                        let bodied = solver.region(body, entered)?;
+                        // The loop exits from its head, before the next binding.
+                        Ok((head, bodied))
+                    },
+                    None,
+                )?
             }
             OperationKind::Try {
                 body,
@@ -228,7 +236,10 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                 finally,
             } => self.try_operation(operation, state, body, catch, finally)?,
             OperationKind::Break | OperationKind::Continue => {
-                let is_break = matches!(unit.operations[operation.index()].kind, OperationKind::Break);
+                let is_break = matches!(
+                    unit.operations[operation.index()].kind,
+                    OperationKind::Break
+                );
                 if let Some(target) = self
                     .targets
                     .iter_mut()

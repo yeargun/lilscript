@@ -256,9 +256,8 @@ impl Ranges<'_, '_> {
                 matches!(data.places[place.index()], Place::Cell(written) if written == cell)
             }
             OperationKind::Initialize(written) | OperationKind::Declare(written) => written == cell,
-            OperationKind::ForIn { key: written, .. } | OperationKind::ForOf { item: written, .. } => {
-                written == cell
-            }
+            OperationKind::ForIn { key: written, .. }
+            | OperationKind::ForOf { item: written, .. } => written == cell,
             _ => false,
         };
         direct
@@ -274,7 +273,13 @@ impl Ranges<'_, '_> {
     /// `a && b` holds both hold, and when `a || b` fails both fail: each
     /// side narrows in turn (the right side's comparison is read up to its
     /// own region's end).
-    fn narrow(&self, condition: ValueId, until: Option<OpId>, holds: bool, state: &mut [Option<NumberFacts>]) {
+    fn narrow(
+        &self,
+        condition: ValueId,
+        until: Option<OpId>,
+        holds: bool,
+        state: &mut [Option<NumberFacts>],
+    ) {
         let data = self.data;
         let definition = &data.operations[data.values[condition.index()].definition.index()];
         if let OperationKind::ShortCircuit { kind, right } = definition.kind {
@@ -315,16 +320,22 @@ impl Ranges<'_, '_> {
                 }
             }
         };
-        if let (Some(cell), Some((minimum, maximum))) = (self.loaded_cell(left, until), bounds(right)) {
+        if let (Some(cell), Some((minimum, maximum))) =
+            (self.loaded_cell(left, until), bounds(right))
+        {
             match op {
                 BinaryOp::Less => apply(cell, &|facts| facts.at_most(maximum.saturating_sub(1))),
                 BinaryOp::LessEq => apply(cell, &|facts| facts.at_most(maximum)),
-                BinaryOp::Greater => apply(cell, &|facts| facts.at_least(minimum.saturating_add(1))),
+                BinaryOp::Greater => {
+                    apply(cell, &|facts| facts.at_least(minimum.saturating_add(1)))
+                }
                 BinaryOp::GreaterEq => apply(cell, &|facts| facts.at_least(minimum)),
                 _ => {}
             }
         }
-        if let (Some(cell), Some((minimum, maximum))) = (self.loaded_cell(right, until), bounds(left)) {
+        if let (Some(cell), Some((minimum, maximum))) =
+            (self.loaded_cell(right, until), bounds(left))
+        {
             // `left op cell`: the mirrored bound on the cell.
             match op {
                 BinaryOp::Less => apply(cell, &|facts| facts.at_least(minimum.saturating_add(1))),
@@ -349,61 +360,64 @@ impl Ranges<'_, '_> {
                 .map_or(NumberFacts::UNKNOWN, |&value| self.value(value))
         };
         let by_type = by_type(program, data.values[result.index()].ty);
-        Some(match op.kind {
-            OperationKind::Constant(Constant::Integer(value)) => {
-                NumberFacts::literal(f64::from(value))
-            }
-            OperationKind::Constant(Constant::Number(bits)) => {
-                NumberFacts::literal(f64::from_bits(bits))
-            }
-            OperationKind::CopyValue => operand(0),
-            OperationKind::IntBinary(int) => operand(0)
-                .binary(int.javascript(), operand(1))
-                .to_int32(),
-            OperationKind::Binary(binary) => match javascript_binary(binary) {
-                Some(binary) => operand(0).binary(binary, operand(1)),
-                None => by_type,
-            },
-            OperationKind::Unary { op, integer } => {
-                let raw = operand(0).unary(match op {
-                    UnaryOp::Neg => crate::js::Unary::Negate,
-                    UnaryOp::Not => crate::js::Unary::Not,
-                });
-                if integer && op == UnaryOp::Neg {
-                    raw.to_int32()
-                } else {
-                    raw
+        Some(
+            match op.kind {
+                OperationKind::Constant(Constant::Integer(value)) => {
+                    NumberFacts::literal(f64::from(value))
                 }
-            }
-            OperationKind::Intrinsic(ResolvedIntrinsic::Property(
-                crate::primitive::Intrinsic::StringLength | crate::primitive::Intrinsic::ArrayLength,
-            )) => NumberFacts::integer_range(0, 1 << 30, false).unwrap_or(NumberFacts::UNKNOWN),
-            OperationKind::Select { yes, no } => {
-                let side = |region: RegionId| {
-                    data.regions[region.index()]
-                        .result
-                        .map_or(NumberFacts::UNKNOWN, |value| self.value(value))
-                };
-                side(yes).join(side(no))
-            }
-            OperationKind::Load(place) => match data.places[place.index()] {
-                Place::Cell(cell) => match self.ordinal(cell) {
-                    Some(ordinal) => state[ordinal].unwrap_or(by_type),
+                OperationKind::Constant(Constant::Number(bits)) => {
+                    NumberFacts::literal(f64::from_bits(bits))
+                }
+                OperationKind::CopyValue => operand(0),
+                OperationKind::IntBinary(int) => {
+                    operand(0).binary(int.javascript(), operand(1)).to_int32()
+                }
+                OperationKind::Binary(binary) => match javascript_binary(binary) {
+                    Some(binary) => operand(0).binary(binary, operand(1)),
+                    None => by_type,
+                },
+                OperationKind::Unary { op, integer } => {
+                    let raw = operand(0).unary(match op {
+                        UnaryOp::Neg => crate::js::Unary::Negate,
+                        UnaryOp::Not => crate::js::Unary::Not,
+                    });
+                    if integer && op == UnaryOp::Neg {
+                        raw.to_int32()
+                    } else {
+                        raw
+                    }
+                }
+                OperationKind::Intrinsic(ResolvedIntrinsic::Property(
+                    crate::primitive::Intrinsic::StringLength
+                    | crate::primitive::Intrinsic::ArrayLength,
+                )) => NumberFacts::integer_range(0, 1 << 30, false).unwrap_or(NumberFacts::UNKNOWN),
+                OperationKind::Select { yes, no } => {
+                    let side = |region: RegionId| {
+                        data.regions[region.index()]
+                            .result
+                            .map_or(NumberFacts::UNKNOWN, |value| self.value(value))
+                    };
+                    side(yes).join(side(no))
+                }
+                OperationKind::Load(place) => match data.places[place.index()] {
+                    Place::Cell(cell) => match self.ordinal(cell) {
+                        Some(ordinal) => state[ordinal].unwrap_or(by_type),
+                        None => by_type,
+                    },
+                    _ => by_type,
+                },
+                OperationKind::Call(_) => match self.callees[operation.index()] {
+                    Some(callee) => match self.results.get(callee.index()).copied().flatten() {
+                        Some(result) => result.meet(by_type),
+                        None => by_type,
+                    },
                     None => by_type,
                 },
                 _ => by_type,
-            },
-            OperationKind::Call(_) => match self.callees[operation.index()] {
-                Some(callee) => match self.results.get(callee.index()).copied().flatten() {
-                    Some(result) => result.meet(by_type),
-                    None => by_type,
-                },
-                None => by_type,
-            },
-            _ => by_type,
-        }
-        // Whatever the transfer says, the type holds too.
-        .meet(by_type))
+            }
+            // Whatever the transfer says, the type holds too.
+            .meet(by_type),
+        )
     }
 }
 
@@ -465,7 +479,8 @@ impl Forward for Ranges<'_, '_> {
             // A per-iteration binding or a caught value is its type's.
             OperationKind::ForIn { key: cell, .. } | OperationKind::ForOf { item: cell, .. } => {
                 if let Some(ordinal) = self.ordinal(cell) {
-                    state[ordinal] = Some(by_type(self.program, self.program.cells[cell.index()].ty));
+                    state[ordinal] =
+                        Some(by_type(self.program, self.program.cells[cell.index()].ty));
                 }
             }
             OperationKind::Try {
@@ -473,7 +488,8 @@ impl Forward for Ranges<'_, '_> {
                 ..
             } => {
                 if let Some(ordinal) = self.ordinal(cell) {
-                    state[ordinal] = Some(by_type(self.program, self.program.cells[cell.index()].ty));
+                    state[ordinal] =
+                        Some(by_type(self.program, self.program.cells[cell.index()].ty));
                 }
             }
             _ => {}
@@ -511,8 +527,16 @@ impl Forward for Ranges<'_, '_> {
             *next = Some(
                 match (integer, grown.integer_bounds(), previous.integer_bounds()) {
                     (true, Some((minimum, maximum)), Some((old_minimum, old_maximum))) => {
-                        let low = if minimum < old_minimum { i32::MIN as i64 } else { minimum };
-                        let high = if maximum > old_maximum { i32::MAX as i64 } else { maximum };
+                        let low = if minimum < old_minimum {
+                            i32::MIN as i64
+                        } else {
+                            minimum
+                        };
+                        let high = if maximum > old_maximum {
+                            i32::MAX as i64
+                        } else {
+                            maximum
+                        };
                         NumberFacts::integer_range(low, high, false).unwrap_or(NumberFacts::I32)
                     }
                     (true, _, _) => NumberFacts::I32,

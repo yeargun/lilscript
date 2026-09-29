@@ -63,7 +63,11 @@ fn nothing_after_a_return_is_reached_and_a_branch_joins() {
     // Every operation of the entry region is reached: the `if` without
     // `else` joins its branch with its entry.
     for &operation in &unit.regions[unit.entry.index()].operations {
-        assert!(*solution.before(operation), "{:?}", unit.operations[operation.index()].kind);
+        assert!(
+            *solution.before(operation),
+            "{:?}",
+            unit.operations[operation.index()].kind
+        );
     }
 }
 

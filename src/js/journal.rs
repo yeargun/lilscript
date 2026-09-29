@@ -145,7 +145,12 @@ impl Module {
     }
 
     /// Replace statement `index` of `region`; returns whether it differed.
-    pub(crate) fn set_statement(&mut self, region: usize, index: usize, statement: Statement) -> bool {
+    pub(crate) fn set_statement(
+        &mut self,
+        region: usize,
+        index: usize,
+        statement: Statement,
+    ) -> bool {
         if self.regions[region].statements[index] == statement {
             return false;
         }
@@ -237,7 +242,10 @@ mod check {
                 digests[index] = Some(state.finish());
             }
         }
-        digests.into_iter().map(|digest| digest.unwrap_or(0)).collect()
+        digests
+            .into_iter()
+            .map(|digest| digest.unwrap_or(0))
+            .collect()
     }
 
     /// A region's digest: its scope and its statements, each with its nodes'
@@ -265,7 +273,11 @@ mod check {
         /// against what actually differs now: every changed region still
         /// reachable, binding, function and table is recorded, and a rule
         /// that recorded an edit changed something.
-        pub(crate) fn check_journal(&self, before: &Module, journal: &Journal) -> Result<(), String> {
+        pub(crate) fn check_journal(
+            &self,
+            before: &Module,
+            journal: &Journal,
+        ) -> Result<(), String> {
             let old = expression_digests(&before.expressions);
             let new = expression_digests(&self.expressions);
             // The regions reachable now, and the ones holding each node the
@@ -328,7 +340,11 @@ mod check {
             let bindings: std::collections::HashSet<usize> =
                 journal.bindings.iter().map(|id| id.index()).collect();
             for (index, binding) in self.bindings.iter().enumerate() {
-                if before.bindings.get(index).is_some_and(|previous| previous != binding) {
+                if before
+                    .bindings
+                    .get(index)
+                    .is_some_and(|previous| previous != binding)
+                {
                     changed = true;
                     if !bindings.contains(&index) {
                         missing.push(format!("binding {index}"));
@@ -338,7 +354,11 @@ mod check {
             let functions: std::collections::HashSet<usize> =
                 journal.functions.iter().map(|id| id.index()).collect();
             for (index, function) in self.functions.iter().enumerate() {
-                if before.functions.get(index).is_some_and(|previous| previous != function) {
+                if before
+                    .functions
+                    .get(index)
+                    .is_some_and(|previous| previous != function)
+                {
                     changed = true;
                     if !functions.contains(&index) {
                         missing.push(format!("function {index}"));
@@ -357,10 +377,7 @@ mod check {
                 return Err(format!("unrecorded edits: {}", missing.join(", ")));
             }
             if journal.edits > 0 && !changed {
-                return Err(format!(
-                    "{} edits recorded, nothing changed",
-                    journal.edits
-                ));
+                return Err(format!("{} edits recorded, nothing changed", journal.edits));
             }
             Ok(())
         }

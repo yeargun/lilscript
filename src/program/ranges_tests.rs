@@ -81,9 +81,11 @@ fn a_counting_loop_bounds_its_counter() {
 
 #[test]
 fn a_cell_carries_its_range_and_a_callee_its_result() {
-    let source = "int scaled(int n) { int t = n & 255; t = t * 3; return t + 1; } print(scaled(1000));";
+    let source =
+        "int scaled(int n) { int t = n & 255; t = t * 3; return t + 1; } print(scaled(1000));";
     assert_eq!(returned(source, "scaled"), Some((1, 766)));
-    let source = "int clamp(int v) { if (v < -120) { return -120; } if (v > 120) { return 120; } return v; }
+    let source =
+        "int clamp(int v) { if (v < -120) { return -120; } if (v > 120) { return 120; } return v; }
 int twice(int a) { return clamp(a) + clamp(a); } print(twice(7));";
     assert_eq!(returned(source, "clamp"), Some((-120, 120)));
     assert_eq!(returned(source, "twice"), Some((-240, 240)));
@@ -95,5 +97,8 @@ fn a_loop_that_grows_settles_by_widening() {
     // Settled (the solve did not give up): the loop's exit reads `x >= n`,
     // and `x` is an int32 whatever it grew to.
     let bounds = returned(source, "grow");
-    assert!(bounds.is_some_and(|(low, high)| low >= i32::MIN as i64 && high <= i32::MAX as i64), "{bounds:?}");
+    assert!(
+        bounds.is_some_and(|(low, high)| low >= i32::MIN as i64 && high <= i32::MAX as i64),
+        "{bounds:?}"
+    );
 }
