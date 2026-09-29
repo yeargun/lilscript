@@ -2169,7 +2169,15 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             _ => self.plan(unit).numbers[value.index()],
         };
         // The program's ranges (M6.4b), computed once for every formation:
-        // both are sound, so each value has what both prove.
+        // both are sound, so each value has what both prove. They only
+        // decide where an `int` operation's `|0` may go, and under the
+        // `int32_hints` family the artifact keeps the compiler's earlier
+        // `|0` spellings instead: a codec's repeat matching often prefers
+        // them, and its challenger lets the codec judge (owner, 2026-09-29:
+        // a compression-first build need not care about `|0`).
+        if self.int32_hints {
+            return local;
+        }
         local.meet(self.ranges.number(self.semantic(unit), value))
     }
 
