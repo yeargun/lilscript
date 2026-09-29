@@ -2542,8 +2542,9 @@ fn a_range_through_a_cell_needs_no_int32_normalization() {
 }
 
 /// A callee's result range (M6.4b): each branch of `clamp` bounds what it
-/// returns, so the product of two clamped values and a small constant stays
-/// in int32.
+/// returns, so the sum of two clamped values and a small constant stays in
+/// int32. (A product would keep its `|0`: `-1*0` is `-0`, which an `int`
+/// never is.)
 #[test]
 fn a_callee_result_range_bounds_its_callers_arithmetic() {
     let javascript = compile_with(
@@ -2555,12 +2556,12 @@ fn a_callee_result_range_bounds_its_callers_arithmetic() {
             return v;
         }
         export int score(int a, int b) {
-            return clamp(a) * clamp(b) + 7;
+            return clamp(a) + clamp(b) + 7;
         }
         show(JS.box(score(500, -3)));
         "#,
         PRISTINE,
     );
     assert!(!javascript.contains("|0"), "{javascript}");
-    assert_eq!(run(&javascript, SHOW), "-353\n");
+    assert_eq!(run(&javascript, SHOW), "124\n");
 }
