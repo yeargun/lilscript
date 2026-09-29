@@ -4,7 +4,7 @@
 //   node scripts/ratchet.mjs --compiler <lilscript> [--codec <lilscript-codec>]
 //        [--sets cases,apps,algorithms] [--filter <id-substring|glob>,...]
 //        [--jobs N] [--work DIR] [--json out.json] [--markdown out.md]
-//        [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline] [--verbose]
+//        [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline [--accept-growth]] [--verbose]
 //   node scripts/ratchet.mjs --refresh-bars --compiler <lilscript> --reference <old-route lilscript>
 //
 // Three generic corpora, none of them a port: comparison/cases (54 canonical
@@ -29,7 +29,11 @@
 //   - a loss or failure is not covered by a ledger entry with an owner
 //     (tests/ratchet/ledger.json), or the bars changed under the baseline.
 // Improvements are reported; --update-baseline writes them into the baseline,
-// and refuses while anything above fails. Bars are refreshed only with
+// and refuses while anything above fails. With --accept-growth it also accepts
+// items whose loss grew, and loss counts that grew, when no corpus total
+// grew in any metric (the owner's ruling of 2026-09-29: a batch is judged by
+// its totals, and a few bytes lost locally for an overall win are accepted);
+// it lists what it accepts. Bars are refreshed only with
 // --refresh-bars, a scheduled re-baseline event (BC3) that needs the pinned
 // competitors (benchmarks/popular), Closure and the reference binary; the gate
 // itself needs only Node, the compiler and the codec.
@@ -716,7 +720,28 @@ export async function runRatchet(options) {
   if (improvements.length) process.stdout.write(`\nImprovements (${improvements.length}; tighten with --update-baseline):\n${improvements.slice(0, options.verbose ? improvements.length : 40).map((line) => `  ${line}`).join("\n")}\n`);
 
   if (options.updateBaseline) {
-    const refusing = problems.filter((line) => !line.startsWith("no baseline") && !line.startsWith("the bars changed"));
+    const growth = (line) => line.startsWith("loss grew:") || line.startsWith("loss count grew:");
+    // Growth is accepted only for an overall win: no corpus total (ours,
+    // per metric) above the baseline's.
+    const grownTotals = [];
+    if (options.acceptGrowth && baseline) {
+      for (const [set, metrics] of Object.entries(sums)) {
+        for (const [metric, bars] of Object.entries(metrics)) {
+          const now = Object.values(bars)[0]?.ours;
+          const before = Object.values(baseline.totals?.[set]?.[metric] ?? {})[0]?.ours;
+          if (now !== undefined && before !== undefined && now > before) grownTotals.push(`${set} ${metric}: ${before} -> ${now}`);
+        }
+      }
+    }
+    const acceptable = options.acceptGrowth && grownTotals.length === 0;
+    const refusing = problems.filter((line) => !line.startsWith("no baseline") && !line.startsWith("the bars changed") && !(acceptable && growth(line)));
+    if (options.acceptGrowth && grownTotals.length) {
+      process.stdout.write(`\n--accept-growth refused: a corpus total grew:\n${grownTotals.map((line) => `  ${line}`).join("\n")}\n`);
+    }
+    if (acceptable) {
+      const accepted = problems.filter(growth);
+      if (accepted.length) process.stdout.write(`\n--accept-growth accepts (${accepted.length}):\n${accepted.map((line) => `  ${line}`).join("\n")}\n`);
+    }
     if (refusing.length) {
       process.stdout.write("\n--update-baseline refused: the run has blocking problems other than a missing or re-barred baseline.\n");
     } else if (options.filter || sets.length !== SETS.length) {
@@ -766,6 +791,7 @@ async function main() {
       "refresh-bars": { type: "boolean" },
       "reuse-summaries": { type: "boolean" },
       "update-baseline": { type: "boolean" },
+      "accept-growth": { type: "boolean" },
       verbose: { type: "boolean" },
       help: { type: "boolean" },
     },
@@ -793,6 +819,7 @@ async function main() {
     ledger: values.ledger ?? join(repository, DEFAULTS.ledger),
     label: values.label,
     updateBaseline: values["update-baseline"] ?? false,
+    acceptGrowth: values["accept-growth"] ?? false,
     reuseSummaries: values["reuse-summaries"] ?? false,
     verbose: values.verbose ?? false,
   };
