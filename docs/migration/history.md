@@ -2851,6 +2851,7 @@ Predicted:
 
 **Verification amendments (2026-09-30, before rebuilding the fixes).**
 - **C4, strictness at inlining sites:** the first unit run found a script's sloppy property write moved into a strict class method. Frame privacy does not authorize that. The existing reachability walk records lexical strictness, including class bodies and nested functions; the four frame-moving rules preserve it in scripts. This reuses the walk's visited buffers, adds constant work per visited node and no new search candidate. Module legality is unchanged. Runtime regressions cover frozen-property writes and deletion.
+- **C5, delivery row repair:** a fresh assertion-enabled build of `cebc5928` reproduces the same ten delivery failures. Each is an evaluation statement labelled as a movable definition even though it declares no binding. Formation now anchors non-declaration statements when publishing their root row; the existing release delivery fallback already anchors these rows. Expected delivered bytes are unchanged. The assertion retains the failing statement and flags in its diagnostic.
 - V2's range fixture also needs its second outer function exported: otherwise its constant caller proves `[7,7]`, rather than the interval the test intends to exercise.
 
 Verification starts from the six rebased commits `67848cbc` through `1c4de0e5` on `cebc5928`. The first check also covers V2's two test-only repairs (`3bf39765`). Y5 changes the contract used by existing rules; it introduces no new exact rule or heuristic.

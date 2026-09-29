@@ -714,7 +714,7 @@ impl Facts {
                 row.anchor == Anchor::Definition && declares && !writes_root && !loads_here;
             debug_assert!(
                 row.anchor == Anchor::Anchored || definition,
-                "root statement {index} is a definition row that does not only define"
+                "root statement {index} is a definition row that does not only define: {statement:?}; writes_root={writes_root}, loads_here={loads_here}"
             );
             references.push(own);
             imports.push(foreign_used);

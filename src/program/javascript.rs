@@ -1608,10 +1608,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     ) -> Result<(), FormationError> {
         // A function declaration only creates its function (design §6,
         // rule 1): a definition wherever it is formed.
-        let anchor = if matches!(statement, js::Statement::Function { .. }) {
-            js::Anchor::Definition
-        } else {
-            self.anchor
+        let anchor = match statement {
+            js::Statement::Function { .. } => js::Anchor::Definition,
+            js::Statement::Let { .. } => self.anchor,
+            // A source operation's definition fact can survive the
+            // lowering of its value to an evaluation. That statement
+            // declares no binding: delivery must keep it at its module's
+            // evaluation point, as its release-mode fallback already did.
+            _ => js::Anchor::Anchored,
         };
         self.push_statement(
             region,
