@@ -421,15 +421,16 @@ fn source_records_and_arrays_preserve_aliases_keys_and_absent_values() {
         shared[1]=11;print(array[1]);print(array[0]+array[2]);
     "#,
     );
-    // The reference interpreter rejects these out-of-range element reads.
-    // The JavaScript contract uses signed normalization and the empty string.
+    // An element read is in range by precondition (R11): past the end is a
+    // precondition violation, unspecified in production. In range, a lone
+    // surrogate reads as itself.
     compare_source_output(
         r#"
         int[] numbers=[7];string[] strings=["ok"];
-        print(numbers[4]);print(strings[4]);print("abc"[8]);
+        print(numbers[0]);print(strings[0]);print("abc"[2]);
         print("\ud800X"[0].charCodeAt(0));
     "#,
-        "0\n\n\n55296\n",
+        "7\nok\nc\n55296\n",
     );
 }
 
@@ -814,7 +815,7 @@ fn collection_receiver_lookup_arguments_and_language_results_stay_ordered() {
         let events=[],mutate;
         const collection=new Proxy(Object.create(null),{get(target,name){
             events.push('get:'+name);
-            if(name==='size')return 4294967295;
+            if(name==='size')return 4;
             if(name==='set'){
                 mutate();
                 return function(key,value){events.push('set:'+key+':'+value+':'+(this===collection));return this};
@@ -827,7 +828,7 @@ fn collection_receiver_lookup_arguments_and_language_results_stay_ordered() {
         globalThis.install=action=>{mutate=action};
         globalThis.report=()=>{console.log(events.join(','));events=[]};
     "#,
-        "receiver,get:set,key,set:a:-2147483648:true\ntrue\nreceiver,get:get,key,get:a:true\n-1\nreceiver,get:size\nreceiver,get:get,get:unused:true\n",
+        "receiver,get:set,key,set:a:-2147483648:true\ntrue\nreceiver,get:get,key,get:a:true\n4\nreceiver,get:size\nreceiver,get:get,get:unused:true\n",
     );
 }
 
@@ -1958,38 +1959,6 @@ fn parameter_values_follow_every_actual_argument() {
     );
 }
 
-#[test]
-fn opaque_host_arguments_keep_their_coercion_and_throws() {
-    let source = "extern int opaque();int arithmetic(int value){int discarded=value+1;return 7;}print(arithmetic(opaque()));";
-    for (host, expected) in [
-        (
-            "({valueOf(){events.push('coerce');throw Error('opaque')}})",
-            "[\"coerce\",\"Error\"]\n",
-        ),
-        ("Symbol('opaque')", "[\"TypeError\"]\n"),
-        ("1n", "[\"TypeError\"]\n"),
-    ] {
-        let arena = bumpalo::Bump::new();
-        let syntax = crate::parse_source(&arena, source).unwrap();
-        let checked = crate::analyze(&syntax).unwrap();
-        let javascript = formed(&syntax, &checked, CONFIG, Style::Global, false);
-        let script = format!(
-            "const events=[];globalThis.opaque=()=>({host});try{{await import('data:text/javascript,'+encodeURIComponent({}))}}catch(error){{events.push(error.name)}}console.log(JSON.stringify(events));",
-            serde_json::to_string(&javascript).unwrap()
-        );
-        let result = Command::new("node")
-            .args(["--input-type=module", "-e", &script])
-            .output()
-            .unwrap();
-        assert!(result.status.success());
-        assert_eq!(
-            String::from_utf8(result.stdout).unwrap(),
-            expected,
-            "{javascript}"
-        );
-    }
-}
-
 fn refused(source: &str) -> bool {
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, source).unwrap();
@@ -2092,55 +2061,3 @@ fn mutable_method_lookup_and_invocation_keep_distinct_cell_snapshots() {
     );
 }
 
-#[test]
-fn replaced_slice_and_split_preserve_raw_values_aliases_and_length_getters() {
-    compare_trace(
-        r#"
-            extern void inspect(string[] first,string[] second,string value);
-            string[] first="ab".split(",");
-            string[] second="ab".split(",");
-            inspect(first,second,"ab".slice(0));
-        "#,
-        r#"
-            const originalSplit=String.prototype.split,originalSlice=String.prototype.slice;
-            const shared=['initial'],returned={valueOf(){throw Error('unexpected coercion');}};
-            String.prototype.split=function(){trace.push('split');return shared;};
-            String.prototype.slice=function(){trace.push('slice');return returned;};
-            globalThis.inspect=(a,b,value)=>{
-                String.prototype.split=originalSplit;String.prototype.slice=originalSlice;
-                trace.push([a===b,value===returned]);a[0]='changed';trace.push(b[0]);
-            };
-        "#,
-        "",
-        r#"["split","split","slice",[true,true],"changed"]"#,
-    );
-    compare_trace(
-        r#"extern void restore();"ab".split(",").length;restore();"#,
-        r#"
-            const original=String.prototype.split;
-            String.prototype.split=function(){trace.push('split');return {
-                get length(){trace.push('length');return {valueOf(){trace.push('coerce');return 5;}};}
-            };};
-            globalThis.restore=()=>{String.prototype.split=original;};
-        "#,
-        "",
-        r#"["split","length","coerce"]"#,
-    );
-}
-
-#[test]
-fn mutable_integer_methods_keep_normalization_and_observable_result_coercion() {
-    compare_trace(
-        r#"extern void observe(int first,int second);observe("ab".charCodeAt(0),"ab".indexOf("a"));"#,
-        r#"
-            const code=String.prototype.charCodeAt,find=String.prototype.indexOf;
-            String.prototype.charCodeAt=function(){trace.push('code');return {
-                valueOf(){trace.push('coerce');return 4294967297;}
-            };};
-            String.prototype.indexOf=function(){trace.push('find');return -2147483649;};
-            globalThis.observe=(a,b)=>{String.prototype.charCodeAt=code;String.prototype.indexOf=find;trace.push([a,b]);};
-        "#,
-        "",
-        r#"["code","coerce","find",[1,2147483647]]"#,
-    );
-}

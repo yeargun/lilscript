@@ -296,7 +296,7 @@ impl<'a> Basis<'a> {
                             budget.push(Retained, &mut basis.references, (id, scope))?
                         }
                         Expr::Host(name) => {
-                            budget.push(Retained, &mut basis.hosts, name.as_str())?;
+                            budget.push(Retained, &mut basis.hosts, name.name.as_str())?;
                             budget.push(Retained, &mut basis.references, (id, scope))?;
                         }
                         Expr::Assign { target, value } => {
@@ -731,7 +731,7 @@ impl<'a> Basis<'a> {
                 {
                     return Err("printed name would capture a different binding".into());
                 }
-                Expr::Host(name) if names.resolve_in(module, scope, name, budget)?.is_some() => {
+                Expr::Host(name) if names.resolve_in(module, scope, &name.name, budget)?.is_some() => {
                     return Err("printed local would capture an external identifier".into());
                 }
                 _ => {}

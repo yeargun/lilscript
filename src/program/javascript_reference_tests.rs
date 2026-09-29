@@ -264,40 +264,6 @@ fn reference_catch_binding_gets_one_carrier_at_its_initialization() {
 }
 
 #[test]
-fn reference_field_alias_checks_stale_roots_before_and_after_rhs() {
-    matrix(
-        "reference-stale-root",
-        r#"
-        struct P{int value;}
-        extern int rhs();extern void keep(func()->void callback);
-        void plain(ref int value,int ignored){value=rhs();}
-        export void before(){
-            P? saved=P{1};
-            if(saved!=null){
-                P current=P{3};
-                auto invalidate=()=>{current=(()=>saved)();return 0;};
-                saved=null;
-                try{plain(ref current.value,invalidate());}catch{print("before-caught");}
-            }
-        }
-        export void after(){
-            P? saved=P{1};
-            if(saved!=null){
-                P current=P{3};int marker=0;
-                keep(()=>{current=(()=>saved)();marker=1;});
-                saved=null;
-                try{plain(ref current.value,0);}catch{print("after-caught");}
-                print(marker);
-            }
-        }
-    "#,
-        "let callback;globalThis.keep=value=>callback=value;globalThis.rhs=()=>{events.push('rhs');if(callback)callback();return 2};",
-        "library.before();library.after();",
-        json!(["before-caught", "rhs", "after-caught", 1]),
-    );
-}
-
-#[test]
 fn reference_transport_rejects_script_frames_and_public_carrier_exports_without_leaks() {
     for (source, execution, feature) in [
         (

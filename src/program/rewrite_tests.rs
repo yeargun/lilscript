@@ -1222,10 +1222,10 @@ fn dead_local_computations_cascade_away_through_checked_steps() {
 }
 
 #[test]
-fn a_dead_value_that_can_run_a_coercion_hook_is_kept() {
-    // An exported `int` parameter still receives arbitrary JavaScript values,
-    // so `value*3` can call `valueOf`. The facts summarize that as a coercion,
-    // which may throw and reenter: dropping it would erase an observable hook.
+fn a_dead_value_of_a_trusted_parameter_is_dropped() {
+    // An exported `int` parameter is a trusted crossing (R1): `value*3`
+    // converts nothing, so the unread product is dead and goes. A host that
+    // passes another value breaks the precondition.
     checked(
         "export int run(int value){int b=value*3;return 1;}",
         |program| {
@@ -1237,26 +1237,14 @@ fn a_dead_value_that_can_run_a_coercion_hook_is_kept() {
                 .unwrap();
             let policy = dce_policy(true, false);
             let facts = with_facts(&mut compiler);
-            assert!(compiler
-                .drop_dead_value(
-                    source,
-                    unit,
-                    operation,
-                    &policy,
-                    WorkDomain::Optional,
-                    facts
-                )
+            let dropped = compiler
+                .drop_dead_value(source, unit, operation, &policy, WorkDomain::Optional, facts)
                 .unwrap()
-                .is_none());
-            assert_eq!(compiler.checkpoint_count(), 1);
-            let artifact = render(&mut compiler, source, &policy);
+                .expect("the unread product is dead");
+            let artifact = render(&mut compiler, dropped, &policy);
             assert_eq!(
-                observe(
-                    &compiler,
-                    artifact,
-                    r#"const trace=[];library.run({valueOf(){trace.push("valueOf");return 2;}});console.log(JSON.stringify(trace));"#
-                ),
-                "[\"valueOf\"]\n"
+                observe(&compiler, artifact, "console.log(library.run(2));"),
+                "1\n"
             );
         },
     );

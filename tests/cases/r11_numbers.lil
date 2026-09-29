@@ -1,0 +1,27 @@
+// R11: `%` with a float operand is JavaScript's remainder, a float; a bitwise
+// operator converts a float operand with ToInt32; `codeUnitAt` reads the
+// code unit at an index in range, and `charCodeAt(i) | 0` is today's int.
+float a = 5.5 % 2.0;
+print(a);
+float b = -5.5 % 2.0;
+print(b);
+float c = 7 % 2.5;
+print(c);
+int m = 7 % 3;
+print(m);
+float big = 4294967297.5;
+print(big | 0);
+float negative = -1.75;
+print(negative | 0);
+print(negative >> 0);
+float huge = 1000000000000000000000.0;
+print(huge | 0);
+int small = 5;
+print(small | 0);
+string text = "héllo";
+int total = 0;
+for (int i = 0; i < text.length; i++) {
+  total = total + text.codeUnitAt(i);
+}
+print(total);
+print(text.charCodeAt(1) | 0);

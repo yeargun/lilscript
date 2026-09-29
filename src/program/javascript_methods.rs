@@ -1005,7 +1005,7 @@ impl Formation<'_, '_, '_, '_, '_> {
         if let Some((cell, List::Alias)) = form.list {
             let binding = self.cell_binding(context, cell)?;
             let arguments = self.text("arguments")?;
-            let arguments = self.expression(js::Expr::Host(arguments))?;
+            let arguments = self.expression(js::Expr::Host(js::Host::new(arguments)))?;
             self.statement(
                 body,
                 js::Statement::Let {
@@ -1055,7 +1055,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             || self.formal_lists.iter().any(|(list, _)| *list == cell)
         {
             let arguments = self.text("arguments")?;
-            return Ok(Some(self.expression(js::Expr::Host(arguments))?));
+            return Ok(Some(self.expression(js::Expr::Host(js::Host::new(arguments)))?));
         }
         Ok(None)
     }

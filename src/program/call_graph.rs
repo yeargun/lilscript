@@ -18,12 +18,13 @@
 //! call can only ever run the denoted body. This is the rule
 //! `callable_inputs` applies to one producer at a time, stated once for the
 //! whole program.
+use crate::catalog::callback_intrinsic;
 use super::uses::{self, CellUse, Event, ValueUse};
 use super::views::Deps;
 use super::*;
 use crate::check::BuiltinCall;
 use crate::compilation_contract::JavaScriptExecution;
-use crate::primitive::{Intrinsic, ResolvedIntrinsic};
+use crate::primitive::ResolvedIntrinsic;
 
 /// Whether root storage is sealed against the host (see the module comment).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -144,21 +145,6 @@ pub struct CallGraph {
     recursive: Vec<bool>,
 }
 
-/// Intrinsics that call their first argument once per element and return.
-pub(super) fn callback_intrinsic(operation: ResolvedIntrinsic) -> bool {
-    matches!(
-        operation,
-        ResolvedIntrinsic::Method(
-            Intrinsic::ArrayMap
-                | Intrinsic::ArrayFilter
-                | Intrinsic::ArrayReduce
-                | Intrinsic::ArrayForEach
-                | Intrinsic::ArraySome
-                | Intrinsic::ArrayEvery
-                | Intrinsic::ArrayFindIndex
-        )
-    )
-}
 
 struct Scan {
     storage: Vec<CellStorage>,
@@ -671,7 +657,7 @@ impl Scan {
                             return Ok(());
                         };
                         if program.cells[cell.index()].owner != unit
-                            && !matches!(usage, CellUse::Initialize(_))
+                            && !matches!(usage, CellUse::Initialize(_) | CellUse::Declare(_))
                         {
                             facts.shared = true;
                         }
@@ -680,7 +666,8 @@ impl Scan {
                                 facts.initializers = facts.initializers.saturating_add(1);
                                 first[cell.index()].get_or_insert((unit, operation));
                             }
-                            CellUse::Write { .. } => facts.stored = true,
+                            // `let x;`: its value comes from its stores (R3).
+                            CellUse::Write { .. } | CellUse::Declare(_) => facts.stored = true,
                             CellUse::Reference { .. } => facts.referenced = true,
                             // A loop or catch binding is written by its
                             // construct on every entry.

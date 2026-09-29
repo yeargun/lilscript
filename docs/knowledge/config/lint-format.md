@@ -18,7 +18,7 @@ These do not change emitted JS. They change what authors are allowed to ship, wh
 | `pure_extern_allowlist` | `[]` | trusted `pure extern` names |
 | `rules` | `{}` | `"namespace/id" = "off\|hint\|warn\|error"` |
 
-`web/eager-host-access` flags top-level host work before a progressive-enhancement boundary. `migration/js-builtin` warns at each `JS.*` call with a syntax spelling (R12) and offers the rewrite as a machine-applicable fix; run `--fix` until nothing changes. Embedders can add in-process `LintRuleProvider`s (`lint_path_with_providers`); not a dynamic plugin ABI.
+`web/eager-host-access` flags top-level host work before a progressive-enhancement boundary. `migration/js-builtin` warns at each `JS.*` call with a syntax spelling (R12) and offers the rewrite as a machine-applicable fix; run `--fix` until nothing changes. `migration/implicit-default` warns at each class field that takes its type's implicit default (R3) and writes that default as the field's initializer. `migration/debug-class` writes `debug` on an `extern` named `debugLog`, which `strip_debug` otherwise drops by its name (R15). `migration/char-code` rewrites `s.charCodeAt(i)`, whose result becomes a number (R11): `s.codeUnitAt(i)` inside a `for` loop bounded by `s.length`, `(s.charCodeAt(i) | 0)` elsewhere. `migration/absence` warns where an operation could tell `null` from `undefined` on a `T?` operand (R2) and writes `x ?? "null"` or `==` where today's meaning has one spelling. Embedders can add in-process `LintRuleProvider`s (`lint_path_with_providers`); not a dynamic plugin ABI.
 
 Suppressions: `// lilscript-lint-disable RULE` and `-next-line`. Machine fix today: remove unreachable expression statements.
 

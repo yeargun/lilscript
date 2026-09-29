@@ -130,7 +130,9 @@ impl UnitInitialization {
         let mut bound = AHashMap::default();
         for (index, operation) in data.operations.iter().enumerate() {
             match operation.kind {
-                OperationKind::Initialize(cell) => initializers
+                // `let x;` initializes the binding as JavaScript does; the
+                // checker proves no read precedes its first store (R3).
+                OperationKind::Initialize(cell) | OperationKind::Declare(cell) => initializers
                     .entry(cell)
                     .or_default()
                     .push(OpId::from_index(index).unwrap()),

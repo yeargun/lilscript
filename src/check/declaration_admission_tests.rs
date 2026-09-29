@@ -369,9 +369,11 @@ fn all_four_backings_and_detached_symbols_release_on_callback_error_and_unwind()
         // Parent string: one allocation and 6 copied bytes. Each five-row single
         // vector costs 11 units; the five paired symbol rows cost 22 units.
         // Analyzer creation costs 4; seven type scopes share one allocation.
+        // Entering the module's body costs 1 more than its assigned names
+        // (none here), the narrowing scan (R1).
         assert_eq!(
             ledger.work_used(WorkDomain::Baseline),
-            7 + 2 * nodes + 2 + 11 + 11 + 22 + 4 + 8
+            7 + 2 * nodes + 2 + 11 + 11 + 22 + 4 + 8 + 1
         );
     }
 }

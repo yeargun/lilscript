@@ -205,20 +205,6 @@ fn split_result_identity_comes_from_the_selected_method_and_unused_calls_execute
 }
 
 #[test]
-fn checked_string_array_types_do_not_erase_raw_host_result_effects() {
-    matrix(
-        "string-method-raw-results",
-        METHODS,
-        "",
-        include_str!("fixtures/string-calls/raw-results.host.js"),
-        &serde_json::from_str(include_str!(
-            "fixtures/string-calls/raw-results.expected.json"
-        ))
-        .unwrap(),
-    );
-}
-
-#[test]
 fn javascript_slice_split_repeat_and_trim_execute_natively() {
     let policy = crate::config::ProjectConfig::default()
         .resolve_policy(CompilationRequest::Native)

@@ -110,8 +110,8 @@ fn a_pure_arithmetic_body_is_discardable_once_its_arguments_are_primitive() {
     );
     assert!(twice.discardable(), "{twice:?}");
     assert!(!twice.observable_effect());
-    // The addition converts a raw argument: the caller must prove it.
-    assert_eq!(twice.effects.assumed_primitive, ParameterSet::single(0));
+    // A typed argument is its type's (R1): the addition needs no proof.
+    assert!(!twice.effects.obligated());
     assert!(twice.declared_pure);
     // Integer arithmetic yields an int whatever its operands held.
     assert_eq!(twice.result_primitive, Some(ParameterSet::EMPTY));
@@ -215,8 +215,8 @@ fn counted_loops_terminate_and_their_bounds_are_obligations() {
             by(terminating)
         );
     }
-    // A parameter bound must be an int32 at the call.
-    assert_eq!(by("below").effects.assumed_int32, ParameterSet::single(0));
+    // A parameter bound is an int32 by its type (R1).
+    assert!(!by("below").effects.obligated());
     assert!(by("below").discardable());
     // `<=` a raw bound can wrap the counter; a growing array moves its bound;
     // a `continue` can skip the step; a stride can wrap past a raw bound.

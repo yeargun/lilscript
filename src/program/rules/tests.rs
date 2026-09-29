@@ -435,3 +435,19 @@ fn a_signature_changes_for_every_function_that_shares_it() {
         assert_eq!(signature(program, "spare"), (1, false), "{receipt:?}");
     });
 }
+
+/// An `int` is its own ToInt32: `x | 0` and the other identities with 0 are
+/// `x`; a `float` operand keeps its conversion.
+#[test]
+fn bitwise_identities_of_an_int_are_the_int() {
+    let source = "int keep(int x) { return (x | 0) + (0 ^ x) + (((x << 0) | 0) | 0); }\nint convert(float y) { return y | 0; }\nprint(keep(5));\nprint(convert(-2.5));\n";
+    optimized(source, FOLD_ONLY, |program, _| {
+        assert_eq!(
+            count(program, |kind| matches!(
+                kind,
+                OperationKind::Binary(BinaryOp::BitOr | BinaryOp::Xor | BinaryOp::ShiftLeft)
+            )),
+            1
+        );
+    });
+}

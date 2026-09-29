@@ -722,6 +722,8 @@ impl DomainProof {
                                 self.unknown(index, budget)?;
                             }
                         }
+                        // `let x;`: the stores give its values (R3).
+                        CellUse::Declare(_) => initialized = true,
                         CellUse::Parameter(position) => {
                             initialized = true;
                             if program.is_reference_parameter(cell) {
@@ -1133,7 +1135,8 @@ mod tests {
                 semantic.discard(&mut meter).unwrap();
                 let target = DomainProof::build(program,&uses,&roots,DomainInputs::empty(),&super::super::javascript::JavaScriptRecipes,&mut meter).unwrap();
                 assert!(target.primitive(roots[0],&mut meter).unwrap());
-                assert!(!target.primitive(roots[1],&mut meter).unwrap());
+                // An extern `int` result is an int32 by type (R1).
+                assert!(target.primitive(roots[1],&mut meter).unwrap());
                 target.discard(&mut meter).unwrap();
                 assert_eq!(allocation.retained_bytes(AllocationClass::Scratch),0);
             }

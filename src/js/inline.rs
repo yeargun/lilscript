@@ -16,43 +16,7 @@ use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 use crate::output_budget::{AllocationBudget, AllocationError};
 
-/// Standard globals whose values and properties pristine builtins fix.
-const STANDARD_GLOBALS: &[&str] = &[
-    "Array",
-    "Boolean",
-    "Date",
-    "Error",
-    "Infinity",
-    "JSON",
-    "Map",
-    "Math",
-    "NaN",
-    "Number",
-    "Object",
-    "Promise",
-    "RangeError",
-    "Reflect",
-    "RegExp",
-    "Set",
-    "String",
-    "Symbol",
-    "SyntaxError",
-    "TypeError",
-    "WeakMap",
-    "WeakSet",
-    "decodeURIComponent",
-    "encodeURI",
-    "encodeURIComponent",
-    "isFinite",
-    "isNaN",
-    "parseFloat",
-    "parseInt",
-];
 
-/// Whether `name` is a standard global that pristine builtins fix.
-pub(super) fn is_standard_global(name: &str) -> bool {
-    STANDARD_GLOBALS.contains(&name)
-}
 
 /// Call sites deeper than this keep their call, so no chain of inlined
 /// bodies approaches the verifier's nesting limit.
@@ -389,7 +353,7 @@ impl Module {
             Expr::Literal(_) => events.push((root, branch)),
             Expr::Binding(_) => events.push((root, branch)),
             Expr::Host(name) => {
-                if name == "arguments" || name == "eval" {
+                if matches!(name.kind, crate::catalog::HostKind::Arguments | crate::catalog::HostKind::Eval) {
                     return Ok(false);
                 }
                 events.push((root, branch));
@@ -569,7 +533,7 @@ impl Module {
                 parameters.contains(binding)
                     || self.pristine_builtins && self.standard_global(*binding)
             }
-            Expr::Host(name) => self.pristine_builtins && STANDARD_GLOBALS.contains(&name.as_str()),
+            Expr::Host(host) => self.pristine_builtins && matches!(host.kind, crate::catalog::HostKind::Standard(_)),
             Expr::Member { object, property } => {
                 self.pristine_builtins && self.literal_key(property) && self.standard_path(*object)
             }
@@ -600,7 +564,7 @@ impl Module {
     pub(super) fn standard_global(&self, binding: BindingId) -> bool {
         let declared = &self.bindings[binding.index()];
         declared.pinned
-            && STANDARD_GLOBALS.contains(&declared.spelling.as_str())
+            && matches!(crate::catalog::host_kind(&declared.spelling), crate::catalog::HostKind::Standard(_))
             && !self.imports.iter().any(|import| import.binding == binding)
     }
 
@@ -615,7 +579,7 @@ impl Module {
                 !self.bindings[binding.index()].pinned
                     || self.pristine_builtins && self.standard_global(*binding)
             }
-            Expr::Host(name) => self.pristine_builtins && STANDARD_GLOBALS.contains(&name.as_str()),
+            Expr::Host(host) => self.pristine_builtins && matches!(host.kind, crate::catalog::HostKind::Standard(_)),
             Expr::Member { object, property } => {
                 self.pristine_builtins && self.literal_key(property) && self.standard_path(*object)
             }
@@ -647,7 +611,7 @@ impl Module {
     /// A standard global or a named property path from one.
     fn standard_path(&self, id: ExprId) -> bool {
         match &self.expressions[id.index()] {
-            Expr::Host(name) => STANDARD_GLOBALS.contains(&name.as_str()),
+            Expr::Host(host) => matches!(host.kind, crate::catalog::HostKind::Standard(_)),
             Expr::Binding(binding) => self.standard_global(*binding),
             Expr::Member { object, property } => {
                 self.literal_key(property) && self.standard_path(*object)
@@ -1094,7 +1058,7 @@ impl Module {
             | Expr::Await(_)
             | Expr::Yield { .. }
             | Expr::LoadModule { .. } => false,
-            Expr::Host(name) => name != "arguments" && name != "eval",
+            Expr::Host(host) => !matches!(host.kind, crate::catalog::HostKind::Arguments | crate::catalog::HostKind::Eval),
             Expr::Binding(binding) => *binding != own,
             Expr::Assign { target, .. } => !matches!(
                 self.expressions[target.index()],

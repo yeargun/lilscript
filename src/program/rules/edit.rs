@@ -354,6 +354,7 @@ impl Remaps {
                 body: self.region(*body)?,
             },
             Op::Initialize(cell) => Op::Initialize(self.cell(*cell)),
+            Op::Declare(cell) => Op::Declare(self.cell(*cell)),
             Op::Allocate { identity, kind } => Op::Allocate {
                 identity: self.allocations.get(identity).copied().unwrap_or(*identity),
                 kind: kind.clone(),
@@ -659,6 +660,7 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
                 start: u32::try_from(start).map_err(|_| "argument capacity")?,
                 len: call.arguments.len,
             },
+            debug: call.debug,
         });
     }
     let call_instantiations = data
@@ -913,6 +915,7 @@ pub(super) fn graft(
                 start: u32::try_from(start).map_err(|_| "argument capacity")?,
                 len: call.arguments.len,
             },
+            debug: call.debug,
         });
     }
     for (index, instantiation) in source.call_instantiations.iter().enumerate() {

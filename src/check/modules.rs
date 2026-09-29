@@ -677,6 +677,10 @@ fn body_phase<'ast, 'src>(
             let InterfaceTarget::Value(symbol) = export.target else {
                 continue;
             };
+            // A root's export crosses to its consumer (R6).
+            checked
+                .declarations
+                .reflect(&checked.declarations.symbols[symbol.0 as usize].ty);
             if checked.declarations.symbols[symbol.0 as usize]
                 .ty
                 .contains_mutable_reference_parameters()
@@ -690,6 +694,8 @@ fn body_phase<'ast, 'src>(
             }
         }
     }
+    // Crossings anywhere reflect their nominals, closed over fields (R6).
+    checked.declarations.close_reflected();
     #[cfg(debug_assertions)]
     assert!(checked
         .declarations

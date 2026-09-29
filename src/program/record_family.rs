@@ -404,7 +404,7 @@ fn discover(
                 ..
             } => return Err(unknown(UnknownReason::Reassigned)),
             CellUseSite::Unit {
-                usage: CellUse::Parameter(_) | CellUse::CatchBinding { .. },
+                usage: CellUse::Parameter(_) | CellUse::CatchBinding { .. } | CellUse::Declare(_),
                 ..
             } => {
                 return Err(unknown(UnknownReason::Initialization));

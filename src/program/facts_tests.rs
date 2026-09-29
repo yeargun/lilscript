@@ -648,17 +648,20 @@ fn cheap_effect_transfer_preserves_initialization_host_and_construction_obligati
                             assert_eq!(effects.reads, MemoryAccess::Cell(cell));
                             assert!(effects.may_throw, "primitive type is not TDZ evidence");
                         }
-                        // A record the host returned may hold an accessor:
-                        // reading it can run a hook, as a conversion can.
+                        // A record the host returned is a trusted crossing
+                        // (R1): its keys hold data, so a read runs no hook.
                         Place::Member { .. } => {
                             seen[1] = true;
-                            assert_eq!(effects, EvaluationBehavior::COERCION);
+                            assert!(!effects.may_reenter && !effects.may_throw, "{effects:?}");
+                            assert_eq!(effects.writes, MemoryAccess::None);
                         }
                         _ => {}
                     },
+                    // An `int` operand is an int32 (R1): the operation
+                    // converts nothing, with or without a domain proof.
                     OperationKind::IntBinary(_) => {
                         seen[2] = true;
-                        assert_eq!(effects, EvaluationBehavior::COERCION);
+                        assert_eq!(effects, EvaluationBehavior::TOTAL);
                         assert_eq!(
                             operation_evaluation_behavior(
                                 program,
@@ -668,7 +671,7 @@ fn cheap_effect_transfer_preserves_initialization_host_and_construction_obligati
                                 operation,
                                 &[]
                             ),
-                            EvaluationBehavior::COERCION
+                            EvaluationBehavior::TOTAL
                         );
                     }
                     OperationKind::Binary(BinaryOp::Add) => {
@@ -1125,9 +1128,10 @@ fn getters_unknown_calls_and_unproved_lexical_initialization_stay_conservative()
                     OperationKind::Load(place)
                         if matches!(data.places[place.index()], Place::Member { .. }) =>
                     {
+                        // A trusted record's key holds data (R1): no getter.
                         getter = true;
-                        assert!(effects.may_reenter && effects.may_throw);
-                        assert_eq!(effects.writes, MemoryAccess::Unknown);
+                        assert!(!effects.may_reenter && !effects.may_throw, "{effects:?}");
+                        assert_eq!(effects.writes, MemoryAccess::None);
                     }
                     OperationKind::Load(place) if matches!(data.places[place.index()],Place::Cell(cell) if program.cells[cell.index()].binding!=CellBinding::Foreign) =>
                     {
@@ -1629,56 +1633,6 @@ fn exhausted_work_is_rejected_before_cold_analysis_or_cache_population() {
 }
 
 #[test]
-fn nullable_capture_refinement_does_not_make_later_length_evaluation_total() {
-    checked(
-        r#"
-        func()->int make(){string? value="ok";
-            if(value!=null){auto read=()=>{value.length;return value.length;};value=null;return read;}
-            return ()=>0;
-        }print(make()());
-    "#,
-        |program| {
-            assert!(program.cells.iter().any(|cell| cell.name == "value"
-                && matches!(program.types[cell.ty.index()], Type::Nullable(_))));
-            let mut cache = cache();
-            let mut ledger = ledger();
-            let mut session =
-                FactsSession::new(&mut cache, &mut ledger, WorkDomain::Baseline, 8).unwrap();
-            let mut lengths = 0;
-            for unit in program.units() {
-                let result = session.query(program, unit.id(), request(10_000)).unwrap();
-                for (index, op) in unit.data().operations.iter().enumerate() {
-                    if matches!(
-                        op.kind,
-                        OperationKind::Intrinsic(ResolvedIntrinsic::Property(
-                            crate::primitive::Intrinsic::StringLength
-                        ))
-                    ) {
-                        lengths += 1;
-                        let id = OpId::from_index(index).unwrap();
-                        assert!(result.facts.effects(id).may_throw);
-                        assert_ne!(
-                            result.facts.can_drop(id, ObservationDemand::Discarded),
-                            Legality::PermittedUnderContext
-                        );
-                        assert_ne!(
-                            result.facts.can_speculate(
-                                id,
-                                SpeculationContext {
-                                    operands_available: true
-                                }
-                            ),
-                            Legality::PermittedUnderContext
-                        );
-                    }
-                }
-            }
-            assert_eq!(lengths, 2);
-        },
-    );
-}
-
-#[test]
 fn exact_string_length_can_be_total_without_trusting_a_refined_load_type() {
     checked(r#"print("\ud800x".length);"#, |program| {
         let unit = program.initialization[0];
@@ -1708,36 +1662,6 @@ fn exact_string_length_can_be_total_without_trusting_a_refined_load_type() {
             }
         }
     });
-}
-
-#[test]
-fn refined_nullable_numeric_load_does_not_supply_an_unconditional_operand_domain() {
-    checked(
-        r#"int? value=1;if(value!=null){auto read=()=>value+2;value=null;print(read());}"#,
-        |program| {
-            let mut cache = cache();
-            let mut ledger = ledger();
-            let mut found = false;
-            let mut session =
-                FactsSession::new(&mut cache, &mut ledger, WorkDomain::Baseline, 8).unwrap();
-            for unit in program.units() {
-                let result = session.query(program, unit.id(), request(10_000)).unwrap();
-                for (index, op) in unit.data().operations.iter().enumerate() {
-                    if matches!(op.kind, OperationKind::IntBinary(_)) {
-                        found = true;
-                        assert_ne!(
-                            result.facts.can_drop(
-                                OpId::from_index(index).unwrap(),
-                                ObservationDemand::Discarded
-                            ),
-                            Legality::PermittedUnderContext
-                        );
-                    }
-                }
-            }
-            assert!(found);
-        },
-    );
 }
 
 #[test]

@@ -86,6 +86,16 @@ pub struct OutputFamilies {
     /// Print `if(c)e;` as `c&&e;` (and `if(!c)e;` as `c||e;`) where neither
     /// side needs grouping. A raw naming plan prints this spelling anyway.
     pub logical_statements: bool,
+    /// A redundant `|0` where the compiler printed one before R1, R10 and
+    /// R11 made it unnecessary: after an `int` field, member or element read,
+    /// an `int` host call's result, and an integer method's result without
+    /// pristine builtins. An int32 is its own ToInt32, so the spelling means
+    /// the same program; a codec's repeat matching sometimes prefers it
+    /// (repetition is load-bearing: a tiny artifact measured up to 5 Brotli
+    /// bytes larger without it). Every objective seeds it off; its
+    /// challenger runs first, so a level that searches keeps the previous
+    /// compiler's spelling wherever the codec says it is smaller (AM2).
+    pub int32_hints: bool,
 }
 
 impl OutputFamilies {
@@ -97,6 +107,7 @@ impl OutputFamilies {
         string_pooling: false,
         loop_heads: false,
         logical_statements: false,
+        int32_hints: false,
     };
 
     /// The alternative each family starts from under `codec`. Raw bytes seed
@@ -112,6 +123,7 @@ impl OutputFamilies {
                 string_pooling: true,
                 loop_heads: true,
                 logical_statements: false,
+                int32_hints: false,
             },
             Objective::Gzip | Objective::Brotli => Self {
                 loop_heads: true,
@@ -192,11 +204,13 @@ pub enum Challenger {
     StringPooling,
     ConditionalReturns,
     LogicalBranches,
+    Int32Hints,
 }
 
 impl Challenger {
     /// The declared schedule.
-    pub const ORDER: [Self; 12] = [
+    pub const ORDER: [Self; 13] = [
+        Self::Int32Hints,
         Self::ConditionalValues,
         Self::ExitPoints,
         Self::LoopFusion,
@@ -225,6 +239,7 @@ impl Challenger {
             Self::StringPooling => "string-pooling",
             Self::ConditionalReturns => "conditional-returns",
             Self::LogicalBranches => "logical-branches",
+            Self::Int32Hints => "int32-hints",
         }
     }
 
@@ -257,6 +272,7 @@ impl Challenger {
                 families.statements.conditional_returns ^= true;
             }
             Self::LogicalBranches => families.statements.logical_branches ^= true,
+            Self::Int32Hints => families.int32_hints ^= true,
             Self::RawSpelling => next.raw_spelling ^= true,
             Self::LoopHeads => families.loop_heads ^= true,
             Self::LogicalStatements => families.logical_statements ^= true,

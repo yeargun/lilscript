@@ -469,6 +469,16 @@ fn convert_modules<'ast, 'src>(
                 error,
             }
         })?;
+    for module in 1..sources.len() {
+        let view = semantics.view(module).unwrap();
+        lower
+            .budget
+            .push(Scratch, &mut lower.views, view)
+            .map_err(|error| ModuleConversionError {
+                module,
+                error: error.into(),
+            })?;
+    }
     let convert_interfaces =
         |lower: &mut Lower<'_, '_, '_, 'ast, 'src>| -> Result<(), ModuleConversionError> {
             for (module, interface) in semantics.interfaces().iter().enumerate() {
@@ -707,6 +717,9 @@ fn interface_target(target: crate::check::InterfaceTarget) -> Option<InterfaceTa
 
 struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     semantics: CheckedView<'sem, 'ast, 'src>,
+    /// Every module's view, by module: a field initializer (R3) is lowered
+    /// at each construction, under its class's module's facts.
+    views: Vec<CheckedView<'sem, 'ast, 'src>>,
     current_module: ModuleId,
     program: Program<'src>,
     units: Vec<UnitData>,
@@ -717,6 +730,8 @@ struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     current_class: Option<(NominalId, CellId)>,
     /// Each class's (and `object`'s) name binding, by symbol: built once.
     class_values: Option<crate::stable_hash::StableHashMap<u32, NominalId>>,
+    /// A field's own initializer (R3), by its class and its own slot.
+    field_initializers: crate::stable_hash::StableHashMap<(NominalId, usize), &'ast ast::Expr<'ast, 'src>>,
     budget: &'budget mut AllocationBudget<'ledger>,
 }
 
@@ -789,8 +804,11 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             )?;
             budget.push(Retained, &mut initialization, initializer)?;
         }
+        let mut views = budget.vector(Scratch, sources.len())?;
+        budget.push(Scratch, &mut views, semantics)?;
         Ok(Self {
             semantics,
+            views,
             current_module: ModuleId::from_index(0).unwrap(),
             program: Program {
                 tables_revision: RevisionId::fresh(),
@@ -814,6 +832,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             class_methods: budget.vector(Scratch, 0)?,
             current_class: None,
             class_values: None,
+            field_initializers: Default::default(),
             budget,
         })
     }
@@ -824,7 +843,9 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         let semantics = self.semantics;
         for symbol in semantics.symbols() {
             self.work(1)?;
-            if symbol.is_foreign() && symbol.name == "eval" {
+            if symbol.is_foreign()
+                && crate::catalog::host_kind(symbol.name) == crate::catalog::HostKind::Eval
+            {
                 return self.unsupported(symbol.span, "source eval contract");
             }
             let module = owner(symbol.id)
@@ -855,6 +876,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     },
                     synthetic: false,
                     declared_pure: false,
+                    debug: false,
                 },
             )?;
         }
@@ -880,14 +902,16 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     let data = &mut building_table(&mut self.program.cells)[cell.index()];
                     data.binding = CellBinding::Function(id);
                     data.declared_pure = function.declared_pure;
+                    data.debug = function.declared_debug;
                 }
                 // The shared declaration owner already classified these
                 // cells; foreign declarations have no source body to register.
                 // A `pure extern` is a trusted declaration attribute.
                 Item::Extern(declaration) => {
                     let cell = self.cell(declaration.name)?;
-                    building_table(&mut self.program.cells)[cell.index()].declared_pure =
-                        declaration.declared_pure;
+                    let data = &mut building_table(&mut self.program.cells)[cell.index()];
+                    data.declared_pure = declaration.declared_pure;
+                    data.debug = declaration.declared_debug;
                 }
                 Item::ExternGlobal(_) => {}
                 Item::Struct(declaration) => {
@@ -1148,6 +1172,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         drop_vector(units, Scratch, self.budget)?;
         drop_vector(self.allocations, Scratch, self.budget)?;
         drop_vector(self.class_methods, Scratch, self.budget)?;
+        drop_vector(self.views, Scratch, self.budget)?;
         Ok(self.program)
     }
 }
@@ -1452,6 +1477,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 binding: CellBinding::Local,
                 synthetic: true,
                 declared_pure: false,
+                debug: false,
             },
         )?;
         Ok(id)
@@ -1851,7 +1877,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         for slot in inherited..own {
             self.work(1)?;
             let (_, ty) = self.registered_class(class).unwrap().fields[slot];
-            let value = self.field_default(unit, region, ty, span)?;
+            let value = self.field_value(unit, region, class, slot, ty, span)?;
             let receiver = self.load_cell(unit, region, this, span)?;
             let field = FieldRef {
                 nominal: class,
@@ -1861,6 +1887,51 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             self.effect(unit, region, OperationKind::Store(place), &[value], span)?;
         }
         Ok(())
+    }
+    /// A field's value at construction: its own initializer (R3), found in
+    /// the class that declares its slot, else its type's implicit default.
+    fn field_value(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        class: NominalId,
+        slot: usize,
+        ty: TypeId,
+        span: Span,
+    ) -> Result<ValueId, ConversionError> {
+        let mut declaring = class;
+        let mut slot = slot;
+        loop {
+            self.work(1)?;
+            let base = self
+                .class_info(declaring, span)?
+                .base
+                .as_ref()
+                .and_then(base_class);
+            let inherited = match base {
+                Some(base) => self.class_info(base, span)?.fields.len(),
+                None => 0,
+            };
+            if slot >= inherited {
+                slot -= inherited;
+                break;
+            }
+            declaring = base.expect("an inherited slot has a base");
+        }
+        let Some(initializer) = self.field_initializers.get(&(declaring, slot)).copied() else {
+            return self.field_default(unit, region, ty, span);
+        };
+        // The construction may be in another module than the class: the
+        // initializer's facts are its own module's.
+        let module = self.class_info(declaring, span)?.module.unwrap_or(0);
+        let view = *self.views.get(module).ok_or(Unsupported {
+            span,
+            feature: "missing checked module view",
+        })?;
+        let outer = std::mem::replace(&mut self.semantics, view);
+        let value = self.expression(unit, region, initializer);
+        self.semantics = outer;
+        self.copy_value(unit, region, value?, initializer.span())
     }
     /// `super(...)` in a kept class's constructor: the base constructor runs
     /// first, then this class's own fields take their defaults.
@@ -2218,6 +2289,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             },
         )?;
         let receiver = self.ty(&Type::Class(info.declaration))?;
+        let mut own_slot = 0;
+        for member in declaration.members {
+            if let ast::ClassMember::Field(field) = member {
+                if let Some(initializer) = &field.initializer {
+                    self.field_initializers.insert((identity, own_slot), initializer);
+                }
+                own_slot += 1;
+            }
+        }
         for member in declaration.members {
             self.work(1)?;
             let (name, member_id, this_span, signature) = match member {
@@ -2711,7 +2791,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             self.work(1)?;
             let (key, field_ty) = self.registered_class(class).unwrap().fields[index];
             self.budget.push(Retained, &mut keys, key)?;
-            let value = self.field_default(unit, region, field_ty, span)?;
+            let value = self.field_value(unit, region, class, index, field_ty, span)?;
             self.budget.push(Scratch, &mut values, value)?;
         }
         let kind = self.allocation(unit, AllocationKind::Instance { class, keys })?;
@@ -3741,21 +3821,25 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             } => self.record_destructure(unit, region, bindings, *rest, value, *span)?,
             Stmt::VarDecl(declaration) => {
                 let cell = self.declare(unit, region, declaration.name)?;
-                let value = if let Some(initializer) = &declaration.initializer {
-                    let value = self.expression(unit, region, initializer)?;
-                    self.infer_creation_name(unit, initializer, value, declaration.name.name)?;
-                    value
-                } else {
-                    return self.unsupported(declaration.span, "default variable initialization");
-                };
-                let value = self.copy_value(unit, region, value, declaration.span)?;
-                self.effect(
-                    unit,
-                    region,
-                    OperationKind::Initialize(cell),
-                    &[value],
-                    declaration.span,
-                )?;
+                match &declaration.initializer {
+                    Some(initializer) => {
+                        let value = self.expression(unit, region, initializer)?;
+                        self.infer_creation_name(unit, initializer, value, declaration.name.name)?;
+                        let value = self.copy_value(unit, region, value, declaration.span)?;
+                        self.effect(
+                            unit,
+                            region,
+                            OperationKind::Initialize(cell),
+                            &[value],
+                            declaration.span,
+                        )?;
+                    }
+                    // `int x;` (R3): the cell with no value until its first
+                    // store, which the checker proves precedes every read.
+                    None => {
+                        self.effect(unit, region, OperationKind::Declare(cell), &[], declaration.span)?;
+                    }
+                }
             }
             Stmt::Expr(expr) => {
                 self.expression(unit, region, expr)?;
@@ -4731,8 +4815,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     .map(|ty| self.ty(ty))
                     .transpose()?;
                 if let CallTarget::Builtin(builtin) = target {
-                    if crate::primitive::builtin_call_contract(builtin).is_none()
-                        && !crate::primitive::host_builtin(builtin)
+                    if crate::catalog::builtin_call_contract(builtin).is_none()
+                        && !crate::catalog::host_builtin(builtin)
                     {
                         return self.unsupported(span, "semantic builtin call contract");
                     }
@@ -5072,6 +5156,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             span: preparation,
             feature: "semantic call capacity",
         })?;
+        let debug = self.debug_callee(unit, &target);
         self.budget.push(
             Retained,
             &mut self.units[unit.index()].calls,
@@ -5079,6 +5164,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 target,
                 contract,
                 arguments: ArgumentRange { start: 0, len: 0 },
+                debug,
             },
         )?;
         self.effect(
@@ -5089,6 +5175,28 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             preparation,
         )?;
         Ok(call)
+    }
+    /// A callee that reads a `debug` declaration's own binding: the source
+    /// names it (R15).
+    fn debug_callee(&self, unit: UnitId, target: &CallTarget) -> bool {
+        let CallTarget::Value {
+            callee,
+            invocation: Invocation::Value,
+        } = *target
+        else {
+            return false;
+        };
+        let data = &self.units[unit.index()];
+        let Some(value) = data.values.get(callee.index()) else {
+            return false;
+        };
+        let OperationKind::Load(place) = data.operations[value.definition.index()].kind else {
+            return false;
+        };
+        let Place::Cell(cell) = data.places[place.index()] else {
+            return false;
+        };
+        self.program.cells[cell.index()].debug
     }
     /// `v as? T`: the test `v is T`, then `v` viewed as `T` (`JS.assume`, no
     /// code) or null. `ty` is `T?`.

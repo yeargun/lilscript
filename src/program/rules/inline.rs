@@ -8,8 +8,9 @@
 //! - every call is known and direct (`CallGraph::complete_callers`), from
 //!   the same module, with value arguments for every parameter and no
 //!   generic instantiation;
-//! - the body is not recursive, does not suspend, is not a constructor,
-//!   creates no function, reads no ambient `this` or `arguments`, and has
+//! - the body is not recursive, does not suspend, is not a constructor or a
+//!   `debug` function (R15: `strip_debug` drops its calls), creates no
+//!   function, reads no ambient `this` or `arguments`, and has
 //!   one exit: its only `return` ends its entry region, or it has none;
 //! - a body with statements goes only into a statement region where no
 //!   value computed before the call is still waiting to be used after it:
@@ -83,11 +84,22 @@ pub(super) fn apply(
             declares[cell.owner.index()] = true;
         }
     }
+    // A `debug` function's calls are `strip_debug`'s to drop (R15): its body
+    // stays a body.
+    let mut debug = vec![false; program.units.len()];
+    for cell in program.cells.iter() {
+        if let (true, CellBinding::Function(unit)) = (cell.debug, cell.binding) {
+            debug[unit.index()] = true;
+        }
+    }
     let mut chosen = Vec::new();
     let mut bodies = HashSet::new();
     let mut receivers = HashSet::new();
     for component in graph.components() {
         for &body in component {
+            if debug[body.index()] {
+                continue;
+            }
             let Some(candidate) = candidate(program, effects, &created, &declares, body) else {
                 continue;
             };
@@ -140,6 +152,7 @@ fn statement(kind: &OperationKind) -> bool {
     matches!(
         kind,
         OperationKind::Initialize(_)
+            | OperationKind::Declare(_)
             | OperationKind::Store(_)
             | OperationKind::CheckPlace(_)
             | OperationKind::If { .. }
@@ -597,7 +610,7 @@ fn arguments_evaluation(data: &UnitData, region: RegionId, site: &Site) -> Vec<O
     let mut stack = evaluation.clone();
     while let Some(op) = stack.pop() {
         let operation = &data.operations[op.index()];
-        if matches!(operation.kind, OperationKind::Initialize(_)) {
+        if matches!(operation.kind, OperationKind::Initialize(_) | OperationKind::Declare(_)) {
             return Vec::new();
         }
         defined.extend(operation.result);

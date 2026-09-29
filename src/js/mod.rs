@@ -10,6 +10,10 @@
 //! value requires a binding reference or an explicitly justified rematerialized
 //! occurrence, never accidental duplication of a shared expression graph.
 
+use crate::catalog::{
+    intrinsic_arity, intrinsic_form, intrinsic_recipe, native_constructor, IntrinsicForm,
+};
+pub(crate) use crate::catalog::{integer_intrinsic, original_int32_intrinsic};
 use crate::ast::SourceNodeId;
 use crate::check::SymbolId;
 use crate::literal::StringValue;
@@ -177,12 +181,41 @@ pub enum TemplatePart {
 
 pub use crate::primitive::Invocation;
 
+/// A host identifier and its catalog kind (M4.6): tests read the kind, never
+/// the spelling.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Host {
+    pub name: String,
+    pub kind: crate::catalog::HostKind,
+}
+
+impl Host {
+    pub fn new(name: impl Into<String>) -> Self {
+        let name = name.into();
+        let kind = crate::catalog::host_kind(&name);
+        Self { name, kind }
+    }
+}
+
+impl From<&str> for Host {
+    fn from(name: &str) -> Self {
+        Self::new(name)
+    }
+}
+
+impl From<String> for Host {
+    fn from(name: String) -> Self {
+        Self::new(name)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Literal(Literal),
     Binding(BindingId),
-    /// An external identifier, checked as an identifier rather than code.
-    Host(String),
+    /// An external identifier, checked as an identifier rather than code,
+    /// with the kind the catalog gives its name.
+    Host(Host),
     This,
     Unary {
         op: Unary,
@@ -521,169 +554,6 @@ impl Expr {
     }
 }
 
-/// The currently supported semantic subset. Both source lowering and target
-/// verification use this boundary; unsupported operations never reach printing.
-fn intrinsic_arity(operation: Intrinsic) -> Option<std::ops::RangeInclusive<usize>> {
-    intrinsic_recipe(operation).map(|recipe| recipe.arguments)
-}
-
-/// Native spelling is a target choice. The semantic operation comes from the
-/// source checker. Verification, naming and printing consume this one target
-/// contract; the typed-array kind/name relationship has one existing owner.
-struct NativeConstructor {
-    name: &'static str,
-    arity: usize,
-}
-
-fn native_constructor(operation: Intrinsic) -> Option<NativeConstructor> {
-    let (name, arity) = match operation {
-        Intrinsic::MapNew => ("Map", 0),
-        Intrinsic::SetNew => ("Set", 0),
-        Intrinsic::ArrayBufferNew => ("ArrayBuffer", 1),
-        Intrinsic::SharedArrayBufferNew => ("SharedArrayBuffer", 1),
-        operation => {
-            let (kind, use_) = crate::typed_array::classify_typed_array_intrinsic(operation)?;
-            if use_ != crate::typed_array::TypedArrayIntrinsic::New {
-                return None;
-            }
-            (kind.name(), 1)
-        }
-    };
-    Some(NativeConstructor { name, arity })
-}
-
-/// The selected JavaScript implementation. A checked language operation can
-/// use a mutable prototype method; its raw target result/effects must then be
-/// proved independently of its source signature.
-#[derive(Clone, Copy)]
-enum IntrinsicForm {
-    Property(&'static str),
-    Method(&'static str),
-}
-
-fn intrinsic_form(operation: Intrinsic) -> IntrinsicForm {
-    intrinsic_recipe(operation)
-        .expect("verified intrinsic subset")
-        .form
-}
-
-pub(crate) fn integer_intrinsic(operation: Intrinsic) -> bool {
-    intrinsic_recipe(operation).is_some_and(|recipe| recipe.normalizes_i32)
-}
-
-/// Unpatched, these results are always int32: string lengths and positions
-/// stay below 2^31 on every engine, as do collection sizes. A typed array's
-/// byte counts can exceed that, and `charCodeAt` past the end is NaN.
-pub(crate) fn pristine_int32_intrinsic(operation: Intrinsic) -> bool {
-    matches!(
-        operation,
-        Intrinsic::StringLength
-            | Intrinsic::StringIndexOf
-            | Intrinsic::StringLastIndexOf
-            | Intrinsic::StringSearch
-            | Intrinsic::ArrayLength
-            | Intrinsic::ArrayPush
-            | Intrinsic::ArrayIndexOf
-            | Intrinsic::ArrayFindIndex
-            | Intrinsic::MapSize
-            | Intrinsic::SetSize
-    )
-}
-
-/// One target recipe owns spelling, emitted argument arity and normalization.
-/// Source and native signatures stay with the language primitive contract.
-struct IntrinsicRecipe {
-    form: IntrinsicForm,
-    arguments: std::ops::RangeInclusive<usize>,
-    normalizes_i32: bool,
-}
-
-fn intrinsic_recipe(operation: Intrinsic) -> Option<IntrinsicRecipe> {
-    use IntrinsicForm::{Method, Property};
-    let (form, arguments, normalizes_i32) = match operation {
-        Intrinsic::StringLength | Intrinsic::ArrayLength => (Property("length"), 0..=0, true),
-        Intrinsic::StringCharCodeAt => (Method("charCodeAt"), 1..=1, true),
-        Intrinsic::StringCharAt => (Method("charAt"), 1..=1, false),
-        Intrinsic::StringIndexOf => (Method("indexOf"), 1..=2, true),
-        Intrinsic::StringSlice => (Method("slice"), 1..=2, false),
-        Intrinsic::StringSplit => (Method("split"), 1..=1, false),
-        Intrinsic::StringRepeat => (Method("repeat"), 1..=1, false),
-        Intrinsic::StringTrim => (Method("trim"), 0..=0, false),
-        Intrinsic::StringTrimStart => (Method("trimStart"), 0..=0, false),
-        Intrinsic::StringTrimEnd => (Method("trimEnd"), 0..=0, false),
-        Intrinsic::StringToUpperCase => (Method("toUpperCase"), 0..=0, false),
-        Intrinsic::StringToLowerCase => (Method("toLowerCase"), 0..=0, false),
-        Intrinsic::StringReplace => (Method("replace"), 2..=2, false),
-        Intrinsic::RegexTest => (Method("test"), 1..=1, false),
-        Intrinsic::JsRegexExec => (Method("exec"), 1..=1, false),
-        // Rows below mirror the old route's spelling. An `int` result
-        // is normalized: a patched prototype method or getter may return any
-        // value, and the typed contract does not assume pristine builtins.
-        Intrinsic::StringIncludes => (Method("includes"), 1..=2, false),
-        Intrinsic::StringStartsWith => (Method("startsWith"), 1..=2, false),
-        Intrinsic::StringEndsWith => (Method("endsWith"), 1..=2, false),
-        Intrinsic::StringLastIndexOf => (Method("lastIndexOf"), 1..=2, true),
-        Intrinsic::StringSearch => (Method("search"), 1..=1, true),
-        Intrinsic::IntToString | Intrinsic::IntToUnsignedString => {
-            (Method("toString"), 0..=1, false)
-        }
-        Intrinsic::ArrayPush => (Method("push"), 1..=1, true),
-        Intrinsic::ArrayIndexOf => (Method("indexOf"), 1..=1, true),
-        Intrinsic::ArrayIncludes => (Method("includes"), 1..=2, false),
-        Intrinsic::ArrayJoin => (Method("join"), 0..=1, false),
-        Intrinsic::ArrayConcat => (Method("concat"), 1..=1, false),
-        Intrinsic::ArrayCopyWithin | Intrinsic::TypedArrayCopyWithin => {
-            (Method("copyWithin"), 2..=3, false)
-        }
-        Intrinsic::ArrayReverse => (Method("reverse"), 0..=0, false),
-        Intrinsic::ArraySlice | Intrinsic::BufferSlice => (Method("slice"), 0..=2, false),
-        Intrinsic::ArraySplice => (Method("splice"), 2..=2, false),
-        Intrinsic::ArrayFill => (Method("fill"), 1..=1, false),
-        Intrinsic::ArrayMap => (Method("map"), 1..=1, false),
-        Intrinsic::ArrayFilter => (Method("filter"), 1..=1, false),
-        Intrinsic::ArrayForEach => (Method("forEach"), 1..=1, false),
-        Intrinsic::ArrayReduce => (Method("reduce"), 2..=2, false),
-        Intrinsic::ArraySome => (Method("some"), 1..=1, false),
-        Intrinsic::ArrayEvery => (Method("every"), 1..=1, false),
-        Intrinsic::ArrayFindIndex => (Method("findIndex"), 1..=1, true),
-        Intrinsic::MapSize | Intrinsic::SetSize => (Property("size"), 0..=0, true),
-        Intrinsic::MapGet => (Method("get"), 1..=1, false),
-        Intrinsic::MapSet => (Method("set"), 2..=2, false),
-        Intrinsic::MapHas | Intrinsic::SetHas => (Method("has"), 1..=1, false),
-        Intrinsic::MapDelete | Intrinsic::SetDelete => (Method("delete"), 1..=1, false),
-        Intrinsic::MapClear | Intrinsic::SetClear => (Method("clear"), 0..=0, false),
-        Intrinsic::SetAdd => (Method("add"), 1..=1, false),
-        Intrinsic::BufferByteLength => (Property("byteLength"), 0..=0, true),
-        Intrinsic::TypedArraySet => (Method("set"), 1..=2, false),
-        Intrinsic::TypedArrayFill => (Method("fill"), 1..=3, false),
-        Intrinsic::RegexSource => (Property("source"), 0..=0, false),
-        Intrinsic::RegexFlags => (Property("flags"), 0..=0, false),
-        Intrinsic::RegexGlobal => (Property("global"), 0..=0, false),
-        Intrinsic::RegexIgnoreCase => (Property("ignoreCase"), 0..=0, false),
-        Intrinsic::RegexMultiline => (Property("multiline"), 0..=0, false),
-        Intrinsic::RegexDotAll => (Property("dotAll"), 0..=0, false),
-        Intrinsic::RegexSticky => (Property("sticky"), 0..=0, false),
-        Intrinsic::RegexUnicode => (Property("unicode"), 0..=0, false),
-        operation => {
-            use crate::typed_array::TypedArrayIntrinsic as Typed;
-            let (_, use_) = crate::typed_array::classify_typed_array_intrinsic(operation)?;
-            match use_ {
-                Typed::Length => (Property("length"), 0..=0, true),
-                Typed::ByteLength => (Property("byteLength"), 0..=0, true),
-                Typed::ByteOffset => (Property("byteOffset"), 0..=0, true),
-                Typed::Buffer => (Property("buffer"), 0..=0, false),
-                Typed::Slice => (Method("slice"), 1..=2, false),
-                Typed::Subarray => (Method("subarray"), 1..=2, false),
-                _ => return None,
-            }
-        }
-    };
-    Some(IntrinsicRecipe {
-        form,
-        arguments,
-        normalizes_i32,
-    })
-}
 
 pub(crate) fn supports_intrinsic_method(operation: Intrinsic) -> bool {
     intrinsic_recipe(operation)
@@ -1148,6 +1018,10 @@ pub struct Module {
     /// but measured +34 Brotli on zodlil and +38 on katexlil (−4 on
     /// markedlil), so the codec judges it per artifact as well.
     pub logical_statements: bool,
+    /// The `int32_hints` output family, written here by formation: an
+    /// integer method's result prints its `|0` as the compiler printed it
+    /// before R10 (only without pristine builtins).
+    pub int32_hints: bool,
     /// The choice sites formation found on this tree (plan M9.1): what each
     /// offers, seeds and applied under the artifact's `ChoiceMap`. The
     /// terminal stage reads them to offer the other alternatives.
@@ -1844,6 +1718,7 @@ impl Module {
     /// Returns the number of folded stores.
     pub(crate) fn fold_object_stores(
         &mut self,
+        new_keys: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
@@ -1926,9 +1801,14 @@ impl Module {
                         }
                         _ => None,
                     };
+                    // A store to a key the literal has updates an own data
+                    // property, which shadows anything inherited; a new key
+                    // could meet an inherited setter, which only pristine
+                    // builtins rule out.
                     match replaced {
                         Some(position) => entries[position].1 = value,
-                        None => entries.push((property, value)),
+                        None if new_keys => entries.push((property, value)),
+                        None => break,
                     }
                     end += 1;
                 }
@@ -2397,7 +2277,7 @@ impl Module {
     pub(crate) fn frame_free(&self, function: FunctionId) -> bool {
         !self.frame_reads(function, |expression| match expression {
             Expr::This | Expr::SuperCall { .. } => true,
-            Expr::Host(name) => name == "arguments" || name == "eval",
+            Expr::Host(host) => matches!(host.kind, crate::catalog::HostKind::Arguments | crate::catalog::HostKind::Eval),
             Expr::Call { invocation, .. } => *invocation == Invocation::DirectEval,
             _ => false,
         })
@@ -2409,7 +2289,7 @@ impl Module {
     fn reads_arguments(&self, function: FunctionId) -> bool {
         self.frame_reads(
             function,
-            |expression| matches!(expression, Expr::Host(name) if name == "arguments"),
+            |expression| matches!(expression, Expr::Host(host) if host.kind == crate::catalog::HostKind::Arguments),
         )
     }
 
@@ -2418,7 +2298,7 @@ impl Module {
     /// the body can see (it would unmap a sloppy frame's `arguments`).
     pub(crate) fn arguments_free(&self, function: FunctionId) -> bool {
         !self.frame_reads(function, |expression| match expression {
-            Expr::Host(name) => name == "arguments" || name == "eval",
+            Expr::Host(host) => matches!(host.kind, crate::catalog::HostKind::Arguments | crate::catalog::HostKind::Eval),
             Expr::Call { invocation, .. } => *invocation == Invocation::DirectEval,
             _ => false,
         })
@@ -3428,6 +3308,7 @@ impl Module {
             carried: vec![],
             loop_head_declarations: false,
             logical_statements: false,
+            int32_hints: false,
             choice_sites: Vec::new(),
         })
     }
@@ -3579,7 +3460,7 @@ impl Module {
     /// declaration with that required spelling would capture it.
     pub(crate) fn references_host(&self, name: &str) -> bool {
         self.expressions.iter().any(|expression| match expression {
-            Expr::Host(host) => host == name,
+            Expr::Host(host) => host.name == name,
             Expr::ConstructIntrinsic { operation, .. } => {
                 native_constructor(*operation).is_some_and(|native| native.name == name)
             }

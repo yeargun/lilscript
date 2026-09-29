@@ -28,6 +28,8 @@ use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
 use crate::scalar_transfer::NumberFacts;
 
+#[path = "javascript_checks.rs"]
+mod checks;
 #[path = "javascript_host.rs"]
 mod host;
 #[path = "javascript_int32.rs"]
@@ -48,12 +50,12 @@ mod struct_boundaries;
 mod structs;
 
 /// The operation's selected result recipe, shared by formation and domain
-/// evidence. The source signature alone never supplies a runtime domain.
+/// evidence. A typed result is its type's by R1 (trusted crossings): an
+/// `int` result is an int32 with no code.
 #[derive(Clone, Copy)]
 enum CallResultRecipe {
     Raw,
     Void,
-    NormalizeInteger,
     IntrinsicInteger,
 }
 fn call_result_recipe(
@@ -64,17 +66,9 @@ fn call_result_recipe(
     let OperationKind::Call(call) = operation.kind else {
         return CallResultRecipe::Raw;
     };
-    let integer = operation.result.is_some_and(|result| {
-        matches!(
-            program.types[unit.values[result.index()].ty.index()],
-            Type::Int
-        )
-    });
+    let _ = program;
     match unit.calls[call.index()].target {
         CallTarget::Builtin(BuiltinCall::Print) => CallResultRecipe::Void,
-        CallTarget::Reference { .. } | CallTarget::Builtin(_) if integer => {
-            CallResultRecipe::NormalizeInteger
-        }
         CallTarget::Intrinsic {
             operation: ResolvedIntrinsic::Method(method),
             ..
@@ -83,12 +77,17 @@ fn call_result_recipe(
     }
 }
 
+/// A load's result recipe. A typed load is its type's by R1, and an index
+/// read is in range by R11's precondition, so an element read is its
+/// JavaScript read: an `int` needs no `|0`, a `string` no `??""`. Absence
+/// on a record's missing key and in a `T?` element reads as the language's
+/// null until R2's second batch (M10.9). A `Uint32Array` element is a uint32,
+/// which an `int` reads as int32.
 #[derive(Clone, Copy)]
 enum LoadResultRecipe {
     Raw,
     NullishNull,
-    NullishEmptyString,
-    NormalizeInteger,
+    Uint32Element,
 }
 fn load_result_recipe(
     program: &Program<'_>,
@@ -97,37 +96,22 @@ fn load_result_recipe(
     ty: TypeId,
 ) -> LoadResultRecipe {
     let receiver = match unit.places[place.index()] {
-        Place::Cell(_) | Place::Value(_) => return LoadResultRecipe::Raw,
-        Place::Field { .. } => {
-            // A private layout is not evidence for a primitive host payload.
-            // Preserve the nominal integer-load contract until producer facts
-            // establish that this normalization is redundant.
-            return if matches!(program.types[ty.index()], Type::Int) {
-                LoadResultRecipe::NormalizeInteger
-            } else {
-                LoadResultRecipe::Raw
-            };
-        }
+        Place::Cell(_) | Place::Value(_) | Place::Field { .. } => return LoadResultRecipe::Raw,
         Place::Member { receiver, .. }
         | Place::ClassField { receiver, .. }
         | Place::Index { receiver, .. } => receiver,
     };
+    let index = matches!(unit.places[place.index()], Place::Index { .. });
     let receiver_ty = &program.types[unit.values[receiver.index()].ty.index()];
     let result_ty = &program.types[ty.index()];
-    if matches!(receiver_ty, Type::Record(_)) {
-        LoadResultRecipe::NullishNull
-    } else if matches!(unit.places[place.index()], Place::Index { .. })
-        && matches!(receiver_ty, Type::Array(_))
-        && matches!(result_ty, Type::Nullable(_) | Type::Null)
+    if matches!(receiver_ty, Type::Record(_))
+        || index
+            && matches!(receiver_ty, Type::Array(_))
+            && matches!(result_ty, Type::Nullable(_) | Type::Null)
     {
-        // A position past the end is `undefined`; the language reads null.
         LoadResultRecipe::NullishNull
-    } else if matches!(unit.places[place.index()], Place::Index { .. })
-        && matches!(result_ty, Type::String)
-    {
-        LoadResultRecipe::NullishEmptyString
-    } else if matches!(result_ty, Type::Int) {
-        LoadResultRecipe::NormalizeInteger
+    } else if index && matches!(receiver_ty, Type::Uint32Array) && matches!(result_ty, Type::Int) {
+        LoadResultRecipe::Uint32Element
     } else {
         LoadResultRecipe::Raw
     }
@@ -144,21 +128,20 @@ impl super::raw_domains::Recipes for JavaScriptRecipes {
         use super::raw_domains::ResultRecipe;
         let data = program.unit(unit).unwrap();
         let operation = &data.operations[operation.index()];
+        // An `int` result is an int32 by type (R1), with no code.
+        let typed_int = operation.result.is_some_and(|value| {
+            matches!(program.types[data.values[value.index()].ty.index()], Type::Int)
+        });
         match operation.kind {
             OperationKind::Call(_) => match call_result_recipe(program, data, operation) {
                 CallResultRecipe::Void => ResultRecipe::Undefined,
-                CallResultRecipe::NormalizeInteger | CallResultRecipe::IntrinsicInteger => {
-                    ResultRecipe::NormalizedI32
-                }
+                CallResultRecipe::IntrinsicInteger => ResultRecipe::NormalizedI32,
+                CallResultRecipe::Raw if typed_int => ResultRecipe::NormalizedI32,
                 CallResultRecipe::Raw => ResultRecipe::Source,
             },
             OperationKind::Load(place)
-                if operation.result.is_some_and(|value| {
-                    matches!(
-                        load_result_recipe(program, data, place, data.values[value.index()].ty),
-                        LoadResultRecipe::NormalizeInteger
-                    )
-                }) =>
+                if typed_int
+                    && !matches!(data.places[place.index()], Place::Cell(_) | Place::Value(_)) =>
             {
                 ResultRecipe::NormalizedI32
             }
@@ -259,6 +242,7 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
             strip_debug: false,
             strip_console_calls: false,
         },
+        checks: crate::compilation_contract::PreconditionChecks::Production,
     };
     // Inspection forms from the same use facts as an admitted build, so the
     // two agree on every use-directed shape; its ledger is never exhausted.
@@ -479,7 +463,16 @@ fn form_with_demand(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
-    let head = form_head(program, uses, contract, demand, compact, hosts, budget)?;
+    let head = form_head(
+        program,
+        uses,
+        contract,
+        demand,
+        compact,
+        families.int32_hints,
+        hosts,
+        budget,
+    )?;
     form_tail(head, families, choices, budget)
 }
 
@@ -492,6 +485,11 @@ pub(super) struct FormedHead {
     /// The contract facts the family tail reads; absent without target
     /// compaction, which runs no tail.
     tail: Option<TailContext>,
+    /// The `int32_hints` family prints nothing in this program: no read or
+    /// call result it would hint, and no integer intrinsic the printer would
+    /// hint without pristine builtins. Its other head renders this one's
+    /// bytes.
+    hints_inert: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -516,7 +514,12 @@ impl FormedHead {
             module,
             literals,
             tail: self.tail,
+            hints_inert: self.hints_inert,
         })
+    }
+
+    pub(super) fn hints_inert(&self) -> bool {
+        self.hints_inert
     }
 }
 
@@ -529,6 +532,7 @@ pub(super) fn form_head_admitted(
     contract: &JavaScriptCompilationContract,
     demand: &DemandPlan<'_, '_>,
     compact: bool,
+    int32_hints: bool,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<FormedHead, FormationError> {
@@ -539,6 +543,7 @@ pub(super) fn form_head_admitted(
         contract,
         demand,
         compact,
+        int32_hints,
         hosts,
         budget,
     )
@@ -562,6 +567,7 @@ fn form_head(
     contract: &JavaScriptCompilationContract,
     demand: &DemandPlan<'_, '_>,
     compact: bool,
+    int32_hints: bool,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<FormedHead, FormationError> {
@@ -596,6 +602,7 @@ fn form_head(
     module.pristine_builtins = contract.assumptions.pristine_builtins;
     module.pure_property_reads = contract.assumptions.pure_property_reads;
     module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
+    module.int32_hints = int32_hints;
     let mut formation = Formation {
         program,
         uses,
@@ -611,6 +618,10 @@ fn form_head(
         struct_plan,
         reference_plan,
         host_factories: Vec::new(),
+        index_check: None,
+        crossing_checks: Vec::new(),
+        int32_hints,
+        hint_sites: 0,
         unit_functions: Vec::new(),
         foreign_bindings: Vec::new(),
         stable_cells: Vec::new(),
@@ -970,17 +981,17 @@ fn form_head(
                 formation
                     .module
                     .drop_typed_default_checks(formation.budget)?;
-                // Field initializers become their stores, for the fold to take.
-                if pristine {
-                    formation.module.inline_initializers(formation.budget)?;
-                }
-                if pristine {
-                    fold_stores(
-                        &mut formation.module,
-                        &mut formation.literal_alternatives,
-                        formation.budget,
-                    )?;
-                }
+                // Field initializers become their stores, for the fold to
+                // take: stores to the instance literal's own keys, which no
+                // inherited setter sees (R10: nothing here assumes pristine
+                // builtins).
+                formation.module.inline_initializers(formation.budget)?;
+                fold_stores(
+                    &mut formation.module,
+                    &mut formation.literal_alternatives,
+                    pristine,
+                    formation.budget,
+                )?;
                 // Stores folded into their literals no longer run before the
                 // constants declared after them.
                 let protected: Vec<js::ExprId> = formation
@@ -1060,6 +1071,7 @@ fn form_head(
         records,
         struct_plan,
         reference_plan,
+        hint_sites,
         ..
     } = formation;
     drop(contexts);
@@ -1067,11 +1079,23 @@ fn form_head(
     drop(records);
     drop(struct_plan);
     drop(reference_plan);
+    // Without pristine builtins the printer hints an integer intrinsic's
+    // result under the family; the tail creates none.
+    let hints_inert = hint_sites == 0
+        && (module.pristine_builtins || {
+            phase.work(WorkKind::Render, module.expressions.len() as u64)?;
+            !module.expressions.iter().any(|expression| {
+                matches!(expression, js::Expr::Intrinsic { operation, .. }
+                    if crate::catalog::integer_intrinsic(*operation)
+                        || crate::catalog::original_int32_intrinsic(*operation))
+            })
+        });
     phase.finish_retained()?;
     Ok(FormedHead {
         module,
         literals: literal_alternatives,
         tail,
+        hints_inert,
     })
 }
 
@@ -1089,6 +1113,7 @@ fn form_tail(
         mut module,
         mut literals,
         tail,
+        ..
     } = head;
     let Some(TailContext {
         strict,
@@ -1179,13 +1204,12 @@ impl Tail<'_, '_> {
                 && families.statements != js::StatementSpellings::NONE
             {
                 // A store of a conditional is a store the fold can take.
-                if pristine {
-                    fold_stores(
-                        formation.module,
-                        formation.literal_alternatives,
-                        formation.budget,
-                    )?;
-                }
+                fold_stores(
+                    formation.module,
+                    formation.literal_alternatives,
+                    pristine,
+                    formation.budget,
+                )?;
                 // Conditionals built from statements meet the operator
                 // rules for the first time (`x===void 0?null:x`).
                 let protected: Vec<js::ExprId> = formation
@@ -1315,13 +1339,16 @@ fn value_class(ty: &Type<'_>) -> Option<js::ValueClass> {
 /// as the value of its parent's store, it leaves that store next to the
 /// parent's others: a few rounds fold a tree of objects built by stores into
 /// one literal.
+/// Without pristine builtins only stores to keys a literal already has fold
+/// (`new_keys`).
 fn fold_stores(
     module: &mut js::Module,
     alternatives: &mut Vec<js::LiteralAlternative>,
+    new_keys: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), AllocationError> {
     for _ in 0..4 {
-        if module.fold_object_stores(budget)? == 0 {
+        if module.fold_object_stores(new_keys, budget)? == 0 {
             break;
         }
         let (forwarded, map) = module.forward_single_uses(budget)?;
@@ -1397,6 +1424,17 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     reference_plan: references::Plan,
     /// One hoisted `JS.methodN` adapter factory per calling convention.
     host_factories: Vec<(u8, js::BindingId)>,
+    /// The hoisted index-read check (`checks = "development"`), once formed.
+    index_check: Option<js::BindingId>,
+    /// The hoisted crossing checks, one per shape and absence.
+    crossing_checks: Vec<((checks::Crossing, bool), js::BindingId)>,
+    /// The `int32_hints` output family: the `|0` the compiler printed before
+    /// R1 and R11 after an `int` field, member or element read and an `int`
+    /// host call's result.
+    int32_hints: bool,
+    /// The reads and call results the family hints, counted whatever its
+    /// value.
+    hint_sites: usize,
     /// Each formed function unit's target function, for export reflection.
     unit_functions: Vec<(UnitId, js::FunctionId)>,
     /// One ES import binding per foreign cell with an `import extern` source.
@@ -1959,7 +1997,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     fn ambient_node(&mut self, ambient: Ambient) -> Result<js::Expr, FormationError> {
         Ok(match ambient {
             Ambient::This => js::Expr::This,
-            Ambient::Arguments => js::Expr::Host(self.text("arguments")?),
+            Ambient::Arguments => js::Expr::Host(js::Host::new(self.text("arguments")?)),
         })
     }
 
@@ -2751,7 +2789,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 return self.ambient(unit, ambient, cell.declaration);
             }
             Ok({
-                let node = js::Expr::Host(self.text(&cell.name)?);
+                let node = js::Expr::Host(js::Host::new(self.text(&cell.name)?));
                 self.expression(node)
             }?)
         } else if references::is_reference(self.program, cell) {
@@ -2964,25 +3002,52 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 return self.save(unit, operation, value);
             }
         }
-        let mut raw = self.place(unit, place)?;
+        // A development build checks an index read's precondition (R11); the
+        // checked read is the element, so absence recipes still apply.
+        let mut raw = if self.checked_index_read(unit, place) {
+            self.index_read_check(unit, place)?
+        } else {
+            self.place(unit, place)?
+        };
         if self.compact {
             if let Some(projected) = js::literal_array_projection(&self.module, raw, self.budget)? {
                 raw = projected;
             }
         }
-        // Language absence and integer obligations are distinct from the raw
-        // JavaScript property load, including loads from foreign containers.
+        // A typed host binding's value crosses in at each read (R1): a
+        // development build checks it. An extern function crosses where its
+        // calls return.
+        if let Place::Cell(cell) = self.data(unit).places[place.index()] {
+            if self.program.cells[cell.index()].binding == CellBinding::Foreign
+                && !matches!(self.program.types[ty.index()], Type::Function(_))
+            {
+                raw = self.crossing_check(ty, raw)?;
+            }
+        }
+        // A load is its JavaScript read (R1, R11), but for absence until
+        // R2's second batch and a `Uint32Array` element read as an `int`.
         match load_result_recipe(self.program, self.data(unit), place, ty) {
-            recipe @ (LoadResultRecipe::NullishNull | LoadResultRecipe::NullishEmptyString) => {
-                let absent = match recipe {
-                    LoadResultRecipe::NullishNull => js::Literal::Null,
-                    _ => js::Literal::String("".into()),
-                };
-                let right = self.literal(absent)?;
+            LoadResultRecipe::NullishNull => {
+                let right = self.literal(js::Literal::Null)?;
                 Ok(self.save_nullish(unit, operation, raw, right)?)
             }
-            LoadResultRecipe::NormalizeInteger => {
+            LoadResultRecipe::Uint32Element => {
                 let value = self.expression(js::Expr::ToInt32(raw))?;
+                Ok(self.save(unit, operation, value)?)
+            }
+            LoadResultRecipe::Raw
+                if matches!(self.program.types[ty.index()], Type::Int)
+                    && !matches!(
+                        self.data(unit).places[place.index()],
+                        Place::Cell(_) | Place::Value(_)
+                    ) =>
+            {
+                self.hint_sites += 1;
+                let value = if self.int32_hints {
+                    self.expression(js::Expr::ToInt32(raw))?
+                } else {
+                    raw
+                };
                 Ok(self.save(unit, operation, value)?)
             }
             LoadResultRecipe::Raw => Ok(self.save(unit, operation, raw)?),
@@ -3340,7 +3405,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         .result
                         .and_then(|result| self.forwarding_builtin(unit, result))
                         .filter(|&builtin| {
-                            crate::primitive::host_builtin(builtin)
+                            crate::catalog::host_builtin(builtin)
                                 && (self.contract.assumptions.pristine_builtins
                                     || operands_first(builtin))
                                 && (self.contract.execution.guarantees_strict_execution()
@@ -3400,11 +3465,34 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             op: js::Unary::Void,
                             value: expression,
                         })?,
-                        CallResultRecipe::NormalizeInteger => {
-                            self.expression(js::Expr::ToInt32(expression))?
+                        CallResultRecipe::Raw
+                            if operation.result.is_some_and(|result| {
+                                matches!(
+                                    self.program.types
+                                        [self.data(unit).values[result.index()].ty.index()],
+                                    Type::Int
+                                )
+                            }) && matches!(
+                                self.data(unit).calls[call.index()].target,
+                                CallTarget::Reference { .. } | CallTarget::Builtin(_)
+                            ) =>
+                        {
+                            self.hint_sites += 1;
+                            if self.int32_hints {
+                                self.expression(js::Expr::ToInt32(expression))?
+                            } else {
+                                expression
+                            }
                         }
                         CallResultRecipe::Raw | CallResultRecipe::IntrinsicInteger => expression,
                     };
+                // A development build checks what crosses in (R1).
+                if self.crossing_call(unit, call) {
+                    if let Some(result) = operation.result {
+                        let ty = self.data(unit).values[result.index()].ty;
+                        expression = self.crossing_check(ty, expression)?;
+                    }
+                }
                 if !before.is_empty() {
                     self.append(&mut before, expression)?;
                     expression = self.sequence(before)?.unwrap();
@@ -3877,7 +3965,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     ("Math", "imul")
                 };
                 let object = {
-                    let node = js::Expr::Host(self.text(host)?);
+                    let node = js::Expr::Host(js::Host::new(self.text(host)?));
                     self.expression(node)
                 }?;
                 let property = js::Property::Named(self.text(method)?);
@@ -3895,7 +3983,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             {
                 return Ok(arguments[0]);
             }
-            CallTarget::Builtin(builtin) if crate::primitive::host_builtin(builtin) => {
+            CallTarget::Builtin(builtin) if crate::catalog::host_builtin(builtin) => {
                 let mut arguments = arguments;
                 // `JS.call(f, t, ...)` whose `t` is a call to a function that
                 // only returns undefined is `f(...)`: the dropped call has no
@@ -4069,6 +4157,15 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 receiver: Some(receiver),
             } if js::supports_intrinsic_method(operation) => {
                 let mut receiver = self.value(unit, receiver)?;
+                let mut arguments = arguments;
+                // A development build checks the code unit's index (R11):
+                // `index_checked(s,i)` is the one-unit string at `i`.
+                if operation == Intrinsic::StringCodeUnitAt
+                    && self.contract.checks
+                        == crate::compilation_contract::PreconditionChecks::Development
+                {
+                    (receiver, arguments) = self.code_unit_check(receiver, arguments)?;
+                }
                 if operation == Intrinsic::IntToUnsignedString {
                     let zero = self.literal(js::Literal::Number(0.0))?;
                     receiver = self.expression(js::Expr::Binary {
@@ -4090,7 +4187,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     .allows(JsSyntaxFeature::NullishCoalescing)
                 {
                     // An absent key is `undefined` in the host and `null` in
-                    // the language, exactly as the legacy `m.get(k)??null`.
+                    // the language until R2's second batch (M10.9).
                     let left = self.expression(call)?;
                     let right = self.literal(js::Literal::Null)?;
                     js::Expr::Binary {
@@ -4117,7 +4214,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             } => {
                 // `Symbol` is called, never constructed.
                 let host = self.text("Symbol")?;
-                let callee = self.expression(js::Expr::Host(host))?;
+                let callee = self.expression(js::Expr::Host(js::Host::new(host)))?;
                 js::Expr::Call {
                     callee,
                     arguments,
@@ -4128,13 +4225,33 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 operation: ResolvedIntrinsic::Constructor(Intrinsic::RegexNew),
                 receiver: None,
             } => {
-                // A source constructor is an observable host lookup followed
-                // by construction, not proof of a pristine builtin or a fresh
-                // result. The common envelope leaves that lookup before every
-                // argument effect without introducing a temporary or .call.
-                let host = self.text("RegExp")?;
-                let callee = self.expression(js::Expr::Host(host))?;
-                js::Expr::Construct { callee, arguments }
+                // A typed construction means the original `RegExp` (R10): of
+                // literal strings in the proven subset it is the literal, a
+                // fresh object at each evaluation. Otherwise the lookup stays
+                // before every argument effect, without a temporary or .call.
+                let text = |id: &js::ExprId| match &self.module.expressions[id.index()] {
+                    js::Expr::Literal(js::Literal::String(value)) => value.as_unicode(),
+                    _ => None,
+                };
+                let literal = match arguments.as_slice() {
+                    [pattern] => text(pattern).map(|pattern| (pattern, "")),
+                    [pattern, flags] => text(pattern).zip(text(flags)),
+                    _ => None,
+                }
+                .and_then(|(pattern, flags)| {
+                    crate::js_regex::literal_from_decoded_checked(
+                        pattern,
+                        flags,
+                        self.contract.ecmascript.year() >= 2018,
+                    )
+                });
+                if let Some(regex) = literal {
+                    js::Expr::Regex(regex)
+                } else {
+                    let host = self.text("RegExp")?;
+                    let callee = self.expression(js::Expr::Host(js::Host::new(host)))?;
+                    js::Expr::Construct { callee, arguments }
+                }
             }
             _ => return Err(self.error(span, "semantic JavaScript call implementation")),
         };
@@ -4160,7 +4277,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     /// followed by ordinary member reads, each observable in order.
     fn host_path(&mut self, path: &[&str]) -> Result<js::ExprId, FormationError> {
         let root = self.text(path[0])?;
-        let mut callee = self.expression(js::Expr::Host(root))?;
+        let mut callee = self.expression(js::Expr::Host(js::Host::new(root)))?;
         for member in &path[1..] {
             self.work(1)?;
             let property = js::Property::Named(self.text(member)?);
@@ -4435,7 +4552,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             self.error(operation.span, "identity test on an undeclared class")
                         })?;
                         let name = self.text(&definition.name)?;
-                        self.expression(js::Expr::Host(name))?
+                        self.expression(js::Expr::Host(js::Host::new(name)))?
                     }
                 };
                 js::Expr::Binary {
@@ -4615,12 +4732,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             OperationKind::Intrinsic(ResolvedIntrinsic::Property(property))
                 if js::supports_intrinsic_property(property) =>
             {
-                // Under pristine builtins a string or array length is at most
-                // 2^30 (the bound counting loops already use), so arithmetic
-                // near it needs no int32 normalization.
-                if self.contract.assumptions.pristine_builtins
-                    && matches!(property, Intrinsic::StringLength | Intrinsic::ArrayLength)
-                {
+                // A typed length is the original's (R10), at most 2^30 (the
+                // bound counting loops already use), so arithmetic near it
+                // needs no int32 normalization.
+                if matches!(property, Intrinsic::StringLength | Intrinsic::ArrayLength) {
                     self.transfer_number(unit, operation, false, |_| {
                         NumberFacts::integer_range(0, 1 << 30, false)
                             .unwrap_or(NumberFacts::UNKNOWN)
@@ -4811,6 +4926,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         )?;
                     }
                 }
+                // A development build checks what an exported function's
+                // caller passes (R1).
+                if let (Some(result), None) = (operation.result, &method) {
+                    self.export_parameter_checks(unit, result, child, body)?;
+                }
                 self.statement_region(child, self.data(child).entry)?;
                 self.finish_unit(child)?;
                 let parameters = match &method {
@@ -5000,7 +5120,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     .ok_or_else(|| self.error(span, "kept class with an undeclared base"))?;
                 Some(if base.external {
                     let name = self.text(&base.name)?;
-                    self.expression(js::Expr::Host(name))?
+                    self.expression(js::Expr::Host(js::Host::new(name)))?
                 } else {
                     let cell = base
                         .value
@@ -5280,6 +5400,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         value: Some(value),
                     }
                 }
+                // `let x;` (R3), in an inlined body as in its own: the context
+                // binds the cell as `Initialize`'s `let` does.
+                OperationKind::Declare(cell) => js::Statement::Let {
+                    binding: self.cell_binding(unit, cell)?,
+                    value: None,
+                },
                 OperationKind::Return => js::Statement::Return(
                     operands
                         .first()

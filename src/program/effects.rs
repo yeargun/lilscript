@@ -14,18 +14,12 @@
 //! from its body like any other, and the contract (M6.3) is checked against
 //! that summary; a `pure extern` is trusted to have no observable effect.
 //!
-//! **Two questions, one analysis.** The language's types are what a body is
-//! judged by for its contract: an `int` is an int, a class instance is the
-//! program's data object. At run time a typed value that came from outside
-//! the program may be raw (D2): an `int` parameter may hold an object whose
-//! conversion runs user code, a reference parameter may be a host object with
-//! accessors. A summary therefore also records its *obligations*: the
-//! parameters it assumes well-formed (primitive, int32, a program object) and
-//! whether it relied on typed data it cannot trace to a parameter
-//! (`untrusted`). A call discharges each obligation from its argument; one it
-//! cannot discharge leaves the call with the conservative behavior of a
-//! conversion hook. The contract check ignores obligations; removing a call
-//! requires them discharged.
+//! **Typed values are their types' (R1).** Inside a program an `int` is an
+//! int32, a string a string, a class instance the program's object: a
+//! crossing is trusted, so no typed value reaches a conversion hook or an
+//! accessor, and a summary carries no obligations about its parameters. The
+//! one assumption left is about the host (`assumes_host`): that a builtin it
+//! could replace, and a global an accessor could serve, behave as declared.
 //!
 //! **Termination (D3.6, as settled).** A call is removable only when its body
 //! provably terminates: every loop has a counted bound and no call reaches a
@@ -33,14 +27,12 @@
 //! `pure extern`'s host code has no proof, so a discarded `pure extern` call
 //! stays. The pending amendment (a declared `pure` asserts termination) is
 //! `DECLARED_PURE_ASSERTS_TERMINATION`, off until the owner rules.
-use super::call_graph::{callback_intrinsic, CallGraph, Callee, Seal};
+use super::call_graph::{CallGraph, Callee, Seal};
 use super::facts::{self, EvaluationBehavior, MemoryAccess};
 use super::initialization::ProgramInitialization;
 use super::views::{Deps, Fact, Limit, Reason};
 use super::*;
-use crate::check::BuiltinCall;
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
-use crate::typed_array::TypedArrayKind;
 use ahash::AHashMap;
 use std::sync::Arc;
 
@@ -173,15 +165,11 @@ pub struct Effects {
     pub transfers_control: bool,
     /// Parameters whose objects are written.
     pub mutated: ParameterSet,
-    /// Obligations: parameters assumed primitive at run time.
-    pub assumed_primitive: ParameterSet,
-    /// Obligations: parameters assumed to be int32 numbers.
-    pub assumed_int32: ParameterSet,
-    /// Obligations: parameters assumed to be well-formed program objects.
-    pub assumed_objects: ParameterSet,
-    /// Relied on typed data from outside the program that no parameter
-    /// obligation covers.
-    pub untrusted: bool,
+    /// Relies on the host behaving as declared: a builtin the host could
+    /// replace, or a global read an accessor could serve. Typed values need
+    /// no such assumption: they are their types' (R1). The language's
+    /// builtins (R10, M10.15) and the host catalog (R17, M10.17) settle it.
+    pub assumes_host: bool,
 }
 
 impl Effects {
@@ -198,10 +186,7 @@ impl Effects {
         exhausts_resources: false,
         transfers_control: false,
         mutated: ParameterSet::EMPTY,
-        assumed_primitive: ParameterSet::EMPTY,
-        assumed_int32: ParameterSet::EMPTY,
-        assumed_objects: ParameterSet::EMPTY,
-        untrusted: false,
+        assumes_host: false,
     };
     /// Anything at all: an unknown callee or host operation.
     pub const UNKNOWN: Self = Self {
@@ -235,23 +220,16 @@ impl Effects {
         self.exhausts_resources |= other.exhausts_resources;
         self.transfers_control |= other.transfers_control;
         self.mutated = self.mutated.union(other.mutated);
-        self.assumed_primitive = self.assumed_primitive.union(other.assumed_primitive);
-        self.assumed_int32 = self.assumed_int32.union(other.assumed_int32);
-        self.assumed_objects = self.assumed_objects.union(other.assumed_objects);
-        self.untrusted |= other.untrusted;
+        self.assumes_host |= other.assumes_host;
     }
     fn joined(mut self, other: Self) -> Self {
         self.join(other);
         self
     }
 
-    /// Whether the effects rest on assumptions this evaluation cannot
-    /// discharge by itself.
+    /// Whether the effects rest on an assumption about the host.
     pub fn obligated(&self) -> bool {
-        self.untrusted
-            || !self.assumed_primitive.is_empty()
-            || !self.assumed_int32.is_empty()
-            || !self.assumed_objects.is_empty()
+        self.assumes_host
     }
 
     /// The liveness projection. An undischarged obligation means a raw value
@@ -392,25 +370,18 @@ pub(super) fn operation_effects(
     let operands = ctx.data.operands(operation.operands).unwrap_or(&[]);
     match &operation.kind {
         Op::IntBinary(_) | Op::Unary { .. } | Op::Binary(_) => {
-            primitive_effects(ctx, values, operation, operands)
+            primitive_effects(ctx, operation, operands)
         }
         Op::Template => {
-            let proven = proven(values, operands);
-            let typed = operands.iter().all(|&value| primitive_type(ctx.ty(value)));
-            let safe = Effects {
-                exhausts_resources: true,
-                ..Effects::NONE
-            };
-            match proven {
-                Some(bits) => Effects {
-                    assumed_primitive: bits,
-                    ..safe
-                },
-                None if typed => Effects {
-                    untrusted: true,
-                    ..safe
-                },
-                None => Effects::from_behavior(EvaluationBehavior::COERCION),
+            // A typed part is its type's (R1): a primitive converts without
+            // hooks; a dynamic one may run user code.
+            if operands.iter().all(|&value| primitive_type(ctx.ty(value))) {
+                Effects {
+                    exhausts_resources: true,
+                    ..Effects::NONE
+                }
+            } else {
+                Effects::from_behavior(EvaluationBehavior::COERCION)
             }
         }
         Op::Constant(_) | Op::IsUndefined => Effects::NONE,
@@ -439,24 +410,12 @@ pub(super) fn operation_effects(
             }),
             ..Effects::NONE
         },
-        Op::Load(place) => {
-            let mut effects = place_effects(ctx, values, *place, Access::Read);
-            // An `int` or other primitive read out of a field, member or
-            // element may hold a raw value that the read normalizes (D2: a
-            // body keeps its own normalization), which can run a hook.
-            if !matches!(
-                ctx.data.places[place.index()],
-                Place::Cell(_) | Place::Value(_)
-            ) && operation
-                .result
-                .is_some_and(|result| primitive_type(ctx.ty(result)))
-            {
-                effects.untrusted = true;
-            }
-            effects
-        }
+        // A typed read is its type's (R1): no normalization, no hook.
+        Op::Load(place) => place_effects(ctx, values, *place, Access::Read),
         Op::CheckPlace(place) => place_effects(ctx, values, *place, Access::Check),
         Op::Store(place) => place_effects(ctx, values, *place, Access::Write),
+        // `let x;`: nothing runs (R3).
+        Op::Declare(_) => Effects::NONE,
         Op::Initialize(cell) => Effects {
             writes: if ctx.program.cells[cell.index()].owner == ctx.unit {
                 Regions::OWN_CELLS
@@ -576,40 +535,18 @@ pub(super) fn operation_effects(
     }
 }
 
-fn proven(values: &impl ValueFacts, operands: &[ValueId]) -> Option<ParameterSet> {
-    operands
-        .iter()
-        .try_fold(ParameterSet::EMPTY, |bits, &value| {
-            values.primitive(value).map(|more| bits.union(more))
-        })
-}
-
-fn primitive_effects(
-    ctx: &Context<'_, '_>,
-    values: &impl ValueFacts,
-    operation: &Operation,
-    operands: &[ValueId],
-) -> Effects {
+fn primitive_effects(ctx: &Context<'_, '_>, operation: &Operation, operands: &[ValueId]) -> Effects {
     let safe = facts::primitive_evaluation_behavior(ctx.program, ctx.data, operation, true)
         .unwrap_or(EvaluationBehavior::UNKNOWN);
     let raw = facts::primitive_evaluation_behavior(ctx.program, ctx.data, operation, false)
         .unwrap_or(EvaluationBehavior::UNKNOWN);
     let effects = Effects::from_behavior(safe);
-    if safe == raw {
+    // Typed operands are their types' (R1) and convert without hooks; a
+    // dynamic one may not.
+    if safe == raw || operands.iter().all(|&value| primitive_type(ctx.ty(value))) {
         return effects;
     }
-    match proven(values, operands) {
-        Some(bits) => Effects {
-            assumed_primitive: bits,
-            ..effects
-        },
-        // Typed operands convert without hooks; a raw one may not.
-        None if operands.iter().all(|&value| primitive_type(ctx.ty(value))) => Effects {
-            untrusted: true,
-            ..effects
-        },
-        None => Effects::from_behavior(raw),
-    }
+    Effects::from_behavior(raw)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -660,7 +597,7 @@ fn cell_effects(ctx: &Context<'_, '_>, cell: CellId, access: Access) -> Effects 
             Access::Read | Access::Check => Effects {
                 reads: Regions::HOST,
                 may_throw: true,
-                untrusted: true,
+                assumes_host: true,
                 ..Effects::NONE
             },
             Access::Write => Effects {
@@ -683,7 +620,6 @@ fn cell_effects(ctx: &Context<'_, '_>, cell: CellId, access: Access) -> Effects 
                 Regions::NONE
             },
             may_throw: true,
-            untrusted: true,
             ..Effects::NONE
         };
     }
@@ -742,17 +678,12 @@ fn object_effects(
     let (read, written) = match values.root(receiver) {
         Root::Fresh => (Regions::OWN_OBJECTS, Regions::OWN_OBJECTS),
         Root::Parameter(position) => {
-            let position = position as usize;
-            effects.assumed_objects = ParameterSet::single(position);
             if access == Access::Write {
-                effects.mutated = ParameterSet::single(position);
+                effects.mutated = ParameterSet::single(position as usize);
             }
             (Regions::FIELDS, Regions::NONE)
         }
-        Root::Unknown => {
-            effects.untrusted = true;
-            (Regions::FIELDS, Regions::FIELDS)
-        }
+        Root::Unknown => (Regions::FIELDS, Regions::FIELDS),
     };
     if access != Access::Check {
         effects.reads = read;
@@ -761,12 +692,11 @@ fn object_effects(
         effects.writes = written;
         effects.exhausts_resources = true;
     }
+    // A typed key is its type's (R1); a dynamic key's property-key
+    // conversion may run user code.
     if let Some(key) = key {
-        match values.primitive(key) {
-            Some(bits) => effects.assumed_primitive = effects.assumed_primitive.union(bits),
-            None if primitive_type(ctx.ty(key)) => effects.untrusted = true,
-            // A dynamic key's property-key conversion may run user code.
-            None => effects.join(Effects::from_behavior(EvaluationBehavior::COERCION)),
+        if !primitive_type(ctx.ty(key)) {
+            effects.join(Effects::from_behavior(EvaluationBehavior::COERCION));
         }
     }
     effects
@@ -790,18 +720,20 @@ fn call_effects(ctx: &Context<'_, '_>, values: &impl ValueFacts, call: CallId) -
             }
         }
         CallTarget::Value { .. } | CallTarget::Reference { .. } => Effects::UNKNOWN,
-        CallTarget::Builtin(BuiltinCall::JsObject | BuiltinCall::JsArray) => Effects {
-            creates_identity: true,
-            exhausts_resources: true,
-            ..Effects::NONE
+        CallTarget::Builtin(builtin) => match crate::catalog::builtin_effect(builtin) {
+            crate::catalog::BuiltinEffect::Fresh => Effects {
+                creates_identity: true,
+                exhausts_resources: true,
+                ..Effects::NONE
+            },
+            crate::catalog::BuiltinEffect::None => Effects::NONE,
+            crate::catalog::BuiltinEffect::Output => Effects {
+                writes: Regions::HOST,
+                exhausts_resources: true,
+                ..Effects::NONE
+            },
+            crate::catalog::BuiltinEffect::Host => Effects::UNKNOWN,
         },
-        CallTarget::Builtin(BuiltinCall::JsUndefined) => Effects::NONE,
-        CallTarget::Builtin(BuiltinCall::Print) => Effects {
-            writes: Regions::HOST,
-            exhausts_resources: true,
-            ..Effects::NONE
-        },
-        CallTarget::Builtin(_) => Effects::UNKNOWN,
         CallTarget::Intrinsic {
             operation,
             receiver,
@@ -849,7 +781,7 @@ fn unit_call_effects(
         creates_identity: inner.creates_identity,
         exhausts_resources: inner.exhausts_resources,
         transfers_control: false,
-        untrusted: inner.untrusted,
+        assumes_host: inner.assumes_host,
         ..Effects::NONE
     };
     let value = |position: usize| match arguments.get(position) {
@@ -869,233 +801,13 @@ fn unit_call_effects(
             None => effects.writes = effects.writes.union(Regions::CELLS),
         }
     }
-    let overflow = inner.assumed_primitive.overflows()
-        || inner.assumed_int32.overflows()
-        || inner.assumed_objects.overflows();
-    effects.untrusted |= overflow;
-    for position in inner.assumed_primitive.positions() {
-        match value(position).and_then(|argument| values.primitive(argument)) {
-            Some(bits) => effects.assumed_primitive = effects.assumed_primitive.union(bits),
-            None => effects.untrusted = true,
-        }
-    }
-    for position in inner.assumed_int32.positions() {
-        match value(position).and_then(|argument| values.int32(argument)) {
-            Some(bits) => effects.assumed_int32 = effects.assumed_int32.union(bits),
-            None => effects.untrusted = true,
-        }
-    }
-    for position in inner.assumed_objects.positions() {
-        match value(position).map(|argument| values.root(argument)) {
-            Some(Root::Fresh) => {}
-            Some(Root::Parameter(own)) => {
-                effects.assumed_objects = effects
-                    .assumed_objects
-                    .union(ParameterSet::single(own as usize))
-            }
-            _ => effects.untrusted = true,
-        }
-    }
     effects
 }
 
-/// How an intrinsic touches its receiver and arguments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum IntrinsicClass {
-    /// A computation over primitives, which convert their inputs.
-    Pure {
-        throws: bool,
-        fresh: bool,
-    },
-    /// No input is converted and nothing is read or written.
-    Inert {
-        throws: bool,
-    },
-    /// Reads the receiver container.
-    Read {
-        fresh: bool,
-    },
-    /// Writes the receiver container.
-    Write {
-        throws: bool,
-    },
-    /// Creates a new object from primitive inputs.
-    Construct {
-        throws: bool,
-    },
-    /// Calls its first argument once per element of the receiver.
-    Callback,
-    Print,
-    Unknown,
-}
 
-fn intrinsic_class(operation: ResolvedIntrinsic) -> IntrinsicClass {
-    use Intrinsic as I;
-    use IntrinsicClass as Class;
-    let intrinsic = match operation {
-        ResolvedIntrinsic::Property(intrinsic)
-        | ResolvedIntrinsic::Method(intrinsic)
-        | ResolvedIntrinsic::Constructor(intrinsic) => intrinsic,
-    };
-    if let ResolvedIntrinsic::Constructor(intrinsic) = operation {
-        return match intrinsic {
-            I::MapNew | I::SetNew | I::SymbolNew => Class::Construct { throws: false },
-            I::ArrayBufferNew | I::SharedArrayBufferNew | I::RegexNew => {
-                Class::Construct { throws: true }
-            }
-            _ if typed_array_constructor(intrinsic) => Class::Construct { throws: true },
-            _ => Class::Unknown,
-        };
-    }
-    if callback_intrinsic(operation) {
-        return Class::Callback;
-    }
-    match intrinsic {
-        I::IntImul
-        | I::IntToString
-        | I::IntToUnsignedString
-        | I::FloatAbs
-        | I::FloatFloor
-        | I::FloatCeil
-        | I::FloatRound
-        | I::FloatSqrt
-        | I::FloatSin
-        | I::FloatCos
-        | I::FloatAcos
-        | I::FloatExp
-        | I::FloatLog
-        | I::FloatTan
-        | I::FloatAtan2
-        | I::FloatHypot
-        | I::FloatMin
-        | I::FloatMax
-        | I::FloatToInt
-        | I::StringLength
-        | I::StringCharCodeAt
-        | I::StringCharAt
-        | I::StringIncludes
-        | I::StringIndexOf
-        | I::StringLastIndexOf
-        | I::StringStartsWith
-        | I::StringEndsWith
-        | I::StringToUpperCase
-        | I::StringToLowerCase
-        | I::StringTrim
-        | I::StringTrimStart
-        | I::StringTrimEnd
-        | I::StringSlice
-        | I::StringCodePointLength
-        | I::JsMathPI => Class::Pure {
-            throws: false,
-            fresh: false,
-        },
-        I::StringSplit => Class::Pure {
-            throws: false,
-            fresh: true,
-        },
-        I::StringRepeat => Class::Pure {
-            throws: true,
-            fresh: false,
-        },
-        I::JsTruthy
-        | I::JsTypeOf
-        | I::JsIsNullish
-        | I::JsIsFalse
-        | I::JsIsUndefined
-        | I::JsStrictEqual
-        | I::JsStrictNotEqual => Class::Inert { throws: false },
-        I::JsIsArray => Class::Inert { throws: true },
-        I::ArrayLength
-        | I::ArrayIndexOf
-        | I::ArrayIncludes
-        | I::MapSize
-        | I::MapGet
-        | I::MapHas
-        | I::SetSize
-        | I::SetHas
-        | I::BufferByteLength
-        | I::RegexSource
-        | I::RegexFlags
-        | I::RegexGlobal
-        | I::RegexIgnoreCase
-        | I::RegexMultiline
-        | I::RegexDotAll
-        | I::RegexSticky
-        | I::RegexUnicode => Class::Read { fresh: false },
-        I::ArraySlice | I::BufferSlice => Class::Read { fresh: true },
-        I::ArrayPush
-        | I::ArrayPop
-        | I::ArraySplice
-        | I::ArrayFill
-        | I::ArrayCopyWithin
-        | I::ArrayReverse
-        | I::TypedArrayFill
-        | I::TypedArrayCopyWithin
-        | I::MapSet
-        | I::MapDelete
-        | I::MapClear
-        | I::SetAdd
-        | I::SetDelete
-        | I::SetClear => Class::Write { throws: false },
-        // An offset past the end throws a RangeError.
-        I::TypedArraySet => Class::Write { throws: true },
-        I::Print => Class::Print,
-        _ => match typed_array_member(intrinsic) {
-            Some(fresh) => Class::Read { fresh },
-            None => Class::Unknown,
-        },
-    }
-}
 
-fn typed_array_constructor(intrinsic: Intrinsic) -> bool {
-    TypedArrayKind::ALL
-        .iter()
-        .any(|kind| kind.new_intrinsic() == intrinsic)
-}
 
-/// A typed array property or view method: `Some(creates a view)`.
-fn typed_array_member(intrinsic: Intrinsic) -> Option<bool> {
-    TypedArrayKind::ALL.iter().find_map(|kind| {
-        if [
-            kind.length_intrinsic(),
-            kind.byte_length_intrinsic(),
-            kind.byte_offset_intrinsic(),
-            kind.buffer_intrinsic(),
-        ]
-        .contains(&intrinsic)
-        {
-            Some(false)
-        } else if [kind.slice_intrinsic(), kind.subarray_intrinsic()].contains(&intrinsic) {
-            Some(true)
-        } else {
-            None
-        }
-    })
-}
 
-/// Whether an intrinsic dispatches through a builtin the host can replace: a
-/// prototype method or accessor, or a global constructor or namespace. Its
-/// language meaning is what the `pure` contract judges; that the running
-/// builtin still has it is an assumption about the environment, so it is an
-/// undischarged obligation for removal. The primitive string and array
-/// `length`, and the language operators, dispatch through nothing.
-fn replaceable(operation: ResolvedIntrinsic) -> bool {
-    let (ResolvedIntrinsic::Property(intrinsic)
-    | ResolvedIntrinsic::Method(intrinsic)
-    | ResolvedIntrinsic::Constructor(intrinsic)) = operation;
-    !matches!(
-        intrinsic,
-        Intrinsic::StringLength
-            | Intrinsic::ArrayLength
-            | Intrinsic::JsTruthy
-            | Intrinsic::JsTypeOf
-            | Intrinsic::JsIsNullish
-            | Intrinsic::JsIsFalse
-            | Intrinsic::JsIsUndefined
-            | Intrinsic::JsStrictEqual
-            | Intrinsic::JsStrictNotEqual
-    )
-}
 
 fn intrinsic_effects(
     ctx: &Context<'_, '_>,
@@ -1105,8 +817,8 @@ fn intrinsic_effects(
     arguments: impl Iterator<Item = CallArgument>,
 ) -> Effects {
     let mut effects = classified_intrinsic_effects(ctx, values, operation, receiver, arguments);
-    if replaceable(operation) {
-        effects.untrusted = true;
+    if crate::catalog::host_replaceable(operation) {
+        effects.assumes_host = true;
     }
     effects
 }
@@ -1118,7 +830,7 @@ fn classified_intrinsic_effects(
     receiver: Option<ValueId>,
     arguments: impl Iterator<Item = CallArgument>,
 ) -> Effects {
-    use IntrinsicClass as Class;
+    use crate::catalog::EffectClass as Class;
     let arguments = arguments.collect::<Vec<_>>();
     let argument_values = arguments
         .iter()
@@ -1130,20 +842,17 @@ fn classified_intrinsic_effects(
     if argument_values.len() != arguments.len() {
         return Effects::UNKNOWN;
     }
-    // Primitive inputs convert without hooks when proven; a typed raw input
-    // is an obligation; a non-primitive one may run user code.
+    // Typed inputs are their types' (R1) and convert without hooks; a
+    // dynamic one may run user code.
     let converted = |inputs: &mut dyn Iterator<Item = ValueId>| -> Effects {
-        let mut effects = Effects::NONE;
         for value in inputs {
-            match values.primitive(value) {
-                Some(bits) => effects.assumed_primitive = effects.assumed_primitive.union(bits),
-                None if primitive_type(ctx.ty(value)) => effects.untrusted = true,
-                None => return Effects::from_behavior(EvaluationBehavior::COERCION),
+            if !primitive_type(ctx.ty(value)) {
+                return Effects::from_behavior(EvaluationBehavior::COERCION);
             }
         }
-        effects
+        Effects::NONE
     };
-    let class = intrinsic_class(operation);
+    let class = crate::catalog::effect_class(operation);
     match class {
         Class::Pure { throws, fresh } => {
             let mut effects =
@@ -1216,8 +925,7 @@ fn classified_intrinsic_effects(
                 return Effects::UNKNOWN;
             };
             let inner = summary.effects;
-            // Elements reach the callback raw: none of its obligations can
-            // be discharged here.
+            // Elements reach the callback as their types' (R1).
             let mut effects = Effects {
                 reads: inner.reads,
                 writes: inner.writes,
@@ -1228,7 +936,7 @@ fn classified_intrinsic_effects(
                 suspends: inner.suspends,
                 creates_identity: true,
                 exhausts_resources: true,
-                untrusted: inner.obligated(),
+                assumes_host: inner.assumes_host,
                 ..Effects::NONE
             };
             if !inner.mutated.is_empty() {
@@ -1813,7 +1521,11 @@ fn value_transfer(
         Op::IntBinary(_) | Op::Unary { integer: true, .. } => integer,
         Op::Unary { .. } => primitive,
         Op::Binary(BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish) => {
-            let proof = proven(values, operands);
+            let proof = operands
+                .iter()
+                .try_fold(ParameterSet::EMPTY, |bits, &value| {
+                    values.primitive(value).map(|more| bits.union(more))
+                });
             (proof, None, Root::Unknown)
         }
         Op::Binary(_) => primitive,
@@ -1876,10 +1588,12 @@ fn value_transfer(
         Op::Call(call) => {
             let site = &data.calls[call.index()];
             match site.target {
-                CallTarget::Builtin(BuiltinCall::JsObject | BuiltinCall::JsArray) => {
+                CallTarget::Builtin(builtin)
+                    if crate::catalog::builtin_effect(builtin) == crate::catalog::BuiltinEffect::Fresh =>
+                {
                     (None, None, Root::Fresh)
                 }
-                CallTarget::Intrinsic { operation, .. } if !replaceable(operation) => primitive,
+                CallTarget::Intrinsic { operation, .. } if !crate::catalog::host_replaceable(operation) => primitive,
                 CallTarget::Value {
                     callee,
                     invocation: Invocation::Value,
@@ -2019,12 +1733,8 @@ fn summarize(
         }
         match operation.kind {
             OperationKind::Loop { test, body, update } => {
-                match loop_bound(&ctx, &values, &structure, id, test, body, update) {
-                    Some(bits) => {
-                        operation_effects.assumed_int32 =
-                            operation_effects.assumed_int32.union(bits)
-                    }
-                    None => operation_effects.may_diverge = true,
+                if loop_bound(&ctx, &values, &structure, id, test, body, update).is_none() {
+                    operation_effects.may_diverge = true;
                 }
             }
             OperationKind::Return => {

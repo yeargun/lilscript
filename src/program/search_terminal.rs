@@ -178,6 +178,10 @@ pub struct TerminalObjective {
     pub choices_scored: usize,
     /// Formations made only to read the incumbent's choice sites (0 or 1).
     pub surveys: usize,
+    /// Heads formed: one for each start walked in formations of its own,
+    /// and the head with the other `int32-hints` value wherever a
+    /// challenger asked for it.
+    pub heads: usize,
     /// Every choice alternative offered, in schedule order: sites by the
     /// largest estimated saving, then each site's alternatives by theirs.
     pub choice_trials: Vec<ChoiceTrial>,
@@ -297,6 +301,7 @@ fn spelling_names(spelling: Spelling) -> Vec<&'static str> {
             Challenger::ConditionalReturns,
         ),
         (statements.logical_branches, Challenger::LogicalBranches),
+        (families.int32_hints, Challenger::Int32Hints),
     ]
     .into_iter()
     .filter_map(|(on, challenger)| on.then_some(challenger.name()))
@@ -1026,6 +1031,14 @@ impl Walker<'_, '_, '_> {
                     .push(trial(challenger, ChallengerOutcome::Vetoed));
                 continue;
             }
+            // A family that prints nothing in this candidate prints the
+            // incumbent's program: nothing to form.
+            if matches!(challenger, Challenger::Int32Hints) && self.formations.hints_inert() {
+                self.report
+                    .trials
+                    .push(trial(challenger, ChallengerOutcome::Duplicate));
+                continue;
+            }
             let (judgement, proxy, probed) = self.judge_move(
                 next,
                 &incumbent.choices,
@@ -1489,6 +1502,7 @@ impl JavaScriptSearch<'_, '_> {
             choices_tried: 0,
             choices_scored: 0,
             surveys: 0,
+            heads: 0,
             choice_trials: Vec::new(),
             choices: Vec::new(),
             joints_tried: 0,
@@ -1596,6 +1610,7 @@ impl JavaScriptSearch<'_, '_> {
             policy,
             output.dead_code_elimination,
             output.target_compaction,
+            output.families.int32_hints,
             WorkDomain::Optional,
             |formations| -> Result<(), SearchError> {
                 let mut walker = Walker {
@@ -1613,15 +1628,18 @@ impl JavaScriptSearch<'_, '_> {
                     memo: Vec::new(),
                     replay,
                 };
-                walker.walk_start(name, origin.clone())?;
-                if restarts {
-                    for &style in &naming {
-                        if style != origin.plan.style {
-                            walker.restart(&origin, style)?;
+                let walked = walker.walk_start(name, origin.clone()).and_then(|()| {
+                    if restarts {
+                        for &style in &naming {
+                            if style != origin.plan.style {
+                                walker.restart(&origin, style)?;
+                            }
                         }
                     }
-                }
-                Ok(())
+                    Ok(())
+                });
+                walker.report.heads += 1 + usize::from(walker.formations.other_head_formed());
+                walked
             },
         );
         match formed {

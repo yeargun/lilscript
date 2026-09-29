@@ -109,6 +109,9 @@ impl SearchError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SearchLimit {
     Alternatives,
+    /// The structural search spent its share of the optional work; the rest
+    /// is the level walk's (schedule 26).
+    WalkReserve,
     CodecProbes,
     ArtifactCount,
     ArtifactBytes,
@@ -358,12 +361,14 @@ impl<'src> Compilation<'src> {
                     .drain_pending(policy, request.objectives, &mut observe)
                     .err();
             }
-            Err(SearchError::Limit(SearchLimit::Alternatives)) => {
+            Err(SearchError::Limit(
+                limit @ (SearchLimit::Alternatives | SearchLimit::WalkReserve),
+            )) => {
                 search.stopped = Some(
                     search
                         .drain_pending(policy, request.objectives, &mut observe)
                         .err()
-                        .unwrap_or(SearchError::Limit(SearchLimit::Alternatives)),
+                        .unwrap_or(SearchError::Limit(limit)),
                 );
             }
             Err(error) if error.optional_memory_refusal() => {
@@ -742,6 +747,7 @@ impl JavaScriptSearch<'_, '_> {
                 }
                 if !baseline {
                     optional_preflight(*counters, objective, objectives)?;
+                    walk_reserve(output)?;
                     counters.proposals += 1;
                 }
                 let available = if baseline {
@@ -1485,6 +1491,25 @@ fn state_order(
     } else {
         Ok(cost)
     }
+}
+
+/// The level walk's reserve (schedule 26): the structural search spends at
+/// most half the optional work, so the walk, which finds most of level 13's
+/// bytes, always keeps its share (AM2).
+fn walk_reserve(output: &mut super::BudgetedJavaScriptOutput<'_, '_>) -> Result<(), SearchError> {
+    let (used, limit) = output.with_allocation_budget(|budget| {
+        budget.with_ledger(|ledger| {
+            let ledger = ledger.unwrap().0;
+            (
+                ledger.work_used(WorkDomain::Optional),
+                ledger.work_limit(WorkDomain::Optional),
+            )
+        })
+    });
+    if used.saturating_mul(2) >= limit {
+        return Err(SearchError::Limit(SearchLimit::WalkReserve));
+    }
+    Ok(())
 }
 
 fn optional_preflight(

@@ -1,9 +1,9 @@
-//! Int32 facts established from producers, not declarations. An `int` cell
-//! holds an int32 Number when every value written to it is one: an int
-//! constant, an int operation (formation normalizes it or proves its range),
-//! a normalized load, intrinsic or host result, or a load of another such
-//! cell. A parameter can receive a host value, and so can a classic script's
-//! top-level cell, which is a global lexical binding; neither proves anything.
+//! Int32 facts. By R1 (trusted crossings) an `int` value is an int32 Number:
+//! a constant, an operation, a load, a call's or a host's result, and a
+//! parameter a JavaScript caller passes. The one exception is a classic
+//! script's top-level cell, a global lexical binding another script may write
+//! until Y5 answers otherwise: a load of it proves nothing, and neither does a
+//! cell or parameter that receives it.
 //!
 //! A counting loop then bounds its counter. With `c<B` for an int32 `B` and
 //! a single `c=c+1` in the loop, the increment reads `c<=2^31-2`, so `c+1`
@@ -34,38 +34,17 @@ impl Formation<'_, '_, '_, '_, '_> {
             }
             let operation = &data.operations[definition.definition.index()];
             return Ok(match operation.kind {
-                OperationKind::Constant(Constant::Integer(_))
-                | OperationKind::IntBinary(_)
-                | OperationKind::Unary { integer: true, .. } => Written::Int32,
                 OperationKind::CopyValue => {
                     value = data.operands(operation.operands).unwrap()[0];
                     continue;
                 }
                 OperationKind::Load(place) => match data.places[place.index()] {
                     Place::Cell(cell) => Written::Cell(cell),
-                    _ if matches!(
-                        load_result_recipe(program, data, place, definition.ty),
-                        LoadResultRecipe::NormalizeInteger
-                    ) =>
-                    {
-                        Written::Int32
-                    }
-                    _ => Written::Unknown,
+                    // A typed load is its type's (R1).
+                    _ => Written::Int32,
                 },
-                OperationKind::Intrinsic(ResolvedIntrinsic::Property(intrinsic))
-                    if js::integer_intrinsic(intrinsic) =>
-                {
-                    Written::Int32
-                }
-                OperationKind::Call(_)
-                    if matches!(
-                        call_result_recipe(program, data, operation),
-                        CallResultRecipe::NormalizeInteger | CallResultRecipe::IntrinsicInteger
-                    ) =>
-                {
-                    Written::Int32
-                }
-                _ => Written::Unknown,
+                // Every other `int` value is an int32 by type (R1).
+                _ => Written::Int32,
             });
         }
     }
@@ -227,8 +206,11 @@ impl Formation<'_, '_, '_, '_, '_> {
         let Some(function) = function_cells[owner.index()] else {
             return Ok(false);
         };
+        // A function JavaScript may call receives its arguments at a
+        // crossing, trusted (R1); a directly called one receives what its
+        // callers pass, which a script's top-level cell may taint.
         if !self.callee_only_cell(function)? {
-            return Ok(false);
+            return Ok(true);
         }
         let Some(users) = uses.cell(function) else {
             return Ok(false);

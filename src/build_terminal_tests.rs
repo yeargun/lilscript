@@ -219,7 +219,13 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
             .filter(|(start, trial)| *start == starts && outcomes.contains(&outcome(trial)))
             .count()
     };
-    let restart = |trial: &Value| trial["name"].as_str().is_some_and(|name| name.starts_with("naming:"));
+    // A restart is any start the portfolio does not hold (AM2): a naming
+    // seed, the other int32 hints, the other objective's family seed.
+    let restart = |trial: &Value| {
+        trial["name"]
+            .as_str()
+            .is_some_and(|name| !matches!(name, "search" | "level-0" | "beam"))
+    };
     let restarts = |outcomes: &[&str]| {
         walk.iter()
             .filter(|(start, trial)| *start && restart(trial) && outcomes.contains(&outcome(trial)))
@@ -334,12 +340,14 @@ fn the_objective_seeds_the_families_and_its_codec_judges_them() {
     }
     let spelling = |compiled: &ServiceCompilation| stage(compiled)["spelling"].clone();
     // Each objective starts from its own seed and keeps what its own codec
-    // measures smaller, so the three keep three different assignments (when
-    // this landed: the raw objective turns its own seed's logical branches
-    // off, Brotli keeps the raw seed with them, gzip keeps a codec subset).
-    assert_ne!(spelling(&raw), spelling(&brotli));
-    assert_ne!(spelling(&raw), spelling(&gzip));
-    assert_ne!(spelling(&gzip), spelling(&brotli));
+    // measures smaller. Two answers may coincide (since R10 and R11 the raw
+    // and Brotli objectives keep the same nine families here), but the
+    // three codecs do not all judge alike.
+    assert!(
+        spelling(&raw) != spelling(&gzip) || spelling(&gzip) != spelling(&brotli),
+        "{}",
+        spelling(&raw)
+    );
     // The raw objective's own seed is not its answer: the codec judged at
     // least one of its families off.
     assert!(trials(stage(&raw))

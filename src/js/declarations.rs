@@ -209,7 +209,7 @@ impl Module {
                     continue;
                 }
                 let count = entries.len();
-                let object = self.expression_in(Expr::Host("Object".into()), None, budget)?;
+                let object = self.expression_in(Expr::Host(Host::new("Object")), None, budget)?;
                 let assign = self.expression_in(
                     Expr::Member {
                         object,

@@ -1372,7 +1372,9 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                 OperationKind::CheckPlace(_) | OperationKind::PrepareReference { .. } => {
                     self.need_operation(id, operation, budget)?;
                 }
-                OperationKind::Initialize(cell) => {
+                // A declaration without a value (R3) lives while its cell's
+                // storage does: the stores that assign it declare nothing.
+                OperationKind::Initialize(cell) | OperationKind::Declare(cell) => {
                     let storage = self.cell_storage(id, cell, budget)?;
                     self.wait_for(storage, id, operation, budget)?;
                 }
@@ -2588,7 +2590,8 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         }
     }
     /// A call the effect contract drops, keeping the evaluation of its
-    /// arguments: `debugLog(…)` under `strip_debug`, and a method call of
+    /// arguments: a call of a `debug` declaration (R15) or of `debugLog`
+    /// under `strip_debug`, and a method call of
     /// the host `console` (`console.warn(x)` through an extern `console`)
     /// under `strip_console_calls`. `print` is a program effect and is never
     /// dropped. The one owner of this decision: formation asks it too.
@@ -2598,7 +2601,10 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             CallTarget::Value {
                 callee,
                 invocation: Invocation::Value,
-            } => self.contract.effects.strip_debug && self.debug_log_value(unit, callee),
+            } => {
+                self.contract.effects.strip_debug
+                    && (data.calls[call.index()].debug || self.debug_log_value(unit, callee))
+            }
             CallTarget::Reference { place } => {
                 self.contract.effects.strip_console_calls
                     && match data.places[place.index()] {
@@ -2611,7 +2617,24 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             _ => false,
         }
     }
-    /// A read of the foreign `debugLog` extern.
+    /// A read of a `debug` function's or extern's own binding (R15), which
+    /// is never reassigned: a lookup only dropped calls use.
+    fn debug_value(&self, unit: UnitId, value: ValueId) -> bool {
+        let data = self.program.units[unit.index()].data();
+        let OperationKind::Load(place) =
+            data.operations[data.values[value.index()].definition.index()].kind
+        else {
+            return false;
+        };
+        let Place::Cell(cell) = data.places[place.index()] else {
+            return false;
+        };
+        let cell = &self.program.cells[cell.index()];
+        cell.debug && matches!(cell.binding, CellBinding::Function(_) | CellBinding::Foreign)
+    }
+    /// A read of the foreign `debugLog` extern, which `strip_debug` drops by
+    /// its name until the ports declare it `debug` (R15's first batch;
+    /// `migration/debug-class` writes the modifier).
     fn debug_log_value(&self, unit: UnitId, value: ValueId) -> bool {
         self.foreign_read(unit, value)
             .is_some_and(|cell| self.program.cells[cell.index()].name == "debugLog")
@@ -2659,11 +2682,12 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             _ => false,
         }
     }
-    /// A lookup of `debugLog` or `console` whose every use belongs to a
-    /// dropped call: it is not evaluated either.
+    /// A lookup of a `debug` declaration, `debugLog` or `console` whose
+    /// every use belongs to a dropped call: it is not evaluated either.
     pub(super) fn stripped_lookup_value(&self, unit: UnitId, value: ValueId) -> bool {
         let effects = self.contract.effects;
-        (effects.strip_debug && self.debug_log_value(unit, value))
+        (effects.strip_debug
+            && (self.debug_value(unit, value) || self.debug_log_value(unit, value)))
             || (effects.strip_console_calls && self.console_value(unit, value))
     }
     fn elided_log_lookup(

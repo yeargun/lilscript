@@ -186,8 +186,10 @@ fn four_output_choices_preserve_closure_exception_and_public_observations() {
     assert_eq!(resolved.fingerprint(), fingerprint);
 }
 
+/// Every output choice keeps a typed builtin's arguments in order and its
+/// result, an int32 by R10 (the original `Math.imul`).
 #[test]
-fn output_choices_preserve_host_lookup_arguments_and_integer_result_coercion() {
+fn output_choices_preserve_builtin_arguments_and_integer_results() {
     let source =
         "extern int operand(int n);export int multiply(){return Math.imul(operand(1),operand(2));}";
     let resolved = enabled();
@@ -209,30 +211,10 @@ fn output_choices_preserve_host_lookup_arguments_and_integer_result_coercion() {
                 assert_eq!(
                     execute(
                         &javascript,
-                        r#"
-                    let result=NaN;const failure={};
-                    globalThis.operand=n=>{events.push('arg:'+n);return n;};
-                    Object.defineProperty(Math,'imul',{configurable:true,get(){events.push('get');return function(a,b){events.push(['call',this===Math,a,b]);return result;};}});
-                "#,
-                        r#"
-                    events.push(['result',library.multiply()]);
-                    result={valueOf(){events.push('coerce');throw failure;}};
-                    try{library.multiply();}catch(error){events.push(['thrown',error===failure]);}
-                "#
+                        r#"globalThis.operand=n=>{events.push('arg:'+n);return n*65537;};"#,
+                        r#"events.push(['result',library.multiply()]);"#
                     ),
-                    serde_json::json!([
-                        "get",
-                        "arg:1",
-                        "arg:2",
-                        ["call", true, 1, 2],
-                        ["result", 0],
-                        "get",
-                        "arg:1",
-                        "arg:2",
-                        ["call", true, 1, 2],
-                        "coerce",
-                        ["thrown", true],
-                    ]),
+                    serde_json::json!(["arg:1", "arg:2", ["result", 262146]]),
                     "{javascript}"
                 );
             }
@@ -310,4 +292,38 @@ fn output_permission_checks_do_not_fabricate_runtime_evidence_for_rank_policy() 
             }
         },
     );
+}
+
+/// The `int32_hints` family prints the `|0` the compiler printed before R1:
+/// after an `int` field read. The same program otherwise.
+#[test]
+fn int32_hints_restore_the_previous_normalizations() {
+    let source = "class Counter { int count; init(int c) { this.count = c; } }\nexport int read(Counter c) { return c.count; }\n";
+    let resolved = enabled();
+    with_candidate(source, &resolved, |compiler, candidate| {
+        let mut render = |hints: bool| {
+            emit(
+                compiler,
+                candidate,
+                &resolved,
+                OutputTactics {
+                    literals: LiteralOutput::Original,
+                    dead_code_elimination: true,
+                    target_compaction: true,
+                    families: crate::js::OutputFamilies {
+                        int32_hints: hints,
+                        ..crate::js::OutputFamilies::NONE
+                    },
+                    choices: crate::js::ChoiceMap::SEEDS,
+                },
+            )
+        };
+        let plain = render(false);
+        let hinted = render(true);
+        assert_eq!(
+            hinted.matches("|0").count(),
+            plain.matches("|0").count() + 1,
+            "{plain}\n{hinted}"
+        );
+    });
 }

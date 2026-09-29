@@ -438,7 +438,7 @@ impl Module {
     /// `new RegExp(p[, f])` of literal strings, as a literal when the pattern
     /// and flags are in the proven subset.
     fn regex_literal(&self, callee: ExprId, arguments: &[ExprId], es2018: bool) -> Option<Expr> {
-        if !matches!(&self.expressions[callee.index()], Expr::Host(name) if name == "RegExp") {
+        if !matches!(&self.expressions[callee.index()], Expr::Host(host) if host.kind == crate::catalog::HostKind::Standard(crate::catalog::Global::RegExp)) {
             return None;
         }
         let text = |id: &ExprId| match &self.expressions[id.index()] {
@@ -543,12 +543,16 @@ impl Module {
     /// `Object.prototype.toString.call`.
     fn builtin_result(&self, callee: ExprId, _arguments: usize) -> Option<Known> {
         let host = |id: ExprId| match &self.expressions[id.index()] {
-            Expr::Host(name) => Some(name.as_str()),
+            // A standard global's known results, by spelling: platform
+            // catalog data for M10.17.
+            Expr::Host(host) if matches!(host.kind, crate::catalog::HostKind::Standard(_)) => {
+                Some(host.name.as_str())
+            }
             _ => None,
         };
         match &self.expressions[callee.index()] {
-            Expr::Host(name) => {
-                let name = name.as_str();
+            Expr::Host(host) if matches!(host.kind, crate::catalog::HostKind::Standard(_)) => {
+                let name = host.name.as_str();
                 if GLOBAL_NUMBERS.contains(&name) {
                     Some(Known::Number)
                 } else if GLOBAL_BOOLEANS.contains(&name) {

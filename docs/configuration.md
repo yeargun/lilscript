@@ -43,8 +43,9 @@ priority = "size-first"      # the only accepted value; see "Retired keys"
 # candidate_search = "off"    # only `off` has an effect: --mode development sets it
 # ecmascript = "es2022"       # es2015 … es2022 | esnext
 # browsers = ["chrome80", "firefox78"] # intersected with ecmascript; the lower floor wins
-strip_debug = false           # drop debugLog calls (print is never stripped)
+strip_debug = false           # drop calls of `debug` declarations (print is never stripped)
 strip_console_calls = false   # drop host console.* method calls
+checks = "production"         # "development" throws where a precondition fails: an index read out of range, a crossing of the wrong type
 assume_pristine_builtins = false
 assume_pure_property_reads = false
 assume_unconstructed_callbacks = false
@@ -137,8 +138,11 @@ Per-library configuration is contract, objective, effort and permission
   with no configuration prints what it prints. Two keys strip host logging,
   both off by default because a library's logging is its behavior, and both
   keep their calls' argument evaluations and throws:
-  `javascript.strip_debug` drops calls of the host `debugLog` extern (plan
-  M10.11 generalizes it to the declared `debug` effect class), and
+  `javascript.strip_debug` drops direct calls of a declaration marked
+  `debug` (`debug void trace(string m) {…}`, `debug extern void
+  invariant(bool ok, string m);`, language rule R15), and, until the ports
+  declare it so, of an extern named `debugLog` (`migration/debug-class`
+  writes the modifier); and
   `javascript.strip_console_calls` drops method calls of the host `console`
   (`console.warn(x)` through an extern `console`), a declared relaxation of
   console output. The retired `strip_console` stripped `print` and `debugLog`;
@@ -148,7 +152,10 @@ Per-library configuration is contract, objective, effort and permission
   every function whose name some code could read.
 - The `assume_*` keys are contract assumptions about foreign values, each off
   by default because a library cannot know its callers:
-  `assume_pristine_builtins` (ambient constructors are the originals),
+  `assume_pristine_builtins` (the host's builtins are the originals where a
+  `JsValue` operation reaches them: a store that adds a key to a fresh object
+  literal, a method called through `.call`, a standard global read as inert;
+  typed operations mean the originals whatever it says, language rule R10),
   `assume_pure_property_reads` (a dynamic member read runs no getter, Terser's
   `pure_getters`), `assume_unconstructed_callbacks` (callers never construct a
   lambda the program hands them, Terser's `unsafe_arrows`). A port that sets one
@@ -374,6 +381,14 @@ until nothing changes, rewrites nested calls from the inside out. A call whose
 syntax would mean another operation (`+` of a typed `string`, a call of a typed
 function, an array literal where no `JsValue` is expected) is reported without a
 fix.
+
+`migration/implicit-default` warns at each class field that has no initializer
+and that `init` does not assign on every path: such a field takes its type's
+implicit default, which [language rule R3](language.md) removes. The fix writes
+that default as the field's initializer (`int count = 0;`, `string[] rows =
+[];`, `Color tint = Color.None;`), which is what every construction evaluates
+today. A field whose implicit default is not a value of its type (a class,
+struct or function field left null until `init`) is reported without a fix.
 
 Use `// lilscript-lint-disable RULE` to suppress a rule from that line onward,
 or `// lilscript-lint-disable-next-line RULE` for the following line.

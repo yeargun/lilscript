@@ -366,8 +366,12 @@ fn output_respects_dead_code_permission_on_the_same_semantic_candidate() {
     });
 }
 
+/// An export's `int` parameter is a trusted crossing (R1, Y1): the host
+/// promises an int32, so a product nothing reads is dead code, with no
+/// conversion of its own to keep. A host that passes another value breaks
+/// the precondition (`checks = "development"` reports it).
 #[test]
-fn public_scalar_annotations_do_not_remove_conversion_hooks_or_exceptions() {
+fn public_scalar_annotations_are_trusted_crossings() {
     let enabled = policy("[javascript]\n[policy.tactics]\ndead-code-elimination='on'\n");
     let forbidden = policy("[javascript]\n[policy.tactics]\ndead-code-elimination='off'\n");
     let source = "export int compute(int input){int discardedProduct=input*7919;return input+1;}";
@@ -380,16 +384,13 @@ fn public_scalar_annotations_do_not_remove_conversion_hooks_or_exceptions() {
                 })
                 .unwrap()
                 .unwrap();
+            if std::ptr::eq(policy, &enabled) {
+                assert!(!javascript.contains("7919"), "{javascript}");
+            }
             let script = format!(
                 r#"
                 const library=await import('data:text/javascript,'+encodeURIComponent({}));
-                const seen=[];
-                const value={{[Symbol.toPrimitive](hint){{seen.push(hint);return 2;}}}};
-                seen.push(library.compute(value));
-                const sentinel={{}};
-                try{{library.compute({{[Symbol.toPrimitive](hint){{seen.push(hint);throw sentinel;}}}});}}
-                catch(error){{seen.push(error===sentinel);}}
-                process.stdout.write(JSON.stringify(seen));
+                process.stdout.write(JSON.stringify([library.compute(2),library.compute(-1)]));
             "#,
                 serde_json::to_string(&javascript).unwrap()
             );
@@ -402,11 +403,7 @@ fn public_scalar_annotations_do_not_remove_conversion_hooks_or_exceptions() {
                 "{}",
                 String::from_utf8_lossy(&result.stderr)
             );
-            assert_eq!(
-                String::from_utf8(result.stdout).unwrap(),
-                r#"["number","default",3,"number",true]"#,
-                "{javascript}"
-            );
+            assert_eq!(String::from_utf8(result.stdout).unwrap(), "[3,0]", "{javascript}");
         }
     });
 }

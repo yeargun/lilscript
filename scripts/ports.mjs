@@ -6,7 +6,7 @@
 //        [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR]
 //        [--ports-root ~] [--ledger tests/ports/expected-failures.json]
 //        [--timeout SECONDS] [--jobs N] [--codec <lilscript-codec>|none] [--keep]
-//        [--patches apply|none|DIR]
+//        [--patches apply|none|DIR] [--checks production|development]
 //
 // For each port the runner:
 //   1. copies the port (without .git, dist, _site, .tmp, test-output; every
@@ -15,7 +15,9 @@
 //   2. applies finer/port-migrations/<port>.patch when present (`--patches none`
 //      skips them, for ports whose repositories already carry their rewrite);
 //   3. with --objective other than `shipped`, rewrites `cost_model` in every
-//      copied lilscript*.toml;
+//      copied lilscript*.toml; with --checks development, sets
+//      `javascript.checks = "development"` in each (the development-check
+//      lane: a precondition violation throws where production is unspecified);
 //   4. builds with LILSCRIPT_COMPILER and MOTIONLIL_LILSCRIPT_BIN pointing at a
 //      logging wrapper around the pinned compiler (LILSCRIPT_* knobs from the
 //      caller's environment are dropped), measures dist/ with the canonical
@@ -86,6 +88,15 @@ function configFiles(directory) {
 
 // Sets `[javascript] cost_model` (the key, wherever it is; else inserted
 // after the `[javascript]` header; else a new table).
+// `javascript.checks` in a configuration: the `[javascript]` table's key,
+// replaced or added.
+export function rewriteChecks(text, checks) {
+  const line = `checks = ${JSON.stringify(checks)}`;
+  if (/^\s*checks\s*=.*$/m.test(text)) return text.replace(/^(\s*)checks\s*=.*$/m, (_, indent) => `${indent}${line}`);
+  if (/^\[javascript\]\s*$/m.test(text)) return text.replace(/^\[javascript\]\s*$/m, `[javascript]\n${line}`);
+  return `${text.replace(/\n*$/, "\n")}\n[javascript]\n${line}\n`;
+}
+
 // A configuration's objective codec: `[objective] codecs` (schema v3), or a
 // port's `[javascript] cost_model`, which the compiler still renames.
 export function rewriteObjective(text, objective) {
@@ -222,7 +233,7 @@ function attachGit(source, workspace) {
 // ---------------------------------------------------------------- one port
 
 async function runPort(port, context) {
-  const { compiler, codec, work, portsRoot, objective, ledger, timeoutMs, keep, log, patches } = context;
+  const { compiler, codec, work, portsRoot, objective, ledger, timeoutMs, keep, log, patches, checks } = context;
   const source = join(portsRoot, port);
   const row = { port, source: { path: source } };
   if (!existsSync(source)) return { ...row, state: "missing", failing: [], regressions: [], nowPassing: [] };
@@ -270,6 +281,13 @@ async function runPort(port, context) {
       row.patch.error = headLines(applied.stdout + applied.stderr, 12);
       failing.push("(patch failed)");
       return finish();
+    }
+  }
+
+  if (checks === "development") {
+    row.checks = checks;
+    for (const file of configFiles(workspace)) {
+      writeFileSync(file, rewriteChecks(readFileSync(file, "utf8"), checks));
     }
   }
 
@@ -411,15 +429,17 @@ async function main() {
       codec: { type: "string" },
       keep: { type: "boolean", default: false },
       patches: { type: "string", default: "apply" },
+      checks: { type: "string", default: "production" },
       help: { type: "boolean", default: false },
     },
   });
   if (values.help || !values.compiler || !values.ports) {
-    process.stderr.write("usage: node scripts/ports.mjs --compiler <lilscript> --ports a,b|all [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR] [--ports-root DIR] [--ledger FILE] [--timeout SECONDS] [--jobs N] [--codec PATH|none] [--keep] [--patches apply|none|DIR]\n");
+    process.stderr.write("usage: node scripts/ports.mjs --compiler <lilscript> --ports a,b|all [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR] [--ports-root DIR] [--ledger FILE] [--timeout SECONDS] [--jobs N] [--codec PATH|none] [--keep] [--patches apply|none|DIR] [--checks production|development]\n");
     process.exit(values.help ? 0 : 2);
   }
   if (!OBJECTIVES.includes(values.objective)) throw new Error(`--objective must be one of ${OBJECTIVES.join(", ")}`);
   if (!["apply", "none"].includes(values.patches) && !existsSync(values.patches)) throw new Error("--patches must be apply, none or a directory of <port>.patch files");
+  if (!["production", "development"].includes(values.checks)) throw new Error("--checks must be production or development");
   const known = maintainedPorts();
   const portsRoot = resolve(values["ports-root"]);
   // `all` is the maintained libraries that exist under the ports root.
@@ -436,7 +456,7 @@ async function main() {
   const log = (line) => process.stderr.write(`[ports] ${line}\n`);
   log(`compiler ${compiler.sha256.slice(0, 16)}, ${ports.length} ports, objective ${values.objective}`);
   const rows = await pool(ports, Number(values.jobs), (port) => runPort(port, {
-    compiler, codec, work, portsRoot, objective: values.objective, ledger, timeoutMs: Number(values.timeout) * 1000, keep: values.keep, log, patches: values.patches,
+    compiler, codec, work, portsRoot, objective: values.objective, ledger, timeoutMs: Number(values.timeout) * 1000, keep: values.keep, log, patches: values.patches, checks: values.checks,
   }).catch((error) => {
     // One port's runner fault is that port's failure, not the run's end.
     const failing = [`(runner error: ${error.message.split("\n")[0]})`];

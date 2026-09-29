@@ -203,6 +203,9 @@ pub enum Intrinsic {
     FloatToInt,
     StringLength,
     StringCharCodeAt,
+    /// `s.codeUnitAt(i)` (R11): the UTF-16 code unit at `i`, an `int`; the
+    /// index is in range by precondition, so no NaN needs normalizing.
+    StringCodeUnitAt,
     StringCharAt,
     StringIncludes,
     StringIndexOf,
@@ -470,6 +473,7 @@ pub(crate) fn intrinsic_call_contract(
     };
     let (parameters, defaults, result) = match operation {
         Intrinsic::StringCharCodeAt => (&INDEX_PARAMETERS[..], &REQUIRED_SINGLE[..], &Type::Int),
+        Intrinsic::StringCodeUnitAt => (&INDEX_PARAMETERS[..], &REQUIRED_SINGLE[..], &Type::Int),
         Intrinsic::StringCharAt => (&INDEX_PARAMETERS[..], &REQUIRED_SINGLE[..], &Type::String),
         Intrinsic::StringIndexOf => (&SEARCH_PARAMETERS[..], &SEARCH_DEFAULTS[..], &Type::Int),
         Intrinsic::StringSlice => (&SLICE_PARAMETERS[..], &SLICE_DEFAULTS[..], &Type::String),
@@ -575,41 +579,8 @@ pub(crate) fn constructor_accepts(
     }
 }
 
-/// `JS.*`, `Object.*`, `JSON.*`, `Task.*` and URI builtins: host operations
-/// the JavaScript target spells directly. The checker owns their arities and
-/// operand types; natively they are unsupported.
-pub(crate) fn host_builtin(builtin: crate::check::BuiltinCall) -> bool {
-    use crate::check::BuiltinCall as B;
-    !matches!(builtin, B::Print | B::MathImul | B::JsOr | B::JsAnd)
-}
 
-/// Builtins whose checker branch does not visit a separate callee expression.
-/// `argument: None` means Print's existing unrestricted single argument, not
-/// missing callable metadata. Unsupported builtins have no contract here.
-pub(crate) struct BuiltinCallContract {
-    pub arity: usize,
-    pub argument: Option<crate::check::Type<'static>>,
-    pub result: crate::check::Type<'static>,
-}
 
-pub(crate) fn builtin_call_contract(
-    builtin: crate::check::BuiltinCall,
-) -> Option<BuiltinCallContract> {
-    use crate::check::{BuiltinCall, Type};
-    Some(match builtin {
-        BuiltinCall::Print => BuiltinCallContract {
-            arity: 1,
-            argument: None,
-            result: Type::Void,
-        },
-        BuiltinCall::MathImul => BuiltinCallContract {
-            arity: 2,
-            argument: Some(Type::Int),
-            result: Type::Int,
-        },
-        _ => return None,
-    })
-}
 
 pub(crate) fn resolve_member(
     receiver: &crate::check::Type<'_>,
@@ -707,6 +678,7 @@ fn member_intrinsic(receiver: &crate::check::Type<'_>, property: &str) -> Option
         (Type::String, "lastIndexOf") => Some(Intrinsic::StringLastIndexOf),
         (Type::String, "repeat") => Some(Intrinsic::StringRepeat),
         (Type::String, "charCodeAt") => Some(Intrinsic::StringCharCodeAt),
+        (Type::String, "codeUnitAt") => Some(Intrinsic::StringCodeUnitAt),
         (Type::String, "charAt") => Some(Intrinsic::StringCharAt),
         (Type::String, "startsWith") => Some(Intrinsic::StringStartsWith),
         (Type::String, "endsWith") => Some(Intrinsic::StringEndsWith),

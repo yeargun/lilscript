@@ -30,7 +30,10 @@ pub const POLICY_ALGORITHM_VERSION: u32 = 1;
 // Version12 added parse-once discovery with admitted stable source storage.
 // Resource identity retains version8's complete checked rewrite descriptions.
 // Structural cursor/beam scheduling remains the qualified version3 algorithm.
-pub const SEARCH_SCHEDULE_VERSION: u32 = 25;
+// Version26 reserves half the optional work for the level walk: the
+// structural search stops at its share, so a program with many optional
+// alternatives cannot starve the walk (AM2).
+pub const SEARCH_SCHEDULE_VERSION: u32 = 26;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilationRequest {
@@ -981,6 +984,7 @@ impl ResolvedPolicy {
                 "numeric_lengths":language.assumptions.numeric_lengths,
                 "strip_debug":language.effects.strip_debug,
                 "strip_console_calls":language.effects.strip_console_calls,
+                "checks":language.checks.name(),
                 "preserved_properties":preserved_properties,
                 "delivery":{"mode":delivery.mode.name(), "format":delivery.format.name(),
                     "preload":delivery.preload.name(), "host_modules":delivery.host_modules.name(), "entry_names":delivery.entry_names(),
@@ -1355,6 +1359,12 @@ impl BudgetLedger {
     }
     pub fn work_used(&self, domain: WorkDomain) -> u64 {
         self.work_used[if domain == WorkDomain::Baseline { 0 } else { 1 }]
+    }
+    pub fn work_limit(&self, domain: WorkDomain) -> u64 {
+        match domain {
+            WorkDomain::Baseline => self.baseline_work_limit,
+            WorkDomain::Optional => self.optional_work_limit,
+        }
     }
     pub fn work_by_kind(&self, kind: WorkKind) -> u64 {
         self.work_by_kind[kind as usize]

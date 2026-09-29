@@ -1,0 +1,5 @@
+start
+kept
+trace:through a value
+end
+NOTES:dropped,checked,kept

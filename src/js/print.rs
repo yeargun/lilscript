@@ -623,12 +623,16 @@ impl<'a> Printer<'a, '_, '_> {
         }
     }
 
+    /// A typed intrinsic whose original returns an int32 (R10), or a value
+    /// nothing reads: no `|0`. Under the `int32_hints` family the rule is the
+    /// one before R10: an original's int32 is trusted only under pristine
+    /// builtins.
     fn plain_integer(&self, id: ExprId) -> bool {
         self.discarded_root == Some(id)
-            || self.module.pristine_builtins
+            || (!self.module.int32_hints || self.module.pristine_builtins)
                 && matches!(
                     self.module.expressions[id.index()],
-                    Expr::Intrinsic { operation, .. } if pristine_int32_intrinsic(operation)
+                    Expr::Intrinsic { operation, .. } if original_int32_intrinsic(operation)
                 )
     }
 
@@ -656,10 +660,12 @@ impl<'a> Printer<'a, '_, '_> {
                     self.discarded_root = Some(id);
                     return id;
                 }
-                // An unpatched integer method returns a number: `|0` on it
-                // has no effect when the value is discarded.
+                // A typed integer method's original returns a number (R10):
+                // `|0` on it has no effect when the value is discarded. The
+                // `int32_hints` family keeps the rule before R10.
                 Expr::Intrinsic { operation, .. }
-                    if self.module.pristine_builtins && integer_intrinsic(operation) =>
+                    if (!self.module.int32_hints || self.module.pristine_builtins)
+                        && integer_intrinsic(operation) =>
                 {
                     self.discarded_root = Some(id);
                     return id;
@@ -984,7 +990,7 @@ impl<'a> Printer<'a, '_, '_> {
                 Literal::Undefined => self.text("void 0"),
             },
             Expr::Binding(symbol) => self.text(self.names.get(*symbol)),
-            Expr::Host(name) => self.text(name),
+            Expr::Host(host) => self.text(&host.name),
             Expr::Regex(literal) => {
                 // `a/ /x/`: a division before the literal would otherwise
                 // open a comment.
@@ -1092,7 +1098,7 @@ impl<'a> Printer<'a, '_, '_> {
                 let unbind = *invocation == Invocation::Value
                     && match callee_node {
                         Expr::Member { .. } => true,
-                        Expr::Host(name) => name == "eval",
+                        Expr::Host(host) => host.kind == crate::catalog::HostKind::Eval,
                         Expr::Binding(symbol) => self.names.get(*symbol) == "eval",
                         _ => false,
                     };
@@ -1157,7 +1163,7 @@ impl<'a> Printer<'a, '_, '_> {
                 self.text("=");
                 let inferred = match &self.module.expressions[target.index()] {
                     Expr::Binding(binding) => InferredName::Known(self.names.get(*binding)),
-                    Expr::Host(name) => InferredName::Known(name),
+                    Expr::Host(host) => InferredName::Known(&host.name),
                     _ => InferredName::None,
                 };
                 self.expression_with_name(*value, 2, inferred);
@@ -1289,7 +1295,7 @@ impl<'a> Printer<'a, '_, '_> {
                     let shorthand =
                         spelled.is_some_and(|name| match &self.module.expressions[value.index()] {
                             Expr::Binding(binding) => self.names.get(*binding) == name,
-                            Expr::Host(host) => host == name,
+                            Expr::Host(host) => host.name == *name,
                             _ => false,
                         });
                     if shorthand {

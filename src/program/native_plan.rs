@@ -1153,6 +1153,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 Initialization::Missing
             };
             let mut captured = false;
+            let mut declared = false;
             let sites = uses.cell(id).unwrap().sites();
             for site in sites {
                 work(budget, 1)?;
@@ -1160,11 +1161,14 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     return Err(error("native exported cell"));
                 };
                 match usage {
-                    CellUse::Initialize(operation) => {
+                    // `let x;` (R3) is where the local begins: its stores and
+                    // reads follow it, as they follow an initialization.
+                    CellUse::Initialize(operation) | CellUse::Declare(operation) => {
                         if unit != cell.owner || !matches!(initialization, Initialization::Missing)
                         {
                             return Err(error("native unique cell initialization"));
                         }
+                        declared |= matches!(usage, CellUse::Declare(_));
                         initialization = Initialization::Operation(operation);
                     }
                     CellUse::Parameter(_) => {
@@ -1203,6 +1207,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 && program.unit(cell.owner).unwrap().kind == UnitKind::ModuleInitialization;
             if global {
                 captured = false;
+            }
+            if captured && declared {
+                return Err(error("native captured local declared without a value"));
             }
             if captured {
                 if matches!(storage, ValueStorage::Value(NativeType::Callable(_))) {
@@ -1514,7 +1521,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         receiver: Some(receiver),
                     } if values[receiver.index()] == ValueStorage::Value(NativeType::String) => {
                         match intrinsic {
-                            Intrinsic::StringCharCodeAt => {
+                            Intrinsic::StringCharCodeAt | Intrinsic::StringCodeUnitAt => {
                                 plan.helpers.require(Helper::CharCodeAt);
                                 PreparedTarget::CharCodeAt { receiver }
                             }
@@ -2166,6 +2173,12 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     && self.compatible(self.cell_storage(*cell), operand(0)),
                 "native initialization representation",
             ),
+            OperationKind::Declare(cell) => expect(
+                matches!(initializations[cell.index()], Initialization::Operation(found) if found == at)
+                    && self.program.cells[cell.index()].owner == unit
+                    && !self.boxed_cell(*cell),
+                "native declaration representation",
+            ),
             OperationKind::CheckPlace(place) => {
                 let place = plan.places[place.index()];
                 expect(
@@ -2384,7 +2397,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 Ok(())
             }
             OperationKind::Binary(kind) => match kind {
-                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div => {
+                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => {
                     expect(
                         numeric(operand(0)) && numeric(operand(1)) && result == Some(Stored(F64)),
                         "native floating binary recipe",
@@ -2398,12 +2411,14 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 | BinaryOp::ShiftLeft
                 | BinaryOp::ShiftRight
                 | BinaryOp::UnsignedShiftRight => {
+                    // A `float` operand converts with ToInt32 (R11).
                     expect(
-                        operand(0) == Stored(I32)
-                            && operand(1) == Stored(I32)
-                            && result == Some(Stored(I32)),
+                        numeric(operand(0)) && numeric(operand(1)) && result == Some(Stored(I32)),
                         "native bitwise recipe",
                     )?;
+                    if operand(0) == Stored(F64) || operand(1) == Stored(F64) {
+                        self.helpers.require(Helper::ToInt32);
+                    }
                     self.helpers.require(match kind {
                         BinaryOp::ShiftLeft => Helper::ShiftLeft,
                         BinaryOp::ShiftRight => Helper::ShiftRight,

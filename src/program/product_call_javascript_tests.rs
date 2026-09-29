@@ -562,41 +562,10 @@ fn product_arguments_freeze_before_later_argument_reentry_and_throw() {
     );
 }
 #[test]
-fn raw_product_transport_never_performs_the_callees_discarded_integer_coercion() {
+fn raw_product_transport_gives_the_callee_its_own_copy() {
+    // The host's `opaque()` returns an int (R1): the callee's discarded field
+    // read is dead code, and its update of its value parameter is its own.
     matrix(case!("opaque-field"), &["local"], false, true);
-    matrix(
-        Case {
-            name: "throwing-field",
-            setup: "let replace;globalThis.keep=value=>{replace=value;};globalThis.late=()=>{events.push('late');return 3;};globalThis.opaque=()=>({[Symbol.toPrimitive](hint){events.push('coerce:'+hint);replace();throw 7;}});",
-            expected: "[\"late\",\"coerce:number\",99,9]",
-            ..case!("opaque-field")
-        },
-        &["local"],
-        false,
-        true,
-    );
-    matrix(
-        Case {
-            name: "bigint-field",
-            setup: "globalThis.keep=()=>{};globalThis.late=()=>{events.push('late');return 3;};globalThis.opaque=()=>1n;",
-            expected: "[\"late\",99,1]",
-            ..case!("opaque-field")
-        },
-        &["local"],
-        false,
-        true,
-    );
-    matrix(
-        Case {
-            name: "symbol-field",
-            setup: "globalThis.keep=()=>{};globalThis.late=()=>{events.push('late');return 3;};globalThis.opaque=()=>Symbol('payload');",
-            expected: "[\"late\",99,1]",
-            ..case!("opaque-field")
-        },
-        &["local"],
-        false,
-        true,
-    );
 }
 #[test]
 fn two_identical_actuals_have_independent_nested_values_and_shared_reference_leaves() {

@@ -389,13 +389,15 @@ fn tables_that_cannot_be_exact_are_never_sites() {
     refused(with(("__proto__", Lit::N(1.0))), false);
     refused(with(("k3", Lit::N(1.0))), false);
     refused(with(("fine", Lit::N(1.0))), true);
-    // Without pristine builtins nothing is encoded.
+    // The decoder is compiler-written code, which takes `String` and `Array`
+    // methods to be the originals (R10): the pristine setting does not
+    // change the sites.
     let (mut module, _) = table_module(&encodable);
     module.pristine_builtins = false;
     module
         .encode_tables(&[], &ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
         .unwrap();
-    assert!(module.choice_sites.is_empty());
+    assert_eq!(module.choice_sites.len(), 1);
 }
 
 #[test]

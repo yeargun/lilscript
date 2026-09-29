@@ -664,9 +664,9 @@ impl Lowering<'_, '_> {
             None => match name {
                 "undefined" => Expr::Literal(Literal::Undefined),
                 // Only a function's own `arguments`; an arrow reads its creator's.
-                "arguments" if self.functions.iter().any(|arrow| !arrow) => Expr::Host(name.into()),
+                "arguments" if self.functions.iter().any(|arrow| !arrow) => Expr::Host(Host::new(name)),
                 "arguments" | "eval" => return Err(Stop::Refused),
-                _ => Expr::Host(name.into()),
+                _ => Expr::Host(Host::new(name)),
             },
         };
         self.expression(expression)

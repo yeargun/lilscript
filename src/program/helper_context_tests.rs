@@ -1,5 +1,7 @@
 //! One semantic body can have distinct callable producers. Incoming argument
-//! proofs belong to the selected callable's execution context, not the body ID.
+//! proofs belong to the selected callable's execution context, not the body ID:
+//! `safe(3)` proves its `value` is 3, which must not fold `other`'s. The host's
+//! `opaque()` returns 5, a well-typed `int` (R1).
 use super::facts::CacheLimits;
 use super::publication::*;
 use super::*;
@@ -14,46 +16,45 @@ fn inline_argument_facts_do_not_leak_into_another_callable_with_the_same_body() 
     check_shared_body(
         r#"
         extern int opaque();
-        auto safe=(int value)=>{int discarded=value+1;return 7;};
-        auto other=(int value)=>{int discarded=value+1;return 7;};
+        auto safe=(int value)=>value*2;
+        auto other=(int value)=>value*2;
         print(safe(3));print(other(opaque()));
         "#,
         &[&["safe"]],
-        "[7,\"coerce\",\"opaque\"]",
+        "[6,10]",
     );
 }
 
 #[test]
 fn inline_return_facts_do_not_qualify_an_unselected_call_of_the_same_body() {
     // Unlike the constant-return fixture, this can only justify the selected
-    // call's result domain. The ordinary call returns the host object intact;
-    // its caller's discarded arithmetic must still coerce that object.
+    // call's result domain. The ordinary call returns the host's value, which
+    // its caller's arithmetic reads.
     check_shared_body(
         r#"
         extern int opaque();
         auto safe=(int value)=>value;
         auto other=(int value)=>value;
-        print(safe(3));int discarded=other(opaque())+1;print(99);
+        print(safe(3));print(other(opaque())+1);
         "#,
         &[&["safe"]],
-        "[3,\"coerce\",\"opaque\"]",
+        "[3,6]",
     );
 }
 
 #[test]
 fn two_inline_producers_of_one_body_keep_distinct_argument_facts() {
-    // Both physical contexts are inline. Selecting the opaque producer is
-    // legal in Module execution, but its coercion remains observable. Publish
-    // in both orders so proof reuse cannot substitute the first body's facts.
+    // Both physical contexts are inline. Publish in both orders so proof
+    // reuse cannot substitute the first body's facts.
     check_shared_body(
         r#"
         extern int opaque();
-        auto safe=(int value)=>{int discarded=value+1;return 7;};
-        auto other=(int value)=>{int discarded=value+1;return 7;};
+        auto safe=(int value)=>value*2;
+        auto other=(int value)=>value*2;
         print(safe(3));print(other(opaque()));
         "#,
         &[&["safe", "other"], &["other", "safe"]],
-        "[7,\"coerce\",\"opaque\"]",
+        "[6,10]",
     );
 }
 
@@ -190,7 +191,7 @@ fn check_shared_body(text: &str, selections: &[&[&str]], expected: &str) {
                     let artifact = output.render(&Plan::new(style)).unwrap();
                     let javascript = output.take_artifact(artifact).unwrap();
                     let script = format!(
-                        "const events=[];console.log=value=>events.push(value);globalThis.opaque=()=>({{valueOf(){{events.push('coerce');throw Error('opaque')}}}});try{{{javascript}}}catch(error){{events.push(error.message)}}process.stdout.write(JSON.stringify(events));"
+                        "const events=[];console.log=value=>events.push(value);globalThis.opaque=()=>5;try{{{javascript}}}catch(error){{events.push(error.message)}}process.stdout.write(JSON.stringify(events));"
                     );
                     let result = Command::new("node").args(["--input-type=module", "-e", &script]).output().unwrap();
                     assert!(result.status.success(), "{label} {compact} {style:?}: {}\n{javascript}", String::from_utf8_lossy(&result.stderr));

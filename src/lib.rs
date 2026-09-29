@@ -1,5 +1,6 @@
 pub(crate) mod admission_parse;
 mod arena_budget;
+pub(crate) mod catalog;
 pub mod ast;
 pub mod build;
 pub mod check;

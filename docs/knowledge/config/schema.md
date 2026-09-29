@@ -53,13 +53,14 @@ error, not a silently ignored setting.
 | `candidate_proposal_limit` | `Option<usize>` | `None` | See [configuration.md](../../configuration.md). |
 | `terminal_codec_probe_limit` | `Option<usize>` | `None` | See [configuration.md](../../configuration.md). |
 | `operand_order_fusion` | `bool` | `true` | Rebuild a nested expression when a run of single-use producers all feed one consumer that reads them in production order. |
-| `assume_pristine_builtins` | `bool` | `false` | Allow representations that bypass ambient JavaScript constructor bindings. |
+| `assume_pristine_builtins` | `bool` | `false` | The host's builtins are the originals where a `JsValue` operation reaches them (new keys folded into fresh literals, `.call` receivers, standard globals read as inert). Typed operations mean the originals regardless (R10). |
 | `assume_pure_property_reads` | `bool` | `false` | Treat a dynamic member read as free of coercion hooks, the way Terser's `pure_getters` does. |
 | `assume_unconstructed_callbacks` | `bool` | `false` | A function made from a lambda is never constructed (with `new`) nor its `prototype` read, except through the variable the program declared it in, the way Terser's `unsafe_arrows` assumes. |
 | `keep_function_names` | `bool` | `false` | Keep the exact source `name` of every function whose name some code could read, not only of published exports. |
 | `keep_published_function_names` | `bool` | `true` | Keep the exact source `name` of published functions (D2). |
-| `strip_debug` | `bool` | `false` | Drop calls of the host `debugLog` extern from JavaScript, keeping the evaluation of their arguments (the `debug` effect class of plan M10.11 generalizes it). |
+| `strip_debug` | `bool` | `false` | Drop direct calls of `debug` functions and externs (R15) from JavaScript, keeping the evaluation of their arguments; an extern named `debugLog` counts until `migration/debug-class` has declared it `debug`. |
 | `strip_console_calls` | `bool` | `false` | Drop calls of the host `console` object's methods (`console.warn(x)` through an extern `console`), keeping the evaluation of their arguments: a declared relaxation of host console output (D3.4). |
+| `checks` | `"production" \| "development"` | `"production"` | The precondition contract axis, independent of effort: `"development"` checks each index read of an array, typed array or string (R11), throwing a `RangeError` out of range, and each typed value that crosses in (R1: an extern's result, a host method's result, a typed host binding's read, a trusted view `v as T`), throwing a `TypeError` where the host breaks the declared type (int, float, string, bool, array, function, or absent for `T?`). An exported function checks each parameter a caller must pass (one without a default) at its entry. Production gives an unspecified result and emits no check. `scripts/ports.mjs --checks development` runs a port suite in this lane. |
 
 ## `[mangle]` — closed
 

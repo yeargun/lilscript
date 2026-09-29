@@ -471,10 +471,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.parameter_owners(id)?;
         }
         // Initialize sites are unique by plan validation. This visits only this
-        // unit's operations, never all program cells for each function.
+        // unit's operations, never all program cells for each function. A
+        // declared local (`let x;`, R3) is declared here too.
         for operation in &unit.operations {
             self.budget.work(WorkKind::Render, 1)?;
-            if let OperationKind::Initialize(cell) = operation.kind {
+            if let OperationKind::Initialize(cell) | OperationKind::Declare(cell) = operation.kind {
                 if self.plan.global_cell(cell) {
                     continue;
                 }
@@ -666,6 +667,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     _ => unreachable!("native plan rejects unsupported constants"),
                 }
             }
+            // `let x;`: the C local is declared at the function's start (see
+            // `unit`); its first store gives it a value (R3).
+            OperationKind::Declare(_) => {}
             OperationKind::Initialize(cell) => {
                 if self.plan.boxed_cell(*cell) {
                     self.write(format_args!(
@@ -1226,6 +1230,14 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.value(unit, right)?;
             return self.text(").identity;\n");
         }
+        // A bitwise operand stored as a double converts with ToInt32 (R11).
+        let int32 = [left, right].map(|value| {
+            if matches!(values[value.index()], ValueStorage::Value(NativeType::F64)) {
+                format!("ls_to_i32(ls_v{})", value.index())
+            } else {
+                format!("ls_v{}", value.index())
+            }
+        });
         let (result, left, right) = (result.index(), left.index(), right.index());
         let token = match kind {
             BinaryOp::Add => "+",
@@ -1248,8 +1260,15 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     _ => Helper::UnsignedShiftRight,
                 };
                 return self.write(format_args!(
-                    "ls_v{result} = {}(ls_v{left},ls_v{right});\n",
-                    helper.name()
+                    "ls_v{result} = {}({},{});\n",
+                    helper.name(),
+                    int32[0],
+                    int32[1]
+                ));
+            }
+            BinaryOp::Mod => {
+                return self.write(format_args!(
+                    "ls_v{result} = ls_f64(fmod((double)ls_v{left},(double)ls_v{right}));\n"
                 ));
             }
             _ => unreachable!("native plan supported binary recipe"),
@@ -1261,7 +1280,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 ))
             }
             BinaryOp::BitAnd | BinaryOp::BitOr | BinaryOp::Xor => self.write(format_args!(
-                "ls_v{result} = ls_from_u32((uint32_t)ls_v{left} {token} (uint32_t)ls_v{right});\n"
+                "ls_v{result} = ls_from_u32((uint32_t){} {token} (uint32_t){});\n",
+                int32[0], int32[1]
             )),
             _ => self.write(format_args!(
                 "ls_v{result} = ls_v{left} {token} ls_v{right};\n"

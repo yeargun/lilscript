@@ -19,7 +19,12 @@ use crate::program::{
 };
 use crate::span::Span;
 
+mod absence;
+mod char_code;
+mod debug_class;
+mod implicit_default;
 mod js_builtin;
+mod walk;
 
 pub const RULES: &[&str] = &[
     "correctness/unreachable-code",
@@ -29,6 +34,10 @@ pub const RULES: &[&str] = &[
     "correctness/unhandled-module-task",
     "effects/pure-extern-requires-allowlist",
     js_builtin::RULE,
+    implicit_default::RULE,
+    debug_class::RULE,
+    char_code::RULE,
+    absence::RULE,
     "performance/allocation-in-loop",
     "performance/closure-allocation-in-loop",
     "performance/indirect-call-in-loop",
@@ -300,6 +309,10 @@ pub fn lint_checked_with_providers(
         lint_items(module, syntax, &config.lint, &mut pending);
         if let Some(view) = checked.semantics.view(module) {
             js_builtin::lint(module, source, syntax, &view, &mut pending);
+            implicit_default::lint(module, source, syntax, &view, &mut pending);
+            debug_class::lint(module, syntax, &mut pending);
+            char_code::lint(module, syntax, &view, &mut pending);
+            absence::lint(module, source, syntax, &view, &mut pending);
         }
     }
     lint_unused_private_symbols(checked, &mut pending);
@@ -2259,6 +2272,184 @@ mod tests {
                 .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
                 .collect::<Vec<_>>(),
             [(false, "JS.array(x)"), (false, "JS.array()"), (false, "JS.add(text, \"y\")")]
+        );
+    }
+
+    /// `migration/implicit-default`: a field that `init` does not assign on
+    /// every path gets its implicit default written as its initializer; a
+    /// field whose default is not a value of its type is reported without a
+    /// fix.
+    #[test]
+    fn implicit_default_fixes_write_each_default() {
+        let scratch = Scratch::new("implicit-default");
+        let header = "enum Tone { Plain, Loud }\nclass Node { int value; init(int value) { this.value = value; } }\n";
+        let original = r#"class Holder {
+    int count;
+    float ratio;
+    bool ready;
+    string label;
+    int[] marks;
+    Map<string, int> index;
+    Set<int> seen;
+    Record<int> table;
+    Tone tone;
+    Node? next;
+    Node head;
+    Node tail;
+    int assigned;
+    int branchy;
+    int both;
+    int kept = 4;
+    init(bool b) {
+        this.assigned = 1;
+        if (b) { this.branchy = 1; }
+        if (b) { this.both = 1; } else { this.both = 2; }
+        this.head = new Node(1);
+    }
+}
+print(new Holder(true).kept);
+"#;
+        let fixed = r#"class Holder {
+    int count = 0;
+    float ratio = 0.0;
+    bool ready = false;
+    string label = "";
+    int[] marks = [];
+    Map<string, int> index = new Map();
+    Set<int> seen = new Set();
+    Record<int> table = record {};
+    Tone tone = Tone.Plain;
+    Node? next = null;
+    Node head;
+    Node tail;
+    int assigned;
+    int branchy = 0;
+    int both;
+    int kept = 4;
+    init(bool b) {
+        this.assigned = 1;
+        if (b) { this.branchy = 1; }
+        if (b) { this.both = 1; } else { this.both = 2; }
+        this.head = new Node(1);
+    }
+}
+print(new Holder(true).kept);
+"#;
+        let path = scratch.file("main.lil", "");
+        let mut source = format!("{header}{original}");
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        let mut edits = diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.rule == "migration/implicit-default")
+            .filter_map(|diagnostic| diagnostic.fix.as_ref())
+            .flat_map(|fix| fix.edits.iter().cloned())
+            .collect::<Vec<_>>();
+        edits.sort_by_key(|edit| std::cmp::Reverse(edit.span.start));
+        for edit in edits {
+            source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
+        }
+        assert_eq!(source, format!("{header}{fixed}"));
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        assert_eq!(
+            diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.rule == "migration/implicit-default")
+                .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
+                .collect::<Vec<_>>(),
+            [(false, "tail")]
+        );
+    }
+
+    /// `migration/debug-class`: an extern named `debugLog` is declared
+    /// `debug`; a `pure` one is reported without a fix.
+    #[test]
+    fn debug_class_fix_declares_debug_log() {
+        let scratch = Scratch::new("debug-class");
+        let path = scratch.file("main.lil", "");
+        let mut source = "export extern void debugLog(JsValue value);\ndebugLog(1);\n".to_string();
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        let edits = diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.rule == "migration/debug-class")
+            .filter_map(|diagnostic| diagnostic.fix.as_ref())
+            .flat_map(|fix| fix.edits.iter().cloned())
+            .collect::<Vec<_>>();
+        assert_eq!(edits.len(), 1);
+        for edit in edits {
+            source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
+        }
+        assert_eq!(source, "export debug extern void debugLog(JsValue value);\ndebugLog(1);\n");
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        assert!(!diagnostics.iter().any(|diagnostic| diagnostic.rule == "migration/debug-class"));
+        let pure = "pure extern void debugLog(JsValue value);\ndebugLog(1);\n";
+        let diagnostics = lint_path_with_source(&path, pure, &ProjectConfig::default()).unwrap();
+        assert_eq!(
+            diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.rule == "migration/debug-class")
+                .map(|diagnostic| diagnostic.fix.is_some())
+                .collect::<Vec<_>>(),
+            [false]
+        );
+    }
+
+    /// `migration/char-code`: a loop bounded by the string's length reads a
+    /// code unit; any other read keeps today's `int` with `| 0`.
+    #[test]
+    fn char_code_fixes_keep_todays_meaning() {
+        let scratch = Scratch::new("char-code");
+        let path = scratch.file("main.lil", "");
+        let original = "export int sum(string s) {\n    int total = 0;\n    for (int i = 0; i < s.length; i++) {\n        total = total + s.charCodeAt(i);\n    }\n    for (int j = 1; j < s.length; j++) {\n        s = s + \"\";\n        total = total + s.charCodeAt(j);\n    }\n    return total + s.charCodeAt(0) * 2;\n}\n";
+        let fixed = "export int sum(string s) {\n    int total = 0;\n    for (int i = 0; i < s.length; i++) {\n        total = total + s.codeUnitAt(i);\n    }\n    for (int j = 1; j < s.length; j++) {\n        s = s + \"\";\n        total = total + (s.charCodeAt(j) | 0);\n    }\n    return total + (s.charCodeAt(0) | 0) * 2;\n}\n";
+        let mut source = original.to_string();
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        let mut edits = diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.rule == "migration/char-code")
+            .filter_map(|diagnostic| diagnostic.fix.as_ref())
+            .flat_map(|fix| fix.edits.iter().cloned())
+            .collect::<Vec<_>>();
+        edits.sort_by_key(|edit| std::cmp::Reverse(edit.span.start));
+        for edit in edits {
+            source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
+        }
+        assert_eq!(source, fixed);
+        // A fixed source has nothing left to fix.
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        assert!(!diagnostics.iter().any(|diagnostic| diagnostic.rule == "migration/char-code"));
+    }
+
+    /// `migration/absence`: operations that tell the spellings of absence
+    /// apart get today's meaning written out where it has one spelling, and
+    /// a report where it has none.
+    #[test]
+    fn absence_fixes_write_todays_meaning() {
+        let scratch = Scratch::new("absence");
+        let path = scratch.file("main.lil", "");
+        let header = "extern void show(JsValue value);\n";
+        let original = "export void f(string? s, int? n, JsValue v, int?[] list) {\n    print(s);\n    print(string(n));\n    show(s === null);\n    show(n !== 5);\n    show(v === s);\n    show(typeof s);\n    show(list.indexOf(n));\n}\n";
+        let fixed = "export void f(string? s, int? n, JsValue v, int?[] list) {\n    print(s ?? \"null\");\n    print(string(n ?? \"null\"));\n    show(s == null);\n    show(n != 5);\n    show(v === s);\n    show(typeof s);\n    show(list.indexOf(n));\n}\n";
+        let mut source = format!("{header}{original}");
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        let mut edits = diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.rule == "migration/absence")
+            .filter_map(|diagnostic| diagnostic.fix.as_ref())
+            .flat_map(|fix| fix.edits.iter().cloned())
+            .collect::<Vec<_>>();
+        edits.sort_by_key(|edit| std::cmp::Reverse(edit.span.start));
+        for edit in edits {
+            source.replace_range(edit.span.start..edit.span.end, &edit.replacement);
+        }
+        assert_eq!(source, format!("{header}{fixed}"));
+        let diagnostics = lint_path_with_source(&path, &source, &ProjectConfig::default()).unwrap();
+        assert_eq!(
+            diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.rule == "migration/absence")
+                .map(|diagnostic| (diagnostic.fix.is_some(), &source[diagnostic.span.start..diagnostic.span.end]))
+                .collect::<Vec<_>>(),
+            [(false, "v === s"), (false, "s"), (false, "indexOf")]
         );
     }
 

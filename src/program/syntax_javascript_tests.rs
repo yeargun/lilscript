@@ -1669,9 +1669,10 @@ fn a_number_counts_up_with_the_increment() {
         show(JS.box(halves(3)));
     "#;
     let javascript = compile_with(source, PRISTINE);
-    // A float's `x=x+1` is `++x`; the int counter keeps its wrap.
+    // A float's `x=x+1` is `++x`. The int counter stays below `n`, an int32
+    // by type (R1), so its increment cannot wrap and is `++` too.
     assert!(
-        javascript.contains("++") && javascript.contains("+1|0"),
+        javascript.matches("++").count() >= 2 && !javascript.contains("|0"),
         "{javascript}"
     );
     assert_eq!(run(&javascript, SHOW), "3.5\n");
@@ -2145,5 +2146,327 @@ fn unknown_refuses_other_operations() {
     let syntax = crate::parse_source(&arena, "void f(unknown u, JsValue v) { bool b = u in v; }").unwrap();
     let error = crate::analyze(&syntax).unwrap_err();
     assert!(format!("{error:?}").contains("narrowed before other operations"), "{error:?}");
+}
+
+/// Trusted crossings (R1): a typed `int` field is an int32 by type, so no
+/// `|0` normalizes its load; arithmetic still wraps. An element read is in
+/// range by R11's precondition, so it carries none either.
+#[test]
+fn typed_int_loads_are_not_normalized() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        class Counter { int count; init(int count) { this.count = count; } }
+        export int read(Counter c) { return c.count; }
+        export int next(int[] values, int i) { return values[i] + 1; }
+        show(read(new Counter(41)));
+        show(next([1, 2, 3], 1));
+        "#,
+        PRISTINE,
+    );
+    let read = javascript
+        .split("read=function")
+        .nth(1)
+        .unwrap_or_default()
+        .split('}')
+        .next()
+        .unwrap_or_default();
+    assert!(read.contains("return") && !read.contains("|0"), "{javascript}");
+    let next = javascript
+        .split("next=function")
+        .nth(1)
+        .unwrap_or_default()
+        .split('}')
+        .next()
+        .unwrap_or_default();
+    assert_eq!(next.matches("|0").count(), 1, "the sum's wrap alone: {javascript}");
+    assert_eq!(run(&javascript, SHOW), "41\n3\n");
+}
+
+/// Definite assignment (R3): a local declared without a value is read only
+/// where every path has assigned it.
+#[test]
+fn definite_assignment_accepts_and_refuses_reads() {
+    let arena = bumpalo::Bump::new();
+    let accepted = [
+        "int f(bool b) { int x; if (b) { x = 1; } else { x = 2; } return x; }",
+        "int f(bool b) { int x; if (b) { return 0; } else { x = 2; } return x; }",
+        "int f(bool b) { int x; x = 1; if (b) { x = 2; } return x; }",
+        "int f() { int x; try { x = 1; } finally { } return 0; }",
+        "int f() { int x; x = 3; auto g = () => x; return g(); }",
+    ];
+    for source in accepted {
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        crate::analyze(&syntax).unwrap_or_else(|error| panic!("{source}: {error:?}"));
+    }
+    let refused = [
+        "int f(bool b) { int x; if (b) { x = 1; } return x; }",
+        "int f(int n) { int x; while (n > 0) { x = n; n = n - 1; } return x; }",
+        "int f() { int x; x += 1; return x; }",
+        "int f(bool b) { int x; bool ok = b && ((x = 1) > 0); return x; }",
+        "int f() { int x; auto g = () => x; x = 1; return g(); }",
+        "int f() { int x; try { x = 1; } catch (auto e) { } return x; }",
+    ];
+    for source in refused {
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        let error = crate::analyze(&syntax).expect_err(source);
+        assert!(
+            format!("{error:?}").contains("read before it is assigned"),
+            "{source}: {error:?}"
+        );
+    }
+    let syntax = crate::parse_source(&arena, "int x; print(1);").unwrap();
+    let error = crate::analyze(&syntax).unwrap_err();
+    assert!(format!("{error:?}").contains("module-level"), "{error:?}");
+}
+
+/// A declared local runs as JavaScript's `let x;` (R3).
+#[test]
+fn declared_locals_run() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export int pick(bool first, int a, int b) {
+            int chosen;
+            if (first) { chosen = a * 3 + b; } else { chosen = b * 5 - a; }
+            return chosen;
+        }
+        show(pick(true, 4, 5));
+        show(pick(false, 4, 5));
+        "#,
+        PRISTINE,
+    );
+    assert_eq!(run(&javascript, SHOW), "17\n21\n");
+}
+
+
+/// Field initializers (R3): each construction evaluates a field's own
+/// initializer before `init`, a fresh value every time and the base's first,
+/// for a generic class and for a derived class kept as JavaScript's (its
+/// constructor is exported), where they run after `super()`.
+#[test]
+fn field_initializers_run_at_construction() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        int made = 0;
+        int serial() { made = made + 1; return made; }
+        class Bag<T> {
+            T[] items = [];
+            int limit = 3;
+        }
+        class Base {
+            int base = 40 + 2;
+            string[] names = ["a"];
+            int id = serial();
+            init() { }
+        }
+        class Counter extends Base {
+            int count = 5;
+            int later;
+            init(int start) {
+                super();
+                this.later = this.count + start;
+            }
+        }
+        export constructor Counter;
+        export int total(int start) {
+            Counter c = new Counter(start);
+            c.names.push("b");
+            Counter d = new Counter(1);
+            Bag<int> bag = new Bag<int>();
+            bag.items.push(start);
+            Bag<int> other = new Bag<int>();
+            return c.base + c.count + c.later + c.names.length * 100 + d.names.length * 1000
+                + bag.items.length * 10000 + other.items.length * 100000 + bag.limit * 1000000
+                + (c.id * 10 + d.id) * 10000000;
+        }
+        show(total(3));
+        show(made);
+        "#,
+        PRISTINE,
+    );
+    assert_eq!(run(&javascript, SHOW), "123011255\n2\n");
+}
+
+/// A field initializer is a value of the field's type; an extern class's
+/// field is the host's and a struct's comes from its literal, so neither
+/// takes one.
+#[test]
+fn field_initializers_are_checked_and_refused_where_they_mean_nothing() {
+    let arena = bumpalo::Bump::new();
+    let syntax =
+        crate::parse_source(&arena, "class C { int n = \"one\"; } C c = new C(); print(c.n);")
+            .unwrap();
+    let error = crate::analyze(&syntax).unwrap_err();
+    assert!(format!("{error:?}").contains("string"), "{error:?}");
+    let syntax = crate::parse_source(&arena, "extern class Host { int n = 1; } print(1);").unwrap();
+    let error = crate::analyze(&syntax).unwrap_err();
+    assert!(format!("{error:?}").contains("the host's"), "{error:?}");
+    let error = crate::parse_source(&arena, "struct P { int x = 1; } print(1);").unwrap_err();
+    assert!(format!("{error:?}").contains("construction literal"), "{error:?}");
+}
+
+/// `debug` (R15) is a modifier only before `void` or `extern void`; it
+/// refuses `pure`, suspension, a result, and values and classes, and `debug`
+/// stays an identifier everywhere else.
+#[test]
+fn debug_declarations_parse_and_refuse() {
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(
+        &arena,
+        "debug void trace(string m) { print(m); }\ndebug extern void invariant(bool ok, string m);\nint debug = 3;\nprint(debug);\n",
+    )
+    .unwrap();
+    let debug = syntax
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            crate::ast::Item::Function(function) => Some(function.declared_debug),
+            crate::ast::Item::Extern(declaration) => Some(declaration.declared_debug),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(debug, [true, true]);
+    crate::analyze(&syntax).unwrap();
+    for (source, message) in [
+        ("pure debug void f() { }", "cannot be `pure`"),
+        ("async debug void f() { }", "runs to completion"),
+        ("debug extern int f();", "returns `void`"),
+        ("debug extern JsValue x;", "not values"),
+        ("debug extern class C { }", "not classes"),
+    ] {
+        let error = crate::parse_source(&arena, source).expect_err(source);
+        assert!(format!("{error:?}").contains(message), "{source}: {error:?}");
+    }
+}
+
+/// Typed operations mean ECMAScript's originals (R10), whatever
+/// `assume_pristine_builtins` says: a literal `Regex` construction is the
+/// regex literal, and a length is an int32 with no `|0`.
+#[test]
+fn typed_operations_mean_the_originals_without_pristine_builtins() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export int size(string s) { return s.length; }
+        export bool digits(string s) { Regex pattern = new Regex("^[0-9]+$"); return pattern.test(s); }
+        show(size("abc"));
+        show(digits("123"));
+        show(digits("12a"));
+        "#,
+        "",
+    );
+    assert!(javascript.contains("/^[0-9]+$/"), "{javascript}");
+    assert!(!javascript.contains("RegExp"), "{javascript}");
+    assert!(!javascript.contains("length|0"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "3\ntrue\nfalse\n");
+}
+
+/// `checks = "development"` (the contract axis; R11's precondition): an index
+/// read out of range throws a RangeError through one hoisted helper, where a
+/// production build reads past the end.
+#[test]
+fn development_checks_index_reads() {
+    let source = r#"
+        extern void show(JsValue value);
+        export int at(int[] values, int i) { return values[i]; }
+        export string letter(string s, int i) { return s[i]; }
+        show(at([4, 5], 1));
+        try { show(at([4, 5], 2)); } catch { show("range"); }
+        try { show(letter("ab", -1)); } catch { show("range"); }
+        show(letter("ab", 0));
+    "#;
+    let development = compile_with(source, "[javascript]\nchecks = \"development\"\n");
+    assert_eq!(development.matches("RangeError").count(), 1, "{development}");
+    assert_eq!(run(&development, SHOW), "5\n\"range\"\n\"range\"\n\"a\"\n");
+    // Production checks nothing: past the end is unspecified (R11), and an
+    // element read is the plain read.
+    let production = compile_with(source, "");
+    assert!(!production.contains("RangeError"), "{production}");
+    assert!(!production.contains("??\"\""), "{production}");
+}
+
+/// R11: `%` with a `float` operand is a `float`; a bitwise operator takes a
+/// `float` operand through ToInt32 and gives an `int`; `codeUnitAt` is a
+/// code unit with no `|0`.
+#[test]
+fn float_remainder_bitwise_conversion_and_code_units() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        export float rem(float a, float b) { return a % b; }
+        export int bits(float a) { return a | 0; }
+        export int unit(string s, int i) { return s.codeUnitAt(i); }
+        show(rem(5.5, 2.0));
+        show(bits(-1.75));
+        show(bits(4294967297.5));
+        show(unit("héllo", 1));
+        "#,
+        PRISTINE,
+    );
+    let unit = javascript
+        .split("unit=function")
+        .nth(1)
+        .unwrap_or_default()
+        .split('}')
+        .next()
+        .unwrap_or_default();
+    assert!(unit.contains("charCodeAt") && !unit.contains("|0"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "1.5\n-1\n1\n233\n");
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, "int x = 5.5 % 2;").unwrap();
+    assert!(crate::analyze(&syntax).is_err(), "a float remainder is a float");
+}
+
+/// Development checks at crossings (R1): an extern's result, a typed host
+/// binding and a trusted view throw a TypeError where the host breaks the
+/// declared type; well-typed values pass; a production build checks nothing.
+#[test]
+fn development_checks_crossings() {
+    let source = r#"
+        extern void show(JsValue value);
+        extern int count();
+        extern string? label;
+        extern JsValue raw();
+        export void run() {
+            try { show(count() + 1); } catch { show("count"); }
+            try { show(label ?? "none"); } catch { show("label"); }
+            try { int n = raw() as int; show(n); } catch { show("view"); }
+        }
+        run();
+    "#;
+    let development = compile_with(source, "[javascript]\nchecks = \"development\"\n");
+    let show = "globalThis.show=v=>console.log(JSON.stringify(v));";
+    assert_eq!(
+        run(&development, &format!("{show}globalThis.count=()=>'three';globalThis.label=7;globalThis.raw=()=>1.5;")),
+        "\"count\"\n\"label\"\n\"view\"\n"
+    );
+    assert_eq!(
+        run(&development, &format!("{show}globalThis.count=()=>3;globalThis.label=undefined;globalThis.raw=()=>2;")),
+        "4\n\"none\"\n2\n"
+    );
+    let production = compile_with(source, "");
+    assert!(!production.contains("TypeError"), "{production}");
+}
+
+/// Development checks at an export's entry (R1): a caller that passes the
+/// wrong type meets a TypeError; a parameter with a default is left to it.
+#[test]
+fn development_checks_export_parameters() {
+    let javascript = compile_with(
+        "export int twice(int n, int step = 1) { return n * 2 + step; }\n",
+        "[javascript]\nchecks = \"development\"\n",
+    );
+    let script = format!(
+        "const library=await import('data:text/javascript,'+encodeURIComponent({}));\nconst seen=[library.twice(4)];\ntry{{library.twice('x')}}catch(e){{seen.push(e.name)}}\nconsole.log(JSON.stringify(seen));",
+        serde_json::to_string(&javascript).unwrap()
+    );
+    let output = Command::new("node")
+        .args(["--input-type=module", "-e", &script])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "[9,\"TypeError\"]\n", "{javascript}");
 }
 

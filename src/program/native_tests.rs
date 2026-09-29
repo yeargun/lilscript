@@ -625,10 +625,10 @@ fn arrays_grow_nest_and_run_callbacks_natively() {
     fixture(
         "native-arrays",
         "int[] xs=[3,1,2];xs.push(5);xs[1]=10;int total=0;for(int x of xs){total+=x;}print(total);\
-         print(xs.pop());print(xs[7]);int[] doubled=xs.map((int v)=>v*2);print(doubled[2]);\
+         print(xs.pop());print(xs[2]);int[] doubled=xs.map((int v)=>v*2);print(doubled[2]);\
          print(xs.reduce((int a,int b)=>a+b,0));print(xs.indexOf(10));print(xs.includes(4));\
          int[][] grid=[[1],[2,3]];print(grid[1].length);",
-        "20\n5\n0\n4\n15\n1\nfalse\n2\n",
+        "20\n5\n2\n4\n15\n1\nfalse\n2\n",
     );
 }
 
@@ -665,7 +665,7 @@ fn maps_sets_and_typed_arrays_keep_javascript_semantics() {
         "Map<string,int> m=new Map<string,int>();m.set(\"a\",1).set(\"b\",2);print(m.size);\
          int? a=m.get(\"a\");print(a==1);print(m.get(\"z\")==null);print(m.delete(\"a\"));\
          print(m.size);Set<float> s=new Set<float>();s.add(0.0).add(-0.0);print(s.size);\
-         Uint8Array bytes=new Uint8Array(2);bytes[0]=257;bytes[5]=1;print(bytes[0]);print(bytes[5]);",
+         Uint8Array bytes=new Uint8Array(2);bytes[0]=257;bytes[5]=1;print(bytes[0]);print(bytes[1]);",
         "2\ntrue\ntrue\ntrue\n1\n1\n1\n0\n",
     );
 }

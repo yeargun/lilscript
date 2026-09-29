@@ -37,8 +37,8 @@
 //! null-prototype) and plain data properties. A table with a `__proto__` key,
 //! a duplicate key, a non-finite number, a lone surrogate or an observed
 //! literal is never encoded. The decoder runs once, where the literal was
-//! evaluated (module root), and calls only pristine `String` and `Array`
-//! methods, so the family needs `assume_pristine_builtins`. Every encoding is
+//! evaluated (module root), and calls only `String` and `Array` methods, which
+//! compiler-written code takes to be the originals (R10). Every encoding is
 //! decoded here, in Rust, with the decoder's semantics and compared with the
 //! literal before it is offered.
 //!
@@ -1359,9 +1359,6 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         self.choice_sites.clear();
-        if !self.pristine_builtins {
-            return Ok(0);
-        }
         let root = self.root.index();
         let mut sites: Vec<(usize, BindingId, Node)> = Vec::new();
         for (index, statement) in self.regions[root].statements.iter().enumerate() {

@@ -1,0 +1,7 @@
+// An int parameter is a trusted crossing (R1): the discarded call's body
+// converts nothing, so the pure call goes, and its argument's host call,
+// an effect, stays.
+extern int input();
+int twice(int x){return x+x;}
+void run(){twice(input());print("ran");}
+run();

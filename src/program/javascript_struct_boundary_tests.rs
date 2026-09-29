@@ -493,49 +493,11 @@ fn core_verified_load_refinements_do_not_supply_a_missing_product_adapter() {
 }
 
 #[test]
-fn stale_nullable_product_reads_keep_plain_store_checks_before_and_after_rhs() {
-    let source = r#"
-        struct P{int x;}
-        extern int forbiddenRhs();
-        void update(P value){value.x=forbiddenRhs();print("unreachable");}
-        export void before(){
-            P? saved=P{1};
-            if(saved!=null){
-                auto later=()=>update(saved);
-                saved=null;
-                try{later();}catch(auto caught){print("before-caught");}
-            }
-        }
-        export void after(){
-            P? saved=P{1};
-            if(saved!=null){
-                P current=P{3};
-                int marker=0;
-                auto rhs=()=>{current=(()=>saved)();marker=1;print("rhs");return 2;};
-                saved=null;
-                try{current.x=rhs();}catch(auto caught){print("after-caught");}
-                print(marker);
-            }
-        }
-    "#;
-    for compact in [false, true] {
-        let javascript = output(source, compact, true).unwrap();
-        assert_eq!(
-            execute(
-                &javascript,
-                "globalThis.forbiddenRhs=()=>{events.push('forbidden-rhs');return 2;};",
-                "library.before();library.after();",
-            ),
-            json!(["before-caught", "rhs", "after-caught", 1])
-        );
-    }
-}
-
-#[test]
-fn integer_field_loads_normalize_but_place_checks_never_coerce_the_old_payload() {
-    // The actual host value of an extern int remains unknown before the
-    // selected runtime normalization. The source signature is not evidence
-    // that this raw value is already a JavaScript Number.
+fn integer_fields_from_a_trusted_extern_wrap_as_int32() {
+    // An extern `int` is a trusted crossing (R1): the host promises an int32,
+    // which the struct field holds as it is. The arithmetic on it wraps; a
+    // compound assignment reads the field once, after its right operand's
+    // call.
     let source = r#"
         struct P{int x;}
         extern int input;
@@ -545,21 +507,10 @@ fn integer_field_loads_normalize_but_place_checks_never_coerce_the_old_payload()
         export void compound(){P value=P{input};value.x+=rhs();print(value.x);}
     "#;
     for (input, expected) in [
+        ("4", json!(["read", 5, "plain", "rhs", 2, "compound", "rhs", 6])),
         (
-            "'4'",
-            json!(["read", 5, "plain", "rhs", 2, "compound", "rhs", 6]),
-        ),
-        (
-            "({valueOf(){events.push('coerce');return 4;}})",
-            json!(["read", "coerce", 5, "plain", "rhs", 2, "compound", "coerce", "rhs", 6]),
-        ),
-        (
-            "({valueOf(){events.push('coerce');throw Error('coercion');}})",
-            json!(["read", "coerce", "threw", "plain", "rhs", 2, "compound", "coerce", "threw"]),
-        ),
-        (
-            "1n",
-            json!(["read", "threw", "plain", "rhs", 2, "compound", "threw"]),
+            "2147483647",
+            json!(["read", -2147483648i64, "plain", "rhs", 2, "compound", "rhs", -2147483647i64]),
         ),
     ] {
         for compact in [false, true] {

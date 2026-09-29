@@ -51,6 +51,8 @@ pub enum ValueUse {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CellUse {
     Initialize(OpId),
+    /// `let x;` (R3): the local exists here, with no value until a write.
+    Declare(OpId),
     Read {
         operation: OpId,
         place: PlaceId,
@@ -599,6 +601,7 @@ pub(super) fn walk(
                 OperationKind::Initialize(cell) => {
                     emit(Event::Cell(cell, CellUse::Initialize(id)))?
                 }
+                OperationKind::Declare(cell) => emit(Event::Cell(cell, CellUse::Declare(id)))?,
                 OperationKind::Load(place) | OperationKind::CheckPlace(place) => {
                     walk_place(unit, id, place, false, &mut emit)?
                 }

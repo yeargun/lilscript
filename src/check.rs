@@ -957,6 +957,12 @@ struct DeclarationTables<'src> {
     /// Classes an identity test names (`is`, `as?`; R13), which keep their
     /// identity once every body is checked (`mark_tested_classes`).
     tested_classes: AHashSet<NominalId>,
+    /// The reflected set (R6, M10.14's checker half): nominals a crossing
+    /// shows the host, seeded as the bodies are checked (through a shared
+    /// borrow, hence the cell) and closed over fields, bases and type
+    /// arguments once they are (`close_reflected`). Property names, key
+    /// order and identity are observable only for these.
+    reflected: std::cell::RefCell<AHashSet<NominalId>>,
     nominal_members: Vec<MemberDefinition>,
     enums: Vec<EnumInfo<'src>>,
     symbol_modules: Vec<Option<crate::module::ModuleId>>,
@@ -1214,6 +1220,74 @@ impl<'src> DeclarationTables<'src> {
         Ok(())
     }
 
+    /// Seeds the reflected set with every nominal `ty` names (R6).
+    fn reflect(&self, ty: &Type<'_>) {
+        let mut found = Vec::new();
+        nominals_in(ty, &mut found);
+        if !found.is_empty() {
+            self.reflected.borrow_mut().extend(found);
+        }
+    }
+
+    /// Closes the reflected set (R6) once every body is checked. Published
+    /// classes and classes with a host ancestor are seeds; a reflected
+    /// class's base and field types, a struct's field types, and the type
+    /// arguments a seed names are reflected too.
+    pub(super) fn close_reflected(&mut self) {
+        let mut set = std::mem::take(self.reflected.get_mut());
+        for (index, class) in self.classes.iter().enumerate() {
+            let hosted = {
+                let mut current = class_base_index(&self.classes, index);
+                let mut hosted = false;
+                while let Some(base) = current {
+                    if self.classes[base].external {
+                        hosted = true;
+                        break;
+                    }
+                    current = class_base_index(&self.classes, base);
+                }
+                hosted
+            };
+            if !class.external && (class.published || hosted) {
+                set.insert(class.declaration.identity);
+            }
+        }
+        let mut pending = set.iter().copied().collect::<Vec<_>>();
+        pending.sort_unstable_by_key(|id| (id.kind() as u8, id.index()));
+        let mut found = Vec::new();
+        while let Some(nominal) = pending.pop() {
+            found.clear();
+            match nominal.kind() {
+                NominalKind::Class => {
+                    let Some(class) = self.classes.get(nominal.index()) else {
+                        continue;
+                    };
+                    if let Some(base) = &class.base {
+                        nominals_in(base, &mut found);
+                    }
+                    for field in class.fields.values() {
+                        nominals_in(&field.ty, &mut found);
+                    }
+                }
+                NominalKind::Struct => {
+                    let Some(info) = self.structs.get(nominal.index()) else {
+                        continue;
+                    };
+                    for field in info.fields.values() {
+                        nominals_in(&field.ty, &mut found);
+                    }
+                }
+                NominalKind::Enum => {}
+            }
+            for &reached in &found {
+                if set.insert(reached) {
+                    pending.push(reached);
+                }
+            }
+        }
+        *self.reflected.get_mut() = set;
+    }
+
     /// Marks the classes an identity test names (R13) once every body is
     /// checked: `v is C` is `instanceof`, so `C`, its internal ancestors and
     /// every class extending it stay JavaScript classes.
@@ -1394,6 +1468,11 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
         self.view().struct_type(name)
     }
 
+    /// Whether a nominal is in the reflected set (R6).
+    pub fn is_reflected(&self, nominal: NominalId) -> bool {
+        self.view().is_reflected(nominal)
+    }
+
     pub fn export_target(&self, span: Span) -> Option<InterfaceTarget> {
         self.view().export_target(span)
     }
@@ -1541,6 +1620,13 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
 
     pub(crate) fn symbol_is_reassigned(&self, symbol: SymbolId) -> bool {
         self.declarations.assigned_symbols.contains(&symbol)
+    }
+
+    /// Whether a nominal is in the reflected set (R6): a crossing shows it
+    /// to the host, so its property names, key order and identity are
+    /// observable.
+    pub fn is_reflected(&self, nominal: NominalId) -> bool {
+        self.declarations.reflected.borrow().contains(&nominal)
     }
 
     /// Some occurrence of the binding may run before it is initialized: the
@@ -1816,6 +1902,8 @@ mod analyzer_admission_tests;
 #[path = "check/binary_admission_tests.rs"]
 mod binary_admission_tests;
 
+pub(crate) mod assignments;
+
 #[cfg(test)]
 #[path = "check/narrowing_admission_tests.rs"]
 mod narrowing_admission_tests;
@@ -1893,6 +1981,22 @@ struct Analyzer<'check, 'budget, 'ast, 'src> {
     loop_depth: usize,
     async_depth: usize,
     callable_depth: usize,
+    /// The bodies being analyzed, outermost (the module) first, with the
+    /// names each assigns: a narrowing holds only where no code the flow
+    /// does not see can assign its binding (R1, `check/assignments.rs`).
+    bodies: Vec<assignments::Assigned<'src>>,
+    /// Per body in `bodies`, the first narrowing scope its own code opens:
+    /// a narrowing in an earlier scope is inherited from an enclosing body.
+    narrowing_bases: Vec<usize>,
+    /// The body that declares each source binding, as an index into `bodies`.
+    symbol_bodies: AHashMap<SymbolId, usize>,
+    /// Locals declared without a value and not assigned on every path to
+    /// here (R3): a read of one is refused.
+    unassigned: Vec<SymbolId>,
+    /// Depth of expression parts that may not run: the right operands of
+    /// `&&`, `||` and `??`, a conditional's branches, a match's arms. An
+    /// assignment there does not count as definite (R3).
+    conditional_assignments: usize,
     reference_parameters: AHashMap<SymbolId, usize>,
     pending_references: bool,
     current_reference_formals: bool,
@@ -1917,6 +2021,8 @@ enum BinaryContinuation<'ast, 'src> {
         left: Type<'src>,
         left_narrowing: NarrowingInput<'ast, 'src>,
         narrowed_scope: bool,
+        /// `&&`, `||`, `??`: the right operand may not run (R3).
+        conditional: bool,
     },
 }
 
@@ -2101,6 +2207,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             loop_depth: 0,
             async_depth: 0,
             callable_depth: 0,
+            bodies: Vec::new(),
+            narrowing_bases: Vec::new(),
+            symbol_bodies: AHashMap::default(),
+            unassigned: Vec::new(),
+            conditional_assignments: 0,
             reference_parameters: AHashMap::default(),
             pending_references: false,
             current_reference_formals: false,
@@ -2179,6 +2290,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         ));
                     }
                     self.record_identifier(export.local.span, symbol);
+                    // An export's value crosses to its consumer (R6).
+                    self.declarations
+                        .reflect(&self.declarations.symbols[symbol.0 as usize].ty);
                 }
                 Some(InterfaceTarget::Type(identity)) => {
                     if let Some(ty) = self.view().nominal_type(identity) {
@@ -2190,10 +2304,21 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 None => {}
             }
         }
+        self.declarations.close_reflected();
         Ok(())
     }
 
     fn analyze_items(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+        self.enter_body(assignments::Assigned::module(program))?;
+        let result = self.analyze_module_items(program);
+        self.leave_body();
+        result
+    }
+
+    fn analyze_module_items(
+        &mut self,
+        program: &Program<'ast, 'src>,
+    ) -> Result<(), AdmittedCheckError> {
         for item in program.items {
             match item {
                 Item::Enum(_) => {}
@@ -2732,6 +2857,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         host_constructor = Some(signature);
                     }
                     ExternClassMember::Field(field) => {
+                        if let Some(initializer) = &field.initializer {
+                            return Err(AdmittedCheckError::new(
+                                initializer.span(),
+                                "an extern class field is the host's: it takes no initializer",
+                            ));
+                        }
                         if fields.contains_key(field.name.name)
                             || methods.contains_key(field.name.name)
                         {
@@ -3151,7 +3282,23 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ClassMember::Constructor(constructor) => {
                     self.analyze_constructor(constructor, identity)?
                 }
-                ClassMember::Field(_) => {}
+                // A field's own initializer (R3): a value of its type, which
+                // every construction evaluates before `init`, where `this` is
+                // not yet readable.
+                ClassMember::Field(field) => {
+                    if let Some(initializer) = &field.initializer {
+                        let ty = self
+                            .view()
+                            .nominal_class(identity)
+                            .and_then(|class| class.fields.get(field.name.name))
+                            .map(|field| field.ty.clone())
+                            .ok_or_else(|| {
+                                AdmittedCheckError::new(field.name.span, "a field without a type")
+                            })?;
+                        let actual = self.analyze_expr(initializer, Some(&ty))?;
+                        self.require_assignable(&ty, &actual, initializer.span())?;
+                    }
+                }
             }
         }
         self.pop_type_params();
@@ -3205,6 +3352,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .map(|param| self.resolve_parameter_type(&param.parameter, "parameter"))
             .collect::<Result<Vec<_>, _>>()?;
         self.callable_depth += 1;
+        self.enter_body(assignments::Assigned::body(constructor.params, constructor.body))?;
         self.analyze_parameter_defaults(constructor.params, &parameters)?;
         self.push_scope()?;
         let class_info = &self.declarations.classes[class.index()];
@@ -3241,6 +3389,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.constructor_classes.pop();
         self.return_contexts.pop();
         self.pop_scope();
+        self.leave_body();
         self.callable_depth -= 1;
         Ok(())
     }
@@ -3264,6 +3413,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 .any(|parameter| parameter.passing == ParameterPassing::MutableReference),
         );
         self.callable_depth += 1;
+        self.enter_body(assignments::Assigned::body(function.params, function.body))?;
         self.analyze_parameter_defaults(function.params, &signature.params)?;
         self.push_scope()?;
 
@@ -3329,6 +3479,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .pop()
             .expect("function analysis pushed a return context");
         self.pop_scope();
+        self.leave_body();
         self.callable_depth -= 1;
         self.pending_references = outer_pending;
         self.current_reference_formals = outer_formals;
@@ -3542,7 +3693,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     match binding {
                         ArrayBinding::Hole(_) => {}
                         ArrayBinding::Name(name) => {
-                            self.declare(*name, Type::Nullable(element.clone()))?;
+                            self.declare(*name, nullable_type(element.as_ref().clone()))?;
                         }
                         ArrayBinding::Rest(name) => {
                             self.declare(*name, Type::Array(element.clone()))?;
@@ -3572,7 +3723,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             format!("duplicate record binding key `{}`", binding.key.name),
                         ));
                     }
-                    self.declare(binding.name, Type::Nullable(element.clone()))?;
+                    self.declare(binding.name, nullable_type(element.as_ref().clone()))?;
                 }
                 if let Some(rest) = rest {
                     self.declare(*rest, Type::Record(element.clone()))?;
@@ -3586,6 +3737,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             Stmt::Return { value, span } => self.analyze_return(value.as_ref(), *span),
             Stmt::Throw { value, .. } => {
                 let thrown = self.analyze_expr(value, None)?;
+                // A thrown value can reach host code (R6).
+                self.declarations.reflect(&thrown);
                 if thrown == Type::Void {
                     return Err(AdmittedCheckError::new(
                         value.span(),
@@ -3599,18 +3752,30 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 value,
                 delegate,
                 span,
-            } => self.analyze_yield(value, *delegate, *span),
+            } => {
+                self.analyze_yield(value, *delegate, *span)?;
+                // Other code runs while the generator is suspended.
+                self.invalidate_host_narrowings();
+                self.invalidate_captured_narrowings();
+                Ok(())
+            }
             Stmt::Try {
                 body,
                 catch,
                 finally,
                 ..
             } => {
+                // Definite assignment (R3): the catch and the finally may run
+                // before any of the body's assignments.
+                let before = self.unassigned.clone();
                 self.push_scope()?;
                 for statement in *body {
                     self.analyze_stmt(statement)?;
                 }
                 self.pop_scope();
+                let body_leaves = body.last().is_some_and(statement_leaves);
+                let after_body = std::mem::replace(&mut self.unassigned, before.clone());
+                let mut catch_leaves = false;
                 if let Some(clause) = catch {
                     self.push_scope()?;
                     if let Some(binding) = clause.binding {
@@ -3633,14 +3798,36 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         self.analyze_stmt(statement)?;
                     }
                     self.pop_scope();
+                    catch_leaves = clause.body.last().is_some_and(statement_leaves);
                 }
+                let after_catch = std::mem::replace(&mut self.unassigned, before.clone());
+                let mut joined = match (body_leaves, catch.is_some() && catch_leaves) {
+                    (true, true) => before.clone(),
+                    (true, false) if catch.is_some() => after_catch,
+                    (false, true) => after_body,
+                    _ => {
+                        let mut joined = after_body;
+                        if catch.is_some() {
+                            for symbol in after_catch {
+                                if !joined.contains(&symbol) {
+                                    joined.push(symbol);
+                                }
+                            }
+                        }
+                        joined
+                    }
+                };
                 if let Some(finally) = finally {
                     self.push_scope()?;
                     for statement in *finally {
                         self.analyze_stmt(statement)?;
                     }
                     self.pop_scope();
+                    // The finally's own assignments are definite afterwards.
+                    let after_finally = std::mem::take(&mut self.unassigned);
+                    joined.retain(|symbol| !before.contains(symbol) || after_finally.contains(symbol));
                 }
+                self.unassigned = joined;
                 Ok(())
             }
             Stmt::Block { body, .. } => {
@@ -3663,11 +3850,16 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let then_returns = statement_guarantees_return(then_branch);
                 let else_returns =
                     else_branch.is_some_and(|branch| statement_guarantees_return(branch));
+                // Definite assignment (R3): each branch starts here, and a
+                // local stays unassigned after the `if` when some branch that
+                // falls through leaves it so.
+                let before = self.unassigned.clone();
                 self.push_scope()?;
                 self.apply_narrowing(then_narrowing.clone());
                 self.analyze_stmt(then_branch)?;
                 let then_survives = self.current_scope_preserves(&then_narrowing);
                 self.pop_scope();
+                let after_then = std::mem::replace(&mut self.unassigned, before.clone());
                 let mut else_survives = else_branch.is_none() && !else_narrowing.is_empty();
                 if let Some(else_branch) = else_branch {
                     self.push_scope()?;
@@ -3676,6 +3868,24 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     else_survives = self.current_scope_preserves(&else_narrowing);
                     self.pop_scope();
                 }
+                let after_else = std::mem::take(&mut self.unassigned);
+                self.unassigned = match (
+                    statement_leaves(then_branch),
+                    else_branch.is_some_and(|branch| statement_leaves(branch)),
+                ) {
+                    (true, true) => before,
+                    (true, false) => after_else,
+                    (false, true) => after_then,
+                    (false, false) => {
+                        let mut joined = after_then;
+                        for symbol in after_else {
+                            if !joined.contains(&symbol) {
+                                joined.push(symbol);
+                            }
+                        }
+                        joined
+                    }
+                };
                 if then_returns && !else_returns && else_survives {
                     self.apply_narrowing(else_narrowing);
                 } else if else_returns && !then_returns && then_survives {
@@ -3689,12 +3899,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let condition_type = self.analyze_expr(condition, Some(&Type::Bool))?;
                 self.require_assignable(&Type::Bool, &condition_type, condition.span())?;
                 let (body_narrowing, _) = self.condition_narrowing(condition)?;
+                // A loop body may not run: its assignments do not count (R3).
+                let before = self.unassigned.clone();
                 self.loop_depth += 1;
                 self.push_scope()?;
                 self.apply_narrowing(body_narrowing);
                 self.analyze_stmt(body)?;
                 self.pop_scope();
                 self.loop_depth -= 1;
+                self.unassigned = before;
                 Ok(())
             }
             Stmt::For {
@@ -3721,7 +3934,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     self.analyze_expr(update, None)?;
                 }
                 self.loop_depth += 1;
-                self.analyze_stmt(body)?;
+                self.analyze_loop_body(body)?;
                 self.loop_depth -= 1;
                 self.pop_scope();
                 Ok(())
@@ -3752,7 +3965,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 self.declare(*key, Type::String)?;
                 self.loop_depth += 1;
-                self.analyze_stmt(body)?;
+                self.analyze_loop_body(body)?;
                 self.loop_depth -= 1;
                 self.pop_scope();
                 Ok(())
@@ -3780,7 +3993,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         self.declare(*element, declared)?;
                         self.declare(*value_name, declared_value)?;
                         self.loop_depth += 1;
-                        self.analyze_stmt(body)?;
+                        self.analyze_loop_body(body)?;
                         self.loop_depth -= 1;
                         self.pop_scope();
                         return Ok(());
@@ -3842,10 +4055,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 self.require_assignable(&declared, &actual, element_type.span)?;
                 self.declare(*element, declared)?;
                 if *inline {
-                    self.analyze_stmt(body)?;
+                    self.analyze_loop_body(body)?;
                 } else {
                     self.loop_depth += 1;
-                    self.analyze_stmt(body)?;
+                    self.analyze_loop_body(body)?;
                     self.loop_depth -= 1;
                 }
                 self.pop_scope();
@@ -3958,10 +4171,17 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         &mut self,
         decl: &'ast VarDecl<'ast, 'src>,
     ) -> Result<(), AdmittedCheckError> {
-        if decl.initializer.is_none() {
+        // A local may be declared without a value: every read must then be
+        // definitely assigned (R3). A module's own bindings keep their
+        // initializers until the initialization order proves reads (M6.5).
+        if decl.initializer.is_none() && (self.callable_depth == 0 || decl.ty.is_auto()) {
             return Err(AdmittedCheckError::new(
                 decl.span,
-                "variable declarations require an initializer",
+                if decl.ty.is_auto() {
+                    "`auto` declarations require an initializer"
+                } else {
+                    "a module-level variable declaration requires an initializer"
+                },
             ));
         }
         if decl.ty.is_auto() {
@@ -4027,7 +4247,68 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.initializing_symbols.pop();
         analyzed?;
         self.initialization.initialized.insert(id);
+        if decl.initializer.is_none() {
+            self.unassigned.push(id);
+        }
         Ok(())
+    }
+
+    /// A loop body may not run, or runs again: its assignments do not
+    /// count after it (R3).
+    fn analyze_loop_body(&mut self, body: &'ast Stmt<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+        let before = self.unassigned.clone();
+        let result = self.analyze_stmt(body);
+        self.unassigned = before;
+        result
+    }
+
+    /// A read of `symbol` must follow its assignment on every path (R3).
+    fn require_assigned(
+        &self,
+        symbol: SymbolId,
+        name: &str,
+        span: Span,
+    ) -> Result<(), AdmittedCheckError> {
+        if self.unassigned.contains(&symbol) {
+            return Err(AdmittedCheckError::new(
+                span,
+                format!("`{name}` is read before it is assigned on every path (R3)"),
+            ));
+        }
+        Ok(())
+    }
+
+    /// `x = e` assigns `x` definitely unless the assignment may not run.
+    fn assign_definitely(&mut self, target: &Expr<'ast, 'src>) {
+        if self.conditional_assignments != 0 {
+            return;
+        }
+        if let ExprKind::Ident(ident) = &target.kind {
+            if let Some(&symbol) = self.facts.identifier_symbols.get(&ident.span) {
+                self.unassigned.retain(|&candidate| candidate != symbol);
+            }
+        }
+    }
+
+    /// A compound assignment or update reads its target first.
+    fn require_assigned_target(&self, target: &Expr<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+        if let ExprKind::Ident(ident) = &target.kind {
+            if let Some(&symbol) = self.facts.identifier_symbols.get(&ident.span) {
+                return self.require_assigned(symbol, ident.name, ident.span);
+            }
+        }
+        Ok(())
+    }
+
+    /// Runs `analyze` where its assignments may not run.
+    fn conditionally<T>(
+        &mut self,
+        analyze: impl FnOnce(&mut Self) -> Result<T, AdmittedCheckError>,
+    ) -> Result<T, AdmittedCheckError> {
+        self.conditional_assignments += 1;
+        let result = analyze(self);
+        self.conditional_assignments -= 1;
+        result
     }
 
     fn analyze_return(
@@ -4154,6 +4435,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ..
             } => {
                 let (id, ty) = self.analyze_binding_read(ident, expr.id)?;
+                self.require_assigned(id, ident.name, ident.span)?;
                 self.facts.source_info[expr.id.index()].resolution =
                     ExpressionResolution::Binding(id);
                 ty
@@ -4649,7 +4931,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         }, .. } if matches!(object, Expr { kind: ExprKind::Ident(Ident { name: "Math", .. }), .. })
                     )
                 {
-                    let contract = crate::primitive::builtin_call_contract(BuiltinCall::MathImul)
+                    let contract = crate::catalog::builtin_call_contract(BuiltinCall::MathImul)
                         .expect("checked Math.imul contract");
                     if args.len() != contract.arity {
                         return Err(AdmittedCheckError::new(
@@ -4677,7 +4959,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         }
                     )
                 {
-                    let contract = crate::primitive::builtin_call_contract(BuiltinCall::Print)
+                    let contract = crate::catalog::builtin_call_contract(BuiltinCall::Print)
                         .expect("checked print contract");
                     if args.len() != contract.arity {
                         return Err(AdmittedCheckError::new(
@@ -4889,11 +5171,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let (then_narrowing, else_narrowing) = self.condition_narrowing(condition)?;
                 self.push_scope()?;
                 self.apply_narrowing(then_narrowing);
-                let then_type = self.analyze_expr(then_value, expected)?;
+                let then_type = self.conditionally(|this| this.analyze_expr(then_value, expected))?;
                 self.pop_scope();
                 self.push_scope()?;
                 self.apply_narrowing(else_narrowing);
-                let else_type = self.analyze_expr(else_value, expected)?;
+                let else_type = self.conditionally(|this| this.analyze_expr(else_value, expected))?;
                 self.pop_scope();
                 common_type(&then_type, &else_type).ok_or_else(|| {
                     AdmittedCheckError::new(
@@ -4907,7 +5189,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             Expr {
                 kind: ExprKind::Match { value, arms, span },
                 ..
-            } => self.analyze_match(value, arms, expected, *span)?,
+            } => self.conditionally(|this| this.analyze_match(value, arms, expected, *span))?,
             Expr {
                 kind:
                     ExprKind::Assignment {
@@ -4925,6 +5207,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ));
                 }
                 let target_type = self.analyze_lvalue(target)?;
+                if *op != AssignmentOp::Assign {
+                    self.require_assigned_target(target)?;
+                }
                 if is_js_value(&target_type) && *op != AssignmentOp::Assign {
                     return self.analyze_dynamic_update(expr, *op, target, value, *span);
                 }
@@ -4955,6 +5240,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     target_type.clone()
                 };
                 self.invalidate_assigned_narrowing(target);
+                if *op == AssignmentOp::Assign {
+                    self.assign_definitely(target);
+                }
                 result_type
             }
             Expr {
@@ -4970,6 +5258,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ));
                 }
                 let target_type = self.analyze_lvalue(target)?;
+                self.require_assigned_target(target)?;
                 if !target_type.is_numeric() {
                     return Err(AdmittedCheckError::new(
                         *span,
@@ -5049,6 +5338,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 if source.is_void() {
                     return Err(AdmittedCheckError::new(*span, "`as` cannot view `void` as a value"));
+                }
+                if is_js_value_or_nullable_js_value(&target) {
+                    // An explicit view as `JsValue` crosses to the host (R6).
+                    self.declarations.reflect(&source);
                 }
                 if !is_js_value(&target) && !is_js_value_or_nullable_js_value(&source) {
                     return Err(AdmittedCheckError::new(
@@ -5188,9 +5481,32 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 Type::Void
             }
         };
+        // A call, a construction or a suspension runs code that can assign a
+        // host binding: its narrowings end here (R1).
+        if matches!(
+            expr.kind,
+            ExprKind::Call { .. }
+                | ExprKind::New { .. }
+                | ExprKind::Construct { .. }
+                | ExprKind::Await { .. }
+        ) {
+            self.invalidate_host_narrowings();
+            if matches!(expr.kind, ExprKind::Await { .. }) {
+                self.invalidate_captured_narrowings();
+            }
+        }
 
         self.facts.expression_types[expr.id.index()] = Some(ty.clone());
         Ok(ty)
+    }
+
+    /// Ends every narrowing of a host binding: code that ran may have
+    /// assigned it.
+    fn invalidate_host_narrowings(&mut self) {
+        let symbols = &self.declarations.symbols;
+        for scope in &mut self.narrowings {
+            scope.retain(|symbol, _| !symbols[symbol.0 as usize].is_foreign());
+        }
     }
 
     /// Binary trees are common even in flat source such as `a + b + c`.
@@ -5203,6 +5519,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         expected: Option<&Type<'src>>,
     ) -> Result<Type<'src>, AdmittedCheckError> {
         let original_scope_depth = self.scopes.len();
+        let original_conditional = self.conditional_assignments;
         let mut pending = Vec::new();
         let result = (|| {
             let mut next = expression;
@@ -5273,8 +5590,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                                     left: ty,
                                     left_narrowing: narrowing,
                                     narrowed_scope,
+                                    conditional: matches!(
+                                        op,
+                                        BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish
+                                    ),
                                 },
                             )?;
+                            if matches!(op, BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish) {
+                                self.conditional_assignments += 1;
+                            }
                             next = rhs;
                             continue 'visit;
                         }
@@ -5283,9 +5607,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             left,
                             left_narrowing,
                             narrowed_scope,
+                            conditional,
                         }) => {
                             if narrowed_scope {
                                 self.pop_scope();
+                            }
+                            if conditional {
+                                self.conditional_assignments -= 1;
                             }
                             let ExprKind::Binary { op, span, .. } = &expression.kind else {
                                 unreachable!("binary continuation owns a binary expression")
@@ -5314,6 +5642,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         while self.scopes.len() > original_scope_depth {
             self.pop_scope();
         }
+        self.conditional_assignments = original_conditional;
         let bytes = pending
             .capacity()
             .checked_mul(std::mem::size_of::<BinaryContinuation<'_, '_>>())
@@ -7761,7 +8090,29 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok((*signature.return_type).clone())
     }
 
+    /// A lambda body is its own flow (R3): it reads an outer local only once
+    /// that local is assigned, and its assignments to outer locals do not
+    /// count after it, since it may run at any time or never.
     fn analyze_arrow(
+        &mut self,
+        params: &'ast [crate::ast::Param<'ast, 'src>],
+        body: &'ast ArrowBody<'ast, 'src>,
+        expected: Option<&Type<'src>>,
+    ) -> Result<Type<'src>, AdmittedCheckError> {
+        let outer = self.unassigned.clone();
+        let conditional = std::mem::replace(&mut self.conditional_assignments, 0);
+        self.enter_body(match body {
+            ArrowBody::Expr(expression) => assignments::Assigned::expression_body(params, expression),
+            ArrowBody::Block(statements) => assignments::Assigned::body(params, statements),
+        })?;
+        let result = self.analyze_arrow_body(params, body, expected);
+        self.leave_body();
+        self.unassigned = outer;
+        self.conditional_assignments = conditional;
+        result
+    }
+
+    fn analyze_arrow_body(
         &mut self,
         params: &'ast [crate::ast::Param<'ast, 'src>],
         body: &'ast ArrowBody<'ast, 'src>,
@@ -8446,6 +8797,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         actual: &Type<'src>,
         span: Span,
     ) -> Result<(), AdmittedCheckError> {
+        // A value widened to `JsValue` or `unknown` crosses to the host (R6).
+        if is_js_value_or_nullable_js_value(expected) {
+            self.declarations.reflect(actual);
+        }
         if self.is_assignable(expected, actual) {
             Ok(())
         } else {
@@ -8741,12 +9096,117 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         if narrowing.is_empty() {
             return;
         }
+        let narrowing = narrowing
+            .into_iter()
+            .filter(|(symbol, _)| self.narrowable(*symbol))
+            .collect::<Vec<_>>();
         let scope = self
             .narrowings
             .last_mut()
             .expect("semantic analyzer always has a narrowing scope");
         for (symbol, ty) in narrowing {
             scope.insert(symbol, ty);
+        }
+    }
+
+    /// The body that declares `symbol`, as an index into `bodies`: `Ok(None)`
+    /// for a host binding, `Err(())` for another module's binding.
+    fn declaring_body(&self, symbol: SymbolId) -> Result<Option<usize>, ()> {
+        match self.symbol_bodies.get(&symbol) {
+            Some(&declared) => Ok(Some(declared)),
+            None if self
+                .declarations
+                .symbol_modules
+                .get(symbol.0 as usize)
+                .copied()
+                .flatten()
+                .is_some_and(|module| Some(module) != self.module) =>
+            {
+                Err(())
+            }
+            // A module's own binding may be declared before its body is
+            // entered (the module's bindings are declared first): its body
+            // is the module's, the outermost.
+            None if self.declarations.module_bindings.contains(&symbol) => Ok(Some(0)),
+            None => Ok(None),
+        }
+    }
+
+    /// Whether a test may narrow `symbol` (R1: a narrowed value inhabits its
+    /// narrowed type): no function nested in its declaring body assigns it,
+    /// since a call may run that function between the test and a use, and it
+    /// is not another module's. A host binding is narrowed until code runs
+    /// (`invalidate_host_narrowings`).
+    fn narrowable(&self, symbol: SymbolId) -> bool {
+        match self.declaring_body(symbol) {
+            Err(()) => false,
+            Ok(None) => true,
+            Ok(Some(declared)) => self.bodies.get(declared).is_none_or(|body| {
+                !body
+                    .nested
+                    .contains(self.declarations.symbols[symbol.0 as usize].name)
+            }),
+        }
+    }
+
+    /// Whether the declaring body of `symbol` assigns it in its own code:
+    /// a nested function that captures it sees the value that code last
+    /// stored, whenever it runs.
+    fn captured_and_assigned(&self, symbol: SymbolId) -> Option<usize> {
+        let declared = self.declaring_body(symbol).ok()??;
+        let body = self.bodies.get(declared)?;
+        body.own
+            .contains(self.declarations.symbols[symbol.0 as usize].name)
+            .then_some(declared)
+    }
+
+    /// Enters a function's, lambda's or module's body.
+    fn enter_body(
+        &mut self,
+        assigned: assignments::Assigned<'src>,
+    ) -> Result<(), AdmittedCheckError> {
+        self.budget.work(
+            crate::compilation_policy::WorkKind::Analysis,
+            (assigned.own.len() + assigned.nested.len()) as u64 + 1,
+        )?;
+        // The module's narrowings start in the analyzer's first scope.
+        let base = if self.bodies.is_empty() {
+            0
+        } else {
+            self.narrowings.len()
+        };
+        self.bodies.push(assigned);
+        self.narrowing_bases.push(base);
+        Ok(())
+    }
+
+    fn leave_body(&mut self) {
+        self.bodies.pop();
+        self.narrowing_bases.pop();
+    }
+
+    /// At a suspension, other code runs: a narrowing this body made of a
+    /// binding its declaring body assigns ends here.
+    fn invalidate_captured_narrowings(&mut self) {
+        let Some(current) = self.bodies.len().checked_sub(1) else {
+            return;
+        };
+        let base = self.narrowing_bases[current].min(self.narrowings.len());
+        let mut ended = Vec::new();
+        for scope in &self.narrowings[base..] {
+            for &symbol in scope.keys() {
+                if self
+                    .captured_and_assigned(symbol)
+                    .is_some_and(|declared| declared < current)
+                {
+                    ended.push(symbol);
+                }
+            }
+        }
+        for scope in &mut self.narrowings[base..] {
+            for symbol in &ended {
+                scope.remove(symbol);
+            }
         }
     }
 
@@ -8762,11 +9222,37 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .all(|(symbol, ty)| scope.get(symbol) == Some(ty))
     }
 
+    /// The narrowed type of `symbol` here. A narrowing an enclosing body
+    /// made does not hold inside a nested one for a binding the enclosing
+    /// code assigns: the nested function runs after that code, at any time.
     fn narrowed_type(&self, symbol: SymbolId) -> Option<&Type<'src>> {
-        self.narrowings
+        if !self.narrowable(symbol) {
+            return None;
+        }
+        let (scope, ty) = self
+            .narrowings
             .iter()
+            .enumerate()
             .rev()
-            .find_map(|scope| scope.get(&symbol))
+            .find_map(|(index, scope)| scope.get(&symbol).map(|ty| (index, ty)))?;
+        // Outside every body (an analyzer driven expression by expression)
+        // nothing nests: the narrowing holds as made.
+        let Some(current) = self.bodies.len().checked_sub(1) else {
+            return Some(ty);
+        };
+        let made_in = self
+            .narrowing_bases
+            .iter()
+            .rposition(|&base| base <= scope)
+            .unwrap_or(0);
+        if made_in < current
+            && self
+                .captured_and_assigned(symbol)
+                .is_some_and(|declared| declared < current)
+        {
+            return None;
+        }
+        Some(ty)
     }
 
     fn invalidate_assigned_narrowing(&mut self, target: &'ast Expr<'ast, 'src>) {
@@ -8801,6 +9287,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         ty: Type<'src>,
         callable: bool,
     ) -> Result<SymbolId, AdmittedCheckError> {
+        // A host binding's parameters, result or value cross (R6).
+        self.declarations.reflect(&ty);
         if self.module.is_none() {
             let symbol = self.declare(ident, ty)?;
             self.declarations.symbols[symbol.0 as usize].origin = DeclarationOrigin::Foreign;
@@ -8867,6 +9355,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         scope.insert(ident.name, id);
         if self.scopes.len() == 1 && self.callable_depth == 0 {
             self.declarations.module_bindings.insert(id);
+        }
+        if let Some(body) = self.bodies.len().checked_sub(1) {
+            self.symbol_bodies.insert(id, body);
         }
         self.facts
             .binding_types
@@ -10016,6 +10507,50 @@ fn statement_guarantees_return(statement: &Stmt<'_, '_>) -> bool {
     }
 }
 
+/// Every nominal a type names, syntactically: classes, structs and enums,
+/// their type arguments, and the types a function value's crossing carries.
+fn nominals_in(ty: &Type<'_>, out: &mut Vec<NominalId>) {
+    match ty {
+        Type::Class(declaration) | Type::Struct(declaration) | Type::Enum(declaration) => {
+            out.push(declaration.identity)
+        }
+        Type::ClassInstance { declaration, args } | Type::StructInstance { declaration, args } => {
+            out.push(declaration.identity);
+            for argument in args {
+                nominals_in(argument, out);
+            }
+        }
+        Type::Array(value)
+        | Type::Record(value)
+        | Type::Set(value)
+        | Type::Task(value)
+        | Type::Generator(value)
+        | Type::Nullable(value) => nominals_in(value, out),
+        Type::Map(key, value) => {
+            nominals_in(key, out);
+            nominals_in(value, out);
+        }
+        Type::Union(members) => {
+            for member in members {
+                nominals_in(member, out);
+            }
+        }
+        Type::Function(signature) => {
+            for parameter in &signature.params {
+                nominals_in(&parameter.ty, out);
+            }
+            nominals_in(&signature.return_type, out);
+        }
+        Type::GenericFunction(function) => {
+            for parameter in &function.signature.params {
+                nominals_in(&parameter.ty, out);
+            }
+            nominals_in(&function.signature.return_type, out);
+        }
+        _ => {}
+    }
+}
+
 /// The index of a class's base in the class table, if it has one.
 fn class_base_index(classes: &[ClassInfo<'_>], index: usize) -> Option<usize> {
     classes[index]
@@ -10384,6 +10919,22 @@ fn crosses_by_conversion(ty: &Type<'_>) -> bool {
         Type::Struct(_) | Type::StructInstance { .. } => true,
         Type::Nullable(inner) | Type::Array(inner) => crosses_by_conversion(inner),
         Type::Union(members) => members.iter().any(crosses_by_conversion),
+        _ => false,
+    }
+}
+
+/// Whether a statement always leaves its block (R3's joins): `return`,
+/// `throw`, `break` or `continue`, a block ending in one, or an `if` whose two
+/// branches leave.
+fn statement_leaves(statement: &Stmt<'_, '_>) -> bool {
+    match statement {
+        Stmt::Return { .. } | Stmt::Throw { .. } | Stmt::Break(_) | Stmt::Continue(_) => true,
+        Stmt::Block { body, .. } => body.last().is_some_and(statement_leaves),
+        Stmt::If {
+            then_branch,
+            else_branch: Some(else_branch),
+            ..
+        } => statement_leaves(then_branch) && statement_leaves(else_branch),
         _ => false,
     }
 }
@@ -12371,8 +12922,11 @@ mod tests {
     fn treats_number_as_non_wrapping_binary64() {
         check("number value=1;number next=value*3+0.5;number step(number input){return input+1;}")
             .unwrap();
-        let bitwise = check("number value=1;number shifted=value<<1;").unwrap_err();
-        assert!(bitwise.message.contains("cannot be applied"), "{bitwise}");
+        // R11: a bitwise operator takes a float operand through ToInt32 and
+        // gives an `int`; `%` of floats is a float.
+        check("number value=1.5;int shifted=value<<1;number rest=value%1;").unwrap();
+        let narrowed = check("number value=1.5;int rest=value%1;").unwrap_err();
+        assert!(narrowed.message.contains("expected `int`"), "{narrowed}");
     }
 
     #[test]
@@ -12515,12 +13069,56 @@ mod tests {
 
     #[test]
     fn rejects_uninitialized_variables() {
+        // A module's own binding keeps its initializer (R3): only a
+        // function's local may be declared bare.
         let arena = Bump::new();
         let program = parse_source(&arena, "int value;").unwrap();
         assert!(analyze(&program)
             .unwrap_err()
             .message
-            .contains("require an initializer"));
+            .contains("requires an initializer"));
+    }
+
+    /// A narrowing holds only where no code the flow does not see can assign
+    /// its binding (R1): the facts trust a narrowed type.
+    #[test]
+    fn narrowing_holds_only_where_no_unseen_code_assigns_the_binding() {
+        let accepted = [
+            // Captured, never assigned again: the lambda sees the narrowing.
+            "string? v = \"a\"; if (v != null) { auto f = () => v.length; print(f()); }",
+            // Assigned only by the flow that narrows it.
+            "int f(string? s) { string? v = s; if (v != null) { int n = v.length; v = null; return n; } return 0; } print(f(\"ab\"));",
+            // A lambda's own local, narrowed inside it.
+            "auto f = (string? s) => { string? v = s; if (v != null) { return v.length; } return 0; }; print(f(\"ab\"));",
+            // A host binding until code runs.
+            "extern string? host; if (host != null) { print(host.length); }",
+            // A lambda's own test of a captured binding its function assigns
+            // (motionlil's stagger and animate consumer): nothing assigns it
+            // between that test and its use.
+            "float f(bool b) { JsValue from = 0.0; if (b) { from = 1.5; } auto g = () => { float x = if (from is float) { from } else { 0.0 }; return x; }; return g(); } print(f(true));",
+            "string? scope = null; scope = \"s\"; auto use = () => { if (scope != null) { string active = scope; print(active); } }; use();",
+        ];
+        for source in accepted {
+            let arena = Bump::new();
+            let program = parse_source(&arena, source).unwrap();
+            analyze(&program).unwrap_or_else(|error| panic!("{source}: {error:?}"));
+        }
+        let refused = [
+            // Captured and assigned after the lambda's creation.
+            "func()->int make(){string? value=\"ok\"; if(value!=null){auto read=()=>{return value.length;};value=null;return read;} return ()=>0;} print(make()());",
+            "int? value=1;if(value!=null){auto read=()=>value+2;value=null;print(read());}",
+            // Assigned by a lambda: a call may run it between test and use.
+            "string? v = \"a\"; auto reset = () => { v = null; }; if (v != null) { reset(); print(v.length); }",
+            // A module binding a function assigns.
+            "string? g = \"a\"; void clear() { g = null; } if (g != null) { clear(); print(g.length); }",
+            // A host binding after a call: the call may have assigned it.
+            "extern string? host; extern void tick(); if (host != null) { tick(); print(host.length); }",
+        ];
+        for source in refused {
+            let arena = Bump::new();
+            let program = parse_source(&arena, source).unwrap();
+            assert!(analyze(&program).is_err(), "{source}");
+        }
     }
 
     #[test]
@@ -12695,4 +13293,23 @@ mod tests {
         let returned = check("generator int values(){return 1;}").unwrap_err();
         assert!(returned.message.contains("expected return type `void`"));
     }
+    /// The reflected set (R6): a crossing reflects its operand's nominal and
+    /// every nominal its fields reach; a class that never crosses is not
+    /// reflected.
+    #[test]
+    fn crossings_reflect_their_nominals_and_what_they_reach() {
+        let arena = Bump::new();
+        let source = parse_source(
+            &arena,
+            "extern void show(JsValue value); class Inner { int x; init(int x) { this.x = x; } } class Outer { Inner inner; init() { this.inner = new Inner(1); } } class Private { int y; init() { this.y = 2; } } class Thrown { string why; init() { this.why = \"no\"; } } export void f() { Outer o = new Outer(); show(o); Private p = new Private(); show(p.y); } export void g() { throw new Thrown(); }",
+        )
+        .unwrap();
+        let model = analyze(&source).unwrap();
+        let class = |name| model.type_binding(name).unwrap();
+        assert!(model.is_reflected(class("Outer")));
+        assert!(model.is_reflected(class("Inner")));
+        assert!(model.is_reflected(class("Thrown")));
+        assert!(!model.is_reflected(class("Private")));
+    }
+
 }

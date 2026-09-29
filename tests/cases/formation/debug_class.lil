@@ -1,0 +1,18 @@
+// A `debug` declaration (R15): under `strip_debug` its direct calls go and
+// their arguments' evaluation stays; `print` stays whatever the keys say. A
+// function body marked `debug` is not inlined, so every call is still a call
+// to drop; a call through a function value is not a direct call and runs.
+debug extern void invariant(bool ok, string message);
+extern string note(string label);
+debug void trace(string message) {
+  print("trace:" + message);
+}
+void run(func(string)->void log, string label) {
+  log(label);
+}
+print("start");
+trace(note("dropped"));
+invariant(false, note("checked"));
+print(note("kept"));
+run(trace, "through a value");
+print("end");

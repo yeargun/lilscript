@@ -75,7 +75,7 @@ Two laws bind every rule: a typed form never costs more bytes **or time** than i
   - **Crossings pin one spelling.** A boundary type states `T | null`, `T | undefined` or an optional key; the crossing normalizes once, only where the producer's spelling is not already the pinned one. Converting `T?` to `JsValue` is such a crossing.
 - **Replaces.** v0.1:77 (`T` or raw `null`), :145, :329-331 (`?? null`), :448-452.
 - **JS.** Bare operations. **Native.** One absent tag; the refused operations are refused on both targets, so they agree.
-- **Status.** Target (M10.9), in the core.
+- **Status.** First batch in force (K10, 2026-09-28): `T??` is `T?` wherever a type is built (substitution, destructuring); `migration/absence` warns at the operations that could observe the spelling and writes today's meaning where it has one spelling (`x ?? "null"` for `print` and `string`, `==` for `===` on typed operands). Open, the second batch: the refusals, the normalizations' removal (`??null`, `??""`), defaulted parameters of type `T` inside with the default on absence, `T?` keys and elements, and reflected nominals' missing keys.
 
 ---
 
@@ -151,13 +151,13 @@ Two laws bind every rule: a typed form never costs more bytes **or time** than i
 - **Clause.** `int` is wrapping int32 on every target (kept). `|0` appears only after an operation that can leave int32 without a range proof; loads never normalize. `length`, `size`, `indexOf` and `findIndex` are `int`: collections and strings hold at most 2^31 − 1 elements (a D3.10 resource bound). `a[i]` and `s.codeUnitAt(i) -> int` have an in-range precondition (native traps; `checks = "development"` throws; production does not check); `a.get(i) -> T?` is the checked read. `s.charCodeAt(i) -> number` keeps its JavaScript meaning (NaN out of range). Float `%` is added.
 - **Replaces.** v0.1:517-535 (keeps wrapping, drops load normalization), :1032-1034 (`charCodeAt` returns `int`, 0 out of range), the unspecified out-of-range behaviour (JavaScript defaults `""`/`0`/`null` while the interpreter errors).
 - **Migration.** `charCodeAt` changes type: the seven reference ports use it 47 times, many as `int c = s.charCodeAt(i)` (markedlil `src/str.lil:387`). The fix-it rewrites each to `s.charCodeAt(i) | 0`, which keeps today's meaning exactly, or to `s.codeUnitAt(i)` where the index is bounded by the string's length in the same loop head. Before index preconditions become production semantics, every port suite runs in the `checks = "development"` lane (§14).
-- **Status.** Target (M10.9), in the core.
+- **Status.** Partly in force (batch K9, 2026-09-28): float `%`; a bitwise operator's float operand through ToInt32; `s.codeUnitAt(i)`, checked under `checks = "development"` (batch K8, which also checks index reads); `migration/char-code`'s fix-it. The index precondition is production semantics since batch K12 (after the development-check lane): an `int` or `string` element read is the plain read, and a `Uint32Array` element alone keeps its int32 conversion. Native still reads a memory-safe default past the end, where the clause says it traps. Open: `charCodeAt` returning a number, which refuses `int c = s.charCodeAt(i)` and so waits for the ports' releases (M12.4); `a.get(i)`; native's trap.
 
 ### R10 Typed intrinsics mean ECMAScript's originals
 
 - **Clause.** Typed operations (`a.push`, `m.get`, `s.slice`, `new Regex("lit")`, `Math.imul`) are defined by their semantics and spelled with the original built-ins, which the contract assumes unmodified. Operations on `JsValue` have host semantics and are effectful.
 - **Replaces.** `assume_pristine_builtins` for typed code; the regex-literal gate (v0.1:190-203).
-- **Status.** Target (M10.15), in the core.
+- **Status.** In force (batches K1 and K7, 2026-09-28): a typed call's or intrinsic's `int` result carries no `|0` where the original returns an int32; a literal `new Regex` is the regex literal; lengths are bounded; compiler-written decoders and the store fold of a key a fresh literal already has assume nothing. `assume_pristine_builtins` now covers `JsValue` operations only.
 
 ### R14 Iteration is semantic; its lowering is a choice
 
@@ -187,7 +187,7 @@ Two laws bind every rule: a typed form never costs more bytes **or time** than i
 
 - **Clause.** `pure` means no observable effect **and termination**; effects are checked (M6.3, in force), termination is asserted (Y4). `pure extern` is trusted. A call whose result is unused is removed only when it is discardable: no observable effect, it cannot throw, and it terminates (a declared `pure` function may throw, so purity alone does not remove its calls). A `debug` effect class marks strippable logging and assertions (`console.debug`-style helpers, `invariant`, `warning`): they are stripped only by `strip_debug`, never because they are pure. `print` is a program effect and is never stripped. Author pins (`@pool`, `inline for`, `@choose(family = alt)`) fix a choice at a region and are honored by the choice system.
 - **Replaces.** v0.1:909-914, :932-946, :321-327.
-- **Status.** Target (M10.11): the `debug` class in the core; pins with the choice system.
+- **Status.** Partly in force (batch K6, 2026-09-28): `debug` before `void` or `extern void` declares the class; `strip_debug` drops the declaration's direct calls, keeping their arguments' evaluation, and the inliner keeps its body. `debugLog` stays strippable by its name until the ports declare it (`migration/debug-class`), at their release (M12.4). Open: termination (Y4), and pins with the choice system (M10.11's later half).
 
 ---
 

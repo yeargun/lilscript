@@ -539,6 +539,9 @@ pub struct Cell {
     /// The declaration is `pure`: a function or method whose summary the
     /// contract check holds to it, or a trusted `pure extern`.
     pub declared_pure: bool,
+    /// The declaration is `debug` (R15): a direct call of it is strippable
+    /// logging or an assertion, which `strip_debug` drops.
+    pub debug: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -791,6 +794,10 @@ pub struct CallSite {
     pub target: CallTarget,
     pub contract: CallContract,
     pub arguments: ArgumentRange,
+    /// The source calls a `debug` declaration by its name (R15): the call is
+    /// strippable logging, which `strip_debug` drops. Decided once, at
+    /// conversion, so no rewrite that exposes a callee makes a call one.
+    pub debug: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -838,6 +845,9 @@ pub enum CallTarget {
 pub enum OperationKind {
     Constant(Constant),
     Initialize(CellId),
+    /// `let x;` (R3): the cell exists, holding no value until its first
+    /// store, which the checker proves precedes every read.
+    Declare(CellId),
     Load(PlaceId),
     /// Validate an evaluated mutable location before its RHS. This observes
     /// access failure, never the old leaf's value or a value conversion.

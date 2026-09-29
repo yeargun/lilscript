@@ -917,8 +917,19 @@ pub(super) struct Formations<'scope, 'src> {
     semantic: &'scope SemanticSnapshot<'src>,
     implementations: &'scope ImplementationMap,
     identity: &'scope mut Option<SharedImplementationIdentity>,
-    /// The candidate formed up to its output families.
+    /// The candidate formed up to its output families, with `head_hints`.
     head: &'scope super::javascript::FormedHead,
+    /// The `int32_hints` family is decided at the head: `head` carries this
+    /// value, and the head with the other one is formed when a challenger
+    /// first asks for it.
+    head_hints: bool,
+    other_head: Option<(
+        super::javascript::FormedHead,
+        crate::output_budget::RetainedCharge<RevisionId>,
+    )>,
+    /// What forming the other head reads.
+    demand: &'scope super::demand::DemandPlan<'scope, 'src>,
+    language: &'scope crate::compilation_contract::JavaScriptCompilationContract,
     dead_code_elimination: bool,
     target_compaction: bool,
     ledger: &'scope mut BudgetLedger,
@@ -930,6 +941,58 @@ pub(super) struct Formations<'scope, 'src> {
 }
 
 impl Formations<'_, '_> {
+    /// The head for `hints`: the one formed first, or the other, formed now
+    /// if no challenger asked for it before.
+    fn head_for(
+        &mut self,
+        hints: bool,
+    ) -> Result<&super::javascript::FormedHead, CandidateError> {
+        if hints == self.head_hints || !self.target_compaction {
+            return Ok(self.head);
+        }
+        if self.other_head.is_none() {
+            let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
+            let head = super::javascript::form_head_admitted(
+                &self.semantic.program,
+                &self.semantic.uses,
+                self.language,
+                self.demand,
+                self.target_compaction,
+                hints,
+                self.hosts,
+                &mut budget,
+            )
+            .map_err(formation_error)?;
+            let bytes = budget.retained_bytes(crate::output_budget::AllocationClass::Retained);
+            let charge = budget.detach_retained(self.store, bytes)?;
+            drop(budget);
+            self.other_head = Some((head, charge));
+        }
+        Ok(&self.other_head.as_ref().unwrap().0)
+    }
+
+    /// Whether a challenger asked for the other head.
+    pub(super) fn other_head_formed(&self) -> bool {
+        self.other_head.is_some()
+    }
+
+    /// Whether the `int32_hints` family prints nothing in this candidate:
+    /// the other head would render the same bytes.
+    pub(super) fn hints_inert(&self) -> bool {
+        self.head.hints_inert()
+    }
+
+    /// Releases the other head, if one was formed.
+    fn release_other_head(&mut self) -> Result<(), CandidateError> {
+        if let Some((head, charge)) = self.other_head.take() {
+            drop(head);
+            charge
+                .discard(&self.store, self.ledger)
+                .map_err(|(_, error)| CandidateError::from(error))?;
+        }
+        Ok(())
+    }
+
     /// Form the candidate under `choices` and inspect its prepared output,
     /// exactly as `with_javascript_output_choices_in` would.
     pub(super) fn form<T>(
@@ -953,8 +1016,14 @@ impl Formations<'_, '_> {
                 "a formation's head belongs to other dead-code or compaction choices",
             ));
         }
+        self.head_for(choices.families.int32_hints)?;
+        let head = if choices.families.int32_hints == self.head_hints || !self.target_compaction {
+            self.head
+        } else {
+            &self.other_head.as_ref().unwrap().0
+        };
         let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
-        let head = self.head.clone_in(&mut budget)?;
+        let head = head.clone_in(&mut budget)?;
         let (module, literals) = super::javascript::form_tail_admitted(
             head,
             choices.families,
@@ -997,8 +1066,14 @@ impl Formations<'_, '_> {
                 "a formation's head belongs to other dead-code or compaction choices",
             ));
         }
+        self.head_for(choices.families.int32_hints)?;
+        let head = if choices.families.int32_hints == self.head_hints || !self.target_compaction {
+            self.head
+        } else {
+            &self.other_head.as_ref().unwrap().0
+        };
         let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
-        let head = self.head.clone_in(&mut budget)?;
+        let head = head.clone_in(&mut budget)?;
         let (module, literals) = super::javascript::form_tail_admitted(
             head,
             choices.families,
@@ -2271,12 +2346,14 @@ impl<'src> Compilation<'src> {
     /// on the candidate and on dead-code elimination, never on the output
     /// families, so every formation here is the one `with_javascript_target_in`
     /// would build for the same choices.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn with_javascript_formations_in<R>(
         &mut self,
         candidate: CandidateId,
         policy: &ResolvedPolicy,
         dead_code_elimination: bool,
         compact: bool,
+        int32_hints: bool,
         domain: WorkDomain,
         drive: impl FnOnce(&mut Formations<'_, 'src>) -> R,
     ) -> Result<R, CandidateError> {
@@ -2339,6 +2416,7 @@ impl<'src> Compilation<'src> {
             target.language(),
             &demand,
             compact,
+            int32_hints,
             hosts,
             &mut budget,
         );
@@ -2376,6 +2454,10 @@ impl<'src> Compilation<'src> {
             implementations: map,
             identity,
             head: &head,
+            head_hints: int32_hints,
+            other_head: None,
+            demand: &demand,
+            language: target.language(),
             dead_code_elimination,
             target_compaction: compact,
             ledger: &mut *ledger,
@@ -2386,8 +2468,10 @@ impl<'src> Compilation<'src> {
             domain,
         };
         let result = drive(&mut formations);
+        let released = formations.release_other_head();
         drop(formations);
         drop(head);
+        released?;
         head_charge
             .discard(store, ledger)
             .map_err(|(_, error)| CandidateError::from(error))?;

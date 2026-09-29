@@ -1579,6 +1579,529 @@ Changes:
 
 ---
 
+## 2026-09-28 Batch K1: trusted crossings (M10.12, R1)
+
+**Pre-registration** (written before the first build of the batch; base: S7's last commit, baseline binary `~/lilscript-work/bin/s7-1`). Step 8, the core, starts here: M10.12 needs only Y1, answered yes on 2026-09-28 ("runtime shouldn't have explicit type casting behaviours").
+
+What the batch builds (language.md R1): inside a program every value inhabits its static type; host values enter at declared crossings, trusted, with no code in production.
+- **Loads and calls never normalize.** A typed `int` load (a field, a class field, a member, an element) and an `int` call result (a builtin or a call through a reference) are int32 by type: the `|0` the JavaScript lowering adds to them goes. The reads R2 and R11 own stay: `?? null` past an array's end or on a missing record key, and `?? ""` past a string's end (M10.9).
+- **The int32 proof collapses.** An `int` value is an int32 by type. The exception is a load of a classic script's top-level cell, which another script may write until Y5 is answered. Parameters no longer need their callers' arguments checked. The counting loop's range reasoning, which drops `|0` on `c+1`, stays.
+- **The effect obligations go.** A summary no longer records parameters assumed primitive, int32 or well-formed, or reliance on untraced typed data (`untrusted`). Under R1 no typed value reaches a conversion hook, so a call is removable on its effects alone.
+
+Changes (one commit each):
+- **C1.** Loads and call results never normalize.
+- **C2.** The int32 proof by type.
+- **C3.** The effect obligations deleted.
+- **C4.** Tests: expectations that carried the normalizations; new tests of typed loads without `|0` and of a call removable with typed arguments.
+
+Predicted:
+- Byte changes wherever typed `int` loads were normalized: fewer `|0`, smaller in every codec on typed programs. Level 13 and above must not grow (AM2); every growth is named.
+- Ports: small wins on typed code (markedlil, parts of zodlil and posthoglil); JsValue-heavy ports barely move.
+- No behavior change on the suites. R1 changes meaning only for ill-typed crossings, which the development-check lane (M10.9) will catch.
+
+---
+
+## 2026-09-28 Batch K2: the reflected set (M10.14, checker half)
+
+**Pre-registration** (written before the first build of the batch; base: K1's last commit). Its tests run with K1's.
+
+What the batch builds (language.md R6): the checker computes the **reflected set** once for the whole program. These are the nominals whose property names, key order and identity a crossing shows the host.
+- Seeds:
+  - a value widened to `JsValue` or `unknown`, implicitly or with `as JsValue`;
+  - a thrown value;
+  - a host binding's parameters, result or value;
+  - a root module's exports;
+  - published classes and classes with a host ancestor.
+- Closure: a reflected class's base and field types, a struct's field types, and the type arguments and function signatures a seed names.
+- Published on the checked view as `is_reflected`.
+
+Consumers follow their own tasks: field facts (M6.7, step 10) and property names (M9.6, step 11). Until then the set changes no output.
+
+Changes:
+- **C1.** The set: seeds, closure, the view's query, and a test (a crossing reflects its nominal and what its fields reach; a thrown class is reflected; a class that never crosses is not).
+
+Predicted: no artifact changes.
+
+---
+
+## 2026-09-28 Batch B4: the walk's reserve (M3.5, AM2)
+
+**Pre-registration** (written before the first build of the batch; base: K2's last commit).
+
+**Found by S5's katexlil diagnosis.** A structural search with many optional alternatives spent the whole optional work budget before the level walk ran.
+- With S5's rewrite, katexlil's main entry made 665 proposals, each one a render and a full-file codec probe (223 exact string definitions × 3 naming styles). The unpatched main entry makes 5.
+- The search stopped at `WorkExhausted(Optional)`. The walk ran 0 passes (unpatched: 4 passes, 61,226 → 59,937 Brotli). The entry ended at 61,213, and took 524 s against 51 s.
+- The rewrite itself costs +78 at the walk's start (61,304 against 61,226). The rest is the starved walk.
+
+What the batch builds: the structural search spends at most half the optional work (search schedule 26), then stops as it does at its alternatives limit. The level walk, which finds most of level 13's bytes, always keeps the other half. This answers AM2 (13 and above never grow because of a change) for programs with many alternatives, and bounds the search's share of compile time (AM3).
+
+Changes:
+- **C1.** `BudgetLedger::work_limit`; `SearchLimit::WalkReserve`, checked before each optional proposal; schedule version 26.
+
+Predicted:
+- Programs whose search stays under half the optional work are byte-identical. Every current case and port is expected to, except possibly jquerylil, whose search makes 125 probes.
+- katexlil rewritten by S5's fixes: its walk runs again, so the regression falls from about +1.3K to about +78 per file, which the string family's own cost then owns.
+
+---
+
+## 2026-09-28 Batch K3: the operation catalog (M4.6)
+
+**Pre-registration** (written before the first build of the batch; base: B4's last commit). Its tests and ladder run with K1, K2 and B4.
+
+What the batch builds: `src/catalog.rs`, the one place an operation's attributes are declared. The effect analysis, the call graph, the checker and the JavaScript target read them there.
+
+Changes, each its own commit:
+- **C1.** The intrinsics' tables, moved from the effect analysis, the call graph and the JavaScript target:
+  - the effect class;
+  - the reliance on a replaceable host builtin;
+  - the callback, typed-array constructor and typed-array member classifications;
+  - the JavaScript recipe: form, arity and the int32 facts of the result.
+- **C2.** The builtins' host status, contracts and effect class (fresh, none, output or host), moved from `primitive.rs` and the effect analysis.
+- **C3.** Host nodes by identity. The catalog classifies a host name once, where the JavaScript tree creates the node: a standard global by its identity (`Global`, 29), `eval`, `arguments`, or a declared host name. `Expr::Host` holds `Host { name, kind }`, and every test reads the kind: no host-name test remains on the tree. The standard builtins' known result types stay spelling-keyed, gated on the kind, until the platform catalog (M10.17).
+
+Carried from M4.6:
+- merging `CallTarget::Builtin` and `CallTarget::Intrinsic` into one operation identity in the IR, to step 9 (M5.2), which revises the IR's call representation;
+- recognizing `Object.prototype.hasOwnProperty.call(o, k)` written through `JsValue`s as `Object.hasOwn`, and `new RegExp(valid literal)` as an effect-free construction in the IR, to the platform catalog (M10.17). The JavaScript tree already turns a literal `new RegExp` into a regex literal, and the typed `JS.hasOwn` and record `hasOwn` already print `Object.hasOwn` where the edition allows it.
+
+Predicted: byte-identical everywhere (a move and an identity).
+
+---
+
+## 2026-09-28 Batch K4: definite assignment, first batch (M10.13, R3)
+
+**Pre-registration** (written before the first build of the batch; base: K3's last commit).
+
+What the batch builds (language.md R3):
+- **Locals without an initializer.** `int x;` in a function body. Every read must be definitely assigned, which the checker proves over the statements:
+  - an `if`'s branches start from the state before it, and join where they fall through;
+  - a loop body, a lambda body, the catch and finally of a `try`, the right operand of `&&`, `||` and `??`, a conditional's arms and a match's arms may not run, so their assignments do not count after them;
+  - a read of an unassigned local is refused with its span;
+  - a compound assignment or an update reads its target first.
+
+  A module's own bindings keep their initializers until the initialization order proves their reads (M6.5).
+- **`let x;` in the IR.** `OperationKind::Declare(cell)`: the cell exists, with no value until its first store. JavaScript prints `let x;`; native declares the C local without a value.
+
+Changes:
+- **C1.** The checker's flow.
+- **C2.** `Declare` through the IR, the targets and the passes.
+- **C3.** Tests: the flow's acceptances and refusals, and programs with declared locals, run.
+
+Not in this batch: a field's implicit default (R3's second half), which gets a warning with its fix-it and then the refusal, and `this` read before every field is assigned. Both are K5.
+
+Predicted: unmodified programs are byte-identical, since none declares a local without an initializer.
+
+## 2026-09-28 Batch K5: field initializers and the implicit-default warning (M10.13, R3)
+
+**Pre-registration** (written before the first build of the batch; base: K4's last commit). Its tests and ladder run with the next batch's.
+
+What the batch builds (language.md R3, first of its two batches for fields):
+- **Field initializers.** `int count = 0;` in a class. The initializer is a value of the field's type, checked where `this` is not in scope. Each construction evaluates it before `init`, once per construction, and a derived class's construction evaluates its base's first. It is lowered at each construction under its class's module's facts, since the construction may be in another module.
+  - An `extern class` field is the host's and takes none; a struct field takes its value from the construction literal. Both are refused with their spans.
+- **`migration/implicit-default`.** A warning at each class field that has no initializer and that `init` does not assign on every path. Its fix writes the field's implicit default as its initializer, which is what every construction evaluates today:
+  - `0`, `0.0`, `false`, `""`;
+  - `[]`, `new Map()`, `new Set()`, `record {}`;
+  - the enum's first variant, `null` for nullable and dynamic fields, and the buffers' zero-length constructions.
+
+  A class, struct or function field that `init` leaves null has no default of its type, so it is reported without a fix.
+- **The port rewrite** applies these fixes with `migration/js-builtin`'s, and counts them.
+
+Changes:
+- **C1.** Syntax: the initializer, and the struct refusal.
+- **C2.** The checker: the initializer's type, and the extern refusal.
+- **C3.** Lowering: each construction evaluates the initializer of the class that declares the slot, under that class's module's view.
+- **C4.** The lint rule, its fix and its test; the docs.
+- **C5.** Tests: constructions of generic, derived and kept classes, and the refusals; a case with the class in another module.
+
+Not in this batch (R3's second batch for fields, with the port releases, M12.4): the refusal of implicit defaults, and of reading `this` before every field is assigned. Until the ports carry the fix, every field has a value when `init` starts.
+
+Predicted: unmodified programs are byte-identical, since none writes a field initializer. A fixed port's output should match its unfixed output, since the fix writes the value the construction already stored.
+
+## 2026-09-28 Batch K6: the `debug` class (M10.11 core, R15)
+
+**Pre-registration** (written before the first build of the batch; base: K5's last commit). Its tests and ladder run with K5's.
+
+What the batch builds (language.md R15, first batch):
+- **`debug` declarations.** `debug void trace(string m) {…}` and `debug extern void invariant(bool ok, string m);`.
+  - `debug` is a modifier only before `void` or `extern void`, where an identifier could not stand, so `debug` stays usable as a name.
+  - Refused: with `pure` (the call has an effect), with `async` or `generator`, with a result, and on extern values and classes.
+- **Stripping.** Under `strip_debug`, a call whose source callee names a `debug` declaration goes, and its arguments' evaluation stays.
+  - Conversion decides it once, as a flag on the call, so a rewrite that exposes the callee (inlining a function that receives it as a value) never makes a call strippable.
+  - The IR inliner keeps a `debug` body a body.
+  - A call through a function value is not a direct call and runs.
+- **Migration.** The name-keyed `debugLog` rule stays until the ports declare it. `migration/debug-class` writes `debug` on an `extern` named `debugLog` (jquerylil declares one; 24 port configs set `strip_console`, which is now `strip_debug`). The rule's second batch, with the ports' releases (M12.4), removes the name.
+
+Changes:
+- **C1.** Syntax and the language server's keyword help.
+- **C2.** The IR: cells and calls carry `debug`; demand drops the calls; the inliner keeps the bodies.
+- **C3.** `migration/debug-class`, and the docs.
+- **C4.** Tests: parsing and refusals, the fix, and a case with a host prelude under `strip_debug`.
+
+Predicted: unmodified programs byte-identical, since none writes `debug`; jquerylil's fixed port byte-identical to its unfixed build, since `debugLog` was already dropped by its name.
+
+## 2026-09-28 Batch K7: typed intrinsics mean the originals (M10.15, R10)
+
+**Pre-registration** (written before the first build of the batch; base: K6's last commit and the K1/K4 fix-ups). Its tests and ladder run with K5's and K6's.
+
+What K1 already did: a typed call's `int` result carries no `|0` (R1). The one builtin that returns `int`, `Math.imul`, returns an int32 in its original, so that is R10's result half.
+
+What the batch builds (language.md R10): every assumption typed code makes about the builtins stops depending on `assume_pristine_builtins`.
+- **Integer intrinsics.** A typed length, position, size or `push` whose original returns an int32 prints without `|0`, and a length is bounded by 2^30 for the arithmetic next to it. Before this, both held only under pristine builtins.
+- **Regex literals.** A typed `new Regex(p, f)` of literal strings in the proven subset is the literal `/p/f`, formed as such. The simplifier's gated rewrite stays for a `JsValue` construction.
+- **The store fold.** A store to a key that a fresh literal already has updates an own data property, which shadows any inherited setter. It folds without pristine builtins; only a new key needs them. Initializer inlining, whose stores are to the instance literal's own keys, runs always.
+- **Data tables.** The decoder is compiler-written code over compiler-made data: it takes `String` and `Array` methods to be the originals.
+- **What stays gated.** `assume_pristine_builtins` now means the host's builtins are the originals where a `JsValue` operation reaches them:
+  - `.call` receivers rewritten;
+  - forwarding wrappers;
+  - standard globals read as inert;
+  - prototype stores grouped with `Object.assign`;
+  - new keys folded into a literal.
+
+Changes:
+- **C1.** Integer intrinsics and lengths.
+- **C2.** Regex literals.
+- **C3.** The store fold and initializer inlining.
+- **C4.** Data tables.
+- **C5.** Tests and docs.
+
+Predicted: the ports set `assume_pristine_builtins = true`, so they are byte-identical, with one exception. Where the fold used to push a new key, it still does, so the fold's output under pristine builtins is unchanged. Cases and ratchet items compiled without pristine builtins get smaller (regex literals, no `|0` on lengths, folded constructions).
+
+## 2026-09-28 Batch K8: the development-check lane (M10.9, first part; R11, R1)
+
+**Pre-registration** (written before the first build of the batch; base: K7's last commit). Its tests and ladder run with K5–K7's.
+
+Why first: a rule whose meaning change is silent must first run every port suite in the development-check lane (language.md §14). That covers R11's index precondition, which M10.9's second batch makes production semantics, and R1's trusted crossings, which K1 already made production semantics without the lane. The lane checks index reads now; crossings and trusted views join it as their own batch.
+
+What the batch builds:
+- **The `checks` contract axis.** `javascript.checks = "production" | "development"`, default production. It is part of the contract and of the policy's fingerprint, and independent of effort.
+- **Index reads under development.** A typed read `a[i]` of an array, a typed array or a string becomes `index_checked(a, i)`. That is one hoisted helper, formed once per module. It returns the element when `0 <= i < a.length` and throws a `RangeError` otherwise. The receiver and the index are evaluated once each, in the read's order. The absence recipes (`??""`, `??null`, `|0`) still apply to the element. A rest list spelled as formals has no array to check.
+- **The lane.** `scripts/ports.mjs --checks development` sets the key in every configuration of a port's workspace, so every compile of its build checks.
+- Not yet: native reads out of range still read 0, and trap only with batch 2. Crossing and view checks come later.
+
+Changes:
+- **C1.** The axis: contract, configuration, fingerprint.
+- **C2.** The checked index read.
+- **C3.** The port runner's lane.
+- **C4.** Tests and docs.
+
+Predicted: production builds are byte-identical (the policy JSON gains `"checks":"production"`). The lane's port runs show which suites read past an end.
+
+## 2026-09-28 Batch K9: R11's first batch (M10.9)
+
+**Pre-registration** (written before the first build of the batch; base: K8's last commit). Its tests and ladder run with K10's, or with the next batch's.
+
+What the batch builds (language.md R11). The language additions come first, so that the fix-it's rewrite type-checks both before R11's second batch and after it:
+- **Float `%`.** With a `float` operand, `%` is JavaScript's remainder, a `float`. Native uses `fmod`, and the interpreter the same.
+- **Bitwise operators on floats.** A bitwise operator takes a `float` operand through ToInt32 and gives an `int` (`s.charCodeAt(i) | 0` stays valid once `charCodeAt` returns a number). Native uses `ls_to_i32`; the interpreter uses JavaScript's ToInt32.
+- **`s.codeUnitAt(i) -> int`.** The code unit at an index in range by precondition. JavaScript spells it `charCodeAt` with no `|0`. Under development checks it reads `index_checked(s,i).charCodeAt(0)`.
+- **The identity fold.** `x | 0`, `x ^ 0`, `x << 0`, `x >> 0`, `0 | x` and `0 ^ x` of an `int` are `x`, so the fix-it's `| 0` costs nothing while `charCodeAt` still prints its own `|0`.
+- **`migration/char-code`.** A typed `s.charCodeAt(i)` gets one of two fixes:
+  - `s.codeUnitAt(i)` inside `for (int i = k; i < s.length; …)`, with `k` a non-negative literal and neither `i` nor `s` assigned in the body;
+  - `(s.charCodeAt(i) | 0)` elsewhere, today's meaning exactly.
+
+  The ports use it 27 times at their current heads. The census above says 47, but that count predates the port rewrites.
+
+Not in this batch: `charCodeAt` returning a number; `a.get(i)`, which lands when the development-check lane shows a port that needs it; and the precondition as production semantics. They form the second batch.
+
+Changes:
+- **C1.** Float `%`, ToInt32 bitwise operands and `codeUnitAt` through the checker, formation, native and the interpreter.
+- **C2.** The identity fold.
+- **C3.** The lint, its test and the scanner it reuses.
+- **C4.** Tests, a case in every lane, and docs.
+
+Predicted: unmodified programs are byte-identical except where they write `x | 0` of an `int`, which gets smaller. Fixed ports are byte-identical where the fix wrote `| 0`, and smaller by `|0` where it wrote `codeUnitAt`.
+
+## 2026-09-28 Batch K10: R2's first batch (M10.9)
+
+**Pre-registration** (written before the first build of the batch; base: K9's last commit). Its tests and ladder run with the next batch's.
+
+What the batch builds (language.md R2):
+- **`T??` is `T?`.** Wherever the checker builds a type: substituting `T?` with `T := U?`, and a destructured binding's optional element.
+- **`migration/absence`.** A warning at each operation on a `T?` operand that could tell `null` from `undefined`, with today's meaning written out where it has one spelling:
+  - `print(x)` and `string(x)` become `x ?? "null"`, since today absence prints as null;
+  - typed `===` and `!==` become `==` and `!=`;
+  - reported without a fix: a `JsValue` compared with `===`, `typeof`, a search for an absent value (`includes`, `indexOf`, `lastIndexOf`), and `sort` of a `T?[]`.
+
+  A shared exhaustive expression walk (`lint/walk.rs`) serves the rule.
+- **The port rewrite** applies the fixes with the others and counts the reports.
+
+Not in this batch, R2's second batch:
+- the refusals;
+- the load normalizations' removal (`m.get(k)??null`, `a[i]??null`, `??""`), where the bytes are;
+- a defaulted parameter's type `T` inside, with the default on absence. That refuses `x == null` inside, so it gets its own warning first;
+- `T?` as a `Set` element or a `Map` key;
+- reflected nominals' absent fields as missing keys.
+
+Changes:
+- **C1.** The collapse.
+- **C2.** The rule, its walk and its test.
+- **C3.** Docs.
+
+Predicted: unmodified programs are byte-identical. The fixed ports' output changes only where `print` or `string` of an absent value would have printed "undefined".
+
+## 2026-09-28 Batch K11: crossings in the development-check lane (M10.12's lane, R1)
+
+**Pre-registration** (written before the first build of the batch; base: K10's last commit). Its tests and ladder run with the next batch's.
+
+Why: K1 made R1's trusted crossings production semantics before the development-check lane existed. This batch puts the crossings in the lane, so every port suite can run with them checked (language.md §14).
+
+What the batch builds, under `checks = "development"` only:
+- **Crossing checks.** A typed value that crosses into the program calls a hoisted helper, formed once per shape. The helper throws a `TypeError` where the host breaks the declared type. The crossings:
+  - an `extern` function's result;
+  - a host method's result (a call through a place);
+  - a trusted view's result (`v as T`, the `JS.assume` builtin);
+  - each read of a typed host binding (`extern T x;`).
+
+  The shapes and their tests:
+
+  | Shape | Test |
+  |---|---|
+  | `int` | a number that `x \| 0` keeps |
+  | `float` | a number |
+  | `string` | a string |
+  | `bool` | a boolean |
+  | array | `Array.isArray` |
+  | function | a function |
+
+  Each is also offered with absence allowed, for `T?`. A class, struct, map or `JsValue` has no cheap test and is not checked.
+- **Export parameters.** An exported function checks, at its entry, each parameter a caller must pass: no default (an omitted one is `undefined` until its default applies), passed by value, in plain storage, of a checkable shape.
+
+Changes:
+- **C1.** The helpers and the call and read hooks.
+- **C2.** A test, and docs.
+- **C3.** Export parameters, and their test.
+
+Predicted: production builds byte-identical. The lane's port runs show which host values break their declared types.
+
+## 2026-09-28 Batches K1–K4 and B4: the first run and its fix-ups
+
+The five batches ran together (binary `k4-1`, ladder against `s7-1`). The run found bugs in K1 and K4 and tests that asserted the retired posture. The fix-ups are separate commits at the tip; the second run (below, with K5–K11) is the landing evidence.
+
+**First run, what it found:**
+- **Unit tests:** 1,573 passed, 33 failed.
+  - K4 (2):
+    - the rules' editor copied `Declare(cell)` with its cell unmapped, so an edited unit declared a stale binding and JavaScript refused the output;
+    - a checker test read the old message.
+  - K1, index reads: K1 removed the `|0` after every typed `int` load. For fields, class fields and members that is R1's. An element read is R11's business:
+    - past the end it became `undefined`, where it reads 0 until the index precondition lands with M10.9's development-check lane;
+    - a `Uint32Array` element stayed a uint32.
+  - K1, narrowing (2): two facts tests exposed an unsound narrowing. A captured `T?` was narrowed inside a lambda that ran after the binding was set to null, and the facts, which now trust types, called its `.length` total.
+  - K1, retired posture (25): the tests asserted "types are hints". Their host passed objects with conversion hooks, symbols or bigints through `int` and `string` crossings, or replaced a typed builtin.
+- **Cases:** 3 changed state.
+  - `definite_assignment` (new) was refused in production JavaScript (the editor) and rejected by the C compiler (native never declared the local).
+  - `effects-raw_argument_conversion_in_a_discarded_call_still_runs` asserted the retired D2 posture.
+  - `typed_arrays`: a `Uint32Array` read of `-1` gave `4294967295`.
+- **Monotone and replay:** pass.
+- **Ratchet:** verdict fail on AM2 growths only, +1 to +6 Brotli on struct, loop, nullish and min/max items. The 36 failures are S7's, unchanged. Totals improved:
+
+  | Corpus | Brotli before | Brotli after |
+  |---|---:|---:|
+  | cases | 48,573 | 48,161 |
+  | apps | 920 | 903 |
+  | algorithms | 3,233 | 3,224 |
+
+  The growth mechanism, seen on `minmax-scan-10-20-30-40`: with no `|0` on the index reads the text is 12 bytes shorter raw, and the statement spelling flips from `if` to `&&`, which costs 6 bytes of Brotli.
+- **Unpatched ports:** all green. Against `s7-1`:
+
+  | Port | Raw | Brotli |
+  |---|---:|---:|
+  | markedlil | | −129 |
+  | zodlil | | −49 |
+  | katexlil | −3,468 | +41 |
+  | jquerylil | +3,160 | +138 |
+  | posthoglil | +944 | +60 |
+  | motionlil | | −125 |
+  | **total** | +1,326 (gzip +377) | **−64** |
+- **Fix-patched ports:** all green. katexlil's main artifacts moved raw +7.3 kB (+2.9%), gzip −1.9 kB and Brotli −1.2 kB each (60,151 for `katex.mjs`): B4's walk now runs and chooses for katexlil's Brotli objective. Totals: raw +73,951, gzip −19,346, Brotli −12,614.
+- **katexlil's S5 snapshot (B4's evidence):** Brotli 61,213 → 60,072 (−1,141), in 281 s instead of 524 s.
+  - The search stops at the walk's reserve.
+  - The walk then runs 4 passes over 118 candidates, keeping conditional values −7, exit points −104 and start search −1,106.
+
+  S5's katexlil regression is resolved.
+- **CPU pairs:** my type checks overlapped them (load 3.7). They are not evidence; the second run's are.
+
+**Fix-ups (commits at the tip):**
+- **K4:** the rules' editor remaps a declared local; native declares it at its function's start; a declared local in an inlined body is a `let` there.
+- **K1, index reads:** an `int` element read keeps its int32 conversion (`LoadResultRecipe::IndexInteger`), R11's until M10.9.
+- **K1, narrowing is sound** (`check/assignments.rs`, after Kotlin's smart casts and TypeScript's `isSymbolAssigned`). A narrowing holds only where no code the flow does not see can assign the binding:
+  - never for a binding a nested function assigns;
+  - never inside a nested function for a binding its body assigns;
+  - never for another module's binding;
+  - for a host binding, until code runs: a call, a construction, an await or a yield ends it.
+- **K1, retired tests:** where a property survives, the test keeps it with a well-typed host. Where none does, the test goes. The regression case became `effects-a_discarded_pure_call_keeps_its_arguments_host_call`.
+- **K7 (found in the second run):** a regex literal leaves a `/` bare inside a character class, so its `source` is the constructor's (marked's `autolink`, `escapeRe` and `htmlPed`).
+
+## 2026-09-28 Batch K12: R11's index precondition in production (M10.9, second batch, first part)
+
+**Pre-registration** (written before the first build of the batch; base: K11's last commit and the fix-ups). It lands only if the development-check lane's port runs (K8, K11) are green: an index read past an end would throw there.
+
+What the batch builds (language.md R11):
+- **An element read is the plain read.** An `int` element (array or typed array) carries no `|0`, and a `string` element (a `string[]` or `s[i]`) no `??""`. In range by precondition, each is its type's value. A `Uint32Array` element keeps its conversion, since a uint32 is not an int32.
+- **Absence stays for R2's second batch.** A record's missing key, a `T?` element and `Map.get` keep `??null`. Dropping those needs the crossing normalization R2 describes: a `T?` that reaches a `JsValue` or a print is pinned to one spelling. That in turn needs the use analysis through locals (the cell-SSA view, step 9). The draft of those refusals is kept in `~/lilscript-work/portwork/k12-r2-draft.patch`.
+- **Tests stop reading past an end.** In production that is a precondition violation, whose result is unspecified.
+
+Not in this batch:
+- `charCodeAt` returning a number. That refuses `int c = s.charCodeAt(i)`, which the unpatched ports write, so it waits for their releases (M12.4).
+- Native's trap past an end. Native returns a memory-safe default today.
+
+Changes:
+- **C1.** The load recipe.
+- **C2.** Tests and docs.
+
+Predicted: smaller in every codec wherever typed code reads an `int` or `string` element (the `|0` and `??""` go). The ratchet and the ports show the size. A spelling flip like the first run's minmax case is judged per case (AM2).
+
+## 2026-09-28 Batch K13: int32 hints, a codec-judged family (AM2 for R1, R10 and R11)
+
+**Pre-registration** (written before the first build of the batch; base: K12's last commit).
+
+Why: the second run's ratchet blocked on 27 items that grew 1 to 5 Brotli bytes (AM2). Each is strictly smaller raw: the only change is a `|0` that R1, R10 or R11 made redundant. For example, `edge-map-set-1-1-2` drops `b.size|0` for `b.size`: raw −2, Brotli +4. On a 60–180 byte artifact the codec's repeat matching prefers the repeated `|0` (memory: repetition is load-bearing). Keeping those `|0`s everywhere would give back what the batches gained on the ports (markedlil −129, motionlil −125). So the codec judges it per artifact.
+
+What the batch builds:
+- **`int32_hints`, an output family.** It prints the `|0` the compiler printed before R1, R10 and R11, by the same rules:
+  - after an `int` field, member or element read;
+  - after an `int` result of a host method or builtin call;
+  - after an integer method's result without pristine builtins.
+
+  An int32 is its own ToInt32, so the spelling means the same program.
+- **Decided at the head.** The `|0` nodes change what the head's passes do (operator simplification, forwarding), so the family is decided where the head is formed: `form_head` takes it. The terminal stage forms the head with the incumbent's value, and forms the other head, once, when the family's challenger first asks.
+- **Seed and schedule.** Every objective seeds it off, the new spelling. Its challenger is first in the declared schedule, so a searching level keeps the previous spelling wherever the codec says the artifact is smaller. A level that does not search keeps the new one (AM2 binds level 13 and above).
+
+Changes:
+- **C1.** The family, its challenger and the head's decision.
+- **C2.** A test, and the record.
+
+Predicted:
+- The ratchet's 27 growths close at level 13.
+- The ports keep their gains where the codec says they are gains (a fleet total no larger than the second run's).
+- CPU: one extra head formation per terminal stage that tries the family.
+
+## 2026-09-29 Batches K5–K13 and step 8's close: the second and third runs, and their fix-ups
+
+The second run (binary `k9-1`: K1–K9 with the first run's fix-ups) and the third (`k13-1`: K1–K13 with every fix-up before it) both ran against `s7-1`, the last landed binary. The fix-ups the third run found are commits at the tip, measured on `k13-2` (below).
+
+**Second run (`k9-1`), what it found** (fixed before the third):
+- **Unit tests:** 17 failures.
+  - Counts and oracles that K1, K7 and K9 moved: the admission work counts (the scan's own unit), the frozen operator oracle (R11's operands), the binary64 and tables tests, a K7 test that asserted `length|0`.
+  - Tests of replaced builtins and of unsound narrowings, gone with R10 and R1.
+  - A regex literal's `source` (the K7 fix-up in the first record).
+  - Narrowing of another module's binding.
+- **motionlil refused** at `stagger.lil:41` and `consumer.lil:62`: the first fix-up's narrowing rules were stricter than soundness needs. Refined:
+  - an inherited narrowing is masked inside a lambda only for a binding its declaring body assigns;
+  - a narrowing the lambda makes itself holds until an await or a yield;
+  - a host binding stays narrowed until code runs.
+- **The `unwrap_barrier` case:** an extern global narrows until a call.
+- **`migration/char-code`** re-reported a `charCodeAt` already under `| 0`, so the rewrite never reached a fixed point.
+- **The fold round** did not follow a chain of substitutions made in the same round, and every fix-patched build failed with "unsupported source: program rules". The round now resolves each substitution through the chain.
+- **CPU pairs:**
+
+  | Port | Factor |
+  |---|---:|
+  | markedlil | ×1.675 (the walk judges 21 moves, 9 before: B4) |
+  | posthoglil | ×1.366 |
+  | zodlil | ×1.056 |
+  | katexlil | ×0.976 |
+  | jquerylil | ×0.986 |
+
+**Third run (`k13-1`), what it found:**
+- **Unit tests:** 1,606 passed, 6 failed.
+  - Narrowing: `narrowed_type` returned nothing outside every body (an analyzer driven expression by expression), so a test's narrowing never held.
+  - The substitution test's oracle predates R2's `T??` is `T?`.
+  - Timing: K13's other head is a head formation the test did not count.
+  - The terminal test asserted that raw and Brotli keep different families on its program. Since R10 and R11 they keep the same nine.
+  - `declared_locals_run` and `field_initializers_run_at_construction`: dead-code elimination dropped a `Declare` (next item).
+- **Cases:** six lanes of `definite_assignment` refused in production ("binding has no declaration"). The demand plan kept a declared cell's stores and reads but not its `Declare`, which fell to the default arm; `Declare` now waits on the cell's storage as `Initialize` does. Totals against `s7-1`, all lanes passing otherwise:
+
+  | Lane | Script | Module |
+  |---|---:|---:|
+  | production Brotli | 39,160 → 38,284 (−876) | 37,268 → 36,520 (−748) |
+  | production gzip | −899 | −764 |
+  | production raw | −1,875 | −1,730 |
+  | formation-only Brotli | −241 | −244 |
+- **Monotone and replay:** pass at every listed level; 45,513 recorded stops replayed.
+- **Ratchet** against `s7-1`:
+
+  | Corpus | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | cases | 64,807 → 62,330 | 58,522 → 57,497 | 48,573 → 47,249 |
+  | apps | 1,359 → 1,246 | 1,078 → 1,026 | 920 → 861 |
+  | algorithms | 6,047 → 5,798 | 3,542 → 3,505 | 3,233 → 3,197 |
+
+  Brotli losses to the competitor bar: cases 422 → 368, apps 5 → 4. The apps now beat the competitor total (861 against 870). Sixteen rows blocked, on 7 items that grew 1 to 4 Brotli bytes: three nested-struct variants, `string-concat-typed-aggregate`, `minmax-scan`, `edge-string-utf16-accent` and `-empty`, and `algorithms/helper-sharing`. The mechanism is a pair of moves the walk tries one at a time:
+  - `nested-struct-3-1-4-1-5-9`: int32 hints alone +3, block-scoped loop heads alone +2, both together is `s7-1`'s artifact, −1;
+  - `edge-string-utf16-empty`: hints alone +0, a pooled `"lilscript"` alone +3, both −4. K7 made the second root-constant forwarding unconditional, and it forwards the literal into all five reads.
+- **Unpatched ports:** all green. Against `s7-1`:
+
+  | Port | Raw | Gzip | Brotli |
+  |---|---:|---:|---:|
+  | markedlil | +519 | −88 | −83 |
+  | zodlil | +210 | −139 | −56 |
+  | katexlil | +8,797 | +929 | +749 |
+  | jquerylil | +155 | −55 | +17 |
+  | posthoglil | +564 | −27 | −106 |
+  | motionlil | −161 | −65 | −240 |
+  | micromarklil | −176 | +43 | +108 |
+
+  katexlil's +749 is walk path dependence. On its entry the level-0 artifact is 23 bytes larger (60 fewer `|0`, 84 more `return`s). The statement families `s7-1` kept (conditional values, exit points, conditional returns) are each rejected alone in the new walk, which ends at 60,022 against 59,937. On the frozen CPU snapshot of the same port the walk runs 9 passes and ends 94 bytes under `s7-1`. micromarklil's and jquerylil's are tens of bytes per artifact in both directions.
+- **Fix-patched ports (production):** all green. Against `s7-1`'s fix-patched run: raw +82,720, gzip −19,483, Brotli −12,476. katexlil −11,727, motionlil −437, posthoglil −106, zodlil −93, jquerylil −75, markedlil −61, micromarklil +23. katexlil's patched build takes 871 s against 1,536 s.
+- **Development-check lane** (K8's index checks, K11's crossing checks, on the fix-patched ports): five ports green. Two found port-source violations, as the lane is meant to:
+  - micromarklil (1,796 failing tests, then 1,236): its HTML compiler reads the last chunk of an empty buffer, and the last flag of the tight stack outside any list. Upstream reads past the end and treats `undefined` as nothing.
+  - motionlil (5): `parseFloat` was declared on `string` and given numbers through `asStr`; the numeric mixer claimed its second endpoint a `float` (`mix(0, "10")`); `noop` was a `float` identity while the frame loop and the public API pass it any value.
+
+  Fixed in the ports' sources (local commits `micromarklil d2c2fd1`, `motionlil f6bc890`). Their output behaves as before, and both are green in production and in the lane. K12's gate holds: every port is green in the development lane. None of the findings was a read whose production meaning K12 changed.
+- **CPU pairs:**
+
+  | Port | Factor | Note |
+  |---|---:|---|
+  | markedlil | ×1.013 | |
+  | zodlil | ×2.455 | judged 9 → 18; overlapped a type check |
+  | posthoglil | ×1.728 | judged 11 → 23; overlapped a type check |
+  | micromarklil | ×0.988 | |
+  | katexlil | ×2.210 | frozen snapshot: 9 passes instead of 4, judged 66 → 156, 94 bytes smaller |
+  | jquerylil | ×0.987 | |
+  | motionlil | ×0.786 | |
+
+  The port builds show no such growth (katexlil 140 s → 139 s unpatched). The int32-hints trial rendered identical bytes in each of katexlil's 9 passes: it formed a tail and rendered for nothing.
+- **Rewrite census** (first pass, the K5–K10 fixes): implicit defaults 20 (markedlil 5, zodlil 2, motionlil 13); `char-code` 21; a `debug` declaration 1 (jquerylil); absences 216 reported, 0 of them in markedlil.
+
+**Owner, 2026-09-29, on the growths:** "we cant always win, we must accept loss sometimes.. for pragmatistic approaching of the problem.. maybe this lose can mean better win else and its a step through global maximum .. be clever, and pragmatic.. overall general win might be a win for real." So a batch is judged by its totals (ratchet, cases, fleet), and a scattered growth of a few bytes on one item, or walk path dependence on one port, does not block when the overall wins. Extra search stays only if it pays for its compile time.
+
+**Fix-ups after the third run** (commits at the tip):
+- **Narrowing:** outside every body a narrowing holds as made.
+- **Demand:** a `Declare` lives while its cell's storage does.
+- **Tests:**
+  - the substitution oracle follows R2;
+  - the timing test counts the heads the stage reports, a new `heads` count;
+  - the terminal test asserts that the three codecs do not all judge alike, and counts every start the portfolio does not hold as a restart;
+  - K5's test keeps its derived class as JavaScript's through `export constructor`, the declared boundary. A plain `export class` failed in the single-source harness only: that path publishes a class's name as a value, where the module path publishes a type (a separate task).
+- **The int32-hints family skips an inert head.** Formation counts the reads and call results the family would hint, whatever its value. A head with none, and with no integer intrinsic the printer would hint, marks the family inert, and the walk records the trial a duplicate without forming a tail. katexlil's walk formed and rendered one for nothing in each of its 9 passes.
+
+**Fourth run (`k13-2`, the fix-ups with two restarts behind a temporary switch):**
+- **Unit tests:** 1,606 passed, 6 failed: five terminal tests that recognized a restart by its `naming:` prefix, and K5's test (above). Both fixed.
+- **Cases:** pass in every lane, `definite_assignment` included.
+- **The restarts, on and off:** one from A0 with the other int32 hints, one under the other objective's family seed, each walked in passes of its own as the naming restarts are. They would reach the pairs above.
+
+  | | Restarts on | Restarts off |
+  |---|---:|---:|
+  | Ratchet, cases Brotli | 47,242 | 47,249 |
+  | Blocking rows | 9 | 16 |
+  | katexlil (port entry, frozen entry) | 60,022, 60,025 | same |
+  | zodlil, posthoglil, markedlil | same bytes | |
+  | CPU: zodlil, posthoglil, markedlil | +11%, +22%, +13% | |
+  | CPU: katexlil | +0.4% to +2% | |
+
+  On the ports the seed restart is pruned at its start every time and the hints restart ends rejected. They buy 7 bytes on the ratchet for a tenth to a fifth more compile time on the typed ports. Under the owner's ruling they do not pay, so they are not landed. The 16 rows (7 items, 1 to 4 Brotli bytes each) stand as accepted losses against the totals above.
+
+**Final check (`k13-3`, the landed code):** 1,612 unit tests pass, and the ratchet's 1,890 artifacts are byte-identical to `k13-2`'s restarts-off run.
+
+Step 8 closes with this record. Carried:
+- R2's second batch: normalize at the crossings instead of the producers, with the refusals (draft kept at `~/lilscript-work/portwork/k12-r2-draft.patch`);
+- R11's `a.get(i)` returning `T?`, and `charCodeAt` returning a number, at the port releases (M12.4);
+- the refusals of every warning K4–K10 added, each with its port's release (M12.4);
+- the ports' source fixes the development lane found (micromarklil, motionlil), committed locally, published with the ports;
+- the implicit default a field keeps when `init` assigns it (`this.later=0;this.later=…`), a store a later rule can drop;
+- a generic function value instantiated at a function type (`noop<T>` where `func(float)->float` is expected), refused today: the checker's gap, found by motionlil.
+
+---
+
 ## Appendix: where milestones 001–014 went
 
 | Old | Now |
