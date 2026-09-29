@@ -1027,6 +1027,14 @@ impl Walker<'_, '_, '_> {
                     .push(trial(challenger, ChallengerOutcome::Vetoed));
                 continue;
             }
+            // A family that prints nothing in this candidate prints the
+            // incumbent's program: nothing to form.
+            if matches!(challenger, Challenger::Int32Hints) && self.formations.hints_inert() {
+                self.report
+                    .trials
+                    .push(trial(challenger, ChallengerOutcome::Duplicate));
+                continue;
+            }
             let (judgement, proxy, probed) = self.judge_move(
                 next,
                 &incumbent.choices,

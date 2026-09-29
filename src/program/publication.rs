@@ -971,6 +971,17 @@ impl Formations<'_, '_> {
         Ok(&self.other_head.as_ref().unwrap().0)
     }
 
+    /// Whether a challenger asked for the other head.
+    pub(super) fn other_head_formed(&self) -> bool {
+        self.other_head.is_some()
+    }
+
+    /// Whether the `int32_hints` family prints nothing in this candidate:
+    /// the other head would render the same bytes.
+    pub(super) fn hints_inert(&self) -> bool {
+        self.head.hints_inert()
+    }
+
     /// Releases the other head, if one was formed.
     fn release_other_head(&mut self) -> Result<(), CandidateError> {
         if let Some((head, charge)) = self.other_head.take() {

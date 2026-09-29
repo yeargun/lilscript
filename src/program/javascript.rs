@@ -485,6 +485,11 @@ pub(super) struct FormedHead {
     /// The contract facts the family tail reads; absent without target
     /// compaction, which runs no tail.
     tail: Option<TailContext>,
+    /// The `int32_hints` family prints nothing in this program: no read or
+    /// call result it would hint, and no integer intrinsic the printer would
+    /// hint without pristine builtins. Its other head renders this one's
+    /// bytes.
+    hints_inert: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -509,7 +514,12 @@ impl FormedHead {
             module,
             literals,
             tail: self.tail,
+            hints_inert: self.hints_inert,
         })
+    }
+
+    pub(super) fn hints_inert(&self) -> bool {
+        self.hints_inert
     }
 }
 
@@ -611,6 +621,7 @@ fn form_head(
         index_check: None,
         crossing_checks: Vec::new(),
         int32_hints,
+        hint_sites: 0,
         unit_functions: Vec::new(),
         foreign_bindings: Vec::new(),
         stable_cells: Vec::new(),
@@ -1060,6 +1071,7 @@ fn form_head(
         records,
         struct_plan,
         reference_plan,
+        hint_sites,
         ..
     } = formation;
     drop(contexts);
@@ -1067,11 +1079,23 @@ fn form_head(
     drop(records);
     drop(struct_plan);
     drop(reference_plan);
+    // Without pristine builtins the printer hints an integer intrinsic's
+    // result under the family; the tail creates none.
+    let hints_inert = hint_sites == 0
+        && (module.pristine_builtins || {
+            phase.work(WorkKind::Render, module.expressions.len() as u64)?;
+            !module.expressions.iter().any(|expression| {
+                matches!(expression, js::Expr::Intrinsic { operation, .. }
+                    if crate::catalog::integer_intrinsic(*operation)
+                        || crate::catalog::original_int32_intrinsic(*operation))
+            })
+        });
     phase.finish_retained()?;
     Ok(FormedHead {
         module,
         literals: literal_alternatives,
         tail,
+        hints_inert,
     })
 }
 
@@ -1089,6 +1113,7 @@ fn form_tail(
         mut module,
         mut literals,
         tail,
+        ..
     } = head;
     let Some(TailContext {
         strict,
@@ -1407,6 +1432,9 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     /// R1 and R11 after an `int` field, member or element read and an `int`
     /// host call's result.
     int32_hints: bool,
+    /// The reads and call results the family hints, counted whatever its
+    /// value.
+    hint_sites: usize,
     /// Each formed function unit's target function, for export reflection.
     unit_functions: Vec<(UnitId, js::FunctionId)>,
     /// One ES import binding per foreign cell with an `import extern` source.
@@ -3008,14 +3036,18 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 Ok(self.save(unit, operation, value)?)
             }
             LoadResultRecipe::Raw
-                if self.int32_hints
-                    && matches!(self.program.types[ty.index()], Type::Int)
+                if matches!(self.program.types[ty.index()], Type::Int)
                     && !matches!(
                         self.data(unit).places[place.index()],
                         Place::Cell(_) | Place::Value(_)
                     ) =>
             {
-                let value = self.expression(js::Expr::ToInt32(raw))?;
+                self.hint_sites += 1;
+                let value = if self.int32_hints {
+                    self.expression(js::Expr::ToInt32(raw))?
+                } else {
+                    raw
+                };
                 Ok(self.save(unit, operation, value)?)
             }
             LoadResultRecipe::Raw => Ok(self.save(unit, operation, raw)?),
@@ -3434,20 +3466,23 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             value: expression,
                         })?,
                         CallResultRecipe::Raw
-                            if self.int32_hints
-                                && operation.result.is_some_and(|result| {
-                                    matches!(
-                                        self.program.types
-                                            [self.data(unit).values[result.index()].ty.index()],
-                                        Type::Int
-                                    )
-                                })
-                                && matches!(
-                                    self.data(unit).calls[call.index()].target,
-                                    CallTarget::Reference { .. } | CallTarget::Builtin(_)
-                                ) =>
+                            if operation.result.is_some_and(|result| {
+                                matches!(
+                                    self.program.types
+                                        [self.data(unit).values[result.index()].ty.index()],
+                                    Type::Int
+                                )
+                            }) && matches!(
+                                self.data(unit).calls[call.index()].target,
+                                CallTarget::Reference { .. } | CallTarget::Builtin(_)
+                            ) =>
                         {
-                            self.expression(js::Expr::ToInt32(expression))?
+                            self.hint_sites += 1;
+                            if self.int32_hints {
+                                self.expression(js::Expr::ToInt32(expression))?
+                            } else {
+                                expression
+                            }
                         }
                         CallResultRecipe::Raw | CallResultRecipe::IntrinsicInteger => expression,
                     };
