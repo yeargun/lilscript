@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "about": "Runtime evidence debts, scoped to exact artifacts and contracts. Carried results do not establish parity or permit a changed candidate to inherit an exemption.",
+  "entries": [
+    {
+      "id": "c2-markedlil-steady_cpu_us",
+      "workload": "markedlil",
+      "metric": "steady_cpu_us",
+      "identity": "da42513b50972fb5ca364d8822170bd132ad506a4e536da779333da4a35ee1cc",
+      "disposition": "inconclusive",
+      "owner": "V1 affected-workload runtime qualification",
+      "reason": "Five paired fresh processes and three identity controls passed the common oracle; control spread exceeded the predeclared 5% precision requirement. The retained measurements qualify the runner but do not establish that runtime limit. Increase sustained work/sample precision when qualifying an affected optimization.",
+      "evidence": "benchmarks/migration-results/2026-09-30-c2-complete/runtime-cost.json"
+    },
+    {
+      "id": "c2-zodlil-steady_cpu_us",
+      "workload": "zodlil",
+      "metric": "steady_cpu_us",
+      "identity": "1add66cc97f718376347c4ef384ada0f6de3afcefa8c2233ad5c9fec6c397186",
+      "disposition": "inconclusive",
+      "owner": "V1 affected-workload runtime qualification",
+      "reason": "Five paired fresh processes and three identity controls passed the common oracle; control spread exceeded the predeclared 5% precision requirement. The retained measurements qualify the runner but do not establish that runtime limit. Increase sustained work/sample precision when qualifying an affected optimization.",
+      "evidence": "benchmarks/migration-results/2026-09-30-c2-complete/runtime-cost.json"
+    },
+    {
+      "id": "c2-posthoglil-steady_cpu_us",
+      "workload": "posthoglil",
+      "metric": "steady_cpu_us",
+      "identity": "d8a6500c324bc7e9b67091adc6f8ed4e1f984c474427e3a688f66549b7f6473f",
+      "disposition": "inconclusive",
+      "owner": "V1 affected-workload runtime qualification",
+      "reason": "Five paired fresh processes and three identity controls passed the common oracle; control spread exceeded the predeclared 5% precision requirement. The retained measurements qualify the runner but do not establish that runtime limit. Increase sustained work/sample precision when qualifying an affected optimization.",
+      "evidence": "benchmarks/migration-results/2026-09-30-c2-complete/runtime-cost.json"
+    },
+    {
+      "id": "c2-generic-allocation-calls-strings-steady_cpu_us",
+      "workload": "generic-allocation-calls-strings",
+      "metric": "steady_cpu_us",
+      "identity": "79d155666f0ab8ecdad7d356b0566bd0e227fe778edd3ac41a094d445f848d10",
+      "disposition": "inconclusive",
+      "owner": "V1 affected-workload runtime qualification",
+      "reason": "Five paired fresh processes and three identity controls passed the common oracle; control spread exceeded the predeclared 5% precision requirement. The retained measurements qualify the runner but do not establish that runtime limit. Increase sustained work/sample precision when qualifying an affected optimization.",
+      "evidence": "benchmarks/migration-results/2026-09-30-c2-complete/runtime-cost.json"
+    }
+  ]
+}

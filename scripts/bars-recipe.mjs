@@ -29,15 +29,15 @@ switch (request.recipe) {
   }
   case "oxc": {
     const {minify} = await load("rolldown/experimental");
-    const result = await minify(request.input, source(), {compress:true, mangle:true, module:esm});
+    const result = await minify(request.input, source(), {compress:{target:"es2020"}, mangle:true, module:esm, codegen:{legalComments:"none"}});
     if (result.errors?.length) throw new Error(JSON.stringify(result.errors));
     code = result.code;
     break;
   }
   case "rolldown": {
     const {rolldown} = await load("rolldown");
-    const bundle = await rolldown({input:request.entry, external:request.externals});
-    const generated = await bundle.generate({format:esm ? "es" : "iife", minify:true, target:"es2020",
+    const bundle = await rolldown({input:request.entry, external:request.externals, transform:{target:"es2020"}});
+    const generated = await bundle.generate({format:esm ? "es" : "iife", minify:{compress:{target:"es2020"},mangle:true},
       comments:false, exports:esm ? "named" : "none"});
     // Do not concatenate chunks and silently change module initialization.
     if (generated.output.length !== 1 || generated.output[0].type !== "chunk") throw new Error("recipe requires one delivered chunk");
