@@ -2016,15 +2016,25 @@ fn a_source_eval_binding_is_refused() {
 }
 
 #[test]
-#[ignore = "production compiles a detached primitive method read, which throws when called; it must be refused"]
 fn primitive_method_values_are_refused() {
     for source in [
         "auto method=\"text\".charCodeAt;print(method(0));",
         "auto values=new Map<string,int>();auto method=values.get;print(method(\"x\"));",
         "auto values=new Set<int>();auto method=values.has;print(method(1));",
+        "string? value=null;auto method=value?.charCodeAt;",
     ] {
         assert!(refused(source), "{source}");
     }
+}
+
+#[test]
+fn primitive_methods_can_be_passed_with_an_explicit_receiver_closure() {
+    compare_source_output(
+        "string value=\"text\";auto code=(int index)=>value.charCodeAt(index);\
+         Map<string,int> map=new Map<string,int>();map.set(\"x\",7);\
+         auto get=(string key)=>map.get(key);print(code(0));print(get(\"x\")??-1);",
+        "116\n7\n",
+    );
 }
 
 #[test]

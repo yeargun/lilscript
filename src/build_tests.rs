@@ -881,6 +881,28 @@ fn stable_rule_scheduling_preserves_searched_artifacts_and_behavior() {
 }
 
 #[test]
+fn check_service_diagnoses_detached_primitive_methods_before_target_selection() {
+    for source in [
+        "auto method=\"text\".charCodeAt;",
+        "Map<string,int> values=new Map<string,int>();auto method=values.get;",
+        "auto values=new Set<int>();auto method=values.has;",
+        "string? value=null;auto method=value?.charCodeAt;",
+    ] {
+        let error = check_source(source, &ProjectConfig::default()).unwrap_err();
+        assert!(error.message.contains("called through its receiver"), "{error}");
+        for target in [ServiceTarget::JavaScript, ServiceTarget::Native] {
+            let error = compile_source(source, &ProjectConfig::default(), ServiceOptions {
+                target, ..ServiceOptions::default()
+            }).unwrap_err();
+            assert!(error.message.contains("called through its receiver"), "{error}");
+        }
+    }
+    check_source("extern JsValue object;auto method=object.method;", &ProjectConfig::default()).unwrap();
+    check_source("struct Holder{func(int)->int callback;}Holder h=Holder{(int v)=>v+1};\
+        auto callback=h.callback;print(callback(2));", &ProjectConfig::default()).unwrap();
+}
+
+#[test]
 fn scoped_search_and_default_service_share_winners_handoff_and_budget() {
     let source =
         "int byte(int value){return value&255;}export int answer(int value){return byte(value)+1;}";

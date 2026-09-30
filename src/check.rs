@@ -5003,6 +5003,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ));
                 };
                 let member = self.analyze_member_type(*inner, *property, expr.id, *span)?;
+                self.check_member_value(expr.id, *span)?;
                 self.facts
                     .optional_present_types
                     .insert(expr.id, member.clone());
@@ -5957,7 +5958,27 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             // `v.k`: a property read with JavaScript's meaning (R12).
             return Ok(Type::Dynamic);
         }
-        self.analyze_member_type(object_type, property, id, span)
+        let member = self.analyze_member_type(object_type, property, id, span)?;
+        self.check_member_value(id, span)?;
+        Ok(member)
+    }
+
+    /// Receiver calls have their own checking path. A standalone primitive
+    /// method read cannot silently lose the receiver its checked signature
+    /// requires. Nominal callable fields and explicit dynamic host reads keep
+    /// their separate value semantics.
+    fn check_member_value(
+        &self,
+        id: SourceNodeId,
+        span: Span,
+    ) -> Result<(), AdmittedCheckError> {
+        if matches!(self.facts.source_info[id.index()].resolution,
+            ExpressionResolution::Primitive(crate::primitive::ResolvedIntrinsic::Method(_)))
+        {
+            return Err(AdmittedCheckError::new(span,
+                "a primitive method must be called through its receiver; use a closure to pass it as a value"));
+        }
+        Ok(())
     }
 
     /// A read of the binding `ident` at `node`: its symbol and its type,

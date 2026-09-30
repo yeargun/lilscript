@@ -209,6 +209,8 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 
 **Focused checkpoint.** The carried refusal is enabled and three focused tests pass. The public check and compilation services reject the same string/map/set and optional primitive reads; direct receiver closures, ordinary callable fields and dynamic host reads remain accepted. A missing qualified enum path in the first build was corrected before the passing run. Log: `/tmp/lilscript-s4-primitive-method-fixed.log`. Full checker and generic/port qualification follow.
 
+**Full checker verification.** The complete library suite passes **1,697 tests with four existing ignores**, excluding the separately qualified expensive table case. The same run also covers the scheduler timing correction. Log: `/tmp/lilscript-s4-primitive-full.log`. Release generic/port qualification follows.
+
 ## 2026-09-30: C2 paired runtime measurements (pre-registration)
 
 1. Add a generic isolated-process runner with alternating reference/candidate samples, pinned engine/workload/artifact/input identities, complete samples and spread. Separate artifact import/startup from warmed work, and retain total process CPU as a separate measurement.
