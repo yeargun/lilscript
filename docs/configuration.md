@@ -88,6 +88,7 @@ version = 2
 
 [policy.search]
 codec_schedule = "staged"     # staged | immediate
+proxy_pruning = "on"          # on | audit | off; terminal proxy rejection
 render_batch = 8
 diversity_interval = 4
 
@@ -226,6 +227,23 @@ pending cursor). Remaining budgets never change these values. `[policy.resources
 retained bytes and cooperative wall time. Exhausting one stops optional work
 and keeps the best artifact found; a ceiling below what the mandatory artifact
 needs fails the build.
+
+`proxy_pruning` controls terminal-walk proxy rejection. `on` preserves the
+default: a sufficiently worse proxy score skips exact judging. `audit` also
+records the exact score of each rejected move; those diagnostic scores do not
+select winners. `off` exactly judges every reached, nonidentical move instead
+of rejecting it from its proxy. All three modes retain the effort schedule,
+legality checks and hard resource limits; none is exhaustive search. Auditing
+and disabling pruning spend additional work and may reach fewer later moves
+under a hard limit. Exact audit codec probes appear in the reported count.
+A negative audit delta is a potential missed win; artifact admission still
+has to pass before that candidate could replace the incumbent.
+
+`--proxy-pruning on|audit|off` overrides TOML. The deprecated
+`LILSCRIPT_WALK_AUDIT` adapter enables `audit` when present (including an empty
+value), overriding TOML only for CLI builds; an explicit CLI flag wins. Remove
+the variable to use TOML alone. The library API never reads that variable.
+The resolved mode is included in `--print-policy` and its fingerprint.
 
 Exact codec measurements are reused across identical file bytes within one
 compilation, including candidates whose artifacts were discarded. A bounded

@@ -58,6 +58,8 @@ const SECTIONS = [
   ["javascript", "JavaScriptConfig"], ["mangle", "MangleConfig"],
   ["target", "TargetConfig"], ["delivery", "DeliveryConfig"], ["lint", "LintConfig"], ["format", "FormatConfig"],
   ["policy", "PolicyConfig"],
+  // These accepted leaf tables do not use the nested *Config convention.
+  ["policy.resources", "ResourceLimits"], ["policy.search", "SearchSchedule"],
 ]
 
 /** String constants (`const NAME: &str = "…";`), with Rust's `\` line continuations joined. */

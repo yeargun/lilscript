@@ -34,6 +34,13 @@ enum BuildMode {
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
+enum ProxyPruningArg {
+    On,
+    Audit,
+    Off,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
 enum DeliveryArg {
     Single,
     Split,
@@ -121,6 +128,10 @@ struct Args {
     #[arg(long, value_name = "BYTES")]
     retained_bytes: Option<NonZeroU64>,
 
+    /// Terminal proxy rejection: on, exact audit of rejected moves, or off.
+    #[arg(long, value_enum)]
+    proxy_pruning: Option<ProxyPruningArg>,
+
     /// Development skips the candidate search; production uses project policy.
     #[arg(long, value_enum, default_value_t = BuildMode::Production)]
     mode: BuildMode,
@@ -204,6 +215,11 @@ fn run() -> Result<(), String> {
     );
     for warning in &loaded.warnings {
         eprintln!("warning: {config_label}: {warning}");
+    }
+    let legacy_audit = std::env::var_os("LILSCRIPT_WALK_AUDIT").is_some();
+    apply_proxy_override(&mut loaded.config, args.proxy_pruning, legacy_audit);
+    if legacy_audit {
+        eprintln!("warning: LILSCRIPT_WALK_AUDIT is deprecated; use --proxy-pruning audit or [policy.search] proxy_pruning = \"audit\"; an explicit --proxy-pruning overrides this adapter");
     }
     if args.jobs.is_some() {
         eprintln!(
@@ -338,6 +354,28 @@ fn entries(args: &Args, loaded: &LoadedConfig) -> Result<Vec<EntrySource>, Strin
         );
     }
     Ok(entries)
+}
+
+/// CLI overrides the deprecated environment adapter, which overrides TOML.
+/// The library receives the resolved value and never reads the environment.
+fn apply_proxy_override(
+    config: &mut ProjectConfig,
+    explicit: Option<ProxyPruningArg>,
+    legacy_audit: bool,
+) {
+    use lilscript::compilation_policy::ProxyPruning;
+    let requested = explicit.or(legacy_audit.then_some(ProxyPruningArg::Audit));
+    if let Some(requested) = requested {
+        config
+            .policy
+            .get_or_insert_with(Default::default)
+            .search
+            .proxy_pruning = match requested {
+            ProxyPruningArg::On => ProxyPruning::On,
+            ProxyPruningArg::Audit => ProxyPruning::Audit,
+            ProxyPruningArg::Off => ProxyPruning::Off,
+        };
+    }
 }
 
 /// The one mapping from the command line to what the compiler builds. The
@@ -1091,6 +1129,45 @@ fn compile_native(c: &str, output: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn proxy_pruning_cli_adapter_resolves_before_the_shared_policy_receipt() {
+        for configured in ["on", "audit", "off"] {
+            for legacy_audit in [false, true] {
+                for explicit in [None, Some("on"), Some("audit"), Some("off")] {
+                    let mut arguments = vec!["lilscript", "input.lil"];
+                    if let Some(explicit) = explicit {
+                        arguments.extend(["--proxy-pruning", explicit]);
+                    }
+                    let args = Args::try_parse_from(arguments).unwrap();
+                    let mut config: ProjectConfig =
+                        toml::from_str(&format!("[policy.search]\nproxy_pruning='{configured}'"))
+                            .unwrap();
+                    apply_proxy_override(&mut config, args.proxy_pruning, legacy_audit);
+                    let expected =
+                        explicit.unwrap_or(if legacy_audit { "audit" } else { configured });
+                    let loaded = LoadedConfig {
+                        config,
+                        path: None,
+                        warnings: vec![],
+                    };
+                    let options = service_options_with_environment(&args, None).unwrap();
+                    let printed = policy_report(&args, &loaded, options).unwrap();
+                    let resolved = options
+                        .resolve_policy(&loaded.config, options.javascript_request().unwrap())
+                        .unwrap();
+                    assert_eq!(printed["policy"], resolved.receipt());
+                    assert_eq!(
+                        printed["policy"]["objective"]["search"]["proxy_pruning"],
+                        expected
+                    );
+                }
+            }
+        }
+        assert!(
+            Args::try_parse_from(["lilscript", "input.lil", "--proxy-pruning", "true"]).is_err()
+        );
+    }
 
     #[test]
     fn resource_flags_are_nonzero() {

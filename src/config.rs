@@ -244,12 +244,12 @@ dropping `debugLog` calls, is `javascript.strip_debug` (host `console.*` calls a
     ),
     (
         "mangle.extern_fields",
-        Retirement::NoEffect("no property is renamed, so extern fields always keep their names"),
+        Retirement::NoEffect("extern fields keep their declared host names; property mangling applies only to proven private fields"),
     ),
     (
         "mangle.internal_properties",
         Retirement::NoEffect(
-            "no property is renamed; typed property renaming (plan M9.6) will take ownership from declared types",
+            "private field renaming is controlled by policy.tactics.property-mangling; the old untyped heuristic is retired",
         ),
     ),
     ("profile", Retirement::NoEffect(PROFILE_GUIDED)),

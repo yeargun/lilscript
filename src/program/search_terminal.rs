@@ -408,9 +408,8 @@ struct Judge<'a> {
     margin: i64,
     /// The search baseline's qualification, the base of every comparison.
     baseline: Option<QualifiedArtifact>,
-    /// The audit lane (`LILSCRIPT_WALK_AUDIT`, a diagnostic): each pruned
-    /// move is also measured exactly. No decision reads it.
-    audit: bool,
+    /// Explicit policy for proxy rejection and its diagnostic exact scores.
+    proxy_pruning: crate::compilation_policy::ProxyPruning,
 }
 
 /// The proxy judge's reading of one move: its delta against the reference
@@ -419,8 +418,9 @@ struct Judge<'a> {
 struct Proxy {
     delta: i64,
     size: usize,
-    /// With `LILSCRIPT_WALK_AUDIT`, a pruned move's exact delta against the
-    /// reference: a negative one is a miss of the proxy.
+    /// With proxy auditing, a pruned move's exact delta against the
+    /// reference: a negative one is a potential miss, still subject to the
+    /// artifact's admission constraints before it could be a winner.
     audit: Option<i64>,
 }
 
@@ -455,8 +455,10 @@ impl Judge<'_> {
             available,
             margin,
             baseline,
-            audit,
+            proxy_pruning,
         } = *self;
+        let pruning = proxy_pruning != crate::compilation_policy::ProxyPruning::Off;
+        let audit = proxy_pruning == crate::compilation_policy::ProxyPruning::Audit;
         let tactics = OutputTactics {
             families: spelling.families,
             choices: choices.clone(),
@@ -503,10 +505,11 @@ impl Judge<'_> {
                     let exact = arena.measure(challenged, codec, budget)?;
                     proxy.audit = Some(exact as i64 - reference.size as i64);
                 }
-                Ok(Some((proxy, exact)))
+                let probed = exact || (codec != Objective::Raw && proxy.audit.is_some());
+                Ok(Some((proxy, probed)))
             })();
             let prune = match &result {
-                Ok(Some((proxy, _))) => proxy.delta > margin,
+                Ok(Some((proxy, _))) => pruning && proxy.delta > margin,
                 Ok(None) => true,
                 Err(_) => true,
             };
@@ -518,7 +521,7 @@ impl Judge<'_> {
             result
         });
         let proxy = match proxied {
-            Ok(Some((proxy, exact))) if proxy.delta > margin => {
+            Ok(Some((proxy, exact))) if pruning && proxy.delta > margin => {
                 return Ok((Err(Judgement::Pruned), Some(proxy), exact))
             }
             Ok(Some((proxy, _))) => Some(proxy),
@@ -1915,7 +1918,11 @@ impl JavaScriptSearch<'_, '_> {
             available,
             margin: i64::try_from(walk.margin).unwrap_or(i64::MAX),
             baseline: portfolio.baseline_qualification(codec).copied(),
-            audit: std::env::var_os("LILSCRIPT_WALK_AUDIT").is_some(),
+            proxy_pruning: policy
+                .objective()
+                .expect("JavaScript objective")
+                .search
+                .proxy_pruning,
         };
         let formed = compilation.with_javascript_formations_in(
             candidate,

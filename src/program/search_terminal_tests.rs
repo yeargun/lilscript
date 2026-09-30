@@ -21,6 +21,8 @@
 //!   higher one closes this; it belongs with the calibrated effort ladder
 //!   (M9.10), which re-derives those parameters.
 use super::*;
+#[path = "search_proxy_tests.rs"]
+mod proxy_modes;
 use crate::compilation_policy::{
     BaselineFirstPlan, BudgetLedger, CompilationRequest, ResolvedPolicy, ResourceLimits, WorkDomain,
 };
