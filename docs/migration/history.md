@@ -325,3 +325,19 @@ The [release evidence](../../benchmarks/migration-results/2026-09-30-c1-resource
 ## 2026-09-30: Q2 indexed-call qualification
 
 The [release evidence](../../benchmarks/migration-results/2026-09-30-q2-call-index/README.md) preserves every generic cell and all 20 port artifacts, with all semantic gates green. Three alternating CPU pairs retain identical output and 68/67/25 terminal exact judgments. Median CPU ratios are 0.876/0.930/1.088. Only Zod has separated sample ranges; background activity and the overlapping Marked/PostHog ranges limit the claim. The index removes repeated lookup work while retaining the useful size-oriented search. No generic baseline change is needed; persistent formation reuse remains open.
+
+**Scalar library verification.** All 1,726 active library tests pass, with four existing ignores and the previously qualified expensive table case excluded. Log: `/tmp/lilscript-s1-scalar-full.log`. Release generic/port qualification follows.
+
+## 2026-09-30: S3 strict-context target inlining (pre-registration)
+
+1. Remove blanket explicit-strict-body refusals from the three existing target inliners. Their call-site strictness checks already require identical known execution modes, or a module-wide strict contract. Keep those checks, all frame/argument/recursion/depth restrictions and the inlining tactic veto. A strict body must still never move into a sloppy destination.
+2. Cover each inliner with actual strict-sensitive writes to frozen host objects, argument/effect ordering, explicit and inherited strict callers and refused sloppy destinations. Exercise public script/module builds, imported struct-bearing helpers and configuration vetoes. Existing frame/ABI tests remain mandatory.
+3. Compare generic artifacts, reference ports and compilation cost. This is an opportunity expansion motivated by the remaining generic invoice/analytics Closure gaps: strict helpers currently remain separate even inside strict callers. It is a general context proof, not a workload-specific threshold. Size effects are unknown per codec until judged; preserve accurate per-objective batch evidence and runtime oracles.
+
+After the bounded Q2 lookup improvement, return to structural size work while keeping further formation reuse owned. Default effort 13 continues to favor smaller artifacts.
+
+## 2026-09-30: S1 scalar-method qualification
+
+The [release evidence](../../benchmarks/migration-results/2026-09-30-s1-scalar-methods/README.md) preserves every generic cell and all 20 port artifacts, with all 642 programs and the 29/1,353/21 reference tests passing. A focused method program at effort 13 saves 109 raw, 85 gzip and 84 Brotli bytes in independently targeted builds. All six prior/new artifacts pass the same oracle, including lone surrogates; sources, policies, encoder and engine identities are retained. This demonstrates the added folding capability, without claiming a fleet improvement or inferring speed from the single short CPU pairs.
+
+**Strict-inlining focused verification.** Both new tests pass across the three inliners, explicit/inherited/global strict contexts, refused sloppy destinations and public imported-struct builds under each objective with TOML vetoes. The first expression fixture was correctly refused because moving a host argument past a body host lookup lacks an evaluation-order proof; making the argument the first body operand fixes the fixture without relaxing the compiler's guard. Frozen writes still throw after the same ordered effects. Logs: `/tmp/lilscript-s3-strict-focused.log`, `/tmp/lilscript-s3-strict-focused-fixed.log`. Broader verification and size/CPU qualification follow.

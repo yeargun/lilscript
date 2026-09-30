@@ -1,0 +1,6 @@
+[objective]
+codecs = ["raw"]
+[effort]
+level = 13
+[javascript]
+assume_pristine_builtins = true

@@ -1,0 +1,1 @@
+let d=4294967297.75,a=(b,c)=>(b|0)+[...c].length|0;console.log(a(d,"A😀B"));console.log(a(-d,"😀x"));console.log(a(0/0,""));console.log([..."\ud800x\udc00"].length);

@@ -1,0 +1,60 @@
+{
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node",
+    "sha256": "34bc6627675906f8431892630b5e91fc4cc9f1e03ce15e9716025aa551e5c823",
+    "version": "v20.19.0"
+  },
+  "measurement_sha256": "d7e139302eb80a0d5114f247865639311a6615afb968821a1796698cc44c1670",
+  "expected_sha256": "76adfb4069d5bcbc01f3e5b91ce65c8ab23249d8a50f54dbb0eeb6eb31c218df",
+  "observations": [
+    {
+      "workload": "methods-raw",
+      "compiler": "previous",
+      "artifact": "artifacts/methods-raw/previous.js",
+      "sha256": "ecb5d100cadeddbf1a64d24c9bcb6a6c711e7b609d563c7d2e26bea32451247b",
+      "stdout": "4\n1\n0\n3\n",
+      "matches_expected": true
+    },
+    {
+      "workload": "methods-raw",
+      "compiler": "candidate",
+      "artifact": "artifacts/methods-raw/candidate.js",
+      "sha256": "34f688b6725fd75a36527a59d7be659960dd1dd21e70bc800661b4cc31108ddd",
+      "stdout": "4\n1\n0\n3\n",
+      "matches_expected": true
+    },
+    {
+      "workload": "methods-gzip",
+      "compiler": "previous",
+      "artifact": "artifacts/methods-gzip/previous.js",
+      "sha256": "0470664b32036a26a476eb561c655b67ddc503fcdebad70166e736b0c7dcda91",
+      "stdout": "4\n1\n0\n3\n",
+      "matches_expected": true
+    },
+    {
+      "workload": "methods-gzip",
+      "compiler": "candidate",
+      "artifact": "artifacts/methods-gzip/candidate.js",
+      "sha256": "34f688b6725fd75a36527a59d7be659960dd1dd21e70bc800661b4cc31108ddd",
+      "stdout": "4\n1\n0\n3\n",
+      "matches_expected": true
+    },
+    {
+      "workload": "methods-brotli",
+      "compiler": "previous",
+      "artifact": "artifacts/methods-brotli/previous.js",
+      "sha256": "0470664b32036a26a476eb561c655b67ddc503fcdebad70166e736b0c7dcda91",
+      "stdout": "4\n1\n0\n3\n",
+      "matches_expected": true
+    },
+    {
+      "workload": "methods-brotli",
+      "compiler": "candidate",
+      "artifact": "artifacts/methods-brotli/candidate.js",
+      "sha256": "34f688b6725fd75a36527a59d7be659960dd1dd21e70bc800661b4cc31108ddd",
+      "stdout": "4\n1\n0\n3\n",
+      "matches_expected": true
+    }
+  ],
+  "complete": true
+}

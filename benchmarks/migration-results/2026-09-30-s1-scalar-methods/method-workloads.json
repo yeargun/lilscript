@@ -1,0 +1,7 @@
+{
+  "workloads": [
+    {"id": "methods-raw", "cwd": ".", "entry": "methods.lil", "config": "raw.toml", "arguments": []},
+    {"id": "methods-gzip", "cwd": ".", "entry": "methods.lil", "config": "gzip.toml", "arguments": []},
+    {"id": "methods-brotli", "cwd": ".", "entry": "methods.lil", "config": "brotli.toml", "arguments": []}
+  ]
+}

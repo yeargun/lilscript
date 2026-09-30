@@ -1,0 +1,7 @@
+int truncated(float value) { return value.toInt(); }
+int points(string value) { return value.codePointLength(); }
+int combined(float value, string text) { return truncated(value) + points(text); }
+print(combined(4294967297.75, "A😀B"));
+print(combined(-4294967297.75, "😀x"));
+print(combined(0.0 / 0.0, ""));
+print(points("\ud800x\udc00"));
