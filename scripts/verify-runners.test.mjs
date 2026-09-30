@@ -2,12 +2,14 @@
 // scripts/ratchet.mjs.
 //   node --test scripts/verify-runners.test.mjs
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { codeOnly, composeConfig, LANES, parseTomlTables, selectLanes, walkCounts } from "./cases.mjs";
 import { diffAgainstLedger, failingTests, rewriteObjective, suiteRan, testTotals } from "./ports.mjs";
-import { applyLedger, catalogId, compareWithBaseline, countLosses, deliveryProblem, lossRows, selectItems, validateLedger } from "./ratchet.mjs";
+import { applyLedger, catalogId, changedConfigurations, compareWithBaseline, configurationOverrideProblem, configurationSnapshot, countLosses, deliveryProblem, lossRows, selectItems, validateLedger, validateObjectivePolicy } from "./ratchet.mjs";
 import { validateIdiomDebt } from "./lib/idiom-debt.mjs";
 
 test("feature detection ignores comments and string text but not template expressions", () => {
@@ -134,6 +136,53 @@ test("ratchet: a default-container change cannot rewrite the old delivery baseli
   assert.match(deliveryProblem("bare", wrapped), /separate baseline/);
   assert.equal(deliveryProblem("iife", null), null);
   assert.throws(() => deliveryProblem("auto", historical), /unknown script format/);
+});
+
+test("ratchet: retained configuration identities detect changed and removed lane files", () => {
+  const directory = mkdtempSync(join(tmpdir(), "lilscript-ratchet-config-"));
+  try {
+    for (const codec of ["raw", "gzip", "brotli"]) writeFileSync(join(directory, `${codec}.toml`), `objective.codecs='${codec}'\n`);
+    const snapshot = configurationSnapshot(["cases", "apps"], directory);
+    assert.equal(snapshot.length, 6);
+    assert.deepEqual(changedConfigurations(snapshot), []);
+    writeFileSync(join(directory, "gzip.toml"), "objective.codecs='brotli'\n");
+    assert.equal(changedConfigurations(snapshot).length, 2);
+    rmSync(join(directory, "brotli.toml"));
+    assert.equal(changedConfigurations(snapshot).length, 4);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("ratchet: experimental configurations cannot overwrite the ordinary baseline through an alias", () => {
+  const baseline = fileURLToPath(new URL("../tests/ratchet/baseline.json", import.meta.url));
+  const directory = mkdtempSync(join(tmpdir(), "lilscript-ratchet-baseline-"));
+  try {
+    const alias = join(directory, "alias.json");
+    symlinkSync(baseline, alias);
+    assert.match(configurationOverrideProblem(directory, alias, true), /separate --baseline/);
+    assert.match(configurationOverrideProblem(directory, baseline, true), /ordinary baseline/);
+    assert.equal(configurationOverrideProblem(directory, baseline, false), null);
+    assert.equal(configurationOverrideProblem(undefined, baseline, true), null);
+    assert.equal(configurationOverrideProblem(directory, join(directory, "experiment.json"), true), null);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("ratchet: a named objective lane must resolve to that actual compiler objective", () => {
+  const codec_settings = { gzip: { level: 9, window: 15 }, brotli: { quality: 11, window: 22, mode: "generic" } };
+  for (const [lane, codec] of [["raw", "Raw"], ["gzip", "Gzip"], ["brotli", "Brotli"]]) {
+    const receipt = { policy: { objective: { codec, codec_settings } } };
+    assert.doesNotThrow(() => validateObjectivePolicy(receipt, lane));
+    assert.throws(() => validateObjectivePolicy({ policy: { objective: { codec: "Other" } } }, lane), /resolves objective/);
+    assert.throws(() => validateObjectivePolicy({}, lane), /missing/);
+    if (lane !== "raw") {
+      const altered = structuredClone(receipt);
+      altered.policy.objective.codec_settings[lane].window = 12;
+      assert.throws(() => validateObjectivePolicy(altered, lane), /canonical encoder settings/);
+    }
+  }
 });
 
 test("ratchet: the ledger needs owners and reasons, covers by glob, bar and metric, and reports stale entries", () => {

@@ -5,6 +5,7 @@
 //        [--sets cases,apps,algorithms] [--filter <id-substring|glob>,...]
 //        [--jobs N] [--work DIR] [--json out.json] [--markdown out.md]
 //        [--format bare|iife] [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline [--accept-growth]] [--verbose]
+//        [--config-dir DIR] [--retain-explanations]
 //   node scripts/ratchet.mjs --refresh-bars --compiler <lilscript> --reference <old-route lilscript>
 //
 // Three generic corpora, none of them a port: comparison/cases (54 canonical
@@ -39,7 +40,7 @@
 // itself needs only Node, the compiler and the codec.
 //
 // See docs/testing.md.
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -69,6 +70,11 @@ const DEFAULTS = {
 const casesRoot = join(repository, "comparison/cases");
 const appsRoot = join(repository, "comparison/apps");
 const algorithmsRoot = join(repository, "comparison/algorithms");
+// Compiler search is controlled by the retained TOML, with no ambient audit
+// adapter or optional timing instrumentation changing its work.
+const compilerEnvironment = { ...process.env };
+delete compilerEnvironment.LILSCRIPT_WALK_AUDIT;
+delete compilerEnvironment.LILSCRIPT_TIMING;
 
 // ---------------------------------------------------------------- corpus
 
@@ -206,15 +212,16 @@ async function runAlgorithm(code, vectors, traces, timeoutMs) {
 }
 
 // Compile one item for one objective lane, run its oracle. Never throws.
-async function compileAndCheck({ binary, extraArgs, configDir, item, lane, work, oracle, timeoutMs }) {
+async function compileAndCheck({ binary, extraArgs, configDir, item, lane, work, oracle, timeoutMs, retainExplanations }) {
   const directory = join(work, "out", binary.label, item.id);
   mkdirSync(directory, { recursive: true });
   const output = join(directory, `${lane.id}.js`);
   rmSync(output, { force: true });
-  const config = join(repository, configDir, `${lane.id}.toml`);
+  const config = resolve(repository, configDir, `${lane.id}.toml`);
   const compile = await run(binary.path, [item.entry, ...extraArgs, "--config", config, "--target", "js", "--mode", "production", "-o", output], {
-    cwd: dirname(item.entry), timeoutMs,
+    cwd: dirname(item.entry), timeoutMs, env: compilerEnvironment,
   });
+  if (retainExplanations) writeFileSync(join(directory, `${lane.id}.explain.txt`), compile.stderr);
   if (compile.timedOut || compile.signal || compile.status === 101) {
     return { state: "compiler-crash", detail: compile.timedOut ? "timed out" : keyLine(compile.stderr) };
   }
@@ -248,11 +255,11 @@ async function measure(codec, files) {
 }
 
 // Every selected item in every lane: { id: { lane metric: {state, size?, detail?} } }.
-async function compileCorpus({ binary, extraArgs, configFor, items, work, jobs, codec, oracle }) {
+async function compileCorpus({ binary, extraArgs, configFor, items, work, jobs, codec, oracle, retainExplanations = false }) {
   const tasks = items.flatMap((item) => LANES.map((lane) => ({ item, lane })));
   let done = 0;
   const results = await pool(tasks, jobs, async ({ item, lane }) => {
-    const outcome = await compileAndCheck({ binary, extraArgs, configDir: configFor(item), item, lane, work, oracle, timeoutMs: 180_000 });
+    const outcome = await compileAndCheck({ binary, extraArgs, configDir: configFor(item), item, lane, work, oracle, timeoutMs: 180_000, retainExplanations });
     done += 1;
     if (done % 300 === 0 || done === tasks.length) process.stderr.write(`  ${binary.label}: ${done}/${tasks.length} compiled and run\n`);
     return { item, lane, outcome };
@@ -265,6 +272,10 @@ async function compileCorpus({ binary, extraArgs, configFor, items, work, jobs, 
     row[lane.metric] = outcome.state === "pass"
       ? { state: "pass", size: sizes.get(outcome.artifact.sha256)[lane.metric], sha256: outcome.artifact.sha256.slice(0, 16) }
       : { state: outcome.state, detail: outcome.detail };
+    if (retainExplanations) {
+      const path = join(work, "out", binary.label, item.id, `${lane.id}.explain.txt`);
+      row[lane.metric].explanation = { path: relative(work, path), sha256: sha256File(path) };
+    }
   }
   return table;
 }
@@ -639,6 +650,41 @@ export function deliveryProblem(format, baseline) {
     : null;
 }
 
+export function configurationSnapshot(sets, directory) {
+  return sets.flatMap((set) => LANES.map((lane) => {
+    const path = resolve(repository, directory ?? CONFIGS[set], `${lane.id}.toml`);
+    return { set, lane: lane.id, path, sha256: sha256File(path) };
+  }));
+}
+
+export function changedConfigurations(snapshot) {
+  return snapshot.filter((file) => !existsSync(file.path) || sha256File(file.path) !== file.sha256)
+    .map((file) => `configuration changed during measurement: ${file.set}/${file.lane} ${file.path}`);
+}
+
+export function configurationOverrideProblem(directory, baselinePath, update) {
+  if (!directory || !update) return null;
+  const canonical = (path) => existsSync(path) ? realpathSync(path) : resolve(path);
+  const ordinary = resolve(repository, DEFAULTS.baseline);
+  const left = existsSync(baselinePath) ? statSync(baselinePath) : null;
+  const right = existsSync(ordinary) ? statSync(ordinary) : null;
+  const sameFile = left && right && left.dev === right.dev && left.ino === right.ino;
+  return sameFile || canonical(baselinePath) === canonical(ordinary)
+    ? "experimental --config-dir cannot update the ordinary baseline; use a separate --baseline file"
+    : null;
+}
+
+export function validateObjectivePolicy(receipt, lane) {
+  const expected = { raw: "Raw", gzip: "Gzip", brotli: "Brotli" }[lane];
+  const actual = receipt?.policy?.objective?.codec;
+  if (!expected || actual !== expected) throw new Error(`configuration for ${lane} resolves objective ${actual ?? "missing"}; expected ${expected}`);
+  const canonical = { gzip: { level: 9, window: 15 }, brotli: { quality: 11, window: 22, mode: "generic" } }[lane];
+  const settings = receipt?.policy?.objective?.codec_settings?.[lane];
+  if (canonical && Object.entries(canonical).some(([key, value]) => settings?.[key] !== value)) {
+    throw new Error(`configuration for ${lane} must use the ratchet's canonical encoder settings: ${JSON.stringify(canonical)}`);
+  }
+}
+
 export async function runRatchet(options) {
   const started = Date.now();
   const work = resolve(options.work);
@@ -650,11 +696,15 @@ export async function runRatchet(options) {
   const ledgerProblems = validateLedger(ledger);
   if (ledgerProblems.length) throw new Error(`the ratchet ledger is invalid:\n${ledgerProblems.join("\n")}`);
   const baselinePath = resolve(options.baseline);
+  const configDir = options.configDir ? resolve(options.configDir) : undefined;
+  const overrideProblem = configurationOverrideProblem(configDir, baselinePath, options.updateBaseline);
+  if (overrideProblem) throw new Error(overrideProblem);
   const baseline = existsSync(baselinePath) ? JSON.parse(readFileSync(baselinePath, "utf8")) : null;
   const format = options.format ?? "bare";
   const contractProblem = deliveryProblem(format, baseline);
 
   const sets = options.sets;
+  const configurations = configurationSnapshot(sets, configDir);
   const { items: corpus, catalogEntries } = await loadCorpus(sets);
   const items = selectItems(corpus, options.filter);
   if (items.length === 0) throw new Error("no corpus item matches the selection");
@@ -664,9 +714,19 @@ export async function runRatchet(options) {
 
   const compiler = { ...pinBinary(options.compiler, join(work, "bin")), label: "compiler" };
   const codec = pinBinary(options.codec, join(work, "bin"));
+  for (const file of configurations) {
+    const item = items.find((item) => item.set === file.set);
+    if (!item) continue;
+    const result = await run(compiler.path, [item.entry, "--config", file.path, "--target", "js", "--format", format, "--print-policy"], { cwd: dirname(item.entry), timeoutMs: 30_000, env: compilerEnvironment });
+    if (result.status !== 0) throw new Error(`cannot resolve ${file.set}/${file.lane}: ${keyLine(result.stderr)}`);
+    file.resolved = JSON.parse(result.stdout);
+    validateObjectivePolicy(file.resolved, file.lane);
+  }
+  const extraArgs = ["--format", format, ...(options.retainExplanations ? ["--explain", "json"] : [])];
   const table = await compileCorpus({
-    binary: compiler, extraArgs: ["--format", format], configFor: (item) => CONFIGS[item.set],
+    binary: compiler, extraArgs, configFor: (item) => configDir ?? CONFIGS[item.set],
     items, work, jobs: options.jobs, codec, oracle: barsDocument.oracles ?? {},
+    retainExplanations: options.retainExplanations,
   });
 
   const ids = new Set(items.map((item) => item.id));
@@ -675,7 +735,7 @@ export async function runRatchet(options) {
   const counts = countLosses(losses, ids);
   const sums = totals(table, bars, ids);
   const { unledgeredLosses, unledgeredFailures, stale } = applyLedger(ledger, losses, failures);
-  const problems = [];
+  const problems = changedConfigurations(configurations);
   if (contractProblem) problems.push(contractProblem);
   const improvements = [];
 
@@ -714,6 +774,9 @@ export async function runRatchet(options) {
     compiler: { source: compiler.source, sha256: compiler.sha256, version: compiler.version, label: options.label ?? null },
     codec: { sha256: codec.sha256 },
     delivery: { target: "js", format },
+    configurations,
+    configurationOverride: configDir ?? null,
+    explanations: options.retainExplanations ?? false,
     sets,
     filter: options.filter ?? null,
     items: items.length,
@@ -769,6 +832,8 @@ export async function runRatchet(options) {
         recorded: new Date().toISOString().slice(0, 10),
         compiler: report.compiler,
         delivery: report.delivery,
+        configurations,
+        configurationOverride: report.configurationOverride,
         barsSha256,
         counts,
         totals: sums,
@@ -798,6 +863,8 @@ async function main() {
       sets: { type: "string" },
       filter: { type: "string" },
       format: { type: "string" },
+      "config-dir": { type: "string" },
+      "retain-explanations": { type: "boolean" },
       jobs: { type: "string" },
       work: { type: "string" },
       json: { type: "string" },
@@ -815,7 +882,7 @@ async function main() {
     },
   });
   if (values.help || !values.compiler) {
-    process.stderr.write("usage: node scripts/ratchet.mjs --compiler <lilscript> [--codec PATH] [--sets cases,apps,algorithms] [--filter <id|glob>,...] [--format bare|iife] [--jobs N] [--work DIR] [--json FILE] [--markdown FILE] [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline] [--verbose]\n       node scripts/ratchet.mjs --refresh-bars --compiler <lilscript> --reference <old-route lilscript> [--codec PATH] [--jobs N]\n");
+    process.stderr.write("usage: node scripts/ratchet.mjs --compiler <lilscript> [--codec PATH] [--sets cases,apps,algorithms] [--filter <id|glob>,...] [--format bare|iife] [--config-dir DIR] [--retain-explanations] [--jobs N] [--work DIR] [--json FILE] [--markdown FILE] [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline] [--verbose]\n       node scripts/ratchet.mjs --refresh-bars --compiler <lilscript> --reference <old-route lilscript> [--codec PATH] [--jobs N]\n");
     return values.help ? 0 : 2;
   }
   const codec = values.codec ?? defaultCodec(values.compiler);
@@ -829,6 +896,8 @@ async function main() {
     sets,
     filter: values.filter,
     format: values.format ?? "bare",
+    configDir: values["config-dir"],
+    retainExplanations: values["retain-explanations"] ?? false,
     jobs: Math.max(1, Number(values.jobs ?? Math.min(3, Math.max(1, availableParallelism() - 2)))),
     work: values.work ?? join(repository, "target/verify/ratchet"),
     json: values.json,

@@ -207,11 +207,21 @@ An item **loses** to a bar when it is larger. A lane with no artifact (refused, 
 | `--sets` | `cases`, `apps`, `algorithms`, comma-separated | all three |
 | `--filter` | item ids: comma-separated substrings or globs | every item |
 | `--format` | explicit classic-script container, `bare` or `iife` | `bare` |
+| `--config-dir` | experimental directory with `raw.toml`, `gzip.toml` and `brotli.toml`, applied to each selected corpus | corpus configurations |
+| `--retain-explanations` | retain each compiler's JSON explanation and warnings as a hashed `.explain.txt` receipt in the work directory | off |
 | `--jobs` | parallel compiles and runs | min(3, CPUs − 2) |
 | `--json`, `--markdown` | reports | — |
 | `--bars`, `--baseline`, `--ledger` | the three files below | `tests/ratchet/` |
 | `--update-baseline` | write the run as the new baseline; refused while anything blocks, and from a partial run | off |
 | `--refresh-bars` | rebuild `bars.json`: runs both comparison harnesses (they need `benchmarks/popular`'s pinned competitors and Closure) and compiles every item with `--reference` | off |
+
+Reports retain configuration file hashes and resolved policy receipts. Each
+lane must resolve its named objective with the canonical encoder settings used
+by the ratchet's bars. Configuration changes during measurement block acceptance.
+An experimental configuration directory cannot update the ordinary baseline,
+including through a symbolic link; use a separate `--baseline` for that request.
+The compiler processes run without the legacy `LILSCRIPT_WALK_AUDIT` adapter or
+optional `LILSCRIPT_TIMING` instrumentation, so TOML controls their search.
 
 **What blocks (exit 1).** Against `tests/ratchet/baseline.json` (each item's sizes, or failure state, from the last accepted run):
 - any loss count grows, per corpus, metric and bar;

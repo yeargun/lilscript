@@ -1,0 +1,26 @@
+[optimization]
+preset = "maximum"
+inlining = true
+scalar_replacement = true
+
+[javascript]
+priority = "size-first"
+candidate_search = "always"
+candidate_limit = 1536
+candidate_byte_budget = 1048576
+candidate_beam_width = 12
+strip_debug = false
+strip_console_calls = false
+
+[mangle]
+identifiers = true
+properties = true
+
+[objective]
+codecs = "raw"
+
+[effort]
+level = 13
+
+[policy.search]
+proxy_pruning = "audit"
