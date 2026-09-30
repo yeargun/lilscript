@@ -15,10 +15,11 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 ## Next
 
-1. **Q2:** remove the remaining repeated formation and scoring after the qualified stable-rule scheduler; preserve useful search results.
-2. **S1 with C2/C3:** continue propagation/defaults/removal beyond the implemented bounded primitive evaluator. The raw-bound-as-codec-proof claim is corrected; calibration precedes tuning new heuristic defaults.
-3. **C1/D1:** remaining family/risk coverage, compatibility migration, formats and manifests; producer availability, prerequisite vetoes, contradictory aliases and the application wrapper are covered.
-4. **S2 and G1/G2:** escape/field facts and flattening; lexical naming and safe private-property mangling as their facts allow. Continue D1's existing format work when its batch is ready.
+1. **Q3 with C3:** measure protected refinement of pruned naming starts at default/higher effort; the matched generic experiment identifies missed gzip opportunities. Preserve the completed search winner.
+2. **Q2:** remove the remaining repeated formation and scoring after the qualified stable-rule scheduler; preserve useful search results.
+3. **S1 with C2/C3:** continue propagation/defaults/removal beyond the implemented bounded primitive evaluator. The raw-bound-as-codec-proof claim is corrected; calibration precedes tuning new heuristic defaults.
+4. **C1/D1:** remaining family/risk coverage, compatibility migration, formats and manifests; producer availability, prerequisite vetoes, contradictory aliases and the application wrapper are covered.
+5. **S2 and G1/G2:** escape/field facts and flattening; lexical naming and safe private-property mangling as their facts allow. Continue D1's existing format work when its batch is ready.
 
 After these, follow the [working order](plan.md#8-working-order). Closure parity is V1's combined qualification goal, not a prerequisite for implementing naming or representation choices.
 
@@ -28,7 +29,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 |---|---|---|
 | [~] | [C1](plan.md#c1) Controls | Remaining family/risk registry coverage, precedence audit and compatibility migration |
 | [~] | [C2](plan.md#c2) Evidence | Broader oracle coverage, fair competitor contract and representative port runtime/counter qualification |
-| [ ] | [C3](plan.md#c3) Calibration | Generic calibration, protected held-out set, objective/work reports |
+| [~] | [C3](plan.md#c3) Calibration | Larger generic programs that exercise Brotli pruning, protected held-out set and broader objective/work calibration |
 | [~] | [S1](plan.md#s1) Folding | Broader supported evaluation, remaining propagation/defaults/removal |
 | [~] | [S2](plan.md#s2) Objects | Broader aliases/escape, fields, flattening and copy elision |
 | [~] | [S3](plan.md#s3) Calls | Remaining inlining, devirtualization, specialization and sharing |
