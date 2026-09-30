@@ -38,7 +38,7 @@ switch (request.recipe) {
     const {rolldown} = await load("rolldown");
     const bundle = await rolldown({input:request.entry, external:request.externals});
     const generated = await bundle.generate({format:esm ? "es" : "iife", minify:true, target:"es2020",
-      comments:false, exports:"named"});
+      comments:false, exports:esm ? "named" : "none"});
     // Do not concatenate chunks and silently change module initialization.
     if (generated.output.length !== 1 || generated.output[0].type !== "chunk") throw new Error("recipe requires one delivered chunk");
     code = generated.output[0].code;
