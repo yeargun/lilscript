@@ -3,8 +3,8 @@
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
  "recorded": "2026-09-30",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/g2-private-fields-2/lilscript",
-  "sha256": "71b08d86a7d9847610ad9da69a2acb71bbc21e74f97b54a6716847dbd5fafd9d",
+  "source": "/home/azureuser/lilscript-work/bin/s3-strict-inline-1/lilscript",
+  "sha256": "cc4ec38d61bcbc128accd49ef476070a5096cbb520027fb42e71e3bae966ad0d",
   "version": "lilscript 0.1.0",
   "label": null
  },
@@ -50,17 +50,17 @@
   },
   "algorithms": {
    "raw": {
-    "competitor": 1,
+    "competitor": 0,
     "closure": 10,
     "old": 11
    },
    "gzip9": {
-    "competitor": 2,
+    "competitor": 0,
     "closure": 9,
     "old": 11
    },
    "brotli11": {
-    "competitor": 4,
+    "competitor": 3,
     "closure": 8,
     "old": 11
    }
@@ -162,51 +162,51 @@
    "raw": {
     "competitor": {
      "items": 11,
-     "ours": 5076,
+     "ours": 4920,
      "bar": 6210
     },
     "closure": {
      "items": 11,
-     "ours": 5076,
+     "ours": 4920,
      "bar": 4522
     },
     "old": {
      "items": 11,
-     "ours": 5076,
+     "ours": 4920,
      "bar": 3995
     }
    },
    "gzip9": {
     "competitor": {
      "items": 11,
-     "ours": 3153,
+     "ours": 3125,
      "bar": 3440
     },
     "closure": {
      "items": 11,
-     "ours": 3153,
+     "ours": 3125,
      "bar": 3031
     },
     "old": {
      "items": 11,
-     "ours": 3153,
+     "ours": 3125,
      "bar": 2662
     }
    },
    "brotli11": {
     "competitor": {
      "items": 11,
-     "ours": 2874,
+     "ours": 2844,
      "bar": 3039
     },
     "closure": {
      "items": 11,
-     "ours": 2874,
+     "ours": 2844,
      "bar": 2703
     },
     "old": {
      "items": 11,
-     "ours": 2874,
+     "ours": 2844,
      "bar": 2305
     }
    }
@@ -272,15 +272,15 @@
   "algorithms/large-event-analytics": {
    "raw": {
     "state": "pass",
-    "size": 980
+    "size": 880
    },
    "gzip9": {
     "state": "pass",
-    "size": 518
+    "size": 499
    },
    "brotli11": {
     "state": "pass",
-    "size": 483
+    "size": 460
    }
   },
   "algorithms/policy-specialization": {
@@ -300,15 +300,15 @@
   "algorithms/shape-invoice-pipeline": {
    "raw": {
     "state": "pass",
-    "size": 638
+    "size": 582
    },
    "gzip9": {
     "state": "pass",
-    "size": 319
+    "size": 310
    },
    "brotli11": {
     "state": "pass",
-    "size": 301
+    "size": 294
    }
   },
   "algorithms/state-machine-parser": {
