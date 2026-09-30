@@ -225,7 +225,7 @@ impl Module {
         use crate::compilation_policy::WorkKind::Analysis;
         let mut scratch = budget.scope();
         let budget = &mut scratch;
-        let reach = self.reach(budget)?;
+        let reach = self.reach_tree(budget)?;
         // Every reference counts, a statement's own root included; the one
         // allowed is the single call.
         let mut calls = budget.filled(
@@ -465,7 +465,9 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<Placement>, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
-        let reach = self.reach(budget)?;
+        let mut phase = budget.scope();
+        let budget = &mut phase;
+        let reach = self.reach_tree(budget)?;
         let mut uses = vec![0usize; self.bindings.len()];
         let mut calls: Vec<Option<(ExprId, usize)>> = vec![None; self.bindings.len()];
         for &(id, depth) in &reach.expressions {
@@ -656,7 +658,7 @@ impl Module {
     /// every rejected declaration.
     fn index_single_call_sites(
         &self,
-        reach: &super::inline::Reach,
+        reach: &super::reach::ReachTree,
         calls: &mut [SingleCall],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
@@ -746,7 +748,7 @@ impl Module {
     #[cfg(test)]
     fn single_call_site(
         &self,
-        reach: &super::inline::Reach,
+        reach: &super::reach::ReachTree,
         binding: BindingId,
         function: FunctionId,
     ) -> Option<(RegionId, usize, Site, Vec<ExprId>)> {

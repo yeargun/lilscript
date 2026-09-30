@@ -13,6 +13,9 @@ mod statement_mentions;
 #[path = "strict_inline_tests.rs"]
 mod strict_inline;
 
+#[path = "reach_tests.rs"]
+mod reach_analysis;
+
 #[path = "scalar_initialization_tests.rs"]
 mod scalar_initialization;
 

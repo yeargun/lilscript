@@ -1,13 +1,13 @@
 use super::*;
 
 #[derive(Clone, Copy, Debug)]
-enum Kind {
+pub(super) enum Kind {
     Expression,
     Statements,
     Block,
 }
 
-fn fixture(kind: Kind, nested: bool, explicit: bool) -> Module {
+pub(super) fn fixture(kind: Kind, nested: bool, explicit: bool) -> Module {
     let mut module = Module::default();
     let root = module.root;
     let scope = module.regions[root.index()].scope;

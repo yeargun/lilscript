@@ -45,6 +45,7 @@ pub(crate) use literal_output::{LiteralAlternative, WeakLiteralObservation};
 #[cfg(test)]
 mod imports_tests;
 mod inline;
+mod reach;
 mod journal;
 pub(crate) use journal::Journal;
 #[cfg(test)]
@@ -2076,79 +2077,80 @@ impl Module {
             .iter()
             .map(|binding| binding.defined)
             .collect();
-        let reach = self.reach(budget)?;
-        let mut uses = vec![0usize; self.bindings.len()];
-        let mut calls = vec![0usize; self.bindings.len()];
-        let mut created_at_call = Vec::new();
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            match &self.expressions[id.index()] {
-                Expr::Binding(binding) => uses[binding.index()] += 1,
-                Expr::Call {
-                    callee,
-                    invocation: Invocation::Value | Invocation::Reference,
-                    ..
-                } => match self.expressions[callee.index()] {
-                    Expr::Binding(binding) => calls[binding.index()] += 1,
-                    Expr::Function(function) => created_at_call.push(function),
-                    _ => {}
-                },
-                _ => {}
-            }
-        }
-        for export in &self.exports {
-            uses[export.binding.index()] += 1;
-        }
-        let mut functions = created_at_call;
-        for &region in &reach.regions {
-            for statement in &self.regions[region.index()].statements {
+        self.with_reach_tree(budget, |module, reach, budget| {
+            let mut uses = vec![0usize; module.bindings.len()];
+            let mut calls = vec![0usize; module.bindings.len()];
+            let mut created_at_call = Vec::new();
+            for &(id, _) in &reach.expressions {
                 budget.work(Analysis, 1)?;
-                let (binding, function) = match *statement {
-                    Statement::Function { binding, function } => (binding, function),
-                    Statement::Let {
-                        binding,
-                        value: Some(value),
-                    } => match self.expressions[value.index()] {
-                        Expr::Function(function) => (binding, function),
-                        _ => continue,
+                match &module.expressions[id.index()] {
+                    Expr::Binding(binding) => uses[binding.index()] += 1,
+                    Expr::Call {
+                        callee,
+                        invocation: Invocation::Value | Invocation::Reference,
+                        ..
+                    } => match module.expressions[callee.index()] {
+                        Expr::Binding(binding) => calls[binding.index()] += 1,
+                        Expr::Function(function) => created_at_call.push(function),
+                        _ => {}
                     },
-                    _ => continue,
-                };
-                if calls[binding.index()] != 0
-                    && uses[binding.index()] == calls[binding.index()]
-                    && !self.bindings[binding.index()].pinned
-                {
-                    functions.push(function);
+                    _ => {}
                 }
             }
-        }
-        // Calls passing the default literal keep it as an argument (the
-        // check no longer lets `drop_default_arguments` drop it): measured
-        // better than keeping the check for them (motionlil −159).
-        let mut dropped = 0;
-        for function in functions {
-            let body = self.functions[function.index()].body;
-            let mut index = 0;
-            while index < self.regions[body.index()].statements.len() {
-                budget.work(Analysis, 1)?;
-                let Some((parameter, _)) =
-                    self.default_check(&self.regions[body.index()].statements[index])
-                else {
-                    break;
-                };
-                if defined.get(parameter.index()).copied().unwrap_or(false)
-                    && self.functions[function.index()]
-                        .parameters
-                        .contains(&parameter)
-                {
-                    self.remove_statement(body.index(), index);
-                    dropped += 1;
-                } else {
-                    index += 1;
+            for export in &module.exports {
+                uses[export.binding.index()] += 1;
+            }
+            let mut functions = created_at_call;
+            for &region in &reach.regions {
+                for statement in &module.regions[region.index()].statements {
+                    budget.work(Analysis, 1)?;
+                    let (binding, function) = match *statement {
+                        Statement::Function { binding, function } => (binding, function),
+                        Statement::Let {
+                            binding,
+                            value: Some(value),
+                        } => match module.expressions[value.index()] {
+                            Expr::Function(function) => (binding, function),
+                            _ => continue,
+                        },
+                        _ => continue,
+                    };
+                    if calls[binding.index()] != 0
+                        && uses[binding.index()] == calls[binding.index()]
+                        && !module.bindings[binding.index()].pinned
+                    {
+                        functions.push(function);
+                    }
                 }
             }
-        }
-        Ok(dropped)
+            // Calls passing the default literal keep it as an argument (the
+            // check no longer lets `drop_default_arguments` drop it): measured
+            // better than keeping the check for them (motionlil −159).
+            let mut dropped = 0;
+            for function in functions {
+                let body = module.functions[function.index()].body;
+                let mut index = 0;
+                while index < module.regions[body.index()].statements.len() {
+                    budget.work(Analysis, 1)?;
+                    let Some((parameter, _)) =
+                        module.default_check(&module.regions[body.index()].statements[index])
+                    else {
+                        break;
+                    };
+                    if defined.get(parameter.index()).copied().unwrap_or(false)
+                        && module.functions[function.index()]
+                            .parameters
+                            .contains(&parameter)
+                    {
+                        module.remove_statement(body.index(), index);
+                        dropped += 1;
+                    } else {
+                        index += 1;
+                    }
+                }
+            }
+            Ok(dropped)
+        })?
     }
 
     /// A function nothing reads but its direct calls has an unobservable
@@ -2160,74 +2162,76 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
-        let reach = self.reach(budget)?;
-        let mut uses = vec![0usize; self.bindings.len()];
-        let mut calls = vec![0usize; self.bindings.len()];
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            match &self.expressions[id.index()] {
-                Expr::Binding(binding) => uses[binding.index()] += 1,
-                Expr::Call {
-                    callee,
-                    invocation: Invocation::Value | Invocation::Reference,
-                    ..
-                } => {
-                    if let Expr::Binding(binding) = self.expressions[callee.index()] {
-                        calls[binding.index()] += 1;
-                    }
-                }
-                _ => {}
-            }
-        }
-        for export in &self.exports {
-            uses[export.binding.index()] += 1;
-        }
-        let mut changed = 0;
-        for &region in &reach.regions {
-            for index in 0..self.regions[region.index()].statements.len() {
+        self.with_reach_tree(budget, |module, reach, budget| {
+            let mut uses = vec![0usize; module.bindings.len()];
+            let mut calls = vec![0usize; module.bindings.len()];
+            for &(id, _) in &reach.expressions {
                 budget.work(Analysis, 1)?;
-                let (binding, function) = match self.regions[region.index()].statements[index] {
-                    Statement::Function { binding, function } => (binding, function),
-                    Statement::Let {
-                        binding,
-                        value: Some(value),
-                    } => match self.expressions[value.index()] {
-                        Expr::Function(function) => (binding, function),
-                        _ => continue,
-                    },
-                    _ => continue,
-                };
-                let declared = &self.functions[function.index()];
-                if calls[binding.index()] == 0
-                    || uses[binding.index()] != calls[binding.index()]
-                    || self.bindings[binding.index()].pinned
-                    || declared.length.is_some()
-                    || declared.strict
-                    || !self.arguments_free(function)
-                {
-                    continue;
-                }
-                let count = declared.parameters.len();
-                let mut checked = Vec::new();
-                for statement in &self.regions[declared.body.index()].statements {
-                    let Some((parameter, _)) = self.default_check(statement) else {
-                        break;
-                    };
-                    match declared.parameters.iter().position(|&p| p == parameter) {
-                        Some(position) => checked.push(position),
-                        None => break,
+                match &module.expressions[id.index()] {
+                    Expr::Binding(binding) => uses[binding.index()] += 1,
+                    Expr::Call {
+                        callee,
+                        invocation: Invocation::Value | Invocation::Reference,
+                        ..
+                    } => {
+                        if let Expr::Binding(binding) = module.expressions[callee.index()] {
+                            calls[binding.index()] += 1;
+                        }
                     }
-                }
-                let Some(&first) = checked.first() else {
-                    continue;
-                };
-                if checked.iter().copied().eq(first..count) {
-                    self.function_mut(function).length = Some(first);
-                    changed += 1;
+                    _ => {}
                 }
             }
-        }
-        Ok(changed)
+            for export in &module.exports {
+                uses[export.binding.index()] += 1;
+            }
+            let mut changed = 0;
+            for &region in &reach.regions {
+                for index in 0..module.regions[region.index()].statements.len() {
+                    budget.work(Analysis, 1)?;
+                    let (binding, function) = match module.regions[region.index()].statements[index]
+                    {
+                        Statement::Function { binding, function } => (binding, function),
+                        Statement::Let {
+                            binding,
+                            value: Some(value),
+                        } => match module.expressions[value.index()] {
+                            Expr::Function(function) => (binding, function),
+                            _ => continue,
+                        },
+                        _ => continue,
+                    };
+                    let declared = &module.functions[function.index()];
+                    if calls[binding.index()] == 0
+                        || uses[binding.index()] != calls[binding.index()]
+                        || module.bindings[binding.index()].pinned
+                        || declared.length.is_some()
+                        || declared.strict
+                        || !module.arguments_free(function)
+                    {
+                        continue;
+                    }
+                    let count = declared.parameters.len();
+                    let mut checked = Vec::new();
+                    for statement in &module.regions[declared.body.index()].statements {
+                        let Some((parameter, _)) = module.default_check(statement) else {
+                            break;
+                        };
+                        match declared.parameters.iter().position(|&p| p == parameter) {
+                            Some(position) => checked.push(position),
+                            None => break,
+                        }
+                    }
+                    let Some(&first) = checked.first() else {
+                        continue;
+                    };
+                    if checked.iter().copied().eq(first..count) {
+                        module.function_mut(function).length = Some(first);
+                        changed += 1;
+                    }
+                }
+            }
+            Ok(changed)
+        })?
     }
 
     /// A call's trailing argument that repeats its callee's default goes:
@@ -2255,91 +2259,92 @@ impl Module {
         // Each callee's parameter count and its literal defaults by position.
         let mut defaults: Vec<Option<(usize, Vec<Option<ExprId>>)>> =
             vec![None; self.bindings.len()];
-        let reach = self.reach(budget)?;
-        for &region in &reach.regions {
-            for statement in &self.regions[region.index()].statements {
-                budget.work(Analysis, 1)?;
-                let (binding, function) = match *statement {
-                    Statement::Function { binding, function } => (binding, function),
-                    Statement::Let {
-                        binding,
-                        value: Some(value),
-                    } => match self.expressions[value.index()] {
-                        Expr::Function(function) => (binding, function),
+        self.with_reach_tree(budget, |module, reach, budget| {
+            for &region in &reach.regions {
+                for statement in &module.regions[region.index()].statements {
+                    budget.work(Analysis, 1)?;
+                    let (binding, function) = match *statement {
+                        Statement::Function { binding, function } => (binding, function),
+                        Statement::Let {
+                            binding,
+                            value: Some(value),
+                        } => match module.expressions[value.index()] {
+                            Expr::Function(function) => (binding, function),
+                            _ => continue,
+                        },
                         _ => continue,
-                    },
-                    _ => continue,
-                };
-                if assigned[binding.index()] || !self.arguments_free(function) {
-                    continue;
-                }
-                let declared = &self.functions[function.index()];
-                let mut literal = vec![None; declared.parameters.len()];
-                for statement in &self.regions[declared.body.index()].statements {
-                    let Some((parameter, value)) = self.default_check(statement) else {
-                        break;
                     };
-                    match declared.parameters.iter().position(|&p| p == parameter) {
-                        Some(position) => literal[position] = Some(value),
-                        None => break,
+                    if assigned[binding.index()] || !module.arguments_free(function) {
+                        continue;
                     }
+                    let declared = &module.functions[function.index()];
+                    let mut literal = vec![None; declared.parameters.len()];
+                    for statement in &module.regions[declared.body.index()].statements {
+                        let Some((parameter, value)) = module.default_check(statement) else {
+                            break;
+                        };
+                        match declared.parameters.iter().position(|&p| p == parameter) {
+                            Some(position) => literal[position] = Some(value),
+                            None => break,
+                        }
+                    }
+                    defaults[binding.index()] = Some((declared.parameters.len(), literal));
                 }
-                defaults[binding.index()] = Some((declared.parameters.len(), literal));
             }
-        }
-        let same = |module: &Self, argument: ExprId, default: Option<ExprId>| match &module
-            .expressions[argument.index()]
-        {
-            Expr::Literal(Literal::Undefined) => true,
-            Expr::Literal(passed) => default.is_some_and(|default| {
-                match (passed, &module.expressions[default.index()]) {
-                    (Literal::Number(a), Expr::Literal(Literal::Number(b))) => {
-                        a.to_bits() == b.to_bits()
+            let same = |module: &Self, argument: ExprId, default: Option<ExprId>| match &module
+                .expressions[argument.index()]
+            {
+                Expr::Literal(Literal::Undefined) => true,
+                Expr::Literal(passed) => default.is_some_and(|default| {
+                    match (passed, &module.expressions[default.index()]) {
+                        (Literal::Number(a), Expr::Literal(Literal::Number(b))) => {
+                            a.to_bits() == b.to_bits()
+                        }
+                        (a, Expr::Literal(b)) => a == b,
+                        _ => false,
                     }
-                    (a, Expr::Literal(b)) => a == b,
-                    _ => false,
-                }
-            }),
-            _ => false,
-        };
-        let mut dropped = 0;
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            let Expr::Call {
-                callee,
-                arguments,
-                invocation: Invocation::Value | Invocation::Reference,
-            } = &self.expressions[id.index()]
-            else {
-                continue;
+                }),
+                _ => false,
             };
-            let Expr::Binding(binding) = self.expressions[callee.index()] else {
-                continue;
-            };
-            let Some((parameters, literal)) = &defaults[binding.index()] else {
-                continue;
-            };
-            let mut keep = arguments.len();
-            while keep > 0 {
-                let position = keep - 1;
-                let default = if position < *parameters {
-                    literal[position]
-                } else {
-                    None
+            let mut dropped = 0;
+            for &(id, _) in &reach.expressions {
+                budget.work(Analysis, 1)?;
+                let Expr::Call {
+                    callee,
+                    arguments,
+                    invocation: Invocation::Value | Invocation::Reference,
+                } = &module.expressions[id.index()]
+                else {
+                    continue;
                 };
-                if position >= *parameters || !same(self, arguments[position], default) {
-                    break;
+                let Expr::Binding(binding) = module.expressions[callee.index()] else {
+                    continue;
+                };
+                let Some((parameters, literal)) = &defaults[binding.index()] else {
+                    continue;
+                };
+                let mut keep = arguments.len();
+                while keep > 0 {
+                    let position = keep - 1;
+                    let default = if position < *parameters {
+                        literal[position]
+                    } else {
+                        None
+                    };
+                    if position >= *parameters || !same(module, arguments[position], default) {
+                        break;
+                    }
+                    keep = position;
                 }
-                keep = position;
-            }
-            if keep < arguments.len() {
-                dropped += arguments.len() - keep;
-                if let Expr::Call { arguments, .. } = self.expression_mut(id) {
-                    arguments.truncate(keep);
+                if keep < arguments.len() {
+                    dropped += arguments.len() - keep;
+                    if let Expr::Call { arguments, .. } = module.expression_mut(id) {
+                        arguments.truncate(keep);
+                    }
                 }
             }
-        }
-        Ok(dropped)
+            Ok(dropped)
+        })?
     }
 
     /// `if(p===void 0)p=D`, or its expression form `p===void 0&&(p=D)`, for
@@ -2639,7 +2644,9 @@ impl Module {
             references[export.binding.index()] = u32::MAX;
         }
         let mut depths = self.region_depths(budget)?;
-        let mut captured = self.reach(budget)?.captured;
+        let mut captured = self.with_reach(budget, |_, reach, budget| {
+            budget.copy_slice(AllocationClass::Scratch, &reach.captured)
+        })??;
         let mut frames = self.frames(budget)?;
         let mut order = self.order(&frames, budget)?;
         let mut forwarded = 0;
@@ -2878,7 +2885,14 @@ impl Module {
                     // The moved functions' bodies stand deeper, under another
                     // statement: the region facts are found again.
                     depths = self.region_depths(budget)?;
-                    captured = self.reach(budget)?.captured;
+                    self.with_reach(budget, |_, reach, budget| {
+                        budget.work(
+                            crate::compilation_policy::WorkKind::Analysis,
+                            captured.len() as u64,
+                        )?;
+                        captured.copy_from_slice(&reach.captured);
+                        Ok::<_, AllocationError>(())
+                    })??;
                     frames = self.frames(budget)?;
                     order = self.order(&frames, budget)?;
                 }

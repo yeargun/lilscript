@@ -13,6 +13,7 @@
 //! argument. `f` is never reassigned or exported.
 
 use super::*;
+use super::reach::Reach;
 use crate::compilation_policy::WorkKind::Analysis;
 use crate::output_budget::{AllocationBudget, AllocationError};
 
@@ -36,23 +37,6 @@ struct Template {
     strictness: u8,
 }
 
-/// Every expression and region that can run, with each expression's depth as
-/// the verifier counts it.
-pub(super) struct Reach {
-    pub(super) expressions: Vec<(ExprId, usize)>,
-    pub(super) regions: Vec<RegionId>,
-    /// Bindings mentioned by a function other than the one declaring them:
-    /// a call can reach such a binding, and may write it.
-    pub(super) captured: Vec<bool>,
-    /// Lexical execution contexts, relative to a sloppy root: bit 1 is
-    /// sloppy, bit 2 strict. A shared node reached in both contexts has
-    /// both bits and cannot be moved across a strictness boundary.
-    pub(super) strict_regions: Vec<u8>,
-    pub(super) strict_expressions: Vec<u8>,
-    /// Function parameters: initialized before any code reads them.
-    parameters: Vec<bool>,
-}
-
 /// A body may inherit the destination's mode only when both have one
 /// known, equal mode. Module execution makes every context strict.
 pub(super) fn same_strictness(left: u8, right: u8) -> bool {
@@ -73,202 +57,215 @@ impl Module {
         strict: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
-        let reach = self.reach(budget)?;
-        let mut written = vec![false; self.bindings.len()];
-        let mut calls = vec![0usize; self.bindings.len()];
-        for &(id, _) in &reach.expressions {
-            match &self.expressions[id.index()] {
-                Expr::Assign { target, .. } => {
-                    if let Expr::Binding(binding) = self.expressions[target.index()] {
-                        written[binding.index()] = true;
+        self.with_reach(budget, |module, reach, budget| {
+            let mut written = vec![false; module.bindings.len()];
+            let mut calls = vec![0usize; module.bindings.len()];
+            for &(id, _) in &reach.expressions {
+                match &module.expressions[id.index()] {
+                    Expr::Assign { target, .. } => {
+                        if let Expr::Binding(binding) = module.expressions[target.index()] {
+                            written[binding.index()] = true;
+                        }
                     }
-                }
-                Expr::Call { callee, .. } => {
-                    if let Expr::Binding(binding) = self.expressions[callee.index()] {
-                        calls[binding.index()] += 1;
+                    Expr::Call { callee, .. } => {
+                        if let Expr::Binding(binding) = module.expressions[callee.index()] {
+                            calls[binding.index()] += 1;
+                        }
                     }
-                }
-                _ => {}
-            }
-        }
-        for export in &self.exports {
-            written[export.binding.index()] = true;
-        }
-        // Root constants declared with a literal before any root statement can
-        // run code: every read inside a function finds them initialized.
-        let mut early = vec![false; self.bindings.len()];
-        for statement in &self.regions[self.root.index()].statements {
-            budget.work(Analysis, 1)?;
-            let Statement::Let { binding, value } = *statement else {
-                break;
-            };
-            match value {
-                Some(value) if !self.inert_value(value, budget)? => break,
-                Some(value) => {
-                    early[binding.index()] = !written[binding.index()]
-                        && matches!(self.expressions[value.index()], Expr::Literal(_));
-                }
-                None => {}
-            }
-        }
-        let mut templates: Vec<Option<Template>> = Vec::new();
-        for &region in &reach.regions {
-            for statement in &self.regions[region.index()].statements {
-                budget.work(Analysis, 1)?;
-                let Statement::Let {
-                    binding,
-                    value: Some(value),
-                } = *statement
-                else {
-                    continue;
-                };
-                let Expr::Function(function) = self.expressions[value.index()] else {
-                    continue;
-                };
-                if written[binding.index()] || self.bindings[binding.index()].pinned {
-                    continue;
-                }
-                let Some((body, nodes, reads, first, prefix, discards)) =
-                    self.template_body(function, binding, budget)?
-                else {
-                    continue;
-                };
-                // Reentered host code can observe a frame unless the
-                // contract hides it, independently of strict execution.
-                if !frames_hidden && !self.runs_no_user_code(body) {
-                    continue;
-                }
-                if nodes > limit && calls[binding.index()] != 1 {
-                    continue;
-                }
-                if templates.len() <= binding.index() {
-                    templates.resize_with(binding.index() + 1, || None);
-                }
-                templates[binding.index()] = Some(Template {
-                    parameters: self.functions[function.index()].parameters.clone(),
-                    body,
-                    reads,
-                    first,
-                    prefix,
-                    discards,
-                    strictness: reach.strict_regions[self.functions[function.index()].body.index()],
-                });
-            }
-        }
-        if templates.iter().all(Option::is_none) {
-            return Ok((0, None));
-        }
-        let template = |binding: BindingId| templates.get(binding.index()).and_then(Option::as_ref);
-        // Expressions whose value nothing reads.
-        let mut discarded = vec![false; self.expressions.len()];
-        for &region in &reach.regions {
-            for statement in &self.regions[region.index()].statements {
-                match statement {
-                    Statement::Evaluate(value)
-                    | Statement::Loop {
-                        update: Some(value),
-                        ..
-                    } => discarded[value.index()] = true,
                     _ => {}
                 }
             }
-        }
-        for &(id, _) in &reach.expressions {
-            if let Expr::Sequence(items) = &self.expressions[id.index()] {
-                for item in &items[..items.len().saturating_sub(1)] {
-                    discarded[item.index()] = true;
+            for export in &module.exports {
+                written[export.binding.index()] = true;
+            }
+            // Root constants declared with a literal before any root statement can
+            // run code: every read inside a function finds them initialized.
+            let mut early = vec![false; module.bindings.len()];
+            for statement in &module.regions[module.root.index()].statements {
+                budget.work(Analysis, 1)?;
+                let Statement::Let { binding, value } = *statement else {
+                    break;
+                };
+                match value {
+                    Some(value) if !module.inert_value(value, budget)? => break,
+                    Some(value) => {
+                        early[binding.index()] = !written[binding.index()]
+                            && matches!(module.expressions[value.index()], Expr::Literal(_));
+                    }
+                    None => {}
                 }
             }
-        }
-        let mut sites = Vec::new();
-        for &(id, depth) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            let Expr::Call {
-                callee,
-                arguments,
-                invocation: Invocation::Value | Invocation::Reference,
-            } = &self.expressions[id.index()]
-            else {
-                continue;
-            };
-            let Expr::Binding(binding) = self.expressions[callee.index()] else {
-                continue;
-            };
-            let Some(found) = template(binding) else {
-                continue;
-            };
-            if !strict && !same_strictness(found.strictness, reach.strict_expressions[id.index()]) {
-                continue;
+            let mut templates: Vec<Option<Template>> = Vec::new();
+            for &region in &reach.regions {
+                for statement in &module.regions[region.index()].statements {
+                    budget.work(Analysis, 1)?;
+                    let Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } = *statement
+                    else {
+                        continue;
+                    };
+                    let Expr::Function(function) = module.expressions[value.index()] else {
+                        continue;
+                    };
+                    if written[binding.index()] || module.bindings[binding.index()].pinned {
+                        continue;
+                    }
+                    let Some((body, nodes, reads, first, prefix, discards)) =
+                        module.template_body(function, binding, budget)?
+                    else {
+                        continue;
+                    };
+                    // Reentered host code can observe a frame unless the
+                    // contract hides it, independently of strict execution.
+                    if !frames_hidden && !module.runs_no_user_code(body) {
+                        continue;
+                    }
+                    if nodes > limit && calls[binding.index()] != 1 {
+                        continue;
+                    }
+                    if templates.len() <= binding.index() {
+                        templates.resize_with(binding.index() + 1, || None);
+                    }
+                    templates[binding.index()] = Some(Template {
+                        parameters: module.functions[function.index()].parameters.clone(),
+                        body,
+                        reads,
+                        first,
+                        prefix,
+                        discards,
+                        strictness: reach.strict_regions
+                            [module.functions[function.index()].body.index()],
+                    });
+                }
             }
-            if found.discards && !discarded[id.index()] {
-                continue;
+            if templates.iter().all(Option::is_none) {
+                return Ok((0, None));
             }
-            if depth > SITE_DEPTH
-                || arguments.len() != found.parameters.len()
-                || arguments
-                    .iter()
-                    .any(|argument| matches!(self.expressions[argument.index()], Expr::Spread(_)))
-            {
-                continue;
+            let template =
+                |binding: BindingId| templates.get(binding.index()).and_then(Option::as_ref);
+            // Expressions whose value nothing reads.
+            let mut discarded = vec![false; module.expressions.len()];
+            for &region in &reach.regions {
+                for statement in &module.regions[region.index()].statements {
+                    match statement {
+                        Statement::Evaluate(value)
+                        | Statement::Loop {
+                            update: Some(value),
+                            ..
+                        } => discarded[value.index()] = true,
+                        _ => {}
+                    }
+                }
             }
-            // An argument read exactly once is read in argument order, outside a
-            // branch, with only inert evaluations before the last such read.
-            // One whose value cannot change may also be read again or not at
-            // all. Where the call is the function's only one (so the function
-            // goes), a stable argument may also be read at any time: measured,
-            // doing that at every call grows markedlil and zodlil.
-            let single = calls[binding.index()] == 1;
-            let mut fits = true;
-            let mut last: Option<usize> = None;
-            for (index, &argument) in arguments.iter().enumerate() {
-                let reads = found.reads[index];
-                let stable = if single {
-                    self.stable(argument, index, arguments, &reach, &written, &early, budget)?
-                } else {
-                    reads != 1 && self.repeatable(argument, index, arguments, &reach, budget)?
+            for &(id, _) in &reach.expressions {
+                if let Expr::Sequence(items) = &module.expressions[id.index()] {
+                    for item in &items[..items.len().saturating_sub(1)] {
+                        discarded[item.index()] = true;
+                    }
+                }
+            }
+            let mut sites = Vec::new();
+            for &(id, depth) in &reach.expressions {
+                budget.work(Analysis, 1)?;
+                let Expr::Call {
+                    callee,
+                    arguments,
+                    invocation: Invocation::Value | Invocation::Reference,
+                } = &module.expressions[id.index()]
+                else {
+                    continue;
                 };
-                if (single && stable) || (reads == 0 && stable) {
+                let Expr::Binding(binding) = module.expressions[callee.index()] else {
+                    continue;
+                };
+                let Some(found) = template(binding) else {
+                    continue;
+                };
+                if !strict
+                    && !same_strictness(found.strictness, reach.strict_expressions[id.index()])
+                {
                     continue;
                 }
-                if reads != 1 && !stable {
-                    fits = false;
-                    break;
+                if found.discards && !discarded[id.index()] {
+                    continue;
                 }
-                match found.first[index] {
-                    Some((position, false)) if last.is_none_or(|last| position > last) => {
-                        last = Some(position);
+                if depth > SITE_DEPTH
+                    || arguments.len() != found.parameters.len()
+                    || arguments.iter().any(|argument| {
+                        matches!(module.expressions[argument.index()], Expr::Spread(_))
+                    })
+                {
+                    continue;
+                }
+                // An argument read exactly once is read in argument order, outside a
+                // branch, with only inert evaluations before the last such read.
+                // One whose value cannot change may also be read again or not at
+                // all. Where the call is the function's only one (so the function
+                // goes), a stable argument may also be read at any time: measured,
+                // doing that at every call grows markedlil and zodlil.
+                let single = calls[binding.index()] == 1;
+                let mut fits = true;
+                let mut last: Option<usize> = None;
+                for (index, &argument) in arguments.iter().enumerate() {
+                    let reads = found.reads[index];
+                    let stable = if single {
+                        module
+                            .stable(argument, index, arguments, reach, &written, &early, budget)?
+                    } else {
+                        reads != 1
+                            && module.repeatable(argument, index, arguments, reach, budget)?
+                    };
+                    if (single && stable) || (reads == 0 && stable) {
+                        continue;
                     }
-                    _ => {
+                    if reads != 1 && !stable {
                         fits = false;
                         break;
                     }
+                    match found.first[index] {
+                        Some((position, false)) if last.is_none_or(|last| position > last) => {
+                            last = Some(position);
+                        }
+                        _ => {
+                            fits = false;
+                            break;
+                        }
+                    }
                 }
+                if !fits || last.is_some_and(|last| last >= found.prefix) {
+                    continue;
+                }
+                sites.push((id, binding));
             }
-            if !fits || last.is_some_and(|last| last >= found.prefix) {
-                continue;
+            // A site inside another template's body is edited in place, so later
+            // copies of that body carry it inlined: the same evaluations either way.
+            for &(site, binding) in &sites {
+                let found = template(binding).unwrap();
+                let Expr::Call { arguments, .. } = module.expressions[site.index()].clone() else {
+                    unreachable!("a recorded site is a call");
+                };
+                let origin = module.origins[site.index()];
+                let mut placed = vec![false; arguments.len()];
+                let root = module.clone_template(
+                    found,
+                    found.body,
+                    &arguments,
+                    &mut placed,
+                    origin,
+                    budget,
+                )?;
+                module.set_expression(site, root);
+                // The site now evaluates the template's root.
+                module.copy_behaviour_in(found.body, site, budget)?;
             }
-            sites.push((id, binding));
-        }
-        // A site inside another template's body is edited in place, so later
-        // copies of that body carry it inlined: the same evaluations either way.
-        for &(site, binding) in &sites {
-            let found = template(binding).unwrap();
-            let Expr::Call { arguments, .. } = self.expressions[site.index()].clone() else {
-                unreachable!("a recorded site is a call");
-            };
-            let origin = self.origins[site.index()];
-            let mut placed = vec![false; arguments.len()];
-            let root =
-                self.clone_template(found, found.body, &arguments, &mut placed, origin, budget)?;
-            self.set_expression(site, root);
-            // The site now evaluates the template's root.
-            self.copy_behaviour_in(found.body, site, budget)?;
-        }
-        if sites.is_empty() {
-            return Ok((0, None));
-        }
-        let map = self.renumber(budget)?;
-        Ok((sites.len(), Some(map)))
+            if sites.is_empty() {
+                return Ok((0, None));
+            }
+            let map = module.renumber(budget)?;
+            Ok((sites.len(), Some(map)))
+        })?
     }
 
     /// `E` and its node count, when `function` is an arrow `(…)=>E` that a
@@ -715,114 +712,6 @@ impl Module {
         Ok(node)
     }
 
-    /// Every expression and region reachable from the root, each expression
-    /// with its depth as the verifier counts it.
-    pub(super) fn reach(
-        &self,
-        budget: &mut AllocationBudget<'_>,
-    ) -> Result<Reach, AllocationError> {
-        let mut reach = Reach {
-            expressions: Vec::new(),
-            regions: Vec::new(),
-            captured: vec![false; self.bindings.len()],
-            strict_regions: vec![0; self.regions.len()],
-            strict_expressions: vec![0; self.expressions.len()],
-            parameters: vec![false; self.bindings.len()],
-        };
-        // The function each binding is declared in, and each reference's.
-        let mut declared: Vec<Option<Option<FunctionId>>> = vec![None; self.bindings.len()];
-        let mut references: Vec<(BindingId, Option<FunctionId>)> = Vec::new();
-        let mut regions = vec![(self.root, 0usize, None::<FunctionId>, false)];
-        let mut pending: Vec<(ExprId, usize, bool)> = Vec::new();
-        while let Some((region, depth, owner, strict)) = regions.pop() {
-            budget.work(Analysis, 1)?;
-            let mask = if strict { 2 } else { 1 };
-            let seen = reach.strict_regions[region.index()];
-            if seen & mask != 0 {
-                continue;
-            }
-            reach.strict_regions[region.index()] |= mask;
-            if seen == 0 {
-                reach.regions.push(region);
-            }
-            for statement in &self.regions[region.index()].statements {
-                budget.work(Analysis, 1)?;
-                match statement {
-                    Statement::Let { binding, .. }
-                    | Statement::ForIn { binding, .. }
-                    | Statement::ForOf { binding, .. }
-                    | Statement::Function { binding, .. } => {
-                        declared[binding.index()] = Some(owner);
-                    }
-                    Statement::Try {
-                        catch:
-                            Some(Catch {
-                                binding: Some(binding),
-                                ..
-                            }),
-                        ..
-                    } => declared[binding.index()] = Some(owner),
-                    _ => {}
-                }
-                statement.visit_expressions(|root| pending.push((root, depth + 1, strict)));
-                statement.visit_regions(|child| regions.push((child, depth + 1, owner, strict)));
-                if let Statement::Function { function, .. } = statement {
-                    for parameter in &self.functions[function.index()].parameters {
-                        declared[parameter.index()] = Some(Some(*function));
-                        reach.parameters[parameter.index()] = true;
-                    }
-                    regions.push((
-                        self.functions[function.index()].body,
-                        depth + 2,
-                        Some(*function),
-                        strict || self.functions[function.index()].strict,
-                    ));
-                }
-                while let Some((id, at, strict)) = pending.pop() {
-                    budget.work(Analysis, 1)?;
-                    let expression = &self.expressions[id.index()];
-                    let strict = strict || matches!(expression, Expr::Class { .. });
-                    let mask = if strict { 2 } else { 1 };
-                    let seen = reach.strict_expressions[id.index()];
-                    if seen & mask != 0 {
-                        continue;
-                    }
-                    reach.strict_expressions[id.index()] |= mask;
-                    if seen == 0 {
-                        reach.expressions.push((id, at));
-                    }
-                    if let Expr::Binding(binding) = expression {
-                        references.push((*binding, owner));
-                    }
-                    for function in expression.created_functions() {
-                        for parameter in &self.functions[function.index()].parameters {
-                            declared[parameter.index()] = Some(Some(function));
-                            reach.parameters[parameter.index()] = true;
-                        }
-                        regions.push((
-                            self.functions[function.index()].body,
-                            at + 2,
-                            Some(function),
-                            strict || self.functions[function.index()].strict,
-                        ));
-                    }
-                    let _ = expression.visit_children(|child| {
-                        pending.push((child, at + 1, strict));
-                        Ok::<_, ()>(())
-                    });
-                }
-            }
-        }
-        budget.work(Analysis, references.len() as u64)?;
-        for (binding, owner) in references {
-            // An undeclared binding (an import or host) counts as captured.
-            if declared[binding.index()] != Some(owner) {
-                reach.captured[binding.index()] = true;
-            }
-        }
-        Ok(reach)
-    }
-
     /// Rebuild the expression arena in postorder from the code that can run,
     /// so children again precede their parents after an edit. Unreachable
     /// nodes go, and unreachable regions lose their statements. Returns each
@@ -937,190 +826,195 @@ impl Module {
         strict: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
-        let reach = self.reach(budget)?;
-        let mut written = vec![false; self.bindings.len()];
-        let mut calls = vec![0usize; self.bindings.len()];
-        let mut other_use = vec![false; self.bindings.len()];
-        for &(id, _) in &reach.expressions {
-            match &self.expressions[id.index()] {
-                Expr::Assign { target, .. } => {
-                    if let Expr::Binding(binding) = self.expressions[target.index()] {
-                        written[binding.index()] = true;
+        self.with_reach(budget, |module, reach, budget| {
+            let mut written = vec![false; module.bindings.len()];
+            let mut calls = vec![0usize; module.bindings.len()];
+            let mut other_use = vec![false; module.bindings.len()];
+            for &(id, _) in &reach.expressions {
+                match &module.expressions[id.index()] {
+                    Expr::Assign { target, .. } => {
+                        if let Expr::Binding(binding) = module.expressions[target.index()] {
+                            written[binding.index()] = true;
+                        }
                     }
-                }
-                Expr::Call { callee, .. } => {
-                    if let Expr::Binding(binding) = self.expressions[callee.index()] {
-                        calls[binding.index()] += 1;
+                    Expr::Call { callee, .. } => {
+                        if let Expr::Binding(binding) = module.expressions[callee.index()] {
+                            calls[binding.index()] += 1;
+                        }
                     }
+                    _ => {}
                 }
-                _ => {}
             }
-        }
-        for export in &self.exports {
-            written[export.binding.index()] = true;
-        }
-        // Bindings read other than as a callee (they must keep their value).
-        for &(id, _) in &reach.expressions {
-            let _ = self.expressions[id.index()].visit_children(|child| {
-                if let Expr::Binding(binding) = self.expressions[child.index()] {
-                    let callee = matches!(
-                        &self.expressions[id.index()],
-                        Expr::Call { callee, .. } if *callee == child
-                    );
-                    if !callee {
-                        other_use[binding.index()] = true;
+            for export in &module.exports {
+                written[export.binding.index()] = true;
+            }
+            // Bindings read other than as a callee (they must keep their value).
+            for &(id, _) in &reach.expressions {
+                let _ = module.expressions[id.index()].visit_children(|child| {
+                    if let Expr::Binding(binding) = module.expressions[child.index()] {
+                        let callee = matches!(
+                            &module.expressions[id.index()],
+                            Expr::Call { callee, .. } if *callee == child
+                        );
+                        if !callee {
+                            other_use[binding.index()] = true;
+                        }
+                    }
+                    Ok::<_, ()>(())
+                });
+            }
+            // Candidate bodies, by binding.
+            let mut bodies: Vec<Option<(FunctionId, Vec<ExprId>)>> =
+                vec![None; module.bindings.len()];
+            for &region in &reach.regions {
+                for statement in &module.regions[region.index()].statements {
+                    budget.work(Analysis, 1)?;
+                    let Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } = *statement
+                    else {
+                        continue;
+                    };
+                    let Expr::Function(function) = module.expressions[value.index()] else {
+                        continue;
+                    };
+                    if written[binding.index()]
+                        || other_use[binding.index()]
+                        || calls[binding.index()] != 1
+                        || module.bindings[binding.index()].pinned
+                    {
+                        continue;
+                    }
+                    let declared = &module.functions[function.index()];
+                    if !declared.arrow
+                        || declared.suspension != Suspension::None
+                        || declared.length.is_some()
+                    {
+                        continue;
+                    }
+                    let mut roots = Vec::new();
+                    let mut plain = true;
+                    let statements = &module.regions[declared.body.index()].statements;
+                    for (position, statement) in statements.iter().enumerate() {
+                        match statement {
+                            Statement::Evaluate(root) => roots.push(*root),
+                            Statement::Return(None) if position + 1 == statements.len() => {}
+                            _ => plain = false,
+                        }
+                    }
+                    if !plain || roots.is_empty() {
+                        continue;
+                    }
+                    let mut fits = true;
+                    for &root in &roots {
+                        fits = fits
+                            && module.movable_statement(root, &declared.parameters, binding)
+                            && (frames_hidden || module.runs_no_user_code(root));
+                    }
+                    if fits {
+                        bodies[binding.index()] = Some((function, roots));
                     }
                 }
-                Ok::<_, ()>(())
-            });
-        }
-        // Candidate bodies, by binding.
-        let mut bodies: Vec<Option<(FunctionId, Vec<ExprId>)>> = vec![None; self.bindings.len()];
-        for &region in &reach.regions {
-            for statement in &self.regions[region.index()].statements {
-                budget.work(Analysis, 1)?;
-                let Statement::Let {
-                    binding,
-                    value: Some(value),
-                } = *statement
+            }
+            // The one call of each candidate, as a statement.
+            let mut sites = Vec::new();
+            for &region in &reach.regions {
+                for (index, statement) in
+                    module.regions[region.index()].statements.iter().enumerate()
+                {
+                    budget.work(Analysis, 1)?;
+                    let Statement::Evaluate(mut call) = *statement else {
+                        continue;
+                    };
+                    // A discarded `void f()` is the call.
+                    if let Expr::Unary {
+                        op: Unary::Void,
+                        value,
+                    } = module.expressions[call.index()]
+                    {
+                        call = value;
+                    }
+                    // A binding callee has no receiver: `Reference` and `Value`
+                    // invocations of it are the same call.
+                    let Expr::Call {
+                        callee,
+                        ref arguments,
+                        invocation: Invocation::Value | Invocation::Reference,
+                    } = module.expressions[call.index()]
+                    else {
+                        continue;
+                    };
+                    let Expr::Binding(binding) = module.expressions[callee.index()] else {
+                        continue;
+                    };
+                    let Some((function, _)) = &bodies[binding.index()] else {
+                        continue;
+                    };
+                    let body = module.functions[function.index()].body;
+                    if !strict
+                        && !same_strictness(
+                            reach.strict_regions[body.index()],
+                            reach.strict_regions[region.index()],
+                        )
+                    {
+                        continue;
+                    }
+                    let parameters = &module.functions[function.index()].parameters;
+                    if arguments.len() != parameters.len() {
+                        continue;
+                    }
+                    let mut stable = true;
+                    for (position, &argument) in arguments.iter().enumerate() {
+                        stable = stable
+                            && module.settled(
+                                argument, position, arguments, region, index, reach, budget,
+                            )?;
+                    }
+                    if stable {
+                        sites.push((region, index, binding));
+                    }
+                }
+            }
+            if sites.is_empty() {
+                return Ok((0, None));
+            }
+            // Splice from the last site backwards so indices stay valid.
+            sites.sort_unstable_by(|a, b| (a.0.index(), a.1).cmp(&(b.0.index(), b.1)).reverse());
+            for &(region, index, binding) in &sites {
+                let Statement::Evaluate(mut call) =
+                    module.regions[region.index()].statements[index]
                 else {
-                    continue;
+                    unreachable!("a recorded site is a call statement");
                 };
-                let Expr::Function(function) = self.expressions[value.index()] else {
-                    continue;
-                };
-                if written[binding.index()]
-                    || other_use[binding.index()]
-                    || calls[binding.index()] != 1
-                    || self.bindings[binding.index()].pinned
-                {
-                    continue;
-                }
-                let declared = &self.functions[function.index()];
-                if !declared.arrow
-                    || declared.suspension != Suspension::None
-                    || declared.length.is_some()
-                {
-                    continue;
-                }
-                let mut roots = Vec::new();
-                let mut plain = true;
-                let statements = &self.regions[declared.body.index()].statements;
-                for (position, statement) in statements.iter().enumerate() {
-                    match statement {
-                        Statement::Evaluate(root) => roots.push(*root),
-                        Statement::Return(None) if position + 1 == statements.len() => {}
-                        _ => plain = false,
-                    }
-                }
-                if !plain || roots.is_empty() {
-                    continue;
-                }
-                let mut fits = true;
-                for &root in &roots {
-                    fits = fits
-                        && self.movable_statement(root, &declared.parameters, binding)
-                        && (frames_hidden || self.runs_no_user_code(root));
-                }
-                if fits {
-                    bodies[binding.index()] = Some((function, roots));
-                }
-            }
-        }
-        // The one call of each candidate, as a statement.
-        let mut sites = Vec::new();
-        for &region in &reach.regions {
-            for (index, statement) in self.regions[region.index()].statements.iter().enumerate() {
-                budget.work(Analysis, 1)?;
-                let Statement::Evaluate(mut call) = *statement else {
-                    continue;
-                };
-                // A discarded `void f()` is the call.
                 if let Expr::Unary {
                     op: Unary::Void,
                     value,
-                } = self.expressions[call.index()]
+                } = module.expressions[call.index()]
                 {
                     call = value;
                 }
-                // A binding callee has no receiver: `Reference` and `Value`
-                // invocations of it are the same call.
-                let Expr::Call {
-                    callee,
-                    ref arguments,
-                    invocation: Invocation::Value | Invocation::Reference,
-                } = self.expressions[call.index()]
-                else {
-                    continue;
+                let Expr::Call { arguments, .. } = module.expressions[call.index()].clone() else {
+                    unreachable!("a recorded site is a call");
                 };
-                let Expr::Binding(binding) = self.expressions[callee.index()] else {
-                    continue;
-                };
-                let Some((function, _)) = &bodies[binding.index()] else {
-                    continue;
-                };
-                let body = self.functions[function.index()].body;
-                if !strict
-                    && !same_strictness(
-                        reach.strict_regions[body.index()],
-                        reach.strict_regions[region.index()],
-                    )
-                {
-                    continue;
+                let (function, roots) = bodies[binding.index()].clone().unwrap();
+                let parameters = module.functions[function.index()].parameters.clone();
+                let origin = module.origins[call.index()];
+                let mut statements = Vec::with_capacity(roots.len());
+                for root in roots {
+                    let copy = module.substitute(root, &parameters, &arguments, origin, budget)?;
+                    let id = module.expression_in(copy, origin, budget)?;
+                    statements.push(Statement::Evaluate(id));
                 }
-                let parameters = &self.functions[function.index()].parameters;
-                if arguments.len() != parameters.len() {
-                    continue;
-                }
-                let mut stable = true;
-                for (position, &argument) in arguments.iter().enumerate() {
-                    stable = stable
-                        && self.settled(
-                            argument, position, arguments, region, index, &reach, budget,
-                        )?;
-                }
-                if stable {
-                    sites.push((region, index, binding));
-                }
+                // The inlined body runs where the call did: its row.
+                let count = statements.len();
+                module.splice_statements(region.index(), index..index + 1, statements, |rows| {
+                    vec![rows[0]; count]
+                });
             }
-        }
-        if sites.is_empty() {
-            return Ok((0, None));
-        }
-        // Splice from the last site backwards so indices stay valid.
-        sites.sort_unstable_by(|a, b| (a.0.index(), a.1).cmp(&(b.0.index(), b.1)).reverse());
-        for &(region, index, binding) in &sites {
-            let Statement::Evaluate(mut call) = self.regions[region.index()].statements[index]
-            else {
-                unreachable!("a recorded site is a call statement");
-            };
-            if let Expr::Unary {
-                op: Unary::Void,
-                value,
-            } = self.expressions[call.index()]
-            {
-                call = value;
-            }
-            let Expr::Call { arguments, .. } = self.expressions[call.index()].clone() else {
-                unreachable!("a recorded site is a call");
-            };
-            let (function, roots) = bodies[binding.index()].clone().unwrap();
-            let parameters = self.functions[function.index()].parameters.clone();
-            let origin = self.origins[call.index()];
-            let mut statements = Vec::with_capacity(roots.len());
-            for root in roots {
-                let copy = self.substitute(root, &parameters, &arguments, origin, budget)?;
-                let id = self.expression_in(copy, origin, budget)?;
-                statements.push(Statement::Evaluate(id));
-            }
-            // The inlined body runs where the call did: its row.
-            let count = statements.len();
-            self.splice_statements(region.index(), index..index + 1, statements, |rows| {
-                vec![rows[0]; count]
-            });
-        }
-        let map = self.renumber(budget)?;
-        Ok((sites.len(), Some(map)))
+            let map = module.renumber(budget)?;
+            Ok((sites.len(), Some(map)))
+        })?
     }
 
     /// Whether a body statement may run at a call site: no own `this`,
@@ -1236,26 +1130,26 @@ impl Module {
         &mut self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
-        let reach = self.reach(budget)?;
-        let mut written = vec![false; self.bindings.len()];
+        self.with_reach(budget, |module, reach, budget| {
+        let mut written = vec![false; module.bindings.len()];
         for &(id, _) in &reach.expressions {
-            if let Expr::Assign { target, .. } = &self.expressions[id.index()] {
-                if let Expr::Binding(binding) = self.expressions[target.index()] {
+            if let Expr::Assign { target, .. } = &module.expressions[id.index()] {
+                if let Expr::Binding(binding) = module.expressions[target.index()] {
                     written[binding.index()] = true;
                 }
             }
         }
-        for export in &self.exports {
+        for export in &module.exports {
             written[export.binding.index()] = true;
         }
-        let mut replacement: Vec<Option<BindingId>> = vec![None; self.bindings.len()];
+        let mut replacement: Vec<Option<BindingId>> = vec![None; module.bindings.len()];
         let mut removed = 0;
         for &region in &reach.regions {
             budget.work(
                 Analysis,
-                1 + self.regions[region.index()].statements.len() as u64,
+                1 + module.regions[region.index()].statements.len() as u64,
             )?;
-            let aliases: Vec<(usize, BindingId, BindingId)> = self.regions[region.index()]
+            let aliases: Vec<(usize, BindingId, BindingId)> = module.regions[region.index()]
                 .statements
                 .iter()
                 .enumerate()
@@ -1263,11 +1157,11 @@ impl Module {
                     Statement::Let {
                         binding,
                         value: Some(value),
-                    } => match self.expressions[value.index()] {
+                    } => match module.expressions[value.index()] {
                         Expr::Binding(source)
                             if !written[binding.index()]
                                 && !written[source.index()]
-                                && !self.bindings[binding.index()].pinned
+                                && !module.bindings[binding.index()].pinned
                                 && source != binding =>
                         {
                             Some((index, binding, source))
@@ -1281,11 +1175,11 @@ impl Module {
                 continue;
             }
             let wanted: Vec<BindingId> = aliases.iter().map(|&(_, alias, _)| alias).collect();
-            let first = self.first_mentions(region, &wanted, budget)?;
+            let first = module.first_mentions(region, &wanted, budget)?;
             let mut remove = Vec::new();
             for (index, alias, source) in aliases {
                 let initialized = reach.parameters[source.index()]
-                    || self.regions[region.index()].statements[..index].iter().any(
+                    || module.regions[region.index()].statements[..index].iter().any(
                         |statement| matches!(statement, Statement::Let { binding, .. } if *binding == source),
                     );
                 // A source that is itself an alias being removed reads as its
@@ -1297,7 +1191,7 @@ impl Module {
                 }
             }
             for &index in remove.iter().rev() {
-                self.remove_statement(region.index(), index);
+                module.remove_statement(region.index(), index);
                 removed += 1;
             }
         }
@@ -1315,16 +1209,17 @@ impl Module {
                 }
                 replacement[index] = target;
             }
-            budget.work(Analysis, self.expressions.len() as u64)?;
-            for index in 0..self.expressions.len() {
-                if let Expr::Binding(binding) = self.expressions[index] {
+            budget.work(Analysis, module.expressions.len() as u64)?;
+            for index in 0..module.expressions.len() {
+                if let Expr::Binding(binding) = module.expressions[index] {
                     if let Some(source) = replacement[binding.index()] {
-                        self.set_expression(ExprId::new(index), Expr::Binding(source));
+                        module.set_expression(ExprId::new(index), Expr::Binding(source));
                     }
                 }
             }
         }
         Ok(removed)
+        })?
     }
 }
 
@@ -1342,13 +1237,13 @@ impl Module {
         &mut self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
-        let reach = self.reach(budget)?;
-        let mut written = vec![false; self.bindings.len()];
-        let mut arrows = vec![false; self.bindings.len()];
+        self.with_reach_tree(budget, |module, reach, budget| {
+        let mut written = vec![false; module.bindings.len()];
+        let mut arrows = vec![false; module.bindings.len()];
         // Where each binding is assigned: a statement of a region, or (None)
         // somewhere a later evaluation could run it.
-        let mut writes: Vec<Vec<Option<(RegionId, usize)>>> = vec![Vec::new(); self.bindings.len()];
-        let mut assigned_arrow = vec![true; self.bindings.len()];
+        let mut writes: Vec<Vec<Option<(RegionId, usize)>>> = vec![Vec::new(); module.bindings.len()];
+        let mut assigned_arrow = vec![true; module.bindings.len()];
         // Each reachable node's parent, and how it uses the node.
         #[derive(Clone, Copy, PartialEq)]
         enum Role {
@@ -1357,16 +1252,16 @@ impl Module {
             Target,
             Other,
         }
-        let mut parent: Vec<Option<(ExprId, Role)>> = vec![None; self.expressions.len()];
+        let mut parent: Vec<Option<(ExprId, Role)>> = vec![None; module.expressions.len()];
         for &(id, _) in &reach.expressions {
             budget.work(Analysis, 1)?;
-            let expression = &self.expressions[id.index()];
+            let expression = &module.expressions[id.index()];
             if let Expr::Assign { target, value } = expression {
-                if let Expr::Binding(binding) = self.expressions[target.index()] {
+                if let Expr::Binding(binding) = module.expressions[target.index()] {
                     written[binding.index()] = true;
                     let arrow = matches!(
-                        self.expressions[value.index()],
-                        Expr::Function(function) if self.functions[function.index()].arrow
+                        module.expressions[value.index()],
+                        Expr::Function(function) if module.functions[function.index()].arrow
                     );
                     assigned_arrow[binding.index()] &= arrow;
                 }
@@ -1385,29 +1280,29 @@ impl Module {
                 Ok::<_, ()>(())
             });
         }
-        for export in &self.exports {
+        for export in &module.exports {
             written[export.binding.index()] = true;
         }
         // Statement roots and loop heads also use bindings.
-        let mut root_use = vec![false; self.bindings.len()];
+        let mut root_use = vec![false; module.bindings.len()];
         let mut literals: Vec<(RegionId, usize, BindingId, ExprId)> = Vec::new();
         let mut assigned_literals: Vec<(usize, BindingId, ExprId, ExprId)> = Vec::new();
         for &region in &reach.regions {
-            for (index, statement) in self.regions[region.index()].statements.iter().enumerate() {
+            for (index, statement) in module.regions[region.index()].statements.iter().enumerate() {
                 budget.work(Analysis, 1)?;
                 statement.visit_expressions(|root| {
-                    if let Expr::Binding(binding) = self.expressions[root.index()] {
+                    if let Expr::Binding(binding) = module.expressions[root.index()] {
                         root_use[binding.index()] = true;
                     }
                 });
                 if let Statement::Evaluate(root) = *statement {
-                    if let Expr::Assign { target, value } = self.expressions[root.index()] {
-                        if let Expr::Binding(binding) = self.expressions[target.index()] {
+                    if let Expr::Assign { target, value } = module.expressions[root.index()] {
+                        if let Expr::Binding(binding) = module.expressions[target.index()] {
                             writes[binding.index()].push(Some((region, index)));
                             // `M={…}` in the root, for `M` declared without a
                             // value: a literal from this statement on.
-                            if region == self.root
-                                && matches!(self.expressions[value.index()], Expr::Object(_))
+                            if region == module.root
+                                && matches!(module.expressions[value.index()], Expr::Object(_))
                             {
                                 assigned_literals.push((index, binding, value, target));
                             }
@@ -1418,10 +1313,10 @@ impl Module {
                     Statement::Let {
                         binding,
                         value: Some(value),
-                    } => match &self.expressions[value.index()] {
+                    } => match &module.expressions[value.index()] {
                         Expr::Object(_) => literals.push((region, index, binding, value)),
                         Expr::Function(function) => {
-                            arrows[binding.index()] = self.functions[function.index()].arrow;
+                            arrows[binding.index()] = module.functions[function.index()].arrow;
                         }
                         _ => {}
                     },
@@ -1433,9 +1328,9 @@ impl Module {
             }
         }
         // Where each binding is read.
-        let mut uses: Vec<Vec<ExprId>> = vec![Vec::new(); self.bindings.len()];
+        let mut uses: Vec<Vec<ExprId>> = vec![Vec::new(); module.bindings.len()];
         for &(id, _) in &reach.expressions {
-            if let Expr::Binding(binding) = self.expressions[id.index()] {
+            if let Expr::Binding(binding) = module.expressions[id.index()] {
                 uses[binding.index()].push(id);
             }
         }
@@ -1446,10 +1341,10 @@ impl Module {
             // Writes found as statement roots, against all reachable writes.
             writes[binding.index()].len()
         };
-        let mut all_writes = vec![0usize; self.bindings.len()];
+        let mut all_writes = vec![0usize; module.bindings.len()];
         for &(id, _) in &reach.expressions {
-            if let Expr::Assign { target, .. } = &self.expressions[id.index()] {
-                if let Expr::Binding(binding) = self.expressions[target.index()] {
+            if let Expr::Assign { target, .. } = &module.expressions[id.index()] {
+                if let Expr::Binding(binding) = module.expressions[target.index()] {
                     all_writes[binding.index()] += 1;
                 }
             }
@@ -1458,19 +1353,19 @@ impl Module {
         // the binding is declared without a value: before the statement it
         // is `undefined`, so every flattened read must run after it.
         // The target of the literal's own assignment is no read of it.
-        let mut assigned: Vec<bool> = vec![false; self.bindings.len()];
+        let mut assigned: Vec<bool> = vec![false; module.bindings.len()];
         let mut own_targets: Vec<ExprId> = Vec::new();
         for (index, binding, value, target) in assigned_literals {
-            let declared_empty = self.regions[self.root.index()].statements.iter().any(|statement| {
+            let declared_empty = module.regions[module.root.index()].statements.iter().any(|statement| {
                 matches!(statement, Statement::Let { binding: found, value: None } if *found == binding)
             });
             if all_writes[binding.index()] == 1
                 && declared_empty
-                && !self.exports.iter().any(|export| export.binding == binding)
+                && !module.exports.iter().any(|export| export.binding == binding)
             {
                 assigned[binding.index()] = true;
                 own_targets.push(target);
-                literals.push((self.root, index, binding, value));
+                literals.push((module.root, index, binding, value));
             }
         }
         let settled_at = |binding: BindingId, region: RegionId, index: usize| {
@@ -1483,7 +1378,7 @@ impl Module {
         // A read of `M` before its declaration throws; the flattened read
         // would not. So nothing earlier in its region may mention `M`, not
         // even a function that could be called before the declaration runs.
-        let mut first: Vec<Option<usize>> = vec![None; self.bindings.len()];
+        let mut first: Vec<Option<usize>> = vec![None; module.bindings.len()];
         {
             let mut by_region: Vec<(RegionId, Vec<BindingId>)> = Vec::new();
             for &(region, _, object, _) in &literals {
@@ -1493,7 +1388,7 @@ impl Module {
                 }
             }
             for (region, objects) in by_region {
-                for (binding, at) in self.first_mentions(region, &objects, budget)? {
+                for (binding, at) in module.first_mentions(region, &objects, budget)? {
                     first[binding.index()] = Some(at);
                 }
             }
@@ -1502,9 +1397,9 @@ impl Module {
         // TDZ even when earlier code mentions it: reads in later root
         // statements, and in functions a later root statement creates (they
         // cannot run before they exist). Earlier ones stay reads of `M`.
-        let frames = self.frames(budget)?;
-        let order = self.order(&frames, budget)?;
-        let owners = self.expression_owners(budget)?;
+        let frames = module.frames(budget)?;
+        let order = module.order(&frames, budget)?;
+        let owners = module.expression_owners(budget)?;
         let mut replaced = 0;
         let mut removals: Vec<(RegionId, usize)> = Vec::new();
         for (region, index, object, value) in literals {
@@ -1513,12 +1408,12 @@ impl Module {
                 assigned[object.index()] || first[object.index()].is_some_and(|at| at <= index);
             if written[object.index()] && !assigned[object.index()]
                 || root_use[object.index()]
-                || self.bindings[object.index()].pinned
-                || early && region != self.root
+                || module.bindings[object.index()].pinned
+                || early && region != module.root
             {
                 continue;
             }
-            let Expr::Object(entries) = self.expressions[value.index()].clone() else {
+            let Expr::Object(entries) = module.expressions[value.index()].clone() else {
                 continue;
             };
             let mut members: Vec<(StringValue, ExprId)> = Vec::with_capacity(entries.len());
@@ -1526,7 +1421,7 @@ impl Module {
             for (key, item) in &entries {
                 let name = match key {
                     Property::Named(name) => StringValue::from(name.as_str()),
-                    Property::Computed(key) => match &self.expressions[key.index()] {
+                    Property::Computed(key) => match &module.expressions[key.index()] {
                         Expr::Literal(Literal::String(name)) => name.clone(),
                         _ => {
                             plain = false;
@@ -1553,12 +1448,12 @@ impl Module {
                 let (member, Role::Object) = parent[site.index()]? else {
                     return None;
                 };
-                let Expr::Member { property, .. } = &self.expressions[member.index()] else {
+                let Expr::Member { property, .. } = &module.expressions[member.index()] else {
                     return None;
                 };
                 let key = match property {
                     Property::Named(name) => StringValue::from(name.as_str()),
-                    Property::Computed(key) => match &self.expressions[key.index()] {
+                    Property::Computed(key) => match &module.expressions[key.index()] {
                         Expr::Literal(Literal::String(name)) => name.clone(),
                         _ => return None,
                     },
@@ -1578,22 +1473,22 @@ impl Module {
                     continue;
                 }
                 let alias = match parent[site.index()] {
-                    Some((assign, Role::Other)) if region == self.root => {
-                        match self.expressions[assign.index()] {
+                    Some((assign, Role::Other)) if region == module.root => {
+                        match module.expressions[assign.index()] {
                             Expr::Assign { target, value } if value == site => {
-                                match self.expressions[target.index()] {
+                                match module.expressions[target.index()] {
                                     Expr::Binding(alias)
                                         if all_writes[alias.index()] == 1
                                             && !root_use[alias.index()]
-                                            && !self.bindings[alias.index()].pinned
-                                            && !self
+                                            && !module.bindings[alias.index()].pinned
+                                            && !module
                                                 .exports
                                                 .iter()
                                                 .any(|export| export.binding == alias) =>
                                     {
                                         match writes[alias.index()][..] {
                                             [Some((found, at))]
-                                                if found == self.root && at > index =>
+                                                if found == module.root && at > index =>
                                             {
                                                 Some((alias, at, target))
                                             }
@@ -1634,7 +1529,7 @@ impl Module {
             for (member, key, callee, after) in sites {
                 if let Some(after) = after {
                     if !owners[member.index()]
-                        .is_some_and(|owner| self.runs_after_root(owner, after, &order))
+                        .is_some_and(|owner| module.runs_after_root(owner, after, &order))
                     {
                         every = false;
                         continue;
@@ -1644,7 +1539,7 @@ impl Module {
                     every = false;
                     continue;
                 };
-                let replacement = match self.expressions[item.index()] {
+                let replacement = match module.expressions[item.index()] {
                     Expr::Literal(ref literal) if !callee => Some(Expr::Literal(literal.clone())),
                     Expr::Binding(binding)
                         if binding != object
@@ -1659,7 +1554,7 @@ impl Module {
                 };
                 match replacement {
                     Some(replacement) => {
-                        self.set_expression(member, replacement);
+                        module.set_expression(member, replacement);
                         replaced += 1;
                     }
                     None => every = false,
@@ -1668,8 +1563,8 @@ impl Module {
             // The literal goes when nothing reads it and evaluating it could
             // not throw: it reads only bindings declared before it here.
             if every && !assigned[object.index()] {
-                let earlier = &self.regions[region.index()].statements[..index];
-                let settled = members.iter().all(|&(_, item)| match self.expressions[item.index()] {
+                let earlier = &module.regions[region.index()].statements[..index];
+                let settled = members.iter().all(|&(_, item)| match module.expressions[item.index()] {
                     Expr::Literal(_) | Expr::Function(_) => true,
                     Expr::Binding(binding) => earlier.iter().any(|statement| {
                         matches!(statement, Statement::Let { binding: found, .. } if *found == binding)
@@ -1683,9 +1578,10 @@ impl Module {
         }
         removals.sort_unstable_by(|a, b| (a.0.index(), a.1).cmp(&(b.0.index(), b.1)).reverse());
         for (region, index) in removals {
-            self.remove_statement(region.index(), index);
+            module.remove_statement(region.index(), index);
         }
         Ok(replaced)
+        })?
     }
 
     /// A function bound by `let`, never assigned or exported, whose every
@@ -1695,56 +1591,57 @@ impl Module {
         &mut self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
-        let reach = self.reach(budget)?;
-        let mut escaped = vec![false; self.bindings.len()];
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            let expression = &self.expressions[id.index()];
-            let _ = expression.visit_children(|child| {
-                if let Expr::Binding(binding) = self.expressions[child.index()] {
-                    if !matches!(expression, Expr::Call { callee, .. } if *callee == child) {
-                        escaped[binding.index()] = true;
+        self.with_reach_tree(budget, |module, reach, budget| {
+            let mut escaped = vec![false; module.bindings.len()];
+            for &(id, _) in &reach.expressions {
+                budget.work(Analysis, 1)?;
+                let expression = &module.expressions[id.index()];
+                let _ = expression.visit_children(|child| {
+                    if let Expr::Binding(binding) = module.expressions[child.index()] {
+                        if !matches!(expression, Expr::Call { callee, .. } if *callee == child) {
+                            escaped[binding.index()] = true;
+                        }
                     }
-                }
-                Ok::<_, ()>(())
-            });
-        }
-        for &region in &reach.regions {
-            for statement in &self.regions[region.index()].statements {
-                statement.visit_expressions(|root| {
-                    if let Expr::Binding(binding) = self.expressions[root.index()] {
-                        escaped[binding.index()] = true;
-                    }
+                    Ok::<_, ()>(())
                 });
             }
-        }
-        for export in &self.exports {
-            escaped[export.binding.index()] = true;
-        }
-        let mut unobserved = Vec::new();
-        for &region in &reach.regions {
-            for statement in &self.regions[region.index()].statements {
-                let Statement::Let {
-                    binding,
-                    value: Some(value),
-                } = *statement
-                else {
-                    continue;
-                };
-                let Expr::Function(function) = self.expressions[value.index()] else {
-                    continue;
-                };
-                if !escaped[binding.index()]
-                    && !self.bindings[binding.index()].pinned
-                    && self.functions[function.index()].name != FunctionName::Unobserved
-                {
-                    unobserved.push(function);
+            for &region in &reach.regions {
+                for statement in &module.regions[region.index()].statements {
+                    statement.visit_expressions(|root| {
+                        if let Expr::Binding(binding) = module.expressions[root.index()] {
+                            escaped[binding.index()] = true;
+                        }
+                    });
                 }
             }
-        }
-        for &function in &unobserved {
-            self.function_mut(function).name = FunctionName::Unobserved;
-        }
-        Ok(unobserved.len())
+            for export in &module.exports {
+                escaped[export.binding.index()] = true;
+            }
+            let mut unobserved = Vec::new();
+            for &region in &reach.regions {
+                for statement in &module.regions[region.index()].statements {
+                    let Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } = *statement
+                    else {
+                        continue;
+                    };
+                    let Expr::Function(function) = module.expressions[value.index()] else {
+                        continue;
+                    };
+                    if !escaped[binding.index()]
+                        && !module.bindings[binding.index()].pinned
+                        && module.functions[function.index()].name != FunctionName::Unobserved
+                    {
+                        unobserved.push(function);
+                    }
+                }
+            }
+            for &function in &unobserved {
+                module.function_mut(function).name = FunctionName::Unobserved;
+            }
+            Ok(unobserved.len())
+        })?
     }
 }

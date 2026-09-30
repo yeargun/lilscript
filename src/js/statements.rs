@@ -60,26 +60,33 @@ impl Module {
         // Inner regions first: a branch that became one expression lets its
         // `if` become one too. A few rounds reach the fixed point.
         for _ in 0..8 {
-            let reach = self.reach(budget)?;
-            let depths = self.region_depths(budget)?;
-            let frames = self.frames(budget)?;
-            let mut changed = 0;
-            for &region in reach.regions.iter().rev() {
-                budget.work(Analysis, 1)?;
-                // Far below the nesting limit only, since a chain of
-                // conditionals nests as deep as the statements did.
-                if depths[region.index()].is_none_or(|depth| depth + 64 > verify::MAX_NESTING) {
-                    continue;
+            let changed = self.with_reach(budget, |module, reach, budget| {
+                let depths = module.region_depths(budget)?;
+                let frames = module.frames(budget)?;
+                let mut changed = 0;
+                for &region in reach.regions.iter().rev() {
+                    budget.work(Analysis, 1)?;
+                    // Far below the nesting limit only, since a chain of
+                    // conditionals nests as deep as the statements did.
+                    if depths[region.index()].is_none_or(|depth| depth + 64 > verify::MAX_NESTING) {
+                        continue;
+                    }
+                    changed += module.minimize_exits(region, &frames, budget)?;
+                    if spellings != StatementSpellings::NONE {
+                        changed += module.compress_region(
+                            region,
+                            spellings,
+                            &frames,
+                            &reach.captured,
+                            budget,
+                        )?;
+                    }
                 }
-                changed += self.minimize_exits(region, &frames, budget)?;
-                if spellings != StatementSpellings::NONE {
-                    changed +=
-                        self.compress_region(region, spellings, &frames, &reach.captured, budget)?;
+                if spellings.logical_branches {
+                    changed += module.compress_conditionals(reach, budget)?;
                 }
-            }
-            if spellings.logical_branches {
-                changed += self.compress_conditionals(&reach, budget)?;
-            }
+                Ok::<_, AllocationError>(changed)
+            })??;
             total += changed;
             if changed == 0 {
                 break;
@@ -857,7 +864,7 @@ impl Module {
     /// still follows its children.
     fn compress_conditionals(
         &mut self,
-        reach: &super::inline::Reach,
+        reach: &super::reach::Reach,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let mut changed = 0;

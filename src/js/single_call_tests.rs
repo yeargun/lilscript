@@ -1,7 +1,7 @@
 use super::*;
 use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
 
-fn sites() -> (Module, String) {
+pub(super) fn sites() -> (Module, String) {
     let mut module = Module::default();
     let root = module.root;
     let scope = module.regions[root.index()].scope;

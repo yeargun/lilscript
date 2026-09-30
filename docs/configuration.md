@@ -303,6 +303,15 @@ Cache construction, lookup and backing storage are accounted. This internal
 reuse keeps the existing transformation proofs and needs no configuration
 switch. Its compilation-time effect is measured separately from size wins.
 
+Policy algorithm 11 separates reachable-node/strictness analysis from capture
+facts, so passes request only the facts they use. Both results share one
+traversal, with admitted backing storage and counted work. Temporary facts
+release after use, including refusal and unwind; each existing transformation
+round still recomputes its analysis. This is internal behavior without a new user control.
+Previously uncounted allocations and work now participate in hard limits, so
+tight limits may stop a build earlier. Compilation cost requires separate
+measurement; fewer unused facts alone do not establish a CPU improvement.
+
 `[policy.search]` fixes the search's cadence: `codec_schedule` (`staged`
 groups renders before codec measurement, `immediate` scores each at once),
 `render_batch` and `diversity_interval` (every Nth expansion serves an old
