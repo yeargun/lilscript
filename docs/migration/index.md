@@ -8,7 +8,7 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 - One compiler; the existing typed IR, facts, edit machinery, formation, naming and exact codec judging are the foundation.
 - Last semantic batch: **S1**, bounded constant-call and exact primitive-method evaluation. It passes the production matrix and improves every generic objective total; default IIFE wrapping remains open.
-- C1's target-rule and pooling/packing veto slice is implemented. C2 retains alternating compilation samples and input/artifact identities. Q2 now reuses exact byte measurements while preserving logical work and admission; G1's next slice explores measured naming alphabets.
+- C1's target-rule and pooling/packing veto slice is implemented; reconstruction risk enforcement is being verified. C2 retains alternating compilation samples and input/artifact identities. Q2 reuses exact byte measurements with cold logical work and output-owner lifetimes. G1's configurable, exactly judged alphabet trials pass the generic objective gate; port qualification continues.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
@@ -31,7 +31,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 | [ ] | [S2](plan.md#s2) Objects | Escape, uniqueness, fields, flattening and copy elision |
 | [~] | [S3](plan.md#s3) Calls | Remaining inlining, devirtualization, specialization and sharing |
 | [~] | [S4](plan.md#s4) Contracts | Remaining identities, fact consumers, catalog and language coverage |
-| [~] | [G1](plan.md#g1) Lexical names | Local reuse, measured seeds/alphabets and final-byte tie handling |
+| [~] | [G1](plan.md#g1) Lexical names | Local allocation/seed refinement, broader final-byte tie and workload qualification |
 | [ ] | [G2](plan.md#g2) Property names | Private renaming and safe reuse, with reflection and ABI coverage |
 | [~] | [G3](plan.md#g3) JS generation | Per-site spellings, ordering/locality and printer cleanup |
 | [~] | [Q1](plan.md#q1) Choices | One family mechanism, coupled moves and deletion of bespoke mechanisms |
