@@ -8,11 +8,12 @@
 
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
+import { parseTactics } from "./config-schema.mjs"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const COMPILER = process.env.LILSCRIPT_COMPILER ?? join(root, "target/release/lilscript")
@@ -26,8 +27,12 @@ function project(t, toml) {
   return directory
 }
 
-function resolvePolicy(directory, args = [], { config = true } = {}) {
-  const result = spawnSync(COMPILER, [join(directory, "main.lil"), "--target", "js-module", ...(config ? ["--config", join(directory, "lilscript.toml")] : []), ...args, "--print-policy"], { encoding: "utf8" })
+function resolvePolicy(directory, args = [], { config = true, env = {} } = {}) {
+  const environment = { ...process.env }
+  delete environment.LILSCRIPT_WALK_AUDIT
+  delete environment.LILSCRIPT_SEMANTIC_WORK
+  Object.assign(environment, env)
+  const result = spawnSync(COMPILER, [join(directory, "main.lil"), "--target", "js-module", ...(config ? ["--config", join(directory, "lilscript.toml")] : []), ...args, "--print-policy"], { encoding: "utf8", env: environment })
   return { status: result.status, stderr: result.stderr, receipt: result.status === 0 ? JSON.parse(result.stdout) : null }
 }
 
@@ -138,4 +143,93 @@ test("an explicit --config wins over the discovered file", t => {
   const result = spawnSync(COMPILER, [join(directory, "main.lil"), "--target", "js-module", "--config", join(other, "explicit.toml"), "--print-policy"], { encoding: "utf8" })
   assert.equal(result.status, 0, result.stderr)
   assert.equal(JSON.parse(result.stdout).policy.effort, 4)
+})
+
+test("the nearest file replaces parent configuration and a missing explicit file fails", t => {
+  const directory = project(t, "effort.level=9\npolicy.tactics.inlining='off'")
+  const nested = join(directory, "nested")
+  mkdirSync(nested)
+  writeFileSync(join(nested, "main.lil"), SOURCE)
+  writeFileSync(join(nested, "lilscript.toml"), "effort.level=4")
+  const found = resolvePolicy(nested, [], { config: false })
+  assert.equal(found.status, 0, found.stderr)
+  assert.equal(found.receipt.policy.effort, 4)
+  assert.equal(found.receipt.policy.tactics.find(row => row.id === "inlining").state.enabled, true)
+  assert.equal(found.receipt.configuration_inputs.file, "discovered")
+  const missing = resolvePolicy(nested, ["--config", join(nested, "missing.toml")], { config: false })
+  assert.notEqual(missing.status, 0)
+  assert.match(missing.stderr, /failed to read config/)
+})
+
+test("retired aliases must agree, including scalar and singleton objective syntax", t => {
+  for (const source of [
+    "javascript.optimization_level=5\neffort.level=14",
+    "javascript.cost_model='raw'\nobjective.codecs=['gzip']",
+    "mangle.identifiers=false\npolicy.tactics.identifier-mangling='on'",
+  ]) {
+    const result = resolvePolicy(project(t, source))
+    assert.notEqual(result.status, 0, source)
+    assert.match(result.stderr, /contradicts/)
+  }
+  const a = resolvePolicy(project(t, "javascript.cost_model='raw'\nobjective.codecs=['raw']"))
+  const b = resolvePolicy(project(t, "objective.codecs='raw'"))
+  assert.equal(a.status, 0, a.stderr)
+  assert.equal(a.receipt.fingerprint, b.receipt.fingerprint)
+  assert.match(a.receipt.warnings[0], /same value/)
+})
+
+test("flags override environment adapters while TOML hard ceilings still apply", t => {
+  const directory = project(t, "policy.resources.logical_work=1000\npolicy.search.proxy_pruning='off'")
+  const env = { LILSCRIPT_SEMANTIC_WORK: "2000", LILSCRIPT_WALK_AUDIT: "" }
+  const adapted = resolvePolicy(directory, [], { env })
+  assert.equal(adapted.status, 0, adapted.stderr)
+  assert.equal(adapted.receipt.request.logical_work, 2000)
+  assert.equal(adapted.receipt.policy.resources.logical_work, 1000)
+  assert.equal(adapted.receipt.policy.objective.search.proxy_pruning, "audit")
+  assert.equal(adapted.receipt.configuration_inputs.overrides.logical_work, "LILSCRIPT_SEMANTIC_WORK")
+  const flags = resolvePolicy(directory, ["--logical-work", "3000", "--proxy-pruning", "on"], { env })
+  assert.equal(flags.status, 0, flags.stderr)
+  assert.equal(flags.receipt.policy.resources.logical_work, 1000)
+  assert.equal(flags.receipt.policy.objective.search.proxy_pruning, "on")
+  assert.equal(flags.receipt.configuration_inputs.overrides.proxy_pruning, "--proxy-pruning")
+  const invalid = resolvePolicy(directory, [], { env: { LILSCRIPT_SEMANTIC_WORK: "invalid" } })
+  assert.notEqual(invalid.status, 0)
+  const overridden = resolvePolicy(directory, ["--logical-work", "3000"], { env: { LILSCRIPT_SEMANTIC_WORK: "invalid" } })
+  assert.equal(overridden.status, 0, overridden.stderr)
+})
+
+test("version 3 explicitly migrates runtime permissions without changing default effort", t => {
+  const ordinary = resolvePolicy(project(t, "policy.version=3"))
+  assert.equal(ordinary.status, 0, ordinary.stderr)
+  assert.equal(ordinary.receipt.policy.effort, 13)
+  for (const effort of [0, 13, 16]) {
+    const modern = resolvePolicy(project(t, `policy.version=3\neffort.level=${effort}`))
+    assert.equal(modern.status, 0, modern.stderr)
+    for (const name of ["startup-reconstruction", "string-array-packing"]) {
+      const resolution = modern.receipt.resolution.tactics.find(row => row.id === name)
+      assert.equal(resolution.status, "automatic-off")
+      assert.deepEqual(resolution.permitted_risks, [])
+    }
+  }
+  const legacy = resolvePolicy(project(t, "effort.level=16"))
+  assert.equal(legacy.receipt.resolution.runtime_permissions, "legacy-effort-16-startup")
+  assert(legacy.receipt.diagnostics.some(message => message.startsWith("compatibility:")))
+  const explicit = resolvePolicy(project(t, "policy.version=3\npolicy.tactics.string-array-packing='on'"))
+  const packing = explicit.receipt.resolution.tactics.find(row => row.id === "string-array-packing")
+  assert.deepEqual(packing.permitted_risks, ["neutral", "startup", "recurring"])
+})
+
+test("the generated family reference agrees with the real policy registry", t => {
+  const parsed = parseTactics(readFileSync(join(root, "src/compilation_tactics.rs"), "utf8"))
+  const result = resolvePolicy(project(t, "policy.version=3"))
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(parsed.length, result.receipt.policy.tactics.length)
+  for (const definition of parsed) {
+    const actual = result.receipt.policy.tactics.find(row => row.id === definition.name)
+    assert(actual, definition.name)
+    assert.equal(actual.definition.purpose, definition.purpose)
+    assert.equal(actual.definition.tradeoffs, definition.tradeoffs)
+    assert.equal(actual.definition.producers.length, definition.producers.length)
+    assert.equal(actual.definition.risks.length, definition.risks.length)
+  }
 })

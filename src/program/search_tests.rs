@@ -449,6 +449,8 @@ fn zero_optional_work_seals_a_completely_scored_direct_baseline() {
             assert_eq!(search.counters().proposals, 0);
             assert_eq!(search.counters().proof_queries, 0);
             assert_eq!(search.counters().codec_probes, 0);
+            assert!(!search.counters().inventory_reached);
+            assert!(search.counters().families.iter().all(|row| row.discovered == 0));
             assert!(search.stopped().is_none());
             assert!(search.ledger().baseline_is_sealed());
             assert_eq!(search.ledger().work_used(WorkDomain::Optional), 0);

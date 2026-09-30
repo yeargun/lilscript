@@ -2242,14 +2242,16 @@ mod tests {
         let kept = parse("[javascript]\nstrip_console=false\n");
         assert!(!kept.config.javascript.strip_debug);
         assert_eq!(kept.warnings.len(), 1);
-        // An explicit `strip_debug` wins; the retired key then has no effect.
-        let both = parse("[javascript]\nstrip_console=true\nstrip_debug=false\n");
+        // Consistent aliases preserve the setting; a conflict is an error.
+        let both = parse("[javascript]\nstrip_console=false\nstrip_debug=false\n");
         assert!(!both.config.javascript.strip_debug);
         assert!(
-            both.warnings[0].contains("has no effect"),
+            both.warnings[0].contains("same value"),
             "{:?}",
             both.warnings
         );
+        assert!(parse_project_config("[javascript]\nstrip_console=true\nstrip_debug=false\n")
+            .unwrap_err().contains("contradicts"));
     }
 
     #[test]
