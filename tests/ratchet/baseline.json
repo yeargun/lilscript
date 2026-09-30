@@ -3,28 +3,32 @@
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
  "recorded": "2026-09-30",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/s1-loops-1/lilscript",
-  "sha256": "5a1b5da099dfca52bd028f6b905aa75ddb4ec59e12e2527ca21c74a91b7f73f5",
+  "source": "/home/azureuser/lilscript-work/bin/s4-nullish-1/lilscript",
+  "sha256": "599f70fec9044290254fd2f9b0e2673da1cfa31c6005ad083515bb2fa4b1e88b",
   "version": "lilscript 0.1.0",
   "label": null
+ },
+ "delivery": {
+  "target": "js",
+  "format": "bare"
  },
  "barsSha256": "770649437963ff5bd6955ea79195cf37c13a84d96fb6c83e7327db9a0085f45b",
  "counts": {
   "cases": {
    "raw": {
-    "competitor": 110,
+    "competitor": 111,
     "closure": 0,
-    "old": 506
+    "old": 507
    },
    "gzip9": {
     "competitor": 109,
     "closure": 0,
-    "old": 489
+    "old": 490
    },
    "brotli11": {
-    "competitor": 167,
+    "competitor": 168,
     "closure": 0,
-    "old": 509
+    "old": 510
    }
   },
   "apps": {
@@ -66,38 +70,38 @@
   "cases": {
    "raw": {
     "competitor": {
-     "items": 612,
-     "ours": 50251,
-     "bar": 58285
+     "items": 613,
+     "ours": 50371,
+     "bar": 58402
     },
     "old": {
-     "items": 612,
-     "ours": 50251,
-     "bar": 44195
+     "items": 613,
+     "ours": 50371,
+     "bar": 44247
     }
    },
    "gzip9": {
     "competitor": {
-     "items": 612,
-     "ours": 48047,
-     "bar": 54669
+     "items": 613,
+     "ours": 48149,
+     "bar": 54771
     },
     "old": {
-     "items": 610,
-     "ours": 47873,
-     "bar": 45206
+     "items": 611,
+     "ours": 47975,
+     "bar": 45258
     }
    },
    "brotli11": {
     "competitor": {
-     "items": 612,
-     "ours": 38530,
-     "bar": 43541
+     "items": 613,
+     "ours": 38615,
+     "bar": 43620
     },
     "old": {
-     "items": 611,
-     "ours": 38481,
-     "bar": 33656
+     "items": 612,
+     "ours": 38566,
+     "bar": 33697
     }
    }
   },
@@ -7936,13 +7940,16 @@
   },
   "cases/catalog/nullish/semantic-nullish-lazy-assignment": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 120
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 102
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 85
    }
   },
   "cases/catalog/number/clampn0n10n11": {

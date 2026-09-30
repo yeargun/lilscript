@@ -138,7 +138,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M9.3 / M10.4 | [S3](plan.md#s3) | mobxlil's law-P1 price; |
 | M9.3 / M10.4 | [S3](plan.md#s3) | non-private callbacks get the shared factory; |
 | M9.3 / M10.4 | [S3](plan.md#s3) | a rest list read with `.length` reads `arguments`. |
-| M4 / M10 | [S4](plan.md#s4) | `??=` on a place; |
+| M4 / M10 | [S4](plan.md#s4) | `??=` on a place: implemented and qualified in `8ebb686d`; four carried tests enabled |
 | M4 / M10 | [S4](plan.md#s4) | generic methods; |
 | M4 / M10 | [S4](plan.md#s4) | an explicit `JS.undefined()` argument; |
 | M4 / M10 | [S4](plan.md#s4) | a detached `charCodeAt`. |

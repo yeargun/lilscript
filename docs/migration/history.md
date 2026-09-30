@@ -185,6 +185,8 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 
 **Semantic checkpoint.** The existing place/load/lazy-region/store IR now represents nullish assignment. All four carried cases are enabled. The 18 focused tests pass, including receiver/key capture, getter/RHS/setter exceptions, absent versus falsy values, temporal initialization and inferred callable names. Public searched outputs preserve value-struct copies and host access traces under all three objectives, ES2015/ES2022 and target compaction on/off. The native fixture passes GCC/Clang O0/O2 and sanitizer execution. Logs: `/tmp/lilscript-s4-nullish-focused.log` and `/tmp/lilscript-s4-nullish-tests.log`. Generic qualification follows; the library's remaining ignored cases stay open.
 
+**Generic qualification.** The [pinned generic run](../../benchmarks/migration-results/2026-09-30-s4-nullish/README.md) passes. The formerly refused nullish-assignment catalog case now passes every objective, reducing ledgered failing lanes from 36 to 33. All previously passing sizes and output hashes are unchanged. The stale failure entry is removed; the supported baseline-update run records the repaired case.
+
 ## 2026-09-30: Q2 scheduling unchanged rules (pre-registration)
 
 1. Avoid rerunning the stable suffix of a fixed-point round. Retry the prefix through its last changed rule; if any prefix rule edits, reopen the whole suffix immediately in the same order. Keep the round ceiling and verification boundaries. This needs constant scheduler storage, not retained target trees.
