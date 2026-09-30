@@ -27,6 +27,14 @@ explanations and requires audit/on artifact identity. Each on-lane explanation
 warms the inputs before three ordinary compilation samples establish current
 CPU cost. Audit/off diagnostic timings are not a paired speed comparison.
 
+After a fixture repair, `--reuse /absolute/previous-training.json` can retain
+completed matching training cells, including from an interrupted report. It
+rechecks source graphs, policy/tool identities, explanations and resource
+counts, reruns each artifact's oracle and remeasures its exact bytes. CPU samples
+retain their original measurement and runner identity. Changed/incomplete cells
+compile afresh; evaluation never reuses tuning measurements. Keep the old
+checkout and artifacts immutable so this verification remains possible.
+
 Each objective reports immediate proxy misses, final no-prune byte deltas,
 judgments and resource work. Family-level leave-one-out folds choose on/off
 using only the other families' exact sizes (ties retain on). A separate margin

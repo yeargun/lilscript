@@ -44,7 +44,9 @@ def training(family, count, seed):
             body += f"if(total<0){{return total^{b};}}return total+{c};"
         elif family == "strings":
             literal = [json.dumps(value, ensure_ascii=False) for value in strings]
-            body = f"string text=(value&3)==0?{literal[0]}:(value&3)==1?{literal[1]}:(value&3)==2?{literal[2]}:{literal[3]};"
+            body = f"string text={literal[3]};"
+            for branch in range(3):
+                body += ("if" if branch == 0 else "else if") + f"((value&3)=={branch}){{text={literal[branch]};}}"
             body += "return text.length+text.codeUnitAt(value&7);"
         elif family == "records":
             body = (f"Record<int> item=record{{count:value,offset:{a},mask:{b}}};"
@@ -101,12 +103,12 @@ def evaluation(name):
                   "for(int j=0;j<=b.length;j++){row.push(j);}"
                   "for(int i=1;i<=a.length;i++){int diagonal=row[0];row[0]=i;"
                   "for(int j=1;j<=b.length;j++){int prior=row[j];"
-                  "int replace=diagonal+(a.codeUnitAt(i-1)==b.codeUnitAt(j-1)?0:1);"
+                  "int replace=diagonal;if(a.codeUnitAt(i-1)!=b.codeUnitAt(j-1)){replace++;}"
                   "int insert=row[j-1]+1;int erase=prior+1;"
-                  "row[j]=replace<insert?(replace<erase?replace:erase):(insert<erase?insert:erase);"
+                  "int best=replace;if(insert<best){best=insert;}if(erase<best){best=erase;}row[j]=best;"
                   "diagonal=prior;}}return row[b.length];}\n"
-                  'export int probe(int input){string a=(input&1)==0?"compiler😀":"compressλ";'
-                  'string b=(input&2)==0?"compression😀":"compilationλ";return distance(a,b);}\n')
+                  'export int probe(int input){string a="compiler😀";if((input&1)!=0){a="compressλ";}'
+                  'string b="compression😀";if((input&2)!=0){b="compilationλ";}return distance(a,b);}\n')
         def reference(value):
             a = units("compiler😀" if value & 1 == 0 else "compressλ")
             b = units("compression😀" if value & 2 == 0 else "compilationλ")
@@ -162,7 +164,8 @@ def generate(output):
     manifest = dict(schema=1, generator_sha256=digest(Path(__file__)), workloads=rows,
                     prior_exposure=dict(development="All previously measured ports and 642 ratchet programs, including their derivatives.",
                                         monacolil="Previously inspected scoreboards and idiom census; not blind.",
-                                        solidlil="Previously inspected scoreboards and idiom census; not blind."))
+                                        solidlil="Previously inspected scoreboards and idiom census; not blind.",
+                                        syntax_repair="Initial training1 measured arithmetic and branch families. String and distance fixtures used unsupported conditional-expression syntax; repaired before any evaluation scores. Expected values and all other sources unchanged. No heuristic tuning."))
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2)+"\n")
 
 

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generator_sha256": "7f73e1335a8c6aef75422b7cece0bf3e13d8c9d030eac54c892ca9ae3286ec94",
+  "generator_sha256": "6b550f7275d346baff93877c3b310cb74a4e70ac5817ad2aa8ec3c396af5f311",
   "workloads": [
     {
       "id": "arithmetic-128",
@@ -123,8 +123,8 @@
       "split": "training",
       "family": "strings",
       "entry": "strings-128.lil",
-      "source_sha256": "8213230343b03c9e45fbf616f8ba5098e8826b567bb9bfb799caadfb9581ab3b",
-      "source_bytes": 42759,
+      "source_sha256": "e423f7ea84eb5ae6d84a5e24a4ea8caafc2bb9bff88bdbaeb4701b036fc4ca64",
+      "source_bytes": 47879,
       "inputs": [
         -2147483648,
         -1234567,
@@ -152,8 +152,8 @@
       "split": "training",
       "family": "strings",
       "entry": "strings-384.lil",
-      "source_sha256": "5cbb9abb53db0e923dee801039a236dd5ac93230fdbeff63412a943fa171453a",
-      "source_bytes": 129805,
+      "source_sha256": "03bc68c00402f11bf40064c8d80e11602af479e7153065f4e49b39c7f77fdc5a",
+      "source_bytes": 145165,
       "inputs": [
         -2147483648,
         -1234567,
@@ -268,8 +268,8 @@
       "split": "evaluation",
       "family": "distance-library",
       "entry": "distance-library.lil",
-      "source_sha256": "c9a4dd38d4eadabf38f1ba6b06ade177e795a2a0d39cc88edb2c721efc2a7dd8",
-      "source_bytes": 584,
+      "source_sha256": "a0f924ede3cf50dbfa95404c7330419a548c98e2e4c2154dfdb1fa42af9243a1",
+      "source_bytes": 612,
       "inputs": [
         -2147483648,
         -1234567,
@@ -325,6 +325,7 @@
   "prior_exposure": {
     "development": "All previously measured ports and 642 ratchet programs, including their derivatives.",
     "monacolil": "Previously inspected scoreboards and idiom census; not blind.",
-    "solidlil": "Previously inspected scoreboards and idiom census; not blind."
+    "solidlil": "Previously inspected scoreboards and idiom census; not blind.",
+    "syntax_repair": "Initial training1 measured arithmetic and branch families. String and distance fixtures used unsupported conditional-expression syntax; repaired before any evaluation scores. Expected values and all other sources unchanged. No heuristic tuning."
   }
 }

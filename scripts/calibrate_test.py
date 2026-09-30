@@ -74,6 +74,19 @@ class CalibrationTests(unittest.TestCase):
             self.assertNotIn("NODE_OPTIONS", env)
             self.assertEqual(env["RAYON_NUM_THREADS"], "1")
 
+    def test_reuse_refuses_cross_split_or_tool_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "previous.json"
+            manifest = dict(workloads=[])
+            previous = dict(schema=1, split="evaluation", identity=dict(compiler="old"))
+            path.write_text(json.dumps(previous))
+            with self.assertRaisesRegex(ValueError, "training measurements only"):
+                cal.reuse_rows(path, {}, manifest, Path(directory), {}, 1)
+            previous["split"] = "training"
+            path.write_text(json.dumps(previous))
+            with self.assertRaisesRegex(ValueError, "compiler differs"):
+                cal.reuse_rows(path, dict(compiler="new"), manifest, Path(directory), {}, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

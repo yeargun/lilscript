@@ -154,6 +154,108 @@ def validate_training(training, tool_identity, manifest_hash):
         raise ValueError("training receipt contains protected evaluation data")
 
 
+def reuse_rows(path, tools, manifest, work, env, timeout):
+    """Reuse complete training cells only after replaying their retained evidence.
+
+The corpus may have a repaired *other* workload. A cell's compiler, policy,
+source, oracle, artifact, explanation and metrics must still match exactly.
+The old runner identity is retained, rather than relabeled as a fresh compile.
+Only the single-module/no-host workloads of this generator are supported.
+"""
+    previous = json.loads(path.read_text())
+    if previous.get("schema") != 1 or previous.get("split") != "training":
+        raise ValueError("reuse accepts training measurements only")
+    for key in tools.keys() - {"runner"}:
+        if previous["identity"].get(key) != tools[key]:
+            raise ValueError(f"reused {key} differs from this experiment")
+    for key in ["runner", "decoder"]:
+        if identity(previous["identity"][key]["path"]) != previous["identity"][key]:
+            raise ValueError("original measurement source is unavailable or changed")
+    old = {row["id"]: row for row in previous["manifest"]["workloads"]}
+    current = {row["id"]: row for row in manifest["workloads"] if row["split"] == "training"}
+    kept = {}
+    for row in previous["rows"]:
+        item = current.get(row["id"])
+        if item is None or set(row["modes"]) != set(MODES):
+            continue
+        if any(item[key] != old[item["id"]][key] for key in
+               ["id", "split", "family", "entry", "source_sha256", "source_bytes", "inputs", "expected"]):
+            continue
+        if any(row[key] != item[key] for key in ["id", "split", "family", "source_bytes"]):
+            raise ValueError("reused cell belongs to a different workload")
+        objective = row["objective"]
+        index, metric = OBJECTIVES[objective]
+        oracle_path = work / f'reuse-{item["id"]}-{objective}.oracle.json'
+        oracle_path.write_text(json.dumps(item))
+        comparable = None
+        for mode, cell in row["modes"].items():
+            for key in ["artifact", "config", "explanation"]:
+                if identity(cell[key]["path"]) != cell[key]:
+                    raise ValueError("reused artifact/config/explanation changed")
+            if Path(cell["config"]["path"]).read_text() != POLICY.format(objective=objective, mode=mode):
+                raise ValueError("reused configuration does not match policy")
+            docs = [doc for doc in cost.json_documents(Path(cell["explanation"]["path"]).read_text()) if "inputs" in doc]
+            if len(docs) != 1:
+                raise ValueError("missing reused explanation")
+            explanation = docs[0]
+            modules = explanation["inputs"]["modules"]
+            if (len(modules) != 1 or modules[0]["sha256"] != item["source_sha256"]
+                    or digest(modules[0]["path"]) != item["source_sha256"]
+                    or modules[0]["dependencies"] or modules[0]["dynamic_dependencies"]
+                    or explanation["inputs"]["host_modules"]):
+                raise ValueError("reused source graph differs or is not an isolated module")
+            policy = copy.deepcopy(explanation["javascript_policy"])
+            if policy["effort"] != 13 or policy["objective"]["search"].pop("proxy_pruning") != mode:
+                raise ValueError("reused resolved policy mismatch")
+            facts = (policy, explanation["request"])
+            if comparable is not None and comparable != facts:
+                raise ValueError("reused lanes have different policy/resources")
+            comparable = facts
+            cost.effective_resources(explanation, policy)
+            artifact = explanation["artifacts"][explanation["winners"][index]]
+            if artifact["sha256"] != cell["artifact"]["sha256"] or artifact[metric] != cell["bytes"]:
+                raise ValueError("reused selected artifact mismatch")
+            terminal = explanation["search"]["terminal"]["objectives"][0]
+            for key in ["judged", "pruned", "codec_probes"]:
+                if cell[key] != terminal[key]:
+                    raise ValueError("reused search count mismatch")
+            for key in ["baseline_work", "optional_work", "codec_work", "peak_retained_bytes"]:
+                if cell[key] != explanation["resources"][key]:
+                    raise ValueError("reused resource count mismatch")
+            trials = terminal_trials(explanation)
+            missed = [dict(kind=kind, **trial) for kind, trial in trials
+                      if trial.get("audit") is not None and trial["audit"] < 0]
+            if missed != cell["missed"] or row["margin"] != policy["objective"]["walk"]["margin"]:
+                raise ValueError("reused pruning evidence mismatch")
+            if (cell["raw_bytes"] != artifact["raw"]
+                    or cell["audited"] != sum(trial.get("audit") is not None for _, trial in trials)
+                    or cell["stopped"] != int(explanation["search"]["stop"] is not None or
+                                              any(trial["outcome"] == "stopped" for _, trial in trials))):
+                raise ValueError("reused artifact/audit/stop evidence mismatch")
+            output = Path(cell["artifact"]["path"])
+            oracle, _ = invoke([tools["node"]["path"], "--input-type=module", "-e", ORACLE,
+                                output.as_uri(), str(oracle_path)], env=env, timeout=timeout)
+            if oracle.returncode or json.loads(oracle.stdout) != cell["observation"]:
+                raise ValueError("reused artifact failed the current independent oracle")
+            measured, _ = invoke([tools["codec"]["path"], "--json", str(output)], env=env, timeout=timeout)
+            if measured.returncode:
+                raise ValueError("reused artifact could not be remeasured")
+            actual = json.loads(measured.stdout)["artifacts"][0]
+            if {key: actual[key] for key in cell["all_sizes"]} != cell["all_sizes"] or actual[metric] != cell["bytes"]:
+                raise ValueError("reused exact measurements disagree")
+        if row["modes"]["on"]["artifact"]["sha256"] != row["modes"]["audit"]["artifact"]["sha256"]:
+            raise ValueError("reused audit changed ordinary output")
+        if len(row["modes"]["on"]["warm_samples"]) < 3:
+            raise ValueError("reused CPU baseline lacks repeated samples")
+        row["reused_from"] = identity(path)
+        row["original_runner"] = previous["identity"]["runner"]
+        key = (row["id"], objective)
+        if key in kept:
+            raise ValueError("duplicate reused cell")
+        kept[key] = row
+    return kept
+
+
 def run(args):
     if args.json.exists():
         raise ValueError("report exists; retain it and choose a new destination")
@@ -183,10 +285,20 @@ def run(args):
                   timing="On-lane explanation is discarded as warmup; timed samples omit --explain. No speed comparison is claimed.",
                   historical_a1_cpu_pair="Unavailable; current samples establish a new baseline, not a reconstruction.")
     try:
+        reused = {}
+        if args.reuse:
+            if args.split != "training":
+                raise ValueError("protected evaluation cannot reuse tuning measurements")
+            report["reuse_receipt"] = identity(args.reuse)
+            reused = reuse_rows(args.reuse, tool_identity, manifest, args.work, env, args.timeout)
         for workload in manifest["workloads"]:
             if workload["split"] != args.split:
                 continue
             for objective, (index, metric) in OBJECTIVES.items():
+                if (workload["id"], objective) in reused:
+                    report["rows"].append(reused[(workload["id"], objective)])
+                    print(f'{args.split}: {len(report["rows"])} objective cells qualified (verified reuse)', flush=True)
+                    continue
                 row = dict(id=workload["id"], family=workload["family"], split=args.split,
                            source_bytes=workload["source_bytes"], objective=objective, modes={})
                 report["rows"].append(row)
@@ -274,6 +386,13 @@ def run(args):
                 raise RuntimeError(f"{key} changed during measurement")
         if args.training and identity(args.training) != report["training_receipt"]:
             raise RuntimeError("training receipt changed during evaluation")
+        if args.reuse and identity(args.reuse) != report["reuse_receipt"]:
+            raise RuntimeError("reuse receipt changed during measurement")
+        for row in report["rows"]:
+            for cell in row["modes"].values():
+                for key in ["artifact", "config", "explanation"]:
+                    if identity(cell[key]["path"]) != cell[key]:
+                        raise RuntimeError("retained measurement changed during the batch")
         report["summary"] = summarize(report["rows"], cross_validate=args.split == "training")
         # Cross-validation belongs only to training; evaluation has no fitting.
         if args.split == "evaluation":
@@ -294,12 +413,13 @@ def main():
         parser.add_argument("--"+flag, type=Path, required=True)
     parser.add_argument("--split", choices=["training", "evaluation"], default="training")
     parser.add_argument("--training", type=Path)
+    parser.add_argument("--reuse", type=Path, help="reverify complete matching training cells from a retained earlier report")
     parser.add_argument("--rounds", type=int, default=3)
     parser.add_argument("--timeout", type=int, default=600)
     args = parser.parse_args()
     if args.rounds < 3 or args.timeout <= 0:
         parser.error("at least three warm baseline samples and a positive timeout are required")
-    for name in ["manifest", "compiler", "codec", "work", "json", "training"]:
+    for name in ["manifest", "compiler", "codec", "work", "json", "training", "reuse"]:
         if getattr(args, name) is not None:
             setattr(args, name, getattr(args, name).resolve())
     run(args)
