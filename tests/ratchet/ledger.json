@@ -3,10 +3,11 @@
   "about": "Owned losses and failures of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13). Each entry names corpus items (an id, a glob or a list; catalog ids carry their behavior family, cases/catalog/<family>/<name>), the bars it covers (competitor, closure, old; omitted means all), the metrics (raw, gzip9, brotli11; omitted means all), why they lose or fail, and the plan task that owns the fix (docs/migration/index.md). A loss or failure no entry covers fails the run; an entry that covers nothing is reported for removal. Coverage is not permission to grow: the baseline (baseline.json) still fails any count or any item's loss that grows. Recorded against head-d1d48c4c on 2026-09-27. The floor slice (plan step 5) re-verdicts each covered case and narrows its entry to the rule that wins it (rule 3: a new rule names the cases it wins).",
   "entries": [
     {
-      "kind": "failure",
-      "items": ["cases/canonical/collections/record-json", "cases/catalog/record/*"],
-      "reason": "Refused: spread record construction (`{...record}`) is not in the language v0.1; its semantics (CreateDataProperty over the declared key set) is the M10.8 decision. The competitor and old-route bars exist; the compiler lane has no artifact.",
-      "owner": "M10.8"
+      "kind": "loss",
+      "items": "cases/catalog/record/*",
+      "bars": ["competitor"],
+      "reason": "S4 now supports typed spread and all 30 catalog lanes execute correctly. The ordered own-key copy loop and record materialization remain larger than the comparison implementations; S2 owns propagation, flattening and copy removal where complete-use facts permit them. Newly supported artifacts are not a compression win over the prior refusal.",
+      "owner": "S2"
     },
     {
       "kind": "loss",

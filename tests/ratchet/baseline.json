@@ -3,8 +3,8 @@
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
  "recorded": "2026-09-30",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/g1-local-polish-1/lilscript",
-  "sha256": "0e53dce81d3cb28d3e00d698747b9777fa689d87f1817a94e19844b598d75acd",
+  "source": "/home/azureuser/lilscript-work/bin/s4-record-spread-1/lilscript",
+  "sha256": "0fd5430d4bc578ae54fc668ffa9fbdddde2f69cb3bc131b8e832d6805a95ad98",
   "version": "lilscript 0.1.0",
   "label": null
  },
@@ -16,19 +16,19 @@
  "counts": {
   "cases": {
    "raw": {
-    "competitor": 111,
+    "competitor": 122,
     "closure": 0,
-    "old": 507
+    "old": 518
    },
    "gzip9": {
-    "competitor": 109,
+    "competitor": 120,
     "closure": 0,
-    "old": 490
+    "old": 501
    },
    "brotli11": {
-    "competitor": 168,
+    "competitor": 179,
     "closure": 0,
-    "old": 510
+    "old": 521
    }
   },
   "apps": {
@@ -70,38 +70,38 @@
   "cases": {
    "raw": {
     "competitor": {
-     "items": 613,
-     "ours": 50371,
-     "bar": 58402
+     "items": 624,
+     "ours": 53650,
+     "bar": 60614
     },
     "old": {
-     "items": 613,
-     "ours": 50371,
-     "bar": 44247
+     "items": 624,
+     "ours": 53650,
+     "bar": 45935
     }
    },
    "gzip9": {
     "competitor": {
-     "items": 613,
-     "ours": 48147,
-     "bar": 54771
+     "items": 624,
+     "ours": 50369,
+     "bar": 56410
     },
     "old": {
-     "items": 611,
-     "ours": 47973,
-     "bar": 45258
+     "items": 622,
+     "ours": 50195,
+     "bar": 46478
     }
    },
    "brotli11": {
     "competitor": {
-     "items": 613,
-     "ours": 38600,
-     "bar": 43620
+     "items": 624,
+     "ours": 40449,
+     "bar": 44919
     },
     "old": {
-     "items": 612,
-     "ours": 38551,
-     "bar": 33697
+     "items": 623,
+     "ours": 40400,
+     "bar": 34677
     }
    }
   },
@@ -593,13 +593,16 @@
   },
   "cases/canonical/collections/record-json": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 275
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 193
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 162
    }
   },
   "cases/canonical/control/dead-branch": {
@@ -8262,112 +8265,142 @@
   },
   "cases/catalog/record/edge-record-json-1-left": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 301
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 202
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 170
    }
   },
   "cases/catalog/record/edge-record-json-10-live": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 302
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 204
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 170
    }
   },
   "cases/catalog/record/edge-record-json-2-right": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 299
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 201
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 169
    }
   },
   "cases/catalog/record/edge-record-json-3-middle": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 302
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 205
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 168
    }
   },
   "cases/catalog/record/edge-record-json-4-alpha": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 299
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 204
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 168
    }
   },
   "cases/catalog/record/edge-record-json-5-beta": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 302
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 205
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 168
    }
   },
   "cases/catalog/record/edge-record-json-6-gamma": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 299
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 202
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 169
    }
   },
   "cases/catalog/record/edge-record-json-7-delta": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 299
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 201
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 169
    }
   },
   "cases/catalog/record/edge-record-json-8-first": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 300
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 202
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 169
    }
   },
   "cases/catalog/record/edge-record-json-9-hot": {
    "raw": {
-    "state": "refused"
+    "state": "pass",
+    "size": 301
    },
    "gzip9": {
-    "state": "refused"
+    "state": "pass",
+    "size": 203
    },
    "brotli11": {
-    "state": "refused"
+    "state": "pass",
+    "size": 167
    }
   },
   "cases/catalog/string/edge-string-utf16-accent": {
