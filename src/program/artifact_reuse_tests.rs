@@ -122,6 +122,9 @@ fn discarded_bytes_keep_only_scores_with_identical_cold_work_and_fresh_admission
     for physical_reuse in [true, false] {
         let run = || {
             with_candidates(|compilation, candidates, policy| {
+                // A protected incumbent keeps the search's memo alive while
+                // individual trials are discarded and revisited.
+                let incumbent = render(compilation, candidates[0], policy);
                 let donor = render(compilation, candidates[0], policy);
                 // First use allocates the bounded memo; subsequent cold/warm
                 // encodes have the same deterministic tariff and lookup work.
@@ -164,6 +167,7 @@ fn discarded_bytes_keep_only_scores_with_identical_cold_work_and_fresh_admission
                     )
                     .is_err());
                 compilation.discard_artifact(target).unwrap();
+                compilation.discard_artifact(incumbent).unwrap();
             })
         };
         if physical_reuse {
@@ -172,6 +176,30 @@ fn discarded_bytes_keep_only_scores_with_identical_cold_work_and_fresh_admission
             compression_cache::without_reuse(run);
         }
     }
+}
+
+#[test]
+fn the_last_artifact_releases_measurements_but_keeps_reusable_slot_storage() {
+    with_candidates(|compilation, candidates, policy| {
+        // Warm the ordinary slot/recipe metadata, without any codec storage.
+        let warm = render(compilation, candidates[0], policy);
+        compilation.discard_artifact(warm).unwrap();
+        let idle = compilation.ledger().retained_bytes();
+        for take in [false, true] {
+            let artifact = render(compilation, candidates[0], policy);
+            for codec in [CompressionCostModel::Gzip, CompressionCostModel::Brotli] {
+                compilation
+                    .measure_artifact(artifact, codec, WorkDomain::Baseline)
+                    .unwrap();
+            }
+            if take {
+                compilation.take_artifact(artifact).unwrap();
+            } else {
+                compilation.discard_artifact(artifact).unwrap();
+            }
+            assert_eq!(compilation.ledger().retained_bytes(), idle);
+        }
+    });
 }
 
 #[test]

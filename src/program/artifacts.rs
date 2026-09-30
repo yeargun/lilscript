@@ -620,6 +620,7 @@ pub(super) struct ArtifactArena {
     slots: Vec<Slot>,
     charge: Option<RetainedCharge<RevisionId>>,
     free: Option<u32>,
+    live: usize,
     /// The codec settings every size this arena measures is judged with:
     /// the objective's, bound with the JavaScript contract (law B2).
     settings: CodecSettings,
@@ -641,6 +642,7 @@ impl ArtifactArena {
             slots: Vec::new(),
             charge: None,
             free: None,
+            live: 0,
             settings,
             measurements: std::cell::RefCell::default(),
             bound: false,
@@ -735,6 +737,7 @@ impl ArtifactArena {
         self.insert_record(StoredRecord::JavaScript(record))
     }
     fn insert_record(&mut self, record: StoredRecord) -> Handle {
+        self.live += 1;
         let generation = RevisionId::fresh();
         let slot = if let Some(index) = self.free {
             let slot = &mut self.slots[index as usize];
@@ -768,6 +771,7 @@ impl ArtifactArena {
     }
     fn remove_record(&mut self, id: Handle) -> Result<StoredRecord, CandidateError> {
         let index = self.index(id)?;
+        self.live -= 1;
         let slot = &mut self.slots[index];
         let record = slot.record.take().unwrap();
         slot.next_free = self.free;
@@ -786,6 +790,14 @@ impl ArtifactArena {
             release(charge, self.owner, budget);
         }
         self.free = None;
+        self.live = 0;
+    }
+    // Keep scores between trials while an incumbent or another artifact is
+    // live. An empty output owner has no continuation that needs this memo.
+    fn release_idle_measurements(&mut self, budget: &mut AllocationBudget<'_>) {
+        if self.live == 0 {
+            self.measurements.get_mut().clear(self.owner, budget);
+        }
     }
     pub(super) fn with_artifact<R>(
         &self,
@@ -1091,7 +1103,9 @@ impl ArtifactArena {
                 "a multi-file artifact is delivered with all of its files",
             ));
         }
-        Ok(self.remove(id.0)?.take(self.owner, budget).0)
+        let text = self.remove(id.0)?.take(self.owner, budget).0;
+        self.release_idle_measurements(budget);
+        Ok(text)
     }
     /// Every file of one multi-file artifact, with its layout.
     pub(super) fn take_files(
@@ -1105,6 +1119,7 @@ impl ArtifactArena {
             ));
         }
         let (_, files, layout) = self.remove(id.0)?.take(self.owner, budget);
+        self.release_idle_measurements(budget);
         Ok(DeliveredFiles {
             files,
             layout: layout.expect("checked above"),
@@ -1131,6 +1146,7 @@ impl ArtifactArena {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), CandidateError> {
         self.remove(id.0)?.discard(self.owner, budget);
+        self.release_idle_measurements(budget);
         Ok(())
     }
     pub(super) fn finish(mut self, ledger: &mut BudgetLedger) {
@@ -1410,11 +1426,14 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
     ) -> Result<usize, CandidateError> {
         self.output.with_allocation_budget(|budget| {
             let settings = self.staging.settings;
+            // A callback-local measurement must not allocate persistent
+            // compilation storage. Retained search artifacts use their own
+            // arena's memo through ArtifactArena::measure.
             self.staging.get(id.0)?.measure(
                 codec,
                 &settings,
-                &mut self.retained.measurements.borrow_mut(),
-                self.retained.owner,
+                &mut self.staging.measurements.borrow_mut(),
+                self.staging.owner,
                 budget,
             )
         })

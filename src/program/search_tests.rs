@@ -884,7 +884,10 @@ fn taking_one_shared_winner_moves_its_buffer_and_consumes_all_objective_aliases(
             "terminal handoff must move the actual buffer"
         );
         assert_eq!(exact_sizes(&javascript), expected);
-        assert_eq!(search.ledger().retained_bytes(), retained - capacity as u64);
+        assert!(
+            search.ledger().retained_bytes() <= retained - capacity as u64,
+            "handoff releases the buffer and, for the last artifact, the idle codec memo"
+        );
         for codec in CODECS {
             assert!(search.with_winner(codec, |_, _| ()).is_none());
             assert!(search.take_winner(codec).is_none());

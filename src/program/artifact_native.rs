@@ -186,6 +186,7 @@ impl ArtifactArena {
         } = record;
         budget.with_ledger(|ledger| lineage.discard(ledger.unwrap().0));
         release(charge, self.owner, budget);
+        self.release_idle_measurements(budget);
         Ok((files.c, files.header))
     }
 }

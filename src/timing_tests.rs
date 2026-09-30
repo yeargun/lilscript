@@ -43,7 +43,9 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
     let wall_ns = started.elapsed().as_nanos();
     let phases: Vec<_> = PHASE_BUCKETS.iter().enumerate().map(|(index, bucket)| {
         let (nanos, calls, bytes) = bucket.snapshot();
-        assert_eq!(bytes, 0, "phase counters do not claim byte measurements");
+        if !matches!(bucket.name, "codec_lookup" | "codec_reuse") {
+            assert_eq!(bytes, 0, "phase counters do not claim byte measurements");
+        }
         json!({"name":bucket.name,"calls":calls-before[index],"elapsed_ns":nanos-phases_before[index]})
     }).collect();
     if enabled() {
@@ -101,10 +103,19 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             .unwrap()
             + baseline_encodes
             + terminal_encodes;
+        let calls = |name: &str| {
+            phases.iter().find(|phase| phase["name"] == name).unwrap()["calls"]
+                .as_u64()
+                .unwrap()
+        };
+        let physical = calls("canonical_gzip") + calls("canonical_brotli");
+        let reuse = calls("codec_reuse");
+        // Search counts logical judgments. Physical reuse includes proxy
+        // hits too, so only some of its hits replace canonical encodes.
+        assert!((physical..=physical + reuse).contains(&encodes), "{label}");
         assert_eq!(
-            phases[7]["calls"].as_u64().unwrap() + phases[8]["calls"].as_u64().unwrap(),
-            encodes,
-            "{label}"
+            calls("codec_lookup"),
+            physical + calls("proxy_brotli") + reuse
         );
         if !inlining {
             let expected = if proposals == 0 {
@@ -204,9 +215,9 @@ fn check_refusal_and_native() {
     assert_eq!(
         delta,
         if enabled() {
-            [0, 0, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0]
+            [0, 0, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
         } else {
-            [0; 12]
+            [0; PHASE_BUCKETS.len()]
         }
     );
     let refused = compile_source(
