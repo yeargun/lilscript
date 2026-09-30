@@ -135,6 +135,8 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 
 **Semantic checkpoint.** `50d2369b` passes all 42 rule/evaluator tests and the public JavaScript/native permission test under each objective. The independent interpreter covers ordinary loops; a direct Node oracle covers the interpreter's unsupported exception case. The existing raw literal-length heuristic deliberately retains a long constant rather than forcing its spelling. No evaluator bound was increased. Logs: `/tmp/lilscript-s1-loop-tests-fixed.log` and `/tmp/lilscript-s1-loop-rules.log`.
 
+**Qualification.** The pinned compiler passes the [generic ratchet, reference ports and paired compilation comparison](../../benchmarks/migration-results/2026-09-30-s1-loops/README.md). Generic totals improve by **4,987 raw, 4,143 gzip and 3,574 Brotli bytes**, with the same 36 ledgered failures and no new regressions. The supported baseline-update run records the improvement. All three selected port outputs remain byte-identical; CPU ratios 0.986, 1.017 and 1.012 overlap sample spread. This records a size improvement on constant-loop workloads, not runtime qualification or completion of S1.
+
 ## 2026-09-30: C1 producer availability and configuration provenance (pre-registration)
 
 1. Make actual producer stages and prerequisites registry data. Unsupported controls retain the requested permission but cannot report an enabled implementation. Explicit requests without a producer produce diagnostics; native requests do not advertise JavaScript-only implementations.
@@ -145,6 +147,8 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 
 **Verification checkpoint.** Registry producer stages, target availability and naming prerequisites now drive effective enablement. Explicit unavailable requests are diagnosed, and contradictory legacy aliases fail in either file order. The generated policy reference and per-target service/CLI diagnostics preserve canonical policy identity independently of warning wording. Focused tests pass 53 cases, all six CLI tests pass, and the full library run passes **1,675 tests with nine existing ignores**, excluding the separately qualified expensive positive data-table case. Logs: `/tmp/lilscript-c1-producer-tests.log`, `/tmp/lilscript-c1-producer-cli.log`, `/tmp/lilscript-c1-producer-full.log`. This run includes S1 loops and S2 payloads. Generic output qualification follows on a pinned release.
 
+**Generic qualification.** Pinned source `0609fe07` passes the [full generic gate](../../benchmarks/migration-results/2026-09-30-c1-producers/README.md). Every lane's state, size and output hash matches S1's accepted baseline; the same 36 failures remain ledgered. The subsequent D1 container is excluded from this comparison.
+
 ## 2026-09-30: D1 private application wrapper (pre-registration)
 
 1. Complete the approved Y5 default application wrapper. Resolve the default `auto` format to ESM for libraries and IIFE for classic application scripts; expose explicit `bare` for an embedding that owns the private root scope. Reject combinations whose container/export or static-import contract is not implemented.
@@ -154,3 +158,11 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 **Prediction.** A required private frame adds bytes and one startup call; this is an approved delivery-contract change, not a compression gain. Preserve a matched bare-output lane to distinguish its overhead from optimizer changes, and report the new default separately without disguising growth or silently rewriting the old benchmark contract. Existing module-port outputs should remain identical. The wrapper belongs to final formation/admission, never post-processing of already-scored bytes.
 
 **Semantic checkpoint.** The default private IIFE and explicit bare application output now flow through policy, final-byte printing and independent structural admission. Repeated loads/colliding roots, classic `this`, incompatible imports/exports, exact objective scores and retained cross-format refusal pass. The full library run passes 1,679 tests and identifies two old bare-output expectations; after updating those for the approved container, both focused reruns pass: **1,681 passed, nine existing ignores**, with the separately passing expensive table case excluded. All six CLI tests pass. Logs: `/tmp/lilscript-d1-wrapper-full.log`, `/tmp/lilscript-d1-wrapper-fixtures.log`, `/tmp/lilscript-d1-wrapper-cli.log`. Default-versus-bare size qualification follows; library-global exports and CJS/UMD are not implemented by this slice.
+
+## 2026-09-30: Q2 unchanged semantic views (pre-registration)
+
+1. Stop the rule editor from invalidating all effect/range views after a rule that touched no unit or table. Preserve the existing revision checks and clear views after every actual unit/table edit.
+2. Give synthetic type/cell additions the same table revision discipline as strings and cell mutation. Keep these temporary views inside the rule phase; finish still drops them before publication accounting.
+3. Verify identity reuse after empty commits, invalidation after unit/table edits and identical optimized bytes/receipts with physical reuse disabled. Measure compilation and generic output against the isolated pre-change compiler.
+
+**Prediction.** Fewer repeated call/effect/initialization analyses during unchanged rule passes, with unchanged decisions, logical search work and bytes. This addresses a smaller frontend repetition found during Q2's formation audit; it does not claim to remove the much larger repeated target formation or complete resource accounting for the rule phase.

@@ -3,8 +3,8 @@
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
  "recorded": "2026-09-30",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/g1-1/lilscript",
-  "sha256": "6786095b8b11cf16a4fd7a960123015116e24246d0a05e4d4ba080535975e5a5",
+  "source": "/home/azureuser/lilscript-work/bin/s1-loops-1/lilscript",
+  "sha256": "5a1b5da099dfca52bd028f6b905aa75ddb4ec59e12e2527ca21c74a91b7f73f5",
   "version": "lilscript 0.1.0",
   "label": null
  },
@@ -14,34 +14,34 @@
    "raw": {
     "competitor": 110,
     "closure": 0,
-    "old": 567
+    "old": 506
    },
    "gzip9": {
     "competitor": 109,
     "closure": 0,
-    "old": 545
+    "old": 489
    },
    "brotli11": {
-    "competitor": 174,
+    "competitor": 167,
     "closure": 0,
-    "old": 569
+    "old": 509
    }
   },
   "apps": {
    "raw": {
     "competitor": 0,
     "closure": 1,
-    "old": 7
+    "old": 5
    },
    "gzip9": {
     "competitor": 1,
     "closure": 2,
-    "old": 7
+    "old": 5
    },
    "brotli11": {
     "competitor": 0,
     "closure": 2,
-    "old": 7
+    "old": 5
    }
   },
   "algorithms": {
@@ -67,36 +67,36 @@
    "raw": {
     "competitor": {
      "items": 612,
-     "ours": 55007,
+     "ours": 50251,
      "bar": 58285
     },
     "old": {
      "items": 612,
-     "ours": 55007,
+     "ours": 50251,
      "bar": 44195
     }
    },
    "gzip9": {
     "competitor": {
      "items": 612,
-     "ours": 52013,
+     "ours": 48047,
      "bar": 54669
     },
     "old": {
      "items": 610,
-     "ours": 51839,
+     "ours": 47873,
      "bar": 45206
     }
    },
    "brotli11": {
     "competitor": {
      "items": 612,
-     "ours": 41944,
+     "ours": 38530,
      "bar": 43541
     },
     "old": {
      "items": 611,
-     "ours": 41864,
+     "ours": 38481,
      "bar": 33656
     }
    }
@@ -105,51 +105,51 @@
    "raw": {
     "competitor": {
      "items": 7,
-     "ours": 1090,
+     "ours": 859,
      "bar": 1527
     },
     "closure": {
      "items": 7,
-     "ours": 1090,
+     "ours": 859,
      "bar": 1332
     },
     "old": {
      "items": 7,
-     "ours": 1090,
+     "ours": 859,
      "bar": 802
     }
    },
    "gzip9": {
     "competitor": {
      "items": 7,
-     "ours": 915,
+     "ours": 738,
      "bar": 1053
     },
     "closure": {
      "items": 7,
-     "ours": 915,
+     "ours": 738,
      "bar": 982
     },
     "old": {
      "items": 7,
-     "ours": 915,
+     "ours": 738,
      "bar": 711
     }
    },
    "brotli11": {
     "competitor": {
      "items": 7,
-     "ours": 738,
+     "ours": 578,
      "bar": 870
     },
     "closure": {
      "items": 7,
-     "ours": 738,
+     "ours": 578,
      "bar": 834
     },
     "old": {
      "items": 7,
-     "ours": 738,
+     "ours": 578,
      "bar": 558
     }
    }
@@ -380,15 +380,15 @@
   "apps/control-flow-engine": {
    "raw": {
     "state": "pass",
-    "size": 120
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 121
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 97
+    "size": 21
    }
   },
   "apps/higher-order-pipeline": {
@@ -422,15 +422,15 @@
   "apps/numerical-kernel": {
    "raw": {
     "state": "pass",
-    "size": 179
+    "size": 51
    },
    "gzip9": {
     "state": "pass",
-    "size": 143
+    "size": 50
    },
    "brotli11": {
     "state": "pass",
-    "size": 121
+    "size": 37
    }
   },
   "apps/optimizer-pressure": {
@@ -657,29 +657,29 @@
   "cases/canonical/control/fibonacci": {
    "raw": {
     "state": "pass",
-    "size": 86
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 94
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 77
+    "size": 21
    }
   },
   "cases/canonical/control/gcd": {
    "raw": {
     "state": "pass",
-    "size": 72
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 91
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 65
+    "size": 20
    }
   },
   "cases/canonical/control/if-chain": {
@@ -699,15 +699,15 @@
   "cases/canonical/control/loop-control": {
    "raw": {
     "state": "pass",
-    "size": 117
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 115
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 94
+    "size": 21
    }
   },
   "cases/canonical/control/loop-sum": {
@@ -741,15 +741,15 @@
   "cases/canonical/control/nested-loop-score": {
    "raw": {
     "state": "pass",
-    "size": 120
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 121
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 97
+    "size": 21
    }
   },
   "cases/canonical/control/scalar-match": {
@@ -1105,15 +1105,15 @@
   "cases/canonical/scalars/i32-churn": {
    "raw": {
     "state": "pass",
-    "size": 149
+    "size": 91
    },
    "gzip9": {
     "state": "pass",
-    "size": 117
+    "size": 69
    },
    "brotli11": {
     "state": "pass",
-    "size": 98
+    "size": 72
    }
   },
   "cases/canonical/strings/chars": {
@@ -2057,99 +2057,99 @@
   "cases/catalog/closure/closure-capture-2": {
    "raw": {
     "state": "pass",
-    "size": 75
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 90
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 72
+    "size": 20
    }
   },
   "cases/catalog/closure/closure-capture-3": {
    "raw": {
     "state": "pass",
-    "size": 75
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 90
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 72
+    "size": 20
    }
   },
   "cases/catalog/closure/closure-capture-4": {
    "raw": {
     "state": "pass",
-    "size": 75
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 90
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 72
+    "size": 20
    }
   },
   "cases/catalog/closure/closure-capture-5": {
    "raw": {
     "state": "pass",
-    "size": 75
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 90
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 72
+    "size": 21
    }
   },
   "cases/catalog/closure/closure-capture-6": {
    "raw": {
     "state": "pass",
-    "size": 75
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 90
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 74
+    "size": 21
    }
   },
   "cases/catalog/closure/closure-capture-7": {
    "raw": {
     "state": "pass",
-    "size": 75
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 90
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 72
+    "size": 21
    }
   },
   "cases/catalog/closure/closure-capture-8": {
    "raw": {
     "state": "pass",
-    "size": 75
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 90
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 71
+    "size": 21
    }
   },
   "cases/catalog/closure/edge-closure-mutation-11n4n5": {
@@ -5375,85 +5375,85 @@
   "cases/catalog/function/fibonacci-10": {
    "raw": {
     "state": "pass",
-    "size": 86
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 93
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 76
+    "size": 20
    }
   },
   "cases/catalog/function/fibonacci-12": {
    "raw": {
     "state": "pass",
-    "size": 86
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 94
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 77
+    "size": 21
    }
   },
   "cases/catalog/function/fibonacci-14": {
    "raw": {
     "state": "pass",
-    "size": 86
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 95
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 79
+    "size": 21
    }
   },
   "cases/catalog/function/fibonacci-16": {
    "raw": {
     "state": "pass",
-    "size": 86
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 95
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 79
+    "size": 21
    }
   },
   "cases/catalog/function/fibonacci-18": {
    "raw": {
     "state": "pass",
-    "size": 86
+    "size": 18
    },
    "gzip9": {
     "state": "pass",
-    "size": 95
+    "size": 38
    },
    "brotli11": {
     "state": "pass",
-    "size": 79
+    "size": 22
    }
   },
   "cases/catalog/function/fibonacci-8": {
    "raw": {
     "state": "pass",
-    "size": 85
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 94
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 74
+    "size": 20
    }
   },
   "cases/catalog/function/identical-helpers-2": {
@@ -6271,141 +6271,141 @@
   "cases/catalog/integer/edge-i32-churn-1073741824n7n13n4n11": {
    "raw": {
     "state": "pass",
-    "size": 134
+    "size": 88
    },
    "gzip9": {
     "state": "pass",
-    "size": 106
+    "size": 66
    },
    "brotli11": {
     "state": "pass",
-    "size": 86
+    "size": 63
    }
   },
   "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257": {
    "raw": {
     "state": "pass",
-    "size": 149
+    "size": 91
    },
    "gzip9": {
     "state": "pass",
-    "size": 117
+    "size": 69
    },
    "brotli11": {
     "state": "pass",
-    "size": 98
+    "size": 72
    }
   },
   "cases/catalog/integer/edge-i32-churn-1nn2147483647nn1n3n19": {
    "raw": {
     "state": "pass",
-    "size": 135
+    "size": 67
    },
    "gzip9": {
     "state": "pass",
-    "size": 107
+    "size": 51
    },
    "brotli11": {
     "state": "pass",
-    "size": 91
+    "size": 54
    }
   },
   "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7": {
    "raw": {
     "state": "pass",
-    "size": 131
+    "size": 89
    },
    "gzip9": {
     "state": "pass",
-    "size": 104
+    "size": 69
    },
    "brotli11": {
     "state": "pass",
-    "size": 84
+    "size": 68
    }
   },
   "cases/catalog/integer/edge-i32-churn-65535n65537n23n3n97": {
    "raw": {
     "state": "pass",
-    "size": 133
+    "size": 81
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 62
    },
    "brotli11": {
     "state": "pass",
-    "size": 87
+    "size": 64
    }
   },
   "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5": {
    "raw": {
     "state": "pass",
-    "size": 134
+    "size": 92
    },
    "gzip9": {
     "state": "pass",
-    "size": 107
+    "size": 70
    },
    "brotli11": {
     "state": "pass",
-    "size": 85
+    "size": 69
    }
   },
   "cases/catalog/integer/edge-i32-churn-n1n2147483647n1n3nn23": {
    "raw": {
     "state": "pass",
-    "size": 136
+    "size": 60
    },
    "gzip9": {
     "state": "pass",
-    "size": 107
+    "size": 42
    },
    "brotli11": {
     "state": "pass",
-    "size": 90
+    "size": 30
    }
   },
   "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3": {
    "raw": {
     "state": "pass",
-    "size": 135
+    "size": 90
    },
    "gzip9": {
     "state": "pass",
-    "size": 107
+    "size": 69
    },
    "brotli11": {
     "state": "pass",
-    "size": 85
+    "size": 67
    }
   },
   "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17": {
    "raw": {
     "state": "pass",
-    "size": 137
+    "size": 85
    },
    "gzip9": {
     "state": "pass",
-    "size": 109
+    "size": 66
    },
    "brotli11": {
     "state": "pass",
-    "size": 90
+    "size": 68
    }
   },
   "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093": {
    "raw": {
     "state": "pass",
-    "size": 150
+    "size": 92
    },
    "gzip9": {
     "state": "pass",
-    "size": 116
+    "size": 69
    },
    "brotli11": {
     "state": "pass",
-    "size": 97
+    "size": 69
    }
   },
   "cases/catalog/integer/mod-bucket-10": {
@@ -6775,253 +6775,253 @@
   "cases/catalog/loop/edge-loop-control-10-4-9": {
    "raw": {
     "state": "pass",
-    "size": 117
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 115
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 94
+    "size": 21
    }
   },
   "cases/catalog/loop/edge-loop-control-11-5-10": {
    "raw": {
     "state": "pass",
-    "size": 118
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 115
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 96
+    "size": 21
    }
   },
   "cases/catalog/loop/edge-loop-control-12-2-9": {
    "raw": {
     "state": "pass",
-    "size": 117
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 115
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 94
+    "size": 21
    }
   },
   "cases/catalog/loop/edge-loop-control-13-3-11": {
    "raw": {
     "state": "pass",
-    "size": 118
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 113
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 95
+    "size": 21
    }
   },
   "cases/catalog/loop/edge-loop-control-14-4-12": {
    "raw": {
     "state": "pass",
-    "size": 118
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 114
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 96
+    "size": 21
    }
   },
   "cases/catalog/loop/edge-loop-control-15-5-13": {
    "raw": {
     "state": "pass",
-    "size": 118
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 114
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 96
+    "size": 21
    }
   },
   "cases/catalog/loop/edge-loop-control-16-6-14": {
    "raw": {
     "state": "pass",
-    "size": 118
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 116
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 97
+    "size": 21
    }
   },
   "cases/catalog/loop/edge-loop-control-18-7-15": {
    "raw": {
     "state": "pass",
-    "size": 118
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 116
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 97
+    "size": 21
    }
   },
   "cases/catalog/loop/edge-loop-control-8-2-7": {
    "raw": {
     "state": "pass",
-    "size": 116
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 113
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 95
+    "size": 20
    }
   },
   "cases/catalog/loop/edge-loop-control-9-3-8": {
    "raw": {
     "state": "pass",
-    "size": 116
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 113
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 95
+    "size": 20
    }
   },
   "cases/catalog/loop/gcd-100-35": {
    "raw": {
     "state": "pass",
-    "size": 73
+    "size": 15
    },
    "gzip9": {
     "state": "pass",
-    "size": 92
+    "size": 35
    },
    "brotli11": {
     "state": "pass",
-    "size": 71
+    "size": 19
    }
   },
   "cases/catalog/loop/gcd-1071-462": {
    "raw": {
     "state": "pass",
-    "size": 75
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 94
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 69
+    "size": 20
    }
   },
   "cases/catalog/loop/gcd-144-89": {
    "raw": {
     "state": "pass",
-    "size": 73
+    "size": 15
    },
    "gzip9": {
     "state": "pass",
-    "size": 93
+    "size": 35
    },
    "brotli11": {
     "state": "pass",
-    "size": 68
+    "size": 19
    }
   },
   "cases/catalog/loop/gcd-270-192": {
    "raw": {
     "state": "pass",
-    "size": 74
+    "size": 15
    },
    "gzip9": {
     "state": "pass",
-    "size": 93
+    "size": 35
    },
    "brotli11": {
     "state": "pass",
-    "size": 68
+    "size": 19
    }
   },
   "cases/catalog/loop/gcd-48-18": {
    "raw": {
     "state": "pass",
-    "size": 72
+    "size": 15
    },
    "gzip9": {
     "state": "pass",
-    "size": 92
+    "size": 35
    },
    "brotli11": {
     "state": "pass",
-    "size": 67
+    "size": 19
    }
   },
   "cases/catalog/loop/gcd-512-48": {
    "raw": {
     "state": "pass",
-    "size": 73
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 93
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 68
+    "size": 20
    }
   },
   "cases/catalog/loop/gcd-81-27": {
    "raw": {
     "state": "pass",
-    "size": 72
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 92
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 67
+    "size": 20
    }
   },
   "cases/catalog/loop/gcd-99-27": {
    "raw": {
     "state": "pass",
-    "size": 72
+    "size": 15
    },
    "gzip9": {
     "state": "pass",
-    "size": 92
+    "size": 35
    },
    "brotli11": {
     "state": "pass",
-    "size": 67
+    "size": 19
    }
   },
   "cases/catalog/loop/loop-product-0-1-0-2-0-3-0-4": {
@@ -7447,127 +7447,127 @@
   "cases/catalog/loop/nested-loop-score-10": {
    "raw": {
     "state": "pass",
-    "size": 120
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 121
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 97
+    "size": 20
    }
   },
   "cases/catalog/loop/nested-loop-score-11": {
    "raw": {
     "state": "pass",
-    "size": 120
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 121
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 97
+    "size": 21
    }
   },
   "cases/catalog/loop/nested-loop-score-12": {
    "raw": {
     "state": "pass",
-    "size": 120
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 121
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 97
+    "size": 21
    }
   },
   "cases/catalog/loop/nested-loop-score-4": {
    "raw": {
     "state": "pass",
-    "size": 119
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 119
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 93
+    "size": 20
    }
   },
   "cases/catalog/loop/nested-loop-score-5": {
    "raw": {
     "state": "pass",
-    "size": 119
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 121
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 94
+    "size": 20
    }
   },
   "cases/catalog/loop/nested-loop-score-6": {
    "raw": {
     "state": "pass",
-    "size": 119
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 122
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 94
+    "size": 20
    }
   },
   "cases/catalog/loop/nested-loop-score-7": {
    "raw": {
     "state": "pass",
-    "size": 119
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 121
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 94
+    "size": 20
    }
   },
   "cases/catalog/loop/nested-loop-score-8": {
    "raw": {
     "state": "pass",
-    "size": 119
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 122
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 94
+    "size": 20
    }
   },
   "cases/catalog/loop/nested-loop-score-9": {
    "raw": {
     "state": "pass",
-    "size": 119
+    "size": 16
    },
    "gzip9": {
     "state": "pass",
-    "size": 121
+    "size": 36
    },
    "brotli11": {
     "state": "pass",
-    "size": 94
+    "size": 20
    }
   },
   "cases/catalog/loop/triangle-sum-10": {
@@ -7783,15 +7783,15 @@
   "cases/catalog/loop/win-control-flow": {
    "raw": {
     "state": "pass",
-    "size": 120
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 121
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 97
+    "size": 21
    }
   },
   "cases/catalog/nullish/edge-nullish-optional-missing-0-8": {
@@ -8088,141 +8088,141 @@
   "cases/catalog/number/edge-number-flow-0p0625n0p03125n16n6": {
    "raw": {
     "state": "pass",
-    "size": 124
+    "size": 55
    },
    "gzip9": {
     "state": "pass",
-    "size": 106
+    "size": 50
    },
    "brotli11": {
     "state": "pass",
-    "size": 83
+    "size": 36
    }
   },
   "cases/catalog/number/edge-number-flow-0p25n0p5n1p5n3": {
    "raw": {
     "state": "pass",
-    "size": 117
+    "size": 53
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 48
    },
    "brotli11": {
     "state": "pass",
-    "size": 80
+    "size": 46
    }
   },
   "cases/catalog/number/edge-number-flow-100p5nn10p25n0p125n4": {
    "raw": {
     "state": "pass",
-    "size": 126
+    "size": 97
    },
    "gzip9": {
     "state": "pass",
-    "size": 106
+    "size": 89
    },
    "brotli11": {
     "state": "pass",
-    "size": 87
+    "size": 70
    }
   },
   "cases/catalog/number/edge-number-flow-10nn1p5n0p5n4": {
    "raw": {
     "state": "pass",
-    "size": 116
+    "size": 53
    },
    "gzip9": {
     "state": "pass",
-    "size": 100
+    "size": 51
    },
    "brotli11": {
     "state": "pass",
-    "size": 80
+    "size": 43
    }
   },
   "cases/catalog/number/edge-number-flow-1p125nn0p25n3p5n5": {
    "raw": {
     "state": "pass",
-    "size": 123
+    "size": 94
    },
    "gzip9": {
     "state": "pass",
-    "size": 103
+    "size": 85
    },
    "brotli11": {
     "state": "pass",
-    "size": 84
+    "size": 72
    }
   },
   "cases/catalog/number/edge-number-flow-3p75n0p125nn2n3": {
    "raw": {
     "state": "pass",
-    "size": 120
+    "size": 52
    },
    "gzip9": {
     "state": "pass",
-    "size": 104
+    "size": 50
    },
    "brotli11": {
     "state": "pass",
-    "size": 82
+    "size": 42
    }
   },
   "cases/catalog/number/edge-number-flow-7p5n1p5n0p25n7": {
    "raw": {
     "state": "pass",
-    "size": 118
+    "size": 91
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 82
    },
    "brotli11": {
     "state": "pass",
-    "size": 82
+    "size": 63
    }
   },
   "cases/catalog/number/edge-number-flow-n0p5n1p25n2n4": {
    "raw": {
     "state": "pass",
-    "size": 117
+    "size": 50
    },
    "gzip9": {
     "state": "pass",
-    "size": 101
+    "size": 45
    },
    "brotli11": {
     "state": "pass",
-    "size": 80
+    "size": 44
    }
   },
   "cases/catalog/number/edge-number-flow-n1nn0p75n4n3": {
    "raw": {
     "state": "pass",
-    "size": 115
+    "size": 50
    },
    "gzip9": {
     "state": "pass",
-    "size": 101
+    "size": 48
    },
    "brotli11": {
     "state": "pass",
-    "size": 80
+    "size": 49
    }
   },
   "cases/catalog/number/edge-number-flow-n8p25n2p5nn0p25n5": {
    "raw": {
     "state": "pass",
-    "size": 123
+    "size": 94
    },
    "gzip9": {
     "state": "pass",
-    "size": 104
+    "size": 86
    },
    "brotli11": {
     "state": "pass",
-    "size": 84
+    "size": 73
    }
   },
   "cases/catalog/number/semantic-number-math-intrinsics": {
