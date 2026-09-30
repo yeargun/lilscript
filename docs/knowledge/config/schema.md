@@ -128,7 +128,7 @@ error, not a silently ignored setting.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `version` | `u32` | `POLICY_SCHEMA_VERSION` | See [configuration.md](../../configuration.md). |
+| `version` | `u32` | `LEGACY_POLICY_VERSION` | Permission semantics: 2 (the omitted-version compatibility default) retains diagnosed effort-16 startup grants; 3 requires explicit runtime-risk permission independently of effort. |
 | `tactics` | `BTreeMap<TacticId, TacticPermission>` | `BTreeMap::new()` | Per-tactic permission (`on`, `off` or `auto`): `off` vetoes a tactic in direct and searched use, `on` permits it but never forces it. |
 | `resources` | `ResourceLimits` | `ResourceLimits::default()` | Hard resource ceilings for one compilation: logical work, retained bytes, codec probes and an optional deadline. |
 | `constraints` | `CandidateConstraints` | `CandidateConstraints::default()` | Hard constraints an admitted artifact must meet regardless of objective, checked before size is compared. |
@@ -157,12 +157,38 @@ Fixed deterministic scheduling choices.
 | `render_batch` | `usize` | `8` | See [configuration.md](../../configuration.md). |
 | `diversity_interval` | `usize` | `4` | Every Nth structural expansion serves an old pending cursor; every Nth staged scoring event serves an old artifact. |
 
+## `[policy.tactics]` — closed
+
+Generated from the same `declare_tactics!` registry as permission resolution and admission. Every key accepts `auto`, `on`, or `off`; omitted keys use `auto`. `off` vetoes every producer, including reused output. `on` permits competition; it never forces a representation or bypasses a proof.
+
+Version 3 requires explicit `on` for runtime reconstruction at every effort. Omitted `policy.version` retains version 2 for compatibility; its automatic startup grants at 16 are diagnosed. Native only uses shared-rule producers. Optional JavaScript formation/output producers require `target-compaction` except dead-code elimination; shared inlining additionally requires `dead-code-elimination`.
+
+| Tactic | Automatic default / gate | Producers | Prerequisites | Supported risk | Purpose and tradeoffs |
+|---|---|---|---|---|---|
+| `dead-code-elimination` | maximum preset | SharedRules, JavaScriptFormation | — | Neutral | Remove unused operations, stores and private functions while retaining observable effects. Usually reduces execution and size; compressed bytes can differ. Off retains optional dead-code work, not mandatory reachability and language lowering. |
+| `constant-folding` | maximum preset | SharedRules, JavaScriptFormation, StructuralSearch, OutputFamilies | — | Neutral | Evaluate bounded known operations and calls, propagate constants and consider literal representations. Spends proof work to remove runtime work. Larger literals can hurt codec size; representation alternatives compete with full bytes. Off also vetoes root-string forwarding. |
+| `inlining` | maximum preset | SharedRules, JavaScriptFormation, StructuralSearch, OutputFamilies | — | Neutral | Replace proved calls with their bodies to expose simplification and remove call overhead. Can increase text and compilation work. Shared removal-only inlining also needs dead-code-elimination; target implementations need target-compaction. Off vetoes all optional inlining. |
+| `scalar-replacement` | maximum preset; JavaScript only | JavaScriptFormation, StructuralSearch | — | Neutral | Replace proved private object storage with independent values. May remove allocations and fields but add locals or longer text. Escape, identity, initialization and capture proofs remain mandatory; off keeps the aggregate representation. |
+| `call-specialization` | maximum preset; JavaScript only | StructuralSearch | — | Neutral | Specialize proved private function signatures and transport of product arguments. Additional proofs and candidates can remove allocations or argument handling; more parameters can cost bytes. On permits competition only where every call is known. |
+| `helper-sharing` | unavailable; JavaScript only | none | — | Neutral | Compatibility name for optional parameterized helper sharing; no implementation is currently available. Explicit on reports unavailable and does not alter output. Mandatory runtime helpers remain language lowering; this flag does not control them. |
+| `target-compaction` | on; JavaScript only | JavaScriptFormation, OutputFamilies | — | Neutral | Permit optional target-tree cleanup, statement spellings and output families. Adds formation and search work; spelling wins depend on the objective. Semantic subfamilies also need their own permissions. Off keeps mandatory lowering and independently permitted structural search. |
+| `identifier-mangling` | on; JavaScript only | Naming | — | Neutral | Assign short hygienic names to private lexical bindings. Usually reduces bytes without runtime work; names affect codec repetition. Off retains source naming and disables dependent naming trials; public-name contracts always apply. |
+| `property-mangling` | on; JavaScript only | JavaScriptFormation, OutputFamilies | `target-compaction` | Neutral | Try coherent short names for proved private fields, including reuse across unrelated types. Requires observation and inheritance proofs and extra formation/judgments. Preserved or reflected keys keep their names. Independent of lexical mangling; off vetoes cached and direct assignments too. |
+| `string-pooling` | on; JavaScript only | StructuralSearch, OutputFamilies | — | Neutral | Share repeated literal strings or numbers through bindings. Introduces bindings and reads; repetitive literal bytes can already compress well. Structural computed-string pooling additionally needs constant-folding. Off vetoes pooling in every route. |
+| `string-array-packing` | version 3: off; version 2: startup at 16; JavaScript only | OutputFamilies | — | Neutral, Startup, Recurring | Represent string arrays as delimited text decoded with split under pristine-builtins assumptions. Can save bytes while adding decoding and allocations. Version 3 requires explicit on, including callable sites; legacy auto permits startup sites at effort 16 only. Off vetoes packing at all levels. |
+| `startup-reconstruction` | version 3: off; version 2: startup at 16; JavaScript only | JavaScriptFormation | — | Neutral, Startup | Permit constant-table encodings with startup decoders. Trades startup CPU/storage for possible delivery savings and extra search. Version 3 requires explicit on at every effort; legacy auto grants it at 16. Does not permit recurring decoding or string-array packing. |
+| `recurring-reconstruction` | unavailable; JavaScript only | none | — | Neutral, Recurring | Compatibility name for recurring table reconstruction; no implementation is currently available. Explicit on reports unavailable. String-array-packing owns its own callable-site risk and is not enabled by this flag. |
+| `naming-search` | on; JavaScript only | Naming | `identifier-mangling` | Neutral | Explore lexical allocation styles, name reuse and local refinements under the selected objective. Spends rendering and codec work for possible byte savings without intended runtime work. Effort schedules bound exploration; off keeps the baseline allocator. |
+| `naming-alphabet` | on; JavaScript only | Naming | `identifier-mangling`, `naming-search` | Neutral | Try alternative hygienic naming alphabets as joint name assignments. May rename the whole artifact and add expensive codec trials for small or absent savings. Naming-search and identifier-mangling must remain permitted; off preserves their other strategies. |
+
+Neutral is a static risk class, not a measured runtime guarantee. Registry invalidation owners are emitted by `--print-policy`; shared facts remain revision-qualified and target/naming/byte caches retain their own identities.
+
 ## Retired keys
 
 Applied to the parsed file before the tables above are read (`RETIRED_KEYS` in `src/config.rs`). A
 *no effect* key is removed and the CLI warns `<key> has no effect in this compiler: <reason>; remove it`;
 `--print-policy` lists the same warnings. A *refused* key stops the build with its reason. A *replaced*
-key's value moves to its successor key, unless that key is set too, with a warning. A table
+key's value moves to its successor key with a warning; equal aliases are accepted and contradictory values fail. A table
 path covers every key in that table.
 
 | Key | Outcome | Reason |

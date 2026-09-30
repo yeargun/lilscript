@@ -83,7 +83,7 @@ Every optimization control follows the [configuration documentation guideline](.
 
 **Effort defaults:** retain 13 as the size-focused default. Useful exploration with substantial cost and consistently tiny measured returns belongs at 14 or 15 by default, with explicit opt-in/out where appropriate. Apply that decision per measured strategy; do not remove useful exploration merely because it is expensive or infer a global bytes-per-second threshold from one workload. The deferred naming tail now follows this rule at 14, with an explicit level-13 opt-in.
 
-**Compatibility:** level 16 currently grants startup risk. C1 must document and migrate that exception to explicit permissions before claiming effort is independent; do not reinterpret old configurations silently. Retain useful existing settings, translate retired aliases with diagnostics, and change schemas with a tested migration. Per-library optimizer thresholds and strategy scripts are not the default configuration surface: general heuristics belong in calibrated, versioned compiler policy.
+**Compatibility:** explicit policy version 3 separates runtime permission from effort. Omitted versions and version 2 retain the diagnosed level-16 startup grant; migration deliberately selects version 3 and explicitly permits any accepted reconstruction cost. Retain useful existing aliases, reject contradictions, and change schemas with a tested migration. Per-library optimizer thresholds and strategy scripts are not the default configuration surface: general heuristics belong in calibrated, versioned compiler policy.
 
 ## 4. Proofs, defaults and choices
 
@@ -146,7 +146,7 @@ Avoid adding search before giving it useful alternatives. Improve estimates and 
 
 ## 7. Work packages and dependencies
 
-These are work packages, not a rigid waterfall. A row lands in bounded batches. Its dependencies are the facts or interfaces it needs, not completion of every row above it. The detailed legacy ownership is in [coverage.md](coverage.md).
+These are completion milestones. Work on one milestone until its deliverable and completion evidence are satisfied, then advance to the next. Several implementation commits may belong to one milestone; they do not justify opening another. Existing partial implementations are inputs to their milestone, not a reason to keep interleaving packages. The detailed legacy ownership is in [coverage.md](coverage.md).
 
 ### C. Controls and evidence
 
@@ -218,14 +218,18 @@ Native remains an owned commitment. Its completion does not gate JavaScript nami
 
 ## 8. Working order
 
-1. **Make controls and measurements usable while landing S1.** Fix the known permission holes, establish the C2/C3 slices needed by each change, then fold known methods and small constant calls. Audit the raw-bound-as-codec-proof claim in folding.
-2. **Remove repeated work early through Q2.** Measure and reuse formation and scores before expanding expensive candidate families. Preserve existing useful search results.
-3. **Proceed with S2 and G1/G2 as their facts allow.** Flatten private objects and improve naming/property allocation; neither track waits for blanket Closure parity.
-4. **Interleave S3, Q1/Q3 and G3.** Improve inlining, specialization, per-objective policies and coupled representation choices, one useful family at a time.
-5. **Add Q4 and finish D as their prerequisites land.** Data and runtime helpers, consumer delivery and compiler-written port artifacts are part of the result being optimized.
-6. **Close V1's remaining gaps and qualify releases.** Continue required S4/N work without restarting the architecture or treating unfinished native coverage as JavaScript completion.
+Complete milestones in this dependency order:
 
-The next batch is small enough to review and attribute. Prefer a measured missing capability over another layer of orchestration. Reorder independent rows when evidence identifies a better opportunity; record the reason in history.
+1. **C1 → C2 → C3:** close configuration and permission enforcement, independent evidence, then calibration infrastructure.
+2. **S4 → S1 → S2 → S3:** finish the shared contracts/facts needed by folding, object optimization and call optimization, in that order.
+3. **Q1 → G1 → G2 → G3:** finish the representation interface, lexical names, property names and target spelling.
+4. **Q2 → Q3 → Q4:** complete reuse/accounting, calibrate independent objective/effort schedules, then finish data/helper representations.
+5. **D1 → D2 → D3:** finish formats, consumer delivery and shared build/port integration.
+6. **N1 → N2 → V1 → V2:** complete native integration and coverage, close remaining qualification gaps, then qualify reproducible releases.
+
+Only one milestone is active. Record its finite acceptance checklist before changing implementation. A prerequisite discovered within a milestone belongs to that milestone's completion work; do not use it to begin several more packages. Newly implemented families must register their controls as part of their own milestone; this does not keep C1 permanently open. Future language or product proposals without an approved contract are not silent completion requirements: resolve them explicitly in the plan under the existing semantics.
+
+Prefer a measured missing capability over another layer of orchestration. Change scope or order only when the existing requirement conflicts with the product objective or a real dependency requires it, and record the reason. Do not delete a requirement merely because implementation is difficult.
 
 ## 9. Verification and acceptance
 
@@ -244,7 +248,7 @@ Compression is deterministic for fixed bytes, encoder and settings. Record exact
 
 C2 pins toolchains and an eligible recipe grid for Closure ADVANCED, Terser, Oxc, SWC, Rolldown, esbuild and upstream artifacts. Match language guarantees, externs, reflection and exported functionality. Report open libraries, closed applications and representative consumer bundles separately. A tool that cannot support the boundary is inapplicable, with a reason, not a zero-byte bar.
 
-Use one heavy building/testing/measuring job at a time on this host. Check bounded edits as appropriate; build and test after a coherent batch, roughly every 20 minutes of implementation or immediately after a critical shared-path change. Run focused oracles and relevant regression lanes per batch; run the full fleet and held-out qualification at milestones. Broaden checks for new evidence, not by rerunning everything after each small edit.
+Use one heavy building/testing/measuring job at a time on this host. Implement a coherent group of changes before building and testing; do not run tests after every edit. Batch the relevant oracles and regressions at implementation checkpoints, and run the full fleet and held-out qualification at milestone completion. A suspected soundness defect can justify an earlier focused check. Broaden or repeat checks only for new changes, failures or unresolved evidence.
 
 Before implementation, record the batch's numbered changes, predicted size/work/runtime effects and verification scope. Keep changes attributable in separate commits. When a result surprises, use those changes or a real family veto to isolate it. Record the actual compiler/config/source identities, findings and unfinished work once in history.
 
@@ -252,7 +256,7 @@ A task is complete when its behavior works through public entry points, its perm
 
 ## 10. Language compatibility and plan maintenance
 
-The approved trusted-crossing contract (Y1) and private application roots/frames (Y5a/b) remain the starting point. Y5's default IIFE is still D1 work. This planning revision does not silently change `ref`, exported function constructibility or whether `pure` promises termination; the old Y2/Y3/Y4 decisions stay explicit in S4. Optimize under existing semantics while the affected language change is specified separately.
+The approved trusted-crossing contract (Y1), private application roots/frames (Y5a/b) and default application IIFE (Y5c) remain the starting point. This planning revision does not silently change `ref`, exported function constructibility or whether `pure` promises termination; the old Y2/Y3/Y4 decisions stay explicit in S4. Optimize under existing semantics while the affected language change is specified separately.
 
 Keep language rule identities and old task identifiers usable in references. [coverage.md](coverage.md) maps unfinished M-tasks and carried defects to these work packages; historical numbering is not a second execution order. Current language/configuration documentation must distinguish accepted behavior from planned behavior.
 

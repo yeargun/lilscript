@@ -15,8 +15,11 @@ use sha2::{Digest, Sha256};
 use crate::compilation_contract::JavaScriptCompilationContract;
 use crate::config::{CompressionCostModel, JavaScriptPriority};
 
-pub const POLICY_SCHEMA_VERSION: u32 = 2;
-pub const LEGACY_TRANSLATOR_RETIREMENT_SCHEMA: u32 = 3;
+pub const POLICY_SCHEMA_VERSION: u32 = 3;
+/// Omitted policy versions retain the old effort-16 permission contract.
+/// New configurations select version 3 explicitly; no file changes silently.
+pub const LEGACY_POLICY_VERSION: u32 = 2;
+// Version14 completes registry admission and versioned explicit risk permissions.
 // Version13 scopes all tree-only reach consumers.
 // Version12 bounds reach lists once and summarizes references per binding.
 // Version11 admits target reach backing and omits unrequested capture facts.
@@ -24,7 +27,7 @@ pub const LEGACY_TRANSLATOR_RETIREMENT_SCHEMA: u32 = 3;
 // Version9 resolves independent objective searches with shared baseline admission.
 // Version8 reuses admitted statement mention facts during target forwarding.
 // Version7 jointly identifies private-field and integer-hint formation heads.
-pub const POLICY_ALGORITHM_VERSION: u32 = 13;
+pub const POLICY_ALGORITHM_VERSION: u32 = 14;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -137,237 +140,30 @@ pub enum TacticPermission {
     Off,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-#[repr(usize)]
-pub enum TacticId {
-    DeadCodeElimination,
-    ConstantFolding,
-    Inlining,
-    ScalarReplacement,
-    CallSpecialization,
-    HelperSharing,
-    TargetCompaction,
-    IdentifierMangling,
-    PropertyMangling,
-    StringPooling,
-    StringArrayPacking,
-    StartupReconstruction,
-    RecurringReconstruction,
-    NamingSearch,
-    NamingAlphabet,
-}
+#[path = "compilation_tactics.rs"]
+mod tactics;
+pub use tactics::{
+    AnalysisRequirement, TacticDefault, TacticId, TacticInvalidation, TacticProducer, TacticSpec,
+};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum AnalysisRequirement {
-    UsesAndEffects,
-    Values,
-    CallsAndCaptures,
-    OwnershipAndObservations,
-    TargetSchedule,
-    NamesAndBoundary,
-}
-
-/// What `auto` resolves a tactic to, before the effort gate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum TacticDefault {
-    On,
-    /// Only an explicit `on` enables it.
-    Off,
-    /// On under the `maximum` optimization preset, off under `none`.
-    Preset,
-}
-
-impl TacticDefault {
-    pub const fn enabled(self, maximum_preset: bool) -> bool {
-        match self {
-            Self::On => true,
-            Self::Off => false,
-            Self::Preset => maximum_preset,
-        }
-    }
-}
-
-/// Implemented owners, not a promise that a source contains an eligible site.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum TacticProducer {
-    SharedRules,
-    JavaScriptFormation,
-    StructuralSearch,
-    OutputFamilies,
-    Naming,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub struct TacticSpec {
-    pub id: TacticId,
-    pub name: &'static str,
-    pub javascript_only: bool,
-    /// The lowest JavaScript effort level at which `auto` enables the
-    /// tactic. Native requests have no effort schedule and are not gated.
-    /// Effort is a work budget and grants no permission (architecture
-    /// §13.4, law B5): every tactic's is 0 except startup reconstruction's,
-    /// which level 16 grants by the owner's decision D5. Batch B2's replay
-    /// check found the other two gates (naming search at 8, call
-    /// specialization at 11): a lower level walked a shorter list than the
-    /// levels above replay.
-    pub minimum_effort: u8,
-    pub startup_at_level_16: bool,
-    /// Declaring an analysis requirement never makes the analysis itself
-    /// conditional on whether this tactic is enabled.
-    pub analysis: AnalysisRequirement,
-    pub default: TacticDefault,
-    pub producers: &'static [TacticProducer],
-    pub prerequisites: &'static [TacticId],
-}
-
-impl TacticId {
-    pub const ALL: [Self; 15] = [
-        Self::DeadCodeElimination,
-        Self::ConstantFolding,
-        Self::Inlining,
-        Self::ScalarReplacement,
-        Self::CallSpecialization,
-        Self::HelperSharing,
-        Self::TargetCompaction,
-        Self::IdentifierMangling,
-        Self::PropertyMangling,
-        Self::StringPooling,
-        Self::StringArrayPacking,
-        Self::StartupReconstruction,
-        Self::RecurringReconstruction,
-        Self::NamingSearch,
-        Self::NamingAlphabet,
-    ];
-
-    pub const fn spec(self) -> TacticSpec {
-        use AnalysisRequirement as A;
-        use TacticDefault as D;
-        use TacticId as T;
-        let (name, javascript_only, minimum_effort, startup_at_level_16, analysis, default) =
-            match self {
-                T::DeadCodeElimination => (
-                    "dead-code-elimination",
-                    false,
-                    0,
-                    false,
-                    A::UsesAndEffects,
-                    D::Preset,
-                ),
-                T::ConstantFolding => ("constant-folding", false, 0, false, A::Values, D::Preset),
-                T::Inlining => ("inlining", false, 0, false, A::CallsAndCaptures, D::Preset),
-                T::ScalarReplacement => (
-                    "scalar-replacement",
-                    true,
-                    0,
-                    false,
-                    A::OwnershipAndObservations,
-                    D::Preset,
-                ),
-                T::CallSpecialization => (
-                    "call-specialization",
-                    true,
-                    0,
-                    false,
-                    A::CallsAndCaptures,
-                    D::Preset,
-                ),
-                T::HelperSharing => (
-                    "helper-sharing",
-                    true,
-                    0,
-                    false,
-                    A::CallsAndCaptures,
-                    D::Preset,
-                ),
-                T::TargetCompaction => (
-                    "target-compaction",
-                    true,
-                    0,
-                    false,
-                    A::TargetSchedule,
-                    D::On,
-                ),
-                T::IdentifierMangling => (
-                    "identifier-mangling",
-                    true,
-                    0,
-                    false,
-                    A::NamesAndBoundary,
-                    D::On,
-                ),
-                T::PropertyMangling => (
-                    "property-mangling",
-                    true,
-                    0,
-                    false,
-                    A::NamesAndBoundary,
-                    D::On,
-                ),
-                T::StringPooling => ("string-pooling", true, 0, false, A::Values, D::On),
-                T::StringArrayPacking => ("string-array-packing", true, 0, true, A::Values, D::On),
-                T::StartupReconstruction => {
-                    ("startup-reconstruction", true, 16, true, A::Values, D::On)
-                }
-                T::RecurringReconstruction => (
-                    "recurring-reconstruction",
-                    true,
-                    0,
-                    false,
-                    A::Values,
-                    D::Off,
-                ),
-                T::NamingSearch => ("naming-search", true, 0, false, A::NamesAndBoundary, D::On),
-                T::NamingAlphabet => (
-                    "naming-alphabet",
-                    true,
-                    0,
-                    false,
-                    A::NamesAndBoundary,
-                    D::On,
-                ),
-            };
-        use TacticProducer as P;
-        let producers: &'static [P] = match self {
-            T::DeadCodeElimination | T::ConstantFolding | T::Inlining => {
-                &[P::SharedRules, P::JavaScriptFormation]
-            }
-            T::ScalarReplacement => &[P::JavaScriptFormation, P::StructuralSearch],
-            T::CallSpecialization => &[P::StructuralSearch],
-            T::TargetCompaction => &[P::JavaScriptFormation, P::OutputFamilies],
-            T::IdentifierMangling | T::NamingSearch | T::NamingAlphabet => &[P::Naming],
-            T::StringPooling | T::StringArrayPacking => &[P::OutputFamilies],
-            T::StartupReconstruction => &[P::JavaScriptFormation],
-            T::PropertyMangling => &[P::JavaScriptFormation, P::OutputFamilies],
-            T::HelperSharing | T::RecurringReconstruction => &[],
-        };
-        let prerequisites: &'static [T] = match self {
-            T::NamingSearch => &[T::IdentifierMangling],
-            T::NamingAlphabet => &[T::IdentifierMangling, T::NamingSearch],
-            T::PropertyMangling => &[T::TargetCompaction],
-            _ => &[],
-        };
-        TacticSpec {
-            id: self,
-            name,
-            javascript_only,
-            minimum_effort,
-            startup_at_level_16,
-            analysis,
-            default,
-            producers,
-            prerequisites,
-        }
-    }
-}
+#[cfg(test)]
+#[path = "compilation_tactics_tests.rs"]
+mod tactic_tests;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct ResolvedTactic {
     pub permission: TacticPermission,
     pub enabled: bool,
+}
+
+/// Explanation only: equivalent alias/canonical requests share a fingerprint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TacticOrigin {
+    Default,
+    Preset,
+    LegacyAlias,
+    Policy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
@@ -543,6 +339,7 @@ impl Default for SearchSchedule {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct PolicyConfig {
+    /// Permission semantics: 2 (the omitted-version compatibility default) retains diagnosed effort-16 startup grants; 3 requires explicit runtime-risk permission independently of effort.
     pub version: u32,
     /// Per-tactic permission (`on`, `off` or `auto`): `off` vetoes a tactic in direct and searched use, `on` permits it but never forces it.
     pub tactics: BTreeMap<TacticId, TacticPermission>,
@@ -557,7 +354,7 @@ pub struct PolicyConfig {
 impl Default for PolicyConfig {
     fn default() -> Self {
         Self {
-            version: POLICY_SCHEMA_VERSION,
+            version: LEGACY_POLICY_VERSION,
             tactics: BTreeMap::new(),
             resources: ResourceLimits::default(),
             constraints: CandidateConstraints::default(),
@@ -568,9 +365,9 @@ impl Default for PolicyConfig {
 
 impl PolicyConfig {
     pub fn validate(&self) -> Result<(), String> {
-        if self.version != POLICY_SCHEMA_VERSION {
+        if !matches!(self.version, LEGACY_POLICY_VERSION | POLICY_SCHEMA_VERSION) {
             return Err(format!(
-                "unsupported `policy.version` {}; expected {POLICY_SCHEMA_VERSION}; legacy translation retires at schema {LEGACY_TRANSLATOR_RETIREMENT_SCHEMA}",
+                "unsupported `policy.version` {}; expected 2 (legacy startup grants) or 3 (explicit runtime permissions)",
                 self.version
             ));
         }
@@ -800,6 +597,8 @@ pub struct ResolvedPolicy {
     objective: Option<OptimizationObjective>,
     effort: u8,
     tactics: [ResolvedTactic; TacticId::ALL.len()],
+    configuration_version: u32,
+    origins: [TacticOrigin; TacticId::ALL.len()],
     resources: ResourceLimits,
     constraints: CandidateConstraints,
     diagnostics: Vec<String>,
@@ -812,6 +611,8 @@ impl ResolvedPolicy {
         objective: Option<OptimizationObjective>,
         effort: u8,
         tactics: [ResolvedTactic; TacticId::ALL.len()],
+        configuration_version: u32,
+        origins: [TacticOrigin; TacticId::ALL.len()],
         resources: ResourceLimits,
         constraints: CandidateConstraints,
         diagnostics: Vec<String>,
@@ -821,6 +622,8 @@ impl ResolvedPolicy {
             objective,
             effort,
             tactics,
+            configuration_version,
+            origins,
             resources,
             constraints,
             diagnostics,
@@ -879,6 +682,38 @@ impl ResolvedPolicy {
         self.tactics[id as usize]
     }
 
+    /// Policy resolution, separate from candidate outcomes and canonical
+    /// identity. In particular an enabled producer does not assert a legal site.
+    pub fn resolution(&self) -> serde_json::Value {
+        use serde_json::json;
+        json!({"configuration_version": self.configuration_version,
+            "runtime_permissions": if self.configuration_version == LEGACY_POLICY_VERSION {
+                "legacy-effort-16-startup"
+            } else { "explicit" },
+            "tactics": TacticId::ALL.map(|id| {
+                let spec = id.spec();
+                let state = self.tactic(id);
+                let available = !spec.producers.is_empty()
+                    && (!spec.javascript_only || self.javascript_contract().is_some());
+                let missing = spec.prerequisites.iter().copied()
+                    .filter(|required| !self.tactic(*required).enabled).collect::<Vec<_>>();
+                let status = if state.permission == TacticPermission::Off { "disabled" }
+                    else if !available { "unavailable" }
+                    else if !missing.is_empty() { "prerequisite-disabled" }
+                    else if !state.enabled { "automatic-off" }
+                    else { "enabled" };
+                json!({"id": id, "origin": self.origins[id as usize], "status": status,
+                    "missing_prerequisites": missing,
+                    "permitted_risks": spec.risks.iter().copied().filter(|risk| {
+                        self.check_tactic_permissions(&[TacticUse {tactic:id, risk:*risk}]).is_ok()
+                    }).collect::<Vec<_>>(),
+                    "producers": spec.producers.iter().map(|producer| json!({
+                        "stage": producer, "enabled": spec.producer_enabled(*producer, self),
+                        "prerequisites": spec.producer_prerequisites(*producer)
+                    })).collect::<Vec<_>>()})
+            })})
+    }
+
     /// The caller supplies semantically validated uses from the candidate's
     /// provenance, including cached candidates. A shared exact-byte score is
     /// not permission to omit these uses or their legality proof.
@@ -914,11 +749,18 @@ impl ResolvedPolicy {
             if !state.enabled {
                 return Err(AdmissionError::ForbiddenTactic(usage.tactic));
             }
+            if !usage.tactic.spec().risks.contains(&usage.risk) {
+                return Err(AdmissionError::RuntimePermission {
+                    tactic: usage.tactic,
+                    risk: usage.risk,
+                });
+            }
             match usage.risk {
                 RuntimeRisk::Neutral => (),
                 RuntimeRisk::Startup
                     if state.permission == TacticPermission::On
-                        || (self.effort >= 16 && usage.tactic.spec().startup_at_level_16) =>
+                        || (self.configuration_version == LEGACY_POLICY_VERSION
+                            && self.effort >= 16 && usage.tactic.spec().startup_at_level_16) =>
                 {
                     ()
                 }
@@ -1128,7 +970,7 @@ impl ResolvedPolicy {
             }),
         };
         let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"proxy_pruning":o.search.proxy_pruning,"deferred_naming_starts":o.search.deferred_naming_starts,"deferred_naming_starts_enabled":self.deferred_naming_starts_enabled(),"deferred_naming_polish":o.search.deferred_naming_polish,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
-        json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| {
+        json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "configuration_version":self.configuration_version, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| {
             let spec = id.spec();
             let available = !spec.producers.is_empty() && (!spec.javascript_only || self.javascript_contract().is_some());
             json!({"id":id, "state":self.tactic(id), "available":available, "definition":spec})
@@ -2186,11 +2028,14 @@ mod tests {
             assert!(config(&format!("effort.level={level}")).validate().is_ok());
         }
         assert!(config("effort.level=17").validate().is_err());
-        for version in [1, 3] {
+        for version in [2, 3] {
+            assert!(config(&format!("[policy]\nversion={version}")).validate().is_ok());
+        }
+        for version in [1, 4] {
             assert!(config(&format!("[policy]\nversion={version}"))
                 .validate()
                 .unwrap_err()
-                .contains("translation retires at schema 3"));
+                .contains("expected 2 (legacy startup grants) or 3"));
         }
         assert!(toml::from_str::<ProjectConfig>("[policy.tactics]\nnot-a-tactic='on'").is_err());
     }

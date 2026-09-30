@@ -15,6 +15,43 @@ fn compile(codec: &str, extra: &str) -> ServiceCompilation {
     compile_source(PROGRAM, &config, ServiceOptions::default()).unwrap()
 }
 
+#[test]
+fn modern_runtime_permissions_hold_through_every_objective_search() {
+    let source = "export string[] make(){return [\"aa\",\"bb\",\"cc\",\"dd\",\"ee\",\"ff\",\"gg\",\"hh\"];}print(make()[2]);";
+    for codec in ["raw", "gzip", "brotli"] {
+        for permission in ["auto", "off", "on"] {
+            let config = crate::config::parse_project_config(&format!(
+                "objective.codecs='{codec}'\neffort.level=16\njavascript.assume_pristine_builtins=true\npolicy.version=3\npolicy.tactics.string-array-packing='{permission}'"
+            )).unwrap().config;
+            let compiled = compile_source(source, &config, ServiceOptions {
+                preserve_root_exports:true, ..ServiceOptions::default()
+            }).unwrap();
+            let artifact = compiled.javascript(codec_of(codec)).unwrap();
+            assert_eq!(execute(artifact.javascript()), "cc\n");
+            delivered(&compiled, codec);
+            let resolutions = &compiled.report()["policy_resolution"]["javascript"];
+            assert_eq!(resolutions["runtime_permissions"], "explicit");
+            let packing = resolutions["tactics"].as_array().unwrap().iter()
+                .find(|row| row["id"] == "string-array-packing").unwrap();
+            assert_eq!(packing["permitted_risks"].as_array().unwrap().is_empty(), permission != "on");
+            if permission != "on" {
+                assert!(!artifact.javascript().contains(".split("), "{codec}/{permission}");
+                let packing_trials = trials(stage(&compiled)).iter()
+                    .filter(|trial| trial["challenger"] == "string-array-packing");
+                assert!(packing_trials.into_iter().all(|trial| matches!(outcome(trial), "vetoed" | "budget")));
+            }
+            let opportunities = &compiled.report()["search"]["structural_opportunities"];
+            assert!(opportunities["inventory_reached"].as_bool().is_some());
+            for row in opportunities["families"].as_array().unwrap() {
+                let counts = row["outcomes"].as_object().unwrap();
+                assert_eq!(counts["discovered"].as_u64().unwrap(),
+                    counts.iter().filter(|(key,_)| key.as_str() != "discovered")
+                        .map(|(_,value)| value.as_u64().unwrap()).sum::<u64>());
+            }
+        }
+    }
+}
+
 fn codec_of(name: &str) -> Objective {
     match name {
         "raw" => Objective::Raw,

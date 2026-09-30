@@ -905,6 +905,12 @@ mod tests {
                     "a startup grant cannot admit recurring work"
                 );
             }
+            // A retained legacy assignment cannot smuggle an effort-granted
+            // startup permission into an explicit-risk request.
+            let modern = policy("effort.level=16\n[policy]\nversion=3");
+            assert!(admit(&evidence, &modern, &mut ledger).is_err());
+            let modern_on = policy(&format!("effort.level=16\n[policy]\nversion=3\n[policy.tactics]\n{}='on'", tactic.spec().name));
+            assert!(admit(&evidence, &modern_on, &mut ledger).is_ok());
             evidence.discard(owner, &mut ledger).unwrap();
             assert_eq!(ledger.retained_bytes(), 0);
         }

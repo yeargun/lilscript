@@ -122,6 +122,12 @@ pub enum SearchLimit {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SearchCounters {
+    /// The inventory was actually constructed. False must not be presented as
+    /// "no applicable sites": effort or resources may never have reached it.
+    pub inventory_reached: bool,
+    /// Bounded summaries of source opportunity proofs. These are independent
+    /// of exact-size judgments in the terminal trials and selected provenance.
+    pub families: [FamilyOutcomes; 5],
     /// Optional complete-artifact attempts, one per naming/output-mode pair.
     /// Failed attempts count; semantic hint visits and map unions do not.
     pub proposals: usize,
@@ -153,6 +159,32 @@ pub struct SearchCounters {
     pub pressure_scores: usize,
     pub diversity_scores: usize,
     pub scoring_events: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+pub struct FamilyOutcomes {
+    pub discovered: usize,
+    pub not_reached: usize,
+    pub legal: usize,
+    pub unknown: usize,
+    pub truncated: usize,
+    pub conflicting: usize,
+    pub redundant: usize,
+    pub equivalent: usize,
+}
+
+impl SearchCounters {
+    pub fn family_outcomes(&self) -> serde_json::Value {
+        use crate::compilation_policy::TacticId as T;
+        serde_json::json!({
+            "inventory_reached": self.inventory_reached,
+            "inventory_truncated": self.inventory_truncated,
+            "families": [T::ScalarReplacement, T::Inlining, T::CallSpecialization,
+                T::ConstantFolding, T::StringPooling].into_iter().zip(self.families)
+                .map(|(tactic, outcomes)| serde_json::json!({"tactic":tactic,"outcomes":outcomes}))
+                .collect::<Vec<_>>()
+        })
+    }
 }
 
 /// An observation of a committed, eligible complete artifact. A visitor may
@@ -421,7 +453,11 @@ impl JavaScriptSearch<'_, '_> {
     }
 
     pub fn counters(&self) -> SearchCounters {
-        self.counters
+        let mut counters = self.counters;
+        if self.inventory.is_some() {
+            counters.families = self.discovery_outcomes();
+        }
+        counters
     }
     pub fn baseline_seal(&self) -> BaselineSeal {
         self.sealed.expect("only sealed results escape")
@@ -918,7 +954,39 @@ impl JavaScriptSearch<'_, '_> {
         Ok(())
     }
 
+    fn discovery_outcomes(&self) -> [FamilyOutcomes; 5] {
+        let mut families = [FamilyOutcomes::default(); 5];
+        // Fold diagnostics once when releasing the existing inventory. No
+        // per-attempt history or repeated source analysis is retained.
+        if let Some(inventory) = &self.inventory {
+            for index in 0..inventory.len() {
+                let family = match inventory.get(index).unwrap() {
+                    OpportunityView::Scalar(_) | OpportunityView::Product(_) => 0,
+                    OpportunityView::Inline(_) => 1,
+                    OpportunityView::Function(_) => 2,
+                    OpportunityView::String {choice: StringChoice::LiteralAtDefinition, ..} => 3,
+                    OpportunityView::String {choice: StringChoice::SharedLiteral {..}, ..} => 4,
+                };
+                let row = &mut families[family];
+                row.discovered += 1;
+                match self.seeds.get(index).copied().unwrap_or(Seed::Unseen) {
+                    Seed::Unseen => row.not_reached += 1,
+                    Seed::Ready(_) => row.legal += 1,
+                    Seed::Unknown => row.unknown += 1,
+                    Seed::Truncated => row.truncated += 1,
+                    Seed::Conflict => row.conflicting += 1,
+                    Seed::Redundant => row.redundant += 1,
+                    Seed::Equivalent(_) => row.equivalent += 1,
+                }
+            }
+        }
+        families
+    }
+
     fn discard_discovery_owners(&mut self) {
+        if self.inventory.is_some() {
+            self.counters.families = self.discovery_outcomes();
+        }
         for seed in &self.seeds {
             if let Seed::Ready(candidate) = seed {
                 self.compilation
@@ -985,6 +1053,7 @@ impl JavaScriptSearch<'_, '_> {
             self.owner,
             &mut budget,
         )?);
+        self.counters.inventory_reached = true;
         let count = self.inventory.as_ref().unwrap().len();
         self.counters.inventory_truncated = self.inventory.as_ref().unwrap().truncated();
         self.seeds = budget.filled(Retained, count, Seed::Unseen)?;

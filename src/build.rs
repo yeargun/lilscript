@@ -366,7 +366,10 @@ impl Frontend {
         if policies.is_empty() {
             return None;
         }
-        let permitted = |tactic| policies.iter().all(|policy| policy.tactic(tactic).enabled);
+        let permitted = |tactic: TacticId| policies.iter().all(|policy| {
+            tactic.spec().producer_enabled(
+                crate::compilation_policy::TacticProducer::SharedRules, policy)
+        });
         let seal = self
             .javascript
             .as_ref()
@@ -992,6 +995,11 @@ impl<'src> CheckedSourceSession<'src> {
                 "javascript":javascript.as_ref().map(ResolvedPolicy::diagnostics),
                 "native":native.as_ref().map(ResolvedPolicy::diagnostics)
             },
+            "policy_resolution":{
+                "javascript":javascript.as_ref().map(ResolvedPolicy::resolution),
+                "javascript_objectives":independent_javascript.as_ref().map(|policies| policies.iter().map(ResolvedPolicy::resolution).collect::<Vec<_>>()),
+                "native":native.as_ref().map(ResolvedPolicy::resolution)
+            },
             "ledger_before_finish":before,
             "resources":{
                 "baseline_work":ledger.work_used(WorkDomain::Baseline),"optional_work":ledger.work_used(WorkDomain::Optional),
@@ -1262,6 +1270,7 @@ fn search_report(
         "proposals": counters.proposals, "structures": counters.structures,
         "renders": counters.renders, "codec_probes": counters.codec_probes,
         "proof_queries": counters.proof_queries, "beam_evictions": counters.beam_evictions,
+        "structural_opportunities": counters.family_outcomes(),
         "admitted_artifacts": counters.admitted_artifacts,
         "stop": stopped,
         "terminal": terminal,

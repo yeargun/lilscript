@@ -32,7 +32,8 @@ pub enum Retirement {
         refused: &'static str,
     },
     /// The key's remaining meaning moved to key `to` (a path of the same
-    /// form): its value is moved there unless `to` is set too, and the loader
+    /// form): its value is moved there unless an equivalent `to` is set too;
+    /// contradictory values fail. The loader
     /// warns: "`<key>` is replaced by `<to>`: <reason>; rename it".
     Renamed {
         to: &'static str,
@@ -352,9 +353,23 @@ pub fn apply_retired_keys(table: &mut toml::Table) -> Result<Vec<String>, String
                 let value = value.clone();
                 let target = to.split('.').collect::<Vec<_>>();
                 remove(table, &path);
-                if lookup(table, &target).is_some() {
+                if let Some(current) = lookup(table, &target) {
+                    // The single-codec legacy alias and the singleton list
+                    // have the same meaning. A several-codec request does not.
+                    let equal = if to == "objective.codecs" {
+                        let codecs = |value: &toml::Value| match value {
+                            toml::Value::Array(values) => values.clone(),
+                            value => vec![value.clone()],
+                        };
+                        codecs(current) == codecs(&value)
+                    } else {
+                        current == &value
+                    };
+                    if !equal {
+                        return Err(format!("`{key}` contradicts `{to}`; remove the retired alias or use the same value"));
+                    }
                     warnings.push(format!(
-                        "`{key}` has no effect in this compiler: `{to}` is set, and {reason}; remove it"
+                        "`{key}` is replaced by `{to}`, which already has the same value: {reason}; remove the alias"
                     ));
                 } else {
                     insert(table, &target, value);
@@ -606,7 +621,7 @@ pub fn parse_project_config(source: &str) -> Result<ParsedConfig, String> {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ProjectConfig {
-    /// Schema-v2 policy overlay; absent values use the centralized legacy translator.
+    /// Versioned policy overlay; absent versions preserve legacy permission semantics.
     pub policy: Option<crate::compilation_policy::PolicyConfig>,
     pub package: Option<PackageMetadata>,
     pub dependencies: BTreeMap<String, DependencyConfig>,
@@ -662,7 +677,7 @@ impl ProjectConfig {
         };
         use crate::compilation_policy::{
             CompilationContract, CompilationRequest, ObjectiveRank, OptimizationObjective,
-            PolicyConfig, ResolvedPolicy, ResolvedTactic, TacticId, TacticPermission,
+            PolicyConfig, ResolvedPolicy, ResolvedTactic, TacticId, TacticOrigin, TacticPermission,
         };
         self.validate()?;
         let defaults = PolicyConfig::default();
@@ -672,12 +687,13 @@ impl ProjectConfig {
         let codec = codec.unwrap_or_else(|| self.objective.codec());
         let mut diagnostics = Vec::new();
         if self.policy.is_none() {
-            diagnostics.push(format!("legacy optimizer configuration translated to policy schema {}; translation retires at schema {}", crate::compilation_policy::POLICY_SCHEMA_VERSION, crate::compilation_policy::LEGACY_TRANSLATOR_RETIREMENT_SCHEMA));
+            diagnostics.push("legacy optimizer configuration uses policy version 2; select [policy] version = 3 for explicit runtime-risk permissions independently of effort".into());
         }
         let mut tactics = [ResolvedTactic {
             permission: TacticPermission::Auto,
             enabled: false,
         }; TacticId::ALL.len()];
+        let mut origins = [TacticOrigin::Default; TacticId::ALL.len()];
         let maximum_preset = self.optimization.preset == OptimizationPreset::Maximum;
         for tactic in TacticId::ALL {
             let spec = tactic.spec();
@@ -702,6 +718,17 @@ impl ProjectConfig {
                 (TacticPermission::Auto, Some(false)) => TacticPermission::Off,
                 _ => configured,
             };
+            origins[tactic as usize] = if configured != TacticPermission::Auto {
+                TacticOrigin::Policy
+            } else if legacy_explicit.is_some() {
+                TacticOrigin::LegacyAlias
+            } else if policy.tactics.contains_key(&tactic) {
+                TacticOrigin::Policy
+            } else if spec.default == crate::compilation_policy::TacticDefault::Preset {
+                TacticOrigin::Preset
+            } else {
+                TacticOrigin::Default
+            };
             let available = !spec.producers.is_empty() && (!spec.javascript_only || javascript);
             if permission == TacticPermission::On && !available {
                 diagnostics.push(format!(
@@ -715,6 +742,7 @@ impl ProjectConfig {
                     TacticPermission::On => true,
                     TacticPermission::Auto => {
                         default && (!javascript || effort >= spec.minimum_effort)
+                            && !(policy.version >= 3 && spec.startup_at_level_16)
                     }
                 };
             tactics[tactic as usize] = ResolvedTactic {
@@ -753,6 +781,7 @@ impl ProjectConfig {
                 && state.permission == TacticPermission::Auto
                 && effort >= 16
                 && tactic.spec().startup_at_level_16
+                && policy.version == crate::compilation_policy::LEGACY_POLICY_VERSION
             {
                 diagnostics.push(format!(
                     "compatibility: effort 16 grants startup reconstruction to `{}`; set `policy.tactics.{}` explicitly to `on` to permit its runtime tradeoffs or `off` to veto it independently of effort",
@@ -878,6 +907,8 @@ impl ProjectConfig {
             objective,
             effort,
             tactics,
+            policy.version,
+            origins,
             policy.resources.restricted_by(ceilings),
             policy.constraints,
             diagnostics,
@@ -2401,14 +2432,26 @@ mod tests {
             .warnings
             .iter()
             .all(|warning| warning.contains("is replaced by")));
-        // With the new key set too, the new key wins.
-        let both = parse("[javascript]\noptimization_level = 5\n[effort]\nlevel = 14\n");
+        // Equal aliases are accepted; contradictory values cannot disappear.
+        let both = parse("[javascript]\noptimization_level = 14\n[effort]\nlevel = 14\n");
         assert_eq!(both.config.effort.level, 14);
         assert!(
-            both.warnings[0].contains("has no effect"),
+            both.warnings[0].contains("same value"),
             "{:?}",
             both.warnings
         );
+        for source in [
+            "javascript.optimization_level=5\neffort.level=14",
+            "javascript.cost_model='raw'\nobjective.codecs=['gzip']",
+            "javascript.cost_model='raw'\nobjective.codecs=['raw','gzip']",
+        ] {
+            assert!(parse_project_config(source).unwrap_err().contains("contradicts"));
+        }
+        for canonical in ["'raw'", "['raw']"] {
+            let same = parse(&format!("javascript.cost_model='raw'\nobjective.codecs={canonical}"));
+            assert_eq!(same.config.objective.codecs, vec![CompressionCostModel::Raw]);
+            assert!(same.warnings[0].contains("same value"));
+        }
         // Encoder/effort ranges and a nonempty, duplicate-free objective set.
         for (source, error) in [
             ("[objective.brotli]\nquality = 12\n", "quality"),

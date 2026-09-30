@@ -17,13 +17,15 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 ## Next
 
-1. **Q2:** remove remaining repeated formation/scoring and target-rule scans; call indexing and statement-mention reuse are qualified. Preserve useful search results.
-2. **Q3 with C3:** broader objective/effort calibration and retained lower-level results; the configurable deferred combinations are qualified, with marginal expensive work starting at 14 by default.
-3. **S1 with C2/C3:** continue propagation/defaults/removal beyond the implemented bounded primitive evaluator. The raw-bound-as-codec-proof claim is corrected; calibration precedes tuning new heuristic defaults.
-4. **C1/D1:** remaining family/risk coverage, compatibility migration, formats and manifests; producer availability, prerequisite vetoes, contradictory aliases and the application wrapper are covered.
-5. **S2 and G1/G2:** escape/field facts and flattening; lexical naming and safe private-property mangling as their facts allow. Continue D1's existing format work when its batch is ready.
+**Active: C1 only.** Complete the following before advancing to C2:
 
-After these, follow the [working order](plan.md#8-working-order). Closure parity is V1's combined qualification goal, not a prerequisite for implementing naming or representation choices.
+- [ ] Audit every current producer's family, prerequisites, invalidation and runtime-risk declaration; close permission holes in direct, searched and reused output.
+- [ ] Complete deterministic configuration precedence and provenance, including legacy aliases and environment adapters, through CLI and library entry points.
+- [ ] Supply an explicit versioned migration away from effort-granted startup risk while preserving diagnosed legacy behavior.
+- [ ] Make registry/reference/receipts agree, distinguish disabled/unavailable/inapplicable/unreached/rejected/selected states where known, and document each control's situation and tradeoffs.
+- [ ] Run one combined C1 validation checkpoint, including the preceding reach-accounting changes; record its evidence and close C1.
+
+Then follow the [single milestone order](plan.md#8-working-order). Existing partial work below stays assigned to its milestone; do not extend it while C1 is active.
 
 ## Work packages
 
@@ -53,7 +55,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 
 ## Working rules
 
-- One heavy build, test or measurement job at a time. Verify coherent batches, roughly every 20 minutes of implementation or after a critical shared-path change.
+- One active milestone and one heavy build, test or measurement job at a time. Implement coherent batches before testing; reserve full qualification for milestone completion.
 - Size comes first at default effort 13 and above; expensive strategies with small measured returns may default to 14 or 15 with explicit overrides. Document every control's situation, defaults/gates and size/compile/runtime tradeoffs. Judge batch totals separately by objective; explain small local heuristic regressions and additional search cost.
 - Every open defect has an owner in [coverage.md](coverage.md). Native completion remains owned separately from JavaScript qualification.
 - Keep `ref`, public constructibility and `pure` termination semantics explicit while their language decisions remain open. D1 now supplies Y5's approved application IIFE default.

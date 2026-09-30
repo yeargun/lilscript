@@ -60,11 +60,13 @@ impl Inventory {
     ) -> Result<Self, AllocationError> {
         let mut phase = budget.scope();
         phase.work(WorkKind::Analysis, 1)?;
-        let scalar = policy.tactic(TacticId::ScalarReplacement).enabled;
-        let inline = policy.tactic(TacticId::Inlining).enabled;
-        let functions = policy.tactic(TacticId::CallSpecialization).enabled;
-        let literal = policy.tactic(TacticId::ConstantFolding).enabled;
-        let shared = literal && policy.tactic(TacticId::StringPooling).enabled;
+        let permitted = |tactic: TacticId| tactic.spec().producer_enabled(
+            crate::compilation_policy::TacticProducer::StructuralSearch, policy);
+        let scalar = permitted(TacticId::ScalarReplacement);
+        let inline = permitted(TacticId::Inlining);
+        let functions = permitted(TacticId::CallSpecialization);
+        let literal = permitted(TacticId::ConstantFolding);
+        let shared = permitted(TacticId::StringPooling);
         let mut opportunities = Vec::new();
         let mut definitions = Vec::new();
         let mut truncated = false;

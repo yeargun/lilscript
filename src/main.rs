@@ -1164,6 +1164,29 @@ fn policy_report(
         "policy": policy,
         "diagnostics": diagnostics,
     });
+    let primary = options.resolve_policy(&loaded.config,
+        options.javascript_request().or_else(|| options.native_request()).unwrap())?;
+    receipt["resolution"] = primary.resolution();
+    // Input origins explain CLI precedence without making path spelling or
+    // equivalent environment/flag adapters change canonical policy identity.
+    receipt["configuration_inputs"] = json!({
+        "file": if args.config.is_some() { "explicit" }
+            else if loaded.path.is_some() { "discovered" } else { "defaults" },
+        "overrides": {
+            "delivery": args.delivery.map(|_| "--delivery"),
+            "format": args.format.map(|_| "--format"),
+            "search_disabled": matches!(args.mode, BuildMode::Development),
+            "delegate_bundling": args.delegate_bundling,
+            "logical_work": if args.logical_work.is_some() { "--logical-work" }
+                else if std::env::var_os("LILSCRIPT_SEMANTIC_WORK").is_some() { "LILSCRIPT_SEMANTIC_WORK" }
+                else { "CLI default" },
+            "retained_bytes": if args.retained_bytes.is_some() { "--retained-bytes" } else { "service default" },
+            "proxy_pruning": if args.proxy_pruning.is_some() { "--proxy-pruning" }
+                else if std::env::var_os("LILSCRIPT_WALK_AUDIT").is_some() { "LILSCRIPT_WALK_AUDIT" }
+                else { "configuration/default" }
+        },
+        "resources": "service ceilings intersect TOML limits; the smaller value wins"
+    });
     let policies = options.resolve_javascript_policies(&loaded.config)?;
     if policies.len() > 1 {
         receipt["objectives"] = json!(policies
@@ -1173,6 +1196,7 @@ fn policy_report(
         receipt["javascript_policies"] = json!(policies.iter().map(|policy| json!({
             "fingerprint": policy.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
             "policy": policy.receipt(), "diagnostics": policy.diagnostics(),
+            "resolution": policy.resolution(),
         })).collect::<Vec<_>>());
         use sha2::{Digest, Sha256};
         let identity = json!({"kind": "independent-objective-policies-v1",
@@ -1191,6 +1215,8 @@ fn policy_report(
         receipt["native_fingerprint"] = json!(fingerprint);
         receipt["native_policy"] = policy;
         receipt["native_diagnostics"] = diagnostics;
+        receipt["native_resolution"] = options.resolve_policy(&loaded.config,
+            options.native_request().unwrap())?.resolution();
     }
     Ok(receipt)
 }

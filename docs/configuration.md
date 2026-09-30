@@ -6,7 +6,7 @@ The [migration configuration contract](migration/plan.md#3-configuration-is-a-pr
 describes planned completion separately from this accepted schema. TOML, CLI and
 the Rust build API support any nonempty set of independent raw/gzip/Brotli
 results in one request. Remaining consumer integration and family-registry
-completion are tracked under [D3](migration/plan.md#d3) and C1.
+completion are tracked under [D3](migration/plan.md#d3); C1 owns permission enforcement.
 
 The CLI discovers `lilscript.toml` by walking from the input module toward the
 filesystem root. Pass `--config path/to/config.toml` to select one explicitly.
@@ -27,6 +27,38 @@ A configuration is read in two steps:
    reason.
 2. **Strict reading.** Everything else must be a known key with a valid value.
    A misspelled key or value is an error. Nothing is accepted silently.
+
+## Precedence and explanations
+
+The nearest discovered file is the entire project configuration; parent files
+are not merged. An explicit `--config` replaces discovery and a missing file
+fails. Defaults fill omitted keys. Retired aliases translate before strict
+reading; contradictory aliases fail even if an eventual CLI override would
+hide the conflict. A singleton objective string and singleton list are equal.
+
+CLI `--delivery`, `--format`, `--proxy-pruning` and development mode apply to
+the loaded request before the shared resolver. The deprecated environment
+adapters for proxy auditing and service work apply only to CLI requests and
+lose to their explicit flags. Service resource ceilings intersect project
+limits; no flag or environment value raises a TOML hard cap. The library API
+reads no optimization environment variables. Timing/debug verification switches
+only collect diagnostics or perform validation; native toolchain environment
+selection is a separate target concern.
+
+`--print-policy` reports `configuration_inputs` and per-tactic `resolution`:
+origin (default, preset, legacy alias or policy), disabled/unavailable/automatic
+state, effective producer prerequisites and permitted risks. Origin wording is
+outside the fingerprint; semantically equal alias and canonical requests keep
+the same identity. Build reports include the same resolution for each target
+and requested objective.
+
+Permission and observed use are separate. Structural reports retain discovered,
+unreached, legal, unknown, truncated, conflicting, redundant and equivalent
+opportunity counts by family. `inventory_reached = false` means discovery was
+not reached, not that no site exists. Terminal trials separately record exact
+rejection, proxy pruning, veto, budget exhaustion and selection. Selected
+artifact provenance names permitted formation assignments; it does not claim
+that every selected pass changed the source or that static risk proves speed.
 
 ## The schema
 
@@ -77,7 +109,7 @@ preset = "maximum"            # maximum | none: the default of the preset-follow
 # preserve_properties = ["onChange"] # contract: names the port's callers read
 
 [policy]
-version = 2
+version = 3                  # explicit runtime permissions; omitted version keeps legacy 2
 
 [policy.tactics]              # auto | on | off per tactic; `off` is a veto
 # inlining = "off"
@@ -260,8 +292,8 @@ one codec avoids that additional compilation and memory cost. Selecting several
 does not increase effort or grant additional runtime assumptions.
 
 `[effort] level` (0 to 16, default 13) is a work budget with a versioned
-schedule (`--print-policy` prints it). The existing level-16 startup-risk grant
-is a diagnosed compatibility exception; other risk permissions are explicit. Architecture
+schedule (`--print-policy` prints it). Policy version 3 never grants runtime risk through effort. Version 2 retains
+the diagnosed level-16 startup grant for compatibility. Architecture
 §13.4 and §9.6 state the schedule:
 - Level 0 runs every rule and forms the level-0 artifact, and no codec runs:
   gzip and Brotli sizes are unmeasured.
@@ -437,8 +469,8 @@ the TOML hard limit still applies. The library API does not read this variable.
 `--print-policy` includes resolved `diagnostics` alongside the canonical policy;
 build reports expose them per target in `policy_diagnostics`, and ordinary CLI
 builds print them as warnings. Diagnostic wording is outside the policy
-fingerprint. The level-16 compatibility grant is diagnosed until the relevant
-reconstruction permission is explicitly set.
+fingerprint. The version-2 level-16 compatibility grant is diagnosed until the relevant
+reconstruction permission is explicitly set or the configuration selects version 3.
 
 `property-mangling` permits an exactly judged private-field alternative at
 default and higher effort. Constructors and typed accesses use one assignment
@@ -464,14 +496,20 @@ permissions. Enabling one of these tactics does not override another tactic's
 veto or force the search to choose that representation.
 
 Constant-table decoder representations require `startup-reconstruction`.
-With `auto`, policy algorithm 2 permits them only at level 16, retaining that
-existing compatibility grant; explicit `on` permits them at any effort and
-`off` vetoes them at every effort. String-array packing uses its own risk
-permission: `auto` at level 16 permits startup sites only, while explicit
-`string-array-packing = "on"` also permits arrays inside callable bodies.
-At lower effort its `auto` setting keeps literal arrays. Public output and
-cached admission enforce the same limits. Receipts retain selected rules and
-tactic risks; these are permission evidence, not measured runtime costs.
+Select `[policy] version = 3` for effort-independent runtime permissions:
+`auto` keeps both decoders and string-array packing off at every level, `on`
+permits the selected family at any level, and `off` vetoes it everywhere.
+`string-array-packing = "on"` permits startup and callable sites, so its decode
+work can recur. These permissions do not force encoding or promise runtime
+parity. Public output, search and cached admission use the same rules.
+
+Existing files with omitted `policy.version` or explicit version 2 preserve
+the prior behavior: `auto` grants startup reconstruction and startup-only
+string-array packing at effort 16, with compatibility diagnostics. It grants
+no recurring packing. To migrate, add `version = 3` and explicitly enable the
+families whose startup/recurring costs you accept; leaving them automatic can
+increase output while removing decoding work. Version and effective permissions
+enter the fingerprint. Legacy aliases remain supported, with conflicts refused.
 
 Compatibility correction: older compilers ran table decoders regardless of
 `startup-reconstruction` and treated all string-array packing as neutral.
@@ -538,23 +576,11 @@ forces their selection. Fast tiers visit fewer search choices; level 0 still
 runs permitted ordinary simplifications. Runtime effects need workload evidence
 even when source behavior is preserved.
 
-| Tactic | Automatic behavior and useful situation | Tradeoffs, prerequisites and veto |
-|---|---|---|
-| `dead-code-elimination` | Preset; remove unreachable or unused work when effects permit | Analysis costs compilation; less executed code can reduce runtime work. `off` removes the family's optional eliminations, while mandatory legality handling remains |
-| `constant-folding` | Preset; known values and small bounded pure calls expose constants and dead branches | Evaluation spends bounded compilation work and can replace runtime computation with literals. Larger literals can hurt compressed size; unsupported evaluation stays intact. `off` vetoes shared and target folding |
-| `inlining` | Preset; small calls or single-use bodies expose propagation and removal | Can remove call overhead but duplicate code and increase analysis, output or engine compilation costs. Identity, captures, effects and strictness must permit it. `off` vetoes the family's shared and target rewrites |
-| `scalar-replacement` | Preset, JavaScript; private objects with complete use and initialization proofs | Can remove allocations and field accesses, but adds variables and may increase output or formation work. Escapes and uncertain observations retain storage. `off` vetoes target scalarization and structural candidates |
-| `call-specialization` | Preset, JavaScript; repeated calls with useful known arguments | Additional bodies can unlock folding but cost compilation and code size. Structural search judges alternatives within its effort allowance. `off` removes specialization candidates |
-| `helper-sharing` | Unavailable; intended for repeated equivalent bodies | No current producer, including for explicit `on`; the policy diagnoses that request. Do not expect size or runtime effects today |
-| `target-compaction` | Enabled, JavaScript; compact target expressions and statements | Repeated target analysis can cost substantial compilation time. Its folding, inlining and scalarization also require their own permissions. `off` removes optional target compaction and disables dependent private-field trials |
-| `identifier-mangling` | Enabled, JavaScript; shorten private lexical bindings | Reduces name readability and changes compression patterns; required public/observable names stay protected. Name allocation costs compilation. `off` also disables `naming-search` and `naming-alphabet`; private properties have their own permission |
-| `property-mangling` | Enabled, JavaScript; eligible private fields receive exactly judged trials from effort 13 | Can shrink repeated field names; extra formation/scoring costs compilation. Requires `target-compaction` and observability proofs; preserved keys remain reserved. `off` keeps declared field keys; `on` does not force a rename |
-| `string-pooling` | Enabled, JavaScript; repeated literals may share a binding | A binding/reference can cost more bytes than a short repeated literal and affects placement/initialization. Every objective judges eligible alternatives. `off` prevents shared literal bindings; array packing is separate |
-| `string-array-packing` | Literal arrays below 16; automatic startup packing at 16 | Delimited text plus `split` can reduce bytes while adding decode work and allocations. Explicit `on` also permits packing inside callable bodies, where the cost can recur. `off` vetoes all such packing; it is a separate runtime-risk permission |
-| `startup-reconstruction` | Enabled automatically only at 16 (compatibility exception); constant-table decoders | Can exchange delivery bytes for startup CPU and storage. Explicit `on` permits it at lower effort; `off` vetoes it everywhere. Does not grant recurring reconstruction or string-array packing permission |
-| `recurring-reconstruction` | Disabled and currently unavailable | Intended for explicitly accepted repeated decode/allocation costs. `on` is diagnosed as unavailable until a producer exists; effort alone never enables it |
-| `naming-search` | Enabled, JavaScript; compare scope/name plans under the selected codec | Extra render/codec work may find no improvement. Local-frequency refinement starts at 13; rejected-start exploration has the separate control above. Requires `identifier-mangling`; `off` retains the allocator seed and vetoes dependent alphabet trials |
-| `naming-alphabet` | Enabled, JavaScript; try sequential and observed character orders | Reassigning many names can improve or worsen repetition; complete artifact judging chooses. Costs rendering/scoring, with no added application operation. Requires both lexical mangling and naming search; `off` retains the seed alphabet |
+The [generated tactic reference](knowledge/config/schema.md#policytactics--closed)
+is the authoritative per-family table: useful situation, automatic behavior,
+availability, prerequisites, supported risks and size/compile/runtime tradeoffs.
+It comes from the same registry as resolution and admission, so adding a family
+must supply its documentation and invalidation owners in the same change.
 
 The existing assumption and preservation controls in the contract section
 serve a different purpose: `assume_*` changes what foreign behavior must be
@@ -592,8 +618,8 @@ The full table, generated from the source, is in
 
 - **Renamed (moved, with a warning).** `javascript.cost_model` is now
   `[objective] codecs`, and `javascript.optimization_level` is now
-  `[effort] level` (schema v3, plan M3.1). When the new key is set too, it
-  wins, and the old key is removed with a warning.
+  `[effort] level` (schema v3, plan M3.1). When both names are set, their values must agree;
+  contradictory values fail. Equal aliases are removed with a warning.
 - **No effect since the counted budget (M3.5).** `javascript.candidate_limit`,
   `candidate_byte_budget`, `candidate_beam_width`, `candidate_proposal_limit`,
   `terminal_codec_probe_limit`, and `candidate_search` other than `"off"`.

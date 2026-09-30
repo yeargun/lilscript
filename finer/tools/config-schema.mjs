@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url"
 const toolsDirectory = dirname(fileURLToPath(import.meta.url))
 const root = resolve(toolsDirectory, "../..")
 const OUTPUT = join(root, "docs/knowledge/config/schema.md")
-const SOURCES = ["src/config.rs", "src/compilation_policy.rs"]
+const SOURCES = ["src/config.rs", "src/compilation_policy.rs", "src/compilation_tactics.rs"]
 
 /** Every `pub struct` in the given Rust sources, with its fields. */
 export function parseStructs(text) {
@@ -118,6 +118,29 @@ function firstSentence(text) {
   return (match ? match[1] : text).replace(/\|/g, "\\|")
 }
 
+/** The exact registry declaration consumed by Rust, not a second name list. */
+export function parseTactics(text) {
+  const start = text.indexOf("declare_tactics! {")
+  if (start < 0) throw new Error("optimization-family registry is missing")
+  return [...text.slice(start).matchAll(/^    (\w+) \{\n([\s\S]*?)^    \},?$/gm)].map(([, id, body]) => {
+    const string = key => {
+      const value = new RegExp(String.raw`\b${key}:\s*("(?:[^"\\]|\\[\s\S])*")`).exec(body)?.[1]
+      if (!value) throw new Error(`registry ${id}.${key} is missing`)
+      return rustString(value)
+    }
+    const token = key => new RegExp(String.raw`\b${key}:\s*([\w:]+)`).exec(body)?.[1]
+    const list = key => {
+      const value = new RegExp(String.raw`\b${key}:\s*&\[([^\]]*)\]`).exec(body)?.[1]
+      if (value === undefined) throw new Error(`registry ${id}.${key} is missing`)
+      return value.split(",").map(part => part.trim().split("::").at(-1)).filter(Boolean)
+    }
+    return { id, name: string("name"), purpose: string("purpose"), tradeoffs: string("tradeoffs"),
+      javascriptOnly: token("javascript_only") === "true", default: token("default").split("::").at(-1),
+      effort: Number(token("minimum_effort")), legacyStartup: token("startup_at_level_16") === "true",
+      producers: list("producers"), prerequisites: list("prerequisites"), risks: list("risks"), invalidates: list("invalidates") }
+  })
+}
+
 /** Prose documentation files, and a lookup for the first one that names a key. */
 function proseIndex() {
   const files = [join(root, "docs/configuration.md"), ...readdirSync(join(root, "docs/knowledge/config")).filter(name => name.endsWith(".md")).sort().map(name => join(root, "docs/knowledge/config", name))]
@@ -168,6 +191,20 @@ export function buildSchema() {
     for (const [name, inner] of nested) visit(name, inner, depth + 1)
   }
   for (const [section, structName] of SECTIONS) visit(section, structName, 0)
+  const tactics = parseTactics(text)
+  const names = new Map(tactics.map(tactic => [tactic.id, tactic.name]))
+  const safe = value => value.replace(/\|/g, "\\|")
+  lines.push("## `[policy.tactics]` — closed", "",
+    "Generated from the same `declare_tactics!` registry as permission resolution and admission. Every key accepts `auto`, `on`, or `off`; omitted keys use `auto`. `off` vetoes every producer, including reused output. `on` permits competition; it never forces a representation or bypasses a proof.", "",
+    "Version 3 requires explicit `on` for runtime reconstruction at every effort. Omitted `policy.version` retains version 2 for compatibility; its automatic startup grants at 16 are diagnosed. Native only uses shared-rule producers. Optional JavaScript formation/output producers require `target-compaction` except dead-code elimination; shared inlining additionally requires `dead-code-elimination`.", "",
+    "| Tactic | Automatic default / gate | Producers | Prerequisites | Supported risk | Purpose and tradeoffs |", "|---|---|---|---|---|---|")
+  for (const tactic of tactics) {
+    const automatic = !tactic.producers.length ? "unavailable" : tactic.legacyStartup
+      ? "version 3: off; version 2: startup at 16"
+      : tactic.default === "Preset" ? "maximum preset" : tactic.default.toLowerCase()
+    lines.push(`| \`${tactic.name}\` | ${automatic}${tactic.javascriptOnly ? "; JavaScript only" : ""} | ${tactic.producers.join(", ") || "none"} | ${tactic.prerequisites.map(id => `\`${names.get(id)}\``).join(", ") || "—"} | ${tactic.risks.join(", ")} | ${safe(tactic.purpose)} ${safe(tactic.tradeoffs)} |`)
+  }
+  lines.push("", "Neutral is a static risk class, not a measured runtime guarantee. Registry invalidation owners are emitted by `--print-policy`; shared facts remain revision-qualified and target/naming/byte caches retain their own identities.", "")
   const retired = parseRetiredKeys(text)
   const cell = value => value.replace(/\|/g, "\\|")
   lines.push(
@@ -176,7 +213,7 @@ export function buildSchema() {
     "Applied to the parsed file before the tables above are read (`RETIRED_KEYS` in `src/config.rs`). A",
     "*no effect* key is removed and the CLI warns `<key> has no effect in this compiler: <reason>; remove it`;",
     "`--print-policy` lists the same warnings. A *refused* key stops the build with its reason. A *replaced*",
-    "key's value moves to its successor key, unless that key is set too, with a warning. A table",
+    "key's value moves to its successor key with a warning; equal aliases are accepted and contradictory values fail. A table",
     "path covers every key in that table.",
     "",
     "| Key | Outcome | Reason |",

@@ -712,15 +712,18 @@ fn packing_permission_distinguishes_startup_from_callable_bodies() {
         export string[] initial(){return saved;}
         export string[] make(){return ["aa","bb","cc","dd","ee","ff","gg","hh"];}
     "#;
-    for (level, permission, expected_splits) in [
-        (0, "auto", 0),
-        (13, "auto", 0),
-        (16, "auto", 1),
-        (16, "off", 0),
-        (0, "on", 2),
-        (13, "on", 2),
+    for (version, level, permission, expected_splits) in [
+        (2, 0, "auto", 0),
+        (2, 13, "auto", 0),
+        (2, 16, "auto", 1),
+        (2, 16, "off", 0),
+        (2, 0, "on", 2),
+        (2, 13, "on", 2),
+        (3, 16, "auto", 0),
+        (3, 16, "off", 0),
+        (3, 13, "on", 2),
     ] {
-        let resolved = policy(&format!("assume_pristine_builtins=true\n[effort]\nlevel={level}\n[policy.tactics]\nstring-array-packing='{permission}'"));
+        let resolved = policy(&format!("assume_pristine_builtins=true\n[effort]\nlevel={level}\n[policy]\nversion={version}\n[policy.tactics]\nstring-array-packing='{permission}'"));
         with_candidate(source, &resolved, |compiler, candidate| {
             let mut choices = OutputTactics::from_policy(&resolved);
             choices.families.string_array_packing =
@@ -742,15 +745,18 @@ fn constant_table_decoders_require_startup_permission_in_direct_output() {
     let source = include_str!("../../tests/cases/data_tables.lil");
     let host = include_str!("../../tests/cases/data_tables.host.js");
     let expected = include_str!("../../tests/cases/data_tables.out");
-    for (level, permission, encoded) in [
-        (0, "auto", false),
-        (13, "auto", false),
-        (16, "auto", true),
-        (0, "on", true),
-        (16, "off", false),
+    for (version, level, permission, encoded) in [
+        (2, 0, "auto", false),
+        (2, 13, "auto", false),
+        (2, 16, "auto", true),
+        (2, 0, "on", true),
+        (2, 16, "off", false),
+        (3, 16, "auto", false),
+        (3, 16, "off", false),
+        (3, 13, "on", true),
     ] {
         let resolved = policy(&format!(
-            "[effort]\nlevel={level}\n[policy.tactics]\nstartup-reconstruction='{permission}'"
+            "[effort]\nlevel={level}\n[policy]\nversion={version}\n[policy.tactics]\nstartup-reconstruction='{permission}'"
         ));
         with_candidate(source, &resolved, |compiler, candidate| {
             let javascript = emit(

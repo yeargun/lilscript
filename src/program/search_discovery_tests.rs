@@ -37,6 +37,13 @@ fn private_product_transport_search_is_independent_and_retries_under_stronger_ca
             assert_eq!(counts.structures, structures, "{counts:?}");
             assert_eq!(counts.truncated_proofs, truncated, "{counts:?}");
             assert_eq!(counts.unknown_proofs, 0, "{counts:?}");
+            assert!(counts.inventory_reached);
+            let families = counts.family_outcomes();
+            let calls = &families["families"][2]["outcomes"];
+            assert_eq!(calls["discovered"], usize::from(enabled));
+            assert_eq!(calls["legal"], usize::from(enabled && proof_work > 0));
+            assert_eq!(calls["truncated"], truncated);
+            assert_eq!(calls["not_reached"], 0);
             assert_eq!(measured.len(), structures);
             winners(&search, &measured);
         });
