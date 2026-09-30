@@ -298,6 +298,8 @@ struct Evaluator<'a, 'src> {
 enum Flow {
     Next,
     Return(Exact),
+    Break,
+    Continue,
 }
 
 impl Evaluator<'_, '_> {
@@ -387,6 +389,7 @@ impl Evaluator<'_, '_> {
         match self.region(unit, data.entry, &mut values, &mut cells, depth)? {
             Flow::Return(value) => Some(value),
             Flow::Next => Some(Exact::Undefined),
+            Flow::Break | Flow::Continue => None,
         }
     }
 
@@ -413,6 +416,8 @@ impl Evaluator<'_, '_> {
                         first()?.clone()
                     }))
                 }
+                OperationKind::Break => return Some(Flow::Break),
+                OperationKind::Continue => return Some(Flow::Continue),
                 OperationKind::Declare(cell) if self.program.cells[cell.index()].owner == unit => {
                     cells.remove(&cell);
                 }
@@ -446,7 +451,8 @@ impl Evaluator<'_, '_> {
                     let Place::Cell(cell) = data.places[place.index()] else {
                         return None;
                     };
-                    if self.program.cells[cell.index()].owner != unit {
+                    if self.program.cells[cell.index()].owner != unit || !cells.contains_key(&cell)
+                    {
                         return None;
                     }
                     if matches!(operation.kind, OperationKind::Store(_)) {
@@ -460,9 +466,8 @@ impl Evaluator<'_, '_> {
                     result = Some(Exact::Boolean(matches!(first()?, Exact::Undefined)))
                 }
                 OperationKind::Block(child) => {
-                    if let flow @ Flow::Return(_) =
-                        self.region(unit, child, values, cells, depth)?
-                    {
+                    let flow = self.region(unit, child, values, cells, depth)?;
+                    if !matches!(flow, Flow::Next) {
                         return Some(flow);
                     }
                 }
@@ -472,9 +477,8 @@ impl Evaluator<'_, '_> {
                     };
                     let child = if *condition { Some(yes) } else { no };
                     if let Some(child) = child {
-                        if let flow @ Flow::Return(_) =
-                            self.region(unit, child, values, cells, depth)?
-                        {
+                        let flow = self.region(unit, child, values, cells, depth)?;
+                        if !matches!(flow, Flow::Next) {
                             return Some(flow);
                         }
                         result = data.regions[child.index()]
@@ -488,9 +492,8 @@ impl Evaluator<'_, '_> {
                         return None;
                     };
                     let child = if *condition { yes } else { no };
-                    if let flow @ Flow::Return(_) =
-                        self.region(unit, child, values, cells, depth)?
-                    {
+                    let flow = self.region(unit, child, values, cells, depth)?;
+                    if !matches!(flow, Flow::Next) {
                         return Some(flow);
                     }
                     result = Some(known(values, data.regions[child.index()].result?)?.clone());
@@ -507,9 +510,8 @@ impl Evaluator<'_, '_> {
                         }
                     };
                     result = Some(if take {
-                        if let flow @ Flow::Return(_) =
-                            self.region(unit, right, values, cells, depth)?
-                        {
+                        let flow = self.region(unit, right, values, cells, depth)?;
+                        if !matches!(flow, Flow::Next) {
                             return Some(flow);
                         }
                         known(values, data.regions[right.index()].result?)?.clone()
@@ -517,6 +519,31 @@ impl Evaluator<'_, '_> {
                         left
                     });
                 }
+                OperationKind::Loop { test, body, update } => loop {
+                    // Empty `for(;;){}` still spends steps. Iterations and
+                    // nested calls share one budget; completion is the proof.
+                    self.step()?;
+                    if !matches!(self.region(unit, test, values, cells, depth)?, Flow::Next) {
+                        return None;
+                    }
+                    if let Some(condition) = data.regions[test.index()].result {
+                        let Exact::Boolean(condition) = known(values, condition)? else {
+                            return None;
+                        };
+                        if !*condition {
+                            break;
+                        }
+                    }
+                    match self.region(unit, body, values, cells, depth)? {
+                        Flow::Break => break,
+                        flow @ Flow::Return(_) => return Some(flow),
+                        Flow::Next | Flow::Continue => {}
+                    }
+                    // Continue runs the update; break and return do not.
+                    if !matches!(self.region(unit, update, values, cells, depth)?, Flow::Next) {
+                        return None;
+                    }
+                },
                 OperationKind::Constant(_)
                 | OperationKind::CopyValue
                 | OperationKind::IntBinary(_)

@@ -477,6 +477,45 @@ fn execute_native(c: &str) -> String {
 }
 
 #[test]
+fn bounded_loop_folding_obeys_configuration_for_javascript_and_native() {
+    let source = "int calculate(int seed){int result=seed;for(int i=0;i<4;i+=1){result=result*3+1;}return result;}print(calculate(1));";
+    for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        for permission in [TacticPermission::Off, TacticPermission::On] {
+            let mut config = ProjectConfig::default();
+            config.objective.codecs = vec![codec];
+            config.effort.level = 0;
+            config.policy = Some(PolicyConfig {
+                tactics: [(TacticId::ConstantFolding, permission)].into(),
+                ..PolicyConfig::default()
+            });
+            let result = compile_source(
+                source,
+                &config,
+                ServiceOptions {
+                    target: ServiceTarget::All,
+                    ..ServiceOptions::default()
+                },
+            )
+            .unwrap();
+            let folded = result.report()["phases_ns"]["rules"]["folded_calls"]
+                .as_u64()
+                .unwrap();
+            assert_eq!(
+                folded > 0,
+                permission == TacticPermission::On,
+                "{}",
+                result.report()
+            );
+            assert_eq!(
+                execute_javascript(result.javascript(codec).unwrap().javascript(), "", ""),
+                "121\n"
+            );
+            assert_eq!(execute_native(result.native_c().unwrap()), "121\n");
+        }
+    }
+}
+
+#[test]
 fn native_and_all_share_checked_meaning_without_native_codec_work() {
     let source = "int twice(int value){return value*2;}print(twice(21));";
     let javascript = compile_source(

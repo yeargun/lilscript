@@ -44,6 +44,65 @@ fn constant_calls_are_evaluated_for_each_argument_tuple() {
 }
 
 #[test]
+fn completed_constant_loops_preserve_control_flow_and_iteration_state() {
+    for source in [
+        // A zero-trip loop must not execute a throwing body.
+        "int calculate(int n){int result=7;while(n>0){throw 99;}return result;}print(calculate(0));",
+        // Continue evaluates the for-update; a fresh body local is reset.
+        "int calculate(int n){int result=0;for(int i=0;i<n;i+=1){int local=10;if(i==2){continue;}local+=i;result+=local;}return result;}print(calculate(5));",
+        // The inner break belongs to the inner loop, and continue to its body.
+        "int calculate(int n){int result=0;int i=0;while(i<n){i+=1;int j=0;while(j<4){j+=1;if(j==2){continue;}if(j==4){break;}result+=i*j;}}return result;}print(calculate(3));",
+        // Return crosses all loop/block nesting without evaluating an update.
+        "int calculate(int n){for(int i=0;i<n;i+=1){if(i==3){return i*7;}}return -1;}print(calculate(5));print(calculate(0));",
+        // No condition still permits a completed break and wrapping arithmetic.
+        "int calculate(int n){int i=0;for(;;){n+=2147483647;i+=1;if(i==4){break;}}return n;}print(calculate(5));",
+        // The condition and update are executions, including known nested calls.
+        "int advance(int n){return n+1;}int calculate(int n){int result=0;for(int i=0;advance(i)<n;i=advance(i)){result+=i;}return result;}print(calculate(5));",
+    ] {
+        optimized(source, FOLD_ONLY, |program, receipt| {
+            assert!(!instantiated(program, "calculate"), "{receipt:?}\n{source}");
+            assert!(receipt.folded_calls > 0, "{receipt:?}\n{source}");
+        });
+    }
+}
+
+#[test]
+fn constant_loops_keep_effects_and_calls_that_exhaust_evaluation() {
+    for source in [
+        "int calculate(int n){int result=0;while(n>0){print(n);result+=n;n-=1;}return result;}print(calculate(3));",
+        "int current=0;int calculate(int n){while(n>0){current+=n;n-=1;}return current;}print(calculate(3));print(current);",
+        // Small body, deliberately more executed work than the call's bound.
+        "int calculate(int n){int result=0;for(int i=0;i<n;i+=1){result+=i;}return result;}print(calculate(2000));",
+    ] {
+        optimized(source, FOLD_ONLY, |program, receipt| {
+            assert!(instantiated(program, "calculate"), "{receipt:?}\n{source}");
+        });
+    }
+}
+
+#[test]
+fn constant_loop_evaluation_preserves_observable_exceptions() {
+    // The reference interpreter has no exceptions. Use a direct JavaScript
+    // oracle with the same executed throw and catch instead.
+    let oracle = Command::new("node")
+        .args([
+            "-e",
+            "try{console.log((n=>{while(n>0){throw n;}return 7;})(1));}catch{console.log(99);}",
+        ])
+        .output()
+        .unwrap();
+    assert!(oracle.status.success());
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, "int calculate(int n){while(n>0){throw n;}return 7;}try{print(calculate(1));}catch{print(99);}").unwrap();
+    let semantics = crate::analyze(&syntax).unwrap();
+    let program = from_checked_source(&syntax, &semantics).unwrap();
+    let (program, receipt) = optimize(program, FOLD_ONLY).unwrap();
+    program.verify().unwrap();
+    assert!(instantiated(&program, "calculate"), "{receipt:?}");
+    assert_eq!(run(&program).as_bytes(), oracle.stdout);
+}
+
+#[test]
 fn constant_call_folding_preserves_argument_effects_and_mutable_captures() {
     let source = r#"
         int current=1;
@@ -89,6 +148,7 @@ fn bounded_constant_calls_preserve_nontermination_and_throwing_methods() {
     for source in [
         "int spin(int n){return spin(n+1);} export int go(){return spin(0);}",
         "int spin(int n){while(n>0){}return 7;} export int go(){return spin(1);}",
+        "int spin(){for(;;){}return 7;} export int go(){return spin();}",
         "export string go(){return \"x\".repeat(-1);}",
     ] {
         let arena = bumpalo::Bump::new();
