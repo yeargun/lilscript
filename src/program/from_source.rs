@@ -5402,6 +5402,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 target,
                 contract,
                 arguments: ArgumentRange { start: 0, len: 0 },
+                omit_trailing: 0,
                 debug,
             },
         )?;

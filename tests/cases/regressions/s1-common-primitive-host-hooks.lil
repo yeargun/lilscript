@@ -1,0 +1,19 @@
+extern int numericInput;
+extern string stringInput;
+
+int numericTwice(int value) {
+  int first = value * 3;
+  print(first);
+  print(first);
+  return first + value * 3;
+}
+
+int lengthTwice(string value) {
+  int first = value.length;
+  print(first);
+  print(first);
+  return first + value.length;
+}
+
+print(numericTwice(numericInput));
+print(lengthTwice(stringInput));

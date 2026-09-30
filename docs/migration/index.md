@@ -6,26 +6,22 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 ## Now
 
-- One compiler; the existing typed IR, facts, edit machinery, formation, naming and exact codec judging are the foundation.
-- **S1** evaluates bounded constant loops and scalar conversion/counting methods; generic objective gates and reference port suites pass. **S2** generalizes private record payloads under complete-use and capture proofs, with generic/port qualification; its target scalarizer now preserves initialization-time TDZ observations. **S3** now inlines explicit strict bodies into proven strict callers, with size and CPU qualification.
-- **C1 is complete.** One registry owns permissions, producers, prerequisites, risk and the generated reference. Policy version 3 uses explicit runtime permissions; legacy version 2 stays compatible. CLI/TOML/environment precedence, outcome receipts, direct/search/reuse vetoes and unchanged corpus/port output are qualified. **D1**'s private application IIFE and explicit bare output have separate size reports and pass the reference port suites.
-- **C2 is complete.** Measured interpreter coverage, per-target differential lanes, fair competitor contracts, runtime controls and static inventories are qualified; timing uncertainty remains explicit in the runtime ledger. Q2 reuses exact byte measurements and unchanged semantic views; stable-rule scheduling passes generic/port gates and paired CPU measurement. G1's alphabet and protected local-frequency trials are qualified. S4's typed record spread clears the last generic refusal: all 642 programs pass under each objective, with the reference port suites green.
-- **C3 is complete.** A content-locked generic training corpus, disjoint algorithm evaluation set, independent behavior/codec oracles, pruning audit, exact-byte verdict policy and current compile-work baseline are qualified. The source NO3 allowlist is permanently empty. Pruning remains enabled by default: disabling it found 107 gzip bytes and 18 Brotli bytes only on training string cases, changed no held-out result and cost substantially more work.
-- G2’s first private-field family passes generic/port gates and paired compilation measurement, including reflection, explicit preserved keys and TOML vetoes. Q2’s indexed call lookup now removes repeated target-rule work with unchanged artifacts and useful search preserved; further formation reuse remains open.
-- Q3's deferred naming tail now defaults to effort 14+, with explicit opt-in at 13, and combines local naming/private-field refinements. Generic/port gates and paired costs qualify this slice; level 13 restores the established search. Final package wrappers can still reverse core rankings. Q2's statement-mention reuse is qualified: all active tests and unchanged generic/port output pass, with lower Marked/Zod CPU and unchanged peak accounted memory.
-- **D3** resolves and searches any TOML/API objective set independently over one checked program, with all baselines admitted before shared optional work. The CLI writes separate codec directories and a combined manifest; single-objective output stays compatible. Library/CLI, generic and port qualification pass with ordinary outputs preserved.
+- **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
+- **S2 is the sole active implementation milestone.** Existing partial work in later packages remains assigned to its owner; it does not change the order.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-**Active: S1 only.** Finish known-method and bounded pure-call evaluation,
-finite value propagation, defaults/returns and the dead work made removable by
-those facts under the [finite S1 acceptance contract](s1-acceptance.md) before
-opening S2. C3 is [complete and qualified](../../benchmarks/migration-results/2026-10-01-c3-complete/README.md):
-all 24 training and nine protected evaluation cells pass independent oracles;
-the retained no-prune result supports no production-policy change. Follow the
-[single milestone order](plan.md#8-working-order). Existing partial work below
-stays assigned to its milestone.
+Finish S2's escape/alias/uniqueness and field facts, object/namespace flattening,
+scalar replacement and value-copy elision before opening S3. Freeze the finite
+S2 implementation checklist first and build on the existing record/product
+families. The [handoff](handoff.md) records the current S1 evidence and intentional
+dependency corrections.
+
+The owner requests substantial implementation batches followed by focused
+checks that answer a correctness or size question. Do not restart the deferred
+S1 qualification chain or repeatedly run the entire library suite. Preserve
+verification limits honestly and use the [single milestone order](plan.md#8-working-order).
 
 ## Work packages
 
@@ -34,7 +30,7 @@ stays assigned to its milestone.
 | [x] | [C1](plan.md#c1) Controls | Complete; new producers register their controls within their own milestone |
 | [x] | [C2](plan.md#c2) Evidence | Complete; each later optimization supplies its needed independent oracle and affected-workload qualification |
 | [x] | [C3](plan.md#c3) Calibration | Complete; later policy changes belong to Q3 and external-library qualification remains V1 |
-| [~] | [S1](plan.md#s1) Folding | Broader supported evaluation, remaining propagation/defaults/removal |
+| [x] | [S1](plan.md#s1) Folding | Implementation complete; final library/CLI and complete paired cost verification deferred by owner |
 | [~] | [S2](plan.md#s2) Objects | Broader aliases/escape, fields, flattening and copy elision |
 | [~] | [S3](plan.md#s3) Calls | Remaining inlining, devirtualization, specialization and sharing |
 | [~] | [S4](plan.md#s4) Contracts | Remaining identities, fact consumers, catalog and language coverage |
@@ -55,7 +51,7 @@ stays assigned to its milestone.
 
 ## Working rules
 
-- One active milestone and one heavy build, test or measurement job at a time. Implement coherent batches before testing; reserve full qualification for milestone completion.
+- One active milestone and one heavy build, test or measurement job at a time. Implement substantial coherent batches before focused checks; do not repeat full library qualification for small changes. The owner has deferred S1’s remaining broad reruns.
 - Size comes first at default effort 13 and above; expensive strategies with small measured returns may default to 14 or 15 with explicit overrides. Document every control's situation, defaults/gates and size/compile/runtime tradeoffs. Judge batch totals separately by objective; explain small local heuristic regressions and additional search cost.
 - Every open defect has an owner in [coverage.md](coverage.md). Native completion remains owned separately from JavaScript qualification.
 - Keep `ref`, public constructibility and `pure` termination semantics explicit while their language decisions remain open. D1 now supplies Y5's approved application IIFE default.

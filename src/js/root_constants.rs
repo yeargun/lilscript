@@ -8,6 +8,10 @@
 //! left unread is pruned later with the other unused ones; an exported one
 //! stays for its importers.
 //!
+//! Source-root facts are already consumed by shared rules. Layouts and
+//! inlining can subsequently create new literal bindings; Q1/S4 own replacing
+//! this physical-storage proof once those choices publish equivalent facts.
+//!
 //! A number, boolean, `null` or `undefined` moves by rule, whatever the
 //! objective (Closure's `InlineVariables` for immutable values): a few
 //! characters, the canonical form. A string moves as the artifact's

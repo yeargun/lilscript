@@ -213,6 +213,8 @@ An item **loses** to a bar when it is larger. A lane with no artifact (refused, 
 | `--json`, `--markdown` | reports | — |
 | `--bars`, `--baseline`, `--ledger` | the three files below | `tests/ratchet/` |
 | `--update-baseline` | write the run as the new baseline; refused while anything blocks, and from a partial run | off |
+| `--accept-growth` | with `--update-baseline`, accept recorded local loss growth only if every corpus subtotal is nonincreasing in every objective | off |
+| `--accept-corpus-growth REASON` | additionally permit a corpus subtotal increase when the same full input set passes and raw, gzip and Brotli totals each do not grow; retain the reason and exact deltas | off |
 | `--refresh-bars` | rebuild `bars.json`: runs both comparison harnesses (they need `benchmarks/popular`'s pinned competitors and Closure) and compiles every item with `--reference` | off |
 
 Reports retain configuration file hashes and resolved policy receipts. Each
@@ -230,7 +232,7 @@ optional `LILSCRIPT_TIMING` instrumentation, so TOML controls their search.
 - a loss or failure that no entry of `tests/ratchet/ledger.json` covers;
 - the bars changed under the baseline: a bar refresh is a scheduled re-baseline event (BC3), recorded with `--update-baseline`.
 
-**What is reported.** Loss counts that fell, losses that shrank, lanes that now pass, new corpus items, and ledger entries that cover nothing (on full runs). `--update-baseline` tightens the baseline to them. The baseline never records a regression: that takes a hand edit the owner reviews.
+**What is reported.** Loss counts that fell, losses that shrank, lanes that now pass, new corpus items, and ledger entries that cover nothing (on full runs). `--update-baseline` tightens the baseline to them. Growth requires an explicit acceptance flag. The ordinary verdict and every local loss stay visible; reports and the baseline retain the acceptance receipt. The corpus-growth override requires unchanged bars/contracts, no unledgered losses and every old/new lane passing on identical inputs. It cannot blend objectives, hide failed lanes or waive other blockers.
 
 **The ledger.** Entries of kind `loss` (items, optional `bars` and `metrics`) or `failure` (items, optional `metrics`), each with a `reason` and an `owner` task; the runner refuses an entry without them. Coverage is not permission to grow: the baseline still blocks growth of a covered loss.
 

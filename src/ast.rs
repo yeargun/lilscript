@@ -982,7 +982,7 @@ pub enum ArrowBody<'ast, 'src> {
     Block(&'ast [Stmt<'ast, 'src>]),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnaryOp {
     Neg,
     Not,
@@ -1111,7 +1111,7 @@ pub enum TemplatePart<'ast, 'src> {
     Expr(Expr<'ast, 'src>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BinaryOp {
     Add,
     Sub,

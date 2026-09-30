@@ -1,0 +1,3637 @@
+{
+ "schema": 1,
+ "started": "2026-09-30T22:56:43.701Z",
+ "seconds": 4,
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/s1-complete-4/lilscript",
+  "sha256": "628028fe56197da6daa2cd09088fc21b34db11e7ff848020ff822b958ef87268",
+  "version": "lilscript 0.1.0",
+  "label": null
+ },
+ "codec": {
+  "sha256": "007b45afa76987213d2b9b93653d448f2759e5218295ae22bd70bd0670a2ed9e"
+ },
+ "delivery": {
+  "target": "js",
+  "format": "bare"
+ },
+ "configurations": [
+  {
+   "set": "algorithms",
+   "lane": "raw",
+   "path": "/home/azureuser/lilscript/comparison/algorithms/configs/raw.toml",
+   "sha256": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/algorithms/configs/raw.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "a4d19cfc48e581f86e0be2b3c4e89a03267061192f502e687b308e6ef74b7867",
+    "policy": {
+     "schema": 3,
+     "algorithm": 14,
+     "configuration_version": 2,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Raw",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 8,
+       "prefix": null,
+       "exact": null,
+       "margin": 0,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 29,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "program-facts",
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Remove unused operations, stores and private functions while retaining observable effects.",
+        "tradeoffs": "Usually reduces execution and size; compressed bytes can differ. Off retains optional dead-code work, not mandatory reachability and language lowering."
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation",
+         "structural-search",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "program-facts",
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Evaluate bounded known operations and calls, propagate exact/finite/path values, forward aliases and defaults, and consider literal representations.",
+        "tradeoffs": "Spends bounded proof work to remove runtime work; overflow retains unknown values and calls. Larger literals can hurt codec size; representation alternatives compete with full bytes. Off also vetoes common computations, default transport and root-string forwarding."
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation",
+         "structural-search",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "program-facts",
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Replace proved calls with their bodies to expose simplification and remove call overhead.",
+        "tradeoffs": "Can increase text and compilation work. Shared removal-only inlining also needs dead-code-elimination; target implementations need target-compaction. Off vetoes all optional inlining."
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Replace proved private object storage with independent values.",
+        "tradeoffs": "May remove allocations and fields but add locals or longer text. Escape, identity, initialization and capture proofs remain mandatory; off keeps the aggregate representation."
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Specialize proved private function signatures and transport of product arguments.",
+        "tradeoffs": "Additional proofs and candidates can remove allocations or argument handling; more parameters can cost bytes. On permits competition only where every call is known."
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [],
+        "purpose": "Compatibility name for optional parameterized helper sharing; no implementation is currently available.",
+        "tradeoffs": "Explicit on reports unavailable and does not alter output. Mandatory runtime helpers remain language lowering; this flag does not control them."
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Permit optional target-tree cleanup, statement spellings and output families.",
+        "tradeoffs": "Adds formation and search work; spelling wins depend on the objective. Semantic subfamilies also need their own permissions. Off keeps mandatory lowering and independently permitted structural search."
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Assign short hygienic names to private lexical bindings.",
+        "tradeoffs": "Usually reduces bytes without runtime work; names affect codec repetition. Off retains source naming and disables dependent naming trials; public-name contracts always apply."
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Try coherent short names for proved private fields, including reuse across unrelated types.",
+        "tradeoffs": "Requires observation and inheritance proofs and extra formation/judgments. Preserved or reflected keys keep their names. Independent of lexical mangling; off vetoes cached and direct assignments too."
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "structural-search",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Share repeated literal strings or numbers through bindings.",
+        "tradeoffs": "Introduces bindings and reads; repetitive literal bytes can already compress well. Structural computed-string pooling additionally needs constant-folding. Off vetoes pooling in every route."
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral",
+         "startup",
+         "recurring"
+        ],
+        "invalidates": [
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Represent string arrays as delimited text decoded with split under pristine-builtins assumptions.",
+        "tradeoffs": "Can save bytes while adding decoding and allocations. Version 3 requires explicit on, including callable sites; legacy auto permits startup sites at effort 16 only. Off vetoes packing at all levels."
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral",
+         "startup"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Permit constant-table encodings with startup decoders.",
+        "tradeoffs": "Trades startup CPU/storage for possible delivery savings and extra search. Version 3 requires explicit on at every effort; legacy auto grants it at 16. Does not permit recurring decoding or string-array packing."
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": [],
+        "risks": [
+         "neutral",
+         "recurring"
+        ],
+        "invalidates": [],
+        "purpose": "Compatibility name for recurring table reconstruction; no implementation is currently available.",
+        "tradeoffs": "Explicit on reports unavailable. String-array-packing owns its own callable-site risk and is not enabled by this flag."
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Explore lexical allocation styles, name reuse and local refinements under the selected objective.",
+        "tradeoffs": "Spends rendering and codec work for possible byte savings without intended runtime work. Effort schedules bound exploration; off keeps the baseline allocator."
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Try alternative hygienic naming alphabets as joint name assignments.",
+        "tradeoffs": "May rename the whole artifact and add expensive codec trials for small or absent savings. Naming-search and identifier-mangling must remain permitted; off preserves their other strategies."
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration uses policy version 2; select [policy] version = 3 for explicit runtime-risk permissions independently of effort"
+    ],
+    "resolution": {
+     "configuration_version": 2,
+     "runtime_permissions": "legacy-effort-16-startup",
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "origin": "preset",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "shared-rules",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "constant-folding",
+       "origin": "preset",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "shared-rules",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "inlining",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "shared-rules",
+         "enabled": true,
+         "prerequisites": [
+          "dead-code-elimination"
+         ]
+        },
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "scalar-replacement",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "call-specialization",
+       "origin": "preset",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "helper-sharing",
+       "origin": "preset",
+       "status": "unavailable",
+       "missing_prerequisites": [],
+       "permitted_risks": [],
+       "producers": []
+      },
+      {
+       "id": "target-compaction",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "identifier-mangling",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "naming",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "property-mangling",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "string-pooling",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": [
+          "constant-folding"
+         ]
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "string-array-packing",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "startup-reconstruction",
+       "origin": "default",
+       "status": "automatic-off",
+       "missing_prerequisites": [],
+       "permitted_risks": [],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": false,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "recurring-reconstruction",
+       "origin": "default",
+       "status": "unavailable",
+       "missing_prerequisites": [],
+       "permitted_risks": [],
+       "producers": []
+      },
+      {
+       "id": "naming-search",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "naming",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "naming-alphabet",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "naming",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      }
+     ]
+    },
+    "configuration_inputs": {
+     "file": "explicit",
+     "overrides": {
+      "delivery": null,
+      "format": "--format",
+      "search_disabled": false,
+      "delegate_bundling": false,
+      "logical_work": "CLI default",
+      "retained_bytes": "service default",
+      "proxy_pruning": "configuration/default"
+     },
+     "resources": "service ceilings intersect TOML limits; the smaller value wins"
+    }
+   }
+  },
+  {
+   "set": "algorithms",
+   "lane": "gzip",
+   "path": "/home/azureuser/lilscript/comparison/algorithms/configs/gzip.toml",
+   "sha256": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/algorithms/configs/gzip.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "65622df31fbeec896b7ac52b82db32e5e1d7c9457d39b16b8d12adced45079bd",
+    "policy": {
+     "schema": 3,
+     "algorithm": 14,
+     "configuration_version": 2,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Gzip",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 8,
+       "prefix": null,
+       "exact": null,
+       "margin": 0,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 29,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "program-facts",
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Remove unused operations, stores and private functions while retaining observable effects.",
+        "tradeoffs": "Usually reduces execution and size; compressed bytes can differ. Off retains optional dead-code work, not mandatory reachability and language lowering."
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation",
+         "structural-search",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "program-facts",
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Evaluate bounded known operations and calls, propagate exact/finite/path values, forward aliases and defaults, and consider literal representations.",
+        "tradeoffs": "Spends bounded proof work to remove runtime work; overflow retains unknown values and calls. Larger literals can hurt codec size; representation alternatives compete with full bytes. Off also vetoes common computations, default transport and root-string forwarding."
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation",
+         "structural-search",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "program-facts",
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Replace proved calls with their bodies to expose simplification and remove call overhead.",
+        "tradeoffs": "Can increase text and compilation work. Shared removal-only inlining also needs dead-code-elimination; target implementations need target-compaction. Off vetoes all optional inlining."
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Replace proved private object storage with independent values.",
+        "tradeoffs": "May remove allocations and fields but add locals or longer text. Escape, identity, initialization and capture proofs remain mandatory; off keeps the aggregate representation."
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Specialize proved private function signatures and transport of product arguments.",
+        "tradeoffs": "Additional proofs and candidates can remove allocations or argument handling; more parameters can cost bytes. On permits competition only where every call is known."
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [],
+        "purpose": "Compatibility name for optional parameterized helper sharing; no implementation is currently available.",
+        "tradeoffs": "Explicit on reports unavailable and does not alter output. Mandatory runtime helpers remain language lowering; this flag does not control them."
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Permit optional target-tree cleanup, statement spellings and output families.",
+        "tradeoffs": "Adds formation and search work; spelling wins depend on the objective. Semantic subfamilies also need their own permissions. Off keeps mandatory lowering and independently permitted structural search."
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Assign short hygienic names to private lexical bindings.",
+        "tradeoffs": "Usually reduces bytes without runtime work; names affect codec repetition. Off retains source naming and disables dependent naming trials; public-name contracts always apply."
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Try coherent short names for proved private fields, including reuse across unrelated types.",
+        "tradeoffs": "Requires observation and inheritance proofs and extra formation/judgments. Preserved or reflected keys keep their names. Independent of lexical mangling; off vetoes cached and direct assignments too."
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "structural-search",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Share repeated literal strings or numbers through bindings.",
+        "tradeoffs": "Introduces bindings and reads; repetitive literal bytes can already compress well. Structural computed-string pooling additionally needs constant-folding. Off vetoes pooling in every route."
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral",
+         "startup",
+         "recurring"
+        ],
+        "invalidates": [
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Represent string arrays as delimited text decoded with split under pristine-builtins assumptions.",
+        "tradeoffs": "Can save bytes while adding decoding and allocations. Version 3 requires explicit on, including callable sites; legacy auto permits startup sites at effort 16 only. Off vetoes packing at all levels."
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral",
+         "startup"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Permit constant-table encodings with startup decoders.",
+        "tradeoffs": "Trades startup CPU/storage for possible delivery savings and extra search. Version 3 requires explicit on at every effort; legacy auto grants it at 16. Does not permit recurring decoding or string-array packing."
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": [],
+        "risks": [
+         "neutral",
+         "recurring"
+        ],
+        "invalidates": [],
+        "purpose": "Compatibility name for recurring table reconstruction; no implementation is currently available.",
+        "tradeoffs": "Explicit on reports unavailable. String-array-packing owns its own callable-site risk and is not enabled by this flag."
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Explore lexical allocation styles, name reuse and local refinements under the selected objective.",
+        "tradeoffs": "Spends rendering and codec work for possible byte savings without intended runtime work. Effort schedules bound exploration; off keeps the baseline allocator."
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Try alternative hygienic naming alphabets as joint name assignments.",
+        "tradeoffs": "May rename the whole artifact and add expensive codec trials for small or absent savings. Naming-search and identifier-mangling must remain permitted; off preserves their other strategies."
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration uses policy version 2; select [policy] version = 3 for explicit runtime-risk permissions independently of effort"
+    ],
+    "resolution": {
+     "configuration_version": 2,
+     "runtime_permissions": "legacy-effort-16-startup",
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "origin": "preset",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "shared-rules",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "constant-folding",
+       "origin": "preset",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "shared-rules",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "inlining",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "shared-rules",
+         "enabled": true,
+         "prerequisites": [
+          "dead-code-elimination"
+         ]
+        },
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "scalar-replacement",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "call-specialization",
+       "origin": "preset",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "helper-sharing",
+       "origin": "preset",
+       "status": "unavailable",
+       "missing_prerequisites": [],
+       "permitted_risks": [],
+       "producers": []
+      },
+      {
+       "id": "target-compaction",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "identifier-mangling",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "naming",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "property-mangling",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "string-pooling",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": [
+          "constant-folding"
+         ]
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "string-array-packing",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "startup-reconstruction",
+       "origin": "default",
+       "status": "automatic-off",
+       "missing_prerequisites": [],
+       "permitted_risks": [],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": false,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "recurring-reconstruction",
+       "origin": "default",
+       "status": "unavailable",
+       "missing_prerequisites": [],
+       "permitted_risks": [],
+       "producers": []
+      },
+      {
+       "id": "naming-search",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "naming",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "naming-alphabet",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "naming",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      }
+     ]
+    },
+    "configuration_inputs": {
+     "file": "explicit",
+     "overrides": {
+      "delivery": null,
+      "format": "--format",
+      "search_disabled": false,
+      "delegate_bundling": false,
+      "logical_work": "CLI default",
+      "retained_bytes": "service default",
+      "proxy_pruning": "configuration/default"
+     },
+     "resources": "service ceilings intersect TOML limits; the smaller value wins"
+    }
+   }
+  },
+  {
+   "set": "algorithms",
+   "lane": "brotli",
+   "path": "/home/azureuser/lilscript/comparison/algorithms/configs/brotli.toml",
+   "sha256": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/algorithms/configs/brotli.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "5cd79fcec6d3b60f199fbf7aaaf24dc6a51c0f74deb78184406ba0a2a9162d5e",
+    "policy": {
+     "schema": 3,
+     "algorithm": 14,
+     "configuration_version": 2,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Brotli",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 8,
+       "prefix": null,
+       "exact": null,
+       "margin": 150,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 29,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "program-facts",
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Remove unused operations, stores and private functions while retaining observable effects.",
+        "tradeoffs": "Usually reduces execution and size; compressed bytes can differ. Off retains optional dead-code work, not mandatory reachability and language lowering."
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation",
+         "structural-search",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "program-facts",
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Evaluate bounded known operations and calls, propagate exact/finite/path values, forward aliases and defaults, and consider literal representations.",
+        "tradeoffs": "Spends bounded proof work to remove runtime work; overflow retains unknown values and calls. Larger literals can hurt codec size; representation alternatives compete with full bytes. Off also vetoes common computations, default transport and root-string forwarding."
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation",
+         "structural-search",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "program-facts",
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Replace proved calls with their bodies to expose simplification and remove call overhead.",
+        "tradeoffs": "Can increase text and compilation work. Shared removal-only inlining also needs dead-code-elimination; target implementations need target-compaction. Off vetoes all optional inlining."
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Replace proved private object storage with independent values.",
+        "tradeoffs": "May remove allocations and fields but add locals or longer text. Escape, identity, initialization and capture proofs remain mandatory; off keeps the aggregate representation."
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Specialize proved private function signatures and transport of product arguments.",
+        "tradeoffs": "Additional proofs and candidates can remove allocations or argument handling; more parameters can cost bytes. On permits competition only where every call is known."
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [],
+        "purpose": "Compatibility name for optional parameterized helper sharing; no implementation is currently available.",
+        "tradeoffs": "Explicit on reports unavailable and does not alter output. Mandatory runtime helpers remain language lowering; this flag does not control them."
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Permit optional target-tree cleanup, statement spellings and output families.",
+        "tradeoffs": "Adds formation and search work; spelling wins depend on the objective. Semantic subfamilies also need their own permissions. Off keeps mandatory lowering and independently permitted structural search."
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Assign short hygienic names to private lexical bindings.",
+        "tradeoffs": "Usually reduces bytes without runtime work; names affect codec repetition. Off retains source naming and disables dependent naming trials; public-name contracts always apply."
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Try coherent short names for proved private fields, including reuse across unrelated types.",
+        "tradeoffs": "Requires observation and inheritance proofs and extra formation/judgments. Preserved or reflected keys keep their names. Independent of lexical mangling; off vetoes cached and direct assignments too."
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "structural-search",
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "target-head",
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Share repeated literal strings or numbers through bindings.",
+        "tradeoffs": "Introduces bindings and reads; repetitive literal bytes can already compress well. Structural computed-string pooling additionally needs constant-folding. Off vetoes pooling in every route."
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral",
+         "startup",
+         "recurring"
+        ],
+        "invalidates": [
+         "target-tail",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Represent string arrays as delimited text decoded with split under pristine-builtins assumptions.",
+        "tradeoffs": "Can save bytes while adding decoding and allocations. Version 3 requires explicit on, including callable sites; legacy auto permits startup sites at effort 16 only. Off vetoes packing at all levels."
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": [],
+        "risks": [
+         "neutral",
+         "startup"
+        ],
+        "invalidates": [
+         "target-head",
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Permit constant-table encodings with startup decoders.",
+        "tradeoffs": "Trades startup CPU/storage for possible delivery savings and extra search. Version 3 requires explicit on at every effort; legacy auto grants it at 16. Does not permit recurring decoding or string-array packing."
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": [],
+        "risks": [
+         "neutral",
+         "recurring"
+        ],
+        "invalidates": [],
+        "purpose": "Compatibility name for recurring table reconstruction; no implementation is currently available.",
+        "tradeoffs": "Explicit on reports unavailable. String-array-packing owns its own callable-site risk and is not enabled by this flag."
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Explore lexical allocation styles, name reuse and local refinements under the selected objective.",
+        "tradeoffs": "Spends rendering and codec work for possible byte savings without intended runtime work. Effort schedules bound exploration; off keeps the baseline allocator."
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ],
+        "risks": [
+         "neutral"
+        ],
+        "invalidates": [
+         "names",
+         "rendered-files"
+        ],
+        "purpose": "Try alternative hygienic naming alphabets as joint name assignments.",
+        "tradeoffs": "May rename the whole artifact and add expensive codec trials for small or absent savings. Naming-search and identifier-mangling must remain permitted; off preserves their other strategies."
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration uses policy version 2; select [policy] version = 3 for explicit runtime-risk permissions independently of effort"
+    ],
+    "resolution": {
+     "configuration_version": 2,
+     "runtime_permissions": "legacy-effort-16-startup",
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "origin": "preset",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "shared-rules",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "constant-folding",
+       "origin": "preset",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "shared-rules",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "inlining",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "shared-rules",
+         "enabled": true,
+         "prerequisites": [
+          "dead-code-elimination"
+         ]
+        },
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "scalar-replacement",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "call-specialization",
+       "origin": "preset",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "helper-sharing",
+       "origin": "preset",
+       "status": "unavailable",
+       "missing_prerequisites": [],
+       "permitted_risks": [],
+       "producers": []
+      },
+      {
+       "id": "target-compaction",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": []
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "identifier-mangling",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "naming",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "property-mangling",
+       "origin": "legacy-alias",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "string-pooling",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "structural-search",
+         "enabled": true,
+         "prerequisites": [
+          "constant-folding"
+         ]
+        },
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "string-array-packing",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "output-families",
+         "enabled": true,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "startup-reconstruction",
+       "origin": "default",
+       "status": "automatic-off",
+       "missing_prerequisites": [],
+       "permitted_risks": [],
+       "producers": [
+        {
+         "stage": "java-script-formation",
+         "enabled": false,
+         "prerequisites": [
+          "target-compaction"
+         ]
+        }
+       ]
+      },
+      {
+       "id": "recurring-reconstruction",
+       "origin": "default",
+       "status": "unavailable",
+       "missing_prerequisites": [],
+       "permitted_risks": [],
+       "producers": []
+      },
+      {
+       "id": "naming-search",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "naming",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      },
+      {
+       "id": "naming-alphabet",
+       "origin": "default",
+       "status": "enabled",
+       "missing_prerequisites": [],
+       "permitted_risks": [
+        "neutral"
+       ],
+       "producers": [
+        {
+         "stage": "naming",
+         "enabled": true,
+         "prerequisites": []
+        }
+       ]
+      }
+     ]
+    },
+    "configuration_inputs": {
+     "file": "explicit",
+     "overrides": {
+      "delivery": null,
+      "format": "--format",
+      "search_disabled": false,
+      "delegate_bundling": false,
+      "logical_work": "CLI default",
+      "retained_bytes": "service default",
+      "proxy_pruning": "configuration/default"
+     },
+     "resources": "service ceilings intersect TOML limits; the smaller value wins"
+    }
+   }
+  }
+ ],
+ "configurationOverride": null,
+ "explanations": false,
+ "sets": [
+  "algorithms"
+ ],
+ "filter": null,
+ "items": 11,
+ "barsSha256": "770649437963ff5bd6955ea79195cf37c13a84d96fb6c83e7327db9a0085f45b",
+ "counts": {
+  "cases": {
+   "raw": {
+    "competitor": 0,
+    "closure": 0,
+    "old": 0
+   },
+   "gzip9": {
+    "competitor": 0,
+    "closure": 0,
+    "old": 0
+   },
+   "brotli11": {
+    "competitor": 0,
+    "closure": 0,
+    "old": 0
+   }
+  },
+  "apps": {
+   "raw": {
+    "competitor": 0,
+    "closure": 0,
+    "old": 0
+   },
+   "gzip9": {
+    "competitor": 0,
+    "closure": 0,
+    "old": 0
+   },
+   "brotli11": {
+    "competitor": 0,
+    "closure": 0,
+    "old": 0
+   }
+  },
+  "algorithms": {
+   "raw": {
+    "competitor": 0,
+    "closure": 10,
+    "old": 11
+   },
+   "gzip9": {
+    "competitor": 0,
+    "closure": 9,
+    "old": 11
+   },
+   "brotli11": {
+    "competitor": 3,
+    "closure": 8,
+    "old": 11
+   }
+  }
+ },
+ "totals": {
+  "algorithms": {
+   "raw": {
+    "competitor": {
+     "items": 11,
+     "ours": 4920,
+     "bar": 6210
+    },
+    "closure": {
+     "items": 11,
+     "ours": 4920,
+     "bar": 4522
+    },
+    "old": {
+     "items": 11,
+     "ours": 4920,
+     "bar": 3995
+    }
+   },
+   "gzip9": {
+    "competitor": {
+     "items": 11,
+     "ours": 3125,
+     "bar": 3440
+    },
+    "closure": {
+     "items": 11,
+     "ours": 3125,
+     "bar": 3031
+    },
+    "old": {
+     "items": 11,
+     "ours": 3125,
+     "bar": 2662
+    }
+   },
+   "brotli11": {
+    "competitor": {
+     "items": 11,
+     "ours": 2844,
+     "bar": 3039
+    },
+    "closure": {
+     "items": 11,
+     "ours": 2844,
+     "bar": 2703
+    },
+    "old": {
+     "items": 11,
+     "ours": 2844,
+     "bar": 2305
+    }
+   }
+  }
+ },
+ "losses": [
+  {
+   "id": "algorithms/aggregate-ledger",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "closure",
+   "ours": 257,
+   "bar_size": 221,
+   "loss": 36
+  },
+  {
+   "id": "algorithms/aggregate-ledger",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 257,
+   "bar_size": 169,
+   "loss": 88
+  },
+  {
+   "id": "algorithms/aggregate-ledger",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "closure",
+   "ours": 187,
+   "bar_size": 182,
+   "loss": 5
+  },
+  {
+   "id": "algorithms/aggregate-ledger",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 187,
+   "bar_size": 141,
+   "loss": 46
+  },
+  {
+   "id": "algorithms/aggregate-ledger",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "closure",
+   "ours": 171,
+   "bar_size": 160,
+   "loss": 11
+  },
+  {
+   "id": "algorithms/aggregate-ledger",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 171,
+   "bar_size": 118,
+   "loss": 53
+  },
+  {
+   "id": "algorithms/collection-geometry",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "closure",
+   "ours": 325,
+   "bar_size": 283,
+   "loss": 42
+  },
+  {
+   "id": "algorithms/collection-geometry",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 325,
+   "bar_size": 226,
+   "loss": 99
+  },
+  {
+   "id": "algorithms/collection-geometry",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "closure",
+   "ours": 234,
+   "bar_size": 210,
+   "loss": 24
+  },
+  {
+   "id": "algorithms/collection-geometry",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 234,
+   "bar_size": 171,
+   "loss": 63
+  },
+  {
+   "id": "algorithms/collection-geometry",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "competitor",
+   "ours": 212,
+   "bar_size": 211,
+   "loss": 1
+  },
+  {
+   "id": "algorithms/collection-geometry",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "closure",
+   "ours": 212,
+   "bar_size": 198,
+   "loss": 14
+  },
+  {
+   "id": "algorithms/collection-geometry",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 212,
+   "bar_size": 141,
+   "loss": 71
+  },
+  {
+   "id": "algorithms/dictionary-template-router",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "closure",
+   "ours": 658,
+   "bar_size": 594,
+   "loss": 64
+  },
+  {
+   "id": "algorithms/dictionary-template-router",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 658,
+   "bar_size": 569,
+   "loss": 89
+  },
+  {
+   "id": "algorithms/dictionary-template-router",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "closure",
+   "ours": 374,
+   "bar_size": 373,
+   "loss": 1
+  },
+  {
+   "id": "algorithms/dictionary-template-router",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 374,
+   "bar_size": 337,
+   "loss": 37
+  },
+  {
+   "id": "algorithms/dictionary-template-router",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 329,
+   "bar_size": 292,
+   "loss": 37
+  },
+  {
+   "id": "algorithms/helper-sharing",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "closure",
+   "ours": 210,
+   "bar_size": 208,
+   "loss": 2
+  },
+  {
+   "id": "algorithms/helper-sharing",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 210,
+   "bar_size": 166,
+   "loss": 44
+  },
+  {
+   "id": "algorithms/helper-sharing",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "closure",
+   "ours": 173,
+   "bar_size": 170,
+   "loss": 3
+  },
+  {
+   "id": "algorithms/helper-sharing",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 173,
+   "bar_size": 142,
+   "loss": 31
+  },
+  {
+   "id": "algorithms/helper-sharing",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "closure",
+   "ours": 155,
+   "bar_size": 149,
+   "loss": 6
+  },
+  {
+   "id": "algorithms/helper-sharing",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 155,
+   "bar_size": 117,
+   "loss": 38
+  },
+  {
+   "id": "algorithms/large-event-analytics",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "closure",
+   "ours": 880,
+   "bar_size": 853,
+   "loss": 27
+  },
+  {
+   "id": "algorithms/large-event-analytics",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 880,
+   "bar_size": 800,
+   "loss": 80
+  },
+  {
+   "id": "algorithms/large-event-analytics",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "closure",
+   "ours": 499,
+   "bar_size": 489,
+   "loss": 10
+  },
+  {
+   "id": "algorithms/large-event-analytics",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 499,
+   "bar_size": 472,
+   "loss": 27
+  },
+  {
+   "id": "algorithms/large-event-analytics",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "closure",
+   "ours": 460,
+   "bar_size": 425,
+   "loss": 35
+  },
+  {
+   "id": "algorithms/large-event-analytics",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 460,
+   "bar_size": 415,
+   "loss": 45
+  },
+  {
+   "id": "algorithms/policy-specialization",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "closure",
+   "ours": 316,
+   "bar_size": 290,
+   "loss": 26
+  },
+  {
+   "id": "algorithms/policy-specialization",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 316,
+   "bar_size": 274,
+   "loss": 42
+  },
+  {
+   "id": "algorithms/policy-specialization",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "closure",
+   "ours": 217,
+   "bar_size": 204,
+   "loss": 13
+  },
+  {
+   "id": "algorithms/policy-specialization",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 217,
+   "bar_size": 193,
+   "loss": 24
+  },
+  {
+   "id": "algorithms/policy-specialization",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "closure",
+   "ours": 200,
+   "bar_size": 179,
+   "loss": 21
+  },
+  {
+   "id": "algorithms/policy-specialization",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 200,
+   "bar_size": 173,
+   "loss": 27
+  },
+  {
+   "id": "algorithms/shape-invoice-pipeline",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "closure",
+   "ours": 582,
+   "bar_size": 452,
+   "loss": 130
+  },
+  {
+   "id": "algorithms/shape-invoice-pipeline",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 582,
+   "bar_size": 324,
+   "loss": 258
+  },
+  {
+   "id": "algorithms/shape-invoice-pipeline",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "closure",
+   "ours": 310,
+   "bar_size": 298,
+   "loss": 12
+  },
+  {
+   "id": "algorithms/shape-invoice-pipeline",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 310,
+   "bar_size": 216,
+   "loss": 94
+  },
+  {
+   "id": "algorithms/shape-invoice-pipeline",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "competitor",
+   "ours": 294,
+   "bar_size": 293,
+   "loss": 1
+  },
+  {
+   "id": "algorithms/shape-invoice-pipeline",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "closure",
+   "ours": 294,
+   "bar_size": 261,
+   "loss": 33
+  },
+  {
+   "id": "algorithms/shape-invoice-pipeline",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 294,
+   "bar_size": 189,
+   "loss": 105
+  },
+  {
+   "id": "algorithms/state-machine-parser",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "closure",
+   "ours": 361,
+   "bar_size": 352,
+   "loss": 9
+  },
+  {
+   "id": "algorithms/state-machine-parser",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 361,
+   "bar_size": 308,
+   "loss": 53
+  },
+  {
+   "id": "algorithms/state-machine-parser",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "closure",
+   "ours": 274,
+   "bar_size": 263,
+   "loss": 11
+  },
+  {
+   "id": "algorithms/state-machine-parser",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 274,
+   "bar_size": 238,
+   "loss": 36
+  },
+  {
+   "id": "algorithms/state-machine-parser",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 244,
+   "bar_size": 204,
+   "loss": 40
+  },
+  {
+   "id": "algorithms/stateful-packet-decoder",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "closure",
+   "ours": 551,
+   "bar_size": 540,
+   "loss": 11
+  },
+  {
+   "id": "algorithms/stateful-packet-decoder",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 551,
+   "bar_size": 489,
+   "loss": 62
+  },
+  {
+   "id": "algorithms/stateful-packet-decoder",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "closure",
+   "ours": 365,
+   "bar_size": 341,
+   "loss": 24
+  },
+  {
+   "id": "algorithms/stateful-packet-decoder",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 365,
+   "bar_size": 315,
+   "loss": 50
+  },
+  {
+   "id": "algorithms/stateful-packet-decoder",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "closure",
+   "ours": 339,
+   "bar_size": 313,
+   "loss": 26
+  },
+  {
+   "id": "algorithms/stateful-packet-decoder",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 339,
+   "bar_size": 286,
+   "loss": 53
+  },
+  {
+   "id": "algorithms/static-rule-engine",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 319,
+   "bar_size": 292,
+   "loss": 27
+  },
+  {
+   "id": "algorithms/static-rule-engine",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 212,
+   "bar_size": 193,
+   "loss": 19
+  },
+  {
+   "id": "algorithms/static-rule-engine",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "closure",
+   "ours": 192,
+   "bar_size": 188,
+   "loss": 4
+  },
+  {
+   "id": "algorithms/static-rule-engine",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 192,
+   "bar_size": 166,
+   "loss": 26
+  },
+  {
+   "id": "algorithms/string-dictionary",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "closure",
+   "ours": 461,
+   "bar_size": 403,
+   "loss": 58
+  },
+  {
+   "id": "algorithms/string-dictionary",
+   "set": "algorithms",
+   "metric": "raw",
+   "bar": "old",
+   "ours": 461,
+   "bar_size": 378,
+   "loss": 83
+  },
+  {
+   "id": "algorithms/string-dictionary",
+   "set": "algorithms",
+   "metric": "gzip9",
+   "bar": "old",
+   "ours": 280,
+   "bar_size": 244,
+   "loss": 36
+  },
+  {
+   "id": "algorithms/string-dictionary",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "competitor",
+   "ours": 248,
+   "bar_size": 246,
+   "loss": 2
+  },
+  {
+   "id": "algorithms/string-dictionary",
+   "set": "algorithms",
+   "metric": "brotli11",
+   "bar": "old",
+   "ours": 248,
+   "bar_size": 204,
+   "loss": 44
+  }
+ ],
+ "failures": [],
+ "problems": [],
+ "improvements": [],
+ "verdict": "pass",
+ "table": {
+  "algorithms/aggregate-ledger": {
+   "raw": {
+    "state": "pass",
+    "size": 257,
+    "sha256": "ba9edda16099963f"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 187,
+    "sha256": "09edccb99a858fc1"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 171,
+    "sha256": "0df3c3d4b8ddf72c"
+   }
+  },
+  "algorithms/collection-geometry": {
+   "raw": {
+    "state": "pass",
+    "size": 325,
+    "sha256": "58d650f9b56a71d0"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 234,
+    "sha256": "f853678345192866"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 212,
+    "sha256": "7055baaf2c1703ce"
+   }
+  },
+  "algorithms/dictionary-template-router": {
+   "raw": {
+    "state": "pass",
+    "size": 658,
+    "sha256": "670a700ed05d7b8d"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 374,
+    "sha256": "d1e9bb2c7abe9c42"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 329,
+    "sha256": "9846483d1e55a88e"
+   }
+  },
+  "algorithms/helper-sharing": {
+   "raw": {
+    "state": "pass",
+    "size": 210,
+    "sha256": "ce8e1734cf3af24e"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 173,
+    "sha256": "b16da2736ef3e0dd"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 155,
+    "sha256": "01af784248aad5d6"
+   }
+  },
+  "algorithms/large-event-analytics": {
+   "raw": {
+    "state": "pass",
+    "size": 880,
+    "sha256": "a585f68d5578f347"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 499,
+    "sha256": "7800a4330371b007"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 460,
+    "sha256": "7c20f958fec0536f"
+   }
+  },
+  "algorithms/policy-specialization": {
+   "raw": {
+    "state": "pass",
+    "size": 316,
+    "sha256": "4799de7088b16d49"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 217,
+    "sha256": "d99ecfc79cd5dc3e"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 200,
+    "sha256": "b68f49a2aedf6c11"
+   }
+  },
+  "algorithms/shape-invoice-pipeline": {
+   "raw": {
+    "state": "pass",
+    "size": 582,
+    "sha256": "7e10ee77af1cc2b6"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 310,
+    "sha256": "0d9f93dd959aa8a8"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 294,
+    "sha256": "2ccb73b06ec6ba26"
+   }
+  },
+  "algorithms/state-machine-parser": {
+   "raw": {
+    "state": "pass",
+    "size": 361,
+    "sha256": "82a271b016ae9e3a"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 274,
+    "sha256": "251ba6608d61cda7"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 244,
+    "sha256": "4d779abef4758876"
+   }
+  },
+  "algorithms/stateful-packet-decoder": {
+   "raw": {
+    "state": "pass",
+    "size": 551,
+    "sha256": "90d22f9126ed529d"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 365,
+    "sha256": "675816b710443a50"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 339,
+    "sha256": "084c1fb486e6dd14"
+   }
+  },
+  "algorithms/static-rule-engine": {
+   "raw": {
+    "state": "pass",
+    "size": 319,
+    "sha256": "edfb4ff3489bd0a9"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 212,
+    "sha256": "7bf44581cf82c748"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 192,
+    "sha256": "d107635677227f96"
+   }
+  },
+  "algorithms/string-dictionary": {
+   "raw": {
+    "state": "pass",
+    "size": 461,
+    "sha256": "ff59bdf0abbc2409"
+   },
+   "gzip9": {
+    "state": "pass",
+    "size": 280,
+    "sha256": "8fafcaa43f2de84f"
+   },
+   "brotli11": {
+    "state": "pass",
+    "size": 248,
+    "sha256": "35640e2a273b578e"
+   }
+  }
+ }
+}

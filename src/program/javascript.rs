@@ -612,7 +612,8 @@ fn form_head(
     let mut phase = budget.scope();
     let struct_plan = structs::plan(program, contract, &mut phase)?;
     let reference_plan = references::Plan::new();
-    let private_fields = super::private_fields::Plan::new(program, preserved_properties, &mut phase)?;
+    let private_fields =
+        super::private_fields::Plan::new(program, preserved_properties, &mut phase)?;
     let mut records = phase.vector(AllocationClass::Scratch, demand.records().len())?;
     for family in demand.records() {
         phase.work(WorkKind::Render, 1)?;
@@ -650,6 +651,7 @@ fn form_head(
         contract: *contract,
         demand,
         compact,
+        default_transport: compact && rules.constant_folding,
         ranges,
         module,
         string_sums: Vec::new(),
@@ -1117,13 +1119,14 @@ struct RecordStorage<'a> {
 struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     budget: &'budget mut AllocationBudget<'ledger>,
     program: &'program Program<'src>,
-    /// The program's value ranges (M6.4b), met with formation's own number
-    /// facts.
+    /// The program's value ranges. The explicit legacy normalization family
+    /// retains its separate local spelling tier.
     ranges: std::sync::Arc<super::ranges::ProgramRanges>,
     uses: Option<&'program UseIndex>,
     contract: JavaScriptCompilationContract,
     demand: &'demand DemandPlan<'program, 'src>,
     compact: bool,
+    default_transport: bool,
     module: js::Module,
     contexts: Vec<Option<FormationContext>>,
     // Expression insertion depths, not lexical scope depths: inline bodies
@@ -2164,13 +2167,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             )?;
             *slot = ValueStorage::Captured(binding);
         }
-        let numbers = if self.compact {
-            let mut numbers = self.budget.filled(
+        let numbers = if self.compact && self.int32_hints {
+            self.budget.filled(
                 AllocationClass::Scratch,
                 data.values.len(),
                 NumberFacts::UNKNOWN,
-            )?;
-            numbers
+            )?
         } else {
             Vec::new()
         };
@@ -2250,6 +2252,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         if !self.compact {
             return NumberFacts::UNKNOWN;
         }
+        // Semantic ranges have one owner. The legacy local tier remains
+        // only for the explicit int32_hints spelling alternative.
+        if !self.int32_hints {
+            return self.ranges.number(self.semantic(unit), value);
+        }
         let data = self.data(unit);
         let local = match data.operations[data.values[value.index()].definition.index()].kind {
             OperationKind::Constant(Constant::Integer(value)) => {
@@ -2260,17 +2267,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             }
             _ => self.plan(unit).numbers[value.index()],
         };
-        // The program's ranges (M6.4b), computed once for every formation:
-        // both are sound, so each value has what both prove. They only
-        // decide where an `int` operation's `|0` may go, and under the
-        // `int32_hints` family the artifact keeps the compiler's earlier
-        // `|0` spellings instead: a codec's repeat matching often prefers
-        // them, and its challenger lets the codec judge (owner, 2026-09-29:
-        // a compression-first build need not care about `|0`).
-        if self.int32_hints {
-            return local;
-        }
-        local.meet(self.ranges.number(self.semantic(unit), value))
+        // Explicit legacy spelling family: codec repetition can prefer the
+        // older normalizations, so it competes alongside the shared ranges.
+        local
     }
 
     /// One admitted fixed-cost transfer per emitted numeric operation. Facts
@@ -2283,12 +2282,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         normalize: bool,
         transfer: impl FnOnce(&Self) -> NumberFacts,
     ) -> Result<NumberFacts, FormationError> {
-        if !self.compact {
+        if !self.compact || (!self.int32_hints && !normalize) {
             return Ok(NumberFacts::UNKNOWN);
         }
         self.budget.work(WorkKind::Analysis, 1)?;
         let raw = transfer(self);
-        if let Some(result) = operation.result {
+        if let Some(result) = operation.result.filter(|_| self.int32_hints) {
             self.contexts[unit.index()].as_mut().unwrap().plan.numbers[result.index()] =
                 if normalize { raw.to_int32() } else { raw };
         }
@@ -3704,7 +3703,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         &mut self,
         unit: ContextId,
         call: CallId,
-        arguments: Vec<js::ExprId>,
+        mut arguments: Vec<js::ExprId>,
         span: Span,
         expanded_products: bool,
     ) -> Result<js::ExprId, FormationError> {
@@ -3714,6 +3713,22 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             && !expanded_products
         {
             return Err(self.error(span, "JavaScript call changed preserved source arity"));
+        }
+        // Default transport is proved on the checked program. Product ABI
+        // expansion changes argument positions, so it retains the full list.
+        if self.default_transport && !expanded_products {
+            let omitted = self.data(unit).calls[call.index()].omit_trailing as usize;
+            // Formation can attach preceding argument effects to the final
+            // literal as a sequence. Such an expression must still execute.
+            let inert = arguments
+                .iter()
+                .rev()
+                .take(omitted)
+                .take_while(|value| {
+                    matches!(self.module.expressions[value.index()], js::Expr::Literal(_))
+                })
+                .count();
+            arguments.truncate(arguments.len().saturating_sub(inert));
         }
         let node = match self.data(unit).calls[call.index()].target.clone() {
             CallTarget::Value { callee, invocation } => {
@@ -4896,6 +4911,19 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                 }
                 let strict = self.plan(child).strict_frame;
+                if self.default_transport
+                    && length.is_none()
+                    && method.is_none()
+                    && !strict
+                    && !self.plan(child).observes_activation
+                    && self.data(child).constructor_of.is_none()
+                    && parameters.len() == self.data(child).parameters.len()
+                {
+                    length = self
+                        .data(child)
+                        .native_default_length
+                        .map(|value| value as usize);
+                }
                 if strict && self.plan(child).observes_activation {
                     // Strictness would change this frame's `this`/`arguments`.
                     return Err(self.error(

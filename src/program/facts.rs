@@ -870,6 +870,9 @@ pub(super) struct Work {
     truncated: bool,
 }
 impl Work {
+    pub(super) fn truncated(&self) -> bool {
+        self.truncated
+    }
     /// A fresh budget for an evaluation outside a facts session (the program
     /// rules' values, `rules/values.rs`).
     pub(super) fn bounded(quota: u64, result_limit: u64) -> Self {
@@ -1311,6 +1314,10 @@ pub(super) fn exact(
         // and allocates no second payload; aggregate/unknown copies stay unknown.
         OperationKind::CopyValue => match known(operands[0]) {
             Some(value) => value.clone(),
+            None => return unknown(),
+        },
+        OperationKind::IsUndefined => match known(operands[0]) {
+            Some(value) => StoredExact::Boolean(matches!(value, StoredExact::Undefined)),
             None => return unknown(),
         },
         OperationKind::IntBinary(op) => {

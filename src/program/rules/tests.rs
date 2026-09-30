@@ -26,15 +26,21 @@ const FOLD_ONLY: RuleRequest = RuleRequest {
     inline: false,
     ..MODULE
 };
+const DCE_ONLY: RuleRequest = RuleRequest {
+    fold: false,
+    inline: false,
+    ..MODULE
+};
 
 #[test]
 fn rule_views_survive_empty_commits_and_follow_every_edit_owner() {
-    use std::sync::Arc;
     use crate::check::Type;
+    use std::sync::Arc;
 
     for seal in [Seal::Module, Seal::StructuralOnly] {
         let arena = bumpalo::Bump::new();
-        let syntax = crate::parse_source(&arena, "int value=3;print(value);print(\"same\");").unwrap();
+        let syntax =
+            crate::parse_source(&arena, "int value=3;print(value);print(\"same\");").unwrap();
         let semantics = crate::analyze(&syntax).unwrap();
         let mut editor = edit::Editor::new(from_checked_source(&syntax, &semantics).unwrap());
         let effects = editor.program().effects(seal);
@@ -48,9 +54,17 @@ fn rule_views_survive_empty_commits_and_follow_every_edit_owner() {
         assert!(Arc::ptr_eq(&ranges, &editor.program().ranges(seal)));
 
         let root = editor.program().initialization()[0];
-        let operation = editor.unit_mut(root).operations.iter_mut().find(|operation| {
-            matches!(operation.kind, OperationKind::Constant(Constant::Integer(3)))
-        }).unwrap();
+        let operation = editor
+            .unit_mut(root)
+            .operations
+            .iter_mut()
+            .find(|operation| {
+                matches!(
+                    operation.kind,
+                    OperationKind::Constant(Constant::Integer(3))
+                )
+            })
+            .unwrap();
         operation.kind = OperationKind::Constant(Constant::Integer(4));
         editor.commit().unwrap();
         assert!(!effects.deps().valid_for(editor.program()));
@@ -64,8 +78,14 @@ fn rule_views_survive_empty_commits_and_follow_every_edit_owner() {
             let effects = editor.program().effects(seal);
             let ranges = editor.program().ranges(seal);
             match mutation {
-                0 => { editor.intern_string(&"new data".into()).unwrap(); }
-                1 => { editor.intern_type(Type::Array(Box::new(Type::Record(Box::new(Type::Int))))).unwrap(); }
+                0 => {
+                    editor.intern_string(&"new data".into()).unwrap();
+                }
+                1 => {
+                    editor
+                        .intern_type(Type::Array(Box::new(Type::Record(Box::new(Type::Int)))))
+                        .unwrap();
+                }
                 2 => {
                     let mut cell = editor.program().cells()[0].clone();
                     cell.name = "synthetic_local".into();
@@ -79,8 +99,14 @@ fn rule_views_survive_empty_commits_and_follow_every_edit_owner() {
                 }
             }
             editor.commit().unwrap();
-            assert!(!effects.deps().valid_for(editor.program()), "mutation {mutation}");
-            assert!(!ranges.deps().valid_for(editor.program()), "mutation {mutation}");
+            assert!(
+                !effects.deps().valid_for(editor.program()),
+                "mutation {mutation}"
+            );
+            assert!(
+                !ranges.deps().valid_for(editor.program()),
+                "mutation {mutation}"
+            );
             assert!(!Arc::ptr_eq(&effects, &editor.program().effects(seal)));
             assert!(!Arc::ptr_eq(&ranges, &editor.program().ranges(seal)));
             editor.program().verify().unwrap();
@@ -88,7 +114,10 @@ fn rule_views_survive_empty_commits_and_follow_every_edit_owner() {
         let scratch = editor.program().effects(seal);
         let program = editor.finish().unwrap();
         assert!(scratch.deps().valid_for(&program));
-        assert!(!Arc::ptr_eq(&scratch, &program.effects(seal)), "rule scratch must end before publication");
+        assert!(
+            !Arc::ptr_eq(&scratch, &program.effects(seal)),
+            "rule scratch must end before publication"
+        );
     }
 }
 
@@ -139,6 +168,174 @@ fn constant_calls_are_evaluated_for_each_argument_tuple() {
         assert!(!instantiated(program, "choose"), "{receipt:?}");
         assert!(constant(program, 10) && constant(program, 5));
     });
+}
+
+#[test]
+fn finite_call_sets_fold_a_common_branch_without_sampling_overflow() {
+    fn source(arguments: &[i32]) -> String {
+        let tail = (0..70).map(|_| "print(0);").collect::<String>();
+        let calls = arguments
+            .iter()
+            .map(|value| format!("print(classify({value}));"))
+            .collect::<String>();
+        format!(
+            "bool classify(int value){{if(value>0){{return true;}}else{{{tail}return false;}}}}{calls}"
+        )
+    }
+
+    optimized(&source(&[1, 2]), FOLD_ONLY, |program, receipt| {
+        assert!(!instantiated(program, "classify"), "{receipt:?}");
+        assert!(receipt.folded_branches > 0, "{receipt:?}");
+        assert!(receipt.set_folds > 0, "{receipt:?}");
+        assert_eq!(receipt.folded_calls, 2, "{receipt:?}");
+    });
+    optimized(&source(&[1, 2, 3, 4, 5]), FOLD_ONLY, |program, receipt| {
+        assert!(instantiated(program, "classify"), "{receipt:?}");
+        assert_eq!(receipt.folded_calls, 0, "{receipt:?}");
+    });
+}
+
+#[test]
+fn finite_values_are_refined_on_each_branch_path() {
+    let padding = (0..70).map(|_| "print(0);").collect::<String>();
+    let source = format!(
+        "bool classify(int value){{if(value>0){{if(value<=0){{{padding}}}return true;}}else{{if(value>=0){{{padding}}}return true;}}}}print(classify(-2));print(classify(3));"
+    );
+    optimized(&source, FOLD_ONLY, |program, receipt| {
+        assert!(!instantiated(program, "classify"), "{receipt:?}");
+        assert_eq!(receipt.folded_calls, 2, "{receipt:?}");
+        assert!(receipt.path_folds > 0, "{receipt:?}");
+    });
+}
+
+#[test]
+fn immutable_scalar_cells_and_common_primitive_operations_forward() {
+    let source = r#"
+        int compute(int value) {
+            int alias = value;
+            int first = alias * 3;
+            print(first);
+            print(first);
+            int second = alias * 3;
+            return first + second;
+        }
+        for (int i = 0; i < 3; i += 1) { print(compute(i)); }
+    "#;
+    optimized(source, FOLD_ONLY, |_, receipt| {
+        assert!(receipt.forwarded_definitions >= 3, "{receipt:?}");
+        assert_eq!(receipt.common_computations, 1, "{receipt:?}");
+    });
+    optimized(source, DCE_ONLY, |_, receipt| {
+        assert_eq!(receipt.forwarded_definitions, 0, "{receipt:?}");
+        assert_eq!(receipt.common_computations, 0, "{receipt:?}");
+    });
+}
+
+#[test]
+fn host_annotations_do_not_authorize_common_coercions() {
+    for (source, setup, expected) in [
+        ("extern int input;int compute(int value){return value*3+value*3;}print(compute(input));",
+         "globalThis.input={valueOf(){console.log('coerce');return 2;}};", "coerce\ncoerce\n12\n"),
+        ("extern string input;int compute(string value){return value.length+value.length;}print(compute(input));",
+         "globalThis.input={get length(){console.log('read');return 2;}};", "read\nread\n4\n"),
+    ] {
+        let arena = bumpalo::Bump::new();
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        let semantics = crate::analyze(&syntax).unwrap();
+        let program = from_checked_source(&syntax, &semantics).unwrap();
+        let (program, receipt) = optimize(program, FOLD_ONLY).unwrap();
+        assert_eq!(receipt.common_computations, 0, "{receipt:?}");
+        let javascript = super::super::javascript::lower(&program).unwrap()
+            .render(PrintPolicy { mangle_bindings: true }).unwrap();
+        let script = format!("{setup}{javascript}");
+        let output = Command::new("node").args(["-e", &script]).output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(String::from_utf8(output.stdout).unwrap(), expected);
+    }
+}
+
+#[test]
+fn forwarding_preserves_snapshots_writes_and_argument_evaluation() {
+    for source in [
+        "int count=0;int next(){count+=1;print(count);return count;}int mix(int value){return value^value<<value;}print(mix(next()));print(mix(next()));",
+        "int compute(int value){int current=value;current=4;int snapshot=current;current=7;return snapshot+current;}for(int i=0;i<3;i+=1){print(compute(i));}",
+        "int compute(int value){int current=value;if(value>0){current=9;}return current;}print(compute(1));print(compute(-2));",
+        "int[] values=[1,2];int[] alias=values;values[0]=3;print(alias[0]);",
+        "int value=2;int read(){return value;}auto alias=read;value=7;print(alias());",
+    ] { optimized(source, MODULE, |_, _| {}); }
+}
+
+#[test]
+fn primitive_truthiness_in_finite_paths_matches_javascript() {
+    let arena = bumpalo::Bump::new();
+    let source = "bool classify(JsValue value){if(!bool(value)){return true;}else{return false;}}print(classify(\"\"));print(classify(\"x\"));";
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let checked = crate::analyze(&syntax).unwrap();
+    let program = from_checked_source(&syntax, &checked).unwrap();
+    let (program, _) = optimize(program, FOLD_ONLY).unwrap();
+    let reference = Command::new("node")
+        .args([
+            "-e",
+            "const classify=value=>!value;console.log(classify(''));console.log(classify('x')); ",
+        ])
+        .output()
+        .unwrap();
+    assert!(reference.status.success());
+    assert_eq!(run(&program).as_bytes(), reference.stdout);
+}
+
+#[test]
+fn default_transport_preserves_callee_guards_and_argument_effects() {
+    let source = r#"
+        int tick(int value) { print(value); return value; }
+        void report(int tag, int? value = null) { print(tag); print(value); }
+        for (int i=0; i<2; i+=1) { report(tick(i)); report(i,7); }
+    "#;
+    optimized(source, FOLD_ONLY, |program, receipt| {
+        assert!(receipt.default_arguments_omitted > 0, "{receipt:?}");
+        assert!(receipt.native_defaults > 0, "{receipt:?}");
+        assert!(count(program, |kind| matches!(kind, OperationKind::IsUndefined)) > 0);
+        // Re-entering optimization must also preserve the target-entry guard.
+        let (again, _) = optimize(program.clone(), FOLD_ONLY).unwrap();
+        assert_eq!(run(&again), run(program));
+        // Structurally valid metadata still needs a semantic proof: the tag
+        // argument has no matching default and cannot join the omitted tail.
+        let (unit, call) = program
+            .units
+            .iter()
+            .find_map(|unit| {
+                unit.data()
+                    .calls
+                    .iter()
+                    .enumerate()
+                    .find(|(_, site)| {
+                        site.omit_trailing > 0 && site.omit_trailing < site.arguments.len
+                    })
+                    .map(|(call, _)| (unit.id(), call))
+            })
+            .unwrap();
+        let mut broken = edit::Editor::new(program.clone());
+        broken.unit_mut(unit).calls[call].omit_trailing += 1;
+        let broken = broken.finish().unwrap();
+        assert!(broken.verify().unwrap_err().contains("default transport"));
+    });
+}
+
+#[test]
+fn default_transport_keeps_observed_argument_count_and_signed_zero() {
+    for source in [
+        "extern JsValue arguments; void report(float value=-0.0){print(arguments[\"length\"]);print(1.0/value);} report();report(0.0);",
+        "extern JsValue arguments; void report(float value=-0.0){auto observe=()=>arguments[\"length\"];print(observe());print(1.0/value);}report();report(0.0);",
+    ] {
+        let arena = bumpalo::Bump::new();
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        let semantics = crate::analyze(&syntax).unwrap();
+        let program = from_checked_source(&syntax, &semantics).unwrap();
+        let expected = run(&program);
+        let (program, receipt) = optimize(program, FOLD_ONLY).unwrap();
+        assert_eq!(receipt.default_arguments_omitted, 0, "{receipt:?}");
+        assert_eq!(run(&program), expected);
+    }
 }
 
 #[test]
@@ -540,20 +737,19 @@ fn recursion_and_early_returns_stay_calls() {
 }
 
 #[test]
-fn statements_never_enter_another_calls_arguments() {
+fn forwarded_locals_allow_an_expression_inside_another_calls_arguments() {
     let source = "int twice(int value) {\n  int doubled = value * 2;\n  return doubled + 1;\n}\nfor (int i = 0; i < 3; i++) { print(twice(i)); }\n";
     optimized(source, MODULE, |program, receipt| {
-        assert!(instantiated(program, "twice"), "{receipt:?}");
+        assert!(!instantiated(program, "twice"), "{receipt:?}");
     });
 }
 
 #[test]
-fn statements_never_split_an_expression_that_is_still_waiting() {
-    // `tick()` is evaluated before `stepped(i)` and added after it: a copy
-    // of `stepped`'s statements between them would hold its value.
+fn forwarded_locals_preserve_an_expression_that_is_still_waiting() {
+    // Forwarding makes stepped an expression. tick still evaluates first.
     let source = "int count = 0;\nint tick() {\n  count = count + 1;\n  return count;\n}\nint stepped(int value) {\n  int next = value + 1;\n  return next;\n}\nfor (int i = 0; i < 2; i++) { print(tick() + stepped(i)); }\n";
     optimized(source, MODULE, |program, receipt| {
-        assert!(instantiated(program, "stepped"), "{receipt:?}");
+        assert!(!instantiated(program, "stepped"), "{receipt:?}");
     });
 }
 
@@ -613,11 +809,11 @@ fn a_parameter_cell_is_a_statement() {
 }
 
 #[test]
-fn a_duplicate_that_reads_its_argument_twice_stays_a_call() {
-    // Each copy would have to name its argument: `(t=a[0]|0,t^t<<t)`.
+fn repeated_parameter_loads_share_one_evaluated_argument() {
+    // The shared SSA operand evaluates a[0] once, including after inlining.
     let source = "int mix(int value) { return value ^ value << value; }\nint[] values = [1, 2, 3];\nprint(mix(values[0]));\nprint(mix(values[1]));\nprint(mix(values[2]));\n";
     optimized(source, MODULE, |program, receipt| {
-        assert!(instantiated(program, "mix"), "{receipt:?}");
+        assert!(!instantiated(program, "mix"), "{receipt:?}");
     });
 }
 

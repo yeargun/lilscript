@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { codeOnly, composeConfig, LANES, parseTomlTables, selectLanes, walkCounts } from "./cases.mjs";
 import { diffAgainstLedger, failingTests, rewriteObjective, suiteRan, testTotals } from "./ports.mjs";
-import { applyLedger, catalogId, changedConfigurations, compareWithBaseline, configurationOverrideProblem, configurationSnapshot, countLosses, deliveryProblem, lossRows, selectItems, validateLedger, validateObjectivePolicy } from "./ratchet.mjs";
+import { growthAcceptance, validateGrowthOptions, applyLedger, catalogId, changedConfigurations, compareWithBaseline, configurationOverrideProblem, configurationSnapshot, countLosses, deliveryProblem, lossRows, selectItems, validateLedger, validateObjectivePolicy } from "./ratchet.mjs";
 import { validateIdiomDebt } from "./lib/idiom-debt.mjs";
 
 test("feature detection ignores comments and string text but not template expressions", () => {
@@ -258,4 +258,40 @@ test("the case runner reads a build's walk counts and stops from its explain rep
   assert.equal(walkCounts("no report"), null);
   // A level-0 build has no walk: its counts are zero.
   assert.equal(walkCounts(JSON.stringify({ search: { terminal: { objectives: [] } } }, null, 2)).judged, 0);
+});
+
+
+test("ratchet: explicit corpus growth retains separate full-population objective totals", () => {
+  const items = { "cases/a": lanes(100, 100, 100), "apps/b": lanes(100, 100, 100), "algorithms/c": lanes(100, 100, 100) };
+  const table = { ...items, "cases/a": lanes(90, 90, 90), "apps/b": lanes(100, 100, 102) };
+  const baseline = { items, totals: { apps: { brotli11: { old: { ours: 100 } } } } };
+  const sums = { apps: { brotli11: { old: { ours: 102 } } } };
+  const options = { updateBaseline: true, acceptGrowth: true, sets: ["cases", "apps", "algorithms"] };
+  const problems = ["loss grew: apps/b brotli11 vs old"];
+  assert.equal(growthAcceptance(options, table, baseline, sums, problems).allowed, false);
+  const explicit = { ...options, acceptCorpusGrowth: "A reviewed naming tradeoff improves each objective total." };
+  const result = growthAcceptance(explicit, table, baseline, sums, problems);
+  assert.equal(result.allowed, true);
+  assert.equal(result.reason, explicit.acceptCorpusGrowth);
+  assert.equal(result.corpus[0].delta, 2);
+  assert.deepEqual(result.objectives, {
+    raw: { before: 300, now: 290, delta: -10 },
+    gzip9: { before: 300, now: 290, delta: -10 },
+    brotli11: { before: 300, now: 292, delta: -8 },
+  });
+  assert.equal(growthAcceptance(explicit, { ...table, "apps/b": lanes(100, 100, 111) }, baseline, sums, problems).allowed, false);
+  for (const extra of ["regressed: behavior", "unledgered loss: new", "the bars changed", "delivery contract changed", "configuration changed"]) {
+    assert.equal(growthAcceptance(explicit, table, baseline, sums, [...problems, extra]).allowed, false);
+  }
+  assert.equal(growthAcceptance({ ...explicit, filter: "cases" }, table, baseline, sums, problems).allowed, false);
+  assert.equal(growthAcceptance({ ...explicit, sets: ["cases"] }, table, baseline, sums, problems).allowed, false);
+  const missing = { ...table }; delete missing["apps/b"];
+  assert.equal(growthAcceptance(explicit, missing, baseline, sums, problems).allowed, false);
+  assert.equal(growthAcceptance(explicit, { ...table, "apps/new": lanes(1, 1, 1) }, baseline, sums, problems).allowed, false);
+  assert.equal(growthAcceptance(explicit, { ...table, "apps/b": { ...table["apps/b"], raw: { state: "refused" } } }, baseline, sums, problems).allowed, false);
+  assert.equal(growthAcceptance(explicit, table, null, sums, problems).allowed, false);
+  assert.doesNotThrow(() => validateGrowthOptions(explicit));
+  for (const invalid of [{ ...explicit, updateBaseline: false }, { ...explicit, acceptGrowth: false }, { ...explicit, acceptCorpusGrowth: " " }]) {
+    assert.throws(() => validateGrowthOptions(invalid), /requires/);
+  }
 });

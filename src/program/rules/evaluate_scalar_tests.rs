@@ -21,6 +21,66 @@ fn node(script: &str) -> String {
 }
 
 #[test]
+fn primitive_predicates_match_node_on_type_zero_nan_and_utf16_edges() {
+    use crate::check::BuiltinCall as B;
+    let values = vec![
+        (Exact::Integer(0), "0"),
+        (Exact::Number((-0.0f64).to_bits()), "-0"),
+        (Exact::Integer(1), "1"),
+        (Exact::Number(f64::NAN.to_bits()), "NaN"),
+        (Exact::Number(f64::INFINITY.to_bits()), "Infinity"),
+        (Exact::Boolean(false), "false"),
+        (Exact::Boolean(true), "true"),
+        (Exact::Null, "null"),
+        (Exact::Undefined, "void 0"),
+        (computed(vec![]), "''"),
+        (computed(vec![0xd800]), "'\\ud800'"),
+        (computed(vec![0xd83d, 0xde00]), "'😀'"),
+    ];
+    checked(|program| {
+        let mut rows = Vec::new();
+        let mut work = Work::bounded(1 << 20, 1 << 20);
+        for (left, a) in &values {
+            for (right, b) in &values {
+                for (operation, token) in [(B::JsStrictEqual, "==="), (B::JsStrictNotEqual, "!==")]
+                {
+                    let result = builtin(
+                        program,
+                        operation,
+                        &[left.clone(), right.clone()],
+                        &mut work,
+                    );
+                    let Some(Exact::Boolean(result)) = result else {
+                        panic!("{operation:?}")
+                    };
+                    rows.push(serde_json::json!([format!("({a}){token}({b})"), result]));
+                }
+            }
+            for (operation, expression) in [
+                (B::JsIsNullish, format!("({a})==null")),
+                (B::JsIsFalse, format!("({a})===false")),
+                (B::JsIsUndefined, format!("({a})===void 0")),
+            ] {
+                let Some(Exact::Boolean(result)) =
+                    builtin(program, operation, &[left.clone()], &mut work)
+                else {
+                    panic!("{operation:?}")
+                };
+                rows.push(serde_json::json!([expression, result]));
+            }
+            let result = builtin(program, B::JsTypeOf, &[left.clone()], &mut work).unwrap();
+            rows.push(serde_json::json!([
+                format!("typeof({a})"),
+                string(program, &result).unwrap().as_unicode().unwrap()
+            ]));
+        }
+        assert_eq!(node(&format!("for(const [source,expected] of {}){{if(eval(source)!==expected)throw new Error(source);}}console.log('ok');",serde_json::to_string(&rows).unwrap())), "ok\n");
+        assert!(builtin(program, B::JsStrictEqual, &[], &mut work).is_none());
+        assert!(builtin(program, B::JsTypeOf, &[], &mut work).is_none());
+    });
+}
+
+#[test]
 fn constant_scalar_to_int_matches_number_bit_patterns() {
     let mut numbers = vec![
         0.0,

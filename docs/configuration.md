@@ -539,6 +539,32 @@ Host-backed methods still require `javascript.assume_pristine_builtins = true`
 (native compilation uses its fixed runtime). The rule receipt's `folded_calls`
 counts calls replaced with constants; it does not claim a compressed-size win.
 
+The same `constant-folding` permission owns finite primitive propagation,
+path-based folds, immutable/reaching-value forwarding and reuse of total
+primitive computations. The lattice retains at most four values; a larger set
+becomes unknown. Pointwise evaluation considers at most 64 combinations, and
+function execution is bounded by eight call levels, 64 operations per body and
+1,024 steps, with shared work/storage limits. These bounds trade opportunities
+for compile time and never turn an incomplete proof into an optimization.
+Forwarding preserves allocation owners and avoids creating a second snapshot
+for a mutable local. Common computations reuse storage already needed by
+multiple uses; introducing a new temporary is a representation choice rather
+than an unconditional semantic rewrite.
+`dead-code-elimination` independently controls removing newly unread storage,
+unreachable operations, unused parameters and unused results. Inlining keeps
+its own permission.
+
+Private literal-default transport retains semantic arguments and explicit
+callee guards in the shared program. JavaScript may omit matching trailing
+literals and use native default syntax when argument count, reflected length,
+activation access and effects allow it. Native execution keeps the semantic
+arguments. Disabling `constant-folding` also disables this transport. Receipts
+report actual value/set/path folds, omitted arguments, removed default checks,
+permitted native defaults, successful evaluator attempts and refusal categories.
+Evaluator attempt counters include repeated analysis rounds; they are distinct
+from the number of calls ultimately removed. The optimizations remove runtime
+work without adding reconstruction or changing the runtime-risk permissions.
+
 `scalar-replacement` permits private record storage alternatives for checked
 payload types, including strings, floats, booleans, references and value structs.
 The proof requires complete constant-key uses, one initialization and safe

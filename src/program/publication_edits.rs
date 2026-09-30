@@ -879,6 +879,7 @@ fn copy_unit(unit: &UnitData) -> Result<UnitData, PublicationError> {
         instantiation_prefix: unit.instantiation_prefix,
         function_name: unit.function_name,
         callable_type: unit.callable_type,
+        native_default_length: unit.native_default_length,
         parameters: copy_vector(&unit.parameters)?,
         captures: copy_vector(&unit.captures)?,
         entry: unit.entry,

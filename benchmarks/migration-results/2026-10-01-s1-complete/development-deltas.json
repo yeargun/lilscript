@@ -1,0 +1,4494 @@
+{
+  "baseline_commit": "9793853b1c34c12076935aa41dbd015d1bc3df9e",
+  "baseline_sha256": "8a39aa09145382d24bdf28864ce0586194c6e98a47beecd9a594aa4de61189ea",
+  "choice": "ratchet-path: smaller totals for every objective; apps Brotli +2 naming bytes accepted explicitly",
+  "reports": {
+    "ratchet-initial": {
+      "compiler_sha256": "7f9f8a1eddf943258e32dba0e0efd85b3981d8152886a7bf1ea4da68f7fd35ff",
+      "failures": 0,
+      "corpus_deltas": {
+        "cases": {
+          "raw": 135,
+          "gzip9": 193,
+          "brotli11": 98
+        },
+        "apps": {
+          "raw": 8,
+          "gzip9": 5,
+          "brotli11": 12
+        },
+        "algorithms": {
+          "raw": 54,
+          "gzip9": 34,
+          "brotli11": 26
+        }
+      },
+      "objective_deltas": {
+        "raw": 197,
+        "gzip9": 232,
+        "brotli11": 136
+      },
+      "individual_deltas": [
+        {
+          "item": "cases/canonical/aggregates/class-counter",
+          "metric": "brotli11",
+          "before": 85,
+          "now": 84,
+          "delta": -1
+        },
+        {
+          "item": "cases/canonical/aggregates/nested-struct",
+          "metric": "brotli11",
+          "before": 74,
+          "now": 72,
+          "delta": -2
+        },
+        {
+          "item": "cases/canonical/aggregates/struct-point",
+          "metric": "raw",
+          "before": 57,
+          "now": 67,
+          "delta": 10
+        },
+        {
+          "item": "cases/canonical/aggregates/struct-point",
+          "metric": "gzip9",
+          "before": 74,
+          "now": 83,
+          "delta": 9
+        },
+        {
+          "item": "cases/canonical/aggregates/struct-point",
+          "metric": "brotli11",
+          "before": 55,
+          "now": 69,
+          "delta": 14
+        },
+        {
+          "item": "cases/canonical/collections/array-pipeline",
+          "metric": "brotli11",
+          "before": 87,
+          "now": 86,
+          "delta": -1
+        },
+        {
+          "item": "cases/canonical/collections/minmax-scan",
+          "metric": "gzip9",
+          "before": 125,
+          "now": 121,
+          "delta": -4
+        },
+        {
+          "item": "cases/canonical/collections/prefix-sum",
+          "metric": "raw",
+          "before": 78,
+          "now": 86,
+          "delta": 8
+        },
+        {
+          "item": "cases/canonical/collections/prefix-sum",
+          "metric": "gzip9",
+          "before": 94,
+          "now": 99,
+          "delta": 5
+        },
+        {
+          "item": "cases/canonical/collections/prefix-sum",
+          "metric": "brotli11",
+          "before": 80,
+          "now": 83,
+          "delta": 3
+        },
+        {
+          "item": "cases/canonical/collections/record-json",
+          "metric": "brotli11",
+          "before": 162,
+          "now": 161,
+          "delta": -1
+        },
+        {
+          "item": "cases/canonical/control/if-chain",
+          "metric": "raw",
+          "before": 27,
+          "now": 15,
+          "delta": -12
+        },
+        {
+          "item": "cases/canonical/control/if-chain",
+          "metric": "gzip9",
+          "before": 47,
+          "now": 35,
+          "delta": -12
+        },
+        {
+          "item": "cases/canonical/control/if-chain",
+          "metric": "brotli11",
+          "before": 31,
+          "now": 19,
+          "delta": -12
+        },
+        {
+          "item": "cases/canonical/control/loop-sum",
+          "metric": "brotli11",
+          "before": 79,
+          "now": 78,
+          "delta": -1
+        },
+        {
+          "item": "cases/canonical/effects/exception-finally",
+          "metric": "raw",
+          "before": 81,
+          "now": 90,
+          "delta": 9
+        },
+        {
+          "item": "cases/canonical/effects/exception-finally",
+          "metric": "gzip9",
+          "before": 94,
+          "now": 100,
+          "delta": 6
+        },
+        {
+          "item": "cases/canonical/effects/exception-finally",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 80,
+          "delta": 8
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-captured-rebind",
+          "metric": "raw",
+          "before": 116,
+          "now": 126,
+          "delta": 10
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-captured-rebind",
+          "metric": "gzip9",
+          "before": 100,
+          "now": 110,
+          "delta": 10
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-captured-rebind",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 91,
+          "delta": 2
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-computed",
+          "metric": "raw",
+          "before": 45,
+          "now": 91,
+          "delta": 46
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-computed",
+          "metric": "gzip9",
+          "before": 63,
+          "now": 97,
+          "delta": 34
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-computed",
+          "metric": "brotli11",
+          "before": 49,
+          "now": 78,
+          "delta": 29
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-rebind",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 90,
+          "delta": 1
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-write",
+          "metric": "raw",
+          "before": 45,
+          "now": 91,
+          "delta": 46
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-write",
+          "metric": "gzip9",
+          "before": 63,
+          "now": 97,
+          "delta": 34
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-write",
+          "metric": "brotli11",
+          "before": 49,
+          "now": 79,
+          "delta": 30
+        },
+        {
+          "item": "cases/canonical/scalars/i32-churn",
+          "metric": "raw",
+          "before": 91,
+          "now": 86,
+          "delta": -5
+        },
+        {
+          "item": "cases/canonical/scalars/i32-churn",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 71,
+          "delta": 2
+        },
+        {
+          "item": "cases/canonical/scalars/i32-churn",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 66,
+          "delta": -6
+        },
+        {
+          "item": "cases/canonical/wins/point-batch",
+          "metric": "raw",
+          "before": 191,
+          "now": 199,
+          "delta": 8
+        },
+        {
+          "item": "cases/canonical/wins/point-batch",
+          "metric": "gzip9",
+          "before": 166,
+          "now": 171,
+          "delta": 5
+        },
+        {
+          "item": "cases/canonical/wins/point-batch",
+          "metric": "brotli11",
+          "before": 144,
+          "now": 150,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/loop/loop-sum-3-1-4-1-5-9",
+          "metric": "brotli11",
+          "before": 79,
+          "now": 78,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/loop/loop-sum-0-1-0-2-0-3-0-4",
+          "metric": "brotli11",
+          "before": 77,
+          "now": 78,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/loop/loop-sum-10-20-30-40",
+          "metric": "brotli11",
+          "before": 74,
+          "now": 73,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/loop/loop-sum-1-1-2-3-5-8-13-21",
+          "metric": "gzip9",
+          "before": 98,
+          "now": 99,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/loop/loop-sum-1-1-2-3-5-8-13-21",
+          "metric": "brotli11",
+          "before": 79,
+          "now": 78,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-3-1-4-1-5-9",
+          "metric": "raw",
+          "before": 98,
+          "now": 102,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-3-1-4-1-5-9",
+          "metric": "gzip9",
+          "before": 109,
+          "now": 113,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-3-1-4-1-5-9",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 93,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-2-7-1-8-2-8",
+          "metric": "raw",
+          "before": 98,
+          "now": 102,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-2-7-1-8-2-8",
+          "metric": "gzip9",
+          "before": 108,
+          "now": 110,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-2-7-1-8-2-8",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 93,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-1-2-3-4-5-6-7-8",
+          "metric": "raw",
+          "before": 102,
+          "now": 106,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-1-2-3-4-5-6-7-8",
+          "metric": "gzip9",
+          "before": 111,
+          "now": 115,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-1-2-3-4-5-6-7-8",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 96,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-9-8-7-6-5-4-3-2",
+          "metric": "raw",
+          "before": 102,
+          "now": 106,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-9-8-7-6-5-4-3-2",
+          "metric": "gzip9",
+          "before": 111,
+          "now": 115,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-9-8-7-6-5-4-3-2",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 97,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-0-1-0-2-0-3-0-4",
+          "metric": "raw",
+          "before": 102,
+          "now": 106,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-0-1-0-2-0-3-0-4",
+          "metric": "gzip9",
+          "before": 109,
+          "now": 113,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-0-1-0-2-0-3-0-4",
+          "metric": "brotli11",
+          "before": 92,
+          "now": 93,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-10-20-30-40",
+          "metric": "raw",
+          "before": 98,
+          "now": 102,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-10-20-30-40",
+          "metric": "gzip9",
+          "before": 107,
+          "now": 112,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-10-20-30-40",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 92,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-5-5-5-5-5-5",
+          "metric": "raw",
+          "before": 98,
+          "now": 102,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-5-5-5-5-5-5",
+          "metric": "gzip9",
+          "before": 104,
+          "now": 106,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-5-5-5-5-5-5",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 92,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-1-1-2-3-5-8-13-21",
+          "metric": "raw",
+          "before": 104,
+          "now": 108,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-1-1-2-3-5-8-13-21",
+          "metric": "gzip9",
+          "before": 112,
+          "now": 116,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-1-1-2-3-5-8-13-21",
+          "metric": "brotli11",
+          "before": 94,
+          "now": 98,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-12-4-8-16-2-6",
+          "metric": "raw",
+          "before": 100,
+          "now": 104,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-12-4-8-16-2-6",
+          "metric": "gzip9",
+          "before": 110,
+          "now": 115,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-12-4-8-16-2-6",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 94,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-15-3-9-27-1-81",
+          "metric": "raw",
+          "before": 101,
+          "now": 105,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-15-3-9-27-1-81",
+          "metric": "gzip9",
+          "before": 112,
+          "now": 113,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-15-3-9-27-1-81",
+          "metric": "brotli11",
+          "before": 92,
+          "now": 95,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-4-9-16-25-36-49",
+          "metric": "raw",
+          "before": 102,
+          "now": 106,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-4-9-16-25-36-49",
+          "metric": "gzip9",
+          "before": 112,
+          "now": 114,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-4-9-16-25-36-49",
+          "metric": "brotli11",
+          "before": 93,
+          "now": 96,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-11-22-33-44-55-66",
+          "metric": "raw",
+          "before": 104,
+          "now": 108,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-11-22-33-44-55-66",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 118,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-11-22-33-44-55-66",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 97,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-7-14-21-28-35",
+          "metric": "raw",
+          "before": 100,
+          "now": 104,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-7-14-21-28-35",
+          "metric": "gzip9",
+          "before": 111,
+          "now": 113,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-7-14-21-28-35",
+          "metric": "brotli11",
+          "before": 92,
+          "now": 94,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-2-3-5-7-11-13-17",
+          "metric": "raw",
+          "before": 103,
+          "now": 107,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-2-3-5-7-11-13-17",
+          "metric": "gzip9",
+          "before": 112,
+          "now": 118,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-2-3-5-7-11-13-17",
+          "metric": "brotli11",
+          "before": 94,
+          "now": 96,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-6-1-8-2-10-3",
+          "metric": "raw",
+          "before": 99,
+          "now": 103,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-6-1-8-2-10-3",
+          "metric": "gzip9",
+          "before": 109,
+          "now": 114,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/loop/loop-product-6-1-8-2-10-3",
+          "metric": "brotli11",
+          "before": 91,
+          "now": 94,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-3-1-4-1-5-9",
+          "metric": "gzip9",
+          "before": 133,
+          "now": 132,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-3-1-4-1-5-9",
+          "metric": "brotli11",
+          "before": 121,
+          "now": 122,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-2-7-1-8-2-8",
+          "metric": "gzip9",
+          "before": 134,
+          "now": 133,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-1-2-3-4-5-6-7-8",
+          "metric": "gzip9",
+          "before": 136,
+          "now": 135,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-1-2-3-4-5-6-7-8",
+          "metric": "brotli11",
+          "before": 125,
+          "now": 123,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-9-8-7-6-5-4-3-2",
+          "metric": "gzip9",
+          "before": 137,
+          "now": 136,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-0-1-0-2-0-3-0-4",
+          "metric": "gzip9",
+          "before": 133,
+          "now": 132,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-0-1-0-2-0-3-0-4",
+          "metric": "brotli11",
+          "before": 121,
+          "now": 120,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-1-1-2-3-5-8-13-21",
+          "metric": "gzip9",
+          "before": 135,
+          "now": 136,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-12-4-8-16-2-6",
+          "metric": "gzip9",
+          "before": 135,
+          "now": 134,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-15-3-9-27-1-81",
+          "metric": "gzip9",
+          "before": 136,
+          "now": 135,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-15-3-9-27-1-81",
+          "metric": "brotli11",
+          "before": 129,
+          "now": 122,
+          "delta": -7
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-4-9-16-25-36-49",
+          "metric": "gzip9",
+          "before": 137,
+          "now": 136,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-4-9-16-25-36-49",
+          "metric": "brotli11",
+          "before": 128,
+          "now": 127,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-11-22-33-44-55-66",
+          "metric": "gzip9",
+          "before": 138,
+          "now": 137,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-7-14-21-28-35",
+          "metric": "gzip9",
+          "before": 136,
+          "now": 135,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/struct-pairs-6-1-8-2-10-3",
+          "metric": "gzip9",
+          "before": 135,
+          "now": 133,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-3-1-4-1-5-9",
+          "metric": "raw",
+          "before": 203,
+          "now": 207,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-3-1-4-1-5-9",
+          "metric": "gzip9",
+          "before": 167,
+          "now": 170,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-3-1-4-1-5-9",
+          "metric": "brotli11",
+          "before": 152,
+          "now": 150,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-2-7-1-8-2-8",
+          "metric": "raw",
+          "before": 203,
+          "now": 207,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-2-7-1-8-2-8",
+          "metric": "gzip9",
+          "before": 167,
+          "now": 169,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-2-7-1-8-2-8",
+          "metric": "brotli11",
+          "before": 149,
+          "now": 150,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-1-2-3-4-5-6-7-8",
+          "metric": "raw",
+          "before": 207,
+          "now": 211,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-1-2-3-4-5-6-7-8",
+          "metric": "gzip9",
+          "before": 168,
+          "now": 173,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-1-2-3-4-5-6-7-8",
+          "metric": "brotli11",
+          "before": 148,
+          "now": 154,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-9-8-7-6-5-4-3-2",
+          "metric": "raw",
+          "before": 207,
+          "now": 211,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-9-8-7-6-5-4-3-2",
+          "metric": "gzip9",
+          "before": 170,
+          "now": 174,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-9-8-7-6-5-4-3-2",
+          "metric": "brotli11",
+          "before": 149,
+          "now": 155,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-0-1-0-2-0-3-0-4",
+          "metric": "raw",
+          "before": 207,
+          "now": 211,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-0-1-0-2-0-3-0-4",
+          "metric": "gzip9",
+          "before": 163,
+          "now": 169,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-0-1-0-2-0-3-0-4",
+          "metric": "brotli11",
+          "before": 145,
+          "now": 150,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-10-20-30-40",
+          "metric": "raw",
+          "before": 203,
+          "now": 207,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-10-20-30-40",
+          "metric": "gzip9",
+          "before": 163,
+          "now": 168,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-10-20-30-40",
+          "metric": "brotli11",
+          "before": 150,
+          "now": 149,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-5-5-5-5-5-5",
+          "metric": "raw",
+          "before": 203,
+          "now": 207,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-5-5-5-5-5-5",
+          "metric": "gzip9",
+          "before": 159,
+          "now": 165,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-5-5-5-5-5-5",
+          "metric": "brotli11",
+          "before": 144,
+          "now": 147,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-1-1-2-3-5-8-13-21",
+          "metric": "raw",
+          "before": 209,
+          "now": 213,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-1-1-2-3-5-8-13-21",
+          "metric": "gzip9",
+          "before": 168,
+          "now": 171,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-1-1-2-3-5-8-13-21",
+          "metric": "brotli11",
+          "before": 151,
+          "now": 156,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-12-4-8-16-2-6",
+          "metric": "raw",
+          "before": 205,
+          "now": 209,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-12-4-8-16-2-6",
+          "metric": "gzip9",
+          "before": 166,
+          "now": 170,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-12-4-8-16-2-6",
+          "metric": "brotli11",
+          "before": 151,
+          "now": 154,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-15-3-9-27-1-81",
+          "metric": "raw",
+          "before": 206,
+          "now": 210,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/aggregate/nested-struct-15-3-9-27-1-81",
+          "metric": "gzip9",
+          "before": 168,
+          "now": 171,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-0-8",
+          "metric": "gzip9",
+          "before": 111,
+          "now": 110,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-5-12",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 93,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-7-9",
+          "metric": "brotli11",
+          "before": 94,
+          "now": 92,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-11-11",
+          "metric": "brotli11",
+          "before": 92,
+          "now": 90,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-2-15",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 93,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-13-8",
+          "metric": "brotli11",
+          "before": 102,
+          "now": 95,
+          "delta": -7
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-4-14",
+          "metric": "gzip9",
+          "before": 114,
+          "now": 111,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-4-14",
+          "metric": "brotli11",
+          "before": 94,
+          "now": 93,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-9-13",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 93,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-1-16",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 93,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-8-7",
+          "metric": "brotli11",
+          "before": 94,
+          "now": 92,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/class-counter-6-18",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 93,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/function/factorial-8",
+          "metric": "raw",
+          "before": 45,
+          "now": 47,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-8",
+          "metric": "gzip9",
+          "before": 65,
+          "now": 67,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-8",
+          "metric": "brotli11",
+          "before": 49,
+          "now": 50,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/function/factorial-9",
+          "metric": "raw",
+          "before": 45,
+          "now": 47,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-9",
+          "metric": "gzip9",
+          "before": 65,
+          "now": 67,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-9",
+          "metric": "brotli11",
+          "before": 49,
+          "now": 50,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/function/factorial-10",
+          "metric": "raw",
+          "before": 46,
+          "now": 48,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-10",
+          "metric": "gzip9",
+          "before": 66,
+          "now": 68,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-10",
+          "metric": "brotli11",
+          "before": 50,
+          "now": 52,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/string/string-concat-alpha-beta",
+          "metric": "raw",
+          "before": 47,
+          "now": 41,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-alpha-beta",
+          "metric": "gzip9",
+          "before": 56,
+          "now": 52,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-alpha-beta",
+          "metric": "brotli11",
+          "before": 51,
+          "now": 45,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-lilscript-javascript",
+          "metric": "raw",
+          "before": 58,
+          "now": 52,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-lilscript-javascript",
+          "metric": "gzip9",
+          "before": 62,
+          "now": 59,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/string/string-concat-lilscript-javascript",
+          "metric": "brotli11",
+          "before": 59,
+          "now": 54,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/string/string-concat-compress-brotli",
+          "metric": "raw",
+          "before": 53,
+          "now": 47,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-compress-brotli",
+          "metric": "gzip9",
+          "before": 62,
+          "now": 58,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-compress-brotli",
+          "metric": "brotli11",
+          "before": 54,
+          "now": 41,
+          "delta": -13
+        },
+        {
+          "item": "cases/catalog/string/string-concat-mangle-identifier",
+          "metric": "raw",
+          "before": 55,
+          "now": 49,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-mangle-identifier",
+          "metric": "gzip9",
+          "before": 64,
+          "now": 60,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-mangle-identifier",
+          "metric": "brotli11",
+          "before": 56,
+          "now": 42,
+          "delta": -14
+        },
+        {
+          "item": "cases/catalog/string/string-concat-closed-world",
+          "metric": "raw",
+          "before": 50,
+          "now": 44,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-closed-world",
+          "metric": "gzip9",
+          "before": 59,
+          "now": 55,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-closed-world",
+          "metric": "brotli11",
+          "before": 53,
+          "now": 48,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/string/string-concat-typed-aggregate",
+          "metric": "raw",
+          "before": 53,
+          "now": 47,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-typed-aggregate",
+          "metric": "gzip9",
+          "before": 62,
+          "now": 58,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-typed-aggregate",
+          "metric": "brotli11",
+          "before": 57,
+          "now": 51,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-host-alias",
+          "metric": "raw",
+          "before": 47,
+          "now": 41,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-host-alias",
+          "metric": "gzip9",
+          "before": 56,
+          "now": 52,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-host-alias",
+          "metric": "brotli11",
+          "before": 51,
+          "now": 45,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-scalar-replace",
+          "metric": "raw",
+          "before": 52,
+          "now": 46,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-scalar-replace",
+          "metric": "gzip9",
+          "before": 61,
+          "now": 57,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-scalar-replace",
+          "metric": "brotli11",
+          "before": 46,
+          "now": 41,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/string/string-concat-dead-code",
+          "metric": "raw",
+          "before": 46,
+          "now": 40,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-dead-code",
+          "metric": "gzip9",
+          "before": 55,
+          "now": 51,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-dead-code",
+          "metric": "brotli11",
+          "before": 50,
+          "now": 36,
+          "delta": -14
+        },
+        {
+          "item": "cases/catalog/string/string-concat-inline-call",
+          "metric": "raw",
+          "before": 49,
+          "now": 43,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-inline-call",
+          "metric": "gzip9",
+          "before": 58,
+          "now": 54,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-inline-call",
+          "metric": "brotli11",
+          "before": 43,
+          "now": 41,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/string/string-concat-struct-layout",
+          "metric": "raw",
+          "before": 51,
+          "now": 45,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-struct-layout",
+          "metric": "gzip9",
+          "before": 60,
+          "now": 56,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-struct-layout",
+          "metric": "brotli11",
+          "before": 55,
+          "now": 49,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-codec-bytes",
+          "metric": "raw",
+          "before": 49,
+          "now": 43,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/string/string-concat-codec-bytes",
+          "metric": "gzip9",
+          "before": 58,
+          "now": 54,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/string-concat-codec-bytes",
+          "metric": "brotli11",
+          "before": 53,
+          "now": 41,
+          "delta": -12
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-5-5-5-5-5-5",
+          "metric": "gzip9",
+          "before": 114,
+          "now": 116,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-5-5-5-5-5-5",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 93,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/aggregate/matrix2-3-1-4-1-5-9",
+          "metric": "gzip9",
+          "before": 142,
+          "now": 143,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/aggregate/matrix2-2-7-1-8-2-8",
+          "metric": "gzip9",
+          "before": 143,
+          "now": 144,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/aggregate/matrix2-2-7-1-8-2-8",
+          "metric": "brotli11",
+          "before": 125,
+          "now": 127,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/aggregate/matrix2-1-2-3-4-5-6-7-8",
+          "metric": "gzip9",
+          "before": 146,
+          "now": 147,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/aggregate/matrix2-9-8-7-6-5-4-3-2",
+          "metric": "brotli11",
+          "before": 128,
+          "now": 130,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/aggregate/matrix2-0-1-0-2-0-3-0-4",
+          "metric": "gzip9",
+          "before": 142,
+          "now": 143,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/aggregate/matrix2-0-1-0-2-0-3-0-4",
+          "metric": "brotli11",
+          "before": 127,
+          "now": 126,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/aggregate/matrix2-10-20-30-40",
+          "metric": "gzip9",
+          "before": 141,
+          "now": 142,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/aggregate/matrix2-10-20-30-40",
+          "metric": "brotli11",
+          "before": 123,
+          "now": 122,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/host/host-hasown-a-b-c",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 96,
+          "delta": 7
+        },
+        {
+          "item": "cases/catalog/collection/minmax-scan-2-7-1-8-2-8",
+          "metric": "brotli11",
+          "before": 107,
+          "now": 106,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/minmax-scan-1-2-3-4-5-6-7-8",
+          "metric": "brotli11",
+          "before": 106,
+          "now": 105,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/minmax-scan-9-8-7-6-5-4-3-2",
+          "metric": "brotli11",
+          "before": 106,
+          "now": 105,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/minmax-scan-10-20-30-40",
+          "metric": "brotli11",
+          "before": 103,
+          "now": 106,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-3-1-4-1-5-9",
+          "metric": "raw",
+          "before": 78,
+          "now": 86,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-3-1-4-1-5-9",
+          "metric": "gzip9",
+          "before": 93,
+          "now": 100,
+          "delta": 7
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-3-1-4-1-5-9",
+          "metric": "brotli11",
+          "before": 80,
+          "now": 90,
+          "delta": 10
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-2-7-1-8-2-8",
+          "metric": "raw",
+          "before": 78,
+          "now": 86,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-2-7-1-8-2-8",
+          "metric": "gzip9",
+          "before": 94,
+          "now": 99,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-2-7-1-8-2-8",
+          "metric": "brotli11",
+          "before": 80,
+          "now": 83,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-1-2-3-4-5-6-7-8",
+          "metric": "raw",
+          "before": 82,
+          "now": 90,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-1-2-3-4-5-6-7-8",
+          "metric": "gzip9",
+          "before": 98,
+          "now": 102,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-1-2-3-4-5-6-7-8",
+          "metric": "brotli11",
+          "before": 82,
+          "now": 91,
+          "delta": 9
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-9-8-7-6-5-4-3-2",
+          "metric": "raw",
+          "before": 82,
+          "now": 90,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-9-8-7-6-5-4-3-2",
+          "metric": "gzip9",
+          "before": 98,
+          "now": 102,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-9-8-7-6-5-4-3-2",
+          "metric": "brotli11",
+          "before": 80,
+          "now": 90,
+          "delta": 10
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-0-1-0-2-0-3-0-4",
+          "metric": "raw",
+          "before": 82,
+          "now": 90,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-0-1-0-2-0-3-0-4",
+          "metric": "gzip9",
+          "before": 95,
+          "now": 101,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-0-1-0-2-0-3-0-4",
+          "metric": "brotli11",
+          "before": 80,
+          "now": 87,
+          "delta": 7
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-10-20-30-40",
+          "metric": "raw",
+          "before": 78,
+          "now": 86,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-10-20-30-40",
+          "metric": "gzip9",
+          "before": 94,
+          "now": 99,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-10-20-30-40",
+          "metric": "brotli11",
+          "before": 79,
+          "now": 90,
+          "delta": 11
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-5-5-5-5-5-5",
+          "metric": "raw",
+          "before": 78,
+          "now": 86,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-5-5-5-5-5-5",
+          "metric": "gzip9",
+          "before": 87,
+          "now": 94,
+          "delta": 7
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-5-5-5-5-5-5",
+          "metric": "brotli11",
+          "before": 79,
+          "now": 84,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-1-1-2-3-5-8-13-21",
+          "metric": "raw",
+          "before": 84,
+          "now": 92,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-1-1-2-3-5-8-13-21",
+          "metric": "gzip9",
+          "before": 100,
+          "now": 104,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/collection/prefix-sum-1-1-2-3-5-8-13-21",
+          "metric": "brotli11",
+          "before": 81,
+          "now": 87,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/string/string-chars-brotli",
+          "metric": "brotli11",
+          "before": 93,
+          "now": 92,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/string/string-chars-aggregate",
+          "metric": "brotli11",
+          "before": 93,
+          "now": 94,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/winner/win-point-batch",
+          "metric": "raw",
+          "before": 191,
+          "now": 199,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/winner/win-point-batch",
+          "metric": "gzip9",
+          "before": 166,
+          "now": 171,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/winner/win-point-batch",
+          "metric": "brotli11",
+          "before": 144,
+          "now": 150,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7",
+          "metric": "raw",
+          "before": 89,
+          "now": 84,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 70,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7",
+          "metric": "brotli11",
+          "before": 68,
+          "now": 66,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3",
+          "metric": "raw",
+          "before": 90,
+          "now": 85,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 71,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3",
+          "metric": "brotli11",
+          "before": 67,
+          "now": 64,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-1073741824n7n13n4n11",
+          "metric": "raw",
+          "before": 88,
+          "now": 83,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-1073741824n7n13n4n11",
+          "metric": "gzip9",
+          "before": 66,
+          "now": 68,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5",
+          "metric": "raw",
+          "before": 92,
+          "now": 88,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5",
+          "metric": "gzip9",
+          "before": 70,
+          "now": 73,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5",
+          "metric": "brotli11",
+          "before": 69,
+          "now": 63,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-65535n65537n23n3n97",
+          "metric": "raw",
+          "before": 81,
+          "now": 76,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-65535n65537n23n3n97",
+          "metric": "brotli11",
+          "before": 64,
+          "now": 59,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17",
+          "metric": "raw",
+          "before": 85,
+          "now": 82,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17",
+          "metric": "gzip9",
+          "before": 66,
+          "now": 68,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17",
+          "metric": "brotli11",
+          "before": 68,
+          "now": 62,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257",
+          "metric": "raw",
+          "before": 91,
+          "now": 86,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 71,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 66,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093",
+          "metric": "raw",
+          "before": 92,
+          "now": 87,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 72,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093",
+          "metric": "brotli11",
+          "before": 69,
+          "now": 63,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-1p125nn0p25n3p5n5",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 66,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "raw",
+          "before": 86,
+          "now": 78,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "gzip9",
+          "before": 93,
+          "now": 85,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "brotli11",
+          "before": 66,
+          "now": 67,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-5-7-9",
+          "metric": "raw",
+          "before": 86,
+          "now": 78,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-5-7-9",
+          "metric": "gzip9",
+          "before": 94,
+          "now": 85,
+          "delta": -9
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-6-8-10",
+          "metric": "raw",
+          "before": 87,
+          "now": 78,
+          "delta": -9
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-6-8-10",
+          "metric": "gzip9",
+          "before": 95,
+          "now": 85,
+          "delta": -10
+        },
+        {
+          "item": "cases/catalog/closure/edge-closure-mutation-1n2n4",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 88,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/closure/edge-closure-mutation-3nn1n5",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 94,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/closure/edge-closure-mutation-7nn2n7",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 96,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/closure/edge-closure-mutation-11n4n5",
+          "metric": "brotli11",
+          "before": 92,
+          "now": 91,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/closure/edge-closure-mutation-n4n5n6",
+          "metric": "brotli11",
+          "before": 93,
+          "now": 92,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/closure/edge-closure-mutation-9n1n8",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 88,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/closure/edge-closure-mutation-n8nn2n6",
+          "metric": "brotli11",
+          "before": 96,
+          "now": 100,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/collection/edge-array-concat",
+          "metric": "gzip9",
+          "before": 100,
+          "now": 99,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/edge-array-some-every",
+          "metric": "brotli11",
+          "before": 76,
+          "now": 75,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/edge-array-find-index",
+          "metric": "brotli11",
+          "before": 80,
+          "now": 79,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/edge-array-pipeline",
+          "metric": "gzip9",
+          "before": 116,
+          "now": 119,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/collection/edge-array-snapshot",
+          "metric": "raw",
+          "before": 123,
+          "now": 127,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/collection/edge-array-snapshot",
+          "metric": "brotli11",
+          "before": 97,
+          "now": 98,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/record/edge-record-json-4-alpha",
+          "metric": "gzip9",
+          "before": 204,
+          "now": 203,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/edge-map-set-10-8-11",
+          "metric": "brotli11",
+          "before": 138,
+          "now": 140,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-0-9",
+          "metric": "raw",
+          "before": 154,
+          "now": 168,
+          "delta": 14
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-0-9",
+          "metric": "gzip9",
+          "before": 122,
+          "now": 131,
+          "delta": 9
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-0-9",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 107,
+          "delta": 12
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "raw",
+          "before": 163,
+          "now": 160,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 124,
+          "delta": 11
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 101,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-1-7",
+          "metric": "raw",
+          "before": 154,
+          "now": 168,
+          "delta": 14
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-1-7",
+          "metric": "gzip9",
+          "before": 122,
+          "now": 131,
+          "delta": 9
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-1-7",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 107,
+          "delta": 12
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "raw",
+          "before": 163,
+          "now": 160,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 124,
+          "delta": 11
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 100,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-2-5",
+          "metric": "raw",
+          "before": 154,
+          "now": 168,
+          "delta": 14
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-2-5",
+          "metric": "gzip9",
+          "before": 122,
+          "now": 131,
+          "delta": 9
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-2-5",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 107,
+          "delta": 12
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "raw",
+          "before": 163,
+          "now": 160,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 124,
+          "delta": 11
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 101,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-3-3",
+          "metric": "raw",
+          "before": 154,
+          "now": 168,
+          "delta": 14
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-3-3",
+          "metric": "gzip9",
+          "before": 119,
+          "now": 129,
+          "delta": 10
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-3-3",
+          "metric": "brotli11",
+          "before": 91,
+          "now": 105,
+          "delta": 14
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "raw",
+          "before": 163,
+          "now": 160,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 124,
+          "delta": 11
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 101,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-4-1",
+          "metric": "raw",
+          "before": 154,
+          "now": 168,
+          "delta": 14
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-4-1",
+          "metric": "gzip9",
+          "before": 122,
+          "now": 131,
+          "delta": 9
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-present-4-1",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 107,
+          "delta": 12
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "raw",
+          "before": 163,
+          "now": 160,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 124,
+          "delta": 11
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 101,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/string/edge-string-utf16-accent",
+          "metric": "raw",
+          "before": 158,
+          "now": 160,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/string/edge-string-utf16-miss",
+          "metric": "raw",
+          "before": 160,
+          "now": 164,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/string/edge-string-utf16-miss",
+          "metric": "brotli11",
+          "before": 84,
+          "now": 88,
+          "delta": 4
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-1-2-4",
+          "metric": "raw",
+          "before": 92,
+          "now": 101,
+          "delta": 9
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-1-2-4",
+          "metric": "gzip9",
+          "before": 94,
+          "now": 104,
+          "delta": 10
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-1-2-4",
+          "metric": "brotli11",
+          "before": 74,
+          "now": 84,
+          "delta": 10
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-2-3-5",
+          "metric": "raw",
+          "before": 88,
+          "now": 98,
+          "delta": 10
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-2-3-5",
+          "metric": "gzip9",
+          "before": 97,
+          "now": 103,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-2-3-5",
+          "metric": "brotli11",
+          "before": 74,
+          "now": 86,
+          "delta": 12
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-1-5-7",
+          "metric": "raw",
+          "before": 92,
+          "now": 101,
+          "delta": 9
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-1-5-7",
+          "metric": "gzip9",
+          "before": 93,
+          "now": 102,
+          "delta": 9
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-1-5-7",
+          "metric": "brotli11",
+          "before": 71,
+          "now": 86,
+          "delta": 15
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-2-6-8",
+          "metric": "raw",
+          "before": 88,
+          "now": 98,
+          "delta": 10
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-2-6-8",
+          "metric": "gzip9",
+          "before": 97,
+          "now": 103,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-2-6-8",
+          "metric": "brotli11",
+          "before": 74,
+          "now": 86,
+          "delta": 12
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-1-8-10",
+          "metric": "raw",
+          "before": 93,
+          "now": 102,
+          "delta": 9
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-1-8-10",
+          "metric": "gzip9",
+          "before": 95,
+          "now": 105,
+          "delta": 10
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-1-8-10",
+          "metric": "brotli11",
+          "before": 81,
+          "now": 84,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-2-9-11",
+          "metric": "raw",
+          "before": 89,
+          "now": 99,
+          "delta": 10
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-2-9-11",
+          "metric": "gzip9",
+          "before": 98,
+          "now": 104,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/effect/edge-exception-finally-2-9-11",
+          "metric": "brotli11",
+          "before": 75,
+          "now": 85,
+          "delta": 10
+        },
+        {
+          "item": "cases/catalog/effect/edge-async-task-1n2",
+          "metric": "brotli11",
+          "before": 68,
+          "now": 69,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/host/host-callable-fn",
+          "metric": "brotli11",
+          "before": 86,
+          "now": 88,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/host/host-callable-as-value",
+          "metric": "brotli11",
+          "before": 86,
+          "now": 88,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/host/js-and-member-missing",
+          "metric": "raw",
+          "before": 87,
+          "now": 89,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/host/js-and-member-missing",
+          "metric": "brotli11",
+          "before": 69,
+          "now": 70,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "raw",
+          "before": 213,
+          "now": 219,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "gzip9",
+          "before": 118,
+          "now": 121,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 98,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "raw",
+          "before": 181,
+          "now": 187,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "gzip9",
+          "before": 92,
+          "now": 95,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "brotli11",
+          "before": 78,
+          "now": 81,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/integer/semantic-integer-update-values",
+          "metric": "raw",
+          "before": 139,
+          "now": 75,
+          "delta": -64
+        },
+        {
+          "item": "cases/catalog/integer/semantic-integer-update-values",
+          "metric": "gzip9",
+          "before": 93,
+          "now": 43,
+          "delta": -50
+        },
+        {
+          "item": "cases/catalog/integer/semantic-integer-update-values",
+          "metric": "brotli11",
+          "before": 77,
+          "now": 37,
+          "delta": -40
+        },
+        {
+          "item": "cases/catalog/nullish/semantic-nullish-lazy-assignment",
+          "metric": "gzip9",
+          "before": 102,
+          "now": 103,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "raw",
+          "before": 68,
+          "now": 37,
+          "delta": -31
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "gzip9",
+          "before": 73,
+          "now": 48,
+          "delta": -25
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "brotli11",
+          "before": 56,
+          "now": 41,
+          "delta": -15
+        },
+        {
+          "item": "cases/catalog/function/semantic-function-array-dispatch",
+          "metric": "gzip9",
+          "before": 111,
+          "now": 109,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/function/semantic-function-array-dispatch",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 86,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/string/semantic-template-interpolation",
+          "metric": "raw",
+          "before": 41,
+          "now": 36,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/string/semantic-template-interpolation",
+          "metric": "gzip9",
+          "before": 58,
+          "now": 54,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/string/semantic-template-interpolation",
+          "metric": "brotli11",
+          "before": 45,
+          "now": 40,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/generic/frontier-generic-equality",
+          "metric": "brotli11",
+          "before": 77,
+          "now": 79,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/control/frontier-inline-for",
+          "metric": "gzip9",
+          "before": 124,
+          "now": 127,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/control/frontier-inline-for",
+          "metric": "brotli11",
+          "before": 102,
+          "now": 105,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/collection/frontier-array-spread-order",
+          "metric": "raw",
+          "before": 73,
+          "now": 61,
+          "delta": -12
+        },
+        {
+          "item": "cases/catalog/collection/frontier-array-spread-order",
+          "metric": "gzip9",
+          "before": 80,
+          "now": 70,
+          "delta": -10
+        },
+        {
+          "item": "cases/catalog/collection/frontier-array-spread-order",
+          "metric": "brotli11",
+          "before": 73,
+          "now": 65,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/aggregate/frontier-inheritance-super",
+          "metric": "raw",
+          "before": 68,
+          "now": 15,
+          "delta": -53
+        },
+        {
+          "item": "cases/catalog/aggregate/frontier-inheritance-super",
+          "metric": "gzip9",
+          "before": 82,
+          "now": 35,
+          "delta": -47
+        },
+        {
+          "item": "cases/catalog/aggregate/frontier-inheritance-super",
+          "metric": "brotli11",
+          "before": 65,
+          "now": 19,
+          "delta": -46
+        },
+        {
+          "item": "apps/higher-order-pipeline",
+          "metric": "gzip9",
+          "before": 128,
+          "now": 129,
+          "delta": 1
+        },
+        {
+          "item": "apps/higher-order-pipeline",
+          "metric": "brotli11",
+          "before": 110,
+          "now": 114,
+          "delta": 4
+        },
+        {
+          "item": "apps/text-report",
+          "metric": "raw",
+          "before": 210,
+          "now": 218,
+          "delta": 8
+        },
+        {
+          "item": "apps/text-report",
+          "metric": "gzip9",
+          "before": 153,
+          "now": 157,
+          "delta": 4
+        },
+        {
+          "item": "apps/text-report",
+          "metric": "brotli11",
+          "before": 113,
+          "now": 121,
+          "delta": 8
+        },
+        {
+          "item": "algorithms/aggregate-ledger",
+          "metric": "gzip9",
+          "before": 187,
+          "now": 188,
+          "delta": 1
+        },
+        {
+          "item": "algorithms/aggregate-ledger",
+          "metric": "brotli11",
+          "before": 171,
+          "now": 170,
+          "delta": -1
+        },
+        {
+          "item": "algorithms/collection-geometry",
+          "metric": "raw",
+          "before": 325,
+          "now": 333,
+          "delta": 8
+        },
+        {
+          "item": "algorithms/collection-geometry",
+          "metric": "gzip9",
+          "before": 234,
+          "now": 238,
+          "delta": 4
+        },
+        {
+          "item": "algorithms/collection-geometry",
+          "metric": "brotli11",
+          "before": 212,
+          "now": 211,
+          "delta": -1
+        },
+        {
+          "item": "algorithms/helper-sharing",
+          "metric": "raw",
+          "before": 210,
+          "now": 226,
+          "delta": 16
+        },
+        {
+          "item": "algorithms/helper-sharing",
+          "metric": "gzip9",
+          "before": 173,
+          "now": 182,
+          "delta": 9
+        },
+        {
+          "item": "algorithms/helper-sharing",
+          "metric": "brotli11",
+          "before": 155,
+          "now": 161,
+          "delta": 6
+        },
+        {
+          "item": "algorithms/large-event-analytics",
+          "metric": "raw",
+          "before": 880,
+          "now": 884,
+          "delta": 4
+        },
+        {
+          "item": "algorithms/large-event-analytics",
+          "metric": "gzip9",
+          "before": 499,
+          "now": 503,
+          "delta": 4
+        },
+        {
+          "item": "algorithms/large-event-analytics",
+          "metric": "brotli11",
+          "before": 460,
+          "now": 463,
+          "delta": 3
+        },
+        {
+          "item": "algorithms/policy-specialization",
+          "metric": "raw",
+          "before": 316,
+          "now": 326,
+          "delta": 10
+        },
+        {
+          "item": "algorithms/policy-specialization",
+          "metric": "gzip9",
+          "before": 217,
+          "now": 223,
+          "delta": 6
+        },
+        {
+          "item": "algorithms/policy-specialization",
+          "metric": "brotli11",
+          "before": 200,
+          "now": 203,
+          "delta": 3
+        },
+        {
+          "item": "algorithms/shape-invoice-pipeline",
+          "metric": "gzip9",
+          "before": 310,
+          "now": 308,
+          "delta": -2
+        },
+        {
+          "item": "algorithms/state-machine-parser",
+          "metric": "raw",
+          "before": 361,
+          "now": 369,
+          "delta": 8
+        },
+        {
+          "item": "algorithms/state-machine-parser",
+          "metric": "gzip9",
+          "before": 274,
+          "now": 279,
+          "delta": 5
+        },
+        {
+          "item": "algorithms/state-machine-parser",
+          "metric": "brotli11",
+          "before": 244,
+          "now": 256,
+          "delta": 12
+        },
+        {
+          "item": "algorithms/stateful-packet-decoder",
+          "metric": "raw",
+          "before": 551,
+          "now": 559,
+          "delta": 8
+        },
+        {
+          "item": "algorithms/stateful-packet-decoder",
+          "metric": "gzip9",
+          "before": 365,
+          "now": 372,
+          "delta": 7
+        },
+        {
+          "item": "algorithms/stateful-packet-decoder",
+          "metric": "brotli11",
+          "before": 339,
+          "now": 343,
+          "delta": 4
+        }
+      ]
+    },
+    "ratchet-transport": {
+      "compiler_sha256": "27c8ac7f89370238da78cfd0c9bf2779b4bed847f277e432c0840ce6cd046ee6",
+      "failures": 0,
+      "corpus_deltas": {
+        "cases": {
+          "raw": -583,
+          "gzip9": -272,
+          "brotli11": -291
+        },
+        "apps": {
+          "raw": 0,
+          "gzip9": 0,
+          "brotli11": 0
+        },
+        "algorithms": {
+          "raw": 18,
+          "gzip9": 9,
+          "brotli11": 12
+        }
+      },
+      "objective_deltas": {
+        "raw": -565,
+        "gzip9": -263,
+        "brotli11": -279
+      },
+      "individual_deltas": [
+        {
+          "item": "cases/canonical/control/if-chain",
+          "metric": "raw",
+          "before": 27,
+          "now": 15,
+          "delta": -12
+        },
+        {
+          "item": "cases/canonical/control/if-chain",
+          "metric": "gzip9",
+          "before": 47,
+          "now": 35,
+          "delta": -12
+        },
+        {
+          "item": "cases/canonical/control/if-chain",
+          "metric": "brotli11",
+          "before": 31,
+          "now": 19,
+          "delta": -12
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-captured-rebind",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 87,
+          "delta": -2
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-rebind",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 87,
+          "delta": -2
+        },
+        {
+          "item": "cases/canonical/scalars/i32-churn",
+          "metric": "raw",
+          "before": 91,
+          "now": 86,
+          "delta": -5
+        },
+        {
+          "item": "cases/canonical/scalars/i32-churn",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 71,
+          "delta": 2
+        },
+        {
+          "item": "cases/canonical/scalars/i32-churn",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 66,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/function/factorial-8",
+          "metric": "raw",
+          "before": 45,
+          "now": 47,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-8",
+          "metric": "gzip9",
+          "before": 65,
+          "now": 67,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-8",
+          "metric": "brotli11",
+          "before": 49,
+          "now": 50,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/function/factorial-9",
+          "metric": "raw",
+          "before": 45,
+          "now": 47,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-9",
+          "metric": "gzip9",
+          "before": 65,
+          "now": 67,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-9",
+          "metric": "brotli11",
+          "before": 49,
+          "now": 50,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/function/factorial-10",
+          "metric": "raw",
+          "before": 46,
+          "now": 48,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-10",
+          "metric": "gzip9",
+          "before": 66,
+          "now": 68,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/function/factorial-10",
+          "metric": "brotli11",
+          "before": 50,
+          "now": 52,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-3-1-4-1-5-9",
+          "metric": "gzip9",
+          "before": 120,
+          "now": 121,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-2-7-1-8-2-8",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 103,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-9-8-7-6-5-4-3-2",
+          "metric": "gzip9",
+          "before": 123,
+          "now": 124,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-10-20-30-40",
+          "metric": "gzip9",
+          "before": 119,
+          "now": 118,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-5-5-5-5-5-5",
+          "metric": "gzip9",
+          "before": 114,
+          "now": 116,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-5-5-5-5-5-5",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 93,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/host/host-hasown-a-b-c",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 96,
+          "delta": 7
+        },
+        {
+          "item": "cases/catalog/collection/minmax-scan-0-1-0-2-0-3-0-4",
+          "metric": "brotli11",
+          "before": 105,
+          "now": 104,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/minmax-scan-10-20-30-40",
+          "metric": "brotli11",
+          "before": 103,
+          "now": 101,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7",
+          "metric": "raw",
+          "before": 89,
+          "now": 84,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 70,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7",
+          "metric": "brotli11",
+          "before": 68,
+          "now": 66,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3",
+          "metric": "raw",
+          "before": 90,
+          "now": 85,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 71,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3",
+          "metric": "brotli11",
+          "before": 67,
+          "now": 64,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-1073741824n7n13n4n11",
+          "metric": "raw",
+          "before": 88,
+          "now": 83,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-1073741824n7n13n4n11",
+          "metric": "gzip9",
+          "before": 66,
+          "now": 68,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5",
+          "metric": "raw",
+          "before": 92,
+          "now": 88,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5",
+          "metric": "gzip9",
+          "before": 70,
+          "now": 73,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5",
+          "metric": "brotli11",
+          "before": 69,
+          "now": 63,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-65535n65537n23n3n97",
+          "metric": "raw",
+          "before": 81,
+          "now": 76,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-65535n65537n23n3n97",
+          "metric": "brotli11",
+          "before": 64,
+          "now": 59,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17",
+          "metric": "raw",
+          "before": 85,
+          "now": 82,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17",
+          "metric": "gzip9",
+          "before": 66,
+          "now": 68,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17",
+          "metric": "brotli11",
+          "before": 68,
+          "now": 62,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257",
+          "metric": "raw",
+          "before": 91,
+          "now": 86,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 71,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 66,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093",
+          "metric": "raw",
+          "before": 92,
+          "now": 87,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 72,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093",
+          "metric": "brotli11",
+          "before": 69,
+          "now": 63,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-1p125nn0p25n3p5n5",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 66,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "raw",
+          "before": 86,
+          "now": 78,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "gzip9",
+          "before": 93,
+          "now": 85,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "brotli11",
+          "before": 66,
+          "now": 67,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-5-7-9",
+          "metric": "raw",
+          "before": 86,
+          "now": 78,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-5-7-9",
+          "metric": "gzip9",
+          "before": 94,
+          "now": 85,
+          "delta": -9
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-6-8-10",
+          "metric": "raw",
+          "before": 87,
+          "now": 78,
+          "delta": -9
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-6-8-10",
+          "metric": "gzip9",
+          "before": 95,
+          "now": 85,
+          "delta": -10
+        },
+        {
+          "item": "cases/catalog/collection/edge-array-concat",
+          "metric": "gzip9",
+          "before": 100,
+          "now": 99,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 59,
+          "delta": -39
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 59,
+          "delta": -39
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 59,
+          "delta": -39
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 58,
+          "delta": -40
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 58,
+          "delta": -40
+        },
+        {
+          "item": "cases/catalog/effect/edge-async-task-1n2",
+          "metric": "brotli11",
+          "before": 68,
+          "now": 69,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/host/host-callable-fn",
+          "metric": "brotli11",
+          "before": 86,
+          "now": 88,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/host/host-callable-as-value",
+          "metric": "brotli11",
+          "before": 86,
+          "now": 88,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/host/js-and-member-missing",
+          "metric": "brotli11",
+          "before": 69,
+          "now": 70,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "raw",
+          "before": 213,
+          "now": 219,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "gzip9",
+          "before": 118,
+          "now": 121,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 98,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "raw",
+          "before": 181,
+          "now": 187,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "gzip9",
+          "before": 92,
+          "now": 95,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "brotli11",
+          "before": 78,
+          "now": 81,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/integer/semantic-integer-update-values",
+          "metric": "raw",
+          "before": 139,
+          "now": 75,
+          "delta": -64
+        },
+        {
+          "item": "cases/catalog/integer/semantic-integer-update-values",
+          "metric": "gzip9",
+          "before": 93,
+          "now": 43,
+          "delta": -50
+        },
+        {
+          "item": "cases/catalog/integer/semantic-integer-update-values",
+          "metric": "brotli11",
+          "before": 77,
+          "now": 37,
+          "delta": -40
+        },
+        {
+          "item": "cases/catalog/nullish/semantic-nullish-lazy-assignment",
+          "metric": "gzip9",
+          "before": 102,
+          "now": 103,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/collection/semantic-array-nan-membership",
+          "metric": "brotli11",
+          "before": 64,
+          "now": 66,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "raw",
+          "before": 68,
+          "now": 37,
+          "delta": -31
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "gzip9",
+          "before": 73,
+          "now": 48,
+          "delta": -25
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "brotli11",
+          "before": 56,
+          "now": 41,
+          "delta": -15
+        },
+        {
+          "item": "cases/catalog/collection/frontier-array-spread-order",
+          "metric": "raw",
+          "before": 73,
+          "now": 61,
+          "delta": -12
+        },
+        {
+          "item": "cases/catalog/collection/frontier-array-spread-order",
+          "metric": "gzip9",
+          "before": 80,
+          "now": 70,
+          "delta": -10
+        },
+        {
+          "item": "cases/catalog/collection/frontier-array-spread-order",
+          "metric": "brotli11",
+          "before": 73,
+          "now": 65,
+          "delta": -8
+        },
+        {
+          "item": "algorithms/aggregate-ledger",
+          "metric": "gzip9",
+          "before": 187,
+          "now": 188,
+          "delta": 1
+        },
+        {
+          "item": "algorithms/aggregate-ledger",
+          "metric": "brotli11",
+          "before": 171,
+          "now": 170,
+          "delta": -1
+        },
+        {
+          "item": "algorithms/helper-sharing",
+          "metric": "raw",
+          "before": 210,
+          "now": 218,
+          "delta": 8
+        },
+        {
+          "item": "algorithms/helper-sharing",
+          "metric": "gzip9",
+          "before": 173,
+          "now": 177,
+          "delta": 4
+        },
+        {
+          "item": "algorithms/helper-sharing",
+          "metric": "brotli11",
+          "before": 155,
+          "now": 158,
+          "delta": 3
+        },
+        {
+          "item": "algorithms/policy-specialization",
+          "metric": "raw",
+          "before": 316,
+          "now": 326,
+          "delta": 10
+        },
+        {
+          "item": "algorithms/policy-specialization",
+          "metric": "gzip9",
+          "before": 217,
+          "now": 223,
+          "delta": 6
+        },
+        {
+          "item": "algorithms/policy-specialization",
+          "metric": "brotli11",
+          "before": 200,
+          "now": 203,
+          "delta": 3
+        },
+        {
+          "item": "algorithms/shape-invoice-pipeline",
+          "metric": "gzip9",
+          "before": 310,
+          "now": 308,
+          "delta": -2
+        },
+        {
+          "item": "algorithms/state-machine-parser",
+          "metric": "brotli11",
+          "before": 244,
+          "now": 251,
+          "delta": 7
+        }
+      ]
+    },
+    "ratchet-path": {
+      "compiler_sha256": "628028fe56197da6daa2cd09088fc21b34db11e7ff848020ff822b958ef87268",
+      "failures": 0,
+      "corpus_deltas": {
+        "cases": {
+          "raw": -593,
+          "gzip9": -340,
+          "brotli11": -280
+        },
+        "apps": {
+          "raw": 0,
+          "gzip9": 0,
+          "brotli11": 2
+        },
+        "algorithms": {
+          "raw": 0,
+          "gzip9": 0,
+          "brotli11": 0
+        }
+      },
+      "objective_deltas": {
+        "raw": -593,
+        "gzip9": -340,
+        "brotli11": -278
+      },
+      "individual_deltas": [
+        {
+          "item": "cases/canonical/identity/snapshot-captured-rebind",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 87,
+          "delta": -2
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-rebind",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 87,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-2-7-1-8-2-8",
+          "metric": "gzip9",
+          "before": 121,
+          "now": 120,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-5-5-5-5-5-5",
+          "metric": "gzip9",
+          "before": 114,
+          "now": 116,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-5-5-5-5-5-5",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 93,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-1-1-2-3-5-8-13-21",
+          "metric": "gzip9",
+          "before": 124,
+          "now": 123,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/minmax-scan-0-1-0-2-0-3-0-4",
+          "metric": "brotli11",
+          "before": 105,
+          "now": 104,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/minmax-scan-10-20-30-40",
+          "metric": "brotli11",
+          "before": 103,
+          "now": 101,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-1p125nn0p25n3p5n5",
+          "metric": "raw",
+          "before": 94,
+          "now": 58,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-1p125nn0p25n3p5n5",
+          "metric": "gzip9",
+          "before": 85,
+          "now": 53,
+          "delta": -32
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-1p125nn0p25n3p5n5",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 40,
+          "delta": -32
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-n8p25n2p5nn0p25n5",
+          "metric": "raw",
+          "before": 94,
+          "now": 60,
+          "delta": -34
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-n8p25n2p5nn0p25n5",
+          "metric": "gzip9",
+          "before": 86,
+          "now": 58,
+          "delta": -28
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-n8p25n2p5nn0p25n5",
+          "metric": "brotli11",
+          "before": 73,
+          "now": 52,
+          "delta": -21
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-100p5nn10p25n0p125n4",
+          "metric": "raw",
+          "before": 97,
+          "now": 63,
+          "delta": -34
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-100p5nn10p25n0p125n4",
+          "metric": "gzip9",
+          "before": 89,
+          "now": 61,
+          "delta": -28
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-100p5nn10p25n0p125n4",
+          "metric": "brotli11",
+          "before": 70,
+          "now": 57,
+          "delta": -13
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-7p5n1p5n0p25n7",
+          "metric": "raw",
+          "before": 91,
+          "now": 61,
+          "delta": -30
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-7p5n1p5n0p25n7",
+          "metric": "gzip9",
+          "before": 82,
+          "now": 56,
+          "delta": -26
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-7p5n1p5n0p25n7",
+          "metric": "brotli11",
+          "before": 63,
+          "now": 51,
+          "delta": -12
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "raw",
+          "before": 86,
+          "now": 78,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "gzip9",
+          "before": 93,
+          "now": 85,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "brotli11",
+          "before": 66,
+          "now": 67,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-5-7-9",
+          "metric": "raw",
+          "before": 86,
+          "now": 78,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-5-7-9",
+          "metric": "gzip9",
+          "before": 94,
+          "now": 85,
+          "delta": -9
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-6-8-10",
+          "metric": "raw",
+          "before": 87,
+          "now": 78,
+          "delta": -9
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-6-8-10",
+          "metric": "gzip9",
+          "before": 95,
+          "now": 85,
+          "delta": -10
+        },
+        {
+          "item": "cases/catalog/collection/edge-array-concat",
+          "metric": "gzip9",
+          "before": 100,
+          "now": 99,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 59,
+          "delta": -39
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 59,
+          "delta": -39
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 59,
+          "delta": -39
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 58,
+          "delta": -40
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 58,
+          "delta": -40
+        },
+        {
+          "item": "cases/catalog/effect/edge-async-task-1n2",
+          "metric": "brotli11",
+          "before": 68,
+          "now": 69,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "raw",
+          "before": 213,
+          "now": 219,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "gzip9",
+          "before": 118,
+          "now": 121,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 98,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "raw",
+          "before": 181,
+          "now": 187,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "gzip9",
+          "before": 92,
+          "now": 95,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "brotli11",
+          "before": 78,
+          "now": 81,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/nullish/semantic-nullish-lazy-assignment",
+          "metric": "gzip9",
+          "before": 102,
+          "now": 103,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/collection/semantic-array-nan-membership",
+          "metric": "brotli11",
+          "before": 64,
+          "now": 66,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "raw",
+          "before": 68,
+          "now": 37,
+          "delta": -31
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "gzip9",
+          "before": 73,
+          "now": 48,
+          "delta": -25
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "brotli11",
+          "before": 56,
+          "now": 41,
+          "delta": -15
+        },
+        {
+          "item": "cases/catalog/collection/frontier-array-spread-order",
+          "metric": "brotli11",
+          "before": 73,
+          "now": 77,
+          "delta": 4
+        },
+        {
+          "item": "apps/higher-order-pipeline",
+          "metric": "brotli11",
+          "before": 110,
+          "now": 112,
+          "delta": 2
+        }
+      ]
+    },
+    "ratchet-call-forwarding": {
+      "compiler_sha256": "1bdf3728180ca7ff4fbe506246c56fa6206c1e02f864fe3b95ad6e86bca13877",
+      "failures": 0,
+      "corpus_deltas": {
+        "cases": {
+          "raw": -501,
+          "gzip9": -206,
+          "brotli11": -231
+        },
+        "apps": {
+          "raw": 0,
+          "gzip9": 0,
+          "brotli11": 0
+        },
+        "algorithms": {
+          "raw": 0,
+          "gzip9": -1,
+          "brotli11": -1
+        }
+      },
+      "objective_deltas": {
+        "raw": -501,
+        "gzip9": -207,
+        "brotli11": -232
+      },
+      "individual_deltas": [
+        {
+          "item": "cases/canonical/identity/snapshot-captured-rebind",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 87,
+          "delta": -2
+        },
+        {
+          "item": "cases/canonical/identity/snapshot-rebind",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 87,
+          "delta": -2
+        },
+        {
+          "item": "cases/canonical/scalars/i32-churn",
+          "metric": "raw",
+          "before": 91,
+          "now": 86,
+          "delta": -5
+        },
+        {
+          "item": "cases/canonical/scalars/i32-churn",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 71,
+          "delta": 2
+        },
+        {
+          "item": "cases/canonical/scalars/i32-churn",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 66,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-3-1-4-1-5-9",
+          "metric": "gzip9",
+          "before": 120,
+          "now": 121,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-2-7-1-8-2-8",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 103,
+          "delta": 5
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-9-8-7-6-5-4-3-2",
+          "metric": "gzip9",
+          "before": 123,
+          "now": 124,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-10-20-30-40",
+          "metric": "gzip9",
+          "before": 119,
+          "now": 118,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-5-5-5-5-5-5",
+          "metric": "gzip9",
+          "before": 114,
+          "now": 116,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/collection/pipeline-5-5-5-5-5-5",
+          "metric": "brotli11",
+          "before": 95,
+          "now": 93,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/host/host-hasown-a-b-c",
+          "metric": "brotli11",
+          "before": 89,
+          "now": 96,
+          "delta": 7
+        },
+        {
+          "item": "cases/catalog/collection/minmax-scan-0-1-0-2-0-3-0-4",
+          "metric": "brotli11",
+          "before": 105,
+          "now": 104,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/collection/minmax-scan-10-20-30-40",
+          "metric": "brotli11",
+          "before": 103,
+          "now": 101,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7",
+          "metric": "raw",
+          "before": 89,
+          "now": 84,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 70,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-2147483647n3n1n2n7",
+          "metric": "brotli11",
+          "before": 68,
+          "now": 66,
+          "delta": -2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3",
+          "metric": "raw",
+          "before": 90,
+          "now": 85,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 71,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n2147483647n5nn9n3nn3",
+          "metric": "brotli11",
+          "before": 67,
+          "now": 64,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-1073741824n7n13n4n11",
+          "metric": "raw",
+          "before": 88,
+          "now": 83,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-1073741824n7n13n4n11",
+          "metric": "gzip9",
+          "before": 66,
+          "now": 68,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5",
+          "metric": "raw",
+          "before": 92,
+          "now": 88,
+          "delta": -4
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5",
+          "metric": "gzip9",
+          "before": 70,
+          "now": 73,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n1073741824nn3n17n2n5",
+          "metric": "brotli11",
+          "before": 69,
+          "now": 63,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-65535n65537n23n3n97",
+          "metric": "raw",
+          "before": 81,
+          "now": 76,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-65535n65537n23n3n97",
+          "metric": "brotli11",
+          "before": 64,
+          "now": 59,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17",
+          "metric": "raw",
+          "before": 85,
+          "now": 82,
+          "delta": -3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17",
+          "metric": "gzip9",
+          "before": 66,
+          "now": 68,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n65536n32769nn31n4nn17",
+          "metric": "brotli11",
+          "before": 68,
+          "now": 62,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257",
+          "metric": "raw",
+          "before": 91,
+          "now": 86,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 71,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-123456789n1664525n1013904223n3n257",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 66,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093",
+          "metric": "raw",
+          "before": 92,
+          "now": 87,
+          "delta": -5
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093",
+          "metric": "gzip9",
+          "before": 69,
+          "now": 72,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/integer/edge-i32-churn-n987654321n1103515245n12345n2n4093",
+          "metric": "brotli11",
+          "before": 69,
+          "now": 63,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/number/edge-number-flow-1p125nn0p25n3p5n5",
+          "metric": "brotli11",
+          "before": 72,
+          "now": 66,
+          "delta": -6
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "raw",
+          "before": 86,
+          "now": 78,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "gzip9",
+          "before": 93,
+          "now": 85,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-0-2-4",
+          "metric": "brotli11",
+          "before": 66,
+          "now": 67,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-5-7-9",
+          "metric": "raw",
+          "before": 86,
+          "now": 78,
+          "delta": -8
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-5-7-9",
+          "metric": "gzip9",
+          "before": 94,
+          "now": 85,
+          "delta": -9
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-6-8-10",
+          "metric": "raw",
+          "before": 87,
+          "now": 78,
+          "delta": -9
+        },
+        {
+          "item": "cases/catalog/control/edge-short-circuit-6-8-10",
+          "metric": "gzip9",
+          "before": 95,
+          "now": 85,
+          "delta": -10
+        },
+        {
+          "item": "cases/catalog/collection/edge-array-concat",
+          "metric": "gzip9",
+          "before": 100,
+          "now": 99,
+          "delta": -1
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-0-8",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 59,
+          "delta": -39
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-1-6",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 59,
+          "delta": -39
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-2-4",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 59,
+          "delta": -39
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-3-2",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 58,
+          "delta": -40
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "raw",
+          "before": 163,
+          "now": 80,
+          "delta": -83
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "gzip9",
+          "before": 113,
+          "now": 77,
+          "delta": -36
+        },
+        {
+          "item": "cases/catalog/nullish/edge-nullish-optional-missing-4-0",
+          "metric": "brotli11",
+          "before": 98,
+          "now": 58,
+          "delta": -40
+        },
+        {
+          "item": "cases/catalog/effect/edge-async-task-1n2",
+          "metric": "brotli11",
+          "before": 68,
+          "now": 69,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/host/host-callable-fn",
+          "metric": "brotli11",
+          "before": 86,
+          "now": 88,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/host/host-callable-as-value",
+          "metric": "brotli11",
+          "before": 86,
+          "now": 88,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/host/js-and-member-missing",
+          "metric": "brotli11",
+          "before": 69,
+          "now": 70,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "raw",
+          "before": 213,
+          "now": 219,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "gzip9",
+          "before": 118,
+          "now": 121,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/boolean/bool-typeof-predicate",
+          "metric": "brotli11",
+          "before": 90,
+          "now": 98,
+          "delta": 8
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "raw",
+          "before": 181,
+          "now": 187,
+          "delta": 6
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "gzip9",
+          "before": 92,
+          "now": 95,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/host/js-array-or-null",
+          "metric": "brotli11",
+          "before": 78,
+          "now": 81,
+          "delta": 3
+        },
+        {
+          "item": "cases/catalog/nullish/semantic-nullish-lazy-assignment",
+          "metric": "gzip9",
+          "before": 102,
+          "now": 103,
+          "delta": 1
+        },
+        {
+          "item": "cases/catalog/collection/semantic-array-nan-membership",
+          "metric": "brotli11",
+          "before": 64,
+          "now": 66,
+          "delta": 2
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "raw",
+          "before": 68,
+          "now": 37,
+          "delta": -31
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "gzip9",
+          "before": 73,
+          "now": 48,
+          "delta": -25
+        },
+        {
+          "item": "cases/catalog/union/semantic-union-string-int-flow",
+          "metric": "brotli11",
+          "before": 56,
+          "now": 41,
+          "delta": -15
+        },
+        {
+          "item": "cases/catalog/collection/frontier-array-spread-order",
+          "metric": "brotli11",
+          "before": 73,
+          "now": 77,
+          "delta": 4
+        },
+        {
+          "item": "algorithms/aggregate-ledger",
+          "metric": "gzip9",
+          "before": 187,
+          "now": 188,
+          "delta": 1
+        },
+        {
+          "item": "algorithms/aggregate-ledger",
+          "metric": "brotli11",
+          "before": 171,
+          "now": 170,
+          "delta": -1
+        },
+        {
+          "item": "algorithms/shape-invoice-pipeline",
+          "metric": "gzip9",
+          "before": 310,
+          "now": 308,
+          "delta": -2
+        }
+      ]
+    }
+  }
+}

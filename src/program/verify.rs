@@ -2,11 +2,11 @@ use super::*;
 use crate::output_budget::{AllocationBudget, AllocationClass::Scratch, AllocationError};
 #[path = "verify_scratch.rs"]
 mod scratch;
-use crate::check::binary_types::{BinaryTypeError, checked_binary_type_with};
+use crate::check::binary_types::{checked_binary_type_with, BinaryTypeError};
 use crate::check::type_admission::TypeQueryAdmission;
 use crate::check::type_relation::{
-    RelationAdmission, RelationEvent, is_type_assignable_with as structurally_assignable,
-    type_equal_with,
+    is_type_assignable_with as structurally_assignable, type_equal_with, RelationAdmission,
+    RelationEvent,
 };
 use crate::check::type_substitution::substitute_signature_with;
 
@@ -266,7 +266,7 @@ fn verify_selected(
 ) -> Result<VerificationReceipt, VerificationError> {
     let mut scope = budget.scope();
     let named_functions = verify_tables(program, &mut scope)?;
-    match selected {
+    let receipt = match selected {
         Some(units) => verify_units(
             program,
             units.iter().copied(),
@@ -279,7 +279,47 @@ fn verify_selected(
             Some(&named_functions),
             &mut scope,
         ),
+    }?;
+    verify_default_transport(program, &mut scope)?;
+    Ok(receipt)
+}
+
+fn verify_default_transport(
+    program: &Program<'_>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), VerificationError> {
+    if program.units.iter().any(|unit| {
+        unit.data().native_default_length.is_some()
+            || unit.data().calls.iter().any(|call| call.omit_trailing != 0)
+    }) {
+        work(
+            budget,
+            program
+                .units
+                .iter()
+                .map(|unit| {
+                    unit.data().operations.len()
+                        + unit.data().calls.len()
+                        + unit.data().parameters.len()
+                })
+                .sum(),
+        )?;
+        let graph = super::call_graph::CallGraph::build(program, super::call_graph::Seal::Module);
+        let proof = super::defaults::plan(program, &graph);
+        if proof.calls.iter().any(|&(unit, call, _)| {
+            program.unit(unit).unwrap().calls[call.index()].omit_trailing != 0
+        }) || proof
+            .lengths
+            .iter()
+            .any(|&(unit, _)| program.unit(unit).unwrap().native_default_length.is_some())
+        {
+            return Err(
+                "default transport disagrees with retained entry guards or activation observations"
+                    .into(),
+            );
+        }
     }
+    Ok(())
 }
 
 fn verify_tables(
@@ -497,12 +537,14 @@ pub(super) fn verify_fixed_replacements(
     edits: &super::publication::FixedUnitEdits<'_, '_>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<VerificationReceipt, VerificationError> {
-    verify_units(
+    let receipt = verify_units(
         edits.program(),
         edits.changes().iter().map(|change| change.unit),
         None,
         budget,
-    )
+    )?;
+    verify_default_transport(edits.program(), budget)?;
+    Ok(receipt)
 }
 
 fn verify_units(
@@ -543,6 +585,11 @@ fn verify_units(
             (UnitKind::Function | UnitKind::Closure, Some(name))
                 if name.index() < program.strings.len() => {}
             _ => return fail("invalid callable creation name"),
+        }
+        if unit.native_default_length.is_some_and(|length| {
+            unit.kind == UnitKind::ModuleInitialization || length as usize >= unit.parameters.len()
+        }) {
+            return fail("invalid private native-default length");
         }
         // Fixed edits cannot alter callable/header/parameter metadata. Its
         // previous full verification already established this equality. Calls,
@@ -1243,7 +1290,7 @@ fn verify_type_contracts(
     program: &Program<'_>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), VerificationError> {
-    use crate::check::type_payload::{Payload, PayloadError, measure_payload};
+    use crate::check::type_payload::{measure_payload, Payload, PayloadError};
     work(budget, program.types.len())?;
     for ty in program.types.iter() {
         measure_payload(Payload::Type(ty), budget, |node| match node {
@@ -2113,6 +2160,10 @@ fn verify_types(
                 CallArgument::Reference(_) | CallArgument::Spread(_) => None,
             };
             let supplied = site.contract.supplied as usize;
+            let omitted = site.omit_trailing as usize;
+            if omitted > arguments.len() {
+                return Err("call omits more target arguments than it owns".into());
+            }
             let convention = match site.target {
                 CallTarget::Intrinsic { operation, .. } => operation
                     .call_default_convention()
@@ -2124,6 +2175,12 @@ fn verify_types(
             };
             if site.contract.defaults != convention || supplied > arguments.len() {
                 return Err("call argument convention disagrees with its target".into());
+            }
+            if omitted != 0
+                && (convention != DefaultConvention::MaterializeAtCaller
+                    || !matches!(site.target, CallTarget::Value { .. }))
+            {
+                return Err("target argument omission requires an owned materialized call".into());
             }
             if convention == DefaultConvention::PreserveOmission && supplied != arguments.len() {
                 return Err("preserved omission has synthesized arguments".into());

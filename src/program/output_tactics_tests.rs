@@ -41,6 +41,68 @@ fn policy(settings: &str) -> ResolvedPolicy {
 fn enabled() -> ResolvedPolicy {
     policy("[policy.tactics]\ndead-code-elimination='on'\ntarget-compaction='on'\nidentifier-mangling='on'")
 }
+
+#[test]
+fn default_transport_metadata_obeys_the_current_formation_permission() {
+    let arena = bumpalo::Bump::new();
+    let source = "extern void keep(JsValue value);void report(int tag,int? value=null){keep(tag);keep(value);}for(int i=0;i<2;i+=1){report(i);report(i,7);}";
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let checked = crate::analyze(&syntax).unwrap();
+    for permission in ["on", "off"] {
+        let program = from_checked_source(&syntax, &checked).unwrap();
+        let (program, receipt) = super::rules::optimize(
+            program,
+            super::rules::RuleRequest {
+                fold: true,
+                dead_code: true,
+                inline: false,
+                pristine_builtins: false,
+                seal: super::call_graph::Seal::Module,
+            },
+        )
+        .unwrap();
+        assert!(receipt.default_arguments_omitted > 0 && receipt.native_defaults > 0);
+        let policy = policy(&format!("[policy.tactics]\nconstant-folding='{permission}'\ninlining='off'\ntarget-compaction='on'"));
+        let ledger = BudgetLedger::new(
+            ResourceLimits::default(),
+            BudgetPlan {
+                baseline_work: WORK,
+                optional_work: WORK,
+                baseline_retained_bytes: 0,
+                retained_bytes: MEMORY,
+            },
+        )
+        .unwrap();
+        let mut compiler = Compilation::new(ledger, CheckpointLimit { max_live: 2 }).unwrap();
+        let source = compiler
+            .adopt_checked(program, WorkDomain::Baseline)
+            .unwrap();
+        let candidate = compiler
+            .direct_javascript(source, &policy, WorkDomain::Baseline)
+            .unwrap();
+        let javascript = compiler
+            .with_javascript_output(candidate, &policy, |output| {
+                let artifact = output.render(&Plan::new(Style::Global))?;
+                output.take_artifact(artifact)
+            })
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            javascript.contains("===void 0"),
+            permission == "off",
+            "{javascript}"
+        );
+        assert_eq!(
+            execute(
+                &javascript,
+                "globalThis.keep=value=>events.push(value);",
+                ""
+            ),
+            serde_json::json!([0, null, 0, 7, 1, null, 1, 7])
+        );
+        assert_eq!(compiler.finish().retained_bytes(), 0);
+    }
+}
 fn with_candidate(
     source: &str,
     policy: &ResolvedPolicy,

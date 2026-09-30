@@ -1,0 +1,25 @@
+{
+  "workloads": [
+    {
+      "id": "semantic-raw",
+      "cwd": ".",
+      "entry": "semantic.lil",
+      "config": "raw.toml",
+      "arguments": []
+    },
+    {
+      "id": "semantic-gzip",
+      "cwd": ".",
+      "entry": "semantic.lil",
+      "config": "gzip.toml",
+      "arguments": []
+    },
+    {
+      "id": "semantic-brotli",
+      "cwd": ".",
+      "entry": "semantic.lil",
+      "config": "brotli.toml",
+      "arguments": []
+    }
+  ]
+}

@@ -52,7 +52,6 @@ declare_rules! {
     FoldLogicalReturns,
     FlattenConstantObjects,
     UnobserveCalledNames,
-    DropTypedDefaultChecks,
     InlineInitializers,
     FoldObjectStores,
     DropDoubleNegations,
@@ -70,8 +69,6 @@ declare_rules! {
     TruthyNullTests,
     ArrayReceiverCalls,
     EncodeTables,
-    DropDefaultArguments,
-    NativeDefaultLengths,
     PackStringArrays,
     PoolStrings,
 }
@@ -99,13 +96,10 @@ impl Rule {
             | Self::DropRedundantInitStores => context.rules.scalar_replacement,
             Self::FoldLiteralOperations
             | Self::ForwardRootConstants
-            | Self::ForwardRootStrings
             | Self::EliminateAliases
+            | Self::ForwardRootStrings
             | Self::ForwardSingleUses
-            | Self::SimplifyOperators
-            | Self::DropTypedDefaultChecks
-            | Self::DropDefaultArguments
-            | Self::NativeDefaultLengths => context.rules.constant_folding,
+            | Self::SimplifyOperators => context.rules.constant_folding,
             Self::DropUnreferencedFunctions | Self::DropUnreachable => context.prunes,
             Self::EncodeTables => context.rules.data_encoding,
             Self::PackStringArrays => context.rules.array_packing != ArrayPacking::Disabled,
@@ -144,16 +138,13 @@ impl Rule {
             | Self::InlineStatementFunctions
             | Self::InlineSingleCalls
             | Self::PlaceSingleCalls => "M7.5a (removing case), M9.1 (duplicating case)",
-            Self::EliminateAliases | Self::ForwardRootConstants => "M7.4",
+            Self::EliminateAliases | Self::ForwardRootConstants => "S4 after Q1 (representation-created storage)",
             // The family's choice goes to the choice system (M9.1).
             Self::ForwardRootStrings => "M7.4 and M9.1",
             Self::FlattenConstantObjects | Self::UnobserveCalledNames => "M7.6",
             Self::InlineInitializers | Self::DropRedundantInitStores | Self::FoldObjectStores => {
                 "M9.7 and M7.7"
             }
-            Self::DropTypedDefaultChecks
-            | Self::DropDefaultArguments
-            | Self::NativeDefaultLengths => "M7.3",
             Self::ScalarizeMemberObjects => "M7.9",
             Self::DropUnreferencedFunctions => "M5.1 (DCE as a program edit)",
             // JS target rules kept on the tree, classified once their
@@ -216,11 +207,10 @@ pub(crate) const HEAD: &[Rule] = &[
     Rule::SimplifyOperators,
     Rule::InlineExpressionFunctions,
     Rule::InlineStatementFunctions,
+    // Layouts and inlining create fresh transports after the shared IR.
+    // Q1/S4 replace these when every representation owns its storage facts.
     Rule::EliminateAliases,
     Rule::FoldLiteralOperations,
-    // Literal root constants of a few characters are their literal
-    // wherever they are initialized (by initialization order); strings are
-    // the tail's `string_constants` family.
     Rule::ForwardRootConstants,
     Rule::ForwardSingleUses,
     Rule::ElideUndefined,
@@ -232,9 +222,6 @@ pub(crate) const HEAD: &[Rule] = &[
     Rule::FoldLogicalReturns,
     Rule::FlattenConstantObjects,
     Rule::UnobserveCalledNames,
-    // Typed callers pass every typed argument: their callees' defaults for
-    // those never apply.
-    Rule::DropTypedDefaultChecks,
     // Field initializers become their stores, for the fold to take.
     Rule::InlineInitializers,
     Rule::FoldObjectStores,
@@ -290,8 +277,6 @@ pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
         Rule::ArrayReceiverCalls,
         // Constant data tables, as the artifact's choice map names (M9.8).
         Rule::EncodeTables,
-        Rule::DropDefaultArguments,
-        Rule::NativeDefaultLengths,
     ]);
     rules
 }
@@ -358,10 +343,16 @@ impl Module {
             rules,
             ROUND_CEILING,
             |module, rule| {
-                if head_unchanged && matches!(rule,
-                    Rule::EliminateAliases | Rule::ForwardSingleUses | Rule::FoldObjectStores
-                    | Rule::SimplifyOperators | Rule::MergeDeclarations
-                ) {
+                if head_unchanged
+                    && matches!(
+                        rule,
+                        Rule::EliminateAliases
+                            | Rule::ForwardSingleUses
+                            | Rule::FoldObjectStores
+                            | Rule::SimplifyOperators
+                            | Rule::MergeDeclarations
+                    )
+                {
                     return Ok(false);
                 }
                 let changed = module.apply_rule(rule, context, budget)?;
@@ -490,11 +481,11 @@ impl Module {
             Rule::EliminateAliases => {
                 let _ = self.eliminate_aliases(budget)?;
             }
-            Rule::FoldLiteralOperations => {
-                let _ = self.fold_literal_operations(budget)?;
-            }
             Rule::ForwardRootConstants => {
                 let _ = self.forward_root_constants(ConstantKind::Scalar, budget)?;
+            }
+            Rule::FoldLiteralOperations => {
+                let _ = self.fold_literal_operations(budget)?;
             }
             Rule::ForwardRootStrings => {
                 let _ = self.forward_root_constants(ConstantKind::String, budget)?;
@@ -519,9 +510,6 @@ impl Module {
             }
             Rule::UnobserveCalledNames => {
                 let _ = self.unobserve_called_names(budget)?;
-            }
-            Rule::DropTypedDefaultChecks => {
-                let _ = self.drop_typed_default_checks(budget)?;
             }
             Rule::InlineInitializers => {
                 let _ = self.inline_initializers(budget)?;
@@ -572,12 +560,6 @@ impl Module {
             }
             Rule::ArrayReceiverCalls => {
                 let _ = self.array_receiver_calls(budget)?;
-            }
-            Rule::DropDefaultArguments => {
-                let _ = self.drop_default_arguments(budget)?;
-            }
-            Rule::NativeDefaultLengths => {
-                let _ = self.native_default_lengths(budget)?;
             }
             Rule::PackStringArrays => {
                 let _ = self.pack_string_arrays(context.rules.array_packing, budget)?;

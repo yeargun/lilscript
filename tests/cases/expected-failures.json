@@ -49,6 +49,7 @@
     },
     {
       "case": [
+        "cases/differential_pinned_regressions",
         "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_captured_rebind",
         "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write",
         "cases/regressions/compiler-snapshot_of_a_top_level_record_field_survives_a_captured_rebind",

@@ -566,6 +566,50 @@ fn constant_scalar_methods_obey_toml_and_match_native_and_javascript() {
 }
 
 #[test]
+fn finite_values_and_default_transport_obey_toml_in_both_targets() {
+    let tail = "print(99);".repeat(70);
+    let source = format!("bool classify(int value){{if(value>0){{return true;}}else{{{tail}return false;}}}}print(classify(1));print(classify(2));void report(int tag,int? value=null){{print(tag);print(value);}}for(int i=0;i<2;i+=1){{report(i);report(i,7);}}int current=1;int snapshot=current;current=2;print(snapshot);print(current);");
+    for codec in ["raw", "gzip", "brotli"] {
+        for permission in ["on", "off"] {
+            let config: ProjectConfig = toml::from_str(&format!(
+                "objective.codecs='{codec}'\neffort.level=13\n[policy.tactics]\nconstant-folding='{permission}'\ninlining='off'\ncall-specialization='off'"
+            )).unwrap();
+            let result = compile_source(&source, &config, ServiceOptions {
+                target: ServiceTarget::All, ..ServiceOptions::default()
+            }).unwrap();
+            let receipt = &result.report()["phases_ns"]["rules"];
+            for field in ["set_folds", "default_arguments_omitted", "forwarded_definitions"] {
+                assert_eq!(receipt[field].as_u64().unwrap() > 0, permission == "on", "{field}: {receipt}");
+            }
+            let expected = "true\ntrue\n0\nnull\n0\n7\n1\nnull\n1\n7\n1\n2\n";
+            assert_eq!(execute_javascript(result.javascript(config.objective.codecs[0]).unwrap().javascript(), "", ""), expected);
+            assert_eq!(execute_native(result.native_c().unwrap()), expected);
+        }
+    }
+}
+
+#[test]
+fn folded_nullable_literals_keep_the_native_tagged_representation() {
+    let source = r#"
+        T? maybe<T>(bool present,T value){if(present){return value;}return null;}
+        int? integer=maybe(true,7);
+        float? floating=maybe(true,-0.0);
+        bool? boolean=maybe(true,true);
+        string? text=maybe(true,"literal");
+        string? empty=maybe(true,"");
+        int? absent=maybe(false,8);
+        print(integer);print(floating);print(boolean);print(text);print(empty);print(absent);
+    "#;
+    let result = compile_source(source, &config(""), ServiceOptions {
+        target: ServiceTarget::All, ..ServiceOptions::default()
+    }).unwrap();
+    assert!(result.report()["phases_ns"]["rules"]["folded_calls"].as_u64().unwrap() > 0);
+    let expected = "7\n-0\ntrue\nliteral\n\nnull\n";
+    assert_eq!(execute_javascript(result.javascript(Objective::Brotli).unwrap().javascript(), "", ""), expected);
+    assert_eq!(execute_native(result.native_c().unwrap()), expected);
+}
+
+#[test]
 fn numeric_primitive_folding_keeps_host_lookups_and_argument_effects() {
     let source = r#"
         extern float next();

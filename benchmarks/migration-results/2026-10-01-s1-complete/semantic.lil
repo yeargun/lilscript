@@ -1,0 +1,89 @@
+// A finite private call set proves the effectful branch unreachable.
+bool classify(int value) {
+    if (value > 0) { return true; }
+    else {
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        print(99);
+        return false;
+    }
+}
+print(classify(1));
+print(classify(2));
+// The nullable default remains in the callee. Its caller-built literal can
+// leave JavaScript calls, while native still receives its semantic argument.
+void report(int tag, int? value = null) { print(tag); print(value); }
+for (int i = 0; i < 2; i += 1) { report(i); report(i, 7); }
+// Reaching definitions preserve the earlier snapshot across the later store.
+int current = 1;
+int snapshot = current;
+current = 2;
+print(snapshot);
+print(current);

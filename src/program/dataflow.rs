@@ -54,6 +54,11 @@ pub(super) trait Forward {
     /// entry, or a catch binding at its region's entry.
     fn transfer(&self, unit: &UnitData, operation: OpId, state: &mut Self::State);
 
+    /// A select/short-circuit result after its child regions have been
+    /// visited. Storage effects were already joined; a value analysis can
+    /// now publish the expression's result without executing them twice.
+    fn expression_result(&self, _unit: &UnitData, _operation: OpId, _state: &Self::State) {}
+
     /// What a branch's outcome adds: the state entering the `taken` side of
     /// `operation`'s test (an `if`, or a loop continuing when `taken` and
     /// leaving otherwise). Nothing by default.
@@ -180,12 +185,14 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                 let mut out = self.region(yes, state.clone())?;
                 let other = self.region(no, state)?;
                 analysis.join(&mut out, &other);
+                analysis.expression_result(unit, operation, &out);
                 out
             }
             OperationKind::ShortCircuit { right, .. } => {
                 let right = self.region(right, state.clone())?;
                 let mut out = state;
                 analysis.join(&mut out, &right);
+                analysis.expression_result(unit, operation, &out);
                 out
             }
             OperationKind::Block(region) => self.region(region, state)?,

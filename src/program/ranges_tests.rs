@@ -68,6 +68,32 @@ fn additions(source: &str, function: &str) -> Vec<Option<(i64, i64)>> {
 }
 
 #[test]
+fn conditional_results_publish_the_join_after_their_arms() {
+    let source = "export int selected(bool choice){int first=if(choice){7}else{9};return first*3+1;}print(selected(true));print(selected(false));";
+    assert_eq!(returned(source, "selected"), Some((22, 28)));
+    let nested = "export int selected(bool a,bool b){return if(a){if(b){3}else{5}}else{7};}print(selected(true,false));";
+    assert_eq!(returned(nested, "selected"), Some((3, 7)));
+}
+
+#[test]
+fn forwarding_keeps_branch_local_range_observations() {
+    let arena = bumpalo::Bump::new();
+    let input = program(&arena, "export int clamp(int value){if(value < -120){return -120;}if(value > 120){return 120;}return value;}print(clamp(500));");
+    let (program, _) = super::super::rules::optimize(input, super::super::rules::RuleRequest {
+        fold: true, dead_code: true, inline: false, pristine_builtins: false,
+        seal: Seal::Module,
+    }).unwrap();
+    let unit = unit_named(&program, "clamp");
+    let data = program.units[unit.index()].data();
+    let ranges = program.ranges(Seal::Module);
+    let returned = data.operations.iter().filter(|operation| matches!(operation.kind, OperationKind::Return))
+        .filter_map(|operation| data.operands(operation.operands).and_then(|values| values.first()))
+        .map(|&value| ranges.number(unit, value).integer_bounds().unwrap())
+        .collect::<Vec<_>>();
+    assert!(returned.iter().all(|&(low, high)| low >= -120 && high <= 120), "{returned:?}");
+}
+
+#[test]
 fn a_counting_loop_bounds_its_counter() {
     let source = "int count(int n) { int s = 0; for (int i = 0; i < n; i += 1) { s = s ^ i; } return s; } print(count(5));";
     // `i += 1` reads `i <= n - 1 <= 2^31 - 2`: the sum stays in int32.

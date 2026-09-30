@@ -143,8 +143,8 @@ declare_tactics! {
         analysis: A::Values, default: D::Preset,
         producers: &[P::SharedRules, P::JavaScriptFormation, P::StructuralSearch, P::OutputFamilies], prerequisites: &[], risks: &[R::Neutral],
         invalidates: &[I::ProgramFacts, I::TargetHead, I::TargetTail, I::Names, I::RenderedFiles],
-        purpose: "Evaluate bounded known operations and calls, propagate constants and consider literal representations.",
-        tradeoffs: "Spends proof work to remove runtime work. Larger literals can hurt codec size; representation alternatives compete with full bytes. Off also vetoes root-string forwarding."
+        purpose: "Evaluate bounded known operations and calls, propagate exact/finite/path values, forward aliases and defaults, and consider literal representations.",
+        tradeoffs: "Spends bounded proof work to remove runtime work; overflow retains unknown values and calls. Larger literals can hurt codec size; representation alternatives compete with full bytes. Off also vetoes common computations, default transport and root-string forwarding."
     },
     Inlining {
         name: "inlining", javascript_only: false, minimum_effort: 0, startup_at_level_16: false,

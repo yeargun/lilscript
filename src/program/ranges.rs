@@ -20,16 +20,16 @@
 //!   type's full range, so every loop settles.
 //!
 //! Any other value is what its type guarantees (R1): an `int` is an int32
-//! Number, a `float` a Number. A classic script's top-level cell is the
-//! exception, a global another script may write: a load of it proves
-//! nothing. **Calls.** A call of a known body reads that
+//! Number, a `float` a Number. A top-level cell under an explicitly open
+//! root contract is the exception: a load of it proves nothing.
+//! **Calls.** A call of a known body reads that
 //! body's result range, the join of its returns; bodies are solved callees
-//! first, and a recursive body's result is its type's. Parameters are their
-//! type's (joining arguments over complete call sets is the next step).
+//! first, and a recursive body's result is its type's. Parameters start at
+//! their type's range and narrow over bounded complete-call-set rounds.
 //!
 //! The facts describe normal results only; they never authorize removing,
-//! moving or duplicating an evaluation. Formation meets them with its own
-//! (each is sound, so their intersection is), and an `int` operation whose
+//! moving or duplicating an evaluation. Formation consumes these facts;
+//! an `int` operation whose
 //! result provably stays in int32 prints without its `|0`.
 //!
 //! Prior art: value-range propagation (Patterson, PLDI 1995); LLVM's
@@ -528,6 +528,21 @@ impl Ranges<'_, '_> {
                     };
                     side(yes).join(side(no))
                 }
+                OperationKind::ShortCircuit { kind, right } => {
+                    let right = data.regions[right.index()]
+                        .result
+                        .map_or(NumberFacts::UNKNOWN, |value| self.value(value));
+                    let binary = match kind {
+                        ShortCircuit::BooleanAnd | ShortCircuit::JavaScriptAnd => {
+                            crate::js::Binary::And
+                        }
+                        ShortCircuit::BooleanOr | ShortCircuit::JavaScriptOr => {
+                            crate::js::Binary::Or
+                        }
+                        ShortCircuit::Nullish => crate::js::Binary::Nullish,
+                    };
+                    operand(0).binary(binary, right)
+                }
                 OperationKind::Load(place) => match data.places[place.index()] {
                     Place::Cell(cell) => match self.ordinal(cell) {
                         Some(ordinal) => state[ordinal].unwrap_or(by_type),
@@ -622,6 +637,14 @@ impl Forward for Ranges<'_, '_> {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn expression_result(&self, unit: &UnitData, operation: OpId, state: &Self::State) {
+        if let (Some(result), Some(facts)) =
+            (unit.operations[operation.index()].result, self.result(operation, state))
+        {
+            self.values.borrow_mut()[result.index()] = facts;
         }
     }
 

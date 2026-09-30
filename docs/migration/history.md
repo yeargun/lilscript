@@ -589,3 +589,35 @@ already completed cells were accepted only after full identity, source, oracle,
 codec and work revalidation. Five protocol tests, five Node contract tests and
 two focused NO3 Rust tests pass. C3 changes no production optimizer behavior or
 schedule. S1 alone is now active.
+
+## 2026-09-30: S1 implementation complete; owner directs S2
+
+S1 now carries finite primitive/path facts, exact bounded execution, source
+forwarding and safe common computations, checked default transport, dead-work
+cleanup and shared primitive/range facts. The three target default passes are
+removed. A native nullable-constant boxing defect found during qualification
+is repaired. Target alias/literal normalization remains until Q1/S4 can replace
+proofs for representation-created storage; aggregate store collection belongs
+to S2. The acceptance contract and ownership map record those dependencies.
+
+The [retained evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md)
+pins candidate 4 and all development comparisons. All 642 generic programs pass
+in each objective. Totals improve by 593 raw, 340 gzip and 278 Brotli bytes.
+Applications grow two Brotli naming bytes, explicitly accepted under the plan's
+per-objective aggregate rule; recovering those bytes with candidate 5 costs
+92 raw, 133 gzip and 46 Brotli bytes overall. The ratchet records the review
+reason and exact deltas without weakening its default gate.
+
+The 403-case × 18-lane matrix has 5,466 passes, 180 ledgered failures, 1,608
+masked lanes and zero unexpected failures. Reference ports pass 29/29,
+1,353/1,353 and 21/21. The initial Marked/PostHog setup mistakenly reapplied
+landed patches; only those ports were rerun with `--patches none`. Twenty runner
+tests and the generated configuration reference check pass. The native Record
+ledger addition reproduces with the previous compiler and stays owned by N2.
+
+The owner stopped repeated testing and then requested commit/push followed by
+complete S2 implementation. Final library/CLI reruns and the complete nine-cell
+paired CPU study are deferred, not claimed as passed. Subsequent work uses
+substantial implementation batches and focused verification of meaningful
+correctness/size questions, without repeated full-library runs. This explicit
+instruction supersedes the earlier broad-test gate before opening S2.

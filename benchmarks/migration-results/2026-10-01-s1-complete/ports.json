@@ -1,0 +1,213 @@
+{
+ "schema": 1,
+ "kind": "lilscript-port-runner",
+ "started": "2026-09-30T23:11:12.373Z",
+ "completed": "2026-09-30T23:11:59.250Z",
+ "repository": {
+  "path": "/home/azureuser/lilscript",
+  "head": "9793853b1c34c12076935aa41dbd015d1bc3df9e",
+  "dirty": true
+ },
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/s1-complete-4/lilscript",
+  "path": "/home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-corrected4/bin/lilscript-628028fe56197da6",
+  "sha256": "628028fe56197da6daa2cd09088fc21b34db11e7ff848020ff822b958ef87268",
+  "version": "lilscript 0.1.0",
+  "unchangedDuringRun": true
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/s1-complete-4/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-corrected4/bin/lilscript-007b45afa7698721",
+  "sha256": "007b45afa76987213d2b9b93653d448f2759e5218295ae22bd70bd0670a2ed9e",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "node": "v20.19.0",
+ "objective": "shipped",
+ "patches": "none",
+ "portsRoot": "/home/azureuser",
+ "ledger": {
+  "path": "tests/ports/expected-failures.json",
+  "sha256": "cf0cae4e486799808333bd1e78256b69ff53c8259b6acd104cce9650f48cad5b",
+  "entries": 6
+ },
+ "unknownPorts": [],
+ "ports": [
+  {
+   "port": "markedlil",
+   "source": {
+    "path": "/home/azureuser/markedlil",
+    "head": "019e9b449c01721f78e467ca772742c67f9ac377",
+    "dirty": true
+   },
+   "build": {
+    "command": "npm run build",
+    "status": 0,
+    "ms": 38518,
+    "timedOut": false,
+    "compilerInvocations": 4,
+    "errors": []
+   },
+   "artifacts": [
+    {
+     "path": "dist/marked.bytes.js",
+     "bytes": 32704,
+     "sha256": "e3810051da692b2be951139106d9170dc07be3a1df19b6dff9a6385ff2c75c37",
+     "raw": 32704,
+     "gzip9": 10191,
+     "brotli11": 9080
+    },
+    {
+     "path": "dist/marked.cjs",
+     "bytes": 34454,
+     "sha256": "00f50d3e4deb481b1b2098836fa7dfb636bb4851275bc2ab9d1bdc81ee52409e",
+     "raw": 34454,
+     "gzip9": 10083,
+     "brotli11": 8986
+    },
+    {
+     "path": "dist/marked.closed.js",
+     "bytes": 34150,
+     "sha256": "8de09d4f2a318fcc5b4f5bfc1b11e3b7f5b615b82ef5df931534600fc9934a02",
+     "raw": 34150,
+     "gzip9": 9923,
+     "brotli11": 8835
+    },
+    {
+     "path": "dist/marked.esm.js",
+     "bytes": 34234,
+     "sha256": "aeda94beef0c43d2c55e776687dceafbb04c585b65da426d914396bed4fa11ec",
+     "raw": 34234,
+     "gzip9": 9979,
+     "brotli11": 8895
+    },
+    {
+     "path": "dist/marked.gzip.js",
+     "bytes": 33752,
+     "sha256": "0cb8d2e2f0859084cbcbfce123566eba1bf6119a539b717005d00dd70a76162a",
+     "raw": 33752,
+     "gzip9": 9865,
+     "brotli11": 8881
+    },
+    {
+     "path": "dist/marked.raw.js",
+     "bytes": 34150,
+     "sha256": "8de09d4f2a318fcc5b4f5bfc1b11e3b7f5b615b82ef5df931534600fc9934a02",
+     "raw": 34150,
+     "gzip9": 9923,
+     "brotli11": 8835
+    },
+    {
+     "path": "dist/marked.umd.js",
+     "bytes": 34179,
+     "sha256": "0fbd13d8083b81f2e53c471dc6d6d77ffa870db6d88e046e270763b631c63965",
+     "raw": 34179,
+     "gzip9": 9971,
+     "brotli11": 8889
+    }
+   ],
+   "compilerInvocations": 4,
+   "test": {
+    "command": "npm test",
+    "status": 0,
+    "signal": null,
+    "ms": 609,
+    "tests": 29,
+    "pass": 29,
+    "fail": 0,
+    "failing": [],
+    "tail": "    1..6\nok 7 - @itslil/marked option API\n  ---\n  duration_ms: 2.85494\n  type: 'suite'\n  ...\n1..7\n# tests 29\n# suites 7\n# pass 29\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 456.821457"
+   },
+   "failing": [],
+   "ledgered": [],
+   "regressions": [],
+   "nowPassing": [],
+   "ledgerEntries": [],
+   "state": "green"
+  },
+  {
+   "port": "posthoglil",
+   "source": {
+    "path": "/home/azureuser/posthoglil",
+    "head": "140790807a95c8f2be1c323bf296387b0e2a934b",
+    "dirty": false
+   },
+   "build": {
+    "command": "npm run build",
+    "status": 0,
+    "ms": 5728,
+    "timedOut": false,
+    "compilerInvocations": 3,
+    "errors": []
+   },
+   "artifacts": [
+    {
+     "path": "dist/posthog.bytes.js",
+     "bytes": 14707,
+     "sha256": "0b47ab5dbf3f8b7c8ca212efd911dba3614d8b256f07d3b9f793fbc596284d55",
+     "raw": 14707,
+     "gzip9": 6005,
+     "brotli11": 5299
+    },
+    {
+     "path": "dist/posthog.cjs",
+     "bytes": 19124,
+     "sha256": "a2fa234abc4b8b49cc484dab6694f3b4f6a4d635fdb1dcd4766d6a1944784f89",
+     "raw": 19124,
+     "gzip9": 6567,
+     "brotli11": 5840
+    },
+    {
+     "path": "dist/posthog.esm.js",
+     "bytes": 15823,
+     "sha256": "401a75cf44b0aa11ae38b6a9c14678fda0a01de49d06ecc283dbe0979d7bb2ba",
+     "raw": 15823,
+     "gzip9": 5642,
+     "brotli11": 5070
+    },
+    {
+     "path": "dist/posthog.gzip.js",
+     "bytes": 15751,
+     "sha256": "99cde10227daa79619bc70342e8f9c40971169c311d73811b898094b2d880a26",
+     "raw": 15751,
+     "gzip9": 5552,
+     "brotli11": 4987
+    },
+    {
+     "path": "dist/posthog.raw.js",
+     "bytes": 15732,
+     "sha256": "21eed4ccf59e22a38c4f07ad9f875da12b5a16c2966482cbadf4d3e035f9d45d",
+     "raw": 15732,
+     "gzip9": 5586,
+     "brotli11": 4984
+    },
+    {
+     "path": "dist/posthog.umd.js",
+     "bytes": 19196,
+     "sha256": "a2a1acb896e48025d42aef3acfe49760a1e42a5e6651aef03c06e64bd7b15f43",
+     "raw": 19196,
+     "gzip9": 6596,
+     "brotli11": 5862
+    }
+   ],
+   "compilerInvocations": 3,
+   "test": {
+    "command": "npm test",
+    "status": 0,
+    "signal": null,
+    "ms": 288,
+    "tests": 21,
+    "pass": 21,
+    "fail": 0,
+    "failing": [],
+    "tail": "    1..1\nok 8 - bucketed rate limiter\n  ---\n  duration_ms: 0.585447\n  type: 'suite'\n  ...\n1..8\n# tests 21\n# suites 8\n# pass 21\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 138.616137"
+   },
+   "failing": [],
+   "ledgered": [],
+   "regressions": [],
+   "nowPassing": [],
+   "ledgerEntries": [],
+   "state": "green"
+  }
+ ],
+ "regressions": 0
+}

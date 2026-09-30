@@ -477,6 +477,9 @@ fn execute(editor: &mut Editor<'_>, change: Change) -> Result<(), &'static str> 
         data.call_arguments.extend(kept);
         let site = &mut data.calls[call.index()];
         site.arguments = ArgumentRange { start, len };
+        // Parameter positions changed. The defaults rule recomputes target
+        // omission from the new signature in the next fixed-point round.
+        site.omit_trailing = 0;
         site.contract.supplied =
             u32::try_from(supplied - dropped_supplied).map_err(|_| "argument capacity")?;
     }

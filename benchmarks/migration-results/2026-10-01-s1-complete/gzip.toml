@@ -1,0 +1,4 @@
+[objective]
+codecs = ["gzip"]
+[effort]
+level = 13

@@ -7,6 +7,7 @@
 //! cache, so an edited copy never reads a view of the program it was copied
 //! from; a cached view is also checked against its dependencies.
 use super::call_graph::Seal;
+use super::classes::ProgramClasses;
 use super::effects::ProgramEffects;
 use super::initialization::ProgramInitialization;
 use super::ranges::ProgramRanges;
@@ -96,6 +97,7 @@ struct Slots {
     effects: [OnceLock<Arc<ProgramEffects>>; 2],
     /// Indexed by `Seal`: value ranges (M6.4b), read by every formation.
     ranges: [OnceLock<Arc<ProgramRanges>>; 2],
+    classes: [OnceLock<Arc<ProgramClasses>>; 2],
 }
 
 impl Clone for ProgramViews {
@@ -105,6 +107,17 @@ impl Clone for ProgramViews {
 }
 
 impl<'src> Program<'src> {
+    pub(crate) fn primitive_classes(&self, seal: Seal) -> Arc<ProgramClasses> {
+        let slot = &self.views.slots.classes[seal as usize];
+        let build = || Arc::new(ProgramClasses::build(self, self.effects(seal).graph()));
+        let cached = slot.get_or_init(build);
+        if cached.deps().valid_for(self) {
+            Arc::clone(cached)
+        } else {
+            build()
+        }
+    }
+
     /// The value ranges under `seal` (`ranges.rs`), computed once per
     /// program from its effects' call graph.
     pub fn ranges(&self, seal: Seal) -> Arc<ProgramRanges> {

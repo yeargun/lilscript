@@ -21,6 +21,7 @@ mod dce;
 mod edit;
 mod evaluate;
 mod fold;
+mod forward;
 mod inline;
 mod params;
 mod unreachable;
@@ -46,8 +47,8 @@ pub(crate) struct RuleRequest {
     pub(crate) inline: bool,
     /// The target contract guarantees original builtin method behavior.
     pub(crate) pristine_builtins: bool,
-    /// Root storage is sealed only in module execution: a script's root
-    /// bindings are globals other scripts may read and write.
+    /// Modules and application scripts own private roots. An explicitly
+    /// open root boundary retains structural-only storage evidence.
     pub(crate) seal: Seal,
 }
 
@@ -84,6 +85,17 @@ pub(crate) struct RuleReceipt {
     pub(crate) dropped_parameters: u32,
     pub(crate) constant_parameters: u32,
     pub(crate) unused_results: u32,
+    /// Immutable cell loads replaced by their reaching initializer value.
+    pub(crate) forwarded_definitions: u32,
+    /// Repeated total primitive operations replaced by a dominating result.
+    pub(crate) common_computations: u32,
+    pub(crate) default_arguments_omitted: u32,
+    pub(crate) native_defaults: u32,
+    pub(crate) set_folds: u32,
+    pub(crate) path_folds: u32,
+    pub(crate) evaluated_calls: u32,
+    pub(crate) evaluation_refusals: [u32; 6],
+    pub(crate) default_checks_removed: u32,
 }
 
 impl RuleReceipt {
@@ -103,6 +115,22 @@ impl RuleReceipt {
             "dropped_parameters": self.dropped_parameters,
             "constant_parameters": self.constant_parameters,
             "unused_results": self.unused_results,
+            "forwarded_definitions": self.forwarded_definitions,
+            "common_computations": self.common_computations,
+            "default_arguments_omitted": self.default_arguments_omitted,
+            "native_defaults": self.native_defaults,
+            "set_folds": self.set_folds,
+            "path_folds": self.path_folds,
+            "evaluated_calls": self.evaluated_calls,
+            "default_checks_removed": self.default_checks_removed,
+            "evaluation_refusals": {
+                "host": self.evaluation_refusals[0],
+                "engine_dependent": self.evaluation_refusals[1],
+                "aggregate": self.evaluation_refusals[2],
+                "observable": self.evaluation_refusals[3],
+                "unsupported": self.evaluation_refusals[4],
+                "limit": self.evaluation_refusals[5],
+            },
         })
     }
 }
@@ -126,6 +154,7 @@ fn scalar(program: &Program<'_>, ty: TypeId) -> bool {
 /// The program rules, in their structural order (architecture §8.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProgramRule {
+    Forward,
     Fold,
     Unreachable,
     Inline,
@@ -157,7 +186,27 @@ pub(crate) fn optimize<'src>(
         return Ok((program, receipt));
     }
     let mut editor = edit::Editor::new(program);
+    // These are target-boundary permissions, not changed source semantics.
+    // Recompute them after structural edits, so a second optimization cannot
+    // remove a retained guard on the strength of its own omitted arguments.
+    for unit in 0..editor.program().units.len() {
+        let id = UnitId::from_index(unit).expect("a unit index");
+        let data = editor.program().unit(id).expect("a program unit");
+        if data.native_default_length.is_some()
+            || data.calls.iter().any(|site| site.omit_trailing != 0)
+        {
+            let data = editor.unit_mut(id);
+            data.native_default_length = None;
+            for site in &mut data.calls {
+                site.omit_trailing = 0;
+            }
+        }
+    }
+    editor.commit()?;
     let mut rules = Vec::with_capacity(4);
+    if request.fold {
+        rules.push(ProgramRule::Forward);
+    }
     if request.fold {
         rules.push(ProgramRule::Fold);
     }
@@ -178,6 +227,7 @@ pub(crate) fn optimize<'src>(
         |editor, rule| {
             let effects = editor.program().effects(request.seal);
             let changed = match rule {
+                ProgramRule::Forward => forward::apply(editor, &effects, &mut receipt),
                 ProgramRule::Fold => {
                     let values = values::ProgramValues::compute(
                         editor.program(),
@@ -185,6 +235,12 @@ pub(crate) fn optimize<'src>(
                         request.seal,
                         request.pristine_builtins,
                     );
+                    receipt.evaluated_calls =
+                        receipt.evaluated_calls.saturating_add(values.evaluated);
+                    for (total, count) in receipt.evaluation_refusals.iter_mut().zip(values.refused)
+                    {
+                        *total = total.saturating_add(count);
+                    }
                     fold::apply(editor, &values, &effects, &mut receipt).map_err(str::to_string)?
                 }
                 ProgramRule::Unreachable => unreachable::apply(editor, &mut receipt),
@@ -218,6 +274,22 @@ pub(crate) fn optimize<'src>(
         },
         |_| "program rules did not reach a fixed point".to_string(),
     )?;
+    // Choose target default transport after structural folding has removed
+    // redundant guards. The remaining explicit guards must survive for the
+    // target calls that omit their literal arguments.
+    if request.fold {
+        let effects = editor.program().effects(request.seal);
+        let plan = super::defaults::plan(editor.program(), effects.graph());
+        for (unit, call, omitted) in plan.calls {
+            editor.unit_mut(unit).calls[call.index()].omit_trailing = omitted;
+            receipt.default_arguments_omitted += omitted;
+        }
+        for (unit, length) in plan.lengths {
+            editor.unit_mut(unit).native_default_length = length;
+            receipt.native_defaults += u32::from(length.is_some());
+        }
+        editor.commit()?;
+    }
     let program = editor.finish()?;
     program
         .verify()
@@ -238,7 +310,14 @@ fn behaviors(
 ) -> Vec<EvaluationBehavior> {
     let data = program.unit(unit).expect("a program unit");
     let initialization = effects.initialization();
-    let mut domains = vec![false; data.values.len()];
+    let classes = program.primitive_classes(effects.graph().seal());
+    let mut domains: Vec<bool> = (0..data.values.len())
+        .map(|index| {
+            classes
+                .value(unit, ValueId::from_index(index).unwrap())
+                .primitive()
+        })
+        .collect();
     let mut behaviors = Vec::with_capacity(data.operations.len());
     for (index, operation) in data.operations.iter().enumerate() {
         let mut behavior = facts::operation_evaluation_behavior(
@@ -270,7 +349,7 @@ fn behaviors(
             }
         }
         if let Some(result) = operation.result {
-            domains[result.index()] =
+            domains[result.index()] |=
                 facts::primitive_result_domain(program, data, operation, &domains)
                     || values.is_some_and(|values| values.exact(unit, result).is_some());
         }

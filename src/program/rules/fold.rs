@@ -3,8 +3,8 @@
 //!
 //! - An operation that computes an exact value and whose evaluation is not
 //!   required becomes that constant: arithmetic, comparisons, copies and
-//!   discardable calls. A plain load is left to root-constant forwarding
-//!   (M7.4); its consumers fold here.
+//!   discardable calls. Initialized root scalar loads use the same facts;
+//!   objective-sensitive string forwarding remains a representation family.
 //! - `x | 0` of an `int` is `x`, and the other bitwise identities with 0.
 //! - `if` with an exact condition keeps the branch that runs, as a block (its
 //!   lexical scope is kept); `?:` and a short circuit with an exact left
@@ -150,6 +150,11 @@ pub(super) fn apply(
             .collect::<Result<_, &'static str>>()?;
         let (data, cells) = editor.unit_and_cells(unit);
         for (op, constant) in constants {
+            if let Some(result) = data.operations[op.index()].result {
+                let origin = values.origin(unit, result);
+                receipt.set_folds += u32::from(origin & super::values::FROM_SET != 0);
+                receipt.path_folds += u32::from(origin & super::values::FROM_PATH != 0);
+            }
             edit::make_constant(data, op, constant);
             receipt.folded_values += 1;
         }
@@ -181,6 +186,34 @@ pub(super) fn apply(
             value
         };
         for fold in plan.folds {
+            let op = match &fold {
+                Fold::Block { op, .. }
+                | Fold::Inline { op, .. }
+                | Fold::Remove { op }
+                | Fold::Splice { op, .. }
+                | Fold::Replace { op, .. } => *op,
+            };
+            let operation = &data.operations[op.index()];
+            let origin = data
+                .operands(operation.operands)
+                .unwrap_or(&[])
+                .iter()
+                .fold(0, |bits, &value| bits | values.origin(unit, value));
+            receipt.set_folds += u32::from(origin & super::values::FROM_SET != 0);
+            receipt.path_folds += u32::from(origin & super::values::FROM_PATH != 0);
+            if matches!(operation.kind, OperationKind::If { .. })
+                && data
+                    .operands(operation.operands)
+                    .and_then(|inputs| inputs.first())
+                    .is_some_and(|condition| {
+                        matches!(
+                            data.operations[data.values[condition.index()].definition.index()].kind,
+                            OperationKind::IsUndefined
+                        )
+                    })
+            {
+                receipt.default_checks_removed += 1;
+            }
             match fold {
                 Fold::Block { op, region } => edit::make_block(data, op, region),
                 Fold::Inline { op, region } => edit::splice(data, cells, unit, op, region),
@@ -400,6 +433,13 @@ fn value(
 ) -> Option<FoldedConstant> {
     let operation = &data.operations[op.index()];
     let result = operation.result?;
+    let root_scalar = matches!(operation.kind, OperationKind::Load(place)
+        if matches!(data.places.get(place.index()), Some(Place::Cell(cell))
+            if program.unit(program.cells[cell.index()].owner).is_some_and(|owner|
+                owner.kind == UnitKind::ModuleInitialization)))
+        && values
+            .exact(unit, result)
+            .is_some_and(|known| !matches!(known, StoredExact::String(_)));
     if !matches!(
         operation.kind,
         OperationKind::IntBinary(_)
@@ -408,7 +448,8 @@ fn value(
             | OperationKind::CopyValue
             | OperationKind::Call(_)
             | OperationKind::Intrinsic(_)
-    ) || (behaviors[op.index()].requires_evaluation() && !values.evaluated_call(unit, op))
+    ) && !root_scalar
+        || (behaviors[op.index()].requires_evaluation() && !values.evaluated_call(unit, op))
     {
         return None;
     }
@@ -424,30 +465,53 @@ fn value(
         }
         _ => FoldedConstant::Existing(constant(program, data.values[result.index()].ty, known)?),
     };
-    (constant.text(program)? <= replaced_text(program, literals, data, operation))
+    (root_scalar || constant.text(program)? <= replaced_text(program, literals, data, operation))
         .then_some(constant)
 }
 
 /// The constant of `ty` that is `known`; none when its literal would not have
 /// exactly that type.
 pub(super) fn constant(program: &Program<'_>, ty: TypeId, known: &StoredExact) -> Option<Constant> {
-    Some(match (program.ty(ty)?, known) {
-        (Type::Int, StoredExact::Integer(value)) => Constant::Integer(*value),
-        (Type::Float, StoredExact::Number(bits)) => Constant::Number(*bits),
-        (Type::Float, StoredExact::Integer(value)) => Constant::Number(f64::from(*value).to_bits()),
-        (Type::Bool, StoredExact::Boolean(value)) => Constant::Boolean(*value),
-        (Type::String, StoredExact::String(StoredString::Source(id))) => Constant::String(*id),
-        (Type::Enum(declaration), StoredExact::Integer(value))
-            if program
-                .enum_definition(declaration.identity)?
-                .variants
-                .iter()
-                .any(|variant| variant.value == *value) =>
-        {
-            Constant::Integer(*value)
-        }
-        _ => return None,
-    })
+    fn for_type(program: &Program<'_>, ty: &Type<'_>, known: &StoredExact) -> Option<Constant> {
+        Some(match (ty, known) {
+            (Type::Dynamic | Type::Unknown, StoredExact::Integer(value)) => {
+                Constant::Integer(*value)
+            }
+            (Type::Dynamic | Type::Unknown, StoredExact::Number(bits)) => Constant::Number(*bits),
+            (Type::Dynamic | Type::Unknown, StoredExact::Boolean(value)) => {
+                Constant::Boolean(*value)
+            }
+            (Type::Dynamic | Type::Unknown, StoredExact::String(StoredString::Source(id))) => {
+                Constant::String(*id)
+            }
+            (Type::Null | Type::Nullable(_) | Type::Dynamic | Type::Unknown, StoredExact::Null) => {
+                Constant::Null
+            }
+            (Type::Dynamic | Type::Unknown, StoredExact::Undefined) => Constant::Undefined,
+            (Type::Nullable(inner), known) => return for_type(program, inner, known),
+            (Type::Union(members), known) => {
+                return members.iter().find_map(|ty| for_type(program, ty, known))
+            }
+            (Type::Int, StoredExact::Integer(value)) => Constant::Integer(*value),
+            (Type::Float, StoredExact::Number(bits)) => Constant::Number(*bits),
+            (Type::Float, StoredExact::Integer(value)) => {
+                Constant::Number(f64::from(*value).to_bits())
+            }
+            (Type::Bool, StoredExact::Boolean(value)) => Constant::Boolean(*value),
+            (Type::String, StoredExact::String(StoredString::Source(id))) => Constant::String(*id),
+            (Type::Enum(declaration), StoredExact::Integer(value))
+                if program
+                    .enum_definition(declaration.identity)?
+                    .variants
+                    .iter()
+                    .any(|variant| variant.value == *value) =>
+            {
+                Constant::Integer(*value)
+            }
+            _ => return None,
+        })
+    }
+    for_type(program, program.ty(ty)?, known)
 }
 
 /// The shortest text of a constant; none for a number with no finite

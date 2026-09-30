@@ -1,0 +1,4442 @@
+{
+  "schema": 1,
+  "compilers": {
+    "previous": {
+      "path": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "sha256": "cbfaa03a736fa3e91d5445b0a3cafdd86290bdd62c478c93daf0584efc281056"
+    },
+    "candidate": {
+      "path": "/home/azureuser/lilscript-work/bin/s1-complete-4/lilscript",
+      "sha256": "628028fe56197da6daa2cd09088fc21b34db11e7ff848020ff822b958ef87268"
+    }
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/s1-complete-4/lilscript-codec",
+    "sha256": "007b45afa76987213d2b9b93653d448f2759e5218295ae22bd70bd0670a2ed9e"
+  },
+  "runner": {
+    "path": "/home/azureuser/lilscript/scripts/compile-cost.py",
+    "sha256": "8469112040d0871f708477d57af84475605d97789627c5b5bfa89b8f472cbd08"
+  },
+  "manifest_identity": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-s1-complete/compile-workloads.json",
+    "sha256": "eaa26aedf366ba778da4dd53b63bfe1a1669e9d7797562895e9e8af63b09fcc5"
+  },
+  "manifest": {
+    "workloads": [
+      {
+        "id": "markedlil-raw",
+        "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+        "entry": "src/entry.lil",
+        "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/markedlil-raw.toml",
+        "arguments": []
+      },
+      {
+        "id": "markedlil-gzip",
+        "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+        "entry": "src/entry.lil",
+        "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/markedlil-gzip.toml",
+        "arguments": []
+      },
+      {
+        "id": "markedlil-brotli",
+        "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+        "entry": "src/entry.lil",
+        "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/markedlil-brotli.toml",
+        "arguments": []
+      },
+      {
+        "id": "zodlil-raw",
+        "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/zodlil",
+        "entry": "scripts/zod.lil",
+        "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/zodlil-raw.toml",
+        "arguments": []
+      },
+      {
+        "id": "zodlil-gzip",
+        "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/zodlil",
+        "entry": "scripts/zod.lil",
+        "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/zodlil-gzip.toml",
+        "arguments": []
+      },
+      {
+        "id": "zodlil-brotli",
+        "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/zodlil",
+        "entry": "scripts/zod.lil",
+        "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/zodlil-brotli.toml",
+        "arguments": []
+      },
+      {
+        "id": "posthoglil-raw",
+        "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+        "entry": "src/entry.lil",
+        "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/posthoglil-raw.toml",
+        "arguments": []
+      },
+      {
+        "id": "posthoglil-gzip",
+        "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+        "entry": "src/entry.lil",
+        "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/posthoglil-gzip.toml",
+        "arguments": []
+      },
+      {
+        "id": "posthoglil-brotli",
+        "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+        "entry": "src/entry.lil",
+        "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/posthoglil-brotli.toml",
+        "arguments": []
+      }
+    ]
+  },
+  "rounds": 3,
+  "workloads": [
+    {
+      "id": "markedlil-raw",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+      "config_sha256": "44584c2f234d73421096f3a7b6a408a2c4649cadac02d0fe9d835c722a7793a5",
+      "warmup": {
+        "previous": {
+          "cpu_seconds": 2.1201790000000003,
+          "wall_seconds": 2.1226631550089223,
+          "load_before": [
+            1.73291015625,
+            2.06787109375,
+            2.88232421875
+          ],
+          "load_after": [
+            1.73291015625,
+            2.06787109375,
+            2.88232421875
+          ],
+          "bytes": 32700,
+          "sha256": "dbbc8f04aa3f64b0f3d2970bd8cc40a37548ecefd3bbcafd15be2815d92ea834",
+          "explain": {
+            "artifacts": [
+              {
+                "sha256": "dbbc8f04aa3f64b0f3d2970bd8cc40a37548ecefd3bbcafd15be2815d92ea834",
+                "raw": 32700,
+                "gzip9": null,
+                "brotli11": null,
+                "details": {
+                  "recipe_words": [
+                    3,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "recipe_fingerprint": 12139990537254341990,
+                  "semantic": {
+                    "snapshot_identity": "RevisionId(1162)",
+                    "meaning_identity": "RevisionId(1163)",
+                    "identity_scope": "process-local diagnostics, not canonical recipe identity",
+                    "rewrite_order": "newest-first",
+                    "rewrites": []
+                  },
+                  "execution": "Module",
+                  "style": "Scoped",
+                  "source_names": [],
+                  "tactics": [
+                    {
+                      "tactic": "dead-code-elimination",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "constant-folding",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "inlining",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "scalar-replacement",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "target-compaction",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "identifier-mangling",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "property-mangling",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "string-pooling",
+                      "risk": "neutral"
+                    }
+                  ],
+                  "output": {
+                    "dead_code_elimination": true,
+                    "rules": {
+                      "constant_folding": true,
+                      "inlining": true,
+                      "scalar_replacement": true,
+                      "data_encoding": false,
+                      "array_packing": "disabled"
+                    },
+                    "target_compaction": true,
+                    "literals": "Original",
+                    "families": "OutputFamilies { block_inlining: true, flat_blocks: true, statements: StatementSpellings { conditional_values: true, exit_points: true, loop_fusion: true, conditional_returns: true, logical_branches: true }, string_pooling: true, string_array_packing: false, string_constants: true, loop_heads: true, logical_statements: true, compound_assignments: true, quotes: true, int32_hints: false, property_mangling: true }",
+                    "property_mangling": true,
+                    "self_named": false,
+                    "read_order": true,
+                    "local_read_order": false,
+                    "alphabet": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_",
+                    "choices": []
+                  },
+                  "sizes": [
+                    32700,
+                    null,
+                    null
+                  ],
+                  "delivery": null,
+                  "policy_fingerprint": [
+                    239,
+                    25,
+                    158,
+                    41,
+                    69,
+                    14,
+                    196,
+                    236,
+                    147,
+                    228,
+                    185,
+                    130,
+                    255,
+                    6,
+                    80,
+                    129,
+                    160,
+                    112,
+                    157,
+                    107,
+                    85,
+                    75,
+                    41,
+                    206,
+                    189,
+                    43,
+                    254,
+                    120,
+                    216,
+                    166,
+                    175,
+                    63
+                  ]
+                }
+              }
+            ],
+            "winners": [
+              0,
+              null,
+              null
+            ],
+            "native_sha256": null,
+            "native_delivery": null,
+            "first_artifact_ns": 166829560,
+            "search": {
+              "request": {
+                "objectives": [
+                  "Raw"
+                ],
+                "scalar": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "helper": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "string": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "local_facts": {
+                  "work": 1000000,
+                  "result_bytes": 512000
+                },
+                "facts_cache": {
+                  "entries": 128,
+                  "bytes": 16000000,
+                  "result_bytes": 512000
+                }
+              },
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 0,
+              "proof_queries": 2502,
+              "beam_evictions": 0,
+              "structural_opportunities": {
+                "inventory_reached": true,
+                "inventory_truncated": false,
+                "families": [
+                  {
+                    "tactic": "scalar-replacement",
+                    "outcomes": {
+                      "discovered": 0,
+                      "not_reached": 0,
+                      "legal": 0,
+                      "unknown": 0,
+                      "truncated": 0,
+                      "conflicting": 0,
+                      "redundant": 0,
+                      "equivalent": 0
+                    }
+                  },
+                  {
+                    "tactic": "inlining",
+                    "outcomes": {
+                      "discovered": 116,
+                      "not_reached": 0,
+                      "legal": 1,
+                      "unknown": 115,
+                      "truncated": 0,
+                      "conflicting": 0,
+                      "redundant": 0,
+                      "equivalent": 0
+                    }
+                  },
+                  {
+                    "tactic": "call-specialization",
+                    "outcomes": {
+                      "discovered": 0,
+                      "not_reached": 0,
+                      "legal": 0,
+                      "unknown": 0,
+                      "truncated": 0,
+                      "conflicting": 0,
+                      "redundant": 0,
+                      "equivalent": 0
+                    }
+                  },
+                  {
+                    "tactic": "constant-folding",
+                    "outcomes": {
+                      "discovered": 1193,
+                      "not_reached": 0,
+                      "legal": 0,
+                      "unknown": 1193,
+                      "truncated": 0,
+                      "conflicting": 0,
+                      "redundant": 0,
+                      "equivalent": 0
+                    }
+                  },
+                  {
+                    "tactic": "string-pooling",
+                    "outcomes": {
+                      "discovered": 1193,
+                      "not_reached": 0,
+                      "legal": 0,
+                      "unknown": 1193,
+                      "truncated": 0,
+                      "conflicting": 0,
+                      "redundant": 0,
+                      "equivalent": 0
+                    }
+                  }
+                ]
+              },
+              "admitted_artifacts": 6,
+              "stop": null,
+              "terminal": {
+                "objectives": [
+                  {
+                    "codec": "raw",
+                    "prefix": null,
+                    "exact": null,
+                    "margin": 0,
+                    "pass_limit": null,
+                    "passes": 4,
+                    "examined": 76,
+                    "judged": 4,
+                    "pruned": 40,
+                    "tried": 41,
+                    "scored": 1,
+                    "codec_probes": 0,
+                    "before": 34600,
+                    "searched": 34600,
+                    "after": 32700,
+                    "spelling": [
+                      "conditional-values",
+                      "exit-points",
+                      "loop-fusion",
+                      "read-order",
+                      "compound-assignments",
+                      "quotes",
+                      "loop-heads",
+                      "logical-statements",
+                      "block-inlining",
+                      "flat-blocks",
+                      "string-pooling",
+                      "conditional-returns",
+                      "logical-branches",
+                      "string-constants",
+                      "property-mangling"
+                    ],
+                    "style": "Scoped",
+                    "trials": [
+                      {
+                        "challenger": "int32-hints",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 209
+                      },
+                      {
+                        "challenger": "string-constants",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-values",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 37
+                      },
+                      {
+                        "challenger": "exit-points",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 30
+                      },
+                      {
+                        "challenger": "loop-fusion",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 44
+                      },
+                      {
+                        "challenger": "block-inlining",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 338
+                      },
+                      {
+                        "challenger": "self-named-functions",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 34592,
+                        "delta": -8,
+                        "proxy": -8
+                      },
+                      {
+                        "challenger": "read-order",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 250
+                      },
+                      {
+                        "challenger": "compound-assignments",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 37
+                      },
+                      {
+                        "challenger": "quotes",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 21
+                      },
+                      {
+                        "challenger": "logical-statements",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-returns",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 686
+                      },
+                      {
+                        "challenger": "other-objective-seed",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1765
+                      },
+                      {
+                        "challenger": "flat-blocks",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 62
+                      },
+                      {
+                        "challenger": "loop-heads",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "pooling-and-packing",
+                        "pass": 1,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-branches",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 201
+                      },
+                      {
+                        "challenger": "string-pooling",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 169
+                      },
+                      {
+                        "challenger": "string-array-packing",
+                        "pass": 1,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "int32-hints",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 209
+                      },
+                      {
+                        "challenger": "string-constants",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-values",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 37
+                      },
+                      {
+                        "challenger": "exit-points",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 30
+                      },
+                      {
+                        "challenger": "loop-fusion",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 44
+                      },
+                      {
+                        "challenger": "block-inlining",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 338
+                      },
+                      {
+                        "challenger": "self-named-functions",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 8
+                      },
+                      {
+                        "challenger": "read-order",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 250
+                      },
+                      {
+                        "challenger": "compound-assignments",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 37
+                      },
+                      {
+                        "challenger": "quotes",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 21
+                      },
+                      {
+                        "challenger": "logical-statements",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": 34592,
+                        "delta": 0,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-returns",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 686
+                      },
+                      {
+                        "challenger": "other-objective-seed",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1765
+                      },
+                      {
+                        "challenger": "flat-blocks",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 62
+                      },
+                      {
+                        "challenger": "loop-heads",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": 34592,
+                        "delta": 0,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "pooling-and-packing",
+                        "pass": 2,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-branches",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 201
+                      },
+                      {
+                        "challenger": "string-pooling",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 169
+                      },
+                      {
+                        "challenger": "string-array-packing",
+                        "pass": 2,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "int32-hints",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 209
+                      },
+                      {
+                        "challenger": "string-constants",
+                        "pass": 4,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-values",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 29
+                      },
+                      {
+                        "challenger": "exit-points",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 30
+                      },
+                      {
+                        "challenger": "loop-fusion",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 44
+                      },
+                      {
+                        "challenger": "block-inlining",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 338
+                      },
+                      {
+                        "challenger": "self-named-functions",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 8
+                      },
+                      {
+                        "challenger": "read-order",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 250
+                      },
+                      {
+                        "challenger": "compound-assignments",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 35
+                      },
+                      {
+                        "challenger": "quotes",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 21
+                      },
+                      {
+                        "challenger": "logical-statements",
+                        "pass": 4,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-returns",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 686
+                      },
+                      {
+                        "challenger": "other-objective-seed",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 3657
+                      },
+                      {
+                        "challenger": "flat-blocks",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 62
+                      },
+                      {
+                        "challenger": "loop-heads",
+                        "pass": 4,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "pooling-and-packing",
+                        "pass": 4,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-branches",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 201
+                      },
+                      {
+                        "challenger": "string-pooling",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 169
+                      },
+                      {
+                        "challenger": "string-array-packing",
+                        "pass": 4,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      }
+                    ],
+                    "choices_tried": 0,
+                    "choices_scored": 0,
+                    "surveys": 3,
+                    "heads": 5,
+                    "choice_trials": [],
+                    "choices": [],
+                    "joints_tried": 10,
+                    "joint_trials": [
+                      {
+                        "name": "literals:Observed",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 2823
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 14782
+                      },
+                      {
+                        "name": "alphabet:sequential",
+                        "pass": 1,
+                        "outcome": "duplicate",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "alphabet:frequency",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 34592,
+                        "delta": 0,
+                        "proxy": 0
+                      },
+                      {
+                        "name": "literals:Observed",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": 34592,
+                        "delta": 0,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 2823
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 14782
+                      },
+                      {
+                        "name": "alphabet:sequential",
+                        "pass": 2,
+                        "outcome": "duplicate",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "alphabet:frequency",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": 34592,
+                        "delta": 0,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:local-read-order",
+                        "pass": 3,
+                        "outcome": "rejected",
+                        "size": 34592,
+                        "delta": 0,
+                        "proxy": 0
+                      },
+                      {
+                        "name": "properties:private-fields",
+                        "pass": 3,
+                        "outcome": "kept",
+                        "size": 32700,
+                        "delta": -1892,
+                        "proxy": -1892
+                      },
+                      {
+                        "name": "literals:Observed",
+                        "pass": 4,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 2827
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 14822
+                      },
+                      {
+                        "name": "alphabet:sequential",
+                        "pass": 4,
+                        "outcome": "duplicate",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "alphabet:frequency",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 4
+                      }
+                    ],
+                    "restarts_tried": 2,
+                    "starts": [
+                      {
+                        "name": "level-0",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "start": 34600,
+                        "size": 34592,
+                        "delta": -8,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 3,
+                        "outcome": "pruned",
+                        "start": null,
+                        "size": null,
+                        "delta": null,
+                        "proxy": 2823
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 3,
+                        "outcome": "pruned",
+                        "start": null,
+                        "size": null,
+                        "delta": null,
+                        "proxy": 14767
+                      },
+                      {
+                        "name": "local-naming",
+                        "pass": 3,
+                        "outcome": "kept",
+                        "start": 34592,
+                        "size": 32700,
+                        "delta": -1892,
+                        "proxy": null
+                      }
+                    ],
+                    "stops": [
+                      {
+                        "level": 0,
+                        "size": 34600,
+                        "sha256": "7de8914059fadf43b1e883d92542ba2a70821ea352829e5fffc6eab7bb4b331b"
+                      },
+                      {
+                        "level": 1,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 2,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 3,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 4,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 5,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 6,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 7,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 8,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 9,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 10,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 11,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      },
+                      {
+                        "level": 12,
+                        "size": 34592,
+                        "sha256": "78ae68fc53ccf450f62d7d2970afdd1a9a4506a75dbadc5a10539b0a05ed1e5b"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "schema": 1,
+            "source_sha256": "59ee2970ef33fbb949157a1bef903c13ad6b4d24932f2115ce4c399dffa8339c",
+            "request": {
+              "target": "JavaScript",
+              "preserve_root_exports": true,
+              "logical_work": 40000000000,
+              "retained_bytes": 256000000,
+              "effective_logical_work": 40000000000,
+              "effective_retained_bytes": 256000000
+            },
+            "inputs": {
+              "root": 0,
+              "entries": [
+                {
+                  "name": "entry",
+                  "module": 0
+                }
+              ],
+              "modules": [
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/entry.lil",
+                  "bytes": 2958,
+                  "sha256": "b1f71341712881346d2271eeb8e9ad915529b72699a8c9a798edffec6d073ca5",
+                  "dependencies": [
+                    1,
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/types.lil",
+                  "bytes": 3366,
+                  "sha256": "ef4efd2a8dc01b22b5bb181fe7beb9246cb00c13b2cb1227ae02730652c0d9a1",
+                  "dependencies": [],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/parse.lil",
+                  "bytes": 8425,
+                  "sha256": "a2861173f019f7e6fecfe9fcc1670d563258e2d8fc33b298ef73213cc0cba456",
+                  "dependencies": [
+                    1,
+                    3,
+                    5,
+                    4
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/lexer.lil",
+                  "bytes": 39073,
+                  "sha256": "e23437960935b0a62a97ade3696e6a3a0a68cea3c187cf5d57cd234cdde656b1",
+                  "dependencies": [
+                    1,
+                    4,
+                    5
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/rules.lil",
+                  "bytes": 20051,
+                  "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+                  "dependencies": [],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/str.lil",
+                  "bytes": 9602,
+                  "sha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+                  "dependencies": [
+                    4
+                  ],
+                  "dynamic_dependencies": []
+                }
+              ],
+              "host_modules": []
+            },
+            "shape": {
+              "modules": 6,
+              "units": 118,
+              "operations": 8674,
+              "cells": 791
+            },
+            "javascript_policy": {
+              "schema": 3,
+              "algorithm": 14,
+              "configuration_version": 2,
+              "contract": {
+                "target": "javascript",
+                "world": "ReusableLibrary",
+                "execution": "Module",
+                "ecmascript": "es2022",
+                "preserve_root_exports": true,
+                "keep_function_names": false,
+                "keep_published_function_names": true,
+                "pristine_builtins": true,
+                "pure_property_reads": false,
+                "unconstructed_callbacks": false,
+                "numeric_lengths": true,
+                "strip_debug": true,
+                "strip_console_calls": false,
+                "checks": "production",
+                "preserved_properties": [],
+                "delivery": {
+                  "mode": "single",
+                  "format": "esm",
+                  "preload": "none",
+                  "host_modules": "external",
+                  "entry_names": "[name].[ext]",
+                  "chunk_names": "[index].[ext]",
+                  "module_names": "[path].[ext]",
+                  "request_bytes": 0,
+                  "depth_bytes": 0
+                }
+              },
+              "objective": {
+                "codec": "Raw",
+                "codec_settings": {
+                  "brotli": {
+                    "quality": 11,
+                    "window": 22,
+                    "mode": "generic"
+                  },
+                  "gzip": {
+                    "level": 9,
+                    "window": 15
+                  }
+                },
+                "priority": "SizeFirst",
+                "optional_alternatives": 1024,
+                "optional_codec_probes": 1536,
+                "retained_candidates": 1024,
+                "retained_candidate_bytes": 786432,
+                "beam_width": 10,
+                "walk": {
+                  "version": 8,
+                  "prefix": null,
+                  "exact": null,
+                  "margin": 0,
+                  "passes": null,
+                  "starts": true
+                },
+                "search": {
+                  "version": 29,
+                  "codec_schedule": "staged",
+                  "proxy_pruning": "on",
+                  "deferred_naming_starts": "auto",
+                  "deferred_naming_starts_enabled": false,
+                  "deferred_naming_polish": true,
+                  "render_batch": 8,
+                  "diversity_interval": 4
+                }
+              },
+              "effort": 13,
+              "tactics": [
+                {
+                  "id": "dead-code-elimination",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "dead-code-elimination",
+                    "name": "dead-code-elimination",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "uses-and-effects",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "program-facts",
+                      "target-head",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Remove unused operations, stores and private functions while retaining observable effects.",
+                    "tradeoffs": "Usually reduces execution and size; compressed bytes can differ. Off retains optional dead-code work, not mandatory reachability and language lowering."
+                  }
+                },
+                {
+                  "id": "constant-folding",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "constant-folding",
+                    "name": "constant-folding",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation",
+                      "structural-search",
+                      "output-families"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "program-facts",
+                      "target-head",
+                      "target-tail",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Evaluate bounded known operations and calls, propagate constants and consider literal representations.",
+                    "tradeoffs": "Spends proof work to remove runtime work. Larger literals can hurt codec size; representation alternatives compete with full bytes. Off also vetoes root-string forwarding."
+                  }
+                },
+                {
+                  "id": "inlining",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "inlining",
+                    "name": "inlining",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation",
+                      "structural-search",
+                      "output-families"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "program-facts",
+                      "target-head",
+                      "target-tail",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Replace proved calls with their bodies to expose simplification and remove call overhead.",
+                    "tradeoffs": "Can increase text and compilation work. Shared removal-only inlining also needs dead-code-elimination; target implementations need target-compaction. Off vetoes all optional inlining."
+                  }
+                },
+                {
+                  "id": "scalar-replacement",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "scalar-replacement",
+                    "name": "scalar-replacement",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "ownership-and-observations",
+                    "default": "preset",
+                    "producers": [
+                      "java-script-formation",
+                      "structural-search"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Replace proved private object storage with independent values.",
+                    "tradeoffs": "May remove allocations and fields but add locals or longer text. Escape, identity, initialization and capture proofs remain mandatory; off keeps the aggregate representation."
+                  }
+                },
+                {
+                  "id": "call-specialization",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "call-specialization",
+                    "name": "call-specialization",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [
+                      "structural-search"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Specialize proved private function signatures and transport of product arguments.",
+                    "tradeoffs": "Additional proofs and candidates can remove allocations or argument handling; more parameters can cost bytes. On permits competition only where every call is known."
+                  }
+                },
+                {
+                  "id": "helper-sharing",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": false,
+                  "definition": {
+                    "id": "helper-sharing",
+                    "name": "helper-sharing",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [],
+                    "purpose": "Compatibility name for optional parameterized helper sharing; no implementation is currently available.",
+                    "tradeoffs": "Explicit on reports unavailable and does not alter output. Mandatory runtime helpers remain language lowering; this flag does not control them."
+                  }
+                },
+                {
+                  "id": "target-compaction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "target-compaction",
+                    "name": "target-compaction",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "target-schedule",
+                    "default": "on",
+                    "producers": [
+                      "java-script-formation",
+                      "output-families"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "target-tail",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Permit optional target-tree cleanup, statement spellings and output families.",
+                    "tradeoffs": "Adds formation and search work; spelling wins depend on the objective. Semantic subfamilies also need their own permissions. Off keeps mandatory lowering and independently permitted structural search."
+                  }
+                },
+                {
+                  "id": "identifier-mangling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "identifier-mangling",
+                    "name": "identifier-mangling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Assign short hygienic names to private lexical bindings.",
+                    "tradeoffs": "Usually reduces bytes without runtime work; names affect codec repetition. Off retains source naming and disables dependent naming trials; public-name contracts always apply."
+                  }
+                },
+                {
+                  "id": "property-mangling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "property-mangling",
+                    "name": "property-mangling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "java-script-formation",
+                      "output-families"
+                    ],
+                    "prerequisites": [
+                      "target-compaction"
+                    ],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Try coherent short names for proved private fields, including reuse across unrelated types.",
+                    "tradeoffs": "Requires observation and inheritance proofs and extra formation/judgments. Preserved or reflected keys keep their names. Independent of lexical mangling; off vetoes cached and direct assignments too."
+                  }
+                },
+                {
+                  "id": "string-pooling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "string-pooling",
+                    "name": "string-pooling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "structural-search",
+                      "output-families"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "target-tail",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Share repeated literal strings or numbers through bindings.",
+                    "tradeoffs": "Introduces bindings and reads; repetitive literal bytes can already compress well. Structural computed-string pooling additionally needs constant-folding. Off vetoes pooling in every route."
+                  }
+                },
+                {
+                  "id": "string-array-packing",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "string-array-packing",
+                    "name": "string-array-packing",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": true,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "output-families"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral",
+                      "startup",
+                      "recurring"
+                    ],
+                    "invalidates": [
+                      "target-tail",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Represent string arrays as delimited text decoded with split under pristine-builtins assumptions.",
+                    "tradeoffs": "Can save bytes while adding decoding and allocations. Version 3 requires explicit on, including callable sites; legacy auto permits startup sites at effort 16 only. Off vetoes packing at all levels."
+                  }
+                },
+                {
+                  "id": "startup-reconstruction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "startup-reconstruction",
+                    "name": "startup-reconstruction",
+                    "javascript_only": true,
+                    "minimum_effort": 16,
+                    "startup_at_level_16": true,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "java-script-formation"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral",
+                      "startup"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Permit constant-table encodings with startup decoders.",
+                    "tradeoffs": "Trades startup CPU/storage for possible delivery savings and extra search. Version 3 requires explicit on at every effort; legacy auto grants it at 16. Does not permit recurring decoding or string-array packing."
+                  }
+                },
+                {
+                  "id": "recurring-reconstruction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": false,
+                  "definition": {
+                    "id": "recurring-reconstruction",
+                    "name": "recurring-reconstruction",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "off",
+                    "producers": [],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral",
+                      "recurring"
+                    ],
+                    "invalidates": [],
+                    "purpose": "Compatibility name for recurring table reconstruction; no implementation is currently available.",
+                    "tradeoffs": "Explicit on reports unavailable. String-array-packing owns its own callable-site risk and is not enabled by this flag."
+                  }
+                },
+                {
+                  "id": "naming-search",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "naming-search",
+                    "name": "naming-search",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": [
+                      "identifier-mangling"
+                    ],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Explore lexical allocation styles, name reuse and local refinements under the selected objective.",
+                    "tradeoffs": "Spends rendering and codec work for possible byte savings without intended runtime work. Effort schedules bound exploration; off keeps the baseline allocator."
+                  }
+                },
+                {
+                  "id": "naming-alphabet",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "naming-alphabet",
+                    "name": "naming-alphabet",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": [
+                      "identifier-mangling",
+                      "naming-search"
+                    ],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Try alternative hygienic naming alphabets as joint name assignments.",
+                    "tradeoffs": "May rename the whole artifact and add expensive codec trials for small or absent savings. Naming-search and identifier-mangling must remain permitted; off preserves their other strategies."
+                  }
+                }
+              ],
+              "resources": {
+                "logical_work": 40000000000,
+                "retained_bytes": 256000000,
+                "wall_time_ms": null
+              },
+              "constraints": {
+                "max_startup_work": null,
+                "max_recurring_work": null,
+                "max_runtime_memory_bytes": null,
+                "max_performance_regression_percent": null
+              }
+            },
+            "javascript_policies": null,
+            "native_policy": null,
+            "phases_ns": {
+              "policy_ns": 261660,
+              "discovery_parse_ns": 6362663,
+              "check_ns": 3063200,
+              "convert_ns": 78304800,
+              "rules": {
+                "rounds": 2,
+                "folded_values": 5,
+                "folded_calls": 0,
+                "folded_branches": 6,
+                "removed_operations": 18,
+                "removed_stores": 0,
+                "retired_functions": 0,
+                "emptied_units": 0,
+                "unreachable_operations": 0,
+                "inlined_calls": 1,
+                "inlined_bodies": 1,
+                "dropped_parameters": 0,
+                "constant_parameters": 0,
+                "unused_results": 0
+              },
+              "frontend_release_ns": 374211,
+              "adopt_ns": 780072,
+              "javascript_ns": 2028752573,
+              "finish_ns": 437780,
+              "source_release_ns": 1954
+            },
+            "total_ns": 2118769389,
+            "policy_diagnostics": {
+              "javascript": [
+                "legacy optimizer configuration uses policy version 2; select [policy] version = 3 for explicit runtime-risk permissions independently of effort"
+              ],
+              "native": null
+            },
+            "policy_resolution": {
+              "javascript": {
+                "configuration_version": 2,
+                "runtime_permissions": "legacy-effort-16-startup",
+                "tactics": [
+                  {
+                    "id": "dead-code-elimination",
+                    "origin": "preset",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "shared-rules",
+                        "enabled": true,
+                        "prerequisites": []
+                      },
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "constant-folding",
+                    "origin": "preset",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "shared-rules",
+                        "enabled": true,
+                        "prerequisites": []
+                      },
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      },
+                      {
+                        "stage": "structural-search",
+                        "enabled": true,
+                        "prerequisites": []
+                      },
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "inlining",
+                    "origin": "preset",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "shared-rules",
+                        "enabled": true,
+                        "prerequisites": [
+                          "dead-code-elimination"
+                        ]
+                      },
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      },
+                      {
+                        "stage": "structural-search",
+                        "enabled": true,
+                        "prerequisites": []
+                      },
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "scalar-replacement",
+                    "origin": "preset",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      },
+                      {
+                        "stage": "structural-search",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "call-specialization",
+                    "origin": "preset",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "structural-search",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "helper-sharing",
+                    "origin": "preset",
+                    "status": "unavailable",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [],
+                    "producers": []
+                  },
+                  {
+                    "id": "target-compaction",
+                    "origin": "default",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": []
+                      },
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "identifier-mangling",
+                    "origin": "legacy-alias",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "naming",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "property-mangling",
+                    "origin": "legacy-alias",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      },
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "string-pooling",
+                    "origin": "legacy-alias",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "structural-search",
+                        "enabled": true,
+                        "prerequisites": [
+                          "constant-folding"
+                        ]
+                      },
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "string-array-packing",
+                    "origin": "default",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "startup-reconstruction",
+                    "origin": "default",
+                    "status": "automatic-off",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [],
+                    "producers": [
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": false,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "recurring-reconstruction",
+                    "origin": "default",
+                    "status": "unavailable",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [],
+                    "producers": []
+                  },
+                  {
+                    "id": "naming-search",
+                    "origin": "default",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "naming",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "naming-alphabet",
+                    "origin": "default",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "naming",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              "javascript_objectives": null,
+              "native": null
+            },
+            "ledger_before_finish": {
+              "baseline_work": 83266201,
+              "optional_work": 215220116,
+              "retained_bytes": 18116371,
+              "peak_retained_bytes": 24385344,
+              "analysis_work": 223165247,
+              "edit_work": 45249,
+              "render_work": 75275701,
+              "codec_work": 120
+            },
+            "resources": {
+              "baseline_work": 83266201,
+              "optional_work": 215220116,
+              "codec_work": 120,
+              "peak_retained_bytes": 24385344,
+              "frontend_logical_work": 75694007,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 102080,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "ledger_after_finish": {
+              "baseline_work": 83266201,
+              "optional_work": 215220116,
+              "retained_bytes": 0,
+              "peak_retained_bytes": 24385344,
+              "analysis_work": 223165247,
+              "edit_work": 45249,
+              "render_work": 75275701,
+              "codec_work": 120
+            }
+          },
+          "phase_elapsed": {
+            "wall_ms": 2119.4,
+            "js_demand_ms": 36.088,
+            "js_demand_calls": 4,
+            "js_formation_ms": 1802.992,
+            "js_formation_calls": 63,
+            "target_verify_ms": 20.475,
+            "target_verify_calls": 56,
+            "target_edition_ms": 0.003,
+            "target_edition_calls": 56,
+            "target_basis_ms": 10.103,
+            "target_basis_calls": 56,
+            "target_names_ms": 42.298,
+            "target_names_calls": 59,
+            "target_print_ms": 37.466,
+            "target_print_calls": 59,
+            "canonical_gzip_ms": 0.0,
+            "canonical_gzip_calls": 0,
+            "canonical_brotli_ms": 0.0,
+            "canonical_brotli_calls": 0,
+            "proxy_brotli_ms": 0.0,
+            "proxy_brotli_calls": 0,
+            "codec_lookup_ms": 0.0,
+            "codec_lookup_calls": 0,
+            "codec_reuse_ms": 0.0,
+            "codec_reuse_calls": 0,
+            "admission_structure_ms": 33.049,
+            "admission_structure_calls": 59,
+            "admission_parse_ms": 18.176,
+            "admission_parse_calls": 10,
+            "js_rule_ms": 1756.787,
+            "js_rule_calls": 4177,
+            "js_rule_SelfMethodCalls_ms": 5.645,
+            "js_rule_SelfMethodCalls_calls": 28,
+            "js_rule_SimplifyOperators_ms": 15.842,
+            "js_rule_SimplifyOperators_calls": 195,
+            "js_rule_InlineExpressionFunctions_ms": 19.365,
+            "js_rule_InlineExpressionFunctions_calls": 28,
+            "js_rule_InlineStatementFunctions_ms": 12.682,
+            "js_rule_InlineStatementFunctions_calls": 28,
+            "js_rule_EliminateAliases_ms": 66.004,
+            "js_rule_EliminateAliases_calls": 236,
+            "js_rule_FoldLiteralOperations_ms": 0.896,
+            "js_rule_FoldLiteralOperations_calls": 28,
+            "js_rule_ForwardRootConstants_ms": 8.172,
+            "js_rule_ForwardRootConstants_calls": 28,
+            "js_rule_ForwardRootStrings_ms": 55.978,
+            "js_rule_ForwardRootStrings_calls": 202,
+            "js_rule_ForwardSingleUses_ms": 288.994,
+            "js_rule_ForwardSingleUses_calls": 241,
+            "js_rule_ElideUndefined_ms": 0.337,
+            "js_rule_ElideUndefined_calls": 21,
+            "js_rule_MergeDeclarations_ms": 27.993,
+            "js_rule_MergeDeclarations_calls": 188,
+            "js_rule_FoldLogicalAssignments_ms": 0.49,
+            "js_rule_FoldLogicalAssignments_calls": 21,
+            "js_rule_FoldLogicalReturns_ms": 0.393,
+            "js_rule_FoldLogicalReturns_calls": 21,
+            "js_rule_FlattenConstantObjects_ms": 19.924,
+            "js_rule_FlattenConstantObjects_calls": 21,
+            "js_rule_UnobserveCalledNames_ms": 5.664,
+            "js_rule_UnobserveCalledNames_calls": 21,
+            "js_rule_DropTypedDefaultChecks_ms": 4.823,
+            "js_rule_DropTypedDefaultChecks_calls": 21,
+            "js_rule_InlineInitializers_ms": 5.461,
+            "js_rule_InlineInitializers_calls": 21,
+            "js_rule_FoldObjectStores_ms": 21.286,
+            "js_rule_FoldObjectStores_calls": 188,
+            "js_rule_DropDoubleNegations_ms": 2.604,
+            "js_rule_DropDoubleNegations_calls": 21,
+            "js_rule_InlineSingleCalls_ms": 531.37,
+            "js_rule_InlineSingleCalls_calls": 208,
+            "js_rule_FlattenBlocks_ms": 2.977,
+            "js_rule_FlattenBlocks_calls": 157,
+            "js_rule_CompressStatements_ms": 194.401,
+            "js_rule_CompressStatements_calls": 167,
+            "js_rule_PlaceSingleCalls_ms": 117.46,
+            "js_rule_PlaceSingleCalls_calls": 167,
+            "js_rule_DropRedundantInitStores_ms": 43.74,
+            "js_rule_DropRedundantInitStores_calls": 167,
+            "js_rule_ScalarizeMemberObjects_ms": 60.942,
+            "js_rule_ScalarizeMemberObjects_calls": 167,
+            "js_rule_DropUnreferencedFunctions_ms": 27.938,
+            "js_rule_DropUnreferencedFunctions_calls": 167,
+            "js_rule_DropUnreachable_ms": 3.933,
+            "js_rule_DropUnreachable_calls": 167,
+            "js_rule_GroupPrototypeStores_ms": 0.013,
+            "js_rule_GroupPrototypeStores_calls": 167,
+            "js_rule_JoinEmptyDeclarations_ms": 2.442,
+            "js_rule_JoinEmptyDeclarations_calls": 167,
+            "js_rule_DropBareBlocks_ms": 2.044,
+            "js_rule_DropBareBlocks_calls": 165,
+            "js_rule_TruthyNullTests_ms": 35.153,
+            "js_rule_TruthyNullTests_calls": 165,
+            "js_rule_ArrayReceiverCalls_ms": 36.684,
+            "js_rule_ArrayReceiverCalls_calls": 160,
+            "js_rule_EncodeTables_ms": 0.0,
+            "js_rule_EncodeTables_calls": 0,
+            "js_rule_DropDefaultArguments_ms": 51.099,
+            "js_rule_DropDefaultArguments_calls": 160,
+            "js_rule_NativeDefaultLengths_ms": 50.188,
+            "js_rule_NativeDefaultLengths_calls": 160,
+            "js_rule_PackStringArrays_ms": 0.0,
+            "js_rule_PackStringArrays_calls": 0,
+            "js_rule_PoolStrings_ms": 33.472,
+            "js_rule_PoolStrings_calls": 108
+          }
+        },
+        "candidate": {
+          "cpu_seconds": 2.0098450000000003,
+          "wall_seconds": 2.010278034998919,
+          "load_before": [
+            1.73291015625,
+            2.06787109375,
+            2.88232421875
+          ],
+          "load_after": [
+            1.673828125,
+            2.0498046875,
+            2.8720703125
+          ],
+          "bytes": 32704,
+          "sha256": "e3810051da692b2be951139106d9170dc07be3a1df19b6dff9a6385ff2c75c37",
+          "explain": {
+            "artifacts": [
+              {
+                "sha256": "e3810051da692b2be951139106d9170dc07be3a1df19b6dff9a6385ff2c75c37",
+                "raw": 32704,
+                "gzip9": null,
+                "brotli11": null,
+                "details": {
+                  "recipe_words": [
+                    3,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "recipe_fingerprint": 12139990537254341990,
+                  "semantic": {
+                    "snapshot_identity": "RevisionId(1203)",
+                    "meaning_identity": "RevisionId(1204)",
+                    "identity_scope": "process-local diagnostics, not canonical recipe identity",
+                    "rewrite_order": "newest-first",
+                    "rewrites": []
+                  },
+                  "execution": "Module",
+                  "style": "Scoped",
+                  "source_names": [],
+                  "tactics": [
+                    {
+                      "tactic": "dead-code-elimination",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "constant-folding",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "inlining",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "scalar-replacement",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "target-compaction",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "identifier-mangling",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "property-mangling",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "string-pooling",
+                      "risk": "neutral"
+                    }
+                  ],
+                  "output": {
+                    "dead_code_elimination": true,
+                    "rules": {
+                      "constant_folding": true,
+                      "inlining": true,
+                      "scalar_replacement": true,
+                      "data_encoding": false,
+                      "array_packing": "disabled"
+                    },
+                    "target_compaction": true,
+                    "literals": "Original",
+                    "families": "OutputFamilies { block_inlining: true, flat_blocks: true, statements: StatementSpellings { conditional_values: true, exit_points: true, loop_fusion: true, conditional_returns: true, logical_branches: true }, string_pooling: true, string_array_packing: false, string_constants: true, loop_heads: true, logical_statements: true, compound_assignments: true, quotes: true, int32_hints: false, property_mangling: true }",
+                    "property_mangling": true,
+                    "self_named": false,
+                    "read_order": true,
+                    "local_read_order": false,
+                    "alphabet": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_",
+                    "choices": []
+                  },
+                  "sizes": [
+                    32704,
+                    null,
+                    null
+                  ],
+                  "delivery": null,
+                  "policy_fingerprint": [
+                    124,
+                    144,
+                    233,
+                    81,
+                    239,
+                    177,
+                    79,
+                    164,
+                    228,
+                    82,
+                    15,
+                    20,
+                    180,
+                    197,
+                    132,
+                    120,
+                    25,
+                    204,
+                    83,
+                    174,
+                    244,
+                    133,
+                    161,
+                    52,
+                    11,
+                    214,
+                    117,
+                    154,
+                    49,
+                    78,
+                    125,
+                    7
+                  ]
+                }
+              }
+            ],
+            "winners": [
+              0,
+              null,
+              null
+            ],
+            "native_sha256": null,
+            "native_delivery": null,
+            "first_artifact_ns": 172034493,
+            "search": {
+              "request": {
+                "objectives": [
+                  "Raw"
+                ],
+                "scalar": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "helper": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "string": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "local_facts": {
+                  "work": 1000000,
+                  "result_bytes": 512000
+                },
+                "facts_cache": {
+                  "entries": 128,
+                  "bytes": 16000000,
+                  "result_bytes": 512000
+                }
+              },
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 0,
+              "proof_queries": 2488,
+              "beam_evictions": 0,
+              "structural_opportunities": {
+                "inventory_reached": true,
+                "inventory_truncated": false,
+                "families": [
+                  {
+                    "tactic": "scalar-replacement",
+                    "outcomes": {
+                      "discovered": 0,
+                      "not_reached": 0,
+                      "legal": 0,
+                      "unknown": 0,
+                      "truncated": 0,
+                      "conflicting": 0,
+                      "redundant": 0,
+                      "equivalent": 0
+                    }
+                  },
+                  {
+                    "tactic": "inlining",
+                    "outcomes": {
+                      "discovered": 116,
+                      "not_reached": 0,
+                      "legal": 1,
+                      "unknown": 115,
+                      "truncated": 0,
+                      "conflicting": 0,
+                      "redundant": 0,
+                      "equivalent": 0
+                    }
+                  },
+                  {
+                    "tactic": "call-specialization",
+                    "outcomes": {
+                      "discovered": 0,
+                      "not_reached": 0,
+                      "legal": 0,
+                      "unknown": 0,
+                      "truncated": 0,
+                      "conflicting": 0,
+                      "redundant": 0,
+                      "equivalent": 0
+                    }
+                  },
+                  {
+                    "tactic": "constant-folding",
+                    "outcomes": {
+                      "discovered": 1186,
+                      "not_reached": 0,
+                      "legal": 0,
+                      "unknown": 1186,
+                      "truncated": 0,
+                      "conflicting": 0,
+                      "redundant": 0,
+                      "equivalent": 0
+                    }
+                  },
+                  {
+                    "tactic": "string-pooling",
+                    "outcomes": {
+                      "discovered": 1186,
+                      "not_reached": 0,
+                      "legal": 0,
+                      "unknown": 1186,
+                      "truncated": 0,
+                      "conflicting": 0,
+                      "redundant": 0,
+                      "equivalent": 0
+                    }
+                  }
+                ]
+              },
+              "admitted_artifacts": 6,
+              "stop": null,
+              "terminal": {
+                "objectives": [
+                  {
+                    "codec": "raw",
+                    "prefix": null,
+                    "exact": null,
+                    "margin": 0,
+                    "pass_limit": null,
+                    "passes": 4,
+                    "examined": 76,
+                    "judged": 4,
+                    "pruned": 40,
+                    "tried": 41,
+                    "scored": 1,
+                    "codec_probes": 0,
+                    "before": 34604,
+                    "searched": 34604,
+                    "after": 32704,
+                    "spelling": [
+                      "conditional-values",
+                      "exit-points",
+                      "loop-fusion",
+                      "read-order",
+                      "compound-assignments",
+                      "quotes",
+                      "loop-heads",
+                      "logical-statements",
+                      "block-inlining",
+                      "flat-blocks",
+                      "string-pooling",
+                      "conditional-returns",
+                      "logical-branches",
+                      "string-constants",
+                      "property-mangling"
+                    ],
+                    "style": "Scoped",
+                    "trials": [
+                      {
+                        "challenger": "int32-hints",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 199
+                      },
+                      {
+                        "challenger": "string-constants",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-values",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 37
+                      },
+                      {
+                        "challenger": "exit-points",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 30
+                      },
+                      {
+                        "challenger": "loop-fusion",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 44
+                      },
+                      {
+                        "challenger": "block-inlining",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 338
+                      },
+                      {
+                        "challenger": "self-named-functions",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 34596,
+                        "delta": -8,
+                        "proxy": -8
+                      },
+                      {
+                        "challenger": "read-order",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 250
+                      },
+                      {
+                        "challenger": "compound-assignments",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 37
+                      },
+                      {
+                        "challenger": "quotes",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 21
+                      },
+                      {
+                        "challenger": "logical-statements",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-returns",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 686
+                      },
+                      {
+                        "challenger": "other-objective-seed",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1765
+                      },
+                      {
+                        "challenger": "flat-blocks",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 62
+                      },
+                      {
+                        "challenger": "loop-heads",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "pooling-and-packing",
+                        "pass": 1,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-branches",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 201
+                      },
+                      {
+                        "challenger": "string-pooling",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 169
+                      },
+                      {
+                        "challenger": "string-array-packing",
+                        "pass": 1,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "int32-hints",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 199
+                      },
+                      {
+                        "challenger": "string-constants",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-values",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 37
+                      },
+                      {
+                        "challenger": "exit-points",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 30
+                      },
+                      {
+                        "challenger": "loop-fusion",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 44
+                      },
+                      {
+                        "challenger": "block-inlining",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 338
+                      },
+                      {
+                        "challenger": "self-named-functions",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 8
+                      },
+                      {
+                        "challenger": "read-order",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 250
+                      },
+                      {
+                        "challenger": "compound-assignments",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 37
+                      },
+                      {
+                        "challenger": "quotes",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 21
+                      },
+                      {
+                        "challenger": "logical-statements",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": 34596,
+                        "delta": 0,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-returns",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 686
+                      },
+                      {
+                        "challenger": "other-objective-seed",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1765
+                      },
+                      {
+                        "challenger": "flat-blocks",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 62
+                      },
+                      {
+                        "challenger": "loop-heads",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": 34596,
+                        "delta": 0,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "pooling-and-packing",
+                        "pass": 2,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-branches",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 201
+                      },
+                      {
+                        "challenger": "string-pooling",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 169
+                      },
+                      {
+                        "challenger": "string-array-packing",
+                        "pass": 2,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "int32-hints",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 199
+                      },
+                      {
+                        "challenger": "string-constants",
+                        "pass": 4,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-values",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 29
+                      },
+                      {
+                        "challenger": "exit-points",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 30
+                      },
+                      {
+                        "challenger": "loop-fusion",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 44
+                      },
+                      {
+                        "challenger": "block-inlining",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 338
+                      },
+                      {
+                        "challenger": "self-named-functions",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 8
+                      },
+                      {
+                        "challenger": "read-order",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 250
+                      },
+                      {
+                        "challenger": "compound-assignments",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 35
+                      },
+                      {
+                        "challenger": "quotes",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 21
+                      },
+                      {
+                        "challenger": "logical-statements",
+                        "pass": 4,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-returns",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 686
+                      },
+                      {
+                        "challenger": "other-objective-seed",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 3657
+                      },
+                      {
+                        "challenger": "flat-blocks",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 62
+                      },
+                      {
+                        "challenger": "loop-heads",
+                        "pass": 4,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "pooling-and-packing",
+                        "pass": 4,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-branches",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 201
+                      },
+                      {
+                        "challenger": "string-pooling",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 169
+                      },
+                      {
+                        "challenger": "string-array-packing",
+                        "pass": 4,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      }
+                    ],
+                    "choices_tried": 0,
+                    "choices_scored": 0,
+                    "surveys": 3,
+                    "heads": 5,
+                    "choice_trials": [],
+                    "choices": [],
+                    "joints_tried": 10,
+                    "joint_trials": [
+                      {
+                        "name": "literals:Observed",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 2823
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 13964
+                      },
+                      {
+                        "name": "alphabet:sequential",
+                        "pass": 1,
+                        "outcome": "duplicate",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "alphabet:frequency",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 34596,
+                        "delta": 0,
+                        "proxy": 0
+                      },
+                      {
+                        "name": "literals:Observed",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": 34596,
+                        "delta": 0,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 2823
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 13964
+                      },
+                      {
+                        "name": "alphabet:sequential",
+                        "pass": 2,
+                        "outcome": "duplicate",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "alphabet:frequency",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": 34596,
+                        "delta": 0,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:local-read-order",
+                        "pass": 3,
+                        "outcome": "rejected",
+                        "size": 34596,
+                        "delta": 0,
+                        "proxy": 0
+                      },
+                      {
+                        "name": "properties:private-fields",
+                        "pass": 3,
+                        "outcome": "kept",
+                        "size": 32704,
+                        "delta": -1892,
+                        "proxy": -1892
+                      },
+                      {
+                        "name": "literals:Observed",
+                        "pass": 4,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 2827
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 14004
+                      },
+                      {
+                        "name": "alphabet:sequential",
+                        "pass": 4,
+                        "outcome": "duplicate",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "alphabet:frequency",
+                        "pass": 4,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 4
+                      }
+                    ],
+                    "restarts_tried": 2,
+                    "starts": [
+                      {
+                        "name": "level-0",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "start": 34604,
+                        "size": 34596,
+                        "delta": -8,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 3,
+                        "outcome": "pruned",
+                        "start": null,
+                        "size": null,
+                        "delta": null,
+                        "proxy": 2823
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 3,
+                        "outcome": "pruned",
+                        "start": null,
+                        "size": null,
+                        "delta": null,
+                        "proxy": 13949
+                      },
+                      {
+                        "name": "local-naming",
+                        "pass": 3,
+                        "outcome": "kept",
+                        "start": 34596,
+                        "size": 32704,
+                        "delta": -1892,
+                        "proxy": null
+                      }
+                    ],
+                    "stops": [
+                      {
+                        "level": 0,
+                        "size": 34604,
+                        "sha256": "b616c2153e6c7361fe0eabc3d38f222d1e9696ab923034fe88fe002c907c41e7"
+                      },
+                      {
+                        "level": 1,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 2,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 3,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 4,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 5,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 6,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 7,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 8,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 9,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 10,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 11,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      },
+                      {
+                        "level": 12,
+                        "size": 34596,
+                        "sha256": "a8fe297bf3cd2ac940efac44d4c91dcdfc36e9df4db0976d75eaba866fda8b2e"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "schema": 1,
+            "source_sha256": "59ee2970ef33fbb949157a1bef903c13ad6b4d24932f2115ce4c399dffa8339c",
+            "request": {
+              "target": "JavaScript",
+              "preserve_root_exports": true,
+              "logical_work": 40000000000,
+              "retained_bytes": 256000000,
+              "effective_logical_work": 40000000000,
+              "effective_retained_bytes": 256000000
+            },
+            "inputs": {
+              "root": 0,
+              "entries": [
+                {
+                  "name": "entry",
+                  "module": 0
+                }
+              ],
+              "modules": [
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/entry.lil",
+                  "bytes": 2958,
+                  "sha256": "b1f71341712881346d2271eeb8e9ad915529b72699a8c9a798edffec6d073ca5",
+                  "dependencies": [
+                    1,
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/types.lil",
+                  "bytes": 3366,
+                  "sha256": "ef4efd2a8dc01b22b5bb181fe7beb9246cb00c13b2cb1227ae02730652c0d9a1",
+                  "dependencies": [],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/parse.lil",
+                  "bytes": 8425,
+                  "sha256": "a2861173f019f7e6fecfe9fcc1670d563258e2d8fc33b298ef73213cc0cba456",
+                  "dependencies": [
+                    1,
+                    3,
+                    5,
+                    4
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/lexer.lil",
+                  "bytes": 39073,
+                  "sha256": "e23437960935b0a62a97ade3696e6a3a0a68cea3c187cf5d57cd234cdde656b1",
+                  "dependencies": [
+                    1,
+                    4,
+                    5
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/rules.lil",
+                  "bytes": 20051,
+                  "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+                  "dependencies": [],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil/src/str.lil",
+                  "bytes": 9602,
+                  "sha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+                  "dependencies": [
+                    4
+                  ],
+                  "dynamic_dependencies": []
+                }
+              ],
+              "host_modules": []
+            },
+            "shape": {
+              "modules": 6,
+              "units": 118,
+              "operations": 8472,
+              "cells": 791
+            },
+            "javascript_policy": {
+              "schema": 3,
+              "algorithm": 14,
+              "configuration_version": 2,
+              "contract": {
+                "target": "javascript",
+                "world": "ReusableLibrary",
+                "execution": "Module",
+                "ecmascript": "es2022",
+                "preserve_root_exports": true,
+                "keep_function_names": false,
+                "keep_published_function_names": true,
+                "pristine_builtins": true,
+                "pure_property_reads": false,
+                "unconstructed_callbacks": false,
+                "numeric_lengths": true,
+                "strip_debug": true,
+                "strip_console_calls": false,
+                "checks": "production",
+                "preserved_properties": [],
+                "delivery": {
+                  "mode": "single",
+                  "format": "esm",
+                  "preload": "none",
+                  "host_modules": "external",
+                  "entry_names": "[name].[ext]",
+                  "chunk_names": "[index].[ext]",
+                  "module_names": "[path].[ext]",
+                  "request_bytes": 0,
+                  "depth_bytes": 0
+                }
+              },
+              "objective": {
+                "codec": "Raw",
+                "codec_settings": {
+                  "brotli": {
+                    "quality": 11,
+                    "window": 22,
+                    "mode": "generic"
+                  },
+                  "gzip": {
+                    "level": 9,
+                    "window": 15
+                  }
+                },
+                "priority": "SizeFirst",
+                "optional_alternatives": 1024,
+                "optional_codec_probes": 1536,
+                "retained_candidates": 1024,
+                "retained_candidate_bytes": 786432,
+                "beam_width": 10,
+                "walk": {
+                  "version": 8,
+                  "prefix": null,
+                  "exact": null,
+                  "margin": 0,
+                  "passes": null,
+                  "starts": true
+                },
+                "search": {
+                  "version": 29,
+                  "codec_schedule": "staged",
+                  "proxy_pruning": "on",
+                  "deferred_naming_starts": "auto",
+                  "deferred_naming_starts_enabled": false,
+                  "deferred_naming_polish": true,
+                  "render_batch": 8,
+                  "diversity_interval": 4
+                }
+              },
+              "effort": 13,
+              "tactics": [
+                {
+                  "id": "dead-code-elimination",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "dead-code-elimination",
+                    "name": "dead-code-elimination",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "uses-and-effects",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "program-facts",
+                      "target-head",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Remove unused operations, stores and private functions while retaining observable effects.",
+                    "tradeoffs": "Usually reduces execution and size; compressed bytes can differ. Off retains optional dead-code work, not mandatory reachability and language lowering."
+                  }
+                },
+                {
+                  "id": "constant-folding",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "constant-folding",
+                    "name": "constant-folding",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation",
+                      "structural-search",
+                      "output-families"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "program-facts",
+                      "target-head",
+                      "target-tail",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Evaluate bounded known operations and calls, propagate exact/finite/path values, forward aliases and defaults, and consider literal representations.",
+                    "tradeoffs": "Spends bounded proof work to remove runtime work; overflow retains unknown values and calls. Larger literals can hurt codec size; representation alternatives compete with full bytes. Off also vetoes common computations, default transport and root-string forwarding."
+                  }
+                },
+                {
+                  "id": "inlining",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "inlining",
+                    "name": "inlining",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation",
+                      "structural-search",
+                      "output-families"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "program-facts",
+                      "target-head",
+                      "target-tail",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Replace proved calls with their bodies to expose simplification and remove call overhead.",
+                    "tradeoffs": "Can increase text and compilation work. Shared removal-only inlining also needs dead-code-elimination; target implementations need target-compaction. Off vetoes all optional inlining."
+                  }
+                },
+                {
+                  "id": "scalar-replacement",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "scalar-replacement",
+                    "name": "scalar-replacement",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "ownership-and-observations",
+                    "default": "preset",
+                    "producers": [
+                      "java-script-formation",
+                      "structural-search"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Replace proved private object storage with independent values.",
+                    "tradeoffs": "May remove allocations and fields but add locals or longer text. Escape, identity, initialization and capture proofs remain mandatory; off keeps the aggregate representation."
+                  }
+                },
+                {
+                  "id": "call-specialization",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "call-specialization",
+                    "name": "call-specialization",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [
+                      "structural-search"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Specialize proved private function signatures and transport of product arguments.",
+                    "tradeoffs": "Additional proofs and candidates can remove allocations or argument handling; more parameters can cost bytes. On permits competition only where every call is known."
+                  }
+                },
+                {
+                  "id": "helper-sharing",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": false,
+                  "definition": {
+                    "id": "helper-sharing",
+                    "name": "helper-sharing",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [],
+                    "purpose": "Compatibility name for optional parameterized helper sharing; no implementation is currently available.",
+                    "tradeoffs": "Explicit on reports unavailable and does not alter output. Mandatory runtime helpers remain language lowering; this flag does not control them."
+                  }
+                },
+                {
+                  "id": "target-compaction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "target-compaction",
+                    "name": "target-compaction",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "target-schedule",
+                    "default": "on",
+                    "producers": [
+                      "java-script-formation",
+                      "output-families"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "target-tail",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Permit optional target-tree cleanup, statement spellings and output families.",
+                    "tradeoffs": "Adds formation and search work; spelling wins depend on the objective. Semantic subfamilies also need their own permissions. Off keeps mandatory lowering and independently permitted structural search."
+                  }
+                },
+                {
+                  "id": "identifier-mangling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "identifier-mangling",
+                    "name": "identifier-mangling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Assign short hygienic names to private lexical bindings.",
+                    "tradeoffs": "Usually reduces bytes without runtime work; names affect codec repetition. Off retains source naming and disables dependent naming trials; public-name contracts always apply."
+                  }
+                },
+                {
+                  "id": "property-mangling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "property-mangling",
+                    "name": "property-mangling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "java-script-formation",
+                      "output-families"
+                    ],
+                    "prerequisites": [
+                      "target-compaction"
+                    ],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Try coherent short names for proved private fields, including reuse across unrelated types.",
+                    "tradeoffs": "Requires observation and inheritance proofs and extra formation/judgments. Preserved or reflected keys keep their names. Independent of lexical mangling; off vetoes cached and direct assignments too."
+                  }
+                },
+                {
+                  "id": "string-pooling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "string-pooling",
+                    "name": "string-pooling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "structural-search",
+                      "output-families"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "target-tail",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Share repeated literal strings or numbers through bindings.",
+                    "tradeoffs": "Introduces bindings and reads; repetitive literal bytes can already compress well. Structural computed-string pooling additionally needs constant-folding. Off vetoes pooling in every route."
+                  }
+                },
+                {
+                  "id": "string-array-packing",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "string-array-packing",
+                    "name": "string-array-packing",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": true,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "output-families"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral",
+                      "startup",
+                      "recurring"
+                    ],
+                    "invalidates": [
+                      "target-tail",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Represent string arrays as delimited text decoded with split under pristine-builtins assumptions.",
+                    "tradeoffs": "Can save bytes while adding decoding and allocations. Version 3 requires explicit on, including callable sites; legacy auto permits startup sites at effort 16 only. Off vetoes packing at all levels."
+                  }
+                },
+                {
+                  "id": "startup-reconstruction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "startup-reconstruction",
+                    "name": "startup-reconstruction",
+                    "javascript_only": true,
+                    "minimum_effort": 16,
+                    "startup_at_level_16": true,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "java-script-formation"
+                    ],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral",
+                      "startup"
+                    ],
+                    "invalidates": [
+                      "target-head",
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Permit constant-table encodings with startup decoders.",
+                    "tradeoffs": "Trades startup CPU/storage for possible delivery savings and extra search. Version 3 requires explicit on at every effort; legacy auto grants it at 16. Does not permit recurring decoding or string-array packing."
+                  }
+                },
+                {
+                  "id": "recurring-reconstruction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": false,
+                  "definition": {
+                    "id": "recurring-reconstruction",
+                    "name": "recurring-reconstruction",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "off",
+                    "producers": [],
+                    "prerequisites": [],
+                    "risks": [
+                      "neutral",
+                      "recurring"
+                    ],
+                    "invalidates": [],
+                    "purpose": "Compatibility name for recurring table reconstruction; no implementation is currently available.",
+                    "tradeoffs": "Explicit on reports unavailable. String-array-packing owns its own callable-site risk and is not enabled by this flag."
+                  }
+                },
+                {
+                  "id": "naming-search",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "naming-search",
+                    "name": "naming-search",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": [
+                      "identifier-mangling"
+                    ],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Explore lexical allocation styles, name reuse and local refinements under the selected objective.",
+                    "tradeoffs": "Spends rendering and codec work for possible byte savings without intended runtime work. Effort schedules bound exploration; off keeps the baseline allocator."
+                  }
+                },
+                {
+                  "id": "naming-alphabet",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "naming-alphabet",
+                    "name": "naming-alphabet",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": [
+                      "identifier-mangling",
+                      "naming-search"
+                    ],
+                    "risks": [
+                      "neutral"
+                    ],
+                    "invalidates": [
+                      "names",
+                      "rendered-files"
+                    ],
+                    "purpose": "Try alternative hygienic naming alphabets as joint name assignments.",
+                    "tradeoffs": "May rename the whole artifact and add expensive codec trials for small or absent savings. Naming-search and identifier-mangling must remain permitted; off preserves their other strategies."
+                  }
+                }
+              ],
+              "resources": {
+                "logical_work": 40000000000,
+                "retained_bytes": 256000000,
+                "wall_time_ms": null
+              },
+              "constraints": {
+                "max_startup_work": null,
+                "max_recurring_work": null,
+                "max_runtime_memory_bytes": null,
+                "max_performance_regression_percent": null
+              }
+            },
+            "javascript_policies": null,
+            "native_policy": null,
+            "phases_ns": {
+              "policy_ns": 273432,
+              "discovery_parse_ns": 4227051,
+              "check_ns": 3040407,
+              "convert_ns": 91185146,
+              "rules": {
+                "rounds": 2,
+                "folded_values": 5,
+                "folded_calls": 0,
+                "folded_branches": 6,
+                "removed_operations": 18,
+                "removed_stores": 34,
+                "retired_functions": 0,
+                "emptied_units": 0,
+                "unreachable_operations": 0,
+                "inlined_calls": 1,
+                "inlined_bodies": 1,
+                "dropped_parameters": 0,
+                "constant_parameters": 0,
+                "unused_results": 0,
+                "forwarded_definitions": 168,
+                "common_computations": 0,
+                "default_arguments_omitted": 0,
+                "native_defaults": 0,
+                "set_folds": 0,
+                "path_folds": 0,
+                "evaluated_calls": 4,
+                "default_checks_removed": 6,
+                "evaluation_refusals": {
+                  "host": 12,
+                  "engine_dependent": 0,
+                  "aggregate": 244,
+                  "observable": 0,
+                  "unsupported": 12,
+                  "limit": 0
+                }
+              },
+              "frontend_release_ns": 381425,
+              "adopt_ns": 772868,
+              "javascript_ns": 1905811916,
+              "finish_ns": 628508,
+              "source_release_ns": 381
+            },
+            "total_ns": 2006801313,
+            "policy_diagnostics": {
+              "javascript": [
+                "legacy optimizer configuration uses policy version 2; select [policy] version = 3 for explicit runtime-risk permissions independently of effort"
+              ],
+              "native": null
+            },
+            "policy_resolution": {
+              "javascript": {
+                "configuration_version": 2,
+                "runtime_permissions": "legacy-effort-16-startup",
+                "tactics": [
+                  {
+                    "id": "dead-code-elimination",
+                    "origin": "preset",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "shared-rules",
+                        "enabled": true,
+                        "prerequisites": []
+                      },
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "constant-folding",
+                    "origin": "preset",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "shared-rules",
+                        "enabled": true,
+                        "prerequisites": []
+                      },
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      },
+                      {
+                        "stage": "structural-search",
+                        "enabled": true,
+                        "prerequisites": []
+                      },
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "inlining",
+                    "origin": "preset",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "shared-rules",
+                        "enabled": true,
+                        "prerequisites": [
+                          "dead-code-elimination"
+                        ]
+                      },
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      },
+                      {
+                        "stage": "structural-search",
+                        "enabled": true,
+                        "prerequisites": []
+                      },
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "scalar-replacement",
+                    "origin": "preset",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      },
+                      {
+                        "stage": "structural-search",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "call-specialization",
+                    "origin": "preset",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "structural-search",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "helper-sharing",
+                    "origin": "preset",
+                    "status": "unavailable",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [],
+                    "producers": []
+                  },
+                  {
+                    "id": "target-compaction",
+                    "origin": "default",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": []
+                      },
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "identifier-mangling",
+                    "origin": "legacy-alias",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "naming",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "property-mangling",
+                    "origin": "legacy-alias",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      },
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "string-pooling",
+                    "origin": "legacy-alias",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "structural-search",
+                        "enabled": true,
+                        "prerequisites": [
+                          "constant-folding"
+                        ]
+                      },
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "string-array-packing",
+                    "origin": "default",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "output-families",
+                        "enabled": true,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "startup-reconstruction",
+                    "origin": "default",
+                    "status": "automatic-off",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [],
+                    "producers": [
+                      {
+                        "stage": "java-script-formation",
+                        "enabled": false,
+                        "prerequisites": [
+                          "target-compaction"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "recurring-reconstruction",
+                    "origin": "default",
+                    "status": "unavailable",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [],
+                    "producers": []
+                  },
+                  {
+                    "id": "naming-search",
+                    "origin": "default",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "naming",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "naming-alphabet",
+                    "origin": "default",
+                    "status": "enabled",
+                    "missing_prerequisites": [],
+                    "permitted_risks": [
+                      "neutral"
+                    ],
+                    "producers": [
+                      {
+                        "stage": "naming",
+                        "enabled": true,
+                        "prerequisites": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              "javascript_objectives": null,
+              "native": null
+            },
+            "ledger_before_finish": {
+              "baseline_work": 82930221,
+              "optional_work": 203406147,
+              "retained_bytes": 17962855,
+              "peak_retained_bytes": 24216955,
+              "analysis_work": 215739791,
+              "edit_work": 45025,
+              "render_work": 70551432,
+              "codec_work": 120
+            },
+            "resources": {
+              "baseline_work": 82930221,
+              "optional_work": 203406147,
+              "codec_work": 120,
+              "peak_retained_bytes": 24216955,
+              "frontend_logical_work": 75693805,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 102080,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "ledger_after_finish": {
+              "baseline_work": 82930221,
+              "optional_work": 203406147,
+              "retained_bytes": 0,
+              "peak_retained_bytes": 24216955,
+              "analysis_work": 215739791,
+              "edit_work": 45025,
+              "render_work": 70551432,
+              "codec_work": 120
+            }
+          },
+          "phase_elapsed": {
+            "wall_ms": 2007.4,
+            "js_demand_ms": 34.578,
+            "js_demand_calls": 4,
+            "js_formation_ms": 1683.553,
+            "js_formation_calls": 63,
+            "target_verify_ms": 20.146,
+            "target_verify_calls": 56,
+            "target_edition_ms": 0.003,
+            "target_edition_calls": 56,
+            "target_basis_ms": 10.279,
+            "target_basis_calls": 56,
+            "target_names_ms": 42.657,
+            "target_names_calls": 59,
+            "target_print_ms": 37.147,
+            "target_print_calls": 59,
+            "canonical_gzip_ms": 0.0,
+            "canonical_gzip_calls": 0,
+            "canonical_brotli_ms": 0.0,
+            "canonical_brotli_calls": 0,
+            "proxy_brotli_ms": 0.0,
+            "proxy_brotli_calls": 0,
+            "codec_lookup_ms": 0.0,
+            "codec_lookup_calls": 0,
+            "codec_reuse_ms": 0.0,
+            "codec_reuse_calls": 0,
+            "admission_structure_ms": 32.103,
+            "admission_structure_calls": 59,
+            "admission_parse_ms": 17.378,
+            "admission_parse_calls": 10,
+            "js_rule_ms": 1638.05,
+            "js_rule_calls": 3836,
+            "js_rule_SelfMethodCalls_ms": 5.526,
+            "js_rule_SelfMethodCalls_calls": 28,
+            "js_rule_SimplifyOperators_ms": 15.74,
+            "js_rule_SimplifyOperators_calls": 195,
+            "js_rule_InlineExpressionFunctions_ms": 19.892,
+            "js_rule_InlineExpressionFunctions_calls": 28,
+            "js_rule_InlineStatementFunctions_ms": 12.732,
+            "js_rule_InlineStatementFunctions_calls": 28,
+            "js_rule_EliminateAliases_ms": 64.539,
+            "js_rule_EliminateAliases_calls": 236,
+            "js_rule_FoldLiteralOperations_ms": 0.868,
+            "js_rule_FoldLiteralOperations_calls": 28,
+            "js_rule_ForwardRootConstants_ms": 8.009,
+            "js_rule_ForwardRootConstants_calls": 28,
+            "js_rule_ForwardRootStrings_ms": 55.239,
+            "js_rule_ForwardRootStrings_calls": 202,
+            "js_rule_ForwardSingleUses_ms": 284.503,
+            "js_rule_ForwardSingleUses_calls": 241,
+            "js_rule_ElideUndefined_ms": 0.333,
+            "js_rule_ElideUndefined_calls": 21,
+            "js_rule_MergeDeclarations_ms": 27.777,
+            "js_rule_MergeDeclarations_calls": 188,
+            "js_rule_FoldLogicalAssignments_ms": 0.5,
+            "js_rule_FoldLogicalAssignments_calls": 21,
+            "js_rule_FoldLogicalReturns_ms": 0.386,
+            "js_rule_FoldLogicalReturns_calls": 21,
+            "js_rule_FlattenConstantObjects_ms": 19.699,
+            "js_rule_FlattenConstantObjects_calls": 21,
+            "js_rule_UnobserveCalledNames_ms": 5.615,
+            "js_rule_UnobserveCalledNames_calls": 21,
+            "js_rule_InlineInitializers_ms": 5.332,
+            "js_rule_InlineInitializers_calls": 21,
+            "js_rule_FoldObjectStores_ms": 21.029,
+            "js_rule_FoldObjectStores_calls": 188,
+            "js_rule_DropDoubleNegations_ms": 2.451,
+            "js_rule_DropDoubleNegations_calls": 21,
+            "js_rule_InlineSingleCalls_ms": 529.194,
+            "js_rule_InlineSingleCalls_calls": 208,
+            "js_rule_FlattenBlocks_ms": 3.028,
+            "js_rule_FlattenBlocks_calls": 157,
+            "js_rule_CompressStatements_ms": 191.31,
+            "js_rule_CompressStatements_calls": 167,
+            "js_rule_PlaceSingleCalls_ms": 118.314,
+            "js_rule_PlaceSingleCalls_calls": 167,
+            "js_rule_DropRedundantInitStores_ms": 44.315,
+            "js_rule_DropRedundantInitStores_calls": 167,
+            "js_rule_ScalarizeMemberObjects_ms": 59.449,
+            "js_rule_ScalarizeMemberObjects_calls": 167,
+            "js_rule_DropUnreferencedFunctions_ms": 27.713,
+            "js_rule_DropUnreferencedFunctions_calls": 167,
+            "js_rule_DropUnreachable_ms": 3.804,
+            "js_rule_DropUnreachable_calls": 167,
+            "js_rule_GroupPrototypeStores_ms": 0.012,
+            "js_rule_GroupPrototypeStores_calls": 167,
+            "js_rule_JoinEmptyDeclarations_ms": 2.4,
+            "js_rule_JoinEmptyDeclarations_calls": 167,
+            "js_rule_DropBareBlocks_ms": 2.004,
+            "js_rule_DropBareBlocks_calls": 165,
+            "js_rule_TruthyNullTests_ms": 36.04,
+            "js_rule_TruthyNullTests_calls": 165,
+            "js_rule_ArrayReceiverCalls_ms": 36.524,
+            "js_rule_ArrayReceiverCalls_calls": 160,
+            "js_rule_EncodeTables_ms": 0.0,
+            "js_rule_EncodeTables_calls": 0,
+            "js_rule_PackStringArrays_ms": 0.0,
+            "js_rule_PackStringArrays_calls": 0,
+            "js_rule_PoolStrings_ms": 33.451,
+            "js_rule_PoolStrings_calls": 108
+          }
+        }
+      },
+      "samples": []
+    }
+  ],
+  "complete": false,
+  "policy_change_reason": null,
+  "error": "compilers resolved different javascript_policy; explain an intentional change with --allow-policy-change"
+}

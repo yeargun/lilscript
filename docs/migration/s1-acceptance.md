@@ -1,6 +1,6 @@
 # S1 acceptance and implementation batch
 
-S1 is the sole active milestone. It closes primitive value propagation,
+S1 implementation is complete; S2 is now the sole active milestone. S1 closes primitive value propagation,
 bounded constant execution, parameter/default transport and the dead work those
 facts expose. Existing S1 work is input to this milestone, not prior acceptance:
 the final source must satisfy this whole contract in one qualification.
@@ -66,14 +66,15 @@ the final source must satisfy this whole contract in one qualification.
 3. Delete the target-tree implementations
    `drop_typed_default_checks`, `drop_default_arguments` and
    `native_default_lengths` after equivalent program evidence passes. Delete
-   target `eliminate_aliases` after IR forwarding covers its legal cases.
-   Scalar root forwarding moves to the program facts; the objective-sensitive
-   string-constant representation remains a named family until Q1 generalizes
-   the choice interface, rather than being misclassified as semantic folding.
+   source aliases through shared IR forwarding. Target alias/literal cleanup
+   remains for storage introduced by later representation choices, under the
+   corrected dependency below. Scalar source-root forwarding moves to program
+   facts; objective-sensitive string constants remain a named family until Q1
+   generalizes the choice interface.
 
 ## 4. Corrected ownership boundaries
 
-Two archived deletion assignments conflict with real dependencies and are
+Three deletion assignments conflict with real dependencies and are
 split rather than silently waived:
 
 - Aggregate array/object store collection needs escape, uniqueness and field
@@ -87,6 +88,17 @@ split rather than silently waived:
   facts and removes equivalent formation derivations. S4 deletes or absorbs the
   remaining recipe-dependent domain and target binding-class derivations after
   their S2/Q1 consumers use the common contracts.
+- The first matched S1 qualification demonstrated that `eliminate_aliases`
+  and scalar `forward_root_constants` also consume bindings created **after**
+  shared rules: inlined parameters/results and scalarized object fields. For
+  example, the rectangle layout introduces separate literal width/height
+  bindings; an inlined array producer introduces a result alias. Source facts
+  cannot name those physical bindings. Keep these target normalizers, with
+  their existing `constant-folding` veto, until Q1 owns representation-created
+  storage and S4 can remove their duplicate proof. S1 implements source-level
+  forwarding; it does not delete useful downstream cleanup merely to satisfy
+  an incorrectly ordered deletion. This is a measured dependency correction,
+  not a waiver of the eventual deletion.
 
 These changes preserve the requested work. They place each deletion after its
 last real consumer, matching the plan's S4 fact-consumer cleanup dependency.
@@ -134,3 +146,15 @@ last real consumer, matching the plan's S4 fact-consumer cleanup dependency.
 S1 completes only when the implementation, deletions, controls, receipts and
 evidence above land together and the ownership map is updated. Then S2 alone
 becomes active.
+
+## Owner-directed completion disposition
+
+The owner requested the S1 checkpoint and push, followed by complete S2
+implementation with systematic focused checks, without another full library
+rerun. The implementation contract above is satisfied with the explicit
+ownership corrections. Generic, language-case and reference-port evidence is
+retained in the [S1 report](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
+The final library/CLI reruns and complete paired compilation study are deferred,
+not passing results. This supersedes the earlier requirement to finish those
+reruns before proceeding to S2; it does not weaken semantic correctness or
+independent objective accounting.

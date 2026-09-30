@@ -4,7 +4,7 @@
 //   node scripts/ratchet.mjs --compiler <lilscript> [--codec <lilscript-codec>]
 //        [--sets cases,apps,algorithms] [--filter <id-substring|glob>,...]
 //        [--jobs N] [--work DIR] [--json out.json] [--markdown out.md]
-//        [--format bare|iife] [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline [--accept-growth]] [--verbose]
+//        [--format bare|iife] [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline [--accept-growth [--accept-corpus-growth REASON]]] [--verbose]
 //        [--config-dir DIR] [--retain-explanations]
 //   node scripts/ratchet.mjs --refresh-bars --compiler <lilscript> --reference <old-route lilscript>
 //
@@ -34,7 +34,10 @@
 // items whose loss grew, and loss counts that grew, when no corpus total
 // grew in any metric (the owner's ruling of 2026-09-29: a batch is judged by
 // its totals, and a few bytes lost locally for an overall win are accepted);
-// it lists what it accepts. Bars are refreshed only with
+// it lists what it accepts. --accept-corpus-growth REASON additionally permits
+// a corpus subtotal increase on the same full input set only when each
+// objective total is nonincreasing. The report records the reason and deltas.
+// Bars are refreshed only with
 // --refresh-bars, a scheduled re-baseline event (BC3) that needs the pinned
 // competitors (benchmarks/popular), Closure and the reference binary; the gate
 // itself needs only Node, the compiler and the codec.
@@ -472,6 +475,13 @@ function markdownReport(report) {
   if (report.delivery) out.push(`Delivery: classic script, explicit \`${report.delivery.format}\`.`, "");
   out.push(formatCounts(report.counts, report.totals, report.sets), "");
   out.push(`Failures (compile, crash or oracle): ${report.failures.length}. Verdict: **${report.verdict}**.`, "");
+  if (report.baselineAcceptance) {
+    const accepted = report.baselineAcceptance;
+    out.push(`Requested baseline growth acceptance: **${accepted.allowed ? "eligible" : "refused"}**. The ordinary verdict above remains visible.`, "");
+    if (accepted.reason) out.push(`Reason: ${accepted.reason}`, "");
+    if (accepted.corpus.length) out.push("| Corpus | Objective | Before | Now | Delta |", "|---|---|---:|---:|---:|", ...accepted.corpus.map((row) => `| ${row.set} | ${row.metric} | ${row.before} | ${row.now} | ${row.delta} |`), "");
+    if (Object.keys(accepted.objectives).length) out.push("| Objective total | Before | Now | Delta |", "|---|---:|---:|---:|", ...Object.entries(accepted.objectives).map(([metric, row]) => `| ${metric} | ${row.before} | ${row.now} | ${row.delta} |`), "");
+  }
   if (report.problems.length) out.push("## Blocking", "", ...report.problems.map((line) => `- ${line}`), "");
   if (report.improvements.length) out.push("## Improvements (tighten the baseline with --update-baseline)", "", ...report.improvements.map((line) => `- ${line}`), "");
   return `${out.join("\n")}\n`;
@@ -685,7 +695,71 @@ export function validateObjectivePolicy(receipt, lane) {
   }
 }
 
+// Explicit batch acceptance never blends objectives or changes the measured
+// population. Ordinary --accept-growth retains its stricter per-corpus gate.
+export function growthAcceptance(options, table, baseline, sums, problems) {
+  const corpus = [];
+  const objectives = {};
+  const refusing = [];
+  const reason = options.acceptCorpusGrowth;
+  if (!options.acceptGrowth) return { allowed: false, reason: null, corpus, objectives, refusing };
+  for (const [set, metrics] of Object.entries(sums)) {
+    for (const [metric, bars] of Object.entries(metrics)) {
+      const now = Object.values(bars)[0]?.ours;
+      const before = Object.values(baseline?.totals?.[set]?.[metric] ?? {})[0]?.ours;
+      if (now !== undefined && before !== undefined) corpus.push({ set, metric, before, now, delta: now - before });
+    }
+  }
+  if (reason !== undefined) {
+    if (!reason.trim()) refusing.push("--accept-corpus-growth needs a nonempty reason");
+    if (!baseline) refusing.push("corpus growth needs an existing baseline");
+    const ids = Object.keys(table).sort();
+    const previousIds = Object.keys(baseline?.items ?? {}).sort();
+    if (options.filter || new Set(options.sets).size !== SETS.length || !SETS.every((set) => options.sets.includes(set))
+        || JSON.stringify(ids) !== JSON.stringify(previousIds)) {
+      refusing.push("corpus growth requires the same full input set as the baseline");
+    }
+    // A failure cannot make a sum smaller. Even ledgered failures disqualify
+    // this override; retain the ordinary failure-acceptance path separately.
+    for (const metric of METRICS) {
+      let before = 0, now = 0;
+      let complete = true;
+      for (const id of ids) {
+        const old = baseline?.items?.[id]?.[metric];
+        const next = table[id]?.[metric];
+        if (old?.state !== "pass" || next?.state !== "pass"
+            || !Number.isSafeInteger(old.size) || !Number.isSafeInteger(next.size)
+            || old.size < 0 || next.size < 0) {
+          complete = false;
+          break;
+        }
+        before += old.size;
+        now += next.size;
+      }
+      if (!complete) refusing.push(`${metric}: every baseline and candidate lane must pass with measured bytes`);
+      else {
+        objectives[metric] = { before, now, delta: now - before };
+        if (now > before) refusing.push(`${metric} total grew: ${before} -> ${now}`);
+      }
+    }
+    for (const problem of problems) {
+      if (!problem.startsWith("loss grew:") && !problem.startsWith("loss count grew:")) refusing.push(problem);
+    }
+  } else {
+    for (const row of corpus) if (row.delta > 0) refusing.push(`${row.set} ${row.metric}: ${row.before} -> ${row.now}`);
+  }
+  return { allowed: refusing.length === 0, reason: reason ?? null, corpus, objectives, refusing };
+}
+
+export function validateGrowthOptions(options) {
+  if (options.acceptCorpusGrowth !== undefined
+      && (!options.updateBaseline || !options.acceptGrowth || !options.acceptCorpusGrowth.trim())) {
+    throw new Error("--accept-corpus-growth requires --update-baseline, --accept-growth and a nonempty reason");
+  }
+}
+
 export async function runRatchet(options) {
+  validateGrowthOptions(options);
   const started = Date.now();
   const work = resolve(options.work);
   mkdirSync(work, { recursive: true });
@@ -766,6 +840,7 @@ export async function runRatchet(options) {
     for (const { entry, index } of stale) improvements.push(`ledger entry ${index + 1} covers nothing (remove it): ${JSON.stringify(entry.items).slice(0, 120)}`);
   }
 
+  const acceptance = growthAcceptance(options, table, baseline, sums, problems);
   const verdict = problems.length === 0 ? "pass" : "fail";
   const report = {
     schema: 1,
@@ -788,6 +863,7 @@ export async function runRatchet(options) {
     problems,
     improvements,
     verdict,
+    baselineAcceptance: options.updateBaseline && options.acceptGrowth ? acceptance : null,
     table,
   };
   if (options.json) writeFileSync(resolve(options.json), `${JSON.stringify(report, null, 1)}\n`);
@@ -800,22 +876,11 @@ export async function runRatchet(options) {
 
   if (options.updateBaseline) {
     const growth = (line) => line.startsWith("loss grew:") || line.startsWith("loss count grew:");
-    // Growth is accepted only for an overall win: no corpus total (ours,
-    // per metric) above the baseline's.
-    const grownTotals = [];
-    if (options.acceptGrowth && baseline) {
-      for (const [set, metrics] of Object.entries(sums)) {
-        for (const [metric, bars] of Object.entries(metrics)) {
-          const now = Object.values(bars)[0]?.ours;
-          const before = Object.values(baseline.totals?.[set]?.[metric] ?? {})[0]?.ours;
-          if (now !== undefined && before !== undefined && now > before) grownTotals.push(`${set} ${metric}: ${before} -> ${now}`);
-        }
-      }
-    }
-    const acceptable = options.acceptGrowth && grownTotals.length === 0;
+    const acceptable = acceptance.allowed;
     const refusing = problems.filter((line) => !line.startsWith("no baseline") && !line.startsWith("the bars changed") && !(acceptable && growth(line)));
-    if (options.acceptGrowth && grownTotals.length) {
-      process.stdout.write(`\n--accept-growth refused: a corpus total grew:\n${grownTotals.map((line) => `  ${line}`).join("\n")}\n`);
+    if (options.acceptGrowth && acceptance.refusing.length) {
+      refusing.push(...acceptance.refusing);
+      process.stdout.write(`\n--accept-growth refused:\n${acceptance.refusing.map((line) => `  ${line}`).join("\n")}\n`);
     }
     if (acceptable) {
       const accepted = problems.filter(growth);
@@ -835,6 +900,7 @@ export async function runRatchet(options) {
         configurations,
         configurationOverride: report.configurationOverride,
         barsSha256,
+        baselineAcceptance: report.baselineAcceptance,
         counts,
         totals: sums,
         items: Object.fromEntries(Object.entries(table).sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, lanes]) => [id, Object.fromEntries(METRICS.map((metric) => [metric, lanes[metric].state === "pass" ? { state: "pass", size: lanes[metric].size } : { state: lanes[metric].state }]))])),
@@ -877,12 +943,13 @@ async function main() {
       "reuse-summaries": { type: "boolean" },
       "update-baseline": { type: "boolean" },
       "accept-growth": { type: "boolean" },
+      "accept-corpus-growth": { type: "string" },
       verbose: { type: "boolean" },
       help: { type: "boolean" },
     },
   });
   if (values.help || !values.compiler) {
-    process.stderr.write("usage: node scripts/ratchet.mjs --compiler <lilscript> [--codec PATH] [--sets cases,apps,algorithms] [--filter <id|glob>,...] [--format bare|iife] [--config-dir DIR] [--retain-explanations] [--jobs N] [--work DIR] [--json FILE] [--markdown FILE] [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline] [--verbose]\n       node scripts/ratchet.mjs --refresh-bars --compiler <lilscript> --reference <old-route lilscript> [--codec PATH] [--jobs N]\n");
+    process.stderr.write("usage: node scripts/ratchet.mjs --compiler <lilscript> [--codec PATH] [--sets cases,apps,algorithms] [--filter <id|glob>,...] [--format bare|iife] [--config-dir DIR] [--retain-explanations] [--jobs N] [--work DIR] [--json FILE] [--markdown FILE] [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline [--accept-growth [--accept-corpus-growth REASON]]] [--verbose]\n       node scripts/ratchet.mjs --refresh-bars --compiler <lilscript> --reference <old-route lilscript> [--codec PATH] [--jobs N]\n");
     return values.help ? 0 : 2;
   }
   const codec = values.codec ?? defaultCodec(values.compiler);
@@ -908,6 +975,7 @@ async function main() {
     label: values.label,
     updateBaseline: values["update-baseline"] ?? false,
     acceptGrowth: values["accept-growth"] ?? false,
+    acceptCorpusGrowth: values["accept-corpus-growth"],
     reuseSummaries: values["reuse-summaries"] ?? false,
     verbose: values.verbose ?? false,
   };

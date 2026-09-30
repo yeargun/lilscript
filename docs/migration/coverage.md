@@ -40,20 +40,20 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M5.7 | [Q2](plan.md#q2) | Incremental tail |
 | M6.1 | [S4](plan.md#s4) | deleting the tree's re-derivations |
 | M6.2 | [S4](plan.md#s4) | the same deletions |
-| M6.3 | [S1](plan.md#s1) | The `pure` contract. Computed, not consumed |
-| M6.4a | [S1](plan.md#s1) | finite sets, `simplify::known`'s constant cases |
-| M6.4b | [S1](plan.md#s1), then [S4](plan.md#s4) | S1: shared primitive classes/ranges and equivalent formation number sources; S4: absorb/delete recipe-dependent `raw_domains.rs` and the target binding-class derivation after S2/Q1 consumers migrate |
+| M6.3 | [S1](plan.md#s1), implementation complete | The `pure` contract. Computed, not consumed |
+| M6.4a | [S1](plan.md#s1), implementation complete | finite sets, `simplify::known`'s constant cases |
+| M6.4b | [S1](plan.md#s1), then [S4](plan.md#s4) | S1 complete: shared primitive classes/ranges and equivalent formation number sources; S4: absorb/delete recipe-dependent `raw_domains.rs` and the target binding-class derivation after S2/Q1 consumers migrate |
 | M6.5 | [S4](plan.md#s4) | deleting `quiet.rs`'s order and `root_constants.rs`'s own proof |
 | M6.6 | [S2](plan.md#s2) | Escape and uniqueness |
 | M6.7 | [S2](plan.md#s2) | Field facts |
 | M6.8 | [S3](plan.md#s3) | Frequency |
-| M7.1 | [S1](plan.md#s1) | Removal |
-| M7.3 | [S1](plan.md#s1) | callee-built defaults and deletion of the three tree passes (M5.3b) |
-| M7.4 | [S1](plan.md#s1) | defines, deleting `eliminate_aliases` and `forward_root_constants` |
+| M7.1 | [S1](plan.md#s1), implementation complete | Removal |
+| M7.3 | [S1](plan.md#s1), implementation complete | callee-built defaults and deletion of the three tree passes (M5.3b) |
+| M7.4 | [S1](plan.md#s1), then [S4](plan.md#s4) | S1 complete: source value/alias forwarding; S4 after Q1: replace/delete target alias and literal normalization for representation-created bindings |
 | M7.5 | [S3](plan.md#s3) | Inlining, the rest |
 | M7.6 | [S2](plan.md#s2) | Namespaces and emulated methods |
 | M7.7 | [S2](plan.md#s2) | Fields |
-| M7.8 | [S1](plan.md#s1), with aggregate store collection in [S2](plan.md#s2) | S1: finite/path-sensitive primitive folding, exact methods and bounded calls; S2: array/object store collection once escape and field facts exist |
+| M7.8 | [S1](plan.md#s1), with aggregate store collection in [S2](plan.md#s2) | S1 complete: finite/path-sensitive primitive folding, exact methods and bounded calls; S2: array/object store collection once escape and field facts exist |
 | M7.9 | [S2](plan.md#s2) | Scalar replacement and store-copy elision |
 | M7.10 | [S3](plan.md#s3) | Identical units, after M8.5 |
 | M8.2 | [G3](plan.md#g3) | `fold_logical_*` as formation; the rest lands with each replacement |

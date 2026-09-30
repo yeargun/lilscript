@@ -27,7 +27,7 @@ pub enum ParameterPassing {
     MutableReference,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IntBinary {
     Add,
     Subtract,
@@ -316,7 +316,7 @@ pub enum Intrinsic {
 /// The source checker retains how a checked primitive is used. Both source
 /// lowerings consume this identity; target property or constructor text is not
 /// a second source of semantic resolution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ResolvedIntrinsic {
     Property(Intrinsic),
     Method(Intrinsic),

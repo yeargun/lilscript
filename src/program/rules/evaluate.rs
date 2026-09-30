@@ -15,6 +15,81 @@ const MAX_DEPTH: usize = 8;
 const MAX_OPERATIONS: usize = 64;
 const MAX_STEPS: u32 = 1024;
 
+/// Why bounded execution kept a call. The catalog classifies operations
+/// outside primitive execution; depth/size/step/storage bounds are distinct
+/// from semantic refusals in the rule receipt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Refusal {
+    Host,
+    Engine,
+    Aggregate,
+    Observable,
+    Unsupported,
+    Limit,
+}
+
+pub(super) struct Attempt {
+    pub value: Option<Exact>,
+    pub refusal: Option<Refusal>,
+}
+
+fn intrinsic_refusal(operation: ResolvedIntrinsic) -> Option<Refusal> {
+    use crate::catalog::EffectClass as E;
+    use Intrinsic as I;
+    let (ResolvedIntrinsic::Method(method)
+    | ResolvedIntrinsic::Property(method)
+    | ResolvedIntrinsic::Constructor(method)) = operation;
+    match method {
+        I::IntImul
+        | I::IntToString
+        | I::IntToUnsignedString
+        | I::FloatAbs
+        | I::FloatFloor
+        | I::FloatCeil
+        | I::FloatRound
+        | I::FloatMin
+        | I::FloatMax
+        | I::FloatToInt
+        | I::StringLength
+        | I::StringCharCodeAt
+        | I::StringCodeUnitAt
+        | I::StringCharAt
+        | I::StringIncludes
+        | I::StringIndexOf
+        | I::StringLastIndexOf
+        | I::StringStartsWith
+        | I::StringEndsWith
+        | I::StringTrim
+        | I::StringTrimStart
+        | I::StringTrimEnd
+        | I::StringSlice
+        | I::StringCodePointLength
+        | I::StringRepeat
+        | I::JsTruthy => None,
+        // ASCII casing is exact; the evaluator declines the Unicode case.
+        I::StringToLowerCase | I::StringToUpperCase => None,
+        I::FloatSqrt
+        | I::FloatSin
+        | I::FloatCos
+        | I::FloatAcos
+        | I::FloatExp
+        | I::FloatLog
+        | I::FloatTan
+        | I::FloatAtan2
+        | I::FloatHypot => Some(Refusal::Engine),
+        _ => Some(match crate::catalog::effect_class(operation) {
+            E::Write { .. } | E::Callback | E::Print => Refusal::Observable,
+            E::Construct { .. } | E::Read { .. } | E::Pure { fresh: true, .. } => {
+                Refusal::Aggregate
+            }
+            // Remaining dynamic/host operations need host or aggregate
+            // semantics, beyond the primitive exact-value domain.
+            E::Unknown => Refusal::Host,
+            E::Pure { .. } | E::Inert { .. } => Refusal::Unsupported,
+        }),
+    }
+}
+
 #[cfg(test)]
 #[path = "evaluate_scalar_tests.rs"]
 mod scalar_tests;
@@ -67,7 +142,8 @@ fn intrinsic(
         | Intrinsic::FloatRound
         | Intrinsic::FloatToInt
         | Intrinsic::StringCodePointLength => 0..=0,
-        Intrinsic::FloatMin | Intrinsic::FloatMax => 1..=1,
+        Intrinsic::FloatMin | Intrinsic::FloatMax | Intrinsic::IntImul => 1..=1,
+        Intrinsic::JsTruthy => 0..=0,
         _ => crate::catalog::intrinsic_recipe(method)?.arguments,
     };
     if !arguments.contains(&args.len()) {
@@ -75,6 +151,14 @@ fn intrinsic(
     }
     let receiver = receiver?;
     use Intrinsic as I;
+    if method == I::JsTruthy {
+        return Some(Exact::Boolean(facts::truthy(program, receiver)));
+    }
+    if method == I::IntImul {
+        return Some(Exact::Integer(
+            integer(receiver)?.wrapping_mul(integer(args.first()?)?),
+        ));
+    }
     if matches!(method, I::IntToString | I::IntToUnsignedString) {
         let value = integer(receiver)?;
         let radix = args.first().map_or(Some(10), integer)?;
@@ -301,6 +385,69 @@ fn known(values: &[Knowledge], value: ValueId) -> Option<&Exact> {
     }
 }
 
+fn builtin_primitive(builtin: crate::check::BuiltinCall) -> bool {
+    use crate::check::BuiltinCall as B;
+    matches!(
+        builtin,
+        B::JsUndefined
+            | B::JsTypeOf
+            | B::JsIsNullish
+            | B::JsIsFalse
+            | B::JsIsUndefined
+            | B::JsStrictEqual
+            | B::JsStrictNotEqual
+    )
+}
+
+fn builtin(
+    program: &Program<'_>,
+    builtin: crate::check::BuiltinCall,
+    args: &[Exact],
+    work: &mut Work,
+) -> Option<Exact> {
+    use crate::check::BuiltinCall as B;
+    match (builtin, args) {
+        (B::JsUndefined, []) => Some(Exact::Undefined),
+        (B::JsIsNullish, [value]) => Some(Exact::Boolean(matches!(
+            value,
+            Exact::Null | Exact::Undefined
+        ))),
+        (B::JsIsFalse, [value]) => Some(Exact::Boolean(matches!(value, Exact::Boolean(false)))),
+        (B::JsIsUndefined, [value]) => Some(Exact::Boolean(matches!(value, Exact::Undefined))),
+        (B::JsTypeOf, [value]) => {
+            let name = match value {
+                Exact::Integer(_) | Exact::Number(_) => "number",
+                Exact::Boolean(_) => "boolean",
+                Exact::String(_) => "string",
+                Exact::Null => "object",
+                Exact::Undefined => "undefined",
+            };
+            work.reserve_evaluation(64)
+                .then(|| computed(name.encode_utf16().collect()))
+        }
+        (B::JsStrictEqual | B::JsStrictNotEqual, [left, right]) => {
+            let equal = if let (Some(left), Some(right)) = (number(left), number(right)) {
+                // Strict numeric equality identifies both zero signs and
+                // rejects NaN, independent of the stored binary64 payload.
+                left == right
+            } else if let (Some(left), Some(right)) =
+                (string(program, left), string(program, right))
+            {
+                if !work.charge(
+                    (left.storage_bytes() as u64).checked_add(right.storage_bytes() as u64)?,
+                ) {
+                    return None;
+                }
+                left.code_units().eq(right.code_units())
+            } else {
+                left == right
+            };
+            Some(Exact::Boolean(equal == (builtin == B::JsStrictEqual)))
+        }
+        _ => None,
+    }
+}
+
 pub(super) fn call(
     program: &Program<'_>,
     effects: &ProgramEffects,
@@ -309,15 +456,22 @@ pub(super) fn call(
     values: &[Knowledge],
     pristine: bool,
     work: &mut Work,
-) -> Option<Exact> {
-    Evaluator {
+) -> Attempt {
+    let mut evaluator = Evaluator {
         program,
         effects,
         pristine,
         work,
         steps: MAX_STEPS,
-    }
-    .call(unit, call, values, 0)
+        refusal: Refusal::Unsupported,
+    };
+    let value = evaluator.call(unit, call, values, 0);
+    let refusal = value.is_none().then_some(if evaluator.work.truncated() {
+        Refusal::Limit
+    } else {
+        evaluator.refusal
+    });
+    Attempt { value, refusal }
 }
 
 struct Evaluator<'a, 'src> {
@@ -326,6 +480,7 @@ struct Evaluator<'a, 'src> {
     pristine: bool,
     work: &'a mut Work,
     steps: u32,
+    refusal: Refusal,
 }
 
 enum Flow {
@@ -337,7 +492,11 @@ enum Flow {
 
 impl Evaluator<'_, '_> {
     fn step(&mut self) -> Option<()> {
-        self.steps = self.steps.checked_sub(1)?;
+        let Some(steps) = self.steps.checked_sub(1) else {
+            self.refusal = Refusal::Limit;
+            return None;
+        };
+        self.steps = steps;
         self.work.charge(1).then_some(())
     }
 
@@ -350,6 +509,7 @@ impl Evaluator<'_, '_> {
     ) -> Option<Exact> {
         self.step()?;
         if depth >= MAX_DEPTH {
+            self.refusal = Refusal::Limit;
             return None;
         }
         let caller = self.program.unit(unit)?;
@@ -360,14 +520,30 @@ impl Evaluator<'_, '_> {
             // methods still need the host assumption before evaluation.
             Callee::Intrinsic(operation)
                 if self.pristine
-                    || matches!(operation, ResolvedIntrinsic::Method(Intrinsic::FloatToInt)) => {}
+                    || !crate::catalog::host_replaceable(operation)
+                    || matches!(operation, ResolvedIntrinsic::Method(Intrinsic::FloatToInt)) =>
+            {
+                if let Some(refusal) = intrinsic_refusal(operation) {
+                    self.refusal = refusal;
+                    return None;
+                }
+            }
             Callee::Builtin(crate::check::BuiltinCall::MathImul) if self.pristine => {}
+            Callee::Builtin(operation) if builtin_primitive(operation) => {}
             Callee::Unit(body) if self.program.unit(body)?.operations.len() <= MAX_OPERATIONS => {}
-            _ => return None,
+            Callee::Unit(_) => {
+                self.refusal = Refusal::Limit;
+                return None;
+            }
+            _ => {
+                self.refusal = Refusal::Host;
+                return None;
+            }
         }
         let site = &caller.calls[call.index()];
         let arguments = caller.arguments(site.arguments)?;
         if arguments.len() > MAX_OPERATIONS {
+            self.refusal = Refusal::Limit;
             return None;
         }
         let args: Vec<Exact> = arguments
@@ -384,6 +560,9 @@ impl Evaluator<'_, '_> {
                 };
                 Some(Exact::Integer(integer(left)?.wrapping_mul(integer(right)?)))
             }
+            Callee::Builtin(operation) if builtin_primitive(operation) => {
+                builtin(self.program, operation, &args, self.work)
+            }
             Callee::Intrinsic(operation) => {
                 let CallTarget::Intrinsic { receiver, .. } = site.target else {
                     return None;
@@ -392,7 +571,18 @@ impl Evaluator<'_, '_> {
                     Some(value) => Some(known(values, value)?),
                     None => None,
                 };
-                intrinsic(self.program, operation, receiver, &args, self.work)
+                let result = intrinsic(self.program, operation, receiver, &args, self.work);
+                if result.is_none()
+                    && matches!(
+                        operation,
+                        ResolvedIntrinsic::Method(
+                            Intrinsic::StringToLowerCase | Intrinsic::StringToUpperCase
+                        )
+                    )
+                {
+                    self.refusal = Refusal::Engine;
+                }
+                result
             }
             Callee::Unit(callee) => self.unit(callee, &args, depth + 1),
             _ => None,

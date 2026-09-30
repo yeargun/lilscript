@@ -634,38 +634,48 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let stored_result = result.filter(|value| matches!(self.plan.units[id.index()].values[value.index()], ValueStorage::Value(ty) if ty != NativeType::Void));
         match &operation.kind {
             OperationKind::Constant(value) => {
-                let result = result.unwrap().index();
+                let value_id = result.unwrap();
+                let destination = Destination::Value(value_id);
+                let to = self.plan.value_type(self.plan.units[id.index()].values[value_id.index()]);
+                let from = match value {
+                    Constant::Integer(_) => NativeType::I32,
+                    Constant::Number(_) => NativeType::F64,
+                    Constant::Boolean(_) => NativeType::Bool,
+                    Constant::String(_) => NativeType::String,
+                    Constant::Null => to,
+                    _ => unreachable!("native plan rejects unsupported constants"),
+                };
+                // Shared folding can leave a primitive literal in a nullable
+                // or union-typed slot. Preserve that slot's representation,
+                // including ownership, just like an ordinary value transfer.
+                let (prefix, suffix) = Self::conversion(from, to);
+                self.assignment_start(id, destination, true)?;
+                self.text(&prefix)?;
                 match value {
                     Constant::Integer(value) => self.write(format_args!(
-                        "ls_v{result} = ls_from_u32(UINT32_C({}));\n",
+                        "ls_from_u32(UINT32_C({}))",
                         *value as u32
                     ))?,
                     Constant::Number(bits) => self.write(format_args!(
-                        "ls_v{result} = ls_f64_bits(UINT64_C({bits}));\n"
+                        "ls_f64_bits(UINT64_C({bits}))"
                     ))?,
-                    Constant::Boolean(value) => self.write(format_args!(
-                        "ls_v{result} = {};\n",
-                        if *value { "true" } else { "false" }
-                    ))?,
+                    Constant::Boolean(value) => self.text(if *value { "true" } else { "false" })?,
                     Constant::String(string) => {
                         let value = &self.plan.program.strings[string.index()];
                         if value.code_units().next().is_none() {
-                            self.write(format_args!("ls_v{result} = (ls_string){{NULL,0}};\n"))?;
+                            self.text("(ls_string){NULL,0}")?;
                         } else {
                             self.write(format_args!(
-                                "ls_v{result} = (ls_string){{ls_s{0},sizeof ls_s{0}/sizeof *ls_s{0}}};\n",
+                                "(ls_string){{ls_s{0},sizeof ls_s{0}/sizeof *ls_s{0}}}",
                                 string.index(),
                             ))?;
                         }
                     }
-                    Constant::Null => {
-                        let destination = Destination::Value(ValueId::from_index(result).unwrap());
-                        self.assignment_start(id, destination, true)?;
-                        self.text("(ls_value){0}")?;
-                        self.assignment_end(id, destination)?;
-                    }
+                    Constant::Null => self.text("(ls_value){0}")?,
                     _ => unreachable!("native plan rejects unsupported constants"),
                 }
+                self.text(suffix)?;
+                self.assignment_end(id, destination)?;
             }
             // `let x;`: the C local is declared at the function's start (see
             // `unit`); its first store gives it a value (R3).

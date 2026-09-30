@@ -697,6 +697,7 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
                 start: u32::try_from(start).map_err(|_| "argument capacity")?,
                 len: call.arguments.len,
             },
+            omit_trailing: call.omit_trailing,
             debug: call.debug,
         });
     }
@@ -952,6 +953,7 @@ pub(super) fn graft(
                 start: u32::try_from(start).map_err(|_| "argument capacity")?,
                 len: call.arguments.len,
             },
+            omit_trailing: call.omit_trailing,
             debug: call.debug,
         });
     }

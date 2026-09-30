@@ -17,6 +17,16 @@ fn compile_with(source: &str, config: &str) -> String {
 }
 
 fn compile_plan(source: &str, config: &str, plan: Plan) -> String {
+    compile_program(source, config, plan, false)
+}
+
+/// These optimizations moved from the target tree into the shared program.
+/// Exercise that boundary while retaining the target spelling assertions.
+fn compile_shared(source: &str, config: &str) -> String {
+    compile_program(source, config, Plan::new(Style::Global), true)
+}
+
+fn compile_program(source: &str, config: &str, plan: Plan, shared: bool) -> String {
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, source)
         .unwrap_or_else(|error| panic!("parse: {error:?}\n{source}"));
@@ -31,6 +41,32 @@ fn compile_plan(source: &str, config: &str, plan: Plan) -> String {
             preserve_root_exports: true,
         })
         .unwrap();
+    let program = if shared {
+        super::rules::optimize(
+            program,
+            super::rules::RuleRequest {
+                fold: policy
+                    .tactic(crate::compilation_policy::TacticId::ConstantFolding)
+                    .enabled,
+                dead_code: policy
+                    .tactic(crate::compilation_policy::TacticId::DeadCodeElimination)
+                    .enabled,
+                inline: false,
+                pristine_builtins: policy
+                    .javascript_contract()
+                    .unwrap()
+                    .assumptions
+                    .pristine_builtins,
+                seal: super::call_graph::Seal::from_execution(
+                    policy.javascript_contract().unwrap().execution,
+                ),
+            },
+        )
+        .unwrap()
+        .0
+    } else {
+        program
+    };
     let ledger = BudgetLedger::new(
         ResourceLimits::default(),
         BudgetPlan {
@@ -1146,20 +1182,27 @@ fn a_root_constant_reaches_a_function_the_call_graph_runs_after_it() {
     // must assume `reader` may run then. The program's initialization owner
     // (M6.5) knows only the last two statements call it: `K` is its
     // literal there.
-    let javascript = compile_with(
+    let javascript = compile_shared(
         r#"
         extern void show(JsValue value);
+        extern int seed();
         int helper(int x) { return x + 1; }
         show(JS.box(helper(1)));
         int K = 21;
         int reader(int x) { return x * K + x * K * 3 + K * 4; }
-        show(JS.box(reader(1)));
-        show(JS.box(reader(2)));
+        show(JS.box(reader(seed())));
+        show(JS.box(reader(seed())));
         "#,
         PRISTINE,
     );
     assert!(javascript.contains("*21"), "{javascript}");
-    assert_eq!(run(&javascript, SHOW), "2\n168\n252\n");
+    assert_eq!(
+        run(
+            &javascript,
+            &format!("{SHOW}let n=0;globalThis.seed=()=>++n;")
+        ),
+        "2\n168\n252\n"
+    );
 }
 
 #[test]
@@ -1259,7 +1302,7 @@ fn a_temporary_and_its_test_are_the_logical_operator() {
 
 #[test]
 fn defaults_of_a_function_only_ever_called_print_natively() {
-    let javascript = compile_with(
+    let javascript = compile_shared(
         r#"
         extern void show(JsValue value);
         extern int seed();
@@ -1403,7 +1446,7 @@ fn a_default_only_erased_callers_could_use_is_no_check() {
         show(JS.box(scaled(3.0, noise())));
         show(JS.box(scaled(1.0, noise() + 1.0)));
     "#;
-    let javascript = compile_with(source, PRISTINE);
+    let javascript = compile_shared(source, PRISTINE);
     // Typed callers always pass `factor`, and none passes the default: the
     // function opens without it.
     assert!(!javascript.contains("=2"), "{javascript}");
@@ -1585,7 +1628,7 @@ fn a_literal_root_constant_is_its_literal_where_it_is_initialized() {
     // name read twice is shorter even in raw bytes.
     let raw = "objective.codecs=\"raw\"\n[javascript]\nassume_pristine_builtins=true\n";
     for config in [raw, PRISTINE] {
-        let javascript = compile_with(source, config);
+        let javascript = compile_shared(source, config);
         assert!(javascript.contains(">=3"), "{javascript}");
         assert_eq!(
             run(&javascript, SHOW),
@@ -1606,7 +1649,7 @@ fn a_repeated_long_number_is_named_once_for_raw_bytes() {
         show(JS.box(a(1.0) + b(1.0) + c(0.0) + d(0.0)));
     "#;
     let raw = "objective.codecs=\"raw\"\n[javascript]\nassume_pristine_builtins=true\n";
-    let javascript = compile_with(source, raw);
+    let javascript = compile_shared(source, raw);
     // Canonicalized into its reads, then pooled again for the raw objective.
     assert_eq!(
         javascript.matches("281474976710655").count(),

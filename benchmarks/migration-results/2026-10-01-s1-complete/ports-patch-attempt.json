@@ -1,0 +1,182 @@
+{
+ "schema": 1,
+ "kind": "lilscript-port-runner",
+ "started": "2026-09-30T23:09:04.221Z",
+ "completed": "2026-09-30T23:10:49.101Z",
+ "repository": {
+  "path": "/home/azureuser/lilscript",
+  "head": "9793853b1c34c12076935aa41dbd015d1bc3df9e",
+  "dirty": true
+ },
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/s1-complete-4/lilscript",
+  "path": "/home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-final4/bin/lilscript-628028fe56197da6",
+  "sha256": "628028fe56197da6daa2cd09088fc21b34db11e7ff848020ff822b958ef87268",
+  "version": "lilscript 0.1.0",
+  "unchangedDuringRun": true
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/s1-complete-4/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-final4/bin/lilscript-007b45afa7698721",
+  "sha256": "007b45afa76987213d2b9b93653d448f2759e5218295ae22bd70bd0670a2ed9e",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "node": "v20.19.0",
+ "objective": "shipped",
+ "patches": "apply",
+ "portsRoot": "/home/azureuser",
+ "ledger": {
+  "path": "tests/ports/expected-failures.json",
+  "sha256": "cf0cae4e486799808333bd1e78256b69ff53c8259b6acd104cce9650f48cad5b",
+  "entries": 6
+ },
+ "unknownPorts": [],
+ "ports": [
+  {
+   "port": "markedlil",
+   "source": {
+    "path": "/home/azureuser/markedlil",
+    "head": "019e9b449c01721f78e467ca772742c67f9ac377",
+    "dirty": true
+   },
+   "patch": {
+    "path": "finer/port-migrations/markedlil.patch",
+    "sha256": "c9c395f5983fbdd29e44085c377777a46ff27ffdb87109c6acdbe0587957054f",
+    "status": 1,
+    "error": "patching file test/api.test.mjs\nReversed (or previously applied) patch detected!  Skipping patch.\n1 out of 1 hunk ignored -- saving rejects to file test/api.test.mjs.rej\npatching file test/closed.test.mjs\nReversed (or previously applied) patch detected!  Skipping patch.\n1 out of 1 hunk ignored -- saving rejects to file test/closed.test.mjs.rej"
+   },
+   "failing": [
+    "(patch failed)"
+   ],
+   "ledgered": [],
+   "regressions": [
+    "(patch failed)"
+   ],
+   "nowPassing": [],
+   "ledgerEntries": [],
+   "state": "regressed"
+  },
+  {
+   "port": "zodlil",
+   "source": {
+    "path": "/home/azureuser/zodlil",
+    "head": "4709ad60b36f2b8e7dc07105bcc999ab1d40d60f",
+    "dirty": false
+   },
+   "build": {
+    "command": "npm run build",
+    "status": 0,
+    "ms": 45985,
+    "timedOut": false,
+    "compilerInvocations": 1,
+    "errors": []
+   },
+   "artifacts": [
+    {
+     "path": "dist/compat.js",
+     "bytes": 769,
+     "sha256": "6d2fa816d36e9549f7d6edbaea2322f29e9992694096ddaabb015da6f13426f9",
+     "raw": 769,
+     "gzip9": 398,
+     "brotli11": 314
+    },
+    {
+     "path": "dist/core.js",
+     "bytes": 584,
+     "sha256": "e7e7ac74ba05b3fba5a77054843c36932360598c423b39afee708995927d29ae",
+     "raw": 584,
+     "gzip9": 283,
+     "brotli11": 229
+    },
+    {
+     "path": "dist/index.cjs",
+     "bytes": 138781,
+     "sha256": "3fe191c73f7feec79b4622b68c19b605408c1885c0c0f1f8bbae089afb10eb06",
+     "raw": 138781,
+     "gzip9": 37920,
+     "brotli11": 32954
+    },
+    {
+     "path": "dist/index.js",
+     "bytes": 3996,
+     "sha256": "84667fc4d4d9e29d9271a37d2b0fb315a51e09f3bb39acb47d9bab9f674df6c1",
+     "raw": 3996,
+     "gzip9": 993,
+     "brotli11": 870
+    },
+    {
+     "path": "dist/locales.js",
+     "bytes": 90,
+     "sha256": "070c3c2981625e3674672e53051be382a51eaf515bd78dc5f2142d89b45ed82d",
+     "raw": 90,
+     "gzip9": 91,
+     "brotli11": 74
+    },
+    {
+     "path": "dist/mini.js",
+     "bytes": 69,
+     "sha256": "7bd2c1c718cc77b5ffec305e09b545d74cd97460c7cfb2a5ce2af87d2f21460a",
+     "raw": 69,
+     "gzip9": 67,
+     "brotli11": 62
+    },
+    {
+     "path": "dist/zod.core.js",
+     "bytes": 89152,
+     "sha256": "eb83b06b4fdc26888a56ab2de0af6d8047027f9efc68162e6a0061c5880064d8",
+     "raw": 89152,
+     "gzip9": 29965,
+     "brotli11": 26718
+    }
+   ],
+   "compilerInvocations": 2,
+   "test": {
+    "command": "npm test",
+    "status": 0,
+    "signal": null,
+    "ms": 55709,
+    "tests": 1353,
+    "pass": 1353,
+    "fail": 0,
+    "failing": [],
+    "tail": " Test Files  82 passed (82)\n      Tests  1353 passed (1353)\n   Start at  23:10:37\n   Duration  9.24s (transform 5.87s, setup 0ms, import 15.31s, tests 14.09s, environment 17ms)\n\n\nwarning: /home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-final4/runs/zodlil/zodlil/lilscript.toml: `javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it\nwarning: /home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-final4/runs/zodlil/zodlil/lilscript.toml: `javascript.cost_model` is replaced by `objective.codecs`, which takes its value: the objective is its own table with its codecs' settings (schema v3, architecture §14.1); rename it\nwarning: /home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-final4/runs/zodlil/zodlil/lilscript.toml: `javascript.optimization_level` is replaced by `effort.level`, which takes its value: the effort level is its own table (schema v3, architecture §14.1); rename it\nwarning: /home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-final4/runs/zodlil/zodlil/lilscript.toml: `javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it\nwarning: /home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-final4/runs/zodlil/zodlil/lilscript.toml: `javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it\nwarning: /home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-final4/runs/zodlil/zodlil/lilscript.toml: `javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it\nwarning: /home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-final4/runs/zodlil/zodlil/lilscript.toml: `javascript.strip_console` is replaced by `javascript.strip_debug`, which takes its value: `print` is a program effect and is never stripped; the key's other half, dropping `debugLog` calls, is `javascript.strip_debug` (host `console.*` calls are `javascript.strip_console_calls`); rename it\nwarning: /home/azureuser/lilscript-work/measurements/2026-10-01-s1-complete/ports-final4/runs/zodlil/zodlil/lilscript.toml: `bundle.mode` is now `delivery.mode`; rename it\nwarning: javascript: legacy optimizer configuration uses policy version 2; select [policy] version = 3 for explicit runtime-risk permissions independently of effort"
+   },
+   "failing": [],
+   "ledgered": [],
+   "regressions": [],
+   "nowPassing": [],
+   "ledgerEntries": [
+    {
+     "index": 5,
+     "owner": "C2 evidence protocol (retained host-dependent upstream static-analysis check; not a compiler regression)"
+    }
+   ],
+   "state": "green"
+  },
+  {
+   "port": "posthoglil",
+   "source": {
+    "path": "/home/azureuser/posthoglil",
+    "head": "140790807a95c8f2be1c323bf296387b0e2a934b",
+    "dirty": false
+   },
+   "patch": {
+    "path": "finer/port-migrations/posthoglil.patch",
+    "sha256": "9c56dfb97e0a497044fd89da08094c44b08477b461fecb91efaf8bcc2c7ca49b",
+    "status": 1,
+    "error": "patching file lilscript.bytes.toml\nReversed (or previously applied) patch detected!  Skipping patch.\n1 out of 1 hunk ignored -- saving rejects to file lilscript.bytes.toml.rej\npatching file src/bot.lil\nReversed (or previously applied) patch detected!  Skipping patch.\n3 out of 3 hunks ignored -- saving rejects to file src/bot.lil.rej\npatching file src/bucketed.lil\nHunk #1 FAILED at 8.\nHunk #2 FAILED at 55.\n2 out of 2 hunks FAILED -- saving rejects to file src/bucketed.lil.rej\npatching file src/cookie.lil\nReversed (or previously applied) patch detected!  Skipping patch."
+   },
+   "failing": [
+    "(patch failed)"
+   ],
+   "ledgered": [],
+   "regressions": [
+    "(patch failed)"
+   ],
+   "nowPassing": [],
+   "ledgerEntries": [],
+   "state": "regressed"
+  }
+ ],
+ "regressions": 2
+}

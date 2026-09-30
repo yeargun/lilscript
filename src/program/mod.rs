@@ -14,7 +14,9 @@ mod artifacts;
 pub mod call_graph;
 mod callable_inputs;
 mod cell_ssa;
+mod classes;
 mod dataflow;
+mod defaults;
 mod demand;
 pub mod effects;
 mod entries;
@@ -197,6 +199,11 @@ pub struct UnitData {
     /// verification does not rediscover it through a closure's producer.
     /// Module initialization has no callable signature.
     pub callable_type: Option<TypeId>,
+    /// For a private callable whose reflected arity is unobservable, the
+    /// first parameter that JavaScript may spell with native default syntax.
+    /// This is target-boundary metadata: the program keeps its explicit
+    /// default operations, and native lowering ignores it.
+    pub native_default_length: Option<u32>,
     pub parameters: Vec<CellId>,
     pub captures: Vec<CellId>,
     pub entry: RegionId,
@@ -274,6 +281,7 @@ impl UnitData {
             instantiation_prefix: 0,
             function_name: None,
             callable_type: None,
+            native_default_length: None,
             parameters: Vec::new(),
             captures: Vec::new(),
             entry: RegionId::from_index(0).unwrap(),
@@ -720,7 +728,7 @@ pub struct Operation {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Constant {
     Integer(i32),
     Number(u64),
@@ -802,6 +810,12 @@ pub struct CallSite {
     pub target: CallTarget,
     pub contract: CallContract,
     pub arguments: ArgumentRange,
+    /// Trailing materialized scalar defaults that JavaScript may omit at this
+    /// call. The arguments remain in the semantic program (and in native
+    /// lowering); formation drops only their target expressions. Keeping the
+    /// count here also prevents the callee's explicit default guard from
+    /// being folded as though every emitted call supplied the value.
+    pub omit_trailing: u32,
     /// The source calls a `debug` declaration by its name (R15): the call is
     /// strippable logging, which `strip_debug` drops. Decided once, at
     /// conversion, so no rewrite that exposes a callee makes a call one.
