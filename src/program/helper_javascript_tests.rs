@@ -298,6 +298,20 @@ fn record_and_helper_choices_compose_in_both_orders_with_reentry_and_cleanup() {
         case!("record-reentry-argument", "step"),
         case!("record-unused-throw", "step"),
         case!("record-absence-keys", "step"),
+        Case {
+            name: "string record and helper retain their factory state",
+            source: r#"func()->string make(string seed){Record<string> state=record{value:seed};auto step=(string suffix)=>{state.value=(state.value??"")+suffix;return state.value??"";};return ()=>step("!");}auto a=make("a");auto b=make("b");print(a());print(b());print(a());"#,
+            host: "",
+            expected: "a!\nb!\na!!\n",
+            helper: "step",
+        },
+        Case {
+            name: "float record helper keeps payloads and signed zero",
+            source: r#"extern float negativeZero();extern void observe(float value);Record<float> state=record{x:negativeZero()};auto step=()=>state.x??1.0;observe(step());state.x=2.5;observe(step());"#,
+            host: "globalThis.negativeZero=()=>-0;globalThis.observe=v=>console.log(Object.is(v,-0)?'-0':String(v));",
+            expected: "-0\n2.5\n",
+            helper: "step",
+        },
     ] {
         check_case(case, true, true);
     }

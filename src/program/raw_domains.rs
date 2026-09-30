@@ -1308,7 +1308,12 @@ mod tests {
         use super::super::record_family::{
             self, FamilyOutcome, FamilyRequest, RECORD_FAMILY_PLAN, RECORD_FAMILY_VERSION,
         };
-        checked("extern int opaque();Record<int> state=record{x:opaque(),y:1};auto read=()=>state.x??0;print(read());", |program| {
+        for source in [
+            "extern int opaque();Record<int> state=record{x:opaque(),y:1};auto read=()=>state.x??0;print(read());",
+            r#"extern string opaque();Record<string> state=record{x:opaque(),y:"known"};auto read=()=>state.x??"";print(read());"#,
+            "extern JsValue opaque();Record<JsValue> state=record{x:opaque(),y:null};auto read=()=>state.x;read();",
+        ] {
+        checked(source, |program| {
             let mut ledger=ledger(1_000_000);
             let uses=UseIndex::build(program,&mut ledger,WorkDomain::Baseline).unwrap();
             let state=cell(program,"state");
@@ -1331,6 +1336,7 @@ mod tests {
             record.discard(&mut ledger).unwrap();uses.discard(&mut ledger).unwrap();
             assert_eq!(ledger.retained_bytes(),0);
         });
+        }
     }
 
     #[test]

@@ -8,7 +8,7 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 - One compiler; the existing typed IR, facts, edit machinery, formation, naming and exact codec judging are the foundation.
 - Last semantic batch: **S1**, bounded constant-call and exact primitive-method evaluation. It passes the production matrix and improves every generic objective total; default IIFE wrapping remains open.
-- C1's target-rule and pooling/packing veto slice is implemented; reconstruction risk enforcement is being verified. C2 retains alternating compilation samples and input/artifact identities. Q2 reuses exact byte measurements with cold logical work and output-owner lifetimes. G1's configurable, exactly judged alphabet trials pass the generic objective gate; port qualification continues.
+- C1 enforces target-rule, pooling/packing and reconstruction permissions; port measurements of reconstruction continue. C2 retains alternating compilation samples and input/artifact identities. Q2 reuses exact byte measurements with cold logical work and output-owner lifetimes. G1's configurable, exactly judged alphabet trials pass the generic objective gate and the three reference port suites.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
@@ -28,7 +28,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 | [~] | [C2](plan.md#c2) Evidence | Oracle coverage, fair benchmark contract, runtime counters and paired runner |
 | [ ] | [C3](plan.md#c3) Calibration | Generic calibration, protected held-out set, objective/work reports |
 | [~] | [S1](plan.md#s1) Folding | Broader supported evaluation, remaining propagation/defaults/removal |
-| [ ] | [S2](plan.md#s2) Objects | Escape, uniqueness, fields, flattening and copy elision |
+| [~] | [S2](plan.md#s2) Objects | Generalized private record payloads in verification; broader escape, fields, flattening and copy elision |
 | [~] | [S3](plan.md#s3) Calls | Remaining inlining, devirtualization, specialization and sharing |
 | [~] | [S4](plan.md#s4) Contracts | Remaining identities, fact consumers, catalog and language coverage |
 | [~] | [G1](plan.md#g1) Lexical names | Local allocation/seed refinement, broader final-byte tie and workload qualification |

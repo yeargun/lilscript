@@ -545,6 +545,60 @@ fn native_and_all_reject_unknown_required_runtime_evidence() {
 }
 
 #[test]
+fn searched_string_records_respect_scalar_permissions_under_every_objective() {
+    let source = r#"
+        export func(string)->string make(string seed) {
+            Record<string> state=record{value:seed};
+            return (string suffix)=>{
+                state.value=(state.value??"")+suffix;
+                return state.value??"";
+            };
+        }
+    "#;
+    for codec in ["raw", "gzip", "brotli"] {
+        let mut sizes = Vec::new();
+        for permission in ["off", "on"] {
+            let config: ProjectConfig = toml::from_str(&format!(
+                "objective.codecs='{codec}'\neffort.level=13\n[policy.tactics]\nscalar-replacement='{permission}'"
+            )).unwrap();
+            let compiled = compile_source(source, &config, ServiceOptions::default()).unwrap();
+            check_scores(&compiled);
+            let objective = match codec {
+                "raw" => Objective::Raw,
+                "gzip" => Objective::Gzip,
+                _ => Objective::Brotli,
+            };
+            let artifact = compiled.javascript(objective).unwrap();
+            assert_eq!(
+                execute_javascript(artifact.javascript(), "", "const a=library.make('a'),b=library.make('b');console.log(a('!'),b('?'),a('.'),a!==b,library.make.length);"),
+                "a! b? a!. true 1\n"
+            );
+            if permission == "off" {
+                assert!(
+                    artifact.javascript().contains("__proto__:"),
+                    "{}",
+                    artifact.javascript()
+                );
+                assert!(!artifact.details()["output"]["rules"]["scalar_replacement"]
+                    .as_bool()
+                    .unwrap());
+            } else {
+                assert!(
+                    !artifact.javascript().contains("__proto__:"),
+                    "{}",
+                    artifact.javascript()
+                );
+            }
+            sizes.push(artifact.sizes().get(objective).unwrap());
+        }
+        assert!(
+            sizes[1] <= sizes[0],
+            "{codec}: scalar alternatives regressed {sizes:?}"
+        );
+    }
+}
+
+#[test]
 fn scoped_search_and_default_service_share_winners_handoff_and_budget() {
     let source =
         "int byte(int value){return value&255;}export int answer(int value){return byte(value)+1;}";

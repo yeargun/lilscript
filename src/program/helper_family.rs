@@ -21,7 +21,7 @@ use crate::output_budget::{AllocationError, VectorLayout};
 use std::mem::size_of;
 
 pub(super) const HELPER_FAMILY_PLAN: u32 = 3;
-pub(super) const HELPER_FAMILY_VERSION: u32 = 9;
+pub(super) const HELPER_FAMILY_VERSION: u32 = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct HelperRoot {
@@ -1339,9 +1339,16 @@ fn finish_discovery(
     let mut domains = budget.vector::<bool>(body.values.len(), false)?;
     domains.resize(body.values.len(), false);
     budget.work(body.captures.len())?;
-    let record_count = body.captures.iter().filter(|cell| {
-        matches!(&program.types[program.cells[cell.index()].ty.index()], Type::Record(element) if **element == Type::Int)
-    }).count();
+    let record_count = body
+        .captures
+        .iter()
+        .filter(|cell| {
+            matches!(
+                &program.types[program.cells[cell.index()].ty.index()],
+                Type::Record(_)
+            )
+        })
+        .count();
     let mut records = budget.vector::<record_family::RecordFamily>(record_count, false)?;
     // Original parameter/capture lists and Initialize occurrences locate the
     // product prerequisites. Do not scan the program-wide cell arena per body.
@@ -1394,8 +1401,7 @@ fn finish_discovery(
             budget.work(1)?;
             let cell = &program.cells[capture.index()];
             add_cell(uses, &mut family.dependencies, capture, budget)?;
-            if matches!(&program.types[cell.ty.index()],Type::Record(element) if **element==Type::Int)
-            {
+            if matches!(&program.types[cell.ty.index()], Type::Record(_)) {
                 let record =
                     record_prerequisite(program, uses, capture, &mut family, &mut access, budget)?;
                 // The record owner already charged this payload to the same ledger.

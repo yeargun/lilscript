@@ -1,4 +1,4 @@
-//! Bounded evidence for one private captured Record<int> representation family.
+//! Bounded evidence for one private captured record representation family.
 //!
 //! This analysis leaves all semantic allocation, place and capture operations
 //! intact. It proves one deliberately narrow implementation opportunity, not a
@@ -13,7 +13,7 @@ use crate::compilation_policy::{
 use std::mem::size_of;
 
 pub(super) const RECORD_FAMILY_PLAN: u32 = 2;
-pub(super) const RECORD_FAMILY_VERSION: u32 = 2;
+pub(super) const RECORD_FAMILY_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct OpRef {
@@ -143,7 +143,7 @@ pub(super) struct FamilyRequest {
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnknownReason {
-    NotLocalIntegerRecord,
+    NotLocalRecord,
     Initialization,
     Reassigned,
     WholeValueUse,
@@ -374,10 +374,14 @@ fn discover(
         .cells
         .get(state.index())
         .ok_or_else(|| invalid("record cell"))?;
+    // This proof concerns the container's storage and uses, not its payload
+    // domain. All value-copy operations remain in the semantic graph, and
+    // scalar loads use the same null normalization as record projections.
+    // Payload effects/domains must be proved independently by consumers.
     if cell.binding != CellBinding::Local
-        || !matches!(program.types.get(cell.ty.index()), Some(Type::Record(element)) if **element == Type::Int)
+        || !matches!(program.types.get(cell.ty.index()), Some(Type::Record(_)))
     {
-        return Err(unknown(UnknownReason::NotLocalIntegerRecord));
+        return Err(unknown(UnknownReason::NotLocalRecord));
     }
     let owner = program
         .unit(cell.owner)

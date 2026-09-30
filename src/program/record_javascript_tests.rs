@@ -189,6 +189,50 @@ fn scalar_record_slots_preserve_absence_and_initializer_observations() {
 }
 
 #[test]
+fn private_record_payloads_preserve_values_references_and_copy_boundaries() {
+    for case in [
+        Case {
+            name: "string captures have independent activations",
+            source: r#"func()->string make(string seed){Record<string> state=record{value:seed};return ()=>{state.value=(state.value??"")+"!";return state.value??"";};}auto a=make("a");auto b=make("b");print(a());print(b());print(a());"#,
+            host: "",
+            expected: "a!\nb!\na!!\n",
+        },
+        Case {
+            name: "boolean absence differs from false",
+            source: r#"Record<bool> state=record{ready:false};print(state.ready==null);print(state.missing==null);state.missing=false;print(state.missing==null);state.ready=!(state.ready??true);print(state.ready??false);"#,
+            host: "",
+            expected: "false\ntrue\nfalse\ntrue\n",
+        },
+        Case {
+            name: "float payloads retain signed zero and NaN",
+            source: r#"extern float negativeZero();extern float notANumber();extern void observe(float value);Record<float> state=record{x:negativeZero(),y:notANumber()};observe(state.x??1.0);observe(state.y??1.0);state.x=state.y??2.0;observe(state.x??3.0);"#,
+            host: "globalThis.negativeZero=()=>-0;globalThis.notANumber=()=>NaN;globalThis.observe=v=>console.log(Object.is(v,-0)?'-0':String(v));",
+            expected: "-0\nNaN\nNaN\n",
+        },
+        Case {
+            name: "opaque references and undefined normalization",
+            source: r#"extern JsValue payload();extern void observe(JsValue value);Record<JsValue> state=record{x:payload(),y:JS.undefined()};observe(state.x);observe(state.x);observe(state.y);observe(state.missing);state.y=state.x;observe(state.y);"#,
+            host: "const item={};globalThis.payload=()=>item;globalThis.observe=v=>console.log(v===item?'same':v===null?'null':typeof v);",
+            expected: "same\nsame\nnull\nnull\nsame\n",
+        },
+        Case {
+            name: "array payload aliases retain identity and mutation",
+            source: r#"extern int[] shared();extern void observe(int[] value);Record<int[]> state=record{items:shared()};auto first=state.items??[];first[0]=9;observe(state.items??[]);state.items=[7];observe(state.items??[]);observe(first);"#,
+            host: "const item=[1];globalThis.shared=()=>item;globalThis.observe=v=>console.log((v===item?'same:':'new:')+v[0]);",
+            expected: "same:9\nnew:7\nsame:9\n",
+        },
+        Case {
+            name: "struct payloads preserve insertion read and store copies",
+            source: r#"struct P{int x;int y;}P seed=P{1,2};Record<P> state=record{point:seed};seed.x=9;P first=state.point??P{0,0};first.x=7;print((state.point??P{0,0}).x);state.point=first;first.y=8;P last=state.point??P{0,0};print(last.x);print(last.y);"#,
+            host: "",
+            expected: "1\n7\n2\n",
+        },
+    ] {
+        check_case(case, true);
+    }
+}
+
+#[test]
 fn rejected_record_families_leave_the_direct_candidate_executable() {
     for case in [
         case!("early-capture", "99\n"),
@@ -196,6 +240,24 @@ fn rejected_record_families_leave_the_direct_candidate_executable() {
         case!("host-escape", "9\n"),
         case!("alias", "9\n"),
         case!("reassignment", "9\n"),
+        Case {
+            name: "string record alias remains observable",
+            source: r#"Record<string> state=record{x:"first"};auto alias=state;alias.x="second";print(state.x??"");"#,
+            host: "",
+            expected: "second\n",
+        },
+        Case {
+            name: "escaping string record keeps public keys",
+            source: r#"extern void change(Record<string> value);Record<string> state=record{x:"first"};change(state);print(state.x??"");"#,
+            host: "globalThis.change=v=>{console.log(Object.getPrototypeOf(v)===null,Object.keys(v).join(','));v.x='second';};",
+            expected: "true x\nsecond\n",
+        },
+        Case {
+            name: "dynamic boolean record key remains observable",
+            source: r#"extern string key();Record<bool> state=record{x:false,y:true};print(state[key()]??false);"#,
+            host: "globalThis.key=()=>'y';",
+            expected: "true\n",
+        },
     ] {
         check_case(case, false);
     }
