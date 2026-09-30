@@ -11,12 +11,14 @@ const MODULE: RuleRequest = RuleRequest {
     fold: true,
     dead_code: true,
     inline: true,
+    pristine_builtins: false,
     seal: Seal::Module,
 };
 const SCRIPT: RuleRequest = RuleRequest {
     fold: true,
     dead_code: true,
     inline: true,
+    pristine_builtins: false,
     seal: Seal::StructuralOnly,
 };
 /// F1's rules alone, for the tests that inspect what folding keeps.
@@ -24,6 +26,89 @@ const FOLD_ONLY: RuleRequest = RuleRequest {
     inline: false,
     ..MODULE
 };
+
+#[test]
+fn constant_calls_are_evaluated_for_each_argument_tuple() {
+    let source = r#"
+        int choose(bool doubled, int value) {
+            int result=value+1;
+            if(doubled){result=result*2;}else{result=result-3;}
+            return result;
+        }
+        print(choose(true,4)); print(choose(false,7));
+    "#;
+    optimized(source, FOLD_ONLY, |program, receipt| {
+        assert!(!instantiated(program, "choose"), "{receipt:?}");
+        assert!(constant(program, 10) && constant(program, 5));
+    });
+}
+
+#[test]
+fn constant_call_folding_preserves_argument_effects_and_mutable_captures() {
+    let source = r#"
+        int current=1;
+        int read(){return current;}
+        int tick(){print(41);return 2;}
+        int twice(int value){return value+value;}
+        print(read()); current=2; print(read()); print(twice(tick()));
+    "#;
+    optimized(source, FOLD_ONLY, |program, receipt| {
+        assert!(instantiated(program, "read"), "{receipt:?}");
+        assert!(instantiated(program, "tick"), "{receipt:?}");
+        assert!(!instantiated(program, "twice"), "{receipt:?}");
+    });
+}
+
+#[test]
+fn known_methods_fold_only_with_the_builtin_contract() {
+    let source = r#"
+        print("hello".indexOf("ll"));
+        print("abcdef".slice(1,3));
+        print(" Abc ".trim().toUpperCase());
+        print("abc".startsWith("ab"));
+        print("abc".endsWith("bc"));
+    "#;
+    let calls =
+        |program: &Program<'_>| count(program, |kind| matches!(kind, OperationKind::Call(_)));
+    let before = optimized(source, FOLD_ONLY, |program, _| calls(program));
+    optimized(
+        source,
+        RuleRequest {
+            pristine_builtins: true,
+            ..FOLD_ONLY
+        },
+        |program, receipt| {
+            assert_eq!(calls(program), 5, "{receipt:?}");
+            assert!(before > calls(program));
+        },
+    );
+}
+
+#[test]
+fn bounded_constant_calls_preserve_nontermination_and_throwing_methods() {
+    for source in [
+        "int spin(int n){return spin(n+1);} export int go(){return spin(0);}",
+        "int spin(int n){while(n>0){}return 7;} export int go(){return spin(1);}",
+        "export string go(){return \"x\".repeat(-1);}",
+    ] {
+        let arena = bumpalo::Bump::new();
+        let syntax = crate::parse_source(&arena, source).unwrap();
+        let semantics = crate::analyze(&syntax).unwrap();
+        let program = from_checked_source(&syntax, &semantics).unwrap();
+        let (program, _) = optimize(
+            program,
+            RuleRequest {
+                pristine_builtins: true,
+                ..FOLD_ONLY
+            },
+        )
+        .unwrap();
+        assert!(
+            count(&program, |kind| matches!(kind, OperationKind::Call(_))) > 0,
+            "{source}"
+        );
+    }
+}
 
 fn optimized<T>(
     source: &str,
@@ -162,7 +247,7 @@ fn a_loop_whose_test_is_false_never_runs() {
 }
 
 #[test]
-fn a_fold_never_lengthens_its_expression() {
+fn the_default_fold_bound_keeps_large_constants_as_expressions() {
     let source = "int big(int shift) { return 1 << shift; }\nfloat third(float value) { return value / 3.0; }\nprint(big(30));\nprint(third(1.0));\nprint(6 * 7);\n";
     optimized(source, MODULE, |program, _| {
         // `1<<30` spelled out is longer than the expression; so is 1/3.

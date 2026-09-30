@@ -234,6 +234,13 @@ assignments and reused artifact evidence are checked against the same
 permissions. Enabling one of these tactics does not override another tactic's
 veto or force the search to choose that representation.
 
+Constant folding includes bounded evaluation of small functions at constant
+call sites. Evaluation preserves argument effects and declines unsupported
+control flow, unknown captures and exhausted limits. Folding replaceable
+builtin methods also requires `javascript.assume_pristine_builtins = true`
+(native compilation uses its fixed runtime). The rule receipt's `folded_calls`
+counts calls replaced with constants; it does not claim a compressed-size win.
+
 Several older keys set a tactic's permission. An explicit `true` is `on` and an
 explicit `false` is `off`; a `[policy.tactics]` value that contradicts one is an
 error.

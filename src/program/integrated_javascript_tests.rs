@@ -678,16 +678,18 @@ fn assert_combined_descriptor(words: &[u32], target: &Targets, inline_product: b
 
 #[test]
 fn public_factory_qualifies_combined_recipes_with_exact_scores_and_original_observations() {
-    use crate::build::{with_checked_path, ServiceOptions, SKIP_PROGRAM_INLINING};
+    use crate::build::{with_checked_path, ServiceOptions, SKIP_PROGRAM_RULES};
 
-    // The fixture's helpers are what formation's helper inlining qualifies.
+    // This fixture qualifies recipes for the original concatenation and
+    // helper bodies. Semantic folding/inlining can remove those sites before
+    // the manual portfolio inspects them; semantic rules have their own tests.
     struct Restore;
     impl Drop for Restore {
         fn drop(&mut self) {
-            SKIP_PROGRAM_INLINING.with(|skip| skip.set(false));
+            SKIP_PROGRAM_RULES.with(|skip| skip.set(false));
         }
     }
-    SKIP_PROGRAM_INLINING.with(|skip| skip.set(true));
+    SKIP_PROGRAM_RULES.with(|skip| skip.set(true));
     let _restore = Restore;
     verify_archives();
     let mut config = configuration(true);

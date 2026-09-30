@@ -1,0 +1,24 @@
+int choose(bool doubled, int value) {
+    int result = value + 1;
+    if (doubled) { result = result * 2; }
+    else { result = result - 3; }
+    return result;
+}
+int twice(int value) { return value + value; }
+int current = 1;
+int read() { return current; }
+int tick() { print(41); return 2; }
+print(choose(true, 4));
+print(choose(false, 7));
+print(read());
+current = 2;
+print(read());
+print(twice(tick()));
+print("a😀b".slice(2, 3).charCodeAt(0));
+print("a😀b".indexOf("b"));
+print("\uFEFF x\u00A0".trim());
+print((-0.5).round() == 0.0);
+print(1.0 / (-0.5).round());
+print((-31).toString(16));
+print((-1).toUnsignedString(16));
+print(Math.imul(2147483647, 2));

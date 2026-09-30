@@ -19,6 +19,7 @@
 
 mod dce;
 mod edit;
+mod evaluate;
 mod fold;
 mod inline;
 mod params;
@@ -43,6 +44,8 @@ pub(crate) struct RuleRequest {
     /// Removal-only inlining (M7.5a). It retires what it copies, so it runs
     /// only with `dead_code`.
     pub(crate) inline: bool,
+    /// The target contract guarantees original builtin method behavior.
+    pub(crate) pristine_builtins: bool,
     /// Root storage is sealed only in module execution: a script's root
     /// bindings are globals other scripts may read and write.
     pub(crate) seal: Seal,
@@ -63,6 +66,8 @@ impl RuleRequest {
 pub(crate) struct RuleReceipt {
     pub(crate) rounds: u32,
     pub(crate) folded_values: u32,
+    /// Calls replaced by exact constants, including bounded evaluation.
+    pub(crate) folded_calls: u32,
     pub(crate) folded_branches: u32,
     pub(crate) removed_operations: u32,
     pub(crate) removed_stores: u32,
@@ -86,6 +91,7 @@ impl RuleReceipt {
         serde_json::json!({
             "rounds": self.rounds,
             "folded_values": self.folded_values,
+            "folded_calls": self.folded_calls,
             "folded_branches": self.folded_branches,
             "removed_operations": self.removed_operations,
             "removed_stores": self.removed_stores,
@@ -167,9 +173,13 @@ pub(crate) fn optimize<'src>(
             let effects = editor.program().effects(request.seal);
             let changed = match rule {
                 ProgramRule::Fold => {
-                    let values =
-                        values::ProgramValues::compute(editor.program(), &effects, request.seal);
-                    fold::apply(editor, &values, &effects, &mut receipt)
+                    let values = values::ProgramValues::compute(
+                        editor.program(),
+                        &effects,
+                        request.seal,
+                        request.pristine_builtins,
+                    );
+                    fold::apply(editor, &values, &effects, &mut receipt).map_err(str::to_string)?
                 }
                 ProgramRule::Unreachable => unreachable::apply(editor, &mut receipt),
                 ProgramRule::Inline => inline::apply(editor, &effects, &mut receipt)
@@ -177,8 +187,12 @@ pub(crate) fn optimize<'src>(
                 // Unread parameters and unused results are dead code;
                 // constant parameters are folding.
                 ProgramRule::Parameters => {
-                    let values =
-                        values::ProgramValues::compute(editor.program(), &effects, request.seal);
+                    let values = values::ProgramValues::compute(
+                        editor.program(),
+                        &effects,
+                        request.seal,
+                        request.pristine_builtins,
+                    );
                     params::apply(editor, &effects, &values, request.fold, &mut receipt)
                         .map_err(|error| format!("program rules, parameters: {error}"))?
                 }

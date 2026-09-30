@@ -314,6 +314,11 @@ impl Frontend {
             fold: permitted(TacticId::ConstantFolding),
             dead_code: permitted(TacticId::DeadCodeElimination),
             inline: permitted_inlining,
+            pristine_builtins: self
+                .javascript
+                .as_ref()
+                .and_then(ResolvedPolicy::javascript_contract)
+                .is_none_or(|contract| contract.assumptions.pristine_builtins),
             seal,
         })
     }

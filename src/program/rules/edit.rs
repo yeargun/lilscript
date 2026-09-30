@@ -115,6 +115,19 @@ impl<'src> Editor<'src> {
         Ok(id)
     }
 
+    /// A computed primitive string becomes program data only after folding
+    /// selects it. Changing the table invalidates dependent fact identities.
+    pub(super) fn intern_string(&mut self, value: &StringValue) -> Result<StringId, &'static str> {
+        if let Some(index) = self.program.strings.iter().position(|known| known == value) {
+            return StringId::from_index(index).ok_or("string capacity");
+        }
+        let strings = Arc::make_mut(&mut self.program.strings);
+        let id = StringId::from_index(strings.len()).ok_or("string capacity")?;
+        strings.push(value.clone());
+        self.program.tables_revision = RevisionId::fresh();
+        Ok(id)
+    }
+
     /// Adds a synthetic cell; synthetic cells follow every checked one.
     pub(super) fn add_cell(&mut self, cell: Cell) -> Result<CellId, &'static str> {
         let cells = Arc::make_mut(&mut self.program.cells);

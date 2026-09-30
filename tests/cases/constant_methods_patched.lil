@@ -1,0 +1,3 @@
+string upper(string value) { return value.toUpperCase(); }
+print(upper("abc"));
+print("def".toUpperCase());

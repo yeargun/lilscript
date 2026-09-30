@@ -881,7 +881,7 @@ impl Work {
             truncated: false,
         }
     }
-    fn charge(&mut self, amount: u64) -> bool {
+    pub(super) fn charge(&mut self, amount: u64) -> bool {
         let Some(next) = self
             .used
             .checked_add(amount)
@@ -903,6 +903,16 @@ impl Work {
             return false;
         };
         let _ = next;
+        true
+    }
+
+    /// Admit bounded evaluator storage before allocating or scanning it.
+    /// This conservative cumulative accounting also bounds abandoned trials.
+    pub(super) fn reserve_evaluation(&mut self, bytes: u64) -> bool {
+        if !self.allocation_fits(bytes) || !self.charge(bytes) {
+            return false;
+        }
+        self.result_used += bytes;
         true
     }
 }

@@ -44,6 +44,7 @@ impl Know {
 /// Exact knowledge per value of every unit.
 pub(super) struct ProgramValues {
     units: Vec<Vec<Know>>,
+    evaluated_calls: Vec<Vec<bool>>,
 }
 
 /// String evaluation is charged by `facts::exact`; these bound one analysis.
@@ -58,6 +59,10 @@ struct Channels<'a> {
 }
 
 impl ProgramValues {
+    pub(super) fn evaluated_call(&self, unit: UnitId, op: OpId) -> bool {
+        self.evaluated_calls[unit.index()][op.index()]
+    }
+
     pub(super) fn exact(&self, unit: UnitId, value: ValueId) -> Option<&StoredExact> {
         match self.units.get(unit.index())?.get(value.index())? {
             Know::Exact(value) => Some(value),
@@ -67,6 +72,11 @@ impl ProgramValues {
 
     fn unknown(program: &Program<'_>) -> Self {
         Self {
+            evaluated_calls: program
+                .units
+                .iter()
+                .map(|unit| vec![false; unit.data().operations.len()])
+                .collect(),
             units: program
                 .units
                 .iter()
@@ -75,7 +85,12 @@ impl ProgramValues {
         }
     }
 
-    pub(super) fn compute(program: &Program<'_>, effects: &ProgramEffects, seal: Seal) -> Self {
+    pub(super) fn compute(
+        program: &Program<'_>,
+        effects: &ProgramEffects,
+        seal: Seal,
+        pristine: bool,
+    ) -> Self {
         let graph = effects.graph();
         let count = program.units.len();
 
@@ -171,6 +186,11 @@ impl ProgramValues {
             .iter()
             .map(|frozen| vec![Know::Bottom; frozen.data().values.len()])
             .collect();
+        let mut evaluated_calls: Vec<Vec<bool>> = program
+            .units
+            .iter()
+            .map(|unit| vec![false; unit.data().operations.len()])
+            .collect();
         let mut queue: VecDeque<usize> = (0..count).collect();
         let mut queued = vec![true; count];
         let mut work = Work::bounded(WORK_QUOTA, RESULT_LIMIT);
@@ -202,6 +222,8 @@ impl ProgramValues {
                 &mut values[index],
                 &channels,
                 &mut work,
+                pristine,
+                &mut evaluated_calls[index],
             );
             let mut enqueue = |unit: UnitId, queue: &mut VecDeque<usize>| {
                 if !std::mem::replace(&mut queued[unit.index()], true) {
@@ -272,7 +294,10 @@ impl ProgramValues {
                 }
             }
         }
-        Self { units: values }
+        Self {
+            units: values,
+            evaluated_calls,
+        }
     }
 }
 
@@ -368,6 +393,8 @@ fn evaluate(
     know: &mut [Know],
     channels: &Channels<'_>,
     work: &mut Work,
+    pristine: bool,
+    evaluated_calls: &mut [bool],
 ) -> Know {
     let graph = effects.graph();
     let initialization = effects.initialization();
@@ -437,16 +464,34 @@ fn evaluate(
             {
                 Know::Exact(StoredExact::Boolean(false))
             }
-            OperationKind::Call(call) => match graph.callee(unit, *call) {
-                Callee::Unit(callee)
-                    if program
-                        .unit(callee)
-                        .is_some_and(|body| body.suspension == Suspension::None) =>
-                {
-                    channels.results[callee.index()].clone()
+            OperationKind::Call(call) => {
+                let site = &data.calls[call.index()];
+                let pending = data.arguments(site.arguments).unwrap_or(&[]).iter().any(|argument| {
+                    matches!(argument, CallArgument::Value(value) if know[value.index()] == Know::Bottom)
+                }) || matches!(site.target, CallTarget::Intrinsic { receiver: Some(value), .. }
+                    if know[value.index()] == Know::Bottom);
+                let result =
+                    super::evaluate::call(program, effects, unit, *call, &stored, pristine, work);
+                evaluated_calls[op.index()] = result.is_some();
+                if let Some(value) = result {
+                    Know::Exact(value)
+                } else if pending {
+                    // A later caller or initializer may supply the inputs.
+                    // Unsupported after exact inputs is Top; unvisited is not.
+                    Know::Bottom
+                } else {
+                    match graph.callee(unit, *call) {
+                        Callee::Unit(callee)
+                            if program
+                                .unit(callee)
+                                .is_some_and(|body| body.suspension == Suspension::None) =>
+                        {
+                            channels.results[callee.index()].clone()
+                        }
+                        _ => Know::Top,
+                    }
                 }
-                _ => Know::Top,
-            },
+            }
             kind => {
                 let mut pending = operands
                     .iter()

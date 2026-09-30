@@ -11,11 +11,11 @@
 //!   operand keep the operand that runs; a loop whose test is exactly false
 //!   and needs no evaluation never runs and goes.
 //!
-//! A fold never lengthens the code it replaces: the constant's text is at
-//! most a lower bound of the replaced expression's text in any output (Oxc's
-//! rule, `oxc@591966d crates/oxc_minifier/src/peephole/fold_constants.rs:419-421`),
-//! so the rule holds under every codec and every later spelling (L3). In
-//! that bound a literal the program spells once counts at its text, and every
+//! A fold's default size heuristic compares the constant's text with a lower
+//! bound of the replaced expression's text (inspired by Oxc's
+//! `fold_constants.rs`). This is not a gzip/Brotli proof: shorter literals
+//! can lose repeated text. Objective calibration must judge those defaults.
+//! In that bound a literal the program spells once counts at its text, and every
 //! other operand at one character: a target may read a repeated literal from
 //! a named constant (Closure's `AliasStrings`, the raw objective's pooling),
 //! a load is a name, and a nested expression may be named or folded itself.
@@ -80,9 +80,23 @@ type Literals = HashMap<Literal, u32>;
 
 #[derive(Default)]
 struct Plan {
-    constants: Vec<(OpId, Constant)>,
+    constants: Vec<(OpId, FoldedConstant)>,
     calls: Vec<CallId>,
     folds: Vec<Fold>,
+}
+
+enum FoldedConstant {
+    Existing(Constant),
+    String(std::sync::Arc<StringValue>),
+}
+
+impl FoldedConstant {
+    fn text(&self, program: &Program<'_>) -> Option<usize> {
+        match self {
+            Self::Existing(constant) => constant_text(program, constant),
+            Self::String(value) => Some(crate::js_string::literal(value, '"').len()),
+        }
+    }
 }
 
 pub(super) fn apply(
@@ -90,7 +104,7 @@ pub(super) fn apply(
     values: &ProgramValues,
     effects: &ProgramEffects,
     receipt: &mut RuleReceipt,
-) -> bool {
+) -> Result<bool, &'static str> {
     let program = editor.program();
     let created = created_units(program);
     let mut literals = Literals::new();
@@ -118,16 +132,30 @@ pub(super) fn apply(
         .filter(|(_, plan)| !plan.constants.is_empty() || !plan.folds.is_empty())
         .collect();
     if plans.is_empty() {
-        return false;
+        return Ok(false);
     }
     for (unit, plan) in plans {
+        let constants: Vec<_> = plan
+            .constants
+            .into_iter()
+            .map(|(op, constant)| {
+                let constant = match constant {
+                    FoldedConstant::Existing(constant) => constant,
+                    FoldedConstant::String(value) => {
+                        Constant::String(editor.intern_string(&value)?)
+                    }
+                };
+                Ok((op, constant))
+            })
+            .collect::<Result<_, &'static str>>()?;
         let (data, cells) = editor.unit_and_cells(unit);
-        for (op, constant) in plan.constants {
+        for (op, constant) in constants {
             edit::make_constant(data, op, constant);
             receipt.folded_values += 1;
         }
         // A folded call's preparations leave with it.
         if !plan.calls.is_empty() {
+            receipt.folded_calls += plan.calls.len() as u32;
             let preparations: Vec<OpId> = data
                 .operations
                 .iter()
@@ -178,7 +206,7 @@ pub(super) fn apply(
             receipt.folded_branches += 1;
         }
     }
-    true
+    Ok(true)
 }
 
 fn plan(
@@ -369,7 +397,7 @@ fn value(
     unit: UnitId,
     data: &UnitData,
     op: OpId,
-) -> Option<Constant> {
+) -> Option<FoldedConstant> {
     let operation = &data.operations[op.index()];
     let result = operation.result?;
     if !matches!(
@@ -380,13 +408,23 @@ fn value(
             | OperationKind::CopyValue
             | OperationKind::Call(_)
             | OperationKind::Intrinsic(_)
-    ) || behaviors[op.index()].requires_evaluation()
+    ) || (behaviors[op.index()].requires_evaluation() && !values.evaluated_call(unit, op))
     {
         return None;
     }
     let known = values.exact(unit, result)?;
-    let constant = constant(program, data.values[result.index()].ty, known)?;
-    (constant_text(program, &constant)? <= replaced_text(program, literals, data, operation))
+    let constant = match known {
+        StoredExact::String(StoredString::Computed(value))
+            if matches!(
+                program.ty(data.values[result.index()].ty),
+                Some(Type::String)
+            ) =>
+        {
+            FoldedConstant::String(value.clone())
+        }
+        _ => FoldedConstant::Existing(constant(program, data.values[result.index()].ty, known)?),
+    };
+    (constant.text(program)? <= replaced_text(program, literals, data, operation))
         .then_some(constant)
 }
 
@@ -477,8 +515,16 @@ fn replaced_text(
                     CallArgument::Reference(_) => 1,
                 })
                 .sum();
-            // `f()`, with a separator between arguments.
-            3 + written + arguments.len().saturating_sub(1)
+            // A builtin's receiver is another evaluated input, even when
+            // a target spells the operation through a shared helper.
+            let receiver = match data.calls[call.index()].target {
+                CallTarget::Intrinsic {
+                    receiver: Some(receiver),
+                    ..
+                } => text(&receiver) + usize::from(!arguments.is_empty()),
+                _ => 0,
+            };
+            3 + receiver + written + arguments.len().saturating_sub(1)
         }
         OperationKind::Intrinsic(_) => operands + 2,
         _ => operands,
