@@ -9,14 +9,14 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 - One compiler; the existing typed IR, facts, edit machinery, formation, naming and exact codec judging are the foundation.
 - **S1** now evaluates bounded constant loops; the generic objective gates and reference port suites pass. **S2** generalizes private record payloads under complete-use and capture proofs, with generic/port qualification.
 - **C1** enforces target-rule, pooling/packing and reconstruction permissions, records implemented producer stages and prerequisites, and diagnoses unavailable or conflicting settings. Its reconstruction correction has paired measurements and port qualification. **D1**'s private application IIFE and explicit bare output have separate size reports and pass the reference port suites.
-- C2 retains alternating compilation samples and input/artifact identities. Q2 reuses exact byte measurements with cold logical work and output-owner lifetimes. G1's configurable, exactly judged alphabet trials pass the generic objective gate and the three reference port suites.
+- C2 retains alternating compilation samples and input/artifact identities. Q2 reuses exact byte measurements and unchanged semantic views; stable-rule scheduling passes generic/port gates and paired CPU measurement. G1's configurable, exactly judged alphabet trials pass the generic objective gate and the three reference port suites. S4's nullish assignment passes the generic gate and JavaScript/native checks.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-1. **C1/D1:** finish current delivery qualification, remaining family/risk coverage and compatibility migration; producer availability, prerequisite vetoes and contradictory aliases are covered.
+1. **Q2:** remove the remaining repeated formation and scoring after the qualified stable-rule scheduler; preserve useful search results.
 2. **S1 with C2/C3:** continue propagation/defaults/removal beyond the implemented bounded primitive evaluator. The raw-bound-as-codec-proof claim is corrected; calibration precedes tuning new heuristic defaults.
-3. **Q2:** remove repeated formation and scoring, starting from the markedlil trace; preserve the best existing output.
+3. **C1/D1:** remaining family/risk coverage, compatibility migration, formats and manifests; producer availability, prerequisite vetoes, contradictory aliases and the application wrapper are covered.
 4. **S2 and G1/G2:** escape/field facts and flattening; lexical naming and safe private-property mangling as their facts allow. Continue D1's existing format work when its batch is ready.
 
 After these, follow the [working order](plan.md#8-working-order). Closure parity is V1's combined qualification goal, not a prerequisite for implementing naming or representation choices.
@@ -52,5 +52,5 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 - One heavy build, test or measurement job at a time. Verify coherent batches, roughly every 20 minutes of implementation or after a critical shared-path change.
 - Size comes first at the default effort and above. Judge batch totals separately by objective; explain small local heuristic regressions and the CPU cost of additional search.
 - Every open defect has an owner in [coverage.md](coverage.md). Native completion remains owned separately from JavaScript qualification.
-- Keep `ref`, public constructibility and `pure` termination semantics explicit while their language decisions remain open. Complete Y5's already-approved IIFE default in D1.
+- Keep `ref`, public constructibility and `pure` termination semantics explicit while their language decisions remain open. D1 now supplies Y5's approved application IIFE default.
 - On landing, update this checklist and add one evidence record to history. Do not copy batch measurements or old chronology into this file.

@@ -196,3 +196,23 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 **Prediction.** Less target-rule scanning on unchanged trees, with the same fixed point and order of actual edits. Logical work falls because this is a versioned scheduling algorithm, not a transparent memo cache: policy algorithm 4 identifies the new tariff. Under finite work budgets this can permit more existing candidates, which must be reported and measured. No larger search family is added. Full formation reuse remains open; avoiding repeated stable work is the bounded change before adding a persistent allocation owner.
 
 **Semantic checkpoint.** Constant-storage suffix scheduling and the formed-head certificate are implemented. The five certified rules were audited against their context and printer/choice inputs; every tail edit invalidates the certificate. All 23 focused scheduling tests pass, including dense-versus-reused edit order, round counts, searched bytes, exact scores and execution under each objective. The full run passes 1,693 tests and exposes one timing-fixture index shifted by the new telemetry bucket; preserving the existing bucket order fixes it, and the focused timing rerun passes. Combined: **1,694 passed, five existing ignores**, with the separately qualified expensive table case excluded. Logs: `/tmp/lilscript-q2-schedule-focused-fixed.log`, `/tmp/lilscript-q2-schedule-full.log`, `/tmp/lilscript-q2-schedule-timing-fixed.log`. Release size and CPU qualification follow.
+
+**Qualification.** The [release generic, port and paired compilation reports](../../benchmarks/migration-results/2026-09-30-q2-stable-rules/README.md) pass with unchanged output. All 20 reported port files match the prior qualification. Median compilation CPU ratios are 0.936, 0.900 and 0.956 with separated sample ranges; exact terminal judgments remain 49, 28 and 24. This supports lower compilation CPU on the measured workloads without removing search opportunities. Full incremental formation remains open.
+
+## 2026-09-30: S4 detached primitive methods (pre-registration)
+
+1. Enforce the existing receiver-call contract when checking a primitive method as a standalone value, including optional member reads. Reject the detached read with a source diagnostic; direct receiver calls and explicit capturing closures remain valid.
+2. Use the checker's resolved primitive identity, leaving ordinary callable fields and explicit dynamic host access under their existing contracts. The check service and all compilation targets must agree before target formation.
+3. Enable the carried refusal test; cover the public check service, optional reads and the explicit closure alternative. Re-run the primitive/call checking and production semantic coverage before generic qualification.
+
+**Prediction.** Incorrectly accepted programs that throw from a lost builtin receiver are diagnosed at check time. Legal receiver calls and all existing generic output retain their behavior and bytes. This closes the specific carried method-value defect; it does not change class method or host-call semantics.
+
+**Focused checkpoint.** The carried refusal is enabled and three focused tests pass. The public check and compilation services reject the same string/map/set and optional primitive reads; direct receiver closures, ordinary callable fields and dynamic host reads remain accepted. A missing qualified enum path in the first build was corrected before the passing run. Log: `/tmp/lilscript-s4-primitive-method-fixed.log`. Full checker and generic/port qualification follow.
+
+## 2026-09-30: C2 paired runtime measurements (pre-registration)
+
+1. Add a generic isolated-process runner with alternating reference/candidate samples, pinned engine/workload/artifact/input identities, complete samples and spread. Separate artifact import/startup from warmed work, and retain total process CPU as a separate measurement.
+2. Make the common workload return an observable result checked against an explicit manifest oracle on every sample. Keep declared work counts and optional retained results; report post-GC heap/array-buffer deltas without clamping or treating them as allocation counts.
+3. Refuse changed inputs, incomplete samples and incorrect results. Add integration checks for bad oracles, engine/workload failures and input drift, then retain a reproducible generic smoke measurement. Port workloads and performance claims require their own matched contracts and qualification.
+
+**Prediction.** This supplies missing runtime evidence machinery without changing compiler output or asserting runtime parity. Ratios and individual samples remain visible; no noisy measurement becomes an unconditional optimization permission or a global speed claim.
