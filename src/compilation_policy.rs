@@ -17,9 +17,9 @@ use crate::config::{CompressionCostModel, JavaScriptPriority};
 
 pub const POLICY_SCHEMA_VERSION: u32 = 2;
 pub const LEGACY_TRANSLATOR_RETIREMENT_SCHEMA: u32 = 3;
-// Version7 admits private-field alternatives after the completed naming walk.
-// Property and integer-hint choices jointly identify cached formation heads.
-pub const POLICY_ALGORITHM_VERSION: u32 = 7;
+// Version8 reuses admitted statement mention facts during target forwarding.
+// Version7 jointly identifies private-field and integer-hint formation heads.
+pub const POLICY_ALGORITHM_VERSION: u32 = 8;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.

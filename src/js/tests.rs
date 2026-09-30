@@ -7,6 +7,9 @@ mod projection;
 #[path = "single_call_tests.rs"]
 mod single_call;
 
+#[path = "mention_tests.rs"]
+mod statement_mentions;
+
 #[path = "strict_inline_tests.rs"]
 mod strict_inline;
 

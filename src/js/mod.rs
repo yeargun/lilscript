@@ -34,6 +34,7 @@ pub(crate) use families::HeadChoices;
 pub mod extract;
 mod literal_output;
 pub mod manifest;
+mod mentions;
 pub mod names;
 mod root_constants;
 mod scalar_objects;
@@ -2648,6 +2649,7 @@ impl Module {
                 continue;
             };
             let root = region == self.root.index();
+            let mut mentions = mentions::StatementMentions::default();
             let mut index = 0;
             while index + 1 < self.regions[region].statements.len() {
                 budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
@@ -2754,7 +2756,7 @@ impl Module {
                                     break;
                                 }
                             }
-                            if !self.statement_mentions(statement, binding) {
+                            if !mentions.contains(self, region, later, binding, budget)? {
                                 continue;
                             }
                             // A value that creates a function keeps out of a
@@ -2869,6 +2871,7 @@ impl Module {
                 }
                 // The receiver now evaluates the moved value.
                 self.remove_statement_into(region, index, receiver);
+                mentions.moved(index, receiver, budget)?;
                 references[binding.index()] = 0;
                 forwarded += 1;
                 if nested.is_some() {
@@ -2880,6 +2883,7 @@ impl Module {
                     order = self.order(&frames, budget)?;
                 }
             }
+            mentions.discard(budget)?;
         }
         let map = if disordered {
             Some(self.renumber(budget)?)

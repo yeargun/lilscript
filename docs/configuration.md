@@ -235,8 +235,11 @@ is a diagnosed compatibility exception; other risk permissions are explicit. Arc
   widens with the level. Levels 14–16 additionally revisit proxy-rejected
   naming starts by default; level 13 requires an explicit opt-in for that tail.
 
-Each level passes through every lower level's result (the replay check,
-[testing.md](testing.md#the-effort-schedules-monotonicity-m35)).
+The fast-tier walk extends a fixed sequence of moves (the replay checks in
+[testing.md](testing.md#the-effort-schedules-monotonicity-m35)). Each build
+retains its best admitted artifact. Wider structural search can explore
+different paths, and hard limits can stop them at different points; output
+that never grows between every pair of effort levels remains Q3 work.
 `candidate_search = "off"` (and `--mode development`) keeps only the level-0
 artifact at any level.
 
@@ -252,6 +255,13 @@ edits their input. It preserves the fixed point while reducing counted work;
 the same finite allowance can therefore reach more existing candidates.
 Optional timing reports include `js_rule_calls` and `js_rule_ms` for actual
 target-rule executions, nested within `js_formation_ms`.
+
+Policy algorithm 8 reuses exact statement-mention facts within target
+single-use forwarding. Each move invalidates its changed receiver and removes
+its deleted declaration; the region releases the cache before advancing.
+Cache construction, lookup and backing storage are accounted. This internal
+reuse keeps the existing transformation proofs and needs no configuration
+switch. Its compilation-time effect is measured separately from size wins.
 
 `[policy.search]` fixes the search's cadence: `codec_schedule` (`staged`
 groups renders before codec measurement, `immediate` scores each at once),
