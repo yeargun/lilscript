@@ -57,4 +57,8 @@ assertion rerun give 1,658 passing tests, with nine existing ignores. This
 includes hygiene/captures, public names, each objective's exact delivery,
 dedicated and parent vetoes, retained replay, deterministic search and codec
 cache work/lifetime checks. Python policy-comparison tests pass three cases.
-Port suite qualification is pending.
+The [maintained port suite report](ports.json) passes markedlil **29/29**,
+zodlil **1,353/1,353** and posthoglil **21/21** tests. The runner copied the
+already-migrated checkouts, applied no historical patches, and built all nine
+declared artifacts with the pinned compiler. These suites qualify behavior;
+they do not establish runtime-speed parity or replace full fleet qualification.
