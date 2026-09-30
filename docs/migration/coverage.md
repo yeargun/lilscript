@@ -15,8 +15,8 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M2.11 | [C3](plan.md#c3) | Held-out libraries |
 | M2.12 | [C2](plan.md#c2) | Perf runner, runtime ledger, counters, micro perf gates |
 | M2.15 | [C3](plan.md#c3) | Calibration corpus |
-| M3.1 | [C1](plan.md#c1) | `format` (M3.3b), `[resources]` (M5.6), `[performance]` (M2.12) |
-| M3.2 | [C1](plan.md#c1) | Family registry |
+| M3.1 | [C1](plan.md#c1) | Configuration contract; remaining format producers belong to D1, instrumentation to Q2 and runtime evidence to C2 |
+| M3.2 | [C1](plan.md#c1) | Family registry; new producers register permissions within their owning milestone |
 | M3.3b | [D1](plan.md#d1) | Formats (work in progress: `~/lilscript-work/portwork/m3.3b-wip.patch`) |
 | M3.3c | [D2](plan.md#d2) | Facts and choices |
 | M3.3d | [D2](plan.md#d2) | Lazy effects and cycles |
@@ -168,6 +168,6 @@ All 43 carried-item entries from the snapshot are represented above. C3 records 
 | Y1, Y5a/b | Approved contracts retained. Y5c, the default application IIFE, belongs to D1 |
 | Y2, Y3, Y4 | `ref`, exported constructibility and `pure` termination remain explicit language decisions in S4; this replan does not approve their semantic changes |
 | Y6 | C3 owns a versioned win-label policy. Exact bytes are always reported; do not silently change historical verdict thresholds |
-| Y7 | C1 owns effort/permission separation and diagnostics for existing level-16 and retired settings; compatibility is part of implementation |
+| Y7 | C1 supplies explicit policy version 3 and diagnosed version-2 compatibility; retired aliases remain supported only with consistent values |
 | Former source-layout move | S4 owns relocation if it reduces ownership confusion; move code with its consumer migration, not as a separate prerequisite to optimization |
 | Old proof/measurement laws | The active plan distinguishes sound semantic proofs, empirical defaults and exact candidate scores. Historical universal byte/noise/time claims are not inherited as guarantees |

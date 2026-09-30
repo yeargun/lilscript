@@ -75,7 +75,7 @@ The parser admits any nonempty, duplicate-free objective set. CLI and Rust build
 
 For every optional family, `off` is a hard veto, `on` permits competition without forcing a representation, and `auto` uses the objective's policy within the permitted runtime risk. The veto applies to initial formation, cleanup, search, replay, caches and every requested objective. Mandatory language lowering and validation remain mandatory; an optional optimization cannot bypass its veto by being renamed cleanup.
 
-One registry supplies family identity, availability, prerequisites, legality, risk, policy setting, invalidation and receipt names. Reject or clearly warn about unsupported controls; remove entries with no producer. Test disabling a family on a program that would otherwise use it, including interactions with other families and cached candidates.
+One registry supplies family identity, availability, prerequisites, legality, risk, policy setting, invalidation and receipt names. Reject or clearly warn about unsupported controls. Names with no producer may remain only as diagnosed compatibility entries, never as advertised implemented optimizations; new families land with their producers. Test disabling a family on a program that would otherwise use it, including interactions with other families and cached candidates.
 
 Configuration precedence must be documented and tested from file discovery through explicit configuration and CLI overrides. Contradictory aliases fail instead of depending on load order. Fingerprint every byte-affecting setting, semantic assumption and schedule/codec version. Receipts distinguish a disabled family, an inapplicable family, a rejected candidate and a budget that never reached the candidate.
 
@@ -221,8 +221,8 @@ Native remains an owned commitment. Its completion does not gate JavaScript nami
 Complete milestones in this dependency order:
 
 1. **C1 → C2 → C3:** close configuration and permission enforcement, independent evidence, then calibration infrastructure.
-2. **S4 → S1 → S2 → S3:** finish the shared contracts/facts needed by folding, object optimization and call optimization, in that order.
-3. **Q1 → G1 → G2 → G3:** finish the representation interface, lexical names, property names and target spelling.
+2. **S1 → S2 → S3:** finish folding, object optimization and call optimization, including each one's required shared facts and removal of its replaced passes.
+3. **Q1 → G1 → G2 → G3 → S4:** finish the representation interface, lexical names, property names and target spelling, then close the remaining shared contracts/fact-consumer audit. S4's deletions depend on those consumers; completing all of S4 first would invert that dependency.
 4. **Q2 → Q3 → Q4:** complete reuse/accounting, calibrate independent objective/effort schedules, then finish data/helper representations.
 5. **D1 → D2 → D3:** finish formats, consumer delivery and shared build/port integration.
 6. **N1 → N2 → V1 → V2:** complete native integration and coverage, close remaining qualification gaps, then qualify reproducible releases.
