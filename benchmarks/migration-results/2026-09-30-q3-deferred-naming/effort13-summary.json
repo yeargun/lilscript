@@ -1,0 +1,800 @@
+{
+ "schema": 1,
+ "scope": "642 inspected development programs; matched effort 13; no held-out claim",
+ "reports": {
+  "previous": "8a5ba6e841bade326aae3bf61d01fbc48645258a2d67f9a7a507f644dace9cc6",
+  "candidate": "5f94fa5bb1fdd9da47b7a45838088fcc7c9d436cf7b0c0c326c1db005fe8ae86"
+ },
+ "compilers": {
+  "previous": {
+   "source": "/home/azureuser/lilscript-work/bin/c1-proxy-policy-1/lilscript",
+   "sha256": "475f66d876a10a8335c3c0ea1a528d0aeccc38e0b68ec1584943c6e735ded254",
+   "version": "lilscript 0.1.0",
+   "label": null
+  },
+  "candidate": {
+   "source": "/home/azureuser/lilscript-work/bin/q3-deferred-naming-1/lilscript",
+   "sha256": "34a7ceb333f3a652e3f16394c34482e39ea139af7fd6273d92310afabbe3a262",
+   "version": "lilscript 0.1.0",
+   "label": null
+  }
+ },
+ "codecs": {
+  "previous": {
+   "sha256": "1605ba6a5d786bea2e5b99f416cb914c8577b6d239fe227d07354e002ecea9c6"
+  },
+  "candidate": {
+   "sha256": "4a74cae23627dc3e2116aeed9fa8832d23f8bef1b46a33710a71c2442624301d"
+  }
+ },
+ "summarizer_sha256": "b1e8a5341a02f71f34a81b4c8979771bef251e00cc00e77a6343e2deec734f34",
+ "decoder_sha256": "8469112040d0871f708477d57af84475605d97789627c5b5bfa89b8f472cbd08",
+ "work_roots": {
+  "previous": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-proxy-calibration/on",
+  "candidate": "/home/azureuser/lilscript-work/measurements/2026-09-30-q3-deferred-naming/effort13"
+ },
+ "metrics": {
+  "raw": {
+   "previous": {
+    "bytes": 59019,
+    "judged": 3192,
+    "pruned": 3096,
+    "codec_probes": 0,
+    "heads": 2392,
+    "baseline_work": 13790281,
+    "optional_work": 164604339,
+    "codec_work": 25530,
+    "max_peak_retained_bytes": 18539588,
+    "deferred": 0,
+    "deferred_kept": 0,
+    "structural_stopped": 0,
+    "terminal_stopped": 0
+   },
+   "candidate": {
+    "bytes": 59019,
+    "judged": 4891,
+    "pruned": 4647,
+    "codec_probes": 0,
+    "heads": 2916,
+    "baseline_work": 13790281,
+    "optional_work": 246449213,
+    "codec_work": 37143,
+    "max_peak_retained_bytes": 18539588,
+    "deferred": 338,
+    "deferred_kept": 0,
+    "structural_stopped": 0,
+    "terminal_stopped": 0
+   }
+  },
+  "gzip9": {
+   "previous": {
+    "bytes": 54058,
+    "judged": 2495,
+    "pruned": 4947,
+    "codec_probes": 7442,
+    "heads": 2307,
+    "baseline_work": 185650933,
+    "optional_work": 2547833240,
+    "codec_work": 2544360177,
+    "max_peak_retained_bytes": 18562692,
+    "deferred": 0,
+    "deferred_kept": 0,
+    "structural_stopped": 0,
+    "terminal_stopped": 0
+   },
+   "candidate": {
+    "bytes": 54048,
+    "judged": 4532,
+    "pruned": 7067,
+    "codec_probes": 11599,
+    "heads": 2875,
+    "baseline_work": 185650933,
+    "optional_work": 3761434698,
+    "codec_work": 3660007291,
+    "max_peak_retained_bytes": 18562692,
+    "deferred": 430,
+    "deferred_kept": 6,
+    "structural_stopped": 0,
+    "terminal_stopped": 0
+   }
+  },
+  "brotli11": {
+   "previous": {
+    "bytes": 43753,
+    "judged": 8719,
+    "pruned": 0,
+    "codec_probes": 8719,
+    "heads": 2324,
+    "baseline_work": 13513776,
+    "optional_work": 226265219,
+    "codec_work": 4501969,
+    "max_peak_retained_bytes": 18562692,
+    "deferred": 0,
+    "deferred_kept": 0,
+    "structural_stopped": 0,
+    "terminal_stopped": 0
+   },
+   "candidate": {
+    "bytes": 43753,
+    "judged": 8719,
+    "pruned": 0,
+    "codec_probes": 8719,
+    "heads": 2324,
+    "baseline_work": 13513776,
+    "optional_work": 226265219,
+    "codec_work": 4501969,
+    "max_peak_retained_bytes": 18562692,
+    "deferred": 0,
+    "deferred_kept": 0,
+    "structural_stopped": 0,
+    "terminal_stopped": 0
+   }
+  }
+ },
+ "changed": [
+  {
+   "item": "cases/catalog/control/enum-int-dispatch-10",
+   "metric": "gzip9",
+   "sizes": {
+    "previous": 109,
+    "candidate": 107
+   },
+   "delta": -2,
+   "sha256": {
+    "previous": "061a8f332ca5e9f92aee788685390e9572c655e3adeaa2c0474cf8c4661267dc",
+    "candidate": "9f88e092de2a4fe591c2b710ef0249eeeaa78c94c57f869d327a3cba3a07d759"
+   },
+   "starts": {
+    "previous": [
+     {
+      "name": "level-0",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 125,
+      "size": 109,
+      "delta": -16,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 1
+     },
+     {
+      "name": "naming:Source",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 21
+     },
+     {
+      "name": "local-naming",
+      "pass": 3,
+      "outcome": "identical",
+      "start": 109,
+      "size": 109,
+      "delta": 0,
+      "proxy": null
+     }
+    ],
+    "candidate": [
+     {
+      "name": "level-0",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 125,
+      "size": 109,
+      "delta": -16,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 1
+     },
+     {
+      "name": "naming:Source",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 21
+     },
+     {
+      "name": "local-naming",
+      "pass": 3,
+      "outcome": "identical",
+      "start": 109,
+      "size": 109,
+      "delta": 0,
+      "proxy": null
+     },
+     {
+      "name": "deferred-naming:Global",
+      "pass": 4,
+      "outcome": "kept",
+      "start": 126,
+      "size": 107,
+      "delta": -2,
+      "proxy": 1
+     },
+     {
+      "name": "deferred-naming:Source",
+      "pass": 7,
+      "outcome": "rejected",
+      "start": 146,
+      "size": 109,
+      "delta": 2,
+      "proxy": 21
+     }
+    ]
+   }
+  },
+  {
+   "item": "cases/catalog/control/enum-int-dispatch-12",
+   "metric": "gzip9",
+   "sizes": {
+    "previous": 109,
+    "candidate": 107
+   },
+   "delta": -2,
+   "sha256": {
+    "previous": "4a3c40b45fe2d6587b8ac8d72730681f094e589d5a84bc8e0d04d421a568b31d",
+    "candidate": "39310ad8b37fa1408e648ec754c3b3fd3548d4f053df7fc8c9dd89abf0859778"
+   },
+   "starts": {
+    "previous": [
+     {
+      "name": "level-0",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 125,
+      "size": 109,
+      "delta": -16,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 1
+     },
+     {
+      "name": "naming:Source",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 20
+     },
+     {
+      "name": "local-naming",
+      "pass": 3,
+      "outcome": "identical",
+      "start": 109,
+      "size": 109,
+      "delta": 0,
+      "proxy": null
+     }
+    ],
+    "candidate": [
+     {
+      "name": "level-0",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 125,
+      "size": 109,
+      "delta": -16,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 1
+     },
+     {
+      "name": "naming:Source",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 20
+     },
+     {
+      "name": "local-naming",
+      "pass": 3,
+      "outcome": "identical",
+      "start": 109,
+      "size": 109,
+      "delta": 0,
+      "proxy": null
+     },
+     {
+      "name": "deferred-naming:Global",
+      "pass": 4,
+      "outcome": "kept",
+      "start": 126,
+      "size": 107,
+      "delta": -2,
+      "proxy": 1
+     },
+     {
+      "name": "deferred-naming:Source",
+      "pass": 7,
+      "outcome": "rejected",
+      "start": 145,
+      "size": 109,
+      "delta": 2,
+      "proxy": 20
+     }
+    ]
+   }
+  },
+  {
+   "item": "cases/catalog/collection/minmax-scan-2-7-1-8-2-8",
+   "metric": "gzip9",
+   "sizes": {
+    "previous": 119,
+    "candidate": 118
+   },
+   "delta": -1,
+   "sha256": {
+    "previous": "3dcc049f1fdf42aa1f93557948d40aa82bf9044ee9d361760647ffed49d992e6",
+    "candidate": "1f80c54cdc356b3491eee09f4759caa7e7b88d56bed1c9965b988a22e6a51326"
+   },
+   "starts": {
+    "previous": [
+     {
+      "name": "search",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 122,
+      "size": 119,
+      "delta": -3,
+      "proxy": null
+     },
+     {
+      "name": "level-0",
+      "pass": 3,
+      "outcome": "rejected",
+      "start": 122,
+      "size": 119,
+      "delta": 0,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 5,
+      "outcome": "identical",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": null
+     },
+     {
+      "name": "naming:Source",
+      "pass": 5,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 10
+     },
+     {
+      "name": "local-naming",
+      "pass": 5,
+      "outcome": "identical",
+      "start": 119,
+      "size": 119,
+      "delta": 0,
+      "proxy": null
+     }
+    ],
+    "candidate": [
+     {
+      "name": "search",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 122,
+      "size": 119,
+      "delta": -3,
+      "proxy": null
+     },
+     {
+      "name": "level-0",
+      "pass": 3,
+      "outcome": "rejected",
+      "start": 122,
+      "size": 119,
+      "delta": 0,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 5,
+      "outcome": "identical",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": null
+     },
+     {
+      "name": "naming:Source",
+      "pass": 5,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 10
+     },
+     {
+      "name": "local-naming",
+      "pass": 5,
+      "outcome": "identical",
+      "start": 119,
+      "size": 119,
+      "delta": 0,
+      "proxy": null
+     },
+     {
+      "name": "deferred-naming:Source",
+      "pass": 6,
+      "outcome": "kept",
+      "start": 132,
+      "size": 118,
+      "delta": -1,
+      "proxy": 10
+     }
+    ]
+   }
+  },
+  {
+   "item": "cases/catalog/collection/edge-array-pipeline",
+   "metric": "gzip9",
+   "sizes": {
+    "previous": 119,
+    "candidate": 116
+   },
+   "delta": -3,
+   "sha256": {
+    "previous": "44aa16dfaa516ebf36ae04e653bc1b23cd9218c9b8c2d36187ebf56404a8d598",
+    "candidate": "79ff99d26a5cb2c8b520f8f2d544c64b3d2ba00f0bc4620f0152c76259830c33"
+   },
+   "starts": {
+    "previous": [
+     {
+      "name": "level-0",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 120,
+      "size": 119,
+      "delta": -1,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 2
+     },
+     {
+      "name": "naming:Source",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 22
+     },
+     {
+      "name": "local-naming",
+      "pass": 3,
+      "outcome": "identical",
+      "start": 119,
+      "size": 119,
+      "delta": 0,
+      "proxy": null
+     }
+    ],
+    "candidate": [
+     {
+      "name": "level-0",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 120,
+      "size": 119,
+      "delta": -1,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 2
+     },
+     {
+      "name": "naming:Source",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 22
+     },
+     {
+      "name": "local-naming",
+      "pass": 3,
+      "outcome": "identical",
+      "start": 119,
+      "size": 119,
+      "delta": 0,
+      "proxy": null
+     },
+     {
+      "name": "deferred-naming:Global",
+      "pass": 4,
+      "outcome": "kept",
+      "start": 122,
+      "size": 116,
+      "delta": -3,
+      "proxy": 2
+     },
+     {
+      "name": "deferred-naming:Source",
+      "pass": 7,
+      "outcome": "rejected",
+      "start": 142,
+      "size": 116,
+      "delta": 0,
+      "proxy": 22
+     }
+    ]
+   }
+  },
+  {
+   "item": "cases/catalog/effect/edge-generator-range-1n7n2",
+   "metric": "gzip9",
+   "sizes": {
+    "previous": 134,
+    "candidate": 133
+   },
+   "delta": -1,
+   "sha256": {
+    "previous": "b61a7dfbddcf9563073d8699e0b868f491d2a8363477d49843bf2aca73b489e3",
+    "candidate": "4b58d320aa97d1feb7b6a237eb001a65c45c8157f4db2e500fd74292ce7e411e"
+   },
+   "starts": {
+    "previous": [
+     {
+      "name": "level-0",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 137,
+      "size": 134,
+      "delta": -3,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 1
+     },
+     {
+      "name": "naming:Source",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 28
+     },
+     {
+      "name": "local-naming",
+      "pass": 3,
+      "outcome": "identical",
+      "start": 134,
+      "size": 134,
+      "delta": 0,
+      "proxy": null
+     }
+    ],
+    "candidate": [
+     {
+      "name": "level-0",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 137,
+      "size": 134,
+      "delta": -3,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 1
+     },
+     {
+      "name": "naming:Source",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 28
+     },
+     {
+      "name": "local-naming",
+      "pass": 3,
+      "outcome": "identical",
+      "start": 134,
+      "size": 134,
+      "delta": 0,
+      "proxy": null
+     },
+     {
+      "name": "deferred-naming:Global",
+      "pass": 4,
+      "outcome": "rejected",
+      "start": 138,
+      "size": 134,
+      "delta": 0,
+      "proxy": 1
+     },
+     {
+      "name": "deferred-naming:Source",
+      "pass": 6,
+      "outcome": "kept",
+      "start": 165,
+      "size": 133,
+      "delta": -1,
+      "proxy": 28
+     }
+    ]
+   }
+  },
+  {
+   "item": "cases/catalog/effect/edge-generator-range-2n10n2",
+   "metric": "gzip9",
+   "sizes": {
+    "previous": 133,
+    "candidate": 132
+   },
+   "delta": -1,
+   "sha256": {
+    "previous": "7dfcc6b5380c2f6e3739dc0be236de8b05cae729005262200606df3a32fc7f35",
+    "candidate": "90b52be4f474dfe1aeae00b5613678a786b3ce78a1639991b84757742aeb5d52"
+   },
+   "starts": {
+    "previous": [
+     {
+      "name": "level-0",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 136,
+      "size": 133,
+      "delta": -3,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 2
+     },
+     {
+      "name": "naming:Source",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 28
+     },
+     {
+      "name": "local-naming",
+      "pass": 3,
+      "outcome": "identical",
+      "start": 133,
+      "size": 133,
+      "delta": 0,
+      "proxy": null
+     }
+    ],
+    "candidate": [
+     {
+      "name": "level-0",
+      "pass": 1,
+      "outcome": "kept",
+      "start": 136,
+      "size": 133,
+      "delta": -3,
+      "proxy": null
+     },
+     {
+      "name": "naming:Global",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 2
+     },
+     {
+      "name": "naming:Source",
+      "pass": 3,
+      "outcome": "pruned",
+      "start": null,
+      "size": null,
+      "delta": null,
+      "proxy": 28
+     },
+     {
+      "name": "local-naming",
+      "pass": 3,
+      "outcome": "identical",
+      "start": 133,
+      "size": 133,
+      "delta": 0,
+      "proxy": null
+     },
+     {
+      "name": "deferred-naming:Global",
+      "pass": 4,
+      "outcome": "kept",
+      "start": 138,
+      "size": 132,
+      "delta": -1,
+      "proxy": 2
+     },
+     {
+      "name": "deferred-naming:Source",
+      "pass": 8,
+      "outcome": "rejected",
+      "start": 164,
+      "size": 133,
+      "delta": 1,
+      "proxy": 28
+     }
+    ]
+   }
+  }
+ ],
+ "verified_source_files": 1224
+}

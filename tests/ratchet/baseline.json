@@ -3,8 +3,8 @@
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
  "recorded": "2026-09-30",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/s3-strict-inline-1/lilscript",
-  "sha256": "cc4ec38d61bcbc128accd49ef476070a5096cbb520027fb42e71e3bae966ad0d",
+  "source": "/home/azureuser/lilscript-work/bin/q3-deferred-naming-1/lilscript",
+  "sha256": "34a7ceb333f3a652e3f16394c34482e39ea139af7fd6273d92310afabbe3a262",
   "version": "lilscript 0.1.0",
   "label": null
  },
@@ -12,6 +12,3924 @@
   "target": "js",
   "format": "bare"
  },
+ "configurations": [
+  {
+   "set": "cases",
+   "lane": "raw",
+   "path": "/home/azureuser/lilscript/comparison/cases/configs/raw.toml",
+   "sha256": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/cases/configs/raw.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "19e8fc5efc77798dbb144a01853d213b8e453199fde167cbd4e8f71d19ef1d36",
+    "policy": {
+     "schema": 2,
+     "algorithm": 7,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Raw",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 7,
+       "prefix": null,
+       "exact": null,
+       "margin": 0,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 28,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ]
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ]
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ]
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3"
+    ]
+   }
+  },
+  {
+   "set": "cases",
+   "lane": "gzip",
+   "path": "/home/azureuser/lilscript/comparison/cases/configs/gzip.toml",
+   "sha256": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/cases/configs/gzip.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "815119d97afff34b79f3395f0c42fa0d904efec800b0dee471c2e0514db335e0",
+    "policy": {
+     "schema": 2,
+     "algorithm": 7,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Gzip",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 7,
+       "prefix": null,
+       "exact": null,
+       "margin": 0,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 28,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ]
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ]
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ]
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3"
+    ]
+   }
+  },
+  {
+   "set": "cases",
+   "lane": "brotli",
+   "path": "/home/azureuser/lilscript/comparison/cases/configs/brotli.toml",
+   "sha256": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/cases/configs/brotli.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "194452b69cbb4a7955218f4fb0a74a9f07ca65d14f42555cffee12d01a3a4879",
+    "policy": {
+     "schema": 2,
+     "algorithm": 7,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Brotli",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 7,
+       "prefix": null,
+       "exact": null,
+       "margin": 150,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 28,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ]
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ]
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ]
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3"
+    ]
+   }
+  },
+  {
+   "set": "apps",
+   "lane": "raw",
+   "path": "/home/azureuser/lilscript/comparison/cases/configs/raw.toml",
+   "sha256": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/cases/configs/raw.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "19e8fc5efc77798dbb144a01853d213b8e453199fde167cbd4e8f71d19ef1d36",
+    "policy": {
+     "schema": 2,
+     "algorithm": 7,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Raw",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 7,
+       "prefix": null,
+       "exact": null,
+       "margin": 0,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 28,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ]
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ]
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ]
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3"
+    ]
+   }
+  },
+  {
+   "set": "apps",
+   "lane": "gzip",
+   "path": "/home/azureuser/lilscript/comparison/cases/configs/gzip.toml",
+   "sha256": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/cases/configs/gzip.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "815119d97afff34b79f3395f0c42fa0d904efec800b0dee471c2e0514db335e0",
+    "policy": {
+     "schema": 2,
+     "algorithm": 7,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Gzip",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 7,
+       "prefix": null,
+       "exact": null,
+       "margin": 0,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 28,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ]
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ]
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ]
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3"
+    ]
+   }
+  },
+  {
+   "set": "apps",
+   "lane": "brotli",
+   "path": "/home/azureuser/lilscript/comparison/cases/configs/brotli.toml",
+   "sha256": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/cases/configs/brotli.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "194452b69cbb4a7955218f4fb0a74a9f07ca65d14f42555cffee12d01a3a4879",
+    "policy": {
+     "schema": 2,
+     "algorithm": 7,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Brotli",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 7,
+       "prefix": null,
+       "exact": null,
+       "margin": 150,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 28,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ]
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ]
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ]
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3"
+    ]
+   }
+  },
+  {
+   "set": "algorithms",
+   "lane": "raw",
+   "path": "/home/azureuser/lilscript/comparison/algorithms/configs/raw.toml",
+   "sha256": "6a986653d857ede7ee09310e6de1008053f1fc3632bdb4478c07e515748f1c7e",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/algorithms/configs/raw.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "19e8fc5efc77798dbb144a01853d213b8e453199fde167cbd4e8f71d19ef1d36",
+    "policy": {
+     "schema": 2,
+     "algorithm": 7,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Raw",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 7,
+       "prefix": null,
+       "exact": null,
+       "margin": 0,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 28,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ]
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ]
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ]
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3"
+    ]
+   }
+  },
+  {
+   "set": "algorithms",
+   "lane": "gzip",
+   "path": "/home/azureuser/lilscript/comparison/algorithms/configs/gzip.toml",
+   "sha256": "282f370febf978da667a08fcfddc9d4f026630cd7b37245b16aba94d91c79f16",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/algorithms/configs/gzip.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "815119d97afff34b79f3395f0c42fa0d904efec800b0dee471c2e0514db335e0",
+    "policy": {
+     "schema": 2,
+     "algorithm": 7,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Gzip",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 7,
+       "prefix": null,
+       "exact": null,
+       "margin": 0,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 28,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ]
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ]
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ]
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3"
+    ]
+   }
+  },
+  {
+   "set": "algorithms",
+   "lane": "brotli",
+   "path": "/home/azureuser/lilscript/comparison/algorithms/configs/brotli.toml",
+   "sha256": "33a91e6f985aaea952478ae30ab113aac6e4f71974ebc7ef265e2f42de52aa3e",
+   "resolved": {
+    "config": "/home/azureuser/lilscript/comparison/algorithms/configs/brotli.toml",
+    "warnings": [
+     "`javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it",
+     "`javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it"
+    ],
+    "request": {
+     "logical_work": 40000000000,
+     "retained_bytes": 256000000
+    },
+    "execution": {
+     "threads": null,
+     "codec_workers": null,
+     "mode": "Production",
+     "target": "Js"
+    },
+    "fingerprint": "194452b69cbb4a7955218f4fb0a74a9f07ca65d14f42555cffee12d01a3a4879",
+    "policy": {
+     "schema": 2,
+     "algorithm": 7,
+     "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "keep_function_names": false,
+      "keep_published_function_names": true,
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "unconstructed_callbacks": false,
+      "numeric_lengths": true,
+      "strip_debug": false,
+      "strip_console_calls": false,
+      "checks": "production",
+      "preserved_properties": [],
+      "delivery": {
+       "mode": "single",
+       "format": "bare",
+       "preload": "none",
+       "host_modules": "external",
+       "entry_names": "[name].[ext]",
+       "chunk_names": "[hash:8].[ext]",
+       "module_names": "[path].[ext]",
+       "request_bytes": 0,
+       "depth_bytes": 0
+      }
+     },
+     "objective": {
+      "codec": "Brotli",
+      "codec_settings": {
+       "brotli": {
+        "quality": 11,
+        "window": 22,
+        "mode": "generic"
+       },
+       "gzip": {
+        "level": 9,
+        "window": 15
+       }
+      },
+      "priority": "SizeFirst",
+      "optional_alternatives": 1536,
+      "optional_codec_probes": 1536,
+      "retained_candidates": 1536,
+      "retained_candidate_bytes": 16777216,
+      "beam_width": 24,
+      "walk": {
+       "version": 7,
+       "prefix": null,
+       "exact": null,
+       "margin": 150,
+       "passes": null,
+       "starts": true
+      },
+      "search": {
+       "version": 28,
+       "codec_schedule": "staged",
+       "proxy_pruning": "on",
+       "deferred_naming_starts": true,
+       "render_batch": 8,
+       "diversity_interval": 4
+      }
+     },
+     "effort": 15,
+     "tactics": [
+      {
+       "id": "dead-code-elimination",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "dead-code-elimination",
+        "name": "dead-code-elimination",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "uses-and-effects",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "constant-folding",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "constant-folding",
+        "name": "constant-folding",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "inlining",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "inlining",
+        "name": "inlining",
+        "javascript_only": false,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "shared-rules",
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "scalar-replacement",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "scalar-replacement",
+        "name": "scalar-replacement",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "ownership-and-observations",
+        "default": "preset",
+        "producers": [
+         "java-script-formation",
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "call-specialization",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "call-specialization",
+        "name": "call-specialization",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [
+         "structural-search"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "helper-sharing",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "helper-sharing",
+        "name": "helper-sharing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "calls-and-captures",
+        "default": "preset",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "target-compaction",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "target-compaction",
+        "name": "target-compaction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "target-schedule",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "identifier-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "identifier-mangling",
+        "name": "identifier-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "property-mangling",
+       "state": {
+        "permission": "on",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "property-mangling",
+        "name": "property-mangling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "java-script-formation",
+         "output-families"
+        ],
+        "prerequisites": [
+         "target-compaction"
+        ]
+       }
+      },
+      {
+       "id": "string-pooling",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-pooling",
+        "name": "string-pooling",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "string-array-packing",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "string-array-packing",
+        "name": "string-array-packing",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "output-families"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "startup-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": true,
+       "definition": {
+        "id": "startup-reconstruction",
+        "name": "startup-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 16,
+        "startup_at_level_16": true,
+        "analysis": "values",
+        "default": "on",
+        "producers": [
+         "java-script-formation"
+        ],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "recurring-reconstruction",
+       "state": {
+        "permission": "auto",
+        "enabled": false
+       },
+       "available": false,
+       "definition": {
+        "id": "recurring-reconstruction",
+        "name": "recurring-reconstruction",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "values",
+        "default": "off",
+        "producers": [],
+        "prerequisites": []
+       }
+      },
+      {
+       "id": "naming-search",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-search",
+        "name": "naming-search",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling"
+        ]
+       }
+      },
+      {
+       "id": "naming-alphabet",
+       "state": {
+        "permission": "auto",
+        "enabled": true
+       },
+       "available": true,
+       "definition": {
+        "id": "naming-alphabet",
+        "name": "naming-alphabet",
+        "javascript_only": true,
+        "minimum_effort": 0,
+        "startup_at_level_16": false,
+        "analysis": "names-and-boundary",
+        "default": "on",
+        "producers": [
+         "naming"
+        ],
+        "prerequisites": [
+         "identifier-mangling",
+         "naming-search"
+        ]
+       }
+      }
+     ],
+     "resources": {
+      "logical_work": 40000000000,
+      "retained_bytes": 256000000,
+      "wall_time_ms": null
+     },
+     "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+     }
+    },
+    "diagnostics": [
+     "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3"
+    ]
+   }
+  }
+ ],
+ "configurationOverride": null,
  "barsSha256": "770649437963ff5bd6955ea79195cf37c13a84d96fb6c83e7327db9a0085f45b",
  "counts": {
   "cases": {
@@ -23,7 +3941,7 @@
    "gzip9": {
     "competitor": 120,
     "closure": 0,
-    "old": 501
+    "old": 500
    },
    "brotli11": {
     "competitor": 178,
@@ -83,12 +4001,12 @@
    "gzip9": {
     "competitor": {
      "items": 624,
-     "ours": 50204,
+     "ours": 50194,
      "bar": 56410
     },
     "old": {
      "items": 622,
-     "ours": 50030,
+     "ours": 50020,
      "bar": 46478
     }
    },
@@ -2362,7 +6280,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 119
+    "size": 116
    },
    "brotli11": {
     "state": "pass",
@@ -2656,7 +6574,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 119
+    "size": 118
    },
    "brotli11": {
     "state": "pass",
@@ -4518,7 +8436,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 109
+    "size": 107
    },
    "brotli11": {
     "state": "pass",
@@ -4532,7 +8450,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 109
+    "size": 107
    },
    "brotli11": {
     "state": "pass",
@@ -5008,7 +8926,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 134
+    "size": 133
    },
    "brotli11": {
     "state": "pass",
@@ -5022,7 +8940,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 133
+    "size": 132
    },
    "brotli11": {
     "state": "pass",

@@ -1,0 +1,67 @@
+{
+  "workloads": [
+    {
+      "id": "markedlil-raw",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/markedlil-raw.toml",
+      "arguments": []
+    },
+    {
+      "id": "markedlil-gzip",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/markedlil-gzip.toml",
+      "arguments": []
+    },
+    {
+      "id": "markedlil-brotli",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/markedlil-brotli.toml",
+      "arguments": []
+    },
+    {
+      "id": "zodlil-raw",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/zodlil",
+      "entry": "scripts/zod.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/zodlil-raw.toml",
+      "arguments": []
+    },
+    {
+      "id": "zodlil-gzip",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/zodlil",
+      "entry": "scripts/zod.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/zodlil-gzip.toml",
+      "arguments": []
+    },
+    {
+      "id": "zodlil-brotli",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/zodlil",
+      "entry": "scripts/zod.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/zodlil-brotli.toml",
+      "arguments": []
+    },
+    {
+      "id": "posthoglil-raw",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/posthoglil-raw.toml",
+      "arguments": []
+    },
+    {
+      "id": "posthoglil-gzip",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/posthoglil-gzip.toml",
+      "arguments": []
+    },
+    {
+      "id": "posthoglil-brotli",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/posthoglil-brotli.toml",
+      "arguments": []
+    }
+  ]
+}

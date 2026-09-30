@@ -1,0 +1,34 @@
+[package]
+name = "zodlil"
+version = "4.4.3"
+abi = 1
+entry = "src/entry.lil"
+
+[optimization]
+preset = "maximum"
+call_site_specialization = true
+
+[javascript]
+# 8.89: `assume_pure_property_reads` is UNSOUND for this port and must stay off.
+# zod exposes `minLength`, `maxLength` and `format` as getters on its schema
+# objects; assuming a property read is pure lets those reads be elided, and the
+# getters then never run -- `expected undefined to deeply equal 5n`. Three of the
+# 1,353 upstream tests catch it.
+assume_pure_property_reads = false
+priority = "size-first"
+optimization_level = 13
+cost_model = "raw"
+assume_pristine_builtins = true
+strip_console = true
+candidate_search = "production"
+candidate_limit = 1536
+candidate_byte_budget = 1048576
+candidate_beam_width = 12
+
+[mangle]
+identifiers = true
+properties = true
+pool_strings = true
+
+[bundle]
+mode = "single"
