@@ -12,9 +12,9 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M2.4 | [C2](plan.md#c2), complete | Nominal/collection/generic/UTF-16 models; unsupported host/effect features explicitly use separate independent observers |
 | M2.7 | [C2](plan.md#c2), complete | Typed generation, feature masks, native/C lanes and regression-prologue migration |
 | M2.10 | [C2](plan.md#c2), complete | Pinned recipe grid and common behavior oracles; broader fleet verdicts remain V1 |
-| M2.11 | [C3](plan.md#c3) | Held-out libraries |
+| M2.11 | [C3](plan.md#c3), complete | Content-locked protected algorithm-library set and exposure protocol; maintained/external library qualification remains V1 |
 | M2.12 | [C2](plan.md#c2), complete | Paired controls/intervals, operation inventories and identity-scoped ledger; affected-workload runtime qualification remains V1 |
-| M2.15 | [C3](plan.md#c3) | Calibration corpus |
+| M2.15 | [C3](plan.md#c3), complete | Medium generic corpus, per-objective pruning audit, leave-one-family-out analysis and compile-work baseline |
 | M3.1 | [C1](plan.md#c1) | Configuration contract; remaining format producers belong to D1, instrumentation to Q2 and runtime evidence to C2 |
 | M3.2 | [C1](plan.md#c1) | Family registry; new producers register permissions within their owning milestone |
 | M3.3b | [D1](plan.md#d1) | Formats (work in progress: `~/lilscript-work/portwork/m3.3b-wip.patch`) |
@@ -61,7 +61,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M8.4 | [D2](plan.md#d2) | Host modules |
 | M8.5 | [Q4](plan.md#q4) | Runtime helpers as prelude code |
 | M8.6 | [D2](plan.md#d2) | Source maps |
-| M8.7 | [C3](plan.md#c3) | Port-shaped rules: continuous; the NO3 allowlist must end empty |
+| M8.7 | [C3](plan.md#c3), complete | Source allowlist is empty and enforced; generic policy/provenance replaces library citations |
 | M9.1 | [Q1](plan.md#q1) | the rest |
 | M9.2 | [Q3](plan.md#q3) | gzip's own prior row |
 | M9.3 | [G3](plan.md#g3) | per-site spellings |
@@ -128,7 +128,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M3.9 | [Q2](plan.md#q2) | each render re-scores unchanged files. |
 | M5.6 | [Q2](plan.md#q2) | `entry_graph` and the cycle refusal allocate outside `AllocationBudget`. |
 | M8.5 / M3.3 | [Q4](plan.md#q4) | table decoders sit at the first module's root. |
-| M8.7 | [C3](plan.md#c3) | NO3's second half, thresholds without a policy source. |
+| M8.7 | [C3](plan.md#c3), resolved | NO3's second half is empty; every retired threshold has a generic owner and historical provenance outside compiler sources. |
 | M9.1 / M9.5 | [G1](plan.md#g1) | a naming-plan tie can land on the worse delivered text. |
 | M7.9 | [S2](plan.md#s2) | a parameter written through a field inlines as a cell; |
 | M7.9 | [S2](plan.md#s2) | a struct copy passed as an argument holds a waiting operand. |
@@ -147,7 +147,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M12.2 | [D3](plan.md#d3) | mobxlil's development bundle and its host globals; |
 | M12.2 | [D3](plan.md#d3) | four site receipts. |
 | Architecture §22 | Resolved by this replan: stale active text archived | "today the default strips it" is stale. |
-| A1 | [C3](plan.md#c3) | the case runner's CPU-time pair. |
+| A1 | [C3](plan.md#c3), resolved | The missing historical CPU pair is explicitly unavailable; a current repeated per-cell baseline is retained without a cross-version claim. |
 | No owner yet | [S4](plan.md#s4) | structs crossing to the host or through generics are refused (an `extern` taking a struct, a struct union widened to `JsValue`, a generic function taking a struct); |
 | No owner yet | [S4](plan.md#s4) | M4.1's gaps: generic classes, D2 adapters for a published constructor's struct parameters, and an import of a name that is both a type and a constructor; |
 | No owner yet | [C1](plan.md#c1) | `pool_strings` and `pack_string_arrays` ignore their permissions; |
@@ -156,7 +156,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | Ledger rows owned by done tasks | [C2](plan.md#c2), resolved | Zod ReDoS timeout remains an exact host-dependent upstream-analysis ledger entry; unchanged assertion, quiet-host C1 suite passes |
 | Ledger rows owned by done tasks | [C2](plan.md#c2), resolved | MobX mapping committed locally at `ccccb1d`; all three affected public Jest tests pass, stale path entries removed |
 
-All 43 carried-item entries from the snapshot are represented above. C3 records the missing historical A1 CPU pair as a limitation; it establishes a current baseline rather than inventing old measurements. D1 inspects the existing `~/lilscript-work/portwork/m3.3b-wip.patch` before continuing the format work.
+All 43 carried-item entries from the snapshot are represented above. C3 records the missing historical A1 CPU pair as a limitation and establishes a current baseline rather than inventing old measurements. D1 inspects the existing `~/lilscript-work/portwork/m3.3b-wip.patch` before continuing the format work.
 
 ## Compatibility and historical aliases
 
@@ -167,7 +167,7 @@ All 43 carried-item entries from the snapshot are represented above. C3 records 
 | M8.1 | Merged historically into annotations and formation; remaining transfers belong to S4 and their G/Q consumers |
 | Y1, Y5a/b | Approved contracts retained. Y5c, the default application IIFE, belongs to D1 |
 | Y2, Y3, Y4 | `ref`, exported constructibility and `pure` termination remain explicit language decisions in S4; this replan does not approve their semantic changes |
-| Y6 | C3 owns a versioned win-label policy. Exact bytes are always reported; do not silently change historical verdict thresholds |
+| Y6 | C3 complete: `exact-bytes-v1` labels every eligible negative byte delta as smaller, reports exact bytes and leaves historical verdict thresholds immutable |
 | Y7 | C1 supplies explicit policy version 3 and diagnosed version-2 compatibility; retired aliases remain supported only with consistent values |
 | Former source-layout move | S4 owns relocation if it reduces ownership confusion; move code with its consumer migration, not as a separate prerequisite to optimization |
 | Old proof/measurement laws | The active plan distinguishes sound semantic proofs, empirical defaults and exact candidate scores. Historical universal byte/noise/time claims are not inherited as guarantees |

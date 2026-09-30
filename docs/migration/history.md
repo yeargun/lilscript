@@ -551,3 +551,41 @@ static-analysis timeout is explicitly classified as host-dependent evidence.
 C2 introduces no production optimizer/schedule change or size-baseline update.
 Its evidence protocol is complete; future producers add their own necessary
 oracles and affected runtime qualification. C3 alone is now active.
+
+## 2026-10-01: C3 complete — generic calibration and protected evaluation
+
+The [C3 qualification](../../benchmarks/migration-results/2026-10-01-c3-complete/README.md)
+closes the calibration milestone on source `28cd60f9`. A content-locked runner
+measures eight medium generic training programs and three disjoint algorithm
+programs under raw, gzip and Brotli at effort 13. All 24 training cells and all
+nine protected evaluation cells pass independent behavior and canonical-codec
+oracles. Receipts retain source, configuration, policy, compiler, runner,
+decoder and codec identities; terminal trials, stops, counted work, CPU samples
+and explanations are reproducible from the committed reports.
+
+Disabling proxy pruning leaves raw training bytes unchanged, saves 107 gzip
+bytes and 18 Brotli bytes, and raises optional work by 51%, 31% and 33%
+respectively. None of 209 audited immediate rejections is itself smaller; the
+gzip and Brotli gains require later exploration reachable from rejected paths.
+Leave-one-family-out analysis exposes that concentration, and the protected
+programs change no final bytes while raw/gzip pruning avoids work. The evidence
+therefore supports no default-policy change. Q3 retains ownership of broader
+search calibration; users can already select `proxy_pruning = "off"` when they
+accept the cost.
+
+The on-mode training baseline has a 3.202-second per-cell median and 260.742
+seconds summed across cell medians. Four large cells per objective reach the
+existing search/store limit, so the no-prune lane is not claimed as a global
+maximum. The missing historical A1 CPU pair remains explicitly unavailable.
+The source NO3 allowlist is empty and enforced, retired library-shaped priors
+have a generic policy owner and separate historical provenance, and
+`exact-bytes-v1` records every eligible negative delta as a win without
+rewriting old threshold labels.
+
+Two pre-artifact fixture errors are retained: an unsupported conditional syntax
+in a training source and the wrong LilScript array spelling in the first
+protected CRC source. Their corrected runs preserve policy and expected values;
+already completed cells were accepted only after full identity, source, oracle,
+codec and work revalidation. Five protocol tests, five Node contract tests and
+two focused NO3 Rust tests pass. C3 changes no production optimizer behavior or
+schedule. S1 alone is now active.

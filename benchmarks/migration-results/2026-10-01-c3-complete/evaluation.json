@@ -1,0 +1,2583 @@
+{
+  "schema": 1,
+  "split": "evaluation",
+  "identity": {
+    "compiler": {
+      "path": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "sha256": "cbfaa03a736fa3e91d5445b0a3cafdd86290bdd62c478c93daf0584efc281056"
+    },
+    "codec": {
+      "path": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript-codec",
+      "sha256": "51365f6ee712fa8040dbc54ad4d74e82c08b311ae5204455d154341396b892ac"
+    },
+    "runner": {
+      "path": "/home/azureuser/lilscript-work/wt/c3-calibration-owner3/scripts/calibrate.py",
+      "sha256": "3e245395d3bea4485b531abf19f29d9e5a1166e3f086425f66259cde874b266c"
+    },
+    "decoder": {
+      "path": "/home/azureuser/lilscript-work/wt/c3-calibration-owner3/scripts/compile-cost.py",
+      "sha256": "8469112040d0871f708477d57af84475605d97789627c5b5bfa89b8f472cbd08"
+    },
+    "node": {
+      "path": "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node",
+      "sha256": "34bc6627675906f8431892630b5e91fc4cc9f1e03ce15e9716025aa551e5c823"
+    },
+    "policy_template": "objective.codecs='{objective}'\n[policy]\nversion=3\n[effort]\nlevel=13\n[policy.search]\nproxy_pruning='{mode}'\n",
+    "policy_sha256": "6aeab1bd9d89ef69a53edcb8d02993cfd17c8a20f29e865f6741f9f574e9e998",
+    "environment": {
+      "LC_ALL": "C",
+      "TZ": "UTC",
+      "RAYON_NUM_THREADS": "1"
+    }
+  },
+  "manifest_sha256": "d45cf8843838a3f9158b32b413e70fcde0e6269239170251f4e57cce7d6bb845",
+  "manifest": {
+    "schema": 1,
+    "generator_sha256": "cb05be61b9e009c805a9b688cb3163cb63e21405e3f4c1604e4801f1bad533b5",
+    "workloads": [
+      {
+        "id": "arithmetic-128",
+        "split": "training",
+        "family": "arithmetic",
+        "entry": "arithmetic-128.lil",
+        "source_sha256": "a5b4038b7d686af83f91b62982ca69f1c6e82cd3911749000872327c5fee9305",
+        "source_bytes": 16914,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          1079136121,
+          -1362457763,
+          -1006213481,
+          1367031259,
+          519206428,
+          -451009660,
+          730649542,
+          -718334923
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+      },
+      {
+        "id": "arithmetic-384",
+        "split": "training",
+        "family": "arithmetic",
+        "entry": "arithmetic-384.lil",
+        "source_sha256": "54b99207c318c1c4df988e84d8189801712572260a1772729b046fcc4bb8aa93",
+        "source_bytes": 51295,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          1694481468,
+          -326752327,
+          16116972,
+          1839641356,
+          1879889688,
+          1951502156,
+          1813167965,
+          162325468
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+      },
+      {
+        "id": "branches-128",
+        "split": "training",
+        "family": "branches",
+        "entry": "branches-128.lil",
+        "source_sha256": "18eebdba2172668c690831aeab5c4a3a4c1006c3a31b906f8d78b2af2c39ea0d",
+        "source_bytes": 54459,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          733533,
+          6523242,
+          13529665,
+          268107,
+          6786889,
+          13531969,
+          2428393,
+          154555
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+      },
+      {
+        "id": "branches-384",
+        "split": "training",
+        "family": "branches",
+        "entry": "branches-384.lil",
+        "source_sha256": "1d4166d9f89c5b92b43bc9fbfc05d262b400d1f5ce171513ed6390f34452654d",
+        "source_bytes": 163838,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          5706243,
+          -7715143,
+          8765188,
+          6643343,
+          16613582,
+          8753540,
+          11299354,
+          5073668
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+      },
+      {
+        "id": "strings-128",
+        "split": "training",
+        "family": "strings",
+        "entry": "strings-128.lil",
+        "source_sha256": "e423f7ea84eb5ae6d84a5e24a4ea8caafc2bb9bff88bdbaeb4701b036fc4ca64",
+        "source_bytes": 47879,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          18,
+          20,
+          10,
+          18,
+          20,
+          10,
+          5,
+          10
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+      },
+      {
+        "id": "strings-384",
+        "split": "training",
+        "family": "strings",
+        "entry": "strings-384.lil",
+        "source_sha256": "03bc68c00402f11bf40064c8d80e11602af479e7153065f4e49b39c7f77fdc5a",
+        "source_bytes": 145165,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          26,
+          17,
+          12,
+          26,
+          17,
+          12,
+          2,
+          12
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+      },
+      {
+        "id": "records-128",
+        "split": "training",
+        "family": "records",
+        "entry": "records-128.lil",
+        "source_sha256": "ff650def5217f59e8658fc041252e871cbededa9241c70d7acf18fac60462cbf",
+        "source_bytes": 29915,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          1642221,
+          85843,
+          -1642193,
+          1642221,
+          1642419,
+          1654255,
+          2836347,
+          -1642193
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+      },
+      {
+        "id": "records-384",
+        "split": "training",
+        "family": "records",
+        "entry": "records-384.lil",
+        "source_sha256": "5efa0c56877abc93ee23cb543faf9941cbbfef2e32094e236fca82823836ddac",
+        "source_bytes": 90273,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          1202161,
+          1726647,
+          -1201949,
+          1202161,
+          1200839,
+          1186915,
+          2844375,
+          -1201949
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+      },
+      {
+        "id": "checksum-library",
+        "split": "evaluation",
+        "family": "checksum-library",
+        "entry": "checksum-library.lil",
+        "source_sha256": "682d25d9f5a72c8988bf596ed1d046ba3dfe123ff65ba770abf252851c6c616c",
+        "source_bytes": 3085,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          579979911,
+          1605032995,
+          1569496228,
+          579979911,
+          -14573074,
+          891452005,
+          1398864359,
+          1569496228
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Protected from parameter selection; not blind to the author. Failure inspection requires promotion and replacement."
+      },
+      {
+        "id": "distance-library",
+        "split": "evaluation",
+        "family": "distance-library",
+        "entry": "distance-library.lil",
+        "source_sha256": "ac01636403e7ab3b62c464fcd846e765e0b2c6ce2390c2c3e8593da1ef874bf2",
+        "source_bytes": 607,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          7,
+          5,
+          7,
+          7,
+          5,
+          7,
+          5,
+          7
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Protected from parameter selection; not blind to the author. Failure inspection requires promotion and replacement."
+      },
+      {
+        "id": "interval-library",
+        "split": "evaluation",
+        "family": "interval-library",
+        "entry": "interval-library.lil",
+        "source_sha256": "61704294d823c9302ec549663c6f8ad7b54b4633752c5c952b0a5e060f9ed4dc",
+        "source_bytes": 5902,
+        "inputs": [
+          -2147483648,
+          -1234567,
+          -1,
+          0,
+          1,
+          31,
+          123456789,
+          2147483647
+        ],
+        "expected": [
+          -97,
+          20801,
+          -97,
+          -97,
+          -97,
+          -97,
+          4250,
+          -97
+        ],
+        "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Protected from parameter selection; not blind to the author. Failure inspection requires promotion and replacement."
+      }
+    ],
+    "prior_exposure": {
+      "development": "All previously measured ports and 642 ratchet programs, including their derivatives.",
+      "monacolil": "Previously inspected scoreboards and idiom census; not blind.",
+      "solidlil": "Previously inspected scoreboards and idiom census; not blind.",
+      "syntax_repair": "Initial training1 measured arithmetic and branch families. String and distance fixtures used unsupported conditional-expression syntax; repaired before any evaluation scores. Evaluation then diagnosed Array<int> as an unknown type before generating any artifact; corrected all three library fixtures to int[]. Expected values and training sources remain unchanged. No heuristic tuning."
+    }
+  },
+  "training_receipt": {
+    "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/training4.json",
+    "sha256": "d0d9acc37cc78a88185d81f53544da826607311268a54032dfb136b2e04535c4"
+  },
+  "production_policy_changed": false,
+  "complete": true,
+  "rows": [
+    {
+      "id": "checksum-library",
+      "family": "checksum-library",
+      "split": "evaluation",
+      "source_bytes": 3085,
+      "objective": "raw",
+      "modes": {
+        "on": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-raw-on.mjs",
+            "sha256": "5c78507ecf697f895fc2fce7cf6feb3ba9a960609b5692b76336097280c279f1"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-raw-on.toml",
+            "sha256": "7ea03540c490c0a9571a2a8a6df5dca704649988fa1ce28dace126e062e2f159"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-raw-on.stderr",
+            "sha256": "41275cb62467f919a03f3889f73a10d5834e82909194fd7ba0c6db9d0d04f8bd"
+          },
+          "observation": [
+            579979911,
+            1605032995,
+            1569496228,
+            579979911,
+            -14573074,
+            891452005,
+            1398864359,
+            1569496228
+          ],
+          "bytes": 3022,
+          "raw_bytes": 3022,
+          "all_sizes": {
+            "raw": 3022,
+            "gzip9": 1672,
+            "brotli11": 1397
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.046451,
+            "wall_seconds": 0.04688474100839812,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 10,
+          "pruned": 15,
+          "codec_probes": 0,
+          "baseline_work": 288760,
+          "optional_work": 3101048,
+          "codec_work": 94,
+          "peak_retained_bytes": 16245500,
+          "warm_samples": [
+            {
+              "cpu_seconds": 0.045887,
+              "wall_seconds": 0.04609754600096494,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            },
+            {
+              "cpu_seconds": 0.043477000000000016,
+              "wall_seconds": 0.043716293992474675,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            },
+            {
+              "cpu_seconds": 0.044071,
+              "wall_seconds": 0.04429351600992959,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            }
+          ],
+          "median_warm_cpu_seconds": 0.044071
+        },
+        "audit": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-raw-audit.mjs",
+            "sha256": "5c78507ecf697f895fc2fce7cf6feb3ba9a960609b5692b76336097280c279f1"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-raw-audit.toml",
+            "sha256": "81cebdd2a2d4cd64ab7c56ac6c9d74a72923415269d237885c78a3fe908163d4"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-raw-audit.stderr",
+            "sha256": "7c68778ac5a27f006dd75f65683c7072966cab590a5c5e7faaaefdcbb5c7a747"
+          },
+          "observation": [
+            579979911,
+            1605032995,
+            1569496228,
+            579979911,
+            -14573074,
+            891452005,
+            1398864359,
+            1569496228
+          ],
+          "bytes": 3022,
+          "raw_bytes": 3022,
+          "all_sizes": {
+            "raw": 3022,
+            "gzip9": 1672,
+            "brotli11": 1397
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.043741,
+            "wall_seconds": 0.04408210898691323,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 15,
+          "stopped": 0,
+          "judged": 10,
+          "pruned": 15,
+          "codec_probes": 0,
+          "baseline_work": 288760,
+          "optional_work": 3101063,
+          "codec_work": 109,
+          "peak_retained_bytes": 16245500
+        },
+        "off": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-raw-off.mjs",
+            "sha256": "5c78507ecf697f895fc2fce7cf6feb3ba9a960609b5692b76336097280c279f1"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-raw-off.toml",
+            "sha256": "59d0ead9d7be89f62ed11dfcc76fe980ca210076a269d9c3b820ba33df29b92a"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-raw-off.stderr",
+            "sha256": "867eb810e41ec0fc6c57a886a9715917761780a466637529c99f12f51ec1aedc"
+          },
+          "observation": [
+            579979911,
+            1605032995,
+            1569496228,
+            579979911,
+            -14573074,
+            891452005,
+            1398864359,
+            1569496228
+          ],
+          "bytes": 3022,
+          "raw_bytes": 3022,
+          "all_sizes": {
+            "raw": 3022,
+            "gzip9": 1672,
+            "brotli11": 1397
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.05334699999999998,
+            "wall_seconds": 0.053686145998653956,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 29,
+          "pruned": 0,
+          "codec_probes": 0,
+          "baseline_work": 288760,
+          "optional_work": 3852654,
+          "codec_work": 152,
+          "peak_retained_bytes": 16247548
+        }
+      },
+      "margin": 0
+    },
+    {
+      "id": "checksum-library",
+      "family": "checksum-library",
+      "split": "evaluation",
+      "source_bytes": 3085,
+      "objective": "gzip",
+      "modes": {
+        "on": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-gzip-on.mjs",
+            "sha256": "6fc2b382c00ae771c2950d4182264f18a912aa20088208980e2a567a87b9b33e"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-gzip-on.toml",
+            "sha256": "f1b3781fab0d16732ad642a5f4531f8ce51a2343706faf402ef7a082c855c14b"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-gzip-on.stderr",
+            "sha256": "a4df49e07498fb9ce3cdf67bd12574e71f36c701b7f877f01aa810b4a5d0dcc9"
+          },
+          "observation": [
+            579979911,
+            1605032995,
+            1569496228,
+            579979911,
+            -14573074,
+            891452005,
+            1398864359,
+            1569496228
+          ],
+          "bytes": 1666,
+          "raw_bytes": 3022,
+          "all_sizes": {
+            "raw": 3022,
+            "gzip9": 1666,
+            "brotli11": 1392
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.02935100000000003,
+            "wall_seconds": 0.02960345000610687,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 3,
+          "pruned": 23,
+          "codec_probes": 26,
+          "baseline_work": 557459,
+          "optional_work": 9830945,
+          "codec_work": 7865503,
+          "peak_retained_bytes": 16518300,
+          "warm_samples": [
+            {
+              "cpu_seconds": 0.02949200000000001,
+              "wall_seconds": 0.02968615500140004,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            },
+            {
+              "cpu_seconds": 0.030486000000000048,
+              "wall_seconds": 0.030760348003241234,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            },
+            {
+              "cpu_seconds": 0.029745000000000035,
+              "wall_seconds": 0.030134656000882387,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            }
+          ],
+          "median_warm_cpu_seconds": 0.029745000000000035
+        },
+        "audit": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-gzip-audit.mjs",
+            "sha256": "6fc2b382c00ae771c2950d4182264f18a912aa20088208980e2a567a87b9b33e"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-gzip-audit.toml",
+            "sha256": "7624ea71b8d8b820d2d01fc0a7a9e5e3936edeb8ef7fce038e18979ee5e71f4d"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-gzip-audit.stderr",
+            "sha256": "ee3a1b0b38dcf9f1c63b4cdb88a34d9798498ce8a90cb8a43775828bbe02ba4a"
+          },
+          "observation": [
+            579979911,
+            1605032995,
+            1569496228,
+            579979911,
+            -14573074,
+            891452005,
+            1398864359,
+            1569496228
+          ],
+          "bytes": 1666,
+          "raw_bytes": 3022,
+          "all_sizes": {
+            "raw": 3022,
+            "gzip9": 1666,
+            "brotli11": 1392
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.030247999999999983,
+            "wall_seconds": 0.03054604699718766,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 23,
+          "stopped": 0,
+          "judged": 3,
+          "pruned": 23,
+          "codec_probes": 26,
+          "baseline_work": 557459,
+          "optional_work": 9830968,
+          "codec_work": 7865526,
+          "peak_retained_bytes": 16518300
+        },
+        "off": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-gzip-off.mjs",
+            "sha256": "6fc2b382c00ae771c2950d4182264f18a912aa20088208980e2a567a87b9b33e"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-gzip-off.toml",
+            "sha256": "96ed9dcaf122741d57338a06a1a53224ab905e07b9b09f8b5f80fe11221d7b55"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-gzip-off.stderr",
+            "sha256": "4ddf1df377be4ce35bfbf1eeb6d4e2d6b80b3dca0ab2a681aacf9ce1f723ddd4"
+          },
+          "observation": [
+            579979911,
+            1605032995,
+            1569496228,
+            579979911,
+            -14573074,
+            891452005,
+            1398864359,
+            1569496228
+          ],
+          "bytes": 1666,
+          "raw_bytes": 3022,
+          "all_sizes": {
+            "raw": 3022,
+            "gzip9": 1666,
+            "brotli11": 1392
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.043644000000000016,
+            "wall_seconds": 0.043917802002397366,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 38,
+          "pruned": 0,
+          "codec_probes": 38,
+          "baseline_work": 557459,
+          "optional_work": 14462378,
+          "codec_work": 11120444,
+          "peak_retained_bytes": 16523420
+        }
+      },
+      "margin": 0
+    },
+    {
+      "id": "checksum-library",
+      "family": "checksum-library",
+      "split": "evaluation",
+      "source_bytes": 3085,
+      "objective": "brotli",
+      "modes": {
+        "on": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-brotli-on.mjs",
+            "sha256": "90695989d8eff6a987a2ced283fc01134545db2b9e09f0cb92cb299d2eb32923"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-brotli-on.toml",
+            "sha256": "f012912274ddf54f64386eb300ea5f93c001aa477c2a57a0f4c39d40f0ae4cfa"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-brotli-on.stderr",
+            "sha256": "ebb0320b914b431732f83f769180c099a399cc8da08a37a43bb2954dc3d419a6"
+          },
+          "observation": [
+            579979911,
+            1605032995,
+            1569496228,
+            579979911,
+            -14573074,
+            891452005,
+            1398864359,
+            1569496228
+          ],
+          "bytes": 1391,
+          "raw_bytes": 3022,
+          "all_sizes": {
+            "raw": 3022,
+            "gzip9": 1667,
+            "brotli11": 1391
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.12447900000000006,
+            "wall_seconds": 0.12486452699522488,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 30,
+          "pruned": 0,
+          "codec_probes": 30,
+          "baseline_work": 289347,
+          "optional_work": 3189293,
+          "codec_work": 198234,
+          "peak_retained_bytes": 17421734,
+          "warm_samples": [
+            {
+              "cpu_seconds": 0.1259880000000001,
+              "wall_seconds": 0.12626574299065396,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            },
+            {
+              "cpu_seconds": 0.12275099999999994,
+              "wall_seconds": 0.12311189300089609,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            },
+            {
+              "cpu_seconds": 0.12302200000000013,
+              "wall_seconds": 0.12336341400805395,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            }
+          ],
+          "median_warm_cpu_seconds": 0.12302200000000013
+        },
+        "audit": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-brotli-audit.mjs",
+            "sha256": "90695989d8eff6a987a2ced283fc01134545db2b9e09f0cb92cb299d2eb32923"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-brotli-audit.toml",
+            "sha256": "34ab42f77a5894e25e47a16a03bfc6a1f6281e6f1602c63c3ffef3bdfc3cc6c6"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-brotli-audit.stderr",
+            "sha256": "409892897e4f9b5d3de6573519ab57794ab9e4d01454e7f87107e423a961ead2"
+          },
+          "observation": [
+            579979911,
+            1605032995,
+            1569496228,
+            579979911,
+            -14573074,
+            891452005,
+            1398864359,
+            1569496228
+          ],
+          "bytes": 1391,
+          "raw_bytes": 3022,
+          "all_sizes": {
+            "raw": 3022,
+            "gzip9": 1667,
+            "brotli11": 1391
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.1293419999999999,
+            "wall_seconds": 0.129700239005615,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 30,
+          "pruned": 0,
+          "codec_probes": 30,
+          "baseline_work": 289347,
+          "optional_work": 3189293,
+          "codec_work": 198234,
+          "peak_retained_bytes": 17421734
+        },
+        "off": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-brotli-off.mjs",
+            "sha256": "90695989d8eff6a987a2ced283fc01134545db2b9e09f0cb92cb299d2eb32923"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-brotli-off.toml",
+            "sha256": "b1c652911885974693167ad1bd7920c640bd0579c076e54006372d592c24050c"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/checksum-library-brotli-off.stderr",
+            "sha256": "5b92c86357fb2ede9e7c311e66eb9a3128bc9167140e36a782ab5b42814ca2f2"
+          },
+          "observation": [
+            579979911,
+            1605032995,
+            1569496228,
+            579979911,
+            -14573074,
+            891452005,
+            1398864359,
+            1569496228
+          ],
+          "bytes": 1391,
+          "raw_bytes": 3022,
+          "all_sizes": {
+            "raw": 3022,
+            "gzip9": 1667,
+            "brotli11": 1391
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.12628999999999982,
+            "wall_seconds": 0.12662091900710948,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 30,
+          "pruned": 0,
+          "codec_probes": 30,
+          "baseline_work": 289347,
+          "optional_work": 3189293,
+          "codec_work": 198234,
+          "peak_retained_bytes": 17421734
+        }
+      },
+      "margin": 150
+    },
+    {
+      "id": "distance-library",
+      "family": "distance-library",
+      "split": "evaluation",
+      "source_bytes": 607,
+      "objective": "raw",
+      "modes": {
+        "on": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-raw-on.mjs",
+            "sha256": "7315618aff20e5ed591d7be45eb4ec9ce2ba2a07d4d54a910654bae66169a740"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-raw-on.toml",
+            "sha256": "7ea03540c490c0a9571a2a8a6df5dca704649988fa1ce28dace126e062e2f159"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-raw-on.stderr",
+            "sha256": "ff2080a1a03ab12febd61e62554c6adb4d37445cdaa1648d8539313c2bb51f28"
+          },
+          "observation": [
+            7,
+            5,
+            7,
+            7,
+            5,
+            7,
+            5,
+            7
+          ],
+          "bytes": 461,
+          "raw_bytes": 461,
+          "all_sizes": {
+            "raw": 461,
+            "gzip9": 294,
+            "brotli11": 258
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.025125999999999843,
+            "wall_seconds": 0.025436912997975014,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 16,
+          "pruned": 15,
+          "codec_probes": 0,
+          "baseline_work": 104740,
+          "optional_work": 1799688,
+          "codec_work": 124,
+          "peak_retained_bytes": 18048047,
+          "warm_samples": [
+            {
+              "cpu_seconds": 0.02502899999999994,
+              "wall_seconds": 0.02523739899334032,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            },
+            {
+              "cpu_seconds": 0.024589000000000166,
+              "wall_seconds": 0.02483085800486151,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            },
+            {
+              "cpu_seconds": 0.023864999999999775,
+              "wall_seconds": 0.024128390999976546,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            }
+          ],
+          "median_warm_cpu_seconds": 0.024589000000000166
+        },
+        "audit": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-raw-audit.mjs",
+            "sha256": "7315618aff20e5ed591d7be45eb4ec9ce2ba2a07d4d54a910654bae66169a740"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-raw-audit.toml",
+            "sha256": "81cebdd2a2d4cd64ab7c56ac6c9d74a72923415269d237885c78a3fe908163d4"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-raw-audit.stderr",
+            "sha256": "29d5f52e0c2cbaf28e31f8cce8fdf6c8fcc9505e1c0c9650505e8044fb57f438"
+          },
+          "observation": [
+            7,
+            5,
+            7,
+            7,
+            5,
+            7,
+            5,
+            7
+          ],
+          "bytes": 461,
+          "raw_bytes": 461,
+          "all_sizes": {
+            "raw": 461,
+            "gzip9": 294,
+            "brotli11": 258
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.02473100000000003,
+            "wall_seconds": 0.02500748899183236,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 15,
+          "stopped": 0,
+          "judged": 16,
+          "pruned": 15,
+          "codec_probes": 0,
+          "baseline_work": 104740,
+          "optional_work": 1799703,
+          "codec_work": 139,
+          "peak_retained_bytes": 18048047
+        },
+        "off": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-raw-off.mjs",
+            "sha256": "7315618aff20e5ed591d7be45eb4ec9ce2ba2a07d4d54a910654bae66169a740"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-raw-off.toml",
+            "sha256": "59d0ead9d7be89f62ed11dfcc76fe980ca210076a269d9c3b820ba33df29b92a"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-raw-off.stderr",
+            "sha256": "5f5332115637617e99bc1c060f3c134c0fcba96746018bbf95b55180d2fd3e2e"
+          },
+          "observation": [
+            7,
+            5,
+            7,
+            7,
+            5,
+            7,
+            5,
+            7
+          ],
+          "bytes": 461,
+          "raw_bytes": 461,
+          "all_sizes": {
+            "raw": 461,
+            "gzip9": 294,
+            "brotli11": 258
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.029856999999999773,
+            "wall_seconds": 0.030125819001113996,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 37,
+          "pruned": 0,
+          "codec_probes": 0,
+          "baseline_work": 104740,
+          "optional_work": 2215360,
+          "codec_work": 192,
+          "peak_retained_bytes": 18048047
+        }
+      },
+      "margin": 0
+    },
+    {
+      "id": "distance-library",
+      "family": "distance-library",
+      "split": "evaluation",
+      "source_bytes": 607,
+      "objective": "gzip",
+      "modes": {
+        "on": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-gzip-on.mjs",
+            "sha256": "4acce0de8b39bbd13285a54b9cfa010f1d4e2e1950b0fec46296d09cda3bd6c3"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-gzip-on.toml",
+            "sha256": "f1b3781fab0d16732ad642a5f4531f8ce51a2343706faf402ef7a082c855c14b"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-gzip-on.stderr",
+            "sha256": "cc108ed0ccda1ef607d3fb26767286df9302a0f5203c6bb2f2f546ab88b287b6"
+          },
+          "observation": [
+            7,
+            5,
+            7,
+            7,
+            5,
+            7,
+            5,
+            7
+          ],
+          "bytes": 287,
+          "raw_bytes": 461,
+          "all_sizes": {
+            "raw": 461,
+            "gzip9": 287,
+            "brotli11": 257
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.014278000000000096,
+            "wall_seconds": 0.014508104999549687,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ],
+            "load_after": [
+              0.79833984375,
+              1.08154296875,
+              1.36669921875
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 2,
+          "pruned": 18,
+          "codec_probes": 20,
+          "baseline_work": 366353,
+          "optional_work": 6581525,
+          "codec_work": 6179561,
+          "peak_retained_bytes": 18071855,
+          "warm_samples": [
+            {
+              "cpu_seconds": 0.013793999999999834,
+              "wall_seconds": 0.014021983995917253,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            },
+            {
+              "cpu_seconds": 0.013568999999999887,
+              "wall_seconds": 0.013814795995131135,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            },
+            {
+              "cpu_seconds": 0.013728999999999825,
+              "wall_seconds": 0.013983210999867879,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ],
+              "load_after": [
+                0.79833984375,
+                1.08154296875,
+                1.36669921875
+              ]
+            }
+          ],
+          "median_warm_cpu_seconds": 0.013728999999999825
+        },
+        "audit": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-gzip-audit.mjs",
+            "sha256": "4acce0de8b39bbd13285a54b9cfa010f1d4e2e1950b0fec46296d09cda3bd6c3"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-gzip-audit.toml",
+            "sha256": "7624ea71b8d8b820d2d01fc0a7a9e5e3936edeb8ef7fce038e18979ee5e71f4d"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-gzip-audit.stderr",
+            "sha256": "9f8ce68bedb57aa0fe0636960c031c457b02d80edb034cdb6d5d4a267d91d427"
+          },
+          "observation": [
+            7,
+            5,
+            7,
+            7,
+            5,
+            7,
+            5,
+            7
+          ],
+          "bytes": 287,
+          "raw_bytes": 461,
+          "all_sizes": {
+            "raw": 461,
+            "gzip9": 287,
+            "brotli11": 257
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.013438000000000005,
+            "wall_seconds": 0.013663933001225814,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 18,
+          "stopped": 0,
+          "judged": 2,
+          "pruned": 18,
+          "codec_probes": 20,
+          "baseline_work": 366353,
+          "optional_work": 6581543,
+          "codec_work": 6179579,
+          "peak_retained_bytes": 18071855
+        },
+        "off": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-gzip-off.mjs",
+            "sha256": "4acce0de8b39bbd13285a54b9cfa010f1d4e2e1950b0fec46296d09cda3bd6c3"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-gzip-off.toml",
+            "sha256": "96ed9dcaf122741d57338a06a1a53224ab905e07b9b09f8b5f80fe11221d7b55"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-gzip-off.stderr",
+            "sha256": "58876881fb76b3cb16bd7175e28b54e08b7302094ab49e8543deb0041435eeae"
+          },
+          "observation": [
+            7,
+            5,
+            7,
+            7,
+            5,
+            7,
+            5,
+            7
+          ],
+          "bytes": 287,
+          "raw_bytes": 461,
+          "all_sizes": {
+            "raw": 461,
+            "gzip9": 287,
+            "brotli11": 257
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.02246199999999976,
+            "wall_seconds": 0.02272793700103648,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 34,
+          "pruned": 0,
+          "codec_probes": 34,
+          "baseline_work": 366353,
+          "optional_work": 10890966,
+          "codec_work": 9941511,
+          "peak_retained_bytes": 18071855
+        }
+      },
+      "margin": 0
+    },
+    {
+      "id": "distance-library",
+      "family": "distance-library",
+      "split": "evaluation",
+      "source_bytes": 607,
+      "objective": "brotli",
+      "modes": {
+        "on": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-brotli-on.mjs",
+            "sha256": "2207d1c098674e297038987ce7f0d6236cea59d555d5d2af4a15165d1657cdda"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-brotli-on.toml",
+            "sha256": "f012912274ddf54f64386eb300ea5f93c001aa477c2a57a0f4c39d40f0ae4cfa"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-brotli-on.stderr",
+            "sha256": "13f24d1c94f5bf6025db6ecf4f035305e2f5e11d8ab2bd60390607774f77d69f"
+          },
+          "observation": [
+            7,
+            5,
+            7,
+            7,
+            5,
+            7,
+            5,
+            7
+          ],
+          "bytes": 256,
+          "raw_bytes": 461,
+          "all_sizes": {
+            "raw": 461,
+            "gzip9": 291,
+            "brotli11": 256
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.05384800000000012,
+            "wall_seconds": 0.05417684400163125,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 32,
+          "pruned": 0,
+          "codec_probes": 32,
+          "baseline_work": 98241,
+          "optional_work": 1342675,
+          "codec_work": 37860,
+          "peak_retained_bytes": 18071855,
+          "warm_samples": [
+            {
+              "cpu_seconds": 0.060605999999999965,
+              "wall_seconds": 0.060894071008078754,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            },
+            {
+              "cpu_seconds": 0.06262000000000051,
+              "wall_seconds": 0.06300120901141781,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            },
+            {
+              "cpu_seconds": 0.06209699999999985,
+              "wall_seconds": 0.062414676998741925,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            }
+          ],
+          "median_warm_cpu_seconds": 0.06209699999999985
+        },
+        "audit": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-brotli-audit.mjs",
+            "sha256": "2207d1c098674e297038987ce7f0d6236cea59d555d5d2af4a15165d1657cdda"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-brotli-audit.toml",
+            "sha256": "34ab42f77a5894e25e47a16a03bfc6a1f6281e6f1602c63c3ffef3bdfc3cc6c6"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-brotli-audit.stderr",
+            "sha256": "87b6256a020bcfbc97516d516837f528dc59e53fe6f792e700bfd929c559020e"
+          },
+          "observation": [
+            7,
+            5,
+            7,
+            7,
+            5,
+            7,
+            5,
+            7
+          ],
+          "bytes": 256,
+          "raw_bytes": 461,
+          "all_sizes": {
+            "raw": 461,
+            "gzip9": 291,
+            "brotli11": 256
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.060702000000000145,
+            "wall_seconds": 0.06243707500107121,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 32,
+          "pruned": 0,
+          "codec_probes": 32,
+          "baseline_work": 98241,
+          "optional_work": 1342675,
+          "codec_work": 37860,
+          "peak_retained_bytes": 18071855
+        },
+        "off": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-brotli-off.mjs",
+            "sha256": "2207d1c098674e297038987ce7f0d6236cea59d555d5d2af4a15165d1657cdda"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-brotli-off.toml",
+            "sha256": "b1c652911885974693167ad1bd7920c640bd0579c076e54006372d592c24050c"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/distance-library-brotli-off.stderr",
+            "sha256": "18587bf8784b2eb3777cdb1aed5d32583913ca3decacd3bbf240e0a115ae7b95"
+          },
+          "observation": [
+            7,
+            5,
+            7,
+            7,
+            5,
+            7,
+            5,
+            7
+          ],
+          "bytes": 256,
+          "raw_bytes": 461,
+          "all_sizes": {
+            "raw": 461,
+            "gzip9": 291,
+            "brotli11": 256
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.05550099999999958,
+            "wall_seconds": 0.055929238005774096,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 32,
+          "pruned": 0,
+          "codec_probes": 32,
+          "baseline_work": 98241,
+          "optional_work": 1342675,
+          "codec_work": 37860,
+          "peak_retained_bytes": 18071855
+        }
+      },
+      "margin": 150
+    },
+    {
+      "id": "interval-library",
+      "family": "interval-library",
+      "split": "evaluation",
+      "source_bytes": 5902,
+      "objective": "raw",
+      "modes": {
+        "on": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-raw-on.mjs",
+            "sha256": "f69b60ccc82d9baca92c9f5a9ff078658dad7d4e069f68eeeaabf0a309416572"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-raw-on.toml",
+            "sha256": "7ea03540c490c0a9571a2a8a6df5dca704649988fa1ce28dace126e062e2f159"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-raw-on.stderr",
+            "sha256": "7a5f235ccde35d7826b52643dbc15d996f8182ca444ea5ee2ff7c24fa6d8d122"
+          },
+          "observation": [
+            -97,
+            20801,
+            -97,
+            -97,
+            -97,
+            -97,
+            4250,
+            -97
+          ],
+          "bytes": 5785,
+          "raw_bytes": 5785,
+          "all_sizes": {
+            "raw": 5785,
+            "gzip9": 2806,
+            "brotli11": 2097
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.1832379999999999,
+            "wall_seconds": 0.18363777399645187,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 10,
+          "pruned": 24,
+          "codec_probes": 0,
+          "baseline_work": 882609,
+          "optional_work": 15345105,
+          "codec_work": 121,
+          "peak_retained_bytes": 17011514,
+          "warm_samples": [
+            {
+              "cpu_seconds": 0.1566769999999999,
+              "wall_seconds": 0.1569618899957277,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            },
+            {
+              "cpu_seconds": 0.15300400000000003,
+              "wall_seconds": 0.15331274199706968,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            },
+            {
+              "cpu_seconds": 0.15393800000000013,
+              "wall_seconds": 0.15435099900059868,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            }
+          ],
+          "median_warm_cpu_seconds": 0.15393800000000013
+        },
+        "audit": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-raw-audit.mjs",
+            "sha256": "f69b60ccc82d9baca92c9f5a9ff078658dad7d4e069f68eeeaabf0a309416572"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-raw-audit.toml",
+            "sha256": "81cebdd2a2d4cd64ab7c56ac6c9d74a72923415269d237885c78a3fe908163d4"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-raw-audit.stderr",
+            "sha256": "4383cad39eb34ec6df2ba7fa1b47cadbb7385839f3f1c90952d2980ac466863a"
+          },
+          "observation": [
+            -97,
+            20801,
+            -97,
+            -97,
+            -97,
+            -97,
+            4250,
+            -97
+          ],
+          "bytes": 5785,
+          "raw_bytes": 5785,
+          "all_sizes": {
+            "raw": 5785,
+            "gzip9": 2806,
+            "brotli11": 2097
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.16791400000000023,
+            "wall_seconds": 0.16834878599911463,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 24,
+          "stopped": 0,
+          "judged": 10,
+          "pruned": 24,
+          "codec_probes": 0,
+          "baseline_work": 882609,
+          "optional_work": 15345129,
+          "codec_work": 145,
+          "peak_retained_bytes": 17011514
+        },
+        "off": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-raw-off.mjs",
+            "sha256": "f69b60ccc82d9baca92c9f5a9ff078658dad7d4e069f68eeeaabf0a309416572"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-raw-off.toml",
+            "sha256": "59d0ead9d7be89f62ed11dfcc76fe980ca210076a269d9c3b820ba33df29b92a"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-raw-off.stderr",
+            "sha256": "d0aba12ec1c8c26b42c779f00ac64b794a8e54688195be107bd62673204f3867"
+          },
+          "observation": [
+            -97,
+            20801,
+            -97,
+            -97,
+            -97,
+            -97,
+            4250,
+            -97
+          ],
+          "bytes": 5785,
+          "raw_bytes": 5785,
+          "all_sizes": {
+            "raw": 5785,
+            "gzip9": 2806,
+            "brotli11": 2097
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.19136100000000045,
+            "wall_seconds": 0.19171633099904284,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 41,
+          "pruned": 0,
+          "codec_probes": 0,
+          "baseline_work": 882609,
+          "optional_work": 18823926,
+          "codec_work": 212,
+          "peak_retained_bytes": 17011514
+        }
+      },
+      "margin": 0
+    },
+    {
+      "id": "interval-library",
+      "family": "interval-library",
+      "split": "evaluation",
+      "source_bytes": 5902,
+      "objective": "gzip",
+      "modes": {
+        "on": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-gzip-on.mjs",
+            "sha256": "d43fa7061c164680b13362c8a8cce897989afb04d0f07d9bc898e47a98c69460"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-gzip-on.toml",
+            "sha256": "f1b3781fab0d16732ad642a5f4531f8ce51a2343706faf402ef7a082c855c14b"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-gzip-on.stderr",
+            "sha256": "864f2ec3b31f6f99ac98394756ba3969b1f902890daad6d6939a452fb9f40bed"
+          },
+          "observation": [
+            -97,
+            20801,
+            -97,
+            -97,
+            -97,
+            -97,
+            4250,
+            -97
+          ],
+          "bytes": 2800,
+          "raw_bytes": 5785,
+          "all_sizes": {
+            "raw": 5785,
+            "gzip9": 2800,
+            "brotli11": 2076
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.0895309999999997,
+            "wall_seconds": 0.09003176899568643,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 5,
+          "pruned": 25,
+          "codec_probes": 30,
+          "baseline_work": 1094443,
+          "optional_work": 18122328,
+          "codec_work": 9041847,
+          "peak_retained_bytes": 17034746,
+          "warm_samples": [
+            {
+              "cpu_seconds": 0.09088900000000011,
+              "wall_seconds": 0.09115103600197472,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            },
+            {
+              "cpu_seconds": 0.09033899999999978,
+              "wall_seconds": 0.09061646398913581,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            },
+            {
+              "cpu_seconds": 0.09414999999999984,
+              "wall_seconds": 0.09444280300522223,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            }
+          ],
+          "median_warm_cpu_seconds": 0.09088900000000011
+        },
+        "audit": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-gzip-audit.mjs",
+            "sha256": "d43fa7061c164680b13362c8a8cce897989afb04d0f07d9bc898e47a98c69460"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-gzip-audit.toml",
+            "sha256": "7624ea71b8d8b820d2d01fc0a7a9e5e3936edeb8ef7fce038e18979ee5e71f4d"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-gzip-audit.stderr",
+            "sha256": "7251a88eb01613dbf00c6982205dc2dec3bac8f632dc4c80ede3e48775305ed8"
+          },
+          "observation": [
+            -97,
+            20801,
+            -97,
+            -97,
+            -97,
+            -97,
+            4250,
+            -97
+          ],
+          "bytes": 2800,
+          "raw_bytes": 5785,
+          "all_sizes": {
+            "raw": 5785,
+            "gzip9": 2800,
+            "brotli11": 2076
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.08934300000000006,
+            "wall_seconds": 0.08969180099666119,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 25,
+          "stopped": 0,
+          "judged": 5,
+          "pruned": 25,
+          "codec_probes": 30,
+          "baseline_work": 1094443,
+          "optional_work": 18122353,
+          "codec_work": 9041872,
+          "peak_retained_bytes": 17034746
+        },
+        "off": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-gzip-off.mjs",
+            "sha256": "d43fa7061c164680b13362c8a8cce897989afb04d0f07d9bc898e47a98c69460"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-gzip-off.toml",
+            "sha256": "96ed9dcaf122741d57338a06a1a53224ab905e07b9b09f8b5f80fe11221d7b55"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-gzip-off.stderr",
+            "sha256": "b29e1cee0a0626abdf938e3c98b85f2a8d4efab3e78d2cc05a4c9017d260b684"
+          },
+          "observation": [
+            -97,
+            20801,
+            -97,
+            -97,
+            -97,
+            -97,
+            4250,
+            -97
+          ],
+          "bytes": 2800,
+          "raw_bytes": 5785,
+          "all_sizes": {
+            "raw": 5785,
+            "gzip9": 2800,
+            "brotli11": 2076
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.18972200000000006,
+            "wall_seconds": 0.19009419200301636,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 66,
+          "pruned": 0,
+          "codec_probes": 66,
+          "baseline_work": 1094443,
+          "optional_work": 39370412,
+          "codec_work": 18906114,
+          "peak_retained_bytes": 17044986
+        }
+      },
+      "margin": 0
+    },
+    {
+      "id": "interval-library",
+      "family": "interval-library",
+      "split": "evaluation",
+      "source_bytes": 5902,
+      "objective": "brotli",
+      "modes": {
+        "on": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-brotli-on.mjs",
+            "sha256": "8fcf1d05d160f36df004a02f48f51be6db03b5824d310c5eb5231f9f1a8e4686"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-brotli-on.toml",
+            "sha256": "f012912274ddf54f64386eb300ea5f93c001aa477c2a57a0f4c39d40f0ae4cfa"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-brotli-on.stderr",
+            "sha256": "0afa12e39907d3a437f59e490dad90049678bc1a9e599b82d5790c72de7410d6"
+          },
+          "observation": [
+            -97,
+            20801,
+            -97,
+            -97,
+            -97,
+            -97,
+            4250,
+            -97
+          ],
+          "bytes": 1882,
+          "raw_bytes": 5895,
+          "all_sizes": {
+            "raw": 5895,
+            "gzip9": 2868,
+            "brotli11": 1882
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.6551639999999999,
+            "wall_seconds": 0.6556280039949343,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ],
+            "load_after": [
+              0.81494140625,
+              1.080078125,
+              1.3642578125
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 73,
+          "pruned": 0,
+          "codec_probes": 73,
+          "baseline_work": 826346,
+          "optional_work": 30758904,
+          "codec_work": 894479,
+          "peak_retained_bytes": 18171792,
+          "warm_samples": [
+            {
+              "cpu_seconds": 0.6700840000000006,
+              "wall_seconds": 0.6704334560054122,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            },
+            {
+              "cpu_seconds": 0.648163,
+              "wall_seconds": 0.6485172899992904,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ]
+            },
+            {
+              "cpu_seconds": 0.6513449999999995,
+              "wall_seconds": 0.651809499002411,
+              "peak_rss_kib": 119672,
+              "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+              "load_before": [
+                0.81494140625,
+                1.080078125,
+                1.3642578125
+              ],
+              "load_after": [
+                1.23046875,
+                1.162109375,
+                1.38916015625
+              ]
+            }
+          ],
+          "median_warm_cpu_seconds": 0.6513449999999995
+        },
+        "audit": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-brotli-audit.mjs",
+            "sha256": "8fcf1d05d160f36df004a02f48f51be6db03b5824d310c5eb5231f9f1a8e4686"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-brotli-audit.toml",
+            "sha256": "34ab42f77a5894e25e47a16a03bfc6a1f6281e6f1602c63c3ffef3bdfc3cc6c6"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-brotli-audit.stderr",
+            "sha256": "8860d5ebb327cc4c397a6718b53ef9cb24b65bc6f533a555a18cdd1149e705af"
+          },
+          "observation": [
+            -97,
+            20801,
+            -97,
+            -97,
+            -97,
+            -97,
+            4250,
+            -97
+          ],
+          "bytes": 1882,
+          "raw_bytes": 5895,
+          "all_sizes": {
+            "raw": 5895,
+            "gzip9": 2868,
+            "brotli11": 1882
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.6542080000000003,
+            "wall_seconds": 0.6546716120064957,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              1.23046875,
+              1.162109375,
+              1.38916015625
+            ],
+            "load_after": [
+              1.23046875,
+              1.162109375,
+              1.38916015625
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 73,
+          "pruned": 0,
+          "codec_probes": 73,
+          "baseline_work": 826346,
+          "optional_work": 30758904,
+          "codec_work": 894479,
+          "peak_retained_bytes": 18171792
+        },
+        "off": {
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-brotli-off.mjs",
+            "sha256": "8fcf1d05d160f36df004a02f48f51be6db03b5824d310c5eb5231f9f1a8e4686"
+          },
+          "config": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-brotli-off.toml",
+            "sha256": "b1c652911885974693167ad1bd7920c640bd0579c076e54006372d592c24050c"
+          },
+          "explanation": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c3-complete/evaluation2/interval-library-brotli-off.stderr",
+            "sha256": "cbc99d60b83bcac4cd036ff4f28e93044e43f544cf8ed4b36562e60017b6057f"
+          },
+          "observation": [
+            -97,
+            20801,
+            -97,
+            -97,
+            -97,
+            -97,
+            4250,
+            -97
+          ],
+          "bytes": 1882,
+          "raw_bytes": 5895,
+          "all_sizes": {
+            "raw": 5895,
+            "gzip9": 2868,
+            "brotli11": 1882
+          },
+          "diagnostic_timing": {
+            "cpu_seconds": 0.6666750000000004,
+            "wall_seconds": 0.66709467000328,
+            "peak_rss_kib": 119672,
+            "peak_rss_scope": "Cumulative child high-water mark, not isolated invocation RSS",
+            "load_before": [
+              1.23046875,
+              1.162109375,
+              1.38916015625
+            ],
+            "load_after": [
+              1.23046875,
+              1.162109375,
+              1.38916015625
+            ]
+          },
+          "missed": [],
+          "audited": 0,
+          "stopped": 0,
+          "judged": 73,
+          "pruned": 0,
+          "codec_probes": 73,
+          "baseline_work": 826346,
+          "optional_work": 30758904,
+          "codec_work": 894479,
+          "peak_retained_bytes": 18171792
+        }
+      },
+      "margin": 150
+    }
+  ],
+  "failures": [],
+  "timing": "On-lane explanation is discarded as warmup; timed samples omit --explain. No speed comparison is claimed.",
+  "historical_a1_cpu_pair": "Unavailable; current samples establish a new baseline, not a reconstruction.",
+  "summary": {
+    "raw": {
+      "totals": {
+        "on": {
+          "bytes": 9268,
+          "judged": 36,
+          "pruned": 54,
+          "codec_probes": 0,
+          "baseline_work": 1276109,
+          "optional_work": 20245841,
+          "codec_work": 339,
+          "peak_retained_bytes": 18048047,
+          "stopped": 0
+        },
+        "audit": {
+          "bytes": 9268,
+          "judged": 36,
+          "pruned": 54,
+          "codec_probes": 0,
+          "baseline_work": 1276109,
+          "optional_work": 20245895,
+          "codec_work": 393,
+          "peak_retained_bytes": 18048047,
+          "stopped": 0
+        },
+        "off": {
+          "bytes": 9268,
+          "judged": 107,
+          "pruned": 0,
+          "codec_probes": 0,
+          "baseline_work": 1276109,
+          "optional_work": 24891940,
+          "codec_work": 556,
+          "peak_retained_bytes": 18048047,
+          "stopped": 0
+        }
+      },
+      "immediate_proxy_misses": [],
+      "final_no_prune_changes": []
+    },
+    "gzip": {
+      "totals": {
+        "on": {
+          "bytes": 4753,
+          "judged": 10,
+          "pruned": 66,
+          "codec_probes": 76,
+          "baseline_work": 2018255,
+          "optional_work": 34534798,
+          "codec_work": 23086911,
+          "peak_retained_bytes": 18071855,
+          "stopped": 0
+        },
+        "audit": {
+          "bytes": 4753,
+          "judged": 10,
+          "pruned": 66,
+          "codec_probes": 76,
+          "baseline_work": 2018255,
+          "optional_work": 34534864,
+          "codec_work": 23086977,
+          "peak_retained_bytes": 18071855,
+          "stopped": 0
+        },
+        "off": {
+          "bytes": 4753,
+          "judged": 138,
+          "pruned": 0,
+          "codec_probes": 138,
+          "baseline_work": 2018255,
+          "optional_work": 64723756,
+          "codec_work": 39968069,
+          "peak_retained_bytes": 18071855,
+          "stopped": 0
+        }
+      },
+      "immediate_proxy_misses": [],
+      "final_no_prune_changes": []
+    },
+    "brotli": {
+      "totals": {
+        "on": {
+          "bytes": 3529,
+          "judged": 135,
+          "pruned": 0,
+          "codec_probes": 135,
+          "baseline_work": 1213934,
+          "optional_work": 35290872,
+          "codec_work": 1130573,
+          "peak_retained_bytes": 18171792,
+          "stopped": 0
+        },
+        "audit": {
+          "bytes": 3529,
+          "judged": 135,
+          "pruned": 0,
+          "codec_probes": 135,
+          "baseline_work": 1213934,
+          "optional_work": 35290872,
+          "codec_work": 1130573,
+          "peak_retained_bytes": 18171792,
+          "stopped": 0
+        },
+        "off": {
+          "bytes": 3529,
+          "judged": 135,
+          "pruned": 0,
+          "codec_probes": 135,
+          "baseline_work": 1213934,
+          "optional_work": 35290872,
+          "codec_work": 1130573,
+          "peak_retained_bytes": 18171792,
+          "stopped": 0
+        }
+      },
+      "immediate_proxy_misses": [],
+      "final_no_prune_changes": []
+    }
+  }
+}

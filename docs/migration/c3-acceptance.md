@@ -1,7 +1,12 @@
 # C3 acceptance and implementation batch
 
-C3 is the sole active milestone. Its deliverable is calibration evidence and
-the machinery to keep later tuning honest, not a claim of optimal heuristics.
+**Status: complete.** The immutable result and verification record is
+[2026-10-01-c3-complete](../../benchmarks/migration-results/2026-10-01-c3-complete/README.md).
+This pre-registered contract is retained unchanged below except for the
+input-authoring clarification recorded before the final valid evaluation.
+
+C3's deliverable is calibration evidence and the machinery to keep later
+tuning honest, not a claim of optimal heuristics.
 
 1. Freeze medium generic programs spanning arithmetic, control flow, strings,
    records and different source sizes. Inputs remain unknown at compilation;
