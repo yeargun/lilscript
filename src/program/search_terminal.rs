@@ -321,7 +321,26 @@ fn spelling_names(spelling: Spelling) -> Vec<&'static str> {
 
 /// A resource refusal ends the stage; any other refusal ends one challenger.
 fn exhausted(error: &CandidateError) -> bool {
-    matches!(error, CandidateError::Budget(_))
+    matches!(
+        error,
+        CandidateError::Budget(
+            BudgetError::WorkExhausted(_)
+                | BudgetError::MemoryExhausted(_)
+                | BudgetError::DeadlineExceeded
+        )
+    )
+}
+
+/// A broken allocation/analysis owner is a compiler error, never an ordinary
+/// search stop or an inapplicable representation. Keep these failures visible.
+fn refusal(error: CandidateError) -> Result<Judgement, SearchError> {
+    if exhausted(&error) {
+        Ok(Judgement::Stopped)
+    } else if matches!(error, CandidateError::Budget(_)) {
+        Err(error.into())
+    } else {
+        Ok(Judgement::Refused)
+    }
 }
 
 /// A resource refusal from the portfolio's own admission.
@@ -458,8 +477,7 @@ impl Judge<'_> {
             .and_then(|retained| retained);
         let challenged = match rendered {
             Ok(challenged) => challenged,
-            Err(error) if exhausted(&error) => return Ok((Err(Judgement::Stopped), None, false)),
-            Err(_) => return Ok((Err(Judgement::Refused), None, false)),
+            Err(error) => return Ok((Err(refusal(error)?), None, false)),
         };
         // The proxy judges first: a move clearly worse than the reference is
         // pruned before the exact codec runs. Where the proxy is the exact
@@ -503,8 +521,7 @@ impl Judge<'_> {
             }
             Ok(Some((proxy, _))) => Some(proxy),
             Ok(None) => return Ok((Err(Judgement::Identical), None, false)),
-            Err(error) if exhausted(&error) => return Ok((Err(Judgement::Stopped), None, false)),
-            Err(_) => return Ok((Err(Judgement::Refused), None, false)),
+            Err(error) => return Ok((Err(refusal(error)?), None, false)),
         };
         let scored = formations.with_arena(|arena, contract, budget| {
             let result = (|| -> Result<(usize, QualifiedArtifact), CandidateError> {
@@ -530,8 +547,7 @@ impl Judge<'_> {
         let probed = codec != Objective::Raw;
         match scored {
             Ok((size, qualified)) => Ok((Ok((challenged, size, qualified)), proxy, probed)),
-            Err(error) if exhausted(&error) => Ok((Err(Judgement::Stopped), proxy, probed)),
-            Err(_) => Ok((Err(Judgement::Refused), proxy, probed)),
+            Err(error) => Ok((Err(refusal(error)?), proxy, probed)),
         }
     }
 
@@ -880,11 +896,10 @@ impl Walker<'_, '_, '_> {
         });
         let mut sites = match surveyed {
             Ok(sites) => sites,
-            Err(error) if exhausted(&error) => {
-                self.stopped = true;
+            Err(error) => {
+                self.stopped |= matches!(refusal(error)?, Judgement::Stopped);
                 return Ok(false);
             }
-            Err(_) => return Ok(false),
         };
         let mut kept = false;
         for moves in choice_schedule(&sites) {
@@ -1223,7 +1238,7 @@ impl Walker<'_, '_, '_> {
                         plan.alphabet = match alphabet {
                             Ok(alphabet) => alphabet,
                             Err(error) => {
-                                record.outcome = if exhausted(&error) {
+                                record.outcome = if matches!(refusal(error)?, Judgement::Stopped) {
                                     self.stopped = true;
                                     ChallengerOutcome::Stopped
                                 } else {

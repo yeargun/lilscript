@@ -67,6 +67,54 @@ fn execute(module: &Module, setup: &str, policy: PrintPolicy) -> String {
 }
 
 #[test]
+fn admitted_array_packing_grows_the_existing_arena_and_releases_its_mask() {
+    use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+    let mut source = Module::default();
+    source.pristine_builtins = true;
+    let items = [
+        "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
+    ]
+    .map(|value| expr(&mut source, Expr::Literal(Literal::String(value.into()))));
+    let array = expr(&mut source, Expr::Array(items.into()));
+    capture(&mut source, array);
+    let mut retained = Vec::new();
+    for permission in [ArrayPacking::Startup, ArrayPacking::Recurring] {
+        let mut ledger = BudgetLedger::new(
+            ResourceLimits::default(),
+            BudgetPlan {
+                baseline_work: 1_000_000,
+                optional_work: 0,
+                baseline_retained_bytes: 0,
+                retained_bytes: 1_000_000,
+            },
+        )
+        .unwrap();
+        {
+            let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+            let mut module = source.clone_in(&mut budget).unwrap();
+            assert_eq!(module.expressions.len(), module.expressions.capacity());
+            let before = budget.retained_bytes(AllocationClass::Retained);
+            let (packed, map) = module.pack_string_arrays(permission, &mut budget).unwrap();
+            assert_eq!(packed, 1);
+            assert!(map.is_some());
+            assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
+            // The two permissions produce and retain exactly the same tree;
+            // startup's additional reachability mask has been released.
+            let after = budget.retained_bytes(AllocationClass::Retained);
+            assert!(after > before, "fixture must grow the admitted arena");
+            retained.push(after);
+            assert_eq!(
+                execute(&module, "", PrintPolicy::default()),
+                r#"[["alpha","beta","gamma","delta","epsilon","zeta","eta","theta"]]"#
+            );
+            drop(module);
+        }
+        assert_eq!(ledger.retained_bytes(), 0);
+    }
+    assert_eq!(retained[0], retained[1]);
+}
+
+#[test]
 fn distinct_target_cells_share_provenance_without_aliasing_and_remap_together() {
     let mut module = Module::default();
     binding(&mut module, RegionId::new(0), u32::MAX, "abandoned");

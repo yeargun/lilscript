@@ -24,6 +24,35 @@ use super::*;
 use crate::compilation_policy::{
     BaselineFirstPlan, BudgetLedger, CompilationRequest, ResolvedPolicy, ResourceLimits, WorkDomain,
 };
+
+#[test]
+fn accounting_errors_cannot_masquerade_as_a_completed_shorter_search() {
+    for error in [
+        BudgetError::WorkExhausted(WorkDomain::Optional),
+        BudgetError::MemoryExhausted(WorkDomain::Optional),
+        BudgetError::DeadlineExceeded,
+    ] {
+        assert!(matches!(
+            refusal(CandidateError::Budget(error)),
+            Ok(Judgement::Stopped)
+        ));
+    }
+    for error in [
+        BudgetError::InvalidPlan,
+        BudgetError::BaselineExceedsLimit,
+        BudgetError::BaselineNotSealed,
+        BudgetError::InvalidBaselinePhase,
+        BudgetError::BaselineAllocationSealed,
+        BudgetError::InvalidRelease,
+        BudgetError::AnalysisAttemptMismatch,
+        BudgetError::InvalidAnalysisReceipt,
+    ] {
+        assert!(matches!(
+            refusal(CandidateError::Budget(error)),
+            Err(SearchError::Candidate(CandidateError::Budget(found))) if found == error
+        ));
+    }
+}
 use crate::js::selection::{Objective, Objectives};
 use crate::program::facts::CacheLimits;
 

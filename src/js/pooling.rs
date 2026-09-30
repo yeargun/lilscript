@@ -36,21 +36,32 @@ impl Module {
         if !self.pristine_builtins || permission == ArrayPacking::Disabled {
             return Ok((0, None));
         }
-        let mut phase = budget.scope();
-        let budget = &mut phase;
         let recurring = if permission == ArrayPacking::Startup {
             Some(self.function_expressions(budget)?)
         } else {
             None
         };
+        // Arena growth belongs to the module's existing allocation owner.
+        // A child scope cannot release that owner's old vector on growth.
+        let result = self.pack_string_arrays_at_sites(recurring.as_deref(), budget);
+        if let Some(recurring) = recurring {
+            let bytes = recurring.capacity() as u64;
+            drop(recurring);
+            budget.release(AllocationClass::Retained, bytes)?;
+        }
+        result
+    }
+
+    fn pack_string_arrays_at_sites(
+        &mut self,
+        recurring: Option<&[bool]>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
         let reach = self.reach(budget)?;
         let mut packed = 0;
         for &(id, _) in &reach.expressions {
             budget.work(Analysis, 1)?;
-            if recurring
-                .as_ref()
-                .is_some_and(|recurring| recurring[id.index()])
-            {
+            if recurring.is_some_and(|recurring| recurring[id.index()]) {
                 continue;
             }
             let Expr::Array(elements) = &self.expressions[id.index()] else {
@@ -111,15 +122,9 @@ impl Module {
             packed += 1;
         }
         if packed == 0 {
-            drop(recurring);
-            drop(reach);
-            phase.finish_retained()?;
             return Ok((0, None));
         }
         let map = self.renumber(budget)?;
-        drop(recurring);
-        drop(reach);
-        phase.finish_retained()?;
         Ok((packed, Some(map)))
     }
 
@@ -130,8 +135,10 @@ impl Module {
         &self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<bool>, AllocationError> {
-        use AllocationClass::Scratch;
-        let mut expressions = budget.filled(Scratch, self.expressions.len(), false)?;
+        use AllocationClass::{Retained, Scratch};
+        let mut phase = budget.scope();
+        let budget = &mut phase;
+        let mut expressions = budget.filled(Retained, self.expressions.len(), false)?;
         let mut seen = budget.filled(Scratch, self.regions.len(), false)?;
         let mut regions = budget.vector(Scratch, self.functions.len())?;
         for function in &self.functions {
@@ -170,6 +177,10 @@ impl Module {
                 }
             }
         }
+        drop(seen);
+        drop(regions);
+        drop(pending);
+        phase.finish_retained()?;
         Ok(expressions)
     }
 
