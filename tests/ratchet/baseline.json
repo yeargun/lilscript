@@ -3,8 +3,8 @@
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
  "recorded": "2026-09-30",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/q3-deferred-naming-1/lilscript",
-  "sha256": "34a7ceb333f3a652e3f16394c34482e39ea139af7fd6273d92310afabbe3a262",
+  "source": "/home/azureuser/lilscript-work/bin/s1-primitive-assumptions-1/lilscript",
+  "sha256": "ac7471fd0ecf51eef44dfa3a808c2d500746785dfd1ced5e2f4689e8680880da",
   "version": "lilscript 0.1.0",
   "label": null
  },
@@ -3934,12 +3934,12 @@
  "counts": {
   "cases": {
    "raw": {
-    "competitor": 122,
+    "competitor": 121,
     "closure": 0,
     "old": 518
    },
    "gzip9": {
-    "competitor": 120,
+    "competitor": 119,
     "closure": 0,
     "old": 500
    },
@@ -3989,36 +3989,36 @@
    "raw": {
     "competitor": {
      "items": 624,
-     "ours": 53264,
+     "ours": 53244,
      "bar": 60614
     },
     "old": {
      "items": 624,
-     "ours": 53264,
+     "ours": 53244,
      "bar": 45935
     }
    },
    "gzip9": {
     "competitor": {
      "items": 624,
-     "ours": 50194,
+     "ours": 50180,
      "bar": 56410
     },
     "old": {
      "items": 622,
-     "ours": 50020,
+     "ours": 50006,
      "bar": 46478
     }
    },
    "brotli11": {
     "competitor": {
      "items": 624,
-     "ours": 40330,
+     "ours": 40314,
      "bar": 44919
     },
     "old": {
      "items": 623,
-     "ours": 40281,
+     "ours": 40265,
      "bar": 34677
     }
    }
@@ -12170,15 +12170,15 @@
   "cases/catalog/number/semantic-number-to-int-boundaries": {
    "raw": {
     "state": "pass",
-    "size": 91
+    "size": 71
    },
    "gzip9": {
     "state": "pass",
-    "size": 69
+    "size": 55
    },
    "brotli11": {
     "state": "pass",
-    "size": 61
+    "size": 45
    }
   },
   "cases/catalog/record/edge-record-json-1-left": {

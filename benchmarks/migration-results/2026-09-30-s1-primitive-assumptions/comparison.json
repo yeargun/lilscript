@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "source": "60b29e13",
+  "scope": "642 development programs, ordinary effort 15, three selected objectives; reference port artifacts",
+  "report_sha256": {
+    "benchmarks/migration-results/2026-09-30-q3-deferred-naming/ratchet.json": "4edadac36175e6eb16e11f5d822dea6ba324672d4089be322f289c3be95f66f4",
+    "benchmarks/migration-results/2026-09-30-q3-deferred-naming/ports.json": "92f5708be70b6df48f8210e8f965304d2b9b3dabc2a91d247cd0daca6d8b803d",
+    "benchmarks/migration-results/2026-09-30-s1-primitive-assumptions/ratchet.json": "88fb18bcdc71d892abab62dc8fe88f952740bdbb4305a721e3f04d82c38a632c",
+    "benchmarks/migration-results/2026-09-30-s1-primitive-assumptions/ports.json": "e8d84f09cdf9abddfa114f98958f4601c6d54a156525d626dfff713a78c98c75"
+  },
+  "compared_generic_artifacts": 1926,
+  "changed": [
+    {
+      "item": "cases/catalog/number/semantic-number-to-int-boundaries",
+      "metric": "raw",
+      "before": 91,
+      "after": 71,
+      "delta": -20,
+      "sha256": {
+        "previous": "5319d8067a9f977c7d104d42cafc06c7878b284578d8929c9a61029f336cb217",
+        "candidate": "4f67977924583f0df9adea5746bd0dd755b37cb75ffbfeba1054b779eb338693"
+      }
+    },
+    {
+      "item": "cases/catalog/number/semantic-number-to-int-boundaries",
+      "metric": "gzip9",
+      "before": 69,
+      "after": 55,
+      "delta": -14,
+      "sha256": {
+        "previous": "5319d8067a9f977c7d104d42cafc06c7878b284578d8929c9a61029f336cb217",
+        "candidate": "4f67977924583f0df9adea5746bd0dd755b37cb75ffbfeba1054b779eb338693"
+      }
+    },
+    {
+      "item": "cases/catalog/number/semantic-number-to-int-boundaries",
+      "metric": "brotli11",
+      "before": 61,
+      "after": 45,
+      "delta": -16,
+      "sha256": {
+        "previous": "5319d8067a9f977c7d104d42cafc06c7878b284578d8929c9a61029f336cb217",
+        "candidate": "4f67977924583f0df9adea5746bd0dd755b37cb75ffbfeba1054b779eb338693"
+      }
+    }
+  ],
+  "unchanged_port_artifacts": 20
+}
