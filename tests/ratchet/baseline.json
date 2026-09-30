@@ -1,12 +1,12 @@
 {
  "schema": 1,
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
- "recorded": "2026-09-29",
+ "recorded": "2026-09-30",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/y5-1/lilscript",
-  "sha256": "d786769853487741caa076aeecbfca41a1937da2f211607434c8337ce02c6d9e",
+  "source": "/home/azureuser/lilscript-work/bin/s1-1/lilscript",
+  "sha256": "4bd8b39b22560cd2024b77a5d2a6fac7a34a53e6e191382b0e4383397d3514f0",
   "version": "lilscript 0.1.0",
-  "label": null
+  "label": "s1-1"
  },
  "barsSha256": "770649437963ff5bd6955ea79195cf37c13a84d96fb6c83e7327db9a0085f45b",
  "counts": {
@@ -14,33 +14,33 @@
    "raw": {
     "competitor": 110,
     "closure": 0,
-    "old": 570
+    "old": 567
    },
    "gzip9": {
     "competitor": 110,
     "closure": 0,
-    "old": 547
+    "old": 546
    },
    "brotli11": {
     "competitor": 195,
     "closure": 0,
-    "old": 584
+    "old": 578
    }
   },
   "apps": {
    "raw": {
     "competitor": 0,
-    "closure": 2,
+    "closure": 1,
     "old": 7
    },
    "gzip9": {
-    "competitor": 2,
+    "competitor": 1,
     "closure": 2,
     "old": 7
    },
    "brotli11": {
-    "competitor": 2,
-    "closure": 4,
+    "competitor": 1,
+    "closure": 3,
     "old": 7
    }
   },
@@ -67,36 +67,36 @@
    "raw": {
     "competitor": {
      "items": 612,
-     "ours": 55183,
+     "ours": 55007,
      "bar": 58285
     },
     "old": {
      "items": 612,
-     "ours": 55183,
+     "ours": 55007,
      "bar": 44195
     }
    },
    "gzip9": {
     "competitor": {
      "items": 612,
-     "ours": 52489,
+     "ours": 52332,
      "bar": 54669
     },
     "old": {
      "items": 610,
-     "ours": 52315,
+     "ours": 52158,
      "bar": 45206
     }
    },
    "brotli11": {
     "competitor": {
      "items": 612,
-     "ours": 42618,
+     "ours": 42473,
      "bar": 43541
     },
     "old": {
      "items": 611,
-     "ours": 42537,
+     "ours": 42392,
      "bar": 33656
     }
    }
@@ -105,51 +105,51 @@
    "raw": {
     "competitor": {
      "items": 7,
-     "ours": 1117,
+     "ours": 1090,
      "bar": 1527
     },
     "closure": {
      "items": 7,
-     "ours": 1117,
+     "ours": 1090,
      "bar": 1332
     },
     "old": {
      "items": 7,
-     "ours": 1117,
+     "ours": 1090,
      "bar": 802
     }
    },
    "gzip9": {
     "competitor": {
      "items": 7,
-     "ours": 941,
+     "ours": 926,
      "bar": 1053
     },
     "closure": {
      "items": 7,
-     "ours": 941,
+     "ours": 926,
      "bar": 982
     },
     "old": {
      "items": 7,
-     "ours": 941,
+     "ours": 926,
      "bar": 711
     }
    },
    "brotli11": {
     "competitor": {
      "items": 7,
-     "ours": 764,
+     "ours": 744,
      "bar": 870
     },
     "closure": {
      "items": 7,
-     "ours": 764,
+     "ours": 744,
      "bar": 834
     },
     "old": {
      "items": 7,
-     "ours": 764,
+     "ours": 744,
      "bar": 558
     }
    }
@@ -422,15 +422,15 @@
   "apps/numerical-kernel": {
    "raw": {
     "state": "pass",
-    "size": 206
+    "size": 179
    },
    "gzip9": {
     "state": "pass",
-    "size": 162
+    "size": 147
    },
    "brotli11": {
     "state": "pass",
-    "size": 141
+    "size": 121
    }
   },
   "apps/optimizer-pressure": {
@@ -492,15 +492,15 @@
   "cases/canonical/aggregates/enum-dispatch": {
    "raw": {
     "state": "pass",
-    "size": 61
+    "size": 30
    },
    "gzip9": {
     "state": "pass",
-    "size": 65
+    "size": 41
    },
    "brotli11": {
     "state": "pass",
-    "size": 65
+    "size": 34
    }
   },
   "cases/canonical/aggregates/nested-struct": {
@@ -629,15 +629,15 @@
   "cases/canonical/control/expression-if": {
    "raw": {
     "state": "pass",
-    "size": 55
+    "size": 30
    },
    "gzip9": {
     "state": "pass",
-    "size": 61
+    "size": 41
    },
    "brotli11": {
     "state": "pass",
-    "size": 47
+    "size": 34
    }
   },
   "cases/canonical/control/factorial": {
@@ -1035,15 +1035,15 @@
   "cases/canonical/scalars/clamp": {
    "raw": {
     "state": "pass",
-    "size": 81
+    "size": 46
    },
    "gzip9": {
     "state": "pass",
-    "size": 70
+    "size": 43
    },
    "brotli11": {
     "state": "pass",
-    "size": 55
+    "size": 41
    }
   },
   "cases/canonical/scalars/fold-add": {
@@ -5305,43 +5305,43 @@
   "cases/catalog/function/factorial-5": {
    "raw": {
     "state": "pass",
-    "size": 45
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 65
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 49
+    "size": 21
    }
   },
   "cases/catalog/function/factorial-6": {
    "raw": {
     "state": "pass",
-    "size": 45
+    "size": 17
    },
    "gzip9": {
     "state": "pass",
-    "size": 65
+    "size": 37
    },
    "brotli11": {
     "state": "pass",
-    "size": 49
+    "size": 21
    }
   },
   "cases/catalog/function/factorial-7": {
    "raw": {
     "state": "pass",
-    "size": 45
+    "size": 18
    },
    "gzip9": {
     "state": "pass",
-    "size": 65
+    "size": 38
    },
    "brotli11": {
     "state": "pass",
-    "size": 49
+    "size": 22
    }
   },
   "cases/catalog/function/factorial-8": {
@@ -5669,15 +5669,15 @@
   "cases/catalog/generic/frontier-generic-equality": {
    "raw": {
     "state": "pass",
-    "size": 127
+    "size": 125
    },
    "gzip9": {
     "state": "pass",
-    "size": 102
+    "size": 99
    },
    "brotli11": {
     "state": "pass",
-    "size": 84
+    "size": 80
    }
   },
   "cases/catalog/host/amd-define-guard": {

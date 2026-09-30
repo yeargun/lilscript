@@ -265,6 +265,23 @@ Multi-file delivery (plan M3.3: several entries, `split`, `preserve-modules`, la
 node scripts/verify-bundles.mjs target/release/lilscript
 ```
 
+## Paired compilation cost
+
+`scripts/compile-cost.py` runs pinned compilers sequentially on a manifest of
+identical inputs/configurations. Each workload has `id`, `cwd`, `entry`,
+`config`, optional `target` (default `js-module`) and optional `arguments`.
+Relative working directories resolve from the manifest. Supply `--previous`,
+`--candidate`, `--codec`, `--manifest`, `--work` and `--json`; `--rounds`
+defaults to five alternating pairs after one separate warm-up per compiler.
+
+The JSON retains every measured process-CPU/wall sample, order and host load,
+summary spread, input/configuration and binary identities, artifact hashes
+and exact codec sizes. Warm-up explain reports and elapsed phase telemetry
+are outside timed samples. Input changes, policy mismatches and unstable
+output fail the run. A median alone is insufficient evidence of a speed win;
+inspect the retained samples and explain changed work counts. This runner
+measures compilation, not the generated program's runtime.
+
 ## The expected-failure ledgers
 
 | Ledger | Entry |

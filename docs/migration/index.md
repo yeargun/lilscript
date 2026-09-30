@@ -7,14 +7,14 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Now
 
 - One compiler; the existing typed IR, facts, edit machinery, formation, naming and exact codec judging are the foundation.
-- Last implementation batch: **Y5a/b**, private application roots and frames. Its accepted ratchet is the baseline; default IIFE wrapping remains open.
-- C1's target-rule and pooling/packing veto slice is implemented and passes the library suite and generic ratchet with unchanged objective totals. S1 constant-call evaluation is in progress; C1's remaining controls stay open.
+- Last semantic batch: **S1**, bounded constant-call and exact primitive-method evaluation. It passes the production matrix and improves every generic objective total; default IIFE wrapping remains open.
+- C1's target-rule and pooling/packing veto slice is implemented. C2 now retains alternating compilation samples and input/artifact identities. Q2's next slice addresses repeated exact scoring; remaining controls and evidence stay open.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
 1. **C1:** complete the remaining producer/risk registry and control compatibility; the terminal pooling/packing and fixed target-rule vetoes are covered.
-2. **S1 with C2/C3:** known-method and small pure constant-call evaluation, supported by the necessary oracle and measurement slices. Audit the folding claim that a raw bound proves a codec win. Calibration precedes tuning new heuristic defaults.
+2. **S1 with C2/C3:** continue propagation/defaults/removal beyond the implemented bounded primitive evaluator. The raw-bound-as-codec-proof claim is corrected; calibration precedes tuning new heuristic defaults.
 3. **Q2:** remove repeated formation and scoring, starting from the markedlil trace; preserve the best existing output.
 4. **S2 and G1/G2:** escape/field facts and flattening; lexical naming and safe private-property mangling as their facts allow. Continue D1's existing format work when its batch is ready.
 
@@ -27,7 +27,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 | [~] | [C1](plan.md#c1) Controls | Registry, permission coverage, precedence and compatibility migration |
 | [~] | [C2](plan.md#c2) Evidence | Oracle coverage, fair benchmark contract, runtime counters and paired runner |
 | [ ] | [C3](plan.md#c3) Calibration | Generic calibration, protected held-out set, objective/work reports |
-| [~] | [S1](plan.md#s1) Folding | Known methods, bounded pure calls, remaining propagation/defaults/removal |
+| [~] | [S1](plan.md#s1) Folding | Broader supported evaluation, remaining propagation/defaults/removal |
 | [ ] | [S2](plan.md#s2) Objects | Escape, uniqueness, fields, flattening and copy elision |
 | [~] | [S3](plan.md#s3) Calls | Remaining inlining, devirtualization, specialization and sharing |
 | [~] | [S4](plan.md#s4) Contracts | Remaining identities, fact consumers, catalog and language coverage |
