@@ -92,14 +92,14 @@ def evaluation(name):
             for _ in range(8):
                 value = (value >> 1) ^ (0xedb88320 if value & 1 else 0)
             table.append(int32(value))
-        source = "Array<int> table=[" + ",".join(map(str, table)) + "];\n"
-        source += ("export int checksum(Array<int> bytes){int value=-1;"
+        source = "int[] table=[" + ",".join(map(str, table)) + "];\n"
+        source += ("export int checksum(int[] bytes){int value=-1;"
                    "for(int i=0;i<bytes.length;i++){value=table[(value^bytes[i])&255]^(value>>>8);}return value^-1;}\n"
-                   "export int probe(int input){Array<int> bytes=[];for(int i=0;i<257;i++){bytes.push((input+i*31)&255);}return checksum(bytes);}\n")
+                   "export int probe(int input){int[] bytes=[];for(int i=0;i<257;i++){bytes.push((input+i*31)&255);}return checksum(bytes);}\n")
         expected = [int32(binascii.crc32(bytes((value+i*31) & 255 for i in range(257)))) for value in INPUTS]
     elif name == "distance-library":
         # Linear-space dynamic program versus the reference's full matrix.
-        source = ("export int distance(string a,string b){Array<int> row=[];"
+        source = ("export int distance(string a,string b){int[] row=[];"
                   "for(int j=0;j<=b.length;j++){row.push(j);}"
                   "for(int i=1;i<=a.length;i++){int diagonal=row[0];row[0]=i;"
                   "for(int j=1;j<=b.length;j++){int prior=row[j];"
@@ -126,8 +126,8 @@ def evaluation(name):
         # Binary search over sorted disjoint intervals versus linear reference.
         starts = [i*23-6000 for i in range(521)]
         ends = [start + 3 + i % 17 for i, start in enumerate(starts)]
-        source = "Array<int> starts=[" + ",".join(map(str, starts)) + "];\n"
-        source += "Array<int> ends=[" + ",".join(map(str, ends)) + "];\n"
+        source = "int[] starts=[" + ",".join(map(str, starts)) + "];\n"
+        source += "int[] ends=[" + ",".join(map(str, ends)) + "];\n"
         source += ("export int locate(int point){int lo=0;int hi=starts.length;"
                    "while(lo<hi){int mid=(lo+hi)>>>1;if(starts[mid]<=point){lo=mid+1;}else{hi=mid;}}"
                    "int index=lo-1;if(index>=0&&point<=ends[index]){return index;}return -1;}\n"
@@ -165,7 +165,7 @@ def generate(output):
                     prior_exposure=dict(development="All previously measured ports and 642 ratchet programs, including their derivatives.",
                                         monacolil="Previously inspected scoreboards and idiom census; not blind.",
                                         solidlil="Previously inspected scoreboards and idiom census; not blind.",
-                                        syntax_repair="Initial training1 measured arithmetic and branch families. String and distance fixtures used unsupported conditional-expression syntax; repaired before any evaluation scores. Expected values and all other sources unchanged. No heuristic tuning."))
+                                        syntax_repair="Initial training1 measured arithmetic and branch families. String and distance fixtures used unsupported conditional-expression syntax; repaired before any evaluation scores. Evaluation then diagnosed Array<int> as an unknown type before generating any artifact; corrected all three library fixtures to int[]. Expected values and training sources remain unchanged. No heuristic tuning."))
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2)+"\n")
 
 

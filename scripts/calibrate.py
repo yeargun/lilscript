@@ -254,7 +254,7 @@ Only the single-module/no-host workloads of this generator are supported.
         if len(row["modes"]["on"]["warm_samples"]) < 3:
             raise ValueError("reused CPU baseline lacks repeated samples")
         row["reused_from"] = identity(path)
-        row["original_runner"] = previous["identity"]["runner"]
+        row.setdefault("original_runner", previous["identity"]["runner"])
         key = (row["id"], objective)
         if key in kept:
             raise ValueError("duplicate reused cell")

@@ -52,6 +52,12 @@ replace its evaluation family before making another generalization claim.
 Never silently regenerate a seed or tune against repeated evaluation results.
 External-library qualification remains V1's responsibility.
 
+Fixture parse/type spelling errors diagnosed before artifact generation may be
+repaired while policy and independent expected values stay fixed. Retain the
+failed attempt and issue a new content lock; no optimization result existed to
+tune against. This narrow input-validity exception does not apply to behavior,
+size or work failures on valid programs.
+
 The missing historical A1 CPU pair cannot be recreated from current timings.
 Current repeated samples establish a new baseline only. Search defaults remain
 unchanged here; Q3 owns calibration-driven policy changes.

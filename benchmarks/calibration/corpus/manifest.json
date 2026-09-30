@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generator_sha256": "6b550f7275d346baff93877c3b310cb74a4e70ac5817ad2aa8ec3c396af5f311",
+  "generator_sha256": "cb05be61b9e009c805a9b688cb3163cb63e21405e3f4c1604e4801f1bad533b5",
   "workloads": [
     {
       "id": "arithmetic-128",
@@ -239,8 +239,8 @@
       "split": "evaluation",
       "family": "checksum-library",
       "entry": "checksum-library.lil",
-      "source_sha256": "a6a8170d1c8f05e999f36d39759e453a8f2e2dd7138a2bc415553699b08094a1",
-      "source_bytes": 3100,
+      "source_sha256": "682d25d9f5a72c8988bf596ed1d046ba3dfe123ff65ba770abf252851c6c616c",
+      "source_bytes": 3085,
       "inputs": [
         -2147483648,
         -1234567,
@@ -268,8 +268,8 @@
       "split": "evaluation",
       "family": "distance-library",
       "entry": "distance-library.lil",
-      "source_sha256": "a0f924ede3cf50dbfa95404c7330419a548c98e2e4c2154dfdb1fa42af9243a1",
-      "source_bytes": 612,
+      "source_sha256": "ac01636403e7ab3b62c464fcd846e765e0b2c6ce2390c2c3e8593da1ef874bf2",
+      "source_bytes": 607,
       "inputs": [
         -2147483648,
         -1234567,
@@ -297,8 +297,8 @@
       "split": "evaluation",
       "family": "interval-library",
       "entry": "interval-library.lil",
-      "source_sha256": "d8fea3cb8f31b9c1605c930744db8812d6e14f2d8b98726b9292de57e768f38c",
-      "source_bytes": 5912,
+      "source_sha256": "61704294d823c9302ec549663c6f8ad7b54b4633752c5c952b0a5e060f9ed4dc",
+      "source_bytes": 5902,
       "inputs": [
         -2147483648,
         -1234567,
@@ -326,6 +326,6 @@
     "development": "All previously measured ports and 642 ratchet programs, including their derivatives.",
     "monacolil": "Previously inspected scoreboards and idiom census; not blind.",
     "solidlil": "Previously inspected scoreboards and idiom census; not blind.",
-    "syntax_repair": "Initial training1 measured arithmetic and branch families. String and distance fixtures used unsupported conditional-expression syntax; repaired before any evaluation scores. Expected values and all other sources unchanged. No heuristic tuning."
+    "syntax_repair": "Initial training1 measured arithmetic and branch families. String and distance fixtures used unsupported conditional-expression syntax; repaired before any evaluation scores. Evaluation then diagnosed Array<int> as an unknown type before generating any artifact; corrected all three library fixtures to int[]. Expected values and training sources remain unchanged. No heuristic tuning."
   }
 }

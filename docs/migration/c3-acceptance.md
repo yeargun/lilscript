@@ -22,6 +22,14 @@ the machinery to keep later tuning honest, not a claim of optimal heuristics.
    accordingly. Policy selection uses training data only. Inspecting an
    evaluation failure promotes that workload to development and requires a
    replacement before another generalization claim.
+
+   Input-authoring parse/type errors caught before any generated artifact or
+   optimizer measurement may be repaired with the policy and independent oracle
+   unchanged. Keep the failed receipt and create a new corpus lock. This is an
+   input-validity repair, not evidence about optimization generalization; replacing
+   the algorithm for a type-spelling typo supplies no additional protection from
+   tuning. Wrong behavior, size or work failures on valid inputs still require
+   promotion and replacement when inspected.
 5. Empty the NO3 source allowlist by auditing every remaining rule: state its
    generic legality, exact choice or bounded compatibility policy, and retain
    the historical provenance outside compiler sources. Inventory thresholds
