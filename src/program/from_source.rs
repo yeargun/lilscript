@@ -4602,7 +4602,29 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 op, target, value, ..
             } => {
                 if *op == AssignmentOp::Nullish {
-                    return self.unsupported(span, "nullish place assignment");
+                    // Capture a reference receiver/key before reading it. The
+                    // lazy region owns both the RHS and the write; a present
+                    // value must perform neither, including a setter call.
+                    let place = self.place(unit, region, target)?;
+                    self.prepare_mutable_place(unit, region, place, false, target.span())?;
+                    let loaded_type = self.expression_type(target)?;
+                    let old = self.value(
+                        unit, region, OperationKind::Load(place), &[], loaded_type,
+                        Some(target.id), target.span(),
+                    )?;
+                    let right = self.region(unit, region, span)?;
+                    let rhs = self.expression(unit, right, value)?;
+                    if let ExprKind::Ident(name) = target.kind {
+                        self.infer_creation_name(unit, value, rhs, name.name)?;
+                    }
+                    let copied = self.copy_value(unit, right, rhs, span)?;
+                    self.effect(unit, right, OperationKind::Store(place), &[copied], span)?;
+                    self.units[unit.index()].regions[right.index()].result = Some(rhs);
+                    return self.value(
+                        unit, region,
+                        OperationKind::ShortCircuit { kind: ShortCircuit::Nullish, right },
+                        &[old], ty, origin, span,
+                    );
                 }
                 let place = self.place(unit, region, target)?;
                 self.prepare_mutable_place(

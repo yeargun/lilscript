@@ -687,6 +687,19 @@ fn match_optional_access_and_array_destructuring_run_natively() {
 }
 
 #[test]
+fn native_nullish_assignment_keeps_lazy_values_and_captured_index_references() {
+    fixture(
+        "native-nullish-assignment",
+        "int effects=0;int rhs(){effects+=1;return 7;}\
+         int? missing=null;int? present=0;print(missing??=rhs());print(present??=rhs());\
+         (int?)[] cells=[null,0];int index=0;\
+         print(cells[index++]??=rhs());print(index);print(cells[index++]??=rhs());\
+         print(index);print(effects);print(cells[0]??-1);print(cells[1]??-1);",
+        "7\n0\n7\n1\n0\n2\n2\n7\n0\n",
+    );
+}
+
+#[test]
 fn generic_class_chains_run_natively() {
     fixture(
         "native-generic-inheritance",

@@ -391,7 +391,6 @@ fn binding_updates_preserve_signed_arithmetic_and_rhs_observation_order() {
 }
 
 #[test]
-#[ignore = "production formation refuses ??= on a place (Unsupported: nullish place assignment)"]
 fn nullish_binding_assignment_preserves_lazy_callable_named_evaluation() {
     compare_named_output(
         r#"
@@ -967,7 +966,6 @@ fn indexed_updates_preserve_proxy_get_set_order() {
 }
 
 #[test]
-#[ignore = "production formation refuses ??= on a place (Unsupported: nullish place assignment)"]
 fn indexed_nullish_writes_are_lazy() {
     compare_source_output_with_setup(
         r#"
@@ -978,6 +976,41 @@ fn indexed_nullish_writes_are_lazy() {
     "#,
         INDEXED_UPDATE_HOST,
         "1\nnullable,key,get:0,rhs,set:0:1\n1\nnullable,key,get:0\n",
+    );
+}
+
+#[test]
+fn nullish_place_captures_the_reference_and_preserves_all_throw_boundaries() {
+    compare_source_output_with_setup(
+        r#"
+        extern void reset(int mode);extern (int?)[] receiver();
+        extern int key();extern int rhs();extern void report();
+        for(int mode=0;mode<6;mode+=1){
+            reset(mode);
+            try{print(receiver()[key()]??=rhs());}catch{print(99);}
+            report();
+        }
+        "#,
+        r#"
+        let mode,events,data,other,selected,index;
+        globalThis.reset=m=>{
+            mode=m;events=[];data=[m===4?0:m===5?undefined:null];other=[8];index=0;
+            selected=new Proxy(data,{
+                get:(a,k)=>{events.push('get:'+k);if(mode===1)throw 1;return a[k]},
+                set:(a,k,v)=>{events.push('set:'+k+':'+v);if(mode===3)throw 3;a[k]=v;return true}
+            });
+        };
+        globalThis.receiver=()=>{events.push('receiver');return selected};
+        globalThis.key=()=>{events.push('key');return index};
+        globalThis.rhs=()=>{events.push('rhs');selected=other;index=1;if(mode===2)throw 2;return 7};
+        globalThis.report=()=>console.log(events.join(',')+';values:'+data[0]+','+other[0]);
+        "#,
+        "7\nreceiver,key,get:0,rhs,set:0:7;values:7,8\n\
+         99\nreceiver,key,get:0;values:null,8\n\
+         99\nreceiver,key,get:0,rhs;values:null,8\n\
+         99\nreceiver,key,get:0,rhs,set:0:7;values:null,8\n\
+         0\nreceiver,key,get:0;values:0,8\n\
+         7\nreceiver,key,get:0,rhs,set:0:7;values:7,8\n",
     );
 }
 
@@ -1018,7 +1051,6 @@ fn typed_array_stores_do_not_redefine_prefix_postfix_or_compound_results() {
 }
 
 #[test]
-#[ignore = "production formation refuses ??= on a place (Unsupported: nullish place assignment)"]
 fn indexed_nullish_callable_creation_keeps_its_anonymous_name() {
     compare_named_output(
         r#"
@@ -1467,7 +1499,6 @@ fn postfix_snapshots_survive_captured_mutation_and_short_circuiting() {
 }
 
 #[test]
-#[ignore = "production formation refuses ??= on a place (Unsupported: nullish place assignment)"]
 fn nullish_assignment_evaluates_its_value_only_when_absent() {
     compare_source_with_interpreter(
         r#"
@@ -1475,6 +1506,17 @@ fn nullish_assignment_evaluates_its_value_only_when_absent() {
         int? missing=null;int? present=0;
         print(missing??=(cell++));print(present??=(cell++));print(cell);
     "#,
+    );
+}
+
+#[test]
+fn nullish_assignment_observes_initialization_before_its_rhs() {
+    compare_source_output_with_setup(
+        "extern void probe(func()->int callback);extern int rhs();\
+         int read(){return cell??=rhs();}probe(read);int? cell=null;print(read());",
+        "globalThis.probe=callback=>{try{callback()}catch(error){console.log(error instanceof ReferenceError)}};\
+         globalThis.rhs=()=>{console.log('rhs');return 7};",
+        "true\nrhs\n7\n",
     );
 }
 

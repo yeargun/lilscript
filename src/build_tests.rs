@@ -800,6 +800,46 @@ fn searched_string_records_respect_scalar_permissions_under_every_objective() {
 }
 
 #[test]
+fn searched_nullish_assignment_preserves_stores_and_value_copies_at_each_syntax_floor() {
+    let source = r#"
+        struct Point { int x; }
+        export int fill((int?)[] values,int index){return values[index]??=7;}
+        export int copies(){
+            Point initial=Point{3};Point? slot=null;
+            Point first=slot??=initial;first.x=4;initial.x=5;
+            Point second=slot??=initial;
+            return first.x*100+second.x*10+initial.x;
+        }
+    "#;
+    for codec in ["raw", "gzip", "brotli"] {
+        for floor in ["es2015", "es2022"] {
+            for permission in ["off", "on"] {
+                let configured: ProjectConfig = toml::from_str(&format!(
+                    "objective.codecs='{codec}'\n[javascript]\necmascript='{floor}'\n[policy.tactics]\ntarget-compaction='{permission}'"
+                )).unwrap();
+                let compiled = compile_source(source, &configured, ServiceOptions::default()).unwrap();
+                check_scores(&compiled);
+                let objective = match codec {
+                    "raw" => Objective::Raw,
+                    "gzip" => Objective::Gzip,
+                    _ => Objective::Brotli,
+                };
+                let javascript = compiled.javascript(objective).unwrap().javascript();
+                if floor == "es2015" { assert!(!javascript.contains("??"), "{javascript}"); }
+                assert_eq!(execute_javascript(javascript, "", r#"
+                    const events=[], values=new Proxy([null,0],{
+                        get:(a,k)=>{events.push('get:'+k);return a[k]},
+                        set:(a,k,v)=>{events.push('set:'+k+':'+v);a[k]=v;return true}
+                    });
+                    console.log(library.fill(values,0),library.fill(values,1),library.fill(values,0));
+                    console.log(events.join(','));console.log(library.copies());
+                "#), "7 0 7\nget:0,set:0:7,get:1,get:0\n435\n", "{codec}/{floor}/{permission}");
+            }
+        }
+    }
+}
+
+#[test]
 fn scoped_search_and_default_service_share_winners_handoff_and_budget() {
     let source =
         "int byte(int value){return value&255;}export int answer(int value){return byte(value)+1;}";
