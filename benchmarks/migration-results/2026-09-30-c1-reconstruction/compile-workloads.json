@@ -1,0 +1,46 @@
+{
+  "workloads": [
+    {
+      "id": "markedlil-default",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-c1-reconstruction/configs/markedlil-default.toml",
+      "arguments": []
+    },
+    {
+      "id": "markedlil-explicit",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-c1-reconstruction/configs/markedlil-explicit.toml",
+      "arguments": []
+    },
+    {
+      "id": "zodlil-default",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/zodlil",
+      "entry": "scripts/zod.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-c1-reconstruction/configs/zodlil-default.toml",
+      "arguments": []
+    },
+    {
+      "id": "zodlil-explicit",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/zodlil",
+      "entry": "scripts/zod.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-c1-reconstruction/configs/zodlil-explicit.toml",
+      "arguments": []
+    },
+    {
+      "id": "posthoglil-default",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-c1-reconstruction/configs/posthoglil-default.toml",
+      "arguments": []
+    },
+    {
+      "id": "posthoglil-explicit",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-c1-reconstruction/configs/posthoglil-explicit.toml",
+      "arguments": []
+    }
+  ]
+}

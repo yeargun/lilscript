@@ -1,0 +1,18 @@
+[javascript]
+priority = "size-first"
+optimization_level = 13
+cost_model = "brotli"
+assume_pristine_builtins = true
+strip_console = true
+candidate_search = "production"
+# 8.16 (measured, this artifact): the beam width picks which basin the terminal
+# search lands in, and the curve is not monotone -- 8:-17, 12:+0, 16:-31, 20:+40 against the
+# default. It is tuned, not raised, and it drifts with the compiler, so it is
+# re-measured rather than trusted. (The five largest ports do not respond to it
+# at all: their width is clamped by the candidate limit before the beam binds.)
+candidate_beam_width = 16
+
+[mangle]
+identifiers = true
+properties = true
+pool_strings = true
