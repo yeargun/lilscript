@@ -340,6 +340,14 @@ fn semantic_phase_timing_is_observational_and_covers_refusal() {
             assert!(report[format!("{}_ms", bucket.name)].as_f64().unwrap() >= 0.0);
             assert!(report.get(format!("{}_mb", bucket.name)).is_none());
         }
+        let rule_calls = report.as_object().unwrap().iter()
+            .filter(|(name, _)| {
+                name.starts_with("js_rule_") && name.ends_with("_calls") && name.as_str() != "js_rule_calls"
+            })
+            .map(|(_, calls)| calls.as_u64().unwrap())
+            .sum::<u64>();
+        assert!(rule_calls > 0);
+        assert_eq!(rule_calls, report["js_rule_calls"].as_u64().unwrap());
     }
     println!(
         "semantic-phase-timing {}",

@@ -291,6 +291,12 @@ output fail the run. A median alone is insufficient evidence of a speed win;
 inspect the retained samples and explain changed work counts. This runner
 measures compilation, not the generated program's runtime.
 
+`LILSCRIPT_TIMING=1` includes each target rule's `js_rule_<Rule>_ms` and
+`js_rule_<Rule>_calls`. These count actual executions, including failures, and
+sum to the aggregate rule call count. Their elapsed times are nested inside
+`js_rule_ms` and `js_formation_ms`; they must not be added to those totals.
+Use the separate timed samples for compilation-cost claims.
+
 An intentional compiler schedule/tactic revision can use
 `--allow-policy-change "reason"`. The report retains the reason and both
 effective policies. Target availability, program contract, objective encoder

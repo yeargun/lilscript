@@ -18,7 +18,7 @@ pub struct Bucket {
 }
 
 impl Bucket {
-    const fn new(name: &'static str) -> Self {
+    pub(crate) const fn new(name: &'static str) -> Self {
         Self {
             name,
             nanos: AtomicU64::new(0),
@@ -43,6 +43,15 @@ impl Bucket {
             self.calls.load(Ordering::Relaxed),
             self.bytes.load(Ordering::Relaxed),
         )
+    }
+
+    pub(crate) fn append_snapshot(&self, out: &mut String) {
+        let (nanos, calls, _) = self.snapshot();
+        out.push_str(&format!(
+            r#","{name}_ms":{ms:.3},"{name}_calls":{calls}"#,
+            name = self.name,
+            ms = nanos as f64 / 1.0e6,
+        ));
     }
 }
 
@@ -124,13 +133,9 @@ pub fn report(wall_nanos: u128) -> Option<String> {
     }
     let mut out = format!(r#"{{"wall_ms":{:.1}"#, wall_nanos as f64 / 1.0e6);
     for bucket in PHASE_BUCKETS {
-        let (nanos, calls, _) = bucket.snapshot();
-        out.push_str(&format!(
-            r#","{name}_ms":{ms:.3},"{name}_calls":{calls}"#,
-            name = bucket.name,
-            ms = nanos as f64 / 1.0e6,
-        ));
+        bucket.append_snapshot(&mut out);
     }
+    crate::js::rules::append_rule_timing(&mut out);
     out.push('}');
     Some(out)
 }

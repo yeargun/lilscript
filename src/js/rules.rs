@@ -23,9 +23,20 @@
 use super::root_constants::ConstantKind;
 use super::*;
 
-/// One rule of the JavaScript target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Rule {
+// The enum and its static telemetry buckets share one declaration, so adding
+// or reordering a rule cannot attribute its time to another rule's counter.
+macro_rules! declare_rules {
+    ($($rule:ident),+ $(,)?) => {
+        /// One rule of the JavaScript target.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub(crate) enum Rule { $($rule),+ }
+        static RULE_TIMINGS: [crate::timing::Bucket; [$(stringify!($rule)),+].len()] = [
+            $(crate::timing::Bucket::new(concat!("js_rule_", stringify!($rule)))),+
+        ];
+    };
+}
+
+declare_rules! {
     SelfMethodCalls,
     SimplifyOperators,
     InlineExpressionFunctions,
@@ -63,6 +74,12 @@ pub(crate) enum Rule {
     NativeDefaultLengths,
     PackStringArrays,
     PoolStrings,
+}
+
+pub(crate) fn append_rule_timing(out: &mut String) {
+    for bucket in &RULE_TIMINGS {
+        bucket.append_snapshot(out);
+    }
 }
 
 impl Rule {
@@ -376,6 +393,7 @@ impl Module {
             return Ok(false);
         }
         let _timing = crate::timing::JS_RULE.scope(0);
+        let _rule_timing = RULE_TIMINGS[rule as usize].scope(0);
         #[cfg(any(test, debug_assertions))]
         let before = (self.clone(), self.measure());
         self.open_journal();
