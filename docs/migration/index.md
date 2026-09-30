@@ -8,7 +8,7 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 - One compiler; the existing typed IR, facts, edit machinery, formation, naming and exact codec judging are the foundation.
 - Last semantic batch: **S1**, bounded constant-call and exact primitive-method evaluation. It passes the production matrix and improves every generic objective total; default IIFE wrapping remains open.
-- C1's target-rule and pooling/packing veto slice is implemented. C2 now retains alternating compilation samples and input/artifact identities. Q2's next slice addresses repeated exact scoring; remaining controls and evidence stay open.
+- C1's target-rule and pooling/packing veto slice is implemented. C2 retains alternating compilation samples and input/artifact identities. Q2 now reuses exact byte measurements while preserving logical work and admission; G1's next slice explores measured naming alphabets.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
@@ -35,7 +35,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 | [ ] | [G2](plan.md#g2) Property names | Private renaming and safe reuse, with reflection and ABI coverage |
 | [~] | [G3](plan.md#g3) JS generation | Per-site spellings, ordering/locality and printer cleanup |
 | [~] | [Q1](plan.md#q1) Choices | One family mechanism, coupled moves and deletion of bespoke mechanisms |
-| [ ] | [Q2](plan.md#q2) Reuse | Dirty scheduling, incremental formation, score memo and resource completion |
+| [~] | [Q2](plan.md#q2) Reuse | Dirty scheduling, incremental formation, persistent reuse and resource completion |
 | [~] | [Q3](plan.md#q3) Search policy | Gzip's policy, calibrated estimates/proxies and useful effort progression |
 | [~] | [Q4](plan.md#q4) Data | Const data, helpers, encodings and schema specialization |
 | [~] | [D1](plan.md#d1) Formats | CJS/IIFE/UMD/bare, application wrapping and manifests |

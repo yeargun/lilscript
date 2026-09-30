@@ -1,5 +1,8 @@
 [optimization]
 inlining = false
+# This fixture checks placement of shared calls. Constant-call evaluation
+# would otherwise replace every call and legitimately remove the shared file.
+constant_folding = false
 
 # Two entries over one shared module (plan M3.3): `shared` is one file both
 # load, and each entry file is a facade.
