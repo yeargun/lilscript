@@ -164,6 +164,7 @@ fn render(
             OutputTactics {
                 dead_code_elimination: false,
                 target_compaction: false,
+                rules: crate::js::TargetRules::NONE,
                 literals: LiteralOutput::Original,
                 families: crate::js::OutputFamilies::NONE,
                 choices: crate::js::ChoiceMap::SEEDS,

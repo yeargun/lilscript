@@ -4,9 +4,8 @@ Why knobs exist, precedence, and how they change compilation: [knowledge/config]
 
 The [migration configuration contract](migration/plan.md#3-configuration-is-a-product-contract)
 describes planned completion separately from this accepted schema. Today a build
-selects one objective; multi-objective requests and complete family-veto coverage
-are still open. In particular, terminal string pooling/packing has a tracked
-permission gap owned by [C1](migration/plan.md#c1).
+selects one objective; multi-objective requests and completion of the family
+registry are still open under [C1](migration/plan.md#c1) and D3.
 
 The CLI discovers `lilscript.toml` by walking from the input module toward the
 filesystem root. Pass `--config path/to/config.toml` to select one explicitly.
@@ -224,6 +223,16 @@ Every optional transformation belongs to a tactic in `[policy.tactics]`, each
 `auto` (the default), `on` (permitted, never forced) or `off` (vetoed in direct
 and searched use). `--print-policy` lists them with their resolved state. `auto`
 follows the tactic's own default and its effort gate.
+
+`target-compaction` permits the JavaScript target's optional rule schedule.
+Its folding, function inlining and object scalarization also require
+`constant-folding`, `inlining` and `scalar-replacement`, respectively.
+`string-pooling` controls repeated literal bindings; `string-array-packing`
+independently controls packed strings decoded with `split`. Initial output
+choices respect these vetoes for raw, gzip and Brotli. Explicit output
+assignments and reused artifact evidence are checked against the same
+permissions. Enabling one of these tactics does not override another tactic's
+veto or force the search to choose that representation.
 
 Several older keys set a tactic's permission. An explicit `true` is `on` and an
 explicit `false` is `off`; a `[policy.tactics]` value that contradicts one is an

@@ -15,6 +15,7 @@ const ALL: OutputTactics = OutputTactics {
     literals: LiteralOutput::Original,
     dead_code_elimination: true,
     target_compaction: true,
+    rules: crate::js::TargetRules::ALL,
     families: crate::js::OutputFamilies::NONE,
     choices: crate::js::ChoiceMap::SEEDS,
 };
@@ -129,6 +130,7 @@ fn four_output_choices_preserve_closure_exception_and_public_observations() {
                     literals: LiteralOutput::Original,
                     dead_code_elimination,
                     target_compaction,
+                    rules: crate::js::TargetRules::ALL,
                     families: crate::js::OutputFamilies::NONE,
                     choices: crate::js::ChoiceMap::SEEDS,
                 };
@@ -204,6 +206,7 @@ fn output_choices_preserve_builtin_arguments_and_integer_results() {
                         literals: LiteralOutput::Original,
                         dead_code_elimination,
                         target_compaction,
+                        rules: crate::js::TargetRules::ALL,
                         families: crate::js::OutputFamilies::NONE,
                         choices: crate::js::ChoiceMap::SEEDS,
                     },
@@ -277,6 +280,7 @@ fn output_permission_checks_do_not_fabricate_runtime_evidence_for_rank_policy() 
                     literals: LiteralOutput::Original,
                     dead_code_elimination: false,
                     target_compaction: false,
+                    rules: crate::js::TargetRules::NONE,
                     families: crate::js::OutputFamilies::NONE,
                     choices: crate::js::ChoiceMap::SEEDS,
                 },
@@ -310,6 +314,7 @@ fn int32_hints_restore_the_previous_normalizations() {
                     literals: LiteralOutput::Original,
                     dead_code_elimination: true,
                     target_compaction: true,
+                    rules: crate::js::TargetRules::ALL,
                     families: crate::js::OutputFamilies {
                         int32_hints: hints,
                         ..crate::js::OutputFamilies::NONE
@@ -326,4 +331,122 @@ fn int32_hints_restore_the_previous_normalizations() {
             "{plain}\n{hinted}"
         );
     });
+}
+
+#[test]
+fn pooling_and_packing_are_independent_and_preserve_fresh_arrays() {
+    let source = r#"
+        extern void observe(string value);
+        export string[] make() {
+            observe("a long repeated string");
+            observe("a long repeated string");
+            observe("a long repeated string");
+            return ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh"];
+        }
+    "#;
+    let resolved = policy("assume_pristine_builtins=true");
+    with_candidate(source, &resolved, |compiler, candidate| {
+        for string_pooling in [false, true] {
+            for string_array_packing in [false, true] {
+                let output = OutputTactics {
+                    families: crate::js::OutputFamilies {
+                        string_pooling,
+                        string_array_packing,
+                        ..crate::js::OutputFamilies::NONE
+                    },
+                    ..OutputTactics::from_policy(&resolved)
+                };
+                let javascript = emit(compiler, candidate, &resolved, output);
+                assert_eq!(
+                    javascript.contains(".split("),
+                    string_array_packing,
+                    "{javascript}"
+                );
+                assert_eq!(
+                    javascript.matches("a long repeated string").count(),
+                    if string_pooling { 1 } else { 3 },
+                    "{javascript}"
+                );
+                assert_eq!(execute(&javascript,
+                    "let calls=0;globalThis.observe=x=>{if(x!=='a long repeated string')throw Error(x);calls++};",
+                    "const a=library.make(),b=library.make();a[0]='changed';events.push(calls,b,a!==b);"),
+                    serde_json::json!([6,["aa","bb","cc","dd","ee","ff","gg","hh"],true]));
+            }
+        }
+    });
+}
+
+#[test]
+fn explicit_output_families_and_rules_cannot_bypass_vetoes() {
+    let resolved = enabled();
+    with_candidate(SOURCE, &resolved, |compiler, candidate| {
+        for tactic in [
+            TacticId::StringPooling,
+            TacticId::StringArrayPacking,
+            TacticId::Inlining,
+            TacticId::ConstantFolding,
+            TacticId::ScalarReplacement,
+        ] {
+            let off = policy(&format!("[policy.tactics]\n{}='off'", tactic.spec().name));
+            let mut forbidden = OutputTactics::from_policy(&off);
+            match tactic {
+                TacticId::StringPooling => forbidden.families.string_pooling = true,
+                TacticId::StringArrayPacking => forbidden.families.string_array_packing = true,
+                TacticId::Inlining => forbidden.rules.inlining = true,
+                TacticId::ConstantFolding => forbidden.rules.constant_folding = true,
+                TacticId::ScalarReplacement => forbidden.rules.scalar_replacement = true,
+                _ => unreachable!(),
+            }
+            let before = compiler.ledger().retained_bytes();
+            let denied = compiler.with_javascript_output_choices_in(
+                candidate,
+                &off,
+                forbidden,
+                WorkDomain::Optional,
+                |_| panic!("forbidden output reached formation"),
+            );
+            assert!(
+                matches!(denied, Err(CandidateError::ForbiddenTactic(found)) if found == tactic),
+                "{tactic:?}: {denied:?}"
+            );
+            assert_eq!(compiler.ledger().retained_bytes(), before);
+        }
+    });
+}
+
+#[test]
+fn fixed_target_rules_respect_folding_and_inlining_switches() {
+    for (tactic, source, observation) in [
+        (
+            "constant-folding",
+            "export int go(){return 2+3;}",
+            "events.push(library.go());",
+        ),
+        (
+            "inlining",
+            "int add(int x){return x+1;}export int go(int x){return add(x);}",
+            "events.push(library.go(4));",
+        ),
+    ] {
+        let enabled = policy(&format!("[policy.tactics]\n{tactic}='on'"));
+        let disabled = policy(&format!("[policy.tactics]\n{tactic}='off'"));
+        with_candidate(source, &enabled, |compiler, candidate| {
+            let on = emit(
+                compiler,
+                candidate,
+                &enabled,
+                OutputTactics::from_policy(&enabled),
+            );
+            let off = emit(
+                compiler,
+                candidate,
+                &disabled,
+                OutputTactics::from_policy(&disabled),
+            );
+            assert_ne!(on, off, "{tactic} changed no target work: {on}");
+            for javascript in [&on, &off] {
+                assert_eq!(execute(javascript, "", observation), serde_json::json!([5]));
+            }
+        });
+    }
 }

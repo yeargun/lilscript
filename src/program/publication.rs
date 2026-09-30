@@ -929,6 +929,7 @@ pub(super) struct Formations<'scope, 'src> {
     language: &'scope crate::compilation_contract::JavaScriptCompilationContract,
     dead_code_elimination: bool,
     target_compaction: bool,
+    rules: crate::js::TargetRules,
     ledger: &'scope mut BudgetLedger,
     artifacts: &'scope mut ArtifactArena,
     store: RevisionId,
@@ -952,6 +953,7 @@ impl Formations<'_, '_> {
                 self.language,
                 self.demand,
                 self.target_compaction,
+                self.rules,
                 hints,
                 self.hosts,
                 &mut budget,
@@ -1005,6 +1007,7 @@ impl Formations<'_, '_> {
             })?;
         if choices.dead_code_elimination != self.dead_code_elimination
             || choices.target_compaction != self.target_compaction
+            || choices.rules != self.rules
         {
             return Err(CandidateError::Artifact(
                 "a formation's head belongs to other dead-code or compaction choices",
@@ -2304,6 +2307,7 @@ impl<'src> Compilation<'src> {
             target.language(),
             demand,
             choices.target_compaction,
+            choices.rules,
             choices.families,
             &choices.choices,
             self.host_modules.as_ref().map(|(delivery, _)| delivery),
@@ -2346,6 +2350,7 @@ impl<'src> Compilation<'src> {
         policy: &ResolvedPolicy,
         dead_code_elimination: bool,
         compact: bool,
+        rules: crate::js::TargetRules,
         int32_hints: bool,
         domain: WorkDomain,
         drive: impl FnOnce(&mut Formations<'_, 'src>) -> R,
@@ -2409,6 +2414,7 @@ impl<'src> Compilation<'src> {
             target.language(),
             &demand,
             compact,
+            rules,
             int32_hints,
             hosts,
             &mut budget,
@@ -2453,6 +2459,7 @@ impl<'src> Compilation<'src> {
             language: target.language(),
             dead_code_elimination,
             target_compaction: compact,
+            rules,
             ledger: &mut *ledger,
             artifacts,
             store: *store,

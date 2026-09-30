@@ -20,6 +20,45 @@
 //! tree edits and writes the print decisions onto the module, so the printer
 //! only renders what the tree says (never thread-local policy, live-16).
 use super::selection::Objective;
+use crate::compilation_policy::{ResolvedPolicy, TacticId};
+
+/// Optional semantic work performed on the target tree. This assignment is
+/// part of a formed head's identity and of its artifacts' permission evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TargetRules {
+    pub constant_folding: bool,
+    pub inlining: bool,
+    pub scalar_replacement: bool,
+}
+
+impl TargetRules {
+    pub const ALL: Self = Self {
+        constant_folding: true,
+        inlining: true,
+        scalar_replacement: true,
+    };
+    pub const NONE: Self = Self {
+        constant_folding: false,
+        inlining: false,
+        scalar_replacement: false,
+    };
+
+    pub fn from_policy(policy: &ResolvedPolicy) -> Self {
+        Self {
+            constant_folding: policy.tactic(TacticId::ConstantFolding).enabled,
+            inlining: policy.tactic(TacticId::Inlining).enabled,
+            scalar_replacement: policy.tactic(TacticId::ScalarReplacement).enabled,
+        }
+    }
+
+    pub fn tactics(self) -> [(bool, TacticId); 3] {
+        [
+            (self.constant_folding, TacticId::ConstantFolding),
+            (self.inlining, TacticId::Inlining),
+            (self.scalar_replacement, TacticId::ScalarReplacement),
+        ]
+    }
+}
 
 /// Statement spellings a codec judges (M9.3). None of them removes an
 /// operation: each only re-spells the same evaluations, which a codec's
@@ -67,7 +106,8 @@ impl StatementSpellings {
 /// The output families of one artifact (M9.2). Each is a formation choice
 /// with a written legality: every rewrite it names is exact under the
 /// target's rules, so any assignment is a correct program; only its size
-/// depends on the codec. Target compaction's permission governs all of them.
+/// depends on the codec. Target compaction governs all of them; semantic
+/// families additionally require their own tactic's permission.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OutputFamilies {
     /// A function called once becomes a block at its call, its parameters
@@ -78,9 +118,10 @@ pub struct OutputFamilies {
     pub flat_blocks: bool,
     /// The statement spellings.
     pub statements: StatementSpellings,
-    /// String arrays packed as one split string, then repeated strings and
-    /// numbers read through one binding (Closure's AliasStrings).
+    /// Repeated strings and numbers read through one binding (AliasStrings).
     pub string_pooling: bool,
+    /// String arrays packed as one split string under pristine builtins.
+    pub string_array_packing: bool,
     /// Root constants holding a string read as their literal wherever they
     /// are initialized, rather than through their name (M7.4: a longer
     /// value's forwarding is a choice, and numbers, booleans, `null` and
@@ -122,6 +163,7 @@ impl OutputFamilies {
         flat_blocks: false,
         statements: StatementSpellings::NONE,
         string_pooling: false,
+        string_array_packing: false,
         string_constants: false,
         loop_heads: false,
         logical_statements: false,
@@ -143,6 +185,7 @@ impl OutputFamilies {
                 flat_blocks: true,
                 statements: StatementSpellings::ALL,
                 string_pooling: true,
+                string_array_packing: true,
                 string_constants: true,
                 loop_heads: true,
                 logical_statements: true,
@@ -155,6 +198,30 @@ impl OutputFamilies {
                 ..Self::NONE
             },
         }
+    }
+
+    /// Semantic permissions required by this assignment. Keep generation,
+    /// admission and retained provenance on the same registry.
+    pub fn tactics(self) -> [(bool, TacticId); 4] {
+        [
+            (self.block_inlining, TacticId::Inlining),
+            (self.string_constants, TacticId::ConstantFolding),
+            (self.string_pooling, TacticId::StringPooling),
+            (self.string_array_packing, TacticId::StringArrayPacking),
+        ]
+    }
+
+    /// Seeds are defaults, so disabled families take their canonical form.
+    /// Explicit assignments are checked rather than silently projected.
+    pub fn permitted(mut self, policy: &ResolvedPolicy) -> Self {
+        if !policy.tactic(TacticId::TargetCompaction).enabled {
+            return Self::NONE;
+        }
+        self.block_inlining &= policy.tactic(TacticId::Inlining).enabled;
+        self.string_constants &= policy.tactic(TacticId::ConstantFolding).enabled;
+        self.string_pooling &= policy.tactic(TacticId::StringPooling).enabled;
+        self.string_array_packing &= policy.tactic(TacticId::StringArrayPacking).enabled;
+        self
     }
 }
 
@@ -225,6 +292,8 @@ pub enum Challenger {
     BlockInlining,
     FlatBlocks,
     StringPooling,
+    StringArrayPacking,
+    PoolingAndPacking,
     ConditionalReturns,
     LogicalBranches,
     Int32Hints,
@@ -233,7 +302,7 @@ pub enum Challenger {
 
 impl Challenger {
     /// The declared schedule.
-    pub const ORDER: [Self; 17] = [
+    pub const ORDER: [Self; 19] = [
         Self::Int32Hints,
         Self::StringConstants,
         Self::ConditionalValues,
@@ -249,8 +318,10 @@ impl Challenger {
         Self::OtherSeed,
         Self::FlatBlocks,
         Self::LoopHeads,
-        Self::StringPooling,
+        Self::PoolingAndPacking,
         Self::LogicalBranches,
+        Self::StringPooling,
+        Self::StringArrayPacking,
     ];
 
     pub fn name(self) -> &'static str {
@@ -268,6 +339,8 @@ impl Challenger {
             Self::BlockInlining => "block-inlining",
             Self::FlatBlocks => "flat-blocks",
             Self::StringPooling => "string-pooling",
+            Self::StringArrayPacking => "string-array-packing",
+            Self::PoolingAndPacking => "pooling-and-packing",
             Self::ConditionalReturns => "conditional-returns",
             Self::LogicalBranches => "logical-branches",
             Self::Int32Hints => "int32-hints",
@@ -314,6 +387,11 @@ impl Challenger {
             Self::BlockInlining => families.block_inlining ^= true,
             Self::FlatBlocks => families.flat_blocks ^= true,
             Self::StringPooling => families.string_pooling ^= true,
+            Self::StringArrayPacking => families.string_array_packing ^= true,
+            Self::PoolingAndPacking => {
+                families.string_pooling ^= true;
+                families.string_array_packing ^= true;
+            }
             Self::StringConstants => families.string_constants ^= true,
         }
         next

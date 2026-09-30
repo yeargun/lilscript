@@ -28,3 +28,15 @@ An isolated JavaScript compression check also refuted the raw-bound implication:
 ## Recording subsequent batches
 
 Before implementation, record task IDs, numbered changes, predicted size/work/runtime effects and verification scope. After verification, append pinned identities, actual results, explanations of surprises, replacements deleted and open work with owners. Keep full reports in the established evidence locations; link them here instead of copying their output. A documentation revision does not satisfy an implementation gate.
+
+## 2026-09-30: C1 controls, first implementation batch (in progress)
+
+**Authorization and baseline.** The owner requested complete implementation of the revised plan. Planning and archival work is checkpointed at `f4c181e5`; compiler behavior starts at Y5 (`8b3d5cc5`). This batch begins C1; it does not complete the other work packages.
+
+**Pre-registration.**
+
+1. Separate terminal string pooling and string-array packing, declare their permissions with the output families, and carry those permissions through artifact provenance and replay. Project initial seeds onto permitted families; reject explicitly forbidden assignments. Preserve the old combined alternative as a joint move where both permissions allow it.
+2. Audit and route the remaining optional JavaScript rules through their owning tactic, including head formation, tail formation and reused heads. A hard veto must cover output lowering as well as the semantic optimizer.
+3. Cover direct output, searched output and cached admission with focused configuration and behavior oracles. Update the public configuration reference to match the enforced behavior.
+
+**Prediction.** With unchanged permissions, the rule schedule and prior combined pooling alternative remain available. Independent pooling/packing alternatives may improve bytes and add bounded trials. Explicit vetoes may grow output and should reduce corresponding work. No intended runtime change for unchanged choices; string splitting's existing runtime classification needs its own audit and is not proved neutral by this permission fix. Verification: formatting, compiler unit tests for formation/search/provenance and independent Node behavior checks, followed by the relevant configuration/case and objective ratchet lanes. Only one heavy job runs at a time. Record actual results before accepting the batch.

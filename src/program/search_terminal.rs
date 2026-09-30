@@ -303,6 +303,10 @@ fn spelling_names(spelling: Spelling) -> Vec<&'static str> {
         (families.flat_blocks, Challenger::FlatBlocks),
         (families.string_pooling, Challenger::StringPooling),
         (
+            families.string_array_packing,
+            Challenger::StringArrayPacking,
+        ),
+        (
             statements.conditional_returns,
             Challenger::ConditionalReturns,
         ),
@@ -1037,7 +1041,10 @@ impl Walker<'_, '_, '_> {
                 continue;
             }
             self.report.examined += 1;
-            let next = challenger.apply(self.codec, incumbent.spelling);
+            let mut next = challenger.apply(self.codec, incumbent.spelling);
+            if challenger == Challenger::OtherSeed && self.output.target_compaction {
+                next.families = next.families.permitted(self.judge.policy);
+            }
             if seen.contains(&next.effective()) {
                 self.report
                     .trials
@@ -1671,6 +1678,7 @@ impl JavaScriptSearch<'_, '_> {
             policy,
             output.dead_code_elimination,
             output.target_compaction,
+            output.rules,
             output.families.int32_hints,
             WorkDomain::Optional,
             |formations| -> Result<(), SearchError> {

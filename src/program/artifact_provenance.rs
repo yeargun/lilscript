@@ -25,6 +25,7 @@ use std::mem::size_of;
 pub struct OutputTactics {
     pub dead_code_elimination: bool,
     pub target_compaction: bool,
+    pub rules: crate::js::TargetRules,
     pub literals: LiteralOutput,
     /// The output families formation applied (M9.2). The objective supplies
     /// only their seed; the terminal stage keeps another assignment when the
@@ -43,6 +44,7 @@ impl OutputTactics {
         Self {
             dead_code_elimination,
             target_compaction,
+            rules: crate::js::TargetRules::from_policy(policy),
             literals: if dead_code_elimination && target_compaction {
                 LiteralOutput::Observed
             } else {
@@ -50,7 +52,7 @@ impl OutputTactics {
             },
             families: match policy.objective() {
                 Some(objective) if target_compaction => {
-                    crate::js::OutputFamilies::seed(objective.codec)
+                    crate::js::OutputFamilies::seed(objective.codec).permitted(policy)
                 }
                 _ => crate::js::OutputFamilies::NONE,
             },
@@ -70,7 +72,14 @@ impl OutputTactics {
         for (selected, tactic) in [
             (self.dead_code_elimination, TacticId::DeadCodeElimination),
             (self.target_compaction, TacticId::TargetCompaction),
-        ] {
+        ]
+        .into_iter()
+        .chain(self.families.tactics())
+        .chain(
+            self.rules
+                .tactics()
+                .map(|(on, tactic)| (on && self.target_compaction, tactic)),
+        ) {
             if selected && !policy.tactic(tactic).enabled {
                 return Err(AdmissionError::ForbiddenTactic(tactic));
             }
@@ -164,7 +173,15 @@ impl ArtifactProvenance {
         for (selected, tactic) in [
             (output.dead_code_elimination, TacticId::DeadCodeElimination),
             (output.target_compaction, TacticId::TargetCompaction),
-        ] {
+        ]
+        .into_iter()
+        .chain(output.families.tactics())
+        .chain(
+            output
+                .rules
+                .tactics()
+                .map(|(on, tactic)| (on && output.target_compaction, tactic)),
+        ) {
             phase.work(WorkKind::Analysis, 1)?;
             if selected {
                 merge_risk(&mut risks[tactic as usize], RuntimeRisk::Neutral);
@@ -346,6 +363,7 @@ mod tests {
         literals: LiteralOutput::Original,
         dead_code_elimination: false,
         target_compaction: false,
+        rules: crate::js::TargetRules::NONE,
         families: crate::js::OutputFamilies::NONE,
         choices: crate::js::ChoiceMap::SEEDS,
     };
@@ -668,6 +686,46 @@ mod tests {
         for value in [scalar, direct, optimized] {
             value.discard(owner, &mut ledger).unwrap();
         }
+    }
+
+    #[test]
+    fn retained_target_rule_permissions_survive_score_reuse() {
+        let resolved = enabled();
+        let owner = RevisionId::fresh();
+        let mut ledger = ledger(WORK, MEMORY);
+        let evidence = build(
+            owner,
+            &mut ledger,
+            WorkDomain::Optional,
+            &resolved,
+            &Plan::new(Style::Global),
+            &[],
+            OutputTactics {
+                families: crate::js::OutputFamilies::seed(crate::js::selection::Objective::Raw),
+                ..OutputTactics::from_policy(&resolved)
+            },
+        );
+        for tactic in [
+            TacticId::StringPooling,
+            TacticId::StringArrayPacking,
+            TacticId::Inlining,
+            TacticId::ConstantFolding,
+            TacticId::ScalarReplacement,
+        ] {
+            assert_eq!(
+                evidence
+                    .tactics()
+                    .iter()
+                    .filter(|usage| usage.tactic == tactic)
+                    .count(),
+                1
+            );
+            let off = policy(&format!("[policy.tactics]\n{}='off'", tactic.spec().name));
+            assert!(matches!(admit(&evidence, &off, &mut ledger),
+                Err(ProvenanceError::Admission(AdmissionError::ForbiddenTactic(found))) if found == tactic));
+        }
+        evidence.discard(owner, &mut ledger).unwrap();
+        assert_eq!(ledger.retained_bytes(), 0);
     }
 
     #[test]

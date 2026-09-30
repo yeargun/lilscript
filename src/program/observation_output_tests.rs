@@ -426,6 +426,7 @@ fn literal_output_refusals_preserve_prior_artifacts_and_never_return_false_avail
                 .unwrap();
             let off = OutputTactics {
                 target_compaction: false,
+                rules: crate::js::TargetRules::NONE,
                 literals: LiteralOutput::Original,
                 families: crate::js::OutputFamilies::NONE,
                 choices: crate::js::ChoiceMap::SEEDS,

@@ -66,6 +66,50 @@ pub(crate) enum Rule {
 }
 
 impl Rule {
+    /// The owning permission for every scheduled rule. Target-only spelling
+    /// and normalization rules use the umbrella permission; semantic work
+    /// additionally uses its independent switch, just as it does in the IR.
+    fn permitted(self, context: &Context<'_>) -> bool {
+        match self {
+            Self::InlineExpressionFunctions
+            | Self::InlineStatementFunctions
+            | Self::InlineSingleCalls
+            | Self::PlaceSingleCalls
+            | Self::InlineInitializers => context.rules.inlining,
+            Self::FlattenConstantObjects
+            | Self::ScalarizeMemberObjects
+            | Self::FoldObjectStores
+            | Self::DropRedundantInitStores => context.rules.scalar_replacement,
+            Self::FoldLiteralOperations
+            | Self::ForwardRootConstants
+            | Self::ForwardRootStrings
+            | Self::EliminateAliases
+            | Self::ForwardSingleUses
+            | Self::SimplifyOperators
+            | Self::DropTypedDefaultChecks
+            | Self::DropDefaultArguments
+            | Self::NativeDefaultLengths => context.rules.constant_folding,
+            Self::DropUnreferencedFunctions | Self::DropUnreachable => context.prunes,
+            Self::SelfMethodCalls
+            | Self::ElideUndefined
+            | Self::MergeDeclarations
+            | Self::FoldLogicalAssignments
+            | Self::FoldLogicalReturns
+            | Self::UnobserveCalledNames
+            | Self::DropDoubleNegations
+            | Self::FlattenBlocks
+            | Self::CompressStatements
+            | Self::GroupPrototypeStores
+            | Self::JoinEmptyDeclarations
+            | Self::DropBareBlocks
+            | Self::TruthyNullTests
+            | Self::ArrayReceiverCalls
+            | Self::EncodeTables
+            | Self::PackStringArrays
+            | Self::PoolStrings => true,
+        }
+    }
+
     /// For a transitional rule, the plan task whose landing deletes it
     /// (architecture §8.2's table); `None` for a classified rule, whose
     /// legality is the tree's own syntax or its annotations.
@@ -115,6 +159,7 @@ impl Rule {
 /// What a build permits the rules and what its artifact chose.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Context<'a> {
+    pub(crate) rules: TargetRules,
     /// Host reflection over the program's frames is outside the contract
     /// (strict code, or an application's world, Y5): a function's frame may
     /// be elided or moved.
@@ -235,7 +280,14 @@ pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
 
 /// Repeated strings last, once no other rule reads a literal: packed arrays,
 /// then root constants.
-pub(crate) const POOLING: &[Rule] = &[Rule::PackStringArrays, Rule::PoolStrings];
+pub(crate) fn pooling(families: &OutputFamilies) -> impl Iterator<Item = Rule> {
+    [
+        (families.string_array_packing, Rule::PackStringArrays),
+        (families.string_pooling, Rule::PoolStrings),
+    ]
+    .into_iter()
+    .filter_map(|(selected, rule)| selected.then_some(rule))
+}
 
 /// Why a rule set stopped without its fixed point.
 #[derive(Debug)]
@@ -287,6 +339,9 @@ impl Module {
         context: &Context<'_>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<bool, RuleError> {
+        if !rule.permitted(context) {
+            return Ok(false);
+        }
         #[cfg(any(test, debug_assertions))]
         let before = (self.clone(), self.measure());
         self.open_journal();
@@ -354,6 +409,7 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
         let Context {
+            rules: _,
             frames_hidden,
             strict,
             pristine,

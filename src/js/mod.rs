@@ -27,7 +27,7 @@ pub use choices::{AltId, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite, SiteId}
 mod declarations;
 pub(crate) mod delivery;
 mod families;
-pub use families::{Challenger, OutputFamilies, Spelling, StatementSpellings};
+pub use families::{Challenger, OutputFamilies, Spelling, StatementSpellings, TargetRules};
 pub mod extract;
 mod literal_output;
 pub mod manifest;

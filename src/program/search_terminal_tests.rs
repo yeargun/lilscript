@@ -80,8 +80,17 @@ struct Run {
 }
 
 fn search(policy: &ResolvedPolicy, objectives: Objectives, challenge: bool) -> Run {
+    search_source(PROGRAM, policy, objectives, challenge)
+}
+
+fn search_source(
+    text: &str,
+    policy: &ResolvedPolicy,
+    objectives: Objectives,
+    challenge: bool,
+) -> Run {
     let arena = bumpalo::Bump::new();
-    let syntax = crate::parse_source(&arena, PROGRAM).unwrap();
+    let syntax = crate::parse_source(&arena, text).unwrap();
     let semantics = crate::analyze(&syntax).unwrap();
     let program = from_checked_source(&syntax, &semantics).unwrap();
     let ledger = BudgetLedger::new_baseline_first(
@@ -136,6 +145,35 @@ fn search(policy: &ResolvedPolicy, objectives: Objectives, challenge: bool) -> R
         baseline,
         winners: run.0,
         report: run.1,
+    }
+}
+
+#[test]
+fn terminal_family_vetoes_hold_under_each_objective() {
+    let source = r#"export string[] make() { return ["aa","bb","cc","dd","ee","ff","gg","hh"]; }"#;
+    for codec in ["raw", "gzip", "brotli"] {
+        let config: crate::config::ProjectConfig = toml::from_str(&format!(
+            "objective.codecs='{codec}'\neffort.level=15\n[javascript]\nassume_pristine_builtins=true\n[policy.tactics]\nstring-pooling='off'\nstring-array-packing='off'\ninlining='off'\nconstant-folding='off'\nscalar-replacement='off'"
+        )).unwrap();
+        let resolved = config
+            .resolve_policy(CompilationRequest::JavaScript {
+                preserve_root_exports: true,
+            })
+            .unwrap();
+        let objective = resolved.objective().unwrap().codec;
+        let run = search_source(source, &resolved, Objectives::One(objective), true);
+        let stage = &run.report.objectives[0];
+        assert!(
+            stage
+                .trials
+                .iter()
+                .any(|trial| trial.challenger == "pooling-and-packing"
+                    && trial.outcome == ChallengerOutcome::Vetoed),
+            "{codec}: {stage:?}"
+        );
+        for (_, javascript) in run.winners.into_iter().flatten() {
+            assert!(!javascript.contains(".split("), "{codec}: {javascript}");
+        }
     }
 }
 
@@ -318,6 +356,7 @@ fn a_terminal_formation_of_the_winners_own_assignment_is_the_winner() {
                     &policy,
                     output.dead_code_elimination,
                     output.target_compaction,
+                    output.rules,
                     output.families.int32_hints,
                     WorkDomain::Optional,
                     |formations| {

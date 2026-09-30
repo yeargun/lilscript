@@ -365,6 +365,7 @@ pub(super) fn lower_admitted(
         contract,
         mode,
         compact,
+        js::TargetRules::ALL,
         // The canonical families: what a codec objective seeds.
         js::OutputFamilies::seed(js::selection::Objective::Brotli),
         &js::ChoiceMap::SEEDS,
@@ -382,6 +383,7 @@ pub(super) fn lower_output_admitted(
     contract: &JavaScriptCompilationContract,
     mode: DemandMode,
     compact: bool,
+    rules: js::TargetRules,
     families: js::OutputFamilies,
     choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
@@ -404,6 +406,7 @@ pub(super) fn lower_output_admitted(
         contract,
         &demand,
         compact,
+        rules,
         families,
         choices,
         hosts,
@@ -449,6 +452,7 @@ fn form(
         contract,
         &demand,
         false,
+        js::TargetRules::NONE,
         js::OutputFamilies::NONE,
         &js::ChoiceMap::SEEDS,
         None,
@@ -473,6 +477,7 @@ fn form_with_demand(
     contract: &JavaScriptCompilationContract,
     demand: &DemandPlan<'_, '_>,
     compact: bool,
+    rules: js::TargetRules,
     families: js::OutputFamilies,
     choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
@@ -485,6 +490,7 @@ fn form_with_demand(
         contract,
         demand,
         compact,
+        rules,
         families.int32_hints,
         hosts,
         budget,
@@ -509,6 +515,7 @@ pub(super) struct FormedHead {
 
 #[derive(Clone, Copy)]
 struct TailContext {
+    rules: js::TargetRules,
     frames_hidden: bool,
     strict: bool,
     pristine: bool,
@@ -545,6 +552,7 @@ pub(super) fn form_head_admitted(
     contract: &JavaScriptCompilationContract,
     demand: &DemandPlan<'_, '_>,
     compact: bool,
+    rules: js::TargetRules,
     int32_hints: bool,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
@@ -556,6 +564,7 @@ pub(super) fn form_head_admitted(
         contract,
         demand,
         compact,
+        rules,
         int32_hints,
         hosts,
         budget,
@@ -580,6 +589,7 @@ fn form_head(
     contract: &JavaScriptCompilationContract,
     demand: &DemandPlan<'_, '_>,
     compact: bool,
+    rules: js::TargetRules,
     int32_hints: bool,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
@@ -888,6 +898,7 @@ fn form_head(
         let frames_hidden = formation.contract.frames_hidden();
         // The family-independent rules, to their fixed point (M5.3a).
         let context = js::rules::Context {
+            rules,
             frames_hidden,
             strict,
             pristine,
@@ -905,6 +916,7 @@ fn form_head(
             return Err(error.into());
         }
         tail = Some(TailContext {
+            rules,
             frames_hidden,
             strict,
             pristine,
@@ -961,6 +973,7 @@ fn form_tail(
         mut module, tail, ..
     } = head;
     let Some(TailContext {
+        rules,
         frames_hidden,
         strict,
         pristine,
@@ -984,6 +997,7 @@ fn form_tail(
     // their fixed point, then repeated strings, once no other rule reads a
     // literal (M5.3a).
     let context = js::rules::Context {
+        rules,
         frames_hidden,
         strict,
         pristine,
@@ -998,8 +1012,9 @@ fn form_tail(
     let result = module
         .run_rules(&js::rules::tail(&families, prunes), &context, budget)
         .and_then(|_| {
-            if families.string_pooling {
-                module.run_rules(js::rules::POOLING, &context, budget)
+            if families.string_pooling || families.string_array_packing {
+                let rules: Vec<_> = js::rules::pooling(&families).collect();
+                module.run_rules(&rules, &context, budget)
             } else {
                 Ok(0)
             }
