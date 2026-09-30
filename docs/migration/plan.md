@@ -79,6 +79,10 @@ One registry supplies family identity, availability, prerequisites, legality, ri
 
 Configuration precedence must be documented and tested from file discovery through explicit configuration and CLI overrides. Contradictory aliases fail instead of depending on load order. Fingerprint every byte-affecting setting, semantic assumption and schedule/codec version. Receipts distinguish a disabled family, an inapplicable family, a rejected candidate and a budget that never reached the candidate.
 
+Every optimization control follows the [configuration documentation guideline](../configuration.md#guideline-for-optimization-controls): describe its purpose and useful situation, accepted values/default, effort gate, availability and prerequisites, size/compilation/runtime tradeoffs, veto/override behavior and versioned evidence. Keep semantic assumptions distinct from cost controls. Do not introduce an unexplained switch or imply that permitting an alternative forces a win.
+
+**Effort defaults:** retain 13 as the size-focused default. Useful exploration with substantial cost and consistently tiny measured returns belongs at 14 or 15 by default, with explicit opt-in/out where appropriate. Apply that decision per measured strategy; do not remove useful exploration merely because it is expensive or infer a global bytes-per-second threshold from one workload. The deferred naming tail now follows this rule at 14, with an explicit level-13 opt-in.
+
 **Compatibility:** level 16 currently grants startup risk. C1 must document and migrate that exception to explicit permissions before claiming effort is independent; do not reinterpret old configurations silently. Retain useful existing settings, translate retired aliases with diagnostics, and change schemas with a tested migration. Per-library optimizer thresholds and strategy scripts are not the default configuration surface: general heuristics belong in calibrated, versioned compiler policy.
 
 ## 4. Proofs, defaults and choices

@@ -17,8 +17,17 @@ print(total);
 "#;
 
 fn compile(codec: &str, level: u8, deferred: bool, extra: &str) -> ServiceCompilation {
+    compile_mode(codec, level, &deferred.to_string(), extra)
+}
+
+fn compile_mode(codec: &str, level: u8, deferred: &str, extra: &str) -> ServiceCompilation {
+    let deferred = if deferred.is_empty() {
+        String::new()
+    } else {
+        format!("deferred_naming_starts={deferred}\n")
+    };
     let config: crate::config::ProjectConfig = toml::from_str(&format!(
-        "objective.codecs='{codec}'\neffort.level={level}\n[target.javascript]\nformat='bare'\n[policy.search]\ndeferred_naming_starts={deferred}\n{extra}"
+        "objective.codecs='{codec}'\neffort.level={level}\n[target.javascript]\nformat='bare'\n[policy.search]\n{deferred}{extra}"
     ))
     .unwrap();
     compile_source(
@@ -30,6 +39,32 @@ fn compile(codec: &str, level: u8, deferred: bool, extra: &str) -> ServiceCompil
         },
     )
     .unwrap()
+}
+
+#[test]
+fn deferred_naming_default_changes_at_fourteen_without_spending_work_at_thirteen() {
+    for level in [13, 14, 15] {
+        let default = compile_mode("gzip", level, "", "");
+        let explicit = compile("gzip", level, level >= 14, "");
+        verify(&default, Objective::Gzip);
+        assert_eq!(
+            default.javascript(Objective::Gzip).unwrap().javascript(),
+            explicit.javascript(Objective::Gzip).unwrap().javascript()
+        );
+        assert_eq!(default.report()["search"], explicit.report()["search"]);
+        assert_eq!(
+            default.report()["resources"],
+            explicit.report()["resources"]
+        );
+        assert_eq!(
+            stage(&default)["starts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(deferred),
+            level >= 14
+        );
+    }
 }
 
 fn stage(compiled: &ServiceCompilation) -> &Value {
@@ -186,5 +221,96 @@ fn deferred_naming_exhaustion_keeps_the_completed_winner() {
     assert!(
         stopped,
         "fixture must exercise refusal of the additional tail"
+    );
+}
+
+#[test]
+fn deferred_naming_combines_private_fields_and_local_names_with_real_toml_vetoes() {
+    let source = include_str!("fixtures/private-fields.lil");
+    let mut exercised = false;
+    for (name, codec) in [
+        ("raw", Objective::Raw),
+        ("gzip", Objective::Gzip),
+        ("brotli", Objective::Brotli),
+    ] {
+        let compile = |starts, polish, extra| {
+            let config = toml::from_str(&format!(
+                "objective.codecs='{name}'\neffort.level=14\n[policy.search]\ndeferred_naming_starts={starts}\ndeferred_naming_polish={polish}\n[policy.tactics]\nscalar-replacement='off'\ninlining='off'\n{extra}"
+            ))
+            .unwrap();
+            compile_source(source, &config, ServiceOptions::default()).unwrap()
+        };
+        let protected = compile(false, false, "");
+        let ordinary = compile(true, false, "");
+        let combined = compile(true, true, "");
+        let vetoed = compile(true, true, "property-mangling='off'");
+        for result in [&protected, &ordinary, &combined, &vetoed] {
+            let javascript = result.javascript(codec).unwrap().javascript();
+            let output = std::process::Command::new("node")
+                .args([
+                    "--input-type=module",
+                    "-e",
+                    &format!("{javascript}\nconst f=make(3);console.log(f(1),f(2),f(-4));"),
+                ])
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{name}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(output.stdout, b"14 16 12\n");
+            assert_eq!(
+                result.report()["resources"]["retained_bytes_after_handoff"],
+                0
+            );
+        }
+        protected_prefix(stage(&protected), stage(&combined));
+        let refinement = |stage: &Value, family: &str| -> Vec<Value> {
+            let Some(start) = stage["starts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| deferred(s))
+            else {
+                return Vec::new();
+            };
+            let pass = start["pass"].as_u64().unwrap();
+            stage["joint_trials"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|trial| trial["name"] == family && trial["pass"].as_u64().unwrap() >= pass)
+                .cloned()
+                .collect()
+        };
+        for family in ["naming:local-read-order", "properties:private-fields"] {
+            assert!(refinement(stage(&ordinary), family).is_empty());
+            let trials = refinement(stage(&combined), family);
+            exercised |= !trials.is_empty();
+            if stage(&combined)["starts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(deferred)
+            {
+                assert!(!trials.is_empty(), "{name}/{family}");
+            }
+        }
+        assert!(stage(&vetoed)["joint_trials"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|trial| trial["name"] == "properties:private-fields")
+            .all(|trial| trial["outcome"] == "vetoed"));
+        assert!(vetoed
+            .javascript(codec)
+            .unwrap()
+            .javascript()
+            .contains("accumulatedValue"));
+    }
+    assert!(
+        exercised,
+        "fixture must reach a deferred naming/field combination"
     );
 }

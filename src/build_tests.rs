@@ -1202,9 +1202,10 @@ fn searched_private_properties_are_independent_and_preserve_each_objective_winne
             let report = compiled.report();
             let trials = report["search"]["terminal"]["objectives"][0]["joint_trials"].as_array().unwrap();
             let properties = trials.iter().filter(|t| t["name"] == "properties:private-fields").collect::<Vec<_>>();
-            assert_eq!(properties.len(), 1, "{report}");
+            // One protected final trial, plus any deferred combinations.
+            assert!(!properties.is_empty(), "{report}");
             if permission == "off" {
-                assert_eq!(properties[0]["outcome"], "vetoed");
+                assert!(properties.iter().all(|trial| trial["outcome"] == "vetoed"));
                 assert_eq!(artifact.details["output"]["property_mangling"], false);
             } else if codec == "raw" {
                 assert_eq!(properties[0]["outcome"], "kept");

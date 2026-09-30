@@ -11,7 +11,7 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 - **C1** enforces target-rule, pooling/packing and reconstruction permissions, records implemented producer stages and prerequisites, and diagnoses unavailable or conflicting settings. Its reconstruction correction has paired measurements and port qualification. Effective service ceilings and proxy-pruning/audit controls enter policy identity and have explicit CLI controls, with unchanged generic/port output qualified. **D1**'s private application IIFE and explicit bare output have separate size reports and pass the reference port suites.
 - C2 retains alternating compilation and runtime samples, explicit runtime oracles and input/artifact identities. Q2 reuses exact byte measurements and unchanged semantic views; stable-rule scheduling passes generic/port gates and paired CPU measurement. G1's alphabet and protected local-frequency trials are qualified. S4's typed record spread clears the last generic refusal: all 642 programs pass under each objective, with the reference port suites green.
 - G2’s first private-field family passes generic/port gates and paired compilation measurement, including reflection, explicit preserved keys and TOML vetoes. Q2’s indexed call lookup now removes repeated target-rule work with unchanged artifacts and useful search preserved; further formation reuse remains open.
-- Q3 revisits proxy-rejected naming starts after protecting the completed search and naming/property refinements. Generic and port gates pass; paired effort-13 costs are retained separately for all three objectives. The tail is configurable; repetition and coupled refinement remain open.
+- Q3 revisits proxy-rejected naming starts after protecting the completed search and naming/property refinements. Generic and port gates pass; paired effort-13 costs are retained separately for all three objectives. The measured marginal returns motivate an automatic level-14 gate with explicit opt-in at 13; gate and coupled-refinement qualification is in progress. Repeated work remains open.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
@@ -53,7 +53,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 ## Working rules
 
 - One heavy build, test or measurement job at a time. Verify coherent batches, roughly every 20 minutes of implementation or after a critical shared-path change.
-- Size comes first at the default effort and above. Judge batch totals separately by objective; explain small local heuristic regressions and the CPU cost of additional search.
+- Size comes first at default effort 13 and above; expensive strategies with small measured returns may default to 14 or 15 with explicit overrides. Document every control's situation, defaults/gates and size/compile/runtime tradeoffs. Judge batch totals separately by objective; explain small local heuristic regressions and additional search cost.
 - Every open defect has an owner in [coverage.md](coverage.md). Native completion remains owned separately from JavaScript qualification.
 - Keep `ref`, public constructibility and `pure` termination semantics explicit while their language decisions remain open. D1 now supplies Y5's approved application IIFE default.
 - On landing, update this checklist and add one evidence record to history. Do not copy batch measurements or old chronology into this file.

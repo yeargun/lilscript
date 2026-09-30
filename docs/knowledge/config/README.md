@@ -14,6 +14,12 @@ deleted compiler route warns "no effect in this compiler" and is removed, or
 refuses the build. Then strict reading: an unknown key or value is an error.
 `lilscript <input> --print-policy` prints the resolved policy.
 
+The [control documentation guideline](../../configuration.md#guideline-for-optimization-controls)
+requires useful situations, defaults/effort gates, availability, tradeoffs and
+override behavior. The [search guide](../../configuration.md#choosing-search-controls)
+and [tactic guide](../../configuration.md#choosing-tactic-permissions) apply it
+to the current optimization controls.
+
 ## Pages
 
 | Page | Keys |

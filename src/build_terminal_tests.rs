@@ -153,10 +153,24 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
         let mut incumbent = from;
         for pass in bounds.clone() {
             let trials = pass_trials(pass);
-            // A pass follows only one that kept a move.
+            // Ordinary passes follow a kept move. A deferred seed may also
+            // begin its separately scheduled final naming/field refinement
+            // after reaching the ordinary walk's fixed point.
             if pass + 1 < bounds.end {
+                let refinement = start["name"]
+                    .as_str()
+                    .is_some_and(|name| name.starts_with("deferred-naming:"))
+                    && in_pass("choice_trials", pass + 1).next().is_none()
+                    && in_pass("trials", pass + 1).next().is_none()
+                    && in_pass("joint_trials", pass + 1).next().is_some_and(|trial| {
+                        trial["name"] == "naming:local-read-order"
+                    })
+                    && in_pass("joint_trials", pass + 1).all(|trial| {
+                        trial["name"] == "naming:local-read-order"
+                            || trial["name"] == "properties:private-fields"
+                    });
                 assert!(
-                    trials.iter().any(|trial| outcome(trial) == "kept"),
+                    trials.iter().any(|trial| outcome(trial) == "kept") || refinement,
                     "pass {pass} kept nothing, yet the walk went on: {stage}"
                 );
             }

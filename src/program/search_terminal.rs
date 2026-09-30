@@ -1451,31 +1451,32 @@ impl Walker<'_, '_, '_> {
             audit: None,
         });
         let mut result = start;
-        let refine = if local_naming {
-            self.report.passes += 1;
-            self.joint_moves(&mut result, self.report.passes, JointPhase::LocalBindings)?
+        if local_naming {
+            self.polish(&mut result)?;
         } else {
-            true
-        };
-        if refine {
             self.passes(&mut result)?;
         }
-        if local_naming {
-            #[cfg(test)]
-            let properties = !SKIP_PROPERTY_POLISH.with(std::cell::Cell::get);
-            #[cfg(not(test))]
-            let properties = true;
-            if properties
-                && self.joint_moves(
-                    &mut result,
-                    self.report.passes,
-                    JointPhase::PrivateProperties,
-                )?
-            {
-                self.passes(&mut result)?;
-            }
-        }
         self.settle(slot, result)
+    }
+
+    /// The same final refinements serve the selected winner and a deferred
+    /// seed. Every kept choice is measured under this objective; permissions
+    /// and resource refusal are enforced by the ordinary joint-move owner.
+    fn polish(&mut self, result: &mut Incumbent) -> Result<(), SearchError> {
+        self.report.passes += 1;
+        if self.joint_moves(result, self.report.passes, JointPhase::LocalBindings)? {
+            self.passes(result)?;
+        }
+        #[cfg(test)]
+        let properties = !SKIP_PROPERTY_POLISH.with(std::cell::Cell::get);
+        #[cfg(not(test))]
+        let properties = true;
+        if properties
+            && self.joint_moves(result, self.report.passes, JointPhase::PrivateProperties)?
+        {
+            self.passes(result)?;
+        }
+        Ok(())
     }
 
     /// A restart (AM2): `origin` under another naming seed, walked in passes
@@ -1569,6 +1570,19 @@ impl Walker<'_, '_, '_> {
             ..origin.clone()
         };
         self.passes(&mut result)?;
+        if deferred
+            && self
+                .judge
+                .policy
+                .objective()
+                .expect("JavaScript objective")
+                .search
+                .deferred_naming_polish
+            && !self.stopped
+            && self.open()
+        {
+            self.polish(&mut result)?;
+        }
         self.settle(slot, result)?;
         Ok(false)
     }
@@ -1842,7 +1856,7 @@ impl JavaScriptSearch<'_, '_> {
                 &mut report,
             )?;
         }
-        if objective.search.deferred_naming_starts && walk.starts && !deferred.is_empty() {
+        if policy.deferred_naming_starts_enabled() && !deferred.is_empty() {
             self.walk_from(
                 policy,
                 objective,

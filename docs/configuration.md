@@ -89,7 +89,8 @@ version = 2
 [policy.search]
 codec_schedule = "staged"     # staged | immediate
 proxy_pruning = "on"          # on | audit | off; terminal proxy rejection
-deferred_naming_starts = true # revisit pruned naming starts at effort 13+
+deferred_naming_starts = "auto" # auto: effort 14+; on: 13+; off: never
+deferred_naming_polish = true # combine them with permitted naming/field refinements
 render_batch = 8
 diversity_interval = 4
 
@@ -131,6 +132,35 @@ organize_imports = true
 Per-library configuration is contract, objective, effort and permission
 (architecture law L12). The sections below follow that split.
 
+## Guideline for optimization controls
+
+Start with the objective and effort level, then change individual controls for
+a concrete reason. Level 13 remains the default size-focused build; levels 14
+and 15 permit increasingly expensive exploration for smaller possible wins.
+An effort level is a compiler work policy, separate from gzip's compression
+level or Brotli's quality setting. No level guarantees a global minimum.
+
+Every optimization control's documentation must state:
+
+1. What behavior it controls and a situation where that behavior is useful.
+2. Accepted values, the default, effort gates, target availability and
+   prerequisites; distinguish requested permission from actual application.
+3. The expected size, compilation time/memory and runtime/startup/allocation
+   tradeoffs. Say when there is no measured evidence or no guaranteed size win.
+4. What disabling it removes, how it interacts with related controls, and
+   whether an explicit setting overrides an automatic effort gate.
+5. Any semantic assumption or public-boundary change, separately from work
+   limits. Link representative measurements with their objective, effort and
+   compiler version; never present a workload result as a universal promise.
+
+Use `--print-policy` to check the resolved request and an explanation receipt to
+check what ran and what won. Compare complete outputs under the selected
+objective: a raw-byte saving can increase gzip or Brotli bytes. Preserve useful
+expensive options behind explicit settings or higher effort when measurements
+show small returns at substantial compilation cost. Raising effort never
+overrides a tactic veto; the diagnosed level-16 startup-risk compatibility
+exception is described below.
+
 ## Contract: what the output must preserve
 
 - `--target js` builds a closed script; `--target js-module` builds a library
@@ -171,8 +201,9 @@ Per-library configuration is contract, objective, effort and permission
   the list is omitted) is the assumption that a host value's `length` is an
   int32 Number.
 - `mangle.preserve_properties` names properties the port's callers read in code
-  the compiler never sees. Nothing renames properties yet, so every property is
-  preserved; typed property renaming (plan M9.6) reads this list.
+  the compiler never sees. Private-field mangling preserves these keys and
+  excludes them from new assignments; unproved or public shapes also keep
+  their declared keys.
 
 ## Objective and effort
 
@@ -201,7 +232,8 @@ is a diagnosed compatibility exception; other risk permissions are explicit. Arc
   and each objective walks several starts (the search's winner, the level-0
   artifact, the level-0 artifact under each other naming seed) in passes to
   their fixed points, keeping the smallest. Above 13 the structural search
-  widens with the level.
+  widens with the level. Levels 14–16 additionally revisit proxy-rejected
+  naming starts by default; level 13 requires an explicit opt-in for that tail.
 
 Each level passes through every lower level's result (the replay check,
 [testing.md](testing.md#the-effort-schedules-monotonicity-m35)).
@@ -240,15 +272,58 @@ under a hard limit. Exact audit codec probes appear in the reported count.
 A negative audit delta is a potential missed win; artifact admission still
 has to pass before that candidate could replace the incumbent.
 
-`deferred_naming_starts` (default `true`) permits a final pass over naming
-starts rejected by the ordinary proxy. At effort 13 and above, the compiler
-first completes the existing search and naming/property refinements. It then
+`deferred_naming_starts` defaults to `"auto"`: enabled at effort 14–16,
+disabled at the default effort 13 and below. `"on"` opts in at 13;
+`"off"` vetoes it at every level. Older explicit booleans remain aliases
+(`true` → `"on"`, `false` → `"off"`); omitting the key follows the new default.
+`--print-policy` records both the requested mode and its effective permission.
+No mode adds this tail below level 13 or overrides a naming-family veto.
+
+The tail revisits naming starts rejected by the ordinary proxy. The compiler
+first completes the existing search and naming/property refinements, then
 exactly measures each rejected naming start, refines it using ordinary move
 pruning and replaces the completed winner only on an exact improvement. This
-can find a smaller result through an initially larger spelling. Setting it to
-`false` vetoes the tail; lower effort levels and disabled naming tactics never
-run it. With `proxy_pruning = "off"`, no rejected starts remain to revisit.
-The extra work uses the same hard resource limits and appears in the receipts.
+can find a smaller result through an initially larger spelling. With
+`proxy_pruning = "off"`, no rejected starts remain to revisit.
+
+This is an expensive search option for builds where even small byte savings
+justify additional compilation. In the
+[first frozen port measurement](../benchmarks/migration-results/2026-09-30-q3-deferred-naming/README.md),
+the tail took 1.7–3.5× the compilation CPU and improved one of nine objective
+outputs; the generic corpus saved ten gzip bytes. Those results explain the
+level-14 default gate; they are measurements of that version and workload,
+not a forecast for every build. Level 13 retains the established naming and
+private-field refinements. Higher effort adds exploration, not a guaranteed win.
+
+`deferred_naming_polish` (default `true`) also tries the existing local naming
+and permitted private-field refinements on each admitted deferred start before
+settlement. `false` keeps its ordinary walk only; disabling the entire deferred
+tail also disables these combinations. Family vetoes still apply. The extra
+work uses the same hard resource limits and appears in the receipts.
+
+### Choosing search controls
+
+These controls spend compilation work; they do not grant runtime-risk
+permissions or weaken semantic proofs. A tight hard limit can prevent later
+trials, so compare the resulting bytes and resource receipt for your chosen
+objective. More candidates are useful only when their result justifies the cost.
+
+| `[policy.search]` key | Default and useful situation | Tradeoff and effect of disabling/changing it |
+|---|---|---|
+| `deferred_naming_starts` | `"auto"`; use levels 14–16 for expensive attempts at the last few bytes, or `"on"` to opt in at 13 | Can refine an initially larger naming seed into a winner. May multiply compile time with no size change. `"off"` removes only this tail; completed ordinary winners remain protected |
+| `deferred_naming_polish` | `true`; when the deferred tail runs, combine its names with local allocation and private fields | Extra formation, memory and scoring can reveal combinations the ordinary walk misses. `false` leaves the deferred ordinary walks. No work when the tail is disabled |
+| `proxy_pruning` | `"on"`; avoid costly exact judgments of unpromising moves | A proxy can miss useful starts or moves. `"audit"` spends extra exact probes to diagnose misses without selecting from them; `"off"` explores every reached nonidentical move within the same limits. Neither is exhaustive |
+| `codec_schedule` | `"staged"`; group rendered structural candidates for scoring | `"immediate"` scores each as it arrives. Cadence affects which candidates reach exact judgment before a limit; neither schedule is always smaller or faster |
+| `render_batch` | `8`; number of structural renders between staged scoring events | Larger batches defer feedback and can retain more artifacts; smaller batches bring feedback sooner. Positive integer, meaningful for staged scoring; it does not increase the hard budget |
+| `diversity_interval` | `4`; periodically serve an older pending cursor or artifact | Smaller values spend more opportunities away from the current priority leader; larger values favor that leader longer. Positive integer; useful for experimentation, with no universal size direction |
+
+`policy.resources.logical_work` bounds counted work, `retained_bytes` bounds
+accounted retained storage and `wall_time_ms` sets a cooperative deadline.
+Omitted TOML ceilings inherit the service ceilings described below. Lower limits
+can reduce compilation cost and exploration; higher limits permit more work but
+cannot force a better result. A wall deadline depends on machine load and is
+unsuitable for reproducible size comparisons. Retained storage accounting is
+not a measurement of whole-process peak RSS.
 
 `--proxy-pruning on|audit|off` overrides TOML. The deprecated
 `LILSCRIPT_WALK_AUDIT` adapter enables `audit` when present (including an empty
@@ -388,6 +463,40 @@ explicit `false` is `off`; a `[policy.tactics]` value that contradicts one is an
 error. Contradictions between explicit legacy aliases also fail, including
 `mangle` settings versus the compression allowlist and specialization/sharing
 settings versus their allowlists. File ordering does not choose a winner.
+
+### Choosing tactic permissions
+
+All entries below use `auto | on | off` in `[policy.tactics]`. Their initial
+permission is `auto`. “Preset” means enabled under the default
+`optimization.preset = "maximum"`, disabled under `"none"`; explicit settings
+still apply. A permission allows proved transformations or candidates, never
+forces their selection. Fast tiers visit fewer search choices; level 0 still
+runs permitted ordinary simplifications. Runtime effects need workload evidence
+even when source behavior is preserved.
+
+| Tactic | Automatic behavior and useful situation | Tradeoffs, prerequisites and veto |
+|---|---|---|
+| `dead-code-elimination` | Preset; remove unreachable or unused work when effects permit | Analysis costs compilation; less executed code can reduce runtime work. `off` removes the family's optional eliminations, while mandatory legality handling remains |
+| `constant-folding` | Preset; known values and small bounded pure calls expose constants and dead branches | Evaluation spends bounded compilation work and can replace runtime computation with literals. Larger literals can hurt compressed size; unsupported evaluation stays intact. `off` vetoes shared and target folding |
+| `inlining` | Preset; small calls or single-use bodies expose propagation and removal | Can remove call overhead but duplicate code and increase analysis, output or engine compilation costs. Identity, captures, effects and strictness must permit it. `off` vetoes the family's shared and target rewrites |
+| `scalar-replacement` | Preset, JavaScript; private objects with complete use and initialization proofs | Can remove allocations and field accesses, but adds variables and may increase output or formation work. Escapes and uncertain observations retain storage. `off` vetoes target scalarization and structural candidates |
+| `call-specialization` | Preset, JavaScript; repeated calls with useful known arguments | Additional bodies can unlock folding but cost compilation and code size. Structural search judges alternatives within its effort allowance. `off` removes specialization candidates |
+| `helper-sharing` | Unavailable; intended for repeated equivalent bodies | No current producer, including for explicit `on`; the policy diagnoses that request. Do not expect size or runtime effects today |
+| `target-compaction` | Enabled, JavaScript; compact target expressions and statements | Repeated target analysis can cost substantial compilation time. Its folding, inlining and scalarization also require their own permissions. `off` removes optional target compaction and disables dependent private-field trials |
+| `identifier-mangling` | Enabled, JavaScript; shorten private lexical bindings | Reduces name readability and changes compression patterns; required public/observable names stay protected. Name allocation costs compilation. `off` also disables `naming-search` and `naming-alphabet`; private properties have their own permission |
+| `property-mangling` | Enabled, JavaScript; eligible private fields receive exactly judged trials from effort 13 | Can shrink repeated field names; extra formation/scoring costs compilation. Requires `target-compaction` and observability proofs; preserved keys remain reserved. `off` keeps declared field keys; `on` does not force a rename |
+| `string-pooling` | Enabled, JavaScript; repeated literals may share a binding | A binding/reference can cost more bytes than a short repeated literal and affects placement/initialization. Every objective judges eligible alternatives. `off` prevents shared literal bindings; array packing is separate |
+| `string-array-packing` | Literal arrays below 16; automatic startup packing at 16 | Delimited text plus `split` can reduce bytes while adding decode work and allocations. Explicit `on` also permits packing inside callable bodies, where the cost can recur. `off` vetoes all such packing; it is a separate runtime-risk permission |
+| `startup-reconstruction` | Enabled automatically only at 16 (compatibility exception); constant-table decoders | Can exchange delivery bytes for startup CPU and storage. Explicit `on` permits it at lower effort; `off` vetoes it everywhere. Does not grant recurring reconstruction or string-array packing permission |
+| `recurring-reconstruction` | Disabled and currently unavailable | Intended for explicitly accepted repeated decode/allocation costs. `on` is diagnosed as unavailable until a producer exists; effort alone never enables it |
+| `naming-search` | Enabled, JavaScript; compare scope/name plans under the selected codec | Extra render/codec work may find no improvement. Local-frequency refinement starts at 13; rejected-start exploration has the separate control above. Requires `identifier-mangling`; `off` retains the allocator seed and vetoes dependent alphabet trials |
+| `naming-alphabet` | Enabled, JavaScript; try sequential and observed character orders | Reassigning many names can improve or worsen repetition; complete artifact judging chooses. Costs rendering/scoring, with no added application operation. Requires both lexical mangling and naming search; `off` retains the seed alphabet |
+
+The existing assumption and preservation controls in the contract section
+serve a different purpose: `assume_*` changes what foreign behavior must be
+supported, and `keep_*`/`preserve_properties` keeps required observations stable.
+Choose these from the application's boundary, not from its compilation budget.
+The alias table below maps older flags to the same behavior and tradeoffs.
 
 | Key | Tactic |
 |---|---|

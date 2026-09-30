@@ -63,8 +63,12 @@ use crate::program::facts::CacheLimits;
 const PROGRAM: &str = include_str!("../../tests/cases/objective_judged_spellings.lil");
 
 fn policy(codec: &str, level: u8) -> ResolvedPolicy {
+    policy_with_search(codec, level, "")
+}
+
+fn policy_with_search(codec: &str, level: u8, search: &str) -> ResolvedPolicy {
     let config: crate::config::ProjectConfig =
-        toml::from_str(&format!("objective.codecs='{codec}'\neffort.level={level}")).unwrap();
+        toml::from_str(&format!("objective.codecs='{codec}'\neffort.level={level}\n[policy.search]\n{search}")).unwrap();
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,
@@ -215,7 +219,9 @@ fn codec_reuse_preserves_logical_search_and_final_bytes_for_every_objective() {
 fn local_read_order_polish_protects_the_completed_search_under_each_objective() {
     let geometry = include_str!("../../comparison/algorithms/cases/collection-geometry/main.lil");
     for (codec, index) in [("raw", 0), ("gzip", 1), ("brotli", 2)] {
-        let resolved = policy(codec, 15);
+        // Isolate the original final refinement; deferred combinations have
+        // their own execution and TOML-isolation checks.
+        let resolved = policy_with_search(codec, 15, "deferred_naming_polish=false");
         let objective = Objectives::One(resolved.objective().unwrap().codec);
         for source in [PROGRAM, geometry] {
             let original = without_local_polish(|| search_source(source, &resolved, objective, true));
@@ -250,7 +256,9 @@ fn local_read_order_polish_protects_the_completed_search_under_each_objective() 
 fn private_properties_polish_protects_the_completed_search_and_replays() {
     let source = include_str!("fixtures/private-fields.lil");
     for (codec, index) in [("raw", 0), ("gzip", 1), ("brotli", 2)] {
-        let resolved = policy(codec, 15);
+        // Isolate the original final refinement; deferred combinations have
+        // their own execution and TOML-isolation checks.
+        let resolved = policy_with_search(codec, 15, "deferred_naming_polish=false");
         let objective = Objectives::One(resolved.objective().unwrap().codec);
         let previous = without_property_polish(|| search_source(source, &resolved, objective, true));
         let renamed = search_source(source, &resolved, objective, true);
