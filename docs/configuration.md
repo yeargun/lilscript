@@ -303,7 +303,7 @@ Cache construction, lookup and backing storage are accounted. This internal
 reuse keeps the existing transformation proofs and needs no configuration
 switch. Its compilation-time effect is measured separately from size wins.
 
-Policy algorithm 12 separates reachable-node/strictness analysis from capture
+Policy algorithm 13 separates reachable-node/strictness analysis from capture
 facts, so passes request only the facts they use. Both results share one
 traversal, with admitted backing storage and counted work. Result lists reserve
 their node bounds once; capture analysis summarizes reference owners per binding.

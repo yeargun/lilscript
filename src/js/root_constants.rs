@@ -71,29 +71,30 @@ impl Module {
             return Ok(0);
         }
         let owners = self.expression_owners(budget)?;
-        let reach = self.reach(budget)?;
-        let mut rewrites = Vec::new();
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            let Expr::Binding(binding) = self.expressions[id.index()] else {
-                continue;
-            };
-            let Some((declared, value)) = values[binding.index()] else {
-                continue;
-            };
-            let initialized = match owners[id.index()] {
-                Some(Owner::Root(at)) => at > declared,
-                Some(Owner::Function(function)) => order.initialized_in(binding, function),
-                None => false,
-            };
-            if initialized {
-                rewrites.push((id, value));
+        self.with_reach_tree(budget, |module, reach, budget| {
+            let mut rewrites = Vec::new();
+            for &(id, _) in &reach.expressions {
+                budget.work(Analysis, 1)?;
+                let Expr::Binding(binding) = module.expressions[id.index()] else {
+                    continue;
+                };
+                let Some((declared, value)) = values[binding.index()] else {
+                    continue;
+                };
+                let initialized = match owners[id.index()] {
+                    Some(Owner::Root(at)) => at > declared,
+                    Some(Owner::Function(function)) => order.initialized_in(binding, function),
+                    None => false,
+                };
+                if initialized {
+                    rewrites.push((id, value));
+                }
             }
-        }
-        for &(read, value) in &rewrites {
-            let node = self.expressions[value.index()].clone();
-            self.set_expression(read, node);
-        }
-        Ok(rewrites.len())
+            for &(read, value) in &rewrites {
+                let node = module.expressions[value.index()].clone();
+                module.set_expression(read, node);
+            }
+            Ok(rewrites.len())
+        })?
     }
 }

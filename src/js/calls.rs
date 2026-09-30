@@ -23,53 +23,54 @@ impl Module {
         if !self.pristine_builtins {
             return Ok(0);
         }
-        let reach = self.reach(budget)?;
-        let pure_reads = self.pure_property_reads;
-        let mut rewrites = Vec::new();
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            let Expr::Call {
-                callee, arguments, ..
-            } = &self.expressions[id.index()]
-            else {
-                continue;
-            };
-            let Expr::Member {
-                object: method,
-                property: Property::Named(call),
-            } = &self.expressions[callee.index()]
-            else {
-                continue;
-            };
-            if call != "call" {
-                continue;
+        self.with_reach_tree(budget, |module, reach, budget| {
+            let pure_reads = module.pure_property_reads;
+            let mut rewrites = Vec::new();
+            for &(id, _) in &reach.expressions {
+                budget.work(Analysis, 1)?;
+                let Expr::Call {
+                    callee, arguments, ..
+                } = &module.expressions[id.index()]
+                else {
+                    continue;
+                };
+                let Expr::Member {
+                    object: method,
+                    property: Property::Named(call),
+                } = &module.expressions[callee.index()]
+                else {
+                    continue;
+                };
+                if call != "call" {
+                    continue;
+                }
+                let Expr::Member {
+                    object: receiver, ..
+                } = &module.expressions[method.index()]
+                else {
+                    continue;
+                };
+                let Some(&first) = arguments.first() else {
+                    continue;
+                };
+                if module.same_reference(*receiver, first, pure_reads) {
+                    rewrites.push((id, *method));
+                }
             }
-            let Expr::Member {
-                object: receiver, ..
-            } = &self.expressions[method.index()]
-            else {
-                continue;
-            };
-            let Some(&first) = arguments.first() else {
-                continue;
-            };
-            if self.same_reference(*receiver, first, pure_reads) {
-                rewrites.push((id, *method));
+            for &(call, method) in &rewrites {
+                if let Expr::Call {
+                    callee,
+                    arguments,
+                    invocation,
+                } = module.expression_mut(call)
+                {
+                    *callee = method;
+                    arguments.remove(0);
+                    *invocation = Invocation::Reference;
+                }
             }
-        }
-        for &(call, method) in &rewrites {
-            if let Expr::Call {
-                callee,
-                arguments,
-                invocation,
-            } = self.expression_mut(call)
-            {
-                *callee = method;
-                arguments.remove(0);
-                *invocation = Invocation::Reference;
-            }
-        }
-        Ok(rewrites.len())
+            Ok(rewrites.len())
+        })?
     }
 
     /// Whether two expressions read the same value without effects: one

@@ -57,75 +57,79 @@ impl Module {
         recurring: Option<&[bool]>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
-        let reach = self.reach(budget)?;
-        let mut packed = 0;
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            if recurring.is_some_and(|recurring| recurring[id.index()]) {
-                continue;
-            }
-            let Expr::Array(elements) = &self.expressions[id.index()] else {
-                continue;
-            };
-            let mut values = Vec::with_capacity(elements.len());
-            for element in elements {
-                match &self.expressions[element.index()] {
-                    Expr::Literal(Literal::String(value)) if !self.observed(*element) => {
-                        let Some(value) = value.as_unicode() else {
-                            break;
-                        };
-                        values.push(value.to_string());
-                    }
-                    _ => break,
+        self.with_reach_tree(budget, |module, reach, budget| {
+            let mut packed = 0;
+            for &(id, _) in &reach.expressions {
+                budget.work(Analysis, 1)?;
+                if recurring.is_some_and(|recurring| recurring[id.index()]) {
+                    continue;
                 }
+                let Expr::Array(elements) = &module.expressions[id.index()] else {
+                    continue;
+                };
+                let mut values = Vec::with_capacity(elements.len());
+                for element in elements {
+                    match &module.expressions[element.index()] {
+                        Expr::Literal(Literal::String(value)) if !module.observed(*element) => {
+                            let Some(value) = value.as_unicode() else {
+                                break;
+                            };
+                            values.push(value.to_string());
+                        }
+                        _ => break,
+                    }
+                }
+                if values.len() != elements.len() || values.is_empty() {
+                    continue;
+                }
+                let Some(separator) = SEPARATORS
+                    .iter()
+                    .find(|separator| values.iter().all(|value| !value.contains(**separator)))
+                else {
+                    continue;
+                };
+                let spelled: usize = values
+                    .iter()
+                    .map(|value| printed(&StringValue::from(value.as_str())))
+                    .sum::<usize>()
+                    + values.len()
+                    + 1;
+                let joined = StringValue::from(values.join(*separator).as_str());
+                let separator = StringValue::from(*separator);
+                if printed(&joined) + ".split()".len() + printed(&separator) >= spelled {
+                    continue;
+                }
+                let object =
+                    module.expression_in(Expr::Literal(Literal::String(joined)), None, budget)?;
+                let callee = module.expression_in(
+                    Expr::Member {
+                        object,
+                        property: Property::Named("split".into()),
+                    },
+                    None,
+                    budget,
+                )?;
+                let separator = module.expression_in(
+                    Expr::Literal(Literal::String(separator)),
+                    None,
+                    budget,
+                )?;
+                module.set_expression(
+                    id,
+                    Expr::Call {
+                        callee,
+                        arguments: vec![separator],
+                        invocation: Invocation::Reference,
+                    },
+                );
+                packed += 1;
             }
-            if values.len() != elements.len() || values.is_empty() {
-                continue;
+            if packed == 0 {
+                return Ok((0, None));
             }
-            let Some(separator) = SEPARATORS
-                .iter()
-                .find(|separator| values.iter().all(|value| !value.contains(**separator)))
-            else {
-                continue;
-            };
-            let spelled: usize = values
-                .iter()
-                .map(|value| printed(&StringValue::from(value.as_str())))
-                .sum::<usize>()
-                + values.len()
-                + 1;
-            let joined = StringValue::from(values.join(*separator).as_str());
-            let separator = StringValue::from(*separator);
-            if printed(&joined) + ".split()".len() + printed(&separator) >= spelled {
-                continue;
-            }
-            let object =
-                self.expression_in(Expr::Literal(Literal::String(joined)), None, budget)?;
-            let callee = self.expression_in(
-                Expr::Member {
-                    object,
-                    property: Property::Named("split".into()),
-                },
-                None,
-                budget,
-            )?;
-            let separator =
-                self.expression_in(Expr::Literal(Literal::String(separator)), None, budget)?;
-            self.set_expression(
-                id,
-                Expr::Call {
-                    callee,
-                    arguments: vec![separator],
-                    invocation: Invocation::Reference,
-                },
-            );
-            packed += 1;
-        }
-        if packed == 0 {
-            return Ok((0, None));
-        }
-        let map = self.renumber(budget)?;
-        Ok((packed, Some(map)))
+            let map = module.renumber(budget)?;
+            Ok((packed, Some(map)))
+        })?
     }
 
     /// Every expression reachable from any function body. A shared subtree
@@ -190,85 +194,88 @@ impl Module {
         &mut self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
-        let reach = self.reach(budget)?;
-        // Each literal's uses, in the order the arena holds them.
-        let mut uses: Vec<(Pooled, Vec<ExprId>)> = Vec::new();
-        let mut index: std::collections::HashMap<Pooled, usize> = std::collections::HashMap::new();
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            let pooled = match &self.expressions[id.index()] {
-                Expr::Literal(Literal::String(value)) => Pooled::String(value.clone()),
-                Expr::Literal(Literal::Number(value)) => Pooled::Number(value.to_bits()),
-                _ => continue,
-            };
-            if self.observed(id) {
-                continue;
-            }
-            match index.get(&pooled) {
-                Some(&at) => uses[at].1.push(id),
-                None => {
-                    index.insert(pooled.clone(), uses.len());
-                    uses.push((pooled, vec![id]));
+        self.with_reach_tree(budget, |module, reach, budget| {
+            // Each literal's uses, in the order the arena holds them.
+            let mut uses: Vec<(Pooled, Vec<ExprId>)> = Vec::new();
+            let mut index: std::collections::HashMap<Pooled, usize> =
+                std::collections::HashMap::new();
+            for &(id, _) in &reach.expressions {
+                budget.work(Analysis, 1)?;
+                let pooled = match &module.expressions[id.index()] {
+                    Expr::Literal(Literal::String(value)) => Pooled::String(value.clone()),
+                    Expr::Literal(Literal::Number(value)) => Pooled::Number(value.to_bits()),
+                    _ => continue,
+                };
+                if module.observed(id) {
+                    continue;
+                }
+                match index.get(&pooled) {
+                    Some(&at) => uses[at].1.push(id),
+                    None => {
+                        index.insert(pooled.clone(), uses.len());
+                        uses.push((pooled, vec![id]));
+                    }
                 }
             }
-        }
-        // `k` uses of `L` bytes against `k` names plus `n=…,`.
-        uses.retain(|(value, sites)| {
-            let (count, length) = (sites.len(), value.printed());
-            count * length > count * POOLED_NAME + POOLED_NAME + length + 2
-        });
-        if uses.is_empty() {
-            return Ok(0);
-        }
-        // Most saved first, then by first use, so the order is stable.
-        uses.sort_by(|(a, left), (b, right)| {
-            let saved =
-                |value: &Pooled, sites: &Vec<ExprId>| sites.len() * (value.printed() - POOLED_NAME);
-            saved(b, right)
-                .cmp(&saved(a, left))
-                .then_with(|| left[0].cmp(&right[0]))
-        });
-        let root = self.root.index();
-        let scope = self.regions[root].scope;
-        let mut statements = Vec::with_capacity(uses.len());
-        for (value, sites) in &uses {
-            budget.work(Analysis, sites.len() as u64)?;
-            let binding = self.binding_in(
-                Binding {
-                    source_symbol: None,
-                    scope,
-                    spelling: "s".into(),
-                    pinned: false,
-                    class: None,
-                    defined: false,
-                },
-                budget,
-            )?;
-            for &site in sites {
-                self.set_expression(site, Expr::Binding(binding));
-            }
-            let literal = self.expression_in(Expr::Literal(value.literal()), None, budget)?;
-            statements.push(Statement::Let {
-                binding,
-                value: Some(literal),
+            // `k` uses of `L` bytes against `k` names plus `n=…,`.
+            uses.retain(|(value, sites)| {
+                let (count, length) = (sites.len(), value.printed());
+                count * length > count * POOLED_NAME + POOLED_NAME + length + 2
             });
-        }
-        let count = statements.len();
-        budget.reserve_vec(
-            AllocationClass::Retained,
-            &mut self.regions[root].statements,
-            count,
-        )?;
-        // A pool is a rule's definition, beside the first module (design §6).
-        let first = self.root_rows.first().map_or(0, |row| row.module);
-        if !self.root_rows.is_empty() {
-            budget.reserve_vec(AllocationClass::Retained, &mut self.root_rows, count)?;
-        }
-        self.prepend_roots(
-            statements,
-            std::iter::repeat_n(RootRow::synthetic(first), count),
-        );
-        Ok(count)
+            if uses.is_empty() {
+                return Ok(0);
+            }
+            // Most saved first, then by first use, so the order is stable.
+            uses.sort_by(|(a, left), (b, right)| {
+                let saved = |value: &Pooled, sites: &Vec<ExprId>| {
+                    sites.len() * (value.printed() - POOLED_NAME)
+                };
+                saved(b, right)
+                    .cmp(&saved(a, left))
+                    .then_with(|| left[0].cmp(&right[0]))
+            });
+            let root = module.root.index();
+            let scope = module.regions[root].scope;
+            let mut statements = Vec::with_capacity(uses.len());
+            for (value, sites) in &uses {
+                budget.work(Analysis, sites.len() as u64)?;
+                let binding = module.binding_in(
+                    Binding {
+                        source_symbol: None,
+                        scope,
+                        spelling: "s".into(),
+                        pinned: false,
+                        class: None,
+                        defined: false,
+                    },
+                    budget,
+                )?;
+                for &site in sites {
+                    module.set_expression(site, Expr::Binding(binding));
+                }
+                let literal = module.expression_in(Expr::Literal(value.literal()), None, budget)?;
+                statements.push(Statement::Let {
+                    binding,
+                    value: Some(literal),
+                });
+            }
+            let count = statements.len();
+            budget.reserve_vec(
+                AllocationClass::Retained,
+                &mut module.regions[root].statements,
+                count,
+            )?;
+            // A pool is a rule's definition, beside the first module (design §6).
+            let first = module.root_rows.first().map_or(0, |row| row.module);
+            if !module.root_rows.is_empty() {
+                budget.reserve_vec(AllocationClass::Retained, &mut module.root_rows, count)?;
+            }
+            module.prepend_roots(
+                statements,
+                std::iter::repeat_n(RootRow::synthetic(first), count),
+            );
+            Ok(count)
+        })?
     }
 }
 

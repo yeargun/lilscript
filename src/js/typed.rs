@@ -26,84 +26,85 @@ impl Module {
             return Ok(0);
         }
         let classes = self.value_classes();
-        let reach = self.reach(budget)?;
-        let mut tests = Vec::new();
-        for &region in &reach.regions {
-            for statement in &self.regions[region.index()].statements {
+        self.with_reach_tree(budget, |module, reach, budget| {
+            let mut tests = Vec::new();
+            for &region in &reach.regions {
+                for statement in &module.regions[region.index()].statements {
+                    budget.work(Analysis, 1)?;
+                    match statement {
+                        Statement::If { condition, .. } => tests.push(*condition),
+                        Statement::Loop {
+                            condition: Some(condition),
+                            ..
+                        } => tests.push(*condition),
+                        _ => {}
+                    }
+                }
+            }
+            for &(id, _) in &reach.expressions {
                 budget.work(Analysis, 1)?;
-                match statement {
-                    Statement::If { condition, .. } => tests.push(*condition),
-                    Statement::Loop {
-                        condition: Some(condition),
-                        ..
-                    } => tests.push(*condition),
+                match module.expressions[id.index()] {
+                    Expr::Conditional { condition, .. } => tests.push(condition),
+                    Expr::Unary {
+                        op: Unary::Not,
+                        value,
+                    } => tests.push(value),
                     _ => {}
                 }
             }
-        }
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            match self.expressions[id.index()] {
-                Expr::Conditional { condition, .. } => tests.push(condition),
-                Expr::Unary {
-                    op: Unary::Not,
-                    value,
-                } => tests.push(value),
-                _ => {}
-            }
-        }
-        let mut rewritten = 0;
-        while let Some(test) = tests.pop() {
-            budget.work(Analysis, 1)?;
-            match self.expressions[test.index()].clone() {
-                Expr::Binary {
-                    op: Binary::And | Binary::Or,
-                    left,
-                    right,
-                } => {
-                    tests.push(left);
-                    tests.push(right);
+            let mut rewritten = 0;
+            while let Some(test) = tests.pop() {
+                budget.work(Analysis, 1)?;
+                match module.expressions[test.index()].clone() {
+                    Expr::Binary {
+                        op: Binary::And | Binary::Or,
+                        left,
+                        right,
+                    } => {
+                        tests.push(left);
+                        tests.push(right);
+                    }
+                    Expr::Binary {
+                        op: op @ (Binary::Equal | Binary::NotEqual),
+                        left,
+                        right,
+                    } => {
+                        let nothing = |id: ExprId| {
+                            matches!(
+                                module.expressions[id.index()],
+                                Expr::Literal(Literal::Null | Literal::Undefined)
+                            )
+                        };
+                        let object = |id: ExprId| match module.expressions[id.index()] {
+                            Expr::Binding(binding) => matches!(
+                                classes.get(binding.index()).copied().flatten(),
+                                Some(ValueClass::NullableObject | ValueClass::Object)
+                            ),
+                            _ => false,
+                        };
+                        let tested = if object(left) && nothing(right) {
+                            left
+                        } else if object(right) && nothing(left) {
+                            right
+                        } else {
+                            continue;
+                        };
+                        let node = if op == Binary::NotEqual {
+                            module.expressions[tested.index()].clone()
+                        } else {
+                            Expr::Unary {
+                                op: Unary::Not,
+                                value: tested,
+                            }
+                        };
+                        module.set_expression(test, node);
+                        rewritten += 1;
+                    }
+                    _ => {}
                 }
-                Expr::Binary {
-                    op: op @ (Binary::Equal | Binary::NotEqual),
-                    left,
-                    right,
-                } => {
-                    let nothing = |id: ExprId| {
-                        matches!(
-                            self.expressions[id.index()],
-                            Expr::Literal(Literal::Null | Literal::Undefined)
-                        )
-                    };
-                    let object = |id: ExprId| match self.expressions[id.index()] {
-                        Expr::Binding(binding) => matches!(
-                            classes.get(binding.index()).copied().flatten(),
-                            Some(ValueClass::NullableObject | ValueClass::Object)
-                        ),
-                        _ => false,
-                    };
-                    let tested = if object(left) && nothing(right) {
-                        left
-                    } else if object(right) && nothing(left) {
-                        right
-                    } else {
-                        continue;
-                    };
-                    let node = if op == Binary::NotEqual {
-                        self.expressions[tested.index()].clone()
-                    } else {
-                        Expr::Unary {
-                            op: Unary::Not,
-                            value: tested,
-                        }
-                    };
-                    self.set_expression(test, node);
-                    rewritten += 1;
-                }
-                _ => {}
             }
-        }
-        Ok(rewritten)
+            Ok(rewritten)
+        })?
     }
 
     /// `Array.prototype.m.call(a,…)` becomes `a.m(…)` for a binding `a` that
@@ -116,145 +117,146 @@ impl Module {
         if !self.pristine_builtins {
             return Ok((0, None));
         }
-        let reach = self.reach(budget)?;
-        // Bindings whose every value is an array literal (and parameters,
-        // loop and catch bindings, never).
-        let mut arrays = vec![Some(false); self.bindings.len()];
-        let mut parameters = vec![false; self.bindings.len()];
-        for function in &self.functions {
-            for parameter in &function.parameters {
-                parameters[parameter.index()] = true;
+        self.with_reach_tree(budget, |module, reach, budget| {
+            // Bindings whose every value is an array literal (and parameters,
+            // loop and catch bindings, never).
+            let mut arrays = vec![Some(false); module.bindings.len()];
+            let mut parameters = vec![false; module.bindings.len()];
+            for function in &module.functions {
+                for parameter in &function.parameters {
+                    parameters[parameter.index()] = true;
+                }
             }
-        }
-        let mut mark = |binding: BindingId, is_array: bool, arrays: &mut Vec<Option<bool>>| {
-            let slot = &mut arrays[binding.index()];
-            *slot = match *slot {
-                Some(false) if is_array => Some(true),
-                Some(true) if is_array => Some(true),
-                Some(false) => Some(false),
+            let mut mark = |binding: BindingId, is_array: bool, arrays: &mut Vec<Option<bool>>| {
+                let slot = &mut arrays[binding.index()];
+                *slot = match *slot {
+                    Some(false) if is_array => Some(true),
+                    Some(true) if is_array => Some(true),
+                    Some(false) => Some(false),
+                    _ => None,
+                };
+                if !is_array {
+                    *slot = None;
+                }
+            };
+            for &region in &reach.regions {
+                for statement in &module.regions[region.index()].statements {
+                    budget.work(Analysis, 1)?;
+                    match *statement {
+                        Statement::Let {
+                            binding,
+                            value: Some(value),
+                        } => mark(
+                            binding,
+                            matches!(module.expressions[value.index()], Expr::Array(_)),
+                            &mut arrays,
+                        ),
+                        Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } => {
+                            arrays[binding.index()] = None
+                        }
+                        Statement::Try {
+                            catch:
+                                Some(Catch {
+                                    binding: Some(binding),
+                                    ..
+                                }),
+                            ..
+                        } => arrays[binding.index()] = None,
+                        Statement::Function { binding, .. } => arrays[binding.index()] = None,
+                        _ => {}
+                    }
+                }
+            }
+            for &(id, _) in &reach.expressions {
+                budget.work(Analysis, 1)?;
+                if let Expr::Assign { target, value } = module.expressions[id.index()] {
+                    if let Expr::Binding(binding) = module.expressions[target.index()] {
+                        mark(
+                            binding,
+                            matches!(module.expressions[value.index()], Expr::Array(_)),
+                            &mut arrays,
+                        );
+                    }
+                }
+            }
+            for export in &module.exports {
+                arrays[export.binding.index()] = None;
+            }
+            let host = |module: &Self, id: ExprId, global: crate::catalog::Global| matches!(&module.expressions[id.index()], Expr::Host(found) if found.kind == crate::catalog::HostKind::Standard(global));
+            let named = |module: &Self, id: ExprId| match &module.expressions[id.index()] {
+                Expr::Member {
+                    object,
+                    property: Property::Named(name),
+                } => Some((*object, name.clone())),
                 _ => None,
             };
-            if !is_array {
-                *slot = None;
-            }
-        };
-        for &region in &reach.regions {
-            for statement in &self.regions[region.index()].statements {
+            let mut rewrites = Vec::new();
+            for &(id, _) in &reach.expressions {
                 budget.work(Analysis, 1)?;
-                match *statement {
-                    Statement::Let {
-                        binding,
-                        value: Some(value),
-                    } => mark(
-                        binding,
-                        matches!(self.expressions[value.index()], Expr::Array(_)),
-                        &mut arrays,
-                    ),
-                    Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } => {
-                        arrays[binding.index()] = None
-                    }
-                    Statement::Try {
-                        catch:
-                            Some(Catch {
-                                binding: Some(binding),
-                                ..
-                            }),
-                        ..
-                    } => arrays[binding.index()] = None,
-                    Statement::Function { binding, .. } => arrays[binding.index()] = None,
-                    _ => {}
+                let Expr::Call {
+                    callee, arguments, ..
+                } = &module.expressions[id.index()]
+                else {
+                    continue;
+                };
+                let Some((method_node, call)) = named(module, *callee) else {
+                    continue;
+                };
+                if call != "call" {
+                    continue;
+                }
+                let Some((prototype_node, method)) = named(module, method_node) else {
+                    continue;
+                };
+                if !ARRAY_METHODS.contains(&method.as_str()) {
+                    continue;
+                }
+                let Some((array_node, prototype)) = named(module, prototype_node) else {
+                    continue;
+                };
+                if prototype != "prototype" || !host(module, array_node, crate::catalog::Global::Array) {
+                    continue;
+                }
+                let Some(&receiver) = arguments.first() else {
+                    continue;
+                };
+                let Expr::Binding(binding) = module.expressions[receiver.index()] else {
+                    continue;
+                };
+                if parameters[binding.index()] || arrays[binding.index()] != Some(true) {
+                    continue;
+                }
+                rewrites.push((id, receiver, method));
+            }
+            let count = rewrites.len();
+            let mut disordered = false;
+            for (call, receiver, method) in rewrites {
+                let member = module.expression_in(
+                    Expr::Member {
+                        object: receiver,
+                        property: Property::Named(method),
+                    },
+                    None,
+                    budget,
+                )?;
+                disordered = true;
+                if let Expr::Call {
+                    callee,
+                    arguments,
+                    invocation,
+                } = module.expression_mut(call)
+                {
+                    *callee = member;
+                    arguments.remove(0);
+                    *invocation = Invocation::Reference;
                 }
             }
-        }
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            if let Expr::Assign { target, value } = self.expressions[id.index()] {
-                if let Expr::Binding(binding) = self.expressions[target.index()] {
-                    mark(
-                        binding,
-                        matches!(self.expressions[value.index()], Expr::Array(_)),
-                        &mut arrays,
-                    );
-                }
-            }
-        }
-        for export in &self.exports {
-            arrays[export.binding.index()] = None;
-        }
-        let host = |module: &Self, id: ExprId, global: crate::catalog::Global| matches!(&module.expressions[id.index()], Expr::Host(found) if found.kind == crate::catalog::HostKind::Standard(global));
-        let named = |module: &Self, id: ExprId| match &module.expressions[id.index()] {
-            Expr::Member {
-                object,
-                property: Property::Named(name),
-            } => Some((*object, name.clone())),
-            _ => None,
-        };
-        let mut rewrites = Vec::new();
-        for &(id, _) in &reach.expressions {
-            budget.work(Analysis, 1)?;
-            let Expr::Call {
-                callee, arguments, ..
-            } = &self.expressions[id.index()]
-            else {
-                continue;
+            let map = if disordered {
+                Some(module.renumber(budget)?)
+            } else {
+                None
             };
-            let Some((method_node, call)) = named(self, *callee) else {
-                continue;
-            };
-            if call != "call" {
-                continue;
-            }
-            let Some((prototype_node, method)) = named(self, method_node) else {
-                continue;
-            };
-            if !ARRAY_METHODS.contains(&method.as_str()) {
-                continue;
-            }
-            let Some((array_node, prototype)) = named(self, prototype_node) else {
-                continue;
-            };
-            if prototype != "prototype" || !host(self, array_node, crate::catalog::Global::Array) {
-                continue;
-            }
-            let Some(&receiver) = arguments.first() else {
-                continue;
-            };
-            let Expr::Binding(binding) = self.expressions[receiver.index()] else {
-                continue;
-            };
-            if parameters[binding.index()] || arrays[binding.index()] != Some(true) {
-                continue;
-            }
-            rewrites.push((id, receiver, method));
-        }
-        let count = rewrites.len();
-        let mut disordered = false;
-        for (call, receiver, method) in rewrites {
-            let member = self.expression_in(
-                Expr::Member {
-                    object: receiver,
-                    property: Property::Named(method),
-                },
-                None,
-                budget,
-            )?;
-            disordered = true;
-            if let Expr::Call {
-                callee,
-                arguments,
-                invocation,
-            } = self.expression_mut(call)
-            {
-                *callee = member;
-                arguments.remove(0);
-                *invocation = Invocation::Reference;
-            }
-        }
-        let map = if disordered {
-            Some(self.renumber(budget)?)
-        } else {
-            None
-        };
-        Ok((count, map))
+            Ok((count, map))
+        })?
     }
 }

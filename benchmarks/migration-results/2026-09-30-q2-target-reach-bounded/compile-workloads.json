@@ -1,0 +1,25 @@
+{
+  "workloads": [
+    {
+      "id": "markedlil-raw",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/markedlil-raw.toml",
+      "arguments": []
+    },
+    {
+      "id": "markedlil-gzip",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/markedlil-gzip.toml",
+      "arguments": []
+    },
+    {
+      "id": "markedlil-brotli",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-deferred-naming/configs/markedlil-brotli.toml",
+      "arguments": []
+    }
+  ]
+}
