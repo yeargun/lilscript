@@ -587,6 +587,65 @@ fn constant_scalar_code_point_method_keeps_an_observable_host_iterator() {
 }
 
 #[test]
+fn strict_target_inlining_obeys_toml_for_imported_struct_helpers() {
+    let scratch = Scratch::new();
+    std::fs::write(scratch.0.join("helpers.lil"),
+        "export struct P{int value;}int read(P p){return p.value+1;}export int sum(P p){return read(p)+2;}").unwrap();
+    let entry = scratch.0.join("main.lil");
+    std::fs::write(
+        &entry,
+        "import {P,sum} from \"./helpers\";extern int next();print(sum(P{next()}));",
+    )
+    .unwrap();
+    for codec in ["raw", "gzip", "brotli"] {
+        for module in [false, true] {
+            let mut lengths = Vec::new();
+            for permission in ["off", "on"] {
+                let config: ProjectConfig = toml::from_str(&format!(
+                    "objective.codecs='{codec}'\neffort.level=13\n\
+                     [policy.tactics]\ninlining='{permission}'\nidentifier-mangling='off'"
+                ))
+                .unwrap();
+                let result = compile_path(
+                    &entry,
+                    &config,
+                    ServiceOptions {
+                        preserve_root_exports: module,
+                        ..ServiceOptions::default()
+                    },
+                )
+                .unwrap();
+                let javascript = result
+                    .javascript(config.objective.codecs[0])
+                    .unwrap()
+                    .javascript();
+                let setup = "let calls=0;globalThis.next=()=>{if(++calls!==1)throw Error('duplicate');return 7;};";
+                let output = if module {
+                    execute_javascript(javascript, setup, "")
+                } else {
+                    let output = Command::new("node")
+                        .args(["-e", &format!("{setup}\n{javascript}")])
+                        .output()
+                        .unwrap();
+                    assert!(
+                        output.status.success(),
+                        "{}\n{javascript}",
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                    String::from_utf8(output.stdout).unwrap()
+                };
+                assert_eq!(output, "10\n");
+                lengths.push(javascript.len());
+            }
+            assert!(
+                lengths[1] < lengths[0],
+                "{codec} module={module}: {lengths:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn service_reports_unsupported_permissions_separately_from_policy_identity() {
     let result = compile_source(
         "print(7);",

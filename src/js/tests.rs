@@ -7,6 +7,9 @@ mod projection;
 #[path = "single_call_tests.rs"]
 mod single_call;
 
+#[path = "strict_inline_tests.rs"]
+mod strict_inline;
+
 fn expr(module: &mut Module, node: Expr) -> ExprId {
     module.expression(node, None)
 }

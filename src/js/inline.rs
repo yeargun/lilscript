@@ -293,11 +293,10 @@ impl Module {
     > {
         let frame_free = self.frame_free(function);
         let function = &self.functions[function.index()];
-        // A strict body keeps strict `delete` and assignment semantics that a
-        // sloppy call site would not. A function that is not an arrow is its
-        // body only while that reads no frame of its own.
+        // The call-site check preserves strict `delete` and assignment
+        // semantics, including bodies with an explicit directive. A function
+        // that is not an arrow is its body only while it reads no own frame.
         if !(function.arrow || frame_free)
-            || function.strict
             || function.suspension != Suspension::None
             || function.length.is_some()
         {
@@ -999,7 +998,6 @@ impl Module {
                 }
                 let declared = &self.functions[function.index()];
                 if !declared.arrow
-                    || declared.strict
                     || declared.suspension != Suspension::None
                     || declared.length.is_some()
                 {

@@ -647,7 +647,6 @@ impl Module {
         let declared = &self.functions[function.index()];
         declared.suspension == Suspension::None
             && declared.length.is_none()
-            && !declared.strict
             && self.frame_free(function)
     }
 
