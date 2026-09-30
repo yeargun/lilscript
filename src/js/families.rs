@@ -20,27 +20,72 @@
 //! tree edits and writes the print decisions onto the module, so the printer
 //! only renders what the tree says (never thread-local policy, live-16).
 use super::selection::Objective;
-use crate::compilation_policy::{ResolvedPolicy, TacticId};
+use crate::compilation_policy::{ResolvedPolicy, RuntimeRisk, TacticId, TacticUse};
+
+/// Where a selected string-array packing pass may add decoding work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ArrayPacking {
+    Disabled,
+    Startup,
+    Recurring,
+}
+
+impl ArrayPacking {
+    fn from_policy(policy: &ResolvedPolicy) -> Self {
+        for (permission, risk) in [
+            (Self::Recurring, RuntimeRisk::Recurring),
+            (Self::Startup, RuntimeRisk::Startup),
+        ] {
+            if policy
+                .check_tactic_permissions(&[TacticUse {
+                    tactic: TacticId::StringArrayPacking,
+                    risk,
+                }])
+                .is_ok()
+            {
+                return permission;
+            }
+        }
+        Self::Disabled
+    }
+
+    fn risk(self) -> Option<RuntimeRisk> {
+        match self {
+            Self::Disabled => None,
+            Self::Startup => Some(RuntimeRisk::Startup),
+            Self::Recurring => Some(RuntimeRisk::Recurring),
+        }
+    }
+}
 
 /// Optional semantic work performed on the target tree. This assignment is
 /// part of a formed head's identity and of its artifacts' permission evidence.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct TargetRules {
     pub constant_folding: bool,
     pub inlining: bool,
     pub scalar_replacement: bool,
+    pub data_encoding: bool,
+    pub array_packing: ArrayPacking,
 }
 
 impl TargetRules {
-    pub const ALL: Self = Self {
+    /// Inspection's neutral semantic rules. Reconstruction requires a
+    /// resolved runtime permission, never an inspection default.
+    pub const SEMANTIC: Self = Self {
         constant_folding: true,
         inlining: true,
         scalar_replacement: true,
+        data_encoding: false,
+        array_packing: ArrayPacking::Disabled,
     };
     pub const NONE: Self = Self {
         constant_folding: false,
         inlining: false,
         scalar_replacement: false,
+        data_encoding: false,
+        array_packing: ArrayPacking::Disabled,
     };
 
     pub fn from_policy(policy: &ResolvedPolicy) -> Self {
@@ -48,6 +93,13 @@ impl TargetRules {
             constant_folding: policy.tactic(TacticId::ConstantFolding).enabled,
             inlining: policy.tactic(TacticId::Inlining).enabled,
             scalar_replacement: policy.tactic(TacticId::ScalarReplacement).enabled,
+            data_encoding: policy
+                .check_tactic_permissions(&[TacticUse {
+                    tactic: TacticId::StartupReconstruction,
+                    risk: RuntimeRisk::Startup,
+                }])
+                .is_ok(),
+            array_packing: ArrayPacking::from_policy(policy),
         }
     }
 
@@ -57,6 +109,24 @@ impl TargetRules {
             (self.inlining, TacticId::Inlining),
             (self.scalar_replacement, TacticId::ScalarReplacement),
         ]
+    }
+
+    pub fn runtime_uses(self, families: OutputFamilies) -> impl Iterator<Item = TacticUse> {
+        [
+            self.data_encoding.then_some(TacticUse {
+                tactic: TacticId::StartupReconstruction,
+                risk: RuntimeRisk::Startup,
+            }),
+            self.array_packing
+                .risk()
+                .filter(|_| families.string_array_packing)
+                .map(|risk| TacticUse {
+                    tactic: TacticId::StringArrayPacking,
+                    risk,
+                }),
+        ]
+        .into_iter()
+        .flatten()
     }
 }
 
@@ -220,7 +290,7 @@ impl OutputFamilies {
         self.block_inlining &= policy.tactic(TacticId::Inlining).enabled;
         self.string_constants &= policy.tactic(TacticId::ConstantFolding).enabled;
         self.string_pooling &= policy.tactic(TacticId::StringPooling).enabled;
-        self.string_array_packing &= policy.tactic(TacticId::StringArrayPacking).enabled;
+        self.string_array_packing &= ArrayPacking::from_policy(policy) != ArrayPacking::Disabled;
         self
     }
 }

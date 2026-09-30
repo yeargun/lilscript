@@ -30,15 +30,29 @@ impl Module {
     /// Returns how many, and the renumbering map when it edited.
     pub(crate) fn pack_string_arrays(
         &mut self,
+        permission: ArrayPacking,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
-        if !self.pristine_builtins {
+        if !self.pristine_builtins || permission == ArrayPacking::Disabled {
             return Ok((0, None));
         }
+        let mut phase = budget.scope();
+        let budget = &mut phase;
+        let recurring = if permission == ArrayPacking::Startup {
+            Some(self.function_expressions(budget)?)
+        } else {
+            None
+        };
         let reach = self.reach(budget)?;
         let mut packed = 0;
         for &(id, _) in &reach.expressions {
             budget.work(Analysis, 1)?;
+            if recurring
+                .as_ref()
+                .is_some_and(|recurring| recurring[id.index()])
+            {
+                continue;
+            }
             let Expr::Array(elements) = &self.expressions[id.index()] else {
                 continue;
             };
@@ -97,10 +111,66 @@ impl Module {
             packed += 1;
         }
         if packed == 0 {
+            drop(recurring);
+            drop(reach);
+            phase.finish_retained()?;
             return Ok((0, None));
         }
         let map = self.renumber(budget)?;
+        drop(recurring);
+        drop(reach);
+        phase.finish_retained()?;
         Ok((packed, Some(map)))
+    }
+
+    /// Every expression reachable from any function body. A shared subtree
+    /// used both at startup and in a callback is recurring. No call-count or
+    /// termination guess can turn a function body into startup-only work.
+    fn function_expressions(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<bool>, AllocationError> {
+        use AllocationClass::Scratch;
+        let mut expressions = budget.filled(Scratch, self.expressions.len(), false)?;
+        let mut seen = budget.filled(Scratch, self.regions.len(), false)?;
+        let mut regions = budget.vector(Scratch, self.functions.len())?;
+        for function in &self.functions {
+            budget.work(Analysis, 1)?;
+            regions.push(function.body);
+        }
+        let mut pending = budget.vector(Scratch, 0)?;
+        while let Some(region) = regions.pop() {
+            budget.work(Analysis, 1)?;
+            if std::mem::replace(&mut seen[region.index()], true) {
+                continue;
+            }
+            for statement in &self.regions[region.index()].statements {
+                budget.work(Analysis, 1)?;
+                let mut result = Ok(());
+                statement.visit_regions(|child| {
+                    if result.is_ok() {
+                        result = budget.push(Scratch, &mut regions, child);
+                    }
+                });
+                result?;
+                let mut result = Ok(());
+                statement.visit_expressions(|root| {
+                    if result.is_ok() {
+                        result = budget.push(Scratch, &mut pending, root);
+                    }
+                });
+                result?;
+                while let Some(id) = pending.pop() {
+                    budget.work(Analysis, 1)?;
+                    if std::mem::replace(&mut expressions[id.index()], true) {
+                        continue;
+                    }
+                    self.expressions[id.index()]
+                        .visit_children(|child| budget.push(Scratch, &mut pending, child))?;
+                }
+            }
+        }
+        Ok(expressions)
     }
 
     /// Read each string repeated often enough from a root constant declared

@@ -825,7 +825,12 @@ fn a_raw_objective_reads_repeated_strings_from_constants_and_packs_string_arrays
         show(names());
         show(names() == names());
     "#;
-    let raw = compile_with(source, &format!("objective.codecs=\"raw\"\n{PRISTINE}"));
+    let raw = compile_with(
+        source,
+        &format!(
+            "objective.codecs=\"raw\"\n[policy.tactics]\nstring-array-packing='on'\n{PRISTINE}"
+        ),
+    );
     let coded = compile_with(source, PRISTINE);
     // `"string"` is spelled once, as a constant; the names are one string.
     assert_eq!(raw.matches("\"string\"").count(), 1, "{raw}");
@@ -1693,7 +1698,10 @@ fn a_large_constant_string_table_is_decoded_from_two_strings() {
         "#,
         entries.join(", ")
     );
-    let javascript = compile_with(&source, PRISTINE);
+    let javascript = compile_with(
+        &source,
+        &format!("[policy.tactics]\nstartup-reconstruction='on'\n{PRISTINE}"),
+    );
     assert!(
         !javascript.contains("entity42:") && javascript.contains(".split("),
         "{javascript}"

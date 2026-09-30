@@ -245,6 +245,23 @@ assignments and reused artifact evidence are checked against the same
 permissions. Enabling one of these tactics does not override another tactic's
 veto or force the search to choose that representation.
 
+Constant-table decoder representations require `startup-reconstruction`.
+With `auto`, policy algorithm 2 permits them only at level 16, retaining that
+existing compatibility grant; explicit `on` permits them at any effort and
+`off` vetoes them at every effort. String-array packing uses its own risk
+permission: `auto` at level 16 permits startup sites only, while explicit
+`string-array-packing = "on"` also permits arrays inside callable bodies.
+At lower effort its `auto` setting keeps literal arrays. Public output and
+cached admission enforce the same limits. Receipts retain selected rules and
+tactic risks; these are permission evidence, not measured runtime costs.
+
+Compatibility correction: older compilers ran table decoders regardless of
+`startup-reconstruction` and treated all string-array packing as neutral.
+To retain those alternatives intentionally at level 13, set the relevant
+family to `on`. Correct enforcement can grow output while removing decoding
+work. Increasing effort still never permits recurring reconstruction unless
+that family was explicitly enabled.
+
 Constant folding includes bounded evaluation of small functions at constant
 call sites. Evaluation preserves argument effects and declines unsupported
 control flow, unknown captures and exhausted limits. Folding replaceable

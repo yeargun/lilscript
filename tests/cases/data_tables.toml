@@ -1,4 +1,7 @@
-# The family needs unpatched builtins: the decoders call String and Array
-# methods (tables.rs).
+# Exercise the decoder representations with their explicit startup permission.
+# Compiler-written decoder methods follow the typed runtime contract (R10).
 [javascript]
 assume_pristine_builtins = true
+
+[policy.tactics]
+startup-reconstruction = "on"

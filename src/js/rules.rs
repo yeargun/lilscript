@@ -90,6 +90,8 @@ impl Rule {
             | Self::DropDefaultArguments
             | Self::NativeDefaultLengths => context.rules.constant_folding,
             Self::DropUnreferencedFunctions | Self::DropUnreachable => context.prunes,
+            Self::EncodeTables => context.rules.data_encoding,
+            Self::PackStringArrays => context.rules.array_packing != ArrayPacking::Disabled,
             Self::SelfMethodCalls
             | Self::ElideUndefined
             | Self::MergeDeclarations
@@ -104,8 +106,6 @@ impl Rule {
             | Self::DropBareBlocks
             | Self::TruthyNullTests
             | Self::ArrayReceiverCalls
-            | Self::EncodeTables
-            | Self::PackStringArrays
             | Self::PoolStrings => true,
         }
     }
@@ -527,7 +527,7 @@ impl Module {
                 let _ = self.native_default_lengths(budget)?;
             }
             Rule::PackStringArrays => {
-                let _ = self.pack_string_arrays(budget)?;
+                let _ = self.pack_string_arrays(context.rules.array_packing, budget)?;
             }
             Rule::PoolStrings => {
                 let _ = self.pool_strings(budget)?;

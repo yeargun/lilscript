@@ -17,7 +17,7 @@ use crate::config::{CompressionCostModel, JavaScriptPriority};
 
 pub const POLICY_SCHEMA_VERSION: u32 = 2;
 pub const LEGACY_TRANSLATOR_RETIREMENT_SCHEMA: u32 = 3;
-pub const POLICY_ALGORITHM_VERSION: u32 = 1;
+pub const POLICY_ALGORITHM_VERSION: u32 = 2;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.

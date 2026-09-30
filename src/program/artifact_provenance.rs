@@ -84,6 +84,28 @@ impl OutputTactics {
                 return Err(AdmissionError::ForbiddenTactic(tactic));
             }
         }
+        if self.target_compaction {
+            if self.families.string_array_packing
+                && self.rules.array_packing == crate::js::ArrayPacking::Disabled
+            {
+                return Err(AdmissionError::RuntimePermission {
+                    tactic: TacticId::StringArrayPacking,
+                    risk: RuntimeRisk::Startup,
+                });
+            }
+            if !self.rules.data_encoding
+                && self.choices.iter().any(|(key, alternative)| {
+                    key.family == crate::js::ChoiceFamily::DataEncoding && alternative.0 != 0
+                })
+            {
+                return Err(AdmissionError::ForbiddenTactic(
+                    TacticId::StartupReconstruction,
+                ));
+            }
+            for usage in self.rules.runtime_uses(self.families) {
+                policy.check_tactic_permissions(std::slice::from_ref(&usage))?;
+            }
+        }
         Ok(())
     }
 }
@@ -190,6 +212,12 @@ impl ArtifactProvenance {
         for usage in naming_origin.tactics() {
             phase.work(WorkKind::Analysis, 1)?;
             merge_risk(&mut risks[usage.tactic as usize], usage.risk);
+        }
+        if output.target_compaction {
+            for usage in output.rules.runtime_uses(output.families) {
+                phase.work(WorkKind::Analysis, 1)?;
+                merge_risk(&mut risks[usage.tactic as usize], usage.risk);
+            }
         }
         let mut uses = [TacticUse {
             tactic: TacticId::DeadCodeElimination,
@@ -743,7 +771,7 @@ mod tests {
 
     #[test]
     fn retained_target_rule_permissions_survive_score_reuse() {
-        let resolved = enabled();
+        let resolved = policy("effort.level=16");
         let owner = RevisionId::fresh();
         let mut ledger = ledger(WORK, MEMORY);
         let evidence = build(
@@ -773,7 +801,10 @@ mod tests {
                     .count(),
                 1
             );
-            let off = policy(&format!("[policy.tactics]\n{}='off'", tactic.spec().name));
+            let off = policy(&format!(
+                "effort.level=16\n[policy.tactics]\n{}='off'",
+                tactic.spec().name
+            ));
             assert!(matches!(admit(&evidence, &off, &mut ledger),
                 Err(ProvenanceError::Admission(AdmissionError::ForbiddenTactic(found))) if found == tactic));
         }
@@ -812,6 +843,64 @@ mod tests {
                 Err(ProvenanceError::Admission(AdmissionError::MissingCostEvidence(found))) if found == missing));
         }
         evidence.discard(owner, &mut ledger).unwrap();
+    }
+
+    #[test]
+    fn reconstruction_risks_survive_retention_and_cannot_replay_under_weaker_permissions() {
+        for (tactic, risk) in [
+            (TacticId::StartupReconstruction, RuntimeRisk::Startup),
+            (TacticId::StringArrayPacking, RuntimeRisk::Recurring),
+        ] {
+            let resolved = policy(&format!("[policy.tactics]\n{}='on'", tactic.spec().name));
+            let owner = RevisionId::fresh();
+            let mut ledger = ledger(WORK, MEMORY);
+            let mut output = OutputTactics::from_policy(&resolved);
+            output.families.string_array_packing = tactic == TacticId::StringArrayPacking;
+            let evidence = build(
+                owner,
+                &mut ledger,
+                WorkDomain::Optional,
+                &resolved,
+                &Plan::new(Style::Scoped),
+                &[],
+                output,
+            );
+            assert!(evidence.tactics().contains(&TacticUse { tactic, risk }));
+            for level in [0, 13, 16] {
+                let denied = policy(&format!(
+                    "effort.level={level}\n[policy.tactics]\n{}='off'",
+                    tactic.spec().name
+                ));
+                assert!(admit(&evidence, &denied, &mut ledger).is_err());
+            }
+            if risk == RuntimeRisk::Recurring {
+                assert!(
+                    admit(&evidence, &policy("effort.level=16"), &mut ledger).is_err(),
+                    "a startup grant cannot admit recurring work"
+                );
+            }
+            evidence.discard(owner, &mut ledger).unwrap();
+            assert_eq!(ledger.retained_bytes(), 0);
+        }
+    }
+
+    #[test]
+    fn explicit_encoded_sites_cannot_bypass_a_disabled_encoding_rule() {
+        let resolved = policy("[policy.tactics]\nstartup-reconstruction='off'");
+        let mut output = OutputTactics::from_policy(&resolved);
+        output.choices = output.choices.with(
+            crate::js::ChoiceKey {
+                family: crate::js::ChoiceFamily::DataEncoding,
+                site: crate::js::SiteId::Symbol(0),
+            },
+            crate::js::AltId(1),
+        );
+        assert_eq!(
+            output.check_policy(&resolved),
+            Err(AdmissionError::ForbiddenTactic(
+                TacticId::StartupReconstruction
+            ))
+        );
     }
 
     #[test]

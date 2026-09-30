@@ -551,6 +551,29 @@ const TABLES_HOST: &str = include_str!("../tests/cases/data_tables.host.js");
 const TABLES_EXPECTED: &str = include_str!("../tests/cases/data_tables.out");
 
 #[test]
+fn each_objective_vetoes_reconstruction_before_forming_search_candidates() {
+    for codec in ["raw", "gzip", "brotli"] {
+        let config: ProjectConfig = toml::from_str(&format!(
+            "objective.codecs='{codec}'\neffort.level=1\n[policy.tactics]\nstartup-reconstruction='off'\nstring-array-packing='off'"
+        )).unwrap();
+        let compiled = compile_source(TABLES, &config, ServiceOptions::default()).unwrap();
+        let artifact = compiled.javascript(codec_of(codec)).unwrap();
+        assert!(!artifact.javascript().contains(".split("));
+        assert_eq!(
+            artifact.details()["output"]["rules"]["data_encoding"],
+            false
+        );
+        assert!(artifact.details()["tactics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|usage| usage["tactic"] != "startup-reconstruction"
+                && usage["tactic"] != "string-array-packing"));
+        assert!(stage(&compiled)["choices"].as_array().unwrap().is_empty());
+    }
+}
+
+#[test]
 fn every_objective_judges_the_data_tables_and_delivers_them_exactly() {
     // Plan M9.1 and M9.8: each table site's alternatives are judged by the
     // objective's codec after the challengers, within the choice budget, and
@@ -559,7 +582,7 @@ fn every_objective_judges_the_data_tables_and_delivers_them_exactly() {
     for codec in ["raw", "gzip", "brotli"] {
         let config: ProjectConfig = toml::from_str(&format!(
             "objective.codecs='{codec}'\neffort.level=15\n\
-             [javascript]\nassume_pristine_builtins=true\n"
+             [javascript]\nassume_pristine_builtins=true\n[policy.tactics]\nstartup-reconstruction='on'\n"
         ))
         .unwrap();
         let compiled = compile_source(TABLES, &config, ServiceOptions::default()).unwrap();
@@ -608,7 +631,7 @@ fn every_objective_judges_the_data_tables_and_delivers_them_exactly() {
     // Level 0 has no walk: the seeds ship.
     let config: ProjectConfig = toml::from_str(
         "objective.codecs='brotli'\neffort.level=0\n\
-         [javascript]\nassume_pristine_builtins=true\n",
+         [javascript]\nassume_pristine_builtins=true\n[policy.tactics]\nstartup-reconstruction='on'\n",
     )
     .unwrap();
     let compiled = compile_source(TABLES, &config, ServiceOptions::default()).unwrap();

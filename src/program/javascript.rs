@@ -365,7 +365,7 @@ pub(super) fn lower_admitted(
         contract,
         mode,
         compact,
-        js::TargetRules::ALL,
+        js::TargetRules::SEMANTIC,
         // The canonical families: what a codec objective seeds.
         js::OutputFamilies::seed(js::selection::Objective::Brotli),
         &js::ChoiceMap::SEEDS,

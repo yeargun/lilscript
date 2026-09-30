@@ -1003,7 +1003,7 @@ impl Formations<'_, '_> {
                 crate::compilation_policy::AdmissionError::ForbiddenTactic(tactic) => {
                     CandidateError::ForbiddenTactic(tactic)
                 }
-                _ => unreachable!("output pass permission check does not evaluate costs"),
+                error => CandidateError::Admission(error),
             })?;
         if choices.dead_code_elimination != self.dead_code_elimination
             || choices.target_compaction != self.target_compaction
@@ -2266,7 +2266,7 @@ impl<'src> Compilation<'src> {
             crate::compilation_policy::AdmissionError::ForbiddenTactic(tactic) => {
                 CandidateError::ForbiddenTactic(tactic)
             }
-            _ => unreachable!("output pass permission check does not evaluate costs"),
+            error => CandidateError::Admission(error),
         })?;
         let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
         let map = checkpoint.implementations.as_ref().unwrap();

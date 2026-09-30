@@ -15,7 +15,7 @@ const ALL: OutputTactics = OutputTactics {
     literals: LiteralOutput::Original,
     dead_code_elimination: true,
     target_compaction: true,
-    rules: crate::js::TargetRules::ALL,
+    rules: crate::js::TargetRules::SEMANTIC,
     families: crate::js::OutputFamilies::NONE,
     choices: crate::js::ChoiceMap::SEEDS,
 };
@@ -130,7 +130,7 @@ fn four_output_choices_preserve_closure_exception_and_public_observations() {
                     literals: LiteralOutput::Original,
                     dead_code_elimination,
                     target_compaction,
-                    rules: crate::js::TargetRules::ALL,
+                    rules: crate::js::TargetRules::SEMANTIC,
                     families: crate::js::OutputFamilies::NONE,
                     choices: crate::js::ChoiceMap::SEEDS,
                 };
@@ -206,7 +206,7 @@ fn output_choices_preserve_builtin_arguments_and_integer_results() {
                         literals: LiteralOutput::Original,
                         dead_code_elimination,
                         target_compaction,
-                        rules: crate::js::TargetRules::ALL,
+                        rules: crate::js::TargetRules::SEMANTIC,
                         families: crate::js::OutputFamilies::NONE,
                         choices: crate::js::ChoiceMap::SEEDS,
                     },
@@ -314,7 +314,7 @@ fn int32_hints_restore_the_previous_normalizations() {
                     literals: LiteralOutput::Original,
                     dead_code_elimination: true,
                     target_compaction: true,
-                    rules: crate::js::TargetRules::ALL,
+                    rules: crate::js::TargetRules::SEMANTIC,
                     families: crate::js::OutputFamilies {
                         int32_hints: hints,
                         ..crate::js::OutputFamilies::NONE
@@ -344,7 +344,8 @@ fn pooling_and_packing_are_independent_and_preserve_fresh_arrays() {
             return ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh"];
         }
     "#;
-    let resolved = policy("assume_pristine_builtins=true");
+    let resolved =
+        policy("assume_pristine_builtins=true\n[policy.tactics]\nstring-array-packing='on'");
     with_candidate(source, &resolved, |compiler, candidate| {
         for string_pooling in [false, true] {
             for string_array_packing in [false, true] {
@@ -447,6 +448,83 @@ fn fixed_target_rules_respect_folding_and_inlining_switches() {
             for javascript in [&on, &off] {
                 assert_eq!(execute(javascript, "", observation), serde_json::json!([5]));
             }
+        });
+    }
+}
+
+#[test]
+fn packing_permission_distinguishes_startup_from_callable_bodies() {
+    let source = r#"
+        string[] saved=["aa","bb","cc","dd","ee","ff","gg","hh"];
+        export string[] initial(){return saved;}
+        export string[] make(){return ["aa","bb","cc","dd","ee","ff","gg","hh"];}
+    "#;
+    for (level, permission, expected_splits) in [
+        (0, "auto", 0),
+        (13, "auto", 0),
+        (16, "auto", 1),
+        (16, "off", 0),
+        (0, "on", 2),
+        (13, "on", 2),
+    ] {
+        let resolved = policy(&format!("assume_pristine_builtins=true\n[effort]\nlevel={level}\n[policy.tactics]\nstring-array-packing='{permission}'"));
+        with_candidate(source, &resolved, |compiler, candidate| {
+            let mut choices = OutputTactics::from_policy(&resolved);
+            choices.families.string_array_packing =
+                choices.rules.array_packing != crate::js::ArrayPacking::Disabled;
+            let javascript = emit(compiler, candidate, &resolved, choices);
+            assert_eq!(
+                javascript.matches(".split(").count(),
+                expected_splits,
+                "{level}/{permission}: {javascript}"
+            );
+            assert_eq!(execute(&javascript,"", "const a=library.make(),b=library.make();a[0]='changed';events.push(library.initial(),b,a!==b,library.initial()===library.initial());"),
+                serde_json::json!([["aa","bb","cc","dd","ee","ff","gg","hh"],["aa","bb","cc","dd","ee","ff","gg","hh"],true,true]));
+        });
+    }
+}
+
+#[test]
+fn constant_table_decoders_require_startup_permission_in_direct_output() {
+    let source = include_str!("../../tests/cases/data_tables.lil");
+    let host = include_str!("../../tests/cases/data_tables.host.js");
+    let expected = include_str!("../../tests/cases/data_tables.out");
+    for (level, permission, encoded) in [
+        (0, "auto", false),
+        (13, "auto", false),
+        (16, "auto", true),
+        (0, "on", true),
+        (16, "off", false),
+    ] {
+        let resolved = policy(&format!(
+            "[effort]\nlevel={level}\n[policy.tactics]\nstartup-reconstruction='{permission}'"
+        ));
+        with_candidate(source, &resolved, |compiler, candidate| {
+            let javascript = emit(
+                compiler,
+                candidate,
+                &resolved,
+                OutputTactics::from_policy(&resolved),
+            );
+            assert_eq!(
+                javascript.contains(".split("),
+                encoded,
+                "{level}/{permission}: {javascript}"
+            );
+            let script = format!(
+                "{host}\nawait import('data:text/javascript,'+encodeURIComponent({}));",
+                serde_json::to_string(&javascript).unwrap()
+            );
+            let output = Command::new("node")
+                .args(["--input-type=module", "-e", &script])
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(String::from_utf8(output.stdout).unwrap(), expected);
         });
     }
 }
