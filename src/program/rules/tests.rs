@@ -28,6 +28,104 @@ const FOLD_ONLY: RuleRequest = RuleRequest {
 };
 
 #[test]
+fn rule_views_survive_empty_commits_and_follow_every_edit_owner() {
+    use std::sync::Arc;
+    use crate::check::Type;
+
+    for seal in [Seal::Module, Seal::StructuralOnly] {
+        let arena = bumpalo::Bump::new();
+        let syntax = crate::parse_source(&arena, "int value=3;print(value);print(\"same\");").unwrap();
+        let semantics = crate::analyze(&syntax).unwrap();
+        let mut editor = edit::Editor::new(from_checked_source(&syntax, &semantics).unwrap());
+        let effects = editor.program().effects(seal);
+        let ranges = editor.program().ranges(seal);
+        editor.commit().unwrap();
+        // Looking up already interned data is not an edit either.
+        editor.intern_type(Type::Int).unwrap();
+        editor.intern_string(&"same".into()).unwrap();
+        editor.commit().unwrap();
+        assert!(Arc::ptr_eq(&effects, &editor.program().effects(seal)));
+        assert!(Arc::ptr_eq(&ranges, &editor.program().ranges(seal)));
+
+        let root = editor.program().initialization()[0];
+        let operation = editor.unit_mut(root).operations.iter_mut().find(|operation| {
+            matches!(operation.kind, OperationKind::Constant(Constant::Integer(3)))
+        }).unwrap();
+        operation.kind = OperationKind::Constant(Constant::Integer(4));
+        editor.commit().unwrap();
+        assert!(!effects.deps().valid_for(editor.program()));
+        assert!(!ranges.deps().valid_for(editor.program()));
+        assert!(!Arc::ptr_eq(&effects, &editor.program().effects(seal)));
+        editor.program().verify().unwrap();
+        assert_eq!(run(editor.program()), "4\nsame\n");
+
+        // Table changes must invalidate even if no operation changed.
+        for mutation in 0..4 {
+            let effects = editor.program().effects(seal);
+            let ranges = editor.program().ranges(seal);
+            match mutation {
+                0 => { editor.intern_string(&"new data".into()).unwrap(); }
+                1 => { editor.intern_type(Type::Array(Box::new(Type::Record(Box::new(Type::Int))))).unwrap(); }
+                2 => {
+                    let mut cell = editor.program().cells()[0].clone();
+                    cell.name = "synthetic_local".into();
+                    cell.synthetic = true;
+                    cell.binding = CellBinding::Local;
+                    editor.add_cell(cell).unwrap();
+                }
+                _ => {
+                    let (_, cells) = editor.unit_and_cells(root);
+                    cells[0].reassigned = true;
+                }
+            }
+            editor.commit().unwrap();
+            assert!(!effects.deps().valid_for(editor.program()), "mutation {mutation}");
+            assert!(!ranges.deps().valid_for(editor.program()), "mutation {mutation}");
+            assert!(!Arc::ptr_eq(&effects, &editor.program().effects(seal)));
+            assert!(!Arc::ptr_eq(&ranges, &editor.program().ranges(seal)));
+            editor.program().verify().unwrap();
+        }
+        let scratch = editor.program().effects(seal);
+        let program = editor.finish().unwrap();
+        assert!(scratch.deps().valid_for(&program));
+        assert!(!Arc::ptr_eq(&scratch, &program.effects(seal)), "rule scratch must end before publication");
+    }
+}
+
+#[test]
+fn cold_and_reused_rule_views_preserve_decisions_bytes_and_execution() {
+    struct ColdViews(bool);
+    impl ColdViews {
+        fn set(cold: bool) -> Self {
+            Self(COLD_RULE_VIEWS.with(|state| state.replace(cold)))
+        }
+    }
+    impl Drop for ColdViews {
+        fn drop(&mut self) {
+            COLD_RULE_VIEWS.with(|state| state.set(self.0));
+        }
+    }
+    for request in [MODULE, SCRIPT] {
+        for source in [
+            "int sum(int n){int s=0;for(int i=0;i<n;i+=1){s+=i;}return s;}if(false){print(99);}print(sum(5));",
+            "int current=2;int read(){return current;}int next(int n){current+=n;return read();}print(next(3));print(read());",
+            "int outer(int n){int value=n;auto inner=(int k)=>{value+=k;return value;};return inner(2)+inner(3);}print(outer(7));",
+            "string choose(bool first){if(first){return \"a\"+\"b\";}return \"c\";}print(choose(true));print(choose(false));",
+        ] {
+            let outcomes = [false, true].map(|cold| {
+                let _guard = ColdViews::set(cold);
+                optimized(source, request, |program, receipt| {
+                    let javascript = super::super::javascript::lower(program).unwrap()
+                        .render(PrintPolicy { mangle_bindings: true }).unwrap();
+                    (javascript, receipt)
+                })
+            });
+            assert_eq!(outcomes[0], outcomes[1], "{request:?}\n{source}");
+        }
+    }
+}
+
+#[test]
 fn constant_calls_are_evaluated_for_each_argument_tuple() {
     let source = r#"
         int choose(bool doubled, int value) {

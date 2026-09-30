@@ -4,7 +4,7 @@
 //! an edit is an in-place change to a unit's arenas. An edit that removes an
 //! operation or a region only detaches it; `compact` then drops everything
 //! the unit no longer owns and renumbers what it keeps, which is what the
-//! verifier requires ("unowned semantic storage"). A round commits once:
+//! verifier requires ("unowned semantic storage"). A rule commits its edits:
 //! every touched unit is compacted and stamped with a fresh revision, and the
 //! derived views, which describe the old program, are dropped.
 
@@ -17,12 +17,17 @@ use std::sync::Arc;
 pub(super) struct Editor<'src> {
     program: Program<'src>,
     touched: Vec<bool>,
+    tables_changed: bool,
 }
 
 impl<'src> Editor<'src> {
     pub(super) fn new(program: Program<'src>) -> Self {
         let touched = vec![false; program.units.len()];
-        Self { program, touched }
+        Self {
+            program,
+            touched,
+            tables_changed: false,
+        }
     }
 
     pub(super) fn program(&self) -> &Program<'src> {
@@ -48,6 +53,8 @@ impl<'src> Editor<'src> {
     pub(super) fn unit_and_cells(&mut self, unit: UnitId) -> (&mut UnitData, &mut [Cell]) {
         let index = unit.index();
         self.touched[index] = true;
+        self.tables_changed = true;
+        self.program.tables_revision = RevisionId::fresh();
         let cells = Arc::make_mut(&mut self.program.cells);
         let frozen = &mut self.program.units[index];
         if !frozen.allocation_is_unique() {
@@ -65,6 +72,7 @@ impl<'src> Editor<'src> {
     /// code that no longer exists; it keeps the nearest region its owner
     /// still has, so the table stays valid.
     pub(super) fn commit(&mut self) -> Result<(), &'static str> {
+        let changed = self.tables_changed || self.touched.iter().any(|touched| *touched);
         let mut remaps: Vec<Option<RegionRemap>> = Vec::new();
         for index in 0..self.touched.len() {
             if !std::mem::take(&mut self.touched[index]) {
@@ -84,6 +92,7 @@ impl<'src> Editor<'src> {
             }
         }
         if !remaps.is_empty() {
+            self.program.tables_revision = RevisionId::fresh();
             let cells = Arc::make_mut(&mut self.program.cells);
             for cell in cells.iter_mut() {
                 if let Some(Some(remap)) = remaps.get(cell.owner.index()) {
@@ -91,7 +100,14 @@ impl<'src> Editor<'src> {
                 }
             }
         }
-        self.program.views = ProgramViews::default();
+        if changed {
+            self.program.views = ProgramViews::default();
+        }
+        self.tables_changed = false;
+        #[cfg(test)]
+        if super::COLD_RULE_VIEWS.with(std::cell::Cell::get) {
+            self.program.views = ProgramViews::default();
+        }
         Ok(())
     }
 
@@ -112,6 +128,8 @@ impl<'src> Editor<'src> {
         let types = Arc::make_mut(&mut self.program.types);
         let id = TypeId::from_index(types.len()).ok_or("type capacity")?;
         types.push(ty);
+        self.tables_changed = true;
+        self.program.tables_revision = RevisionId::fresh();
         Ok(id)
     }
 
@@ -124,6 +142,7 @@ impl<'src> Editor<'src> {
         let strings = Arc::make_mut(&mut self.program.strings);
         let id = StringId::from_index(strings.len()).ok_or("string capacity")?;
         strings.push(value.clone());
+        self.tables_changed = true;
         self.program.tables_revision = RevisionId::fresh();
         Ok(id)
     }
@@ -133,11 +152,16 @@ impl<'src> Editor<'src> {
         let cells = Arc::make_mut(&mut self.program.cells);
         let id = CellId::from_index(cells.len()).ok_or("cell capacity")?;
         cells.push(cell);
+        self.tables_changed = true;
+        self.program.tables_revision = RevisionId::fresh();
         Ok(id)
     }
 
     pub(super) fn finish(mut self) -> Result<Program<'src>, &'static str> {
         self.commit()?;
+        // These views are rule-phase scratch. Publication admits the returned
+        // program separately, and must not inherit unowned analysis storage.
+        self.program.views = ProgramViews::default();
         Ok(self.program)
     }
 }

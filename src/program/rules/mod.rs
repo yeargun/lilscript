@@ -139,6 +139,12 @@ enum ProgramRule {
 /// catches a rule that does not converge.
 const ROUND_CEILING: u32 = 128;
 
+#[cfg(test)]
+thread_local! {
+    /// Audit only: force the former cold behavior without changing decisions.
+    static COLD_RULE_VIEWS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 /// Runs the permitted rules to their fixed point. The result is verified: a
 /// rule that leaves an invalid program is a compiler bug, reported as an
 /// error rather than delivered.
