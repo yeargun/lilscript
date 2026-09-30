@@ -179,10 +179,10 @@ impl SearchCounters {
         serde_json::json!({
             "inventory_reached": self.inventory_reached,
             "inventory_truncated": self.inventory_truncated,
-            "families": [T::ScalarReplacement, T::Inlining, T::CallSpecialization,
+            "families": ([T::ScalarReplacement, T::Inlining, T::CallSpecialization,
                 T::ConstantFolding, T::StringPooling].into_iter().zip(self.families)
                 .map(|(tactic, outcomes)| serde_json::json!({"tactic":tactic,"outcomes":outcomes}))
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>())
         })
     }
 }
