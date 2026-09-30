@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { codeOnly, composeConfig, LANES, parseTomlTables, selectLanes, walkCounts } from "./cases.mjs";
 import { diffAgainstLedger, failingTests, rewriteObjective, suiteRan, testTotals } from "./ports.mjs";
-import { applyLedger, catalogId, compareWithBaseline, countLosses, lossRows, selectItems, validateLedger } from "./ratchet.mjs";
+import { applyLedger, catalogId, compareWithBaseline, countLosses, deliveryProblem, lossRows, selectItems, validateLedger } from "./ratchet.mjs";
 import { validateIdiomDebt } from "./lib/idiom-debt.mjs";
 
 test("feature detection ignores comments and string text but not template expressions", () => {
@@ -123,6 +123,17 @@ test("ratchet: growth, a new loss and a broken lane block; shrinking is an impro
   assert.deepEqual(result.broken.map((row) => `${row.id} ${row.metric} ${row.state}`), ["apps/c gzip9 wrong-output"]);
   assert.deepEqual(result.added, ["apps/d"]);
   assert.deepEqual(result.countChanges, [{ set: "apps", metric: "brotli11", bar: "competitor", before: 2, now: 3 }]);
+});
+
+test("ratchet: a default-container change cannot rewrite the old delivery baseline", () => {
+  const historical = { items: {} };
+  assert.equal(deliveryProblem("bare", historical), null);
+  assert.match(deliveryProblem("iife", historical), /^delivery contract changed:/);
+  const wrapped = { delivery: { target: "js", format: "iife" } };
+  assert.equal(deliveryProblem("iife", wrapped), null);
+  assert.match(deliveryProblem("bare", wrapped), /separate baseline/);
+  assert.equal(deliveryProblem("iife", null), null);
+  assert.throws(() => deliveryProblem("auto", historical), /unknown script format/);
 });
 
 test("ratchet: the ledger needs owners and reasons, covers by glob, bar and metric, and reports stale entries", () => {

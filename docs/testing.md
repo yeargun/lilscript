@@ -193,7 +193,7 @@ The architecture's NO2 (§18.3) as a blocking gate (L21, plan rule 3). Three cor
 | `comparison/apps` | 7 programs written for Closure ADVANCED | `tests/stdout.txt` | `comparison/cases/configs/<codec>.toml` | competitor, closure, old |
 | `comparison/algorithms` | 11 host-fed programs | each vector's stdout and the reference program's ordered host accesses | `comparison/algorithms/configs/<codec>.toml` | competitor, closure, old |
 
-Each item compiles once per objective lane (raw, gzip, Brotli; `--target js --mode production`), runs against its oracle and is measured with `lilscript-codec`. Its artifact is then compared, in the lane's own metric, with the bars in `tests/ratchet/bars.json`:
+Each item compiles once per objective lane (raw, gzip, Brotli; `--target js --format bare --mode production`), runs against its oracle and is measured with `lilscript-codec`. The explicit bare container preserves the historical measurement contract after application builds adopted a private IIFE default. `--format iife` measures that new default separately; reports and new baselines record the container, and a different container blocks baseline replacement even with `--accept-growth`. Its artifact is then compared, in the lane's own metric, with the bars in `tests/ratchet/bars.json`:
 - **competitor**: the smallest valid Terser (with and without its safe property lane), Oxc or esbuild artifact, from the recipes in `comparison/cases/recipes.mjs`; the algorithms add their harness's bundler lanes;
 - **closure**: Closure ADVANCED (apps: `comparison/artifacts/*/closure-advanced.js`; algorithms: their harness);
 - **old**: the frozen old route, `reference-2026-09-23 --backend legacy`, with the configurations it read (`tests/ratchet/old-route/`).
@@ -206,6 +206,7 @@ An item **loses** to a bar when it is larger. A lane with no artifact (refused, 
 | `--codec` | `lilscript-codec` | beside the compiler |
 | `--sets` | `cases`, `apps`, `algorithms`, comma-separated | all three |
 | `--filter` | item ids: comma-separated substrings or globs | every item |
+| `--format` | explicit classic-script container, `bare` or `iife` | `bare` |
 | `--jobs` | parallel compiles and runs | min(3, CPUs − 2) |
 | `--json`, `--markdown` | reports | — |
 | `--bars`, `--baseline`, `--ledger` | the three files below | `tests/ratchet/` |

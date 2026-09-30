@@ -4,7 +4,7 @@
 //   node scripts/ratchet.mjs --compiler <lilscript> [--codec <lilscript-codec>]
 //        [--sets cases,apps,algorithms] [--filter <id-substring|glob>,...]
 //        [--jobs N] [--work DIR] [--json out.json] [--markdown out.md]
-//        [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline [--accept-growth]] [--verbose]
+//        [--format bare|iife] [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline [--accept-growth]] [--verbose]
 //   node scripts/ratchet.mjs --refresh-bars --compiler <lilscript> --reference <old-route lilscript>
 //
 // Three generic corpora, none of them a port: comparison/cases (54 canonical
@@ -458,6 +458,7 @@ function formatCounts(counts, sums, sets) {
 
 function markdownReport(report) {
   const out = [`# Generic corpus ratchet`, "", `Compiler \`${report.compiler.sha256.slice(0, 16)}\`${report.compiler.label ? ` (${report.compiler.label})` : ""}, ${report.items} items, bars \`${report.barsSha256.slice(0, 16)}\`.`, ""];
+  if (report.delivery) out.push(`Delivery: classic script, explicit \`${report.delivery.format}\`.`, "");
   out.push(formatCounts(report.counts, report.totals, report.sets), "");
   out.push(`Failures (compile, crash or oracle): ${report.failures.length}. Verdict: **${report.verdict}**.`, "");
   if (report.problems.length) out.push("## Blocking", "", ...report.problems.map((line) => `- ${line}`), "");
@@ -627,6 +628,17 @@ async function refreshBars(options) {
 
 // ---------------------------------------------------------------- check
 
+// Historical baselines measured bare classic scripts. Pin that container
+// explicitly so a compiler-default change cannot silently change the gate.
+export function deliveryProblem(format, baseline) {
+  if (!["bare", "iife"].includes(format)) throw new Error(`unknown script format ${format}; use bare or iife`);
+  if (!baseline) return null;
+  const previous = baseline.delivery ?? { target: "js", format: "bare" };
+  return previous.target !== "js" || previous.format !== format
+    ? `delivery contract changed: ${previous.target}/${previous.format} -> js/${format}; qualify with a separate baseline`
+    : null;
+}
+
 export async function runRatchet(options) {
   const started = Date.now();
   const work = resolve(options.work);
@@ -639,6 +651,8 @@ export async function runRatchet(options) {
   if (ledgerProblems.length) throw new Error(`the ratchet ledger is invalid:\n${ledgerProblems.join("\n")}`);
   const baselinePath = resolve(options.baseline);
   const baseline = existsSync(baselinePath) ? JSON.parse(readFileSync(baselinePath, "utf8")) : null;
+  const format = options.format ?? "bare";
+  const contractProblem = deliveryProblem(format, baseline);
 
   const sets = options.sets;
   const { items: corpus, catalogEntries } = await loadCorpus(sets);
@@ -651,7 +665,7 @@ export async function runRatchet(options) {
   const compiler = { ...pinBinary(options.compiler, join(work, "bin")), label: "compiler" };
   const codec = pinBinary(options.codec, join(work, "bin"));
   const table = await compileCorpus({
-    binary: compiler, extraArgs: [], configFor: (item) => CONFIGS[item.set],
+    binary: compiler, extraArgs: ["--format", format], configFor: (item) => CONFIGS[item.set],
     items, work, jobs: options.jobs, codec, oracle: barsDocument.oracles ?? {},
   });
 
@@ -662,6 +676,7 @@ export async function runRatchet(options) {
   const sums = totals(table, bars, ids);
   const { unledgeredLosses, unledgeredFailures, stale } = applyLedger(ledger, losses, failures);
   const problems = [];
+  if (contractProblem) problems.push(contractProblem);
   const improvements = [];
 
   for (const row of unledgeredLosses) problems.push(`unledgered loss: ${row.id} ${row.metric} ${row.ours} > ${row.bar} ${row.bar_size} (+${row.loss}); add a ledger entry with an owner`);
@@ -698,6 +713,7 @@ export async function runRatchet(options) {
     seconds: Math.round((Date.now() - started) / 1000),
     compiler: { source: compiler.source, sha256: compiler.sha256, version: compiler.version, label: options.label ?? null },
     codec: { sha256: codec.sha256 },
+    delivery: { target: "js", format },
     sets,
     filter: options.filter ?? null,
     items: items.length,
@@ -752,6 +768,7 @@ export async function runRatchet(options) {
         about: "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
         recorded: new Date().toISOString().slice(0, 10),
         compiler: report.compiler,
+        delivery: report.delivery,
         barsSha256,
         counts,
         totals: sums,
@@ -780,6 +797,7 @@ async function main() {
       reference: { type: "string" },
       sets: { type: "string" },
       filter: { type: "string" },
+      format: { type: "string" },
       jobs: { type: "string" },
       work: { type: "string" },
       json: { type: "string" },
@@ -797,7 +815,7 @@ async function main() {
     },
   });
   if (values.help || !values.compiler) {
-    process.stderr.write("usage: node scripts/ratchet.mjs --compiler <lilscript> [--codec PATH] [--sets cases,apps,algorithms] [--filter <id|glob>,...] [--jobs N] [--work DIR] [--json FILE] [--markdown FILE] [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline] [--verbose]\n       node scripts/ratchet.mjs --refresh-bars --compiler <lilscript> --reference <old-route lilscript> [--codec PATH] [--jobs N]\n");
+    process.stderr.write("usage: node scripts/ratchet.mjs --compiler <lilscript> [--codec PATH] [--sets cases,apps,algorithms] [--filter <id|glob>,...] [--format bare|iife] [--jobs N] [--work DIR] [--json FILE] [--markdown FILE] [--bars FILE] [--baseline FILE] [--ledger FILE] [--update-baseline] [--verbose]\n       node scripts/ratchet.mjs --refresh-bars --compiler <lilscript> --reference <old-route lilscript> [--codec PATH] [--jobs N]\n");
     return values.help ? 0 : 2;
   }
   const codec = values.codec ?? defaultCodec(values.compiler);
@@ -810,6 +828,7 @@ async function main() {
     reference: values.reference,
     sets,
     filter: values.filter,
+    format: values.format ?? "bare",
     jobs: Math.max(1, Number(values.jobs ?? Math.min(3, Math.max(1, availableParallelism() - 2)))),
     work: values.work ?? join(repository, "target/verify/ratchet"),
     json: values.json,
