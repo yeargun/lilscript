@@ -284,7 +284,7 @@ Relative working directories resolve from the manifest. Supply `--previous`,
 defaults to five alternating pairs after one separate warm-up per compiler.
 
 The JSON retains every measured process-CPU/wall sample, order and host load,
-summary spread, input/configuration and binary identities, artifact hashes
+summary spread, runner/manifest/input/configuration and binary identities, artifact hashes
 and exact codec sizes. Warm-up explain reports and elapsed phase telemetry
 are outside timed samples. Input changes, policy mismatches and unstable
 output fail the run. A median alone is insufficient evidence of a speed win;
@@ -296,6 +296,11 @@ An intentional compiler schedule/tactic revision can use
 effective policies. Target availability, program contract, objective encoder
 settings, runtime priority, effort and resource/acceptance limits must still
 match; this option cannot relax them. Without it, any policy mismatch fails.
+Resource comparison validates the requested, configured and effective ceilings
+in both reports, including when older policy objects omit the service ceiling.
+Moving the same effective limit into policy identity is allowed with a reason;
+different limits, contradictory receipts or missing evidence fail. Reports keep
+the matched limits, and runner/manifest changes during measurement also fail.
 
 ## Paired generated-program runtime
 

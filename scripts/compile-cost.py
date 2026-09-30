@@ -76,6 +76,27 @@ def summary(samples):
     return result
 
 
+def effective_resources(report, policy):
+    """Validate, then compare ceilings actually used by the service owner."""
+    request, limits = report.get("request"), policy.get("resources")
+    if not isinstance(request, dict) or not isinstance(limits, dict):
+        raise RuntimeError("missing service/resource receipt for matched compilation")
+    result = dict(limits)
+    for key in ["logical_work", "retained_bytes"]:
+        caller, configured = request.get(key), limits.get(key)
+        if type(caller) is not int or caller < 0:
+            raise RuntimeError(f"invalid or missing service {key}")
+        if configured is not None and (type(configured) is not int or configured < 0):
+            raise RuntimeError(f"invalid configured {key}")
+        actual = caller if configured is None else min(caller, configured)
+        observed = request.get(f"effective_{key}")
+        if type(observed) is not int or observed != actual:
+            raise RuntimeError(f"inconsistent effective {key} receipt")
+        result[key] = actual
+    result["wall_time_ms"] = limits.get("wall_time_ms")
+    return result
+
+
 def compare_policies(previous, candidate, reason=None):
     """Record an intentional compiler-policy change without relaxing the task."""
     differences = []
@@ -83,13 +104,16 @@ def compare_policies(previous, candidate, reason=None):
         if field not in previous or field not in candidate:
             raise RuntimeError(f"missing {field} in explain report")
         before, after = previous[field], candidate[field]
+        if isinstance(before, dict) and isinstance(after, dict):
+            if effective_resources(previous, before) != effective_resources(candidate, after):
+                raise RuntimeError(f"changed effective resources in {field}; this is not a matched compilation task")
         if before == after:
             continue
         if not reason or not reason.strip():
             raise RuntimeError(f"compilers resolved different {field}; explain an intentional change with --allow-policy-change")
         if not isinstance(before, dict) or not isinstance(after, dict):
             raise RuntimeError(f"changed target availability in {field}")
-        for key in ["contract", "effort", "resources", "constraints"]:
+        for key in ["contract", "effort", "constraints"]:
             if key not in before or key not in after or before[key] != after[key]:
                 raise RuntimeError(f"changed {key} in {field}; this is not a matched compilation task")
         left, right = before.get("objective"), after.get("objective")
@@ -106,10 +130,13 @@ def compare_policies(previous, candidate, reason=None):
 
 def measure(args, report):
     manifest = json.loads(args.manifest.read_text())
+    runner = str(Path(__file__).resolve())
     binaries = {key: str(Path(getattr(args, key)).resolve()) for key in ["previous", "candidate"]}
     identities = {key: {"path": path, "sha256": digest(path)} for key, path in binaries.items()}
     codec = str(args.codec.resolve())
     report.update({"schema": 1, "compilers": identities, "codec": {"path": codec, "sha256": digest(codec)},
+                   "runner": {"path": runner, "sha256": digest(runner)},
+                   "manifest_identity": {"path": str(args.manifest), "sha256": digest(args.manifest)},
                    "manifest": manifest, "rounds": args.rounds, "workloads": [], "complete": False,
                    "policy_change_reason": args.allow_policy_change})
     seen = set()
@@ -134,6 +161,7 @@ def measure(args, report):
                "warmup": warm, "samples": ordered}
         report["workloads"].append(row)
         row["policy_differences"] = compare_policies(previous, candidate, args.allow_policy_change)
+        row["matched_resources"] = effective_resources(candidate, candidate["javascript_policy"] or candidate["native_policy"])
         for round_index in range(args.rounds):
             order = ["previous", "candidate"] if round_index % 2 == 0 else ["candidate", "previous"]
             for key in order:
@@ -155,9 +183,9 @@ def measure(args, report):
                                 capture_output=True, check=True, text=True, timeout=args.timeout)
         row["sizes"] = json.loads(result.stdout)
         print(f"{workload['id']}: CPU ratio {row['cpu_ratio']:.3f}, {len(ordered)} retained samples", flush=True)
-    for identity in [*identities.values(), report["codec"]]:
+    for identity in [*identities.values(), report["codec"], report["runner"], report["manifest_identity"]]:
         if digest(identity["path"]) != identity["sha256"]:
-            raise RuntimeError(f"binary changed: {identity['path']}")
+            raise RuntimeError(f"pinned input changed: {identity['path']}")
     report["complete"] = True
 
 
