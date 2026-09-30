@@ -3,8 +3,8 @@
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
  "recorded": "2026-09-30",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/s1-primitive-assumptions-1/lilscript",
-  "sha256": "ac7471fd0ecf51eef44dfa3a808c2d500746785dfd1ced5e2f4689e8680880da",
+  "source": "/home/azureuser/lilscript-work/bin/q2-statement-mentions-1/lilscript",
+  "sha256": "a5da0201f944923ba9162c63942431d833178e5f9a38aa25776c050a4d6fa8cd",
   "version": "lilscript 0.1.0",
   "label": null
  },
@@ -36,10 +36,10 @@
      "mode": "Production",
      "target": "Js"
     },
-    "fingerprint": "19e8fc5efc77798dbb144a01853d213b8e453199fde167cbd4e8f71d19ef1d36",
+    "fingerprint": "38c927916ea1c4d06f0eee48f94107bfdff1e7cebbcc31f80dbfd3398c046f6f",
     "policy": {
      "schema": 2,
-     "algorithm": 7,
+     "algorithm": 8,
      "contract": {
       "target": "javascript",
       "world": "ClosedApplication",
@@ -88,7 +88,7 @@
       "retained_candidate_bytes": 16777216,
       "beam_width": 24,
       "walk": {
-       "version": 7,
+       "version": 8,
        "prefix": null,
        "exact": null,
        "margin": 0,
@@ -96,10 +96,12 @@
        "starts": true
       },
       "search": {
-       "version": 28,
+       "version": 29,
        "codec_schedule": "staged",
        "proxy_pruning": "on",
-       "deferred_naming_starts": true,
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
        "render_batch": 8,
        "diversity_interval": 4
       }
@@ -471,10 +473,10 @@
      "mode": "Production",
      "target": "Js"
     },
-    "fingerprint": "815119d97afff34b79f3395f0c42fa0d904efec800b0dee471c2e0514db335e0",
+    "fingerprint": "198c5f583f5da32ec9f4d615e150f66d7b31efb12ca75bacdb16dd9eb7511b09",
     "policy": {
      "schema": 2,
-     "algorithm": 7,
+     "algorithm": 8,
      "contract": {
       "target": "javascript",
       "world": "ClosedApplication",
@@ -523,7 +525,7 @@
       "retained_candidate_bytes": 16777216,
       "beam_width": 24,
       "walk": {
-       "version": 7,
+       "version": 8,
        "prefix": null,
        "exact": null,
        "margin": 0,
@@ -531,10 +533,12 @@
        "starts": true
       },
       "search": {
-       "version": 28,
+       "version": 29,
        "codec_schedule": "staged",
        "proxy_pruning": "on",
-       "deferred_naming_starts": true,
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
        "render_batch": 8,
        "diversity_interval": 4
       }
@@ -906,10 +910,10 @@
      "mode": "Production",
      "target": "Js"
     },
-    "fingerprint": "194452b69cbb4a7955218f4fb0a74a9f07ca65d14f42555cffee12d01a3a4879",
+    "fingerprint": "dc3340264a4a4ef4b0a65e3e6a1d863ce1b7c0f4d7bdba3ea9ee27aa551366e9",
     "policy": {
      "schema": 2,
-     "algorithm": 7,
+     "algorithm": 8,
      "contract": {
       "target": "javascript",
       "world": "ClosedApplication",
@@ -958,7 +962,7 @@
       "retained_candidate_bytes": 16777216,
       "beam_width": 24,
       "walk": {
-       "version": 7,
+       "version": 8,
        "prefix": null,
        "exact": null,
        "margin": 150,
@@ -966,10 +970,12 @@
        "starts": true
       },
       "search": {
-       "version": 28,
+       "version": 29,
        "codec_schedule": "staged",
        "proxy_pruning": "on",
-       "deferred_naming_starts": true,
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
        "render_batch": 8,
        "diversity_interval": 4
       }
@@ -1341,10 +1347,10 @@
      "mode": "Production",
      "target": "Js"
     },
-    "fingerprint": "19e8fc5efc77798dbb144a01853d213b8e453199fde167cbd4e8f71d19ef1d36",
+    "fingerprint": "38c927916ea1c4d06f0eee48f94107bfdff1e7cebbcc31f80dbfd3398c046f6f",
     "policy": {
      "schema": 2,
-     "algorithm": 7,
+     "algorithm": 8,
      "contract": {
       "target": "javascript",
       "world": "ClosedApplication",
@@ -1393,7 +1399,7 @@
       "retained_candidate_bytes": 16777216,
       "beam_width": 24,
       "walk": {
-       "version": 7,
+       "version": 8,
        "prefix": null,
        "exact": null,
        "margin": 0,
@@ -1401,10 +1407,12 @@
        "starts": true
       },
       "search": {
-       "version": 28,
+       "version": 29,
        "codec_schedule": "staged",
        "proxy_pruning": "on",
-       "deferred_naming_starts": true,
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
        "render_batch": 8,
        "diversity_interval": 4
       }
@@ -1776,10 +1784,10 @@
      "mode": "Production",
      "target": "Js"
     },
-    "fingerprint": "815119d97afff34b79f3395f0c42fa0d904efec800b0dee471c2e0514db335e0",
+    "fingerprint": "198c5f583f5da32ec9f4d615e150f66d7b31efb12ca75bacdb16dd9eb7511b09",
     "policy": {
      "schema": 2,
-     "algorithm": 7,
+     "algorithm": 8,
      "contract": {
       "target": "javascript",
       "world": "ClosedApplication",
@@ -1828,7 +1836,7 @@
       "retained_candidate_bytes": 16777216,
       "beam_width": 24,
       "walk": {
-       "version": 7,
+       "version": 8,
        "prefix": null,
        "exact": null,
        "margin": 0,
@@ -1836,10 +1844,12 @@
        "starts": true
       },
       "search": {
-       "version": 28,
+       "version": 29,
        "codec_schedule": "staged",
        "proxy_pruning": "on",
-       "deferred_naming_starts": true,
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
        "render_batch": 8,
        "diversity_interval": 4
       }
@@ -2211,10 +2221,10 @@
      "mode": "Production",
      "target": "Js"
     },
-    "fingerprint": "194452b69cbb4a7955218f4fb0a74a9f07ca65d14f42555cffee12d01a3a4879",
+    "fingerprint": "dc3340264a4a4ef4b0a65e3e6a1d863ce1b7c0f4d7bdba3ea9ee27aa551366e9",
     "policy": {
      "schema": 2,
-     "algorithm": 7,
+     "algorithm": 8,
      "contract": {
       "target": "javascript",
       "world": "ClosedApplication",
@@ -2263,7 +2273,7 @@
       "retained_candidate_bytes": 16777216,
       "beam_width": 24,
       "walk": {
-       "version": 7,
+       "version": 8,
        "prefix": null,
        "exact": null,
        "margin": 150,
@@ -2271,10 +2281,12 @@
        "starts": true
       },
       "search": {
-       "version": 28,
+       "version": 29,
        "codec_schedule": "staged",
        "proxy_pruning": "on",
-       "deferred_naming_starts": true,
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
        "render_batch": 8,
        "diversity_interval": 4
       }
@@ -2646,10 +2658,10 @@
      "mode": "Production",
      "target": "Js"
     },
-    "fingerprint": "19e8fc5efc77798dbb144a01853d213b8e453199fde167cbd4e8f71d19ef1d36",
+    "fingerprint": "38c927916ea1c4d06f0eee48f94107bfdff1e7cebbcc31f80dbfd3398c046f6f",
     "policy": {
      "schema": 2,
-     "algorithm": 7,
+     "algorithm": 8,
      "contract": {
       "target": "javascript",
       "world": "ClosedApplication",
@@ -2698,7 +2710,7 @@
       "retained_candidate_bytes": 16777216,
       "beam_width": 24,
       "walk": {
-       "version": 7,
+       "version": 8,
        "prefix": null,
        "exact": null,
        "margin": 0,
@@ -2706,10 +2718,12 @@
        "starts": true
       },
       "search": {
-       "version": 28,
+       "version": 29,
        "codec_schedule": "staged",
        "proxy_pruning": "on",
-       "deferred_naming_starts": true,
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
        "render_batch": 8,
        "diversity_interval": 4
       }
@@ -3081,10 +3095,10 @@
      "mode": "Production",
      "target": "Js"
     },
-    "fingerprint": "815119d97afff34b79f3395f0c42fa0d904efec800b0dee471c2e0514db335e0",
+    "fingerprint": "198c5f583f5da32ec9f4d615e150f66d7b31efb12ca75bacdb16dd9eb7511b09",
     "policy": {
      "schema": 2,
-     "algorithm": 7,
+     "algorithm": 8,
      "contract": {
       "target": "javascript",
       "world": "ClosedApplication",
@@ -3133,7 +3147,7 @@
       "retained_candidate_bytes": 16777216,
       "beam_width": 24,
       "walk": {
-       "version": 7,
+       "version": 8,
        "prefix": null,
        "exact": null,
        "margin": 0,
@@ -3141,10 +3155,12 @@
        "starts": true
       },
       "search": {
-       "version": 28,
+       "version": 29,
        "codec_schedule": "staged",
        "proxy_pruning": "on",
-       "deferred_naming_starts": true,
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
        "render_batch": 8,
        "diversity_interval": 4
       }
@@ -3516,10 +3532,10 @@
      "mode": "Production",
      "target": "Js"
     },
-    "fingerprint": "194452b69cbb4a7955218f4fb0a74a9f07ca65d14f42555cffee12d01a3a4879",
+    "fingerprint": "dc3340264a4a4ef4b0a65e3e6a1d863ce1b7c0f4d7bdba3ea9ee27aa551366e9",
     "policy": {
      "schema": 2,
-     "algorithm": 7,
+     "algorithm": 8,
      "contract": {
       "target": "javascript",
       "world": "ClosedApplication",
@@ -3568,7 +3584,7 @@
       "retained_candidate_bytes": 16777216,
       "beam_width": 24,
       "walk": {
-       "version": 7,
+       "version": 8,
        "prefix": null,
        "exact": null,
        "margin": 150,
@@ -3576,10 +3592,12 @@
        "starts": true
       },
       "search": {
-       "version": 28,
+       "version": 29,
        "codec_schedule": "staged",
        "proxy_pruning": "on",
-       "deferred_naming_starts": true,
+       "deferred_naming_starts": "auto",
+       "deferred_naming_starts_enabled": true,
+       "deferred_naming_polish": true,
        "render_batch": 8,
        "diversity_interval": 4
       }
@@ -4001,12 +4019,12 @@
    "gzip9": {
     "competitor": {
      "items": 624,
-     "ours": 50180,
+     "ours": 50179,
      "bar": 56410
     },
     "old": {
      "items": 622,
-     "ours": 50006,
+     "ours": 50005,
      "bar": 46478
     }
    },
@@ -6140,7 +6158,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 110
+    "size": 109
    },
    "brotli11": {
     "state": "pass",
