@@ -520,8 +520,9 @@ impl<'src> Program<'src> {
 #[derive(Debug, Clone)]
 pub struct Cell {
     /// For a checked binding, its own symbol (`cells[i]` is symbol `i`). For
-    /// a synthetic cell, the source construct it implements.
-    pub source_symbol: SymbolId,
+    /// a synthetic cell, an optional source binding supplying provenance.
+    /// Expression-level temporaries have no checked binding to borrow.
+    pub source_symbol: Option<SymbolId>,
     pub name: String,
     pub ty: TypeId,
     pub owner: UnitId,

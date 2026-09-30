@@ -489,14 +489,14 @@ fn selected_helper_removes_callable_support_and_uses_distinct_expansion_bindings
     assert!(!inline_target
         .bindings
         .iter()
-        .any(|binding| binding.source_symbol == Some(helper_symbol)));
+        .any(|binding| binding.source_symbol == helper_symbol));
     for symbol in [parameter_symbol, local_symbol] {
         let bindings: Vec<_> = inline_target
             .bindings
             .iter()
             .enumerate()
             .filter_map(|(index, binding)| {
-                (binding.source_symbol == Some(symbol)).then_some(js::BindingId::new(index))
+                (binding.source_symbol == symbol).then_some(js::BindingId::new(index))
             })
             .collect();
         assert_eq!(bindings.len(), 2, "one cell per static expansion");

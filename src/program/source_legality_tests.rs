@@ -2038,6 +2038,75 @@ fn primitive_methods_can_be_passed_with_an_explicit_receiver_closure() {
 }
 
 #[test]
+fn typed_record_spread_preserves_own_key_order_snapshots_and_special_keys() {
+    compare_source_output_with_setup(
+        r#"
+        extern void inspect(JsValue value);
+        Record<int> source=record{"2":2,"1":1,"__proto__":9,left:3};
+        int change(){source["1"]=99;return 7;}
+        Record<int> copy=record{...source,marker:change(),...record{right:4},left:5};
+        print(copy["1"]??0);print(source["1"]??0);
+        print(Object.keys(copy).join(","));print(JSON.stringify(copy));inspect(copy);
+        source.left=40;copy.right=50;print(source.left??0);print(copy.left??0);
+        print(Object.keys(record{...record{alpha:1,beta:2}}).join(","));
+    "#,
+        "globalThis.inspect=value=>console.log(Object.getPrototypeOf(value)===null,Object.hasOwn(value,'__proto__'),value.__proto__);",
+        "1\n99\n1,2,__proto__,left,marker,right\n{\"1\":1,\"2\":2,\"__proto__\":9,\"left\":5,\"marker\":7,\"right\":4}\ntrue true 9\n40\n5\nalpha,beta\n",
+    );
+}
+
+#[test]
+fn typed_record_spread_without_a_source_binding_has_valid_temporary_provenance() {
+    let source = "print(Object.keys(record{...record{a:1,b:2}}).join(\",\"));";
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let semantics = crate::analyze(&syntax).unwrap();
+    let program = from_checked_source(&syntax, &semantics).unwrap();
+    program.verify().unwrap();
+    assert!(
+        program
+            .cells
+            .iter()
+            .any(|cell| cell.synthetic && cell.source_symbol.is_none())
+    );
+    compare_source_output(source, "a,b\n");
+}
+
+#[test]
+fn typed_record_spread_stops_before_later_entries_when_an_initializer_throws() {
+    compare_source_output(
+        r#"
+        int before(){print(1);return 10;}
+        int fail(){print(2);throw "stop";}
+        int later(){print(3);return 30;}
+        try { Record<int> copy=record{...record{a:before()},b:fail(),c:later()}; print(copy.a??0); }
+        catch(auto error){print(4);}
+    "#,
+        "1\n2\n4\n",
+    );
+}
+
+#[test]
+fn typed_record_spread_keeps_lazy_regions_and_argument_order() {
+    compare_source_output_with_setup(
+        r#"
+        extern int consume(Record<int> value, int after);
+        int mark(int value){print(value);return value;}
+        Record<int> source=record{a:1};
+        bool skip=false;
+        if(skip && Object.keys(record{...source,b:mark(99)}).length>0){print(100);}
+        Record<int> selected=if(skip){record{...source,b:mark(98)}}else{record{...source,b:mark(2)}};
+        print(consume(record{...selected,c:mark(3)},mark(4)));
+        int count=0;
+        while(Object.keys(record{...source,b:count}).length==2 && count<2){count+=1;}
+        print(count);
+    "#,
+        "Object.defineProperty(globalThis,'consume',{get(){console.log('callee');return (value,after)=>value.a+value.b+value.c+after;}});",
+        "2\ncallee\n3\n4\n10\n2\n",
+    );
+}
+
+#[test]
 fn string_escapes_keep_their_code_units() {
     compare_source_with_interpreter(r#"print("a\n\u0041\t");print("\ud83d\ude00");"#);
 }

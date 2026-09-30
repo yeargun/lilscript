@@ -840,6 +840,57 @@ fn searched_nullish_assignment_preserves_stores_and_value_copies_at_each_syntax_
 }
 
 #[test]
+fn searched_typed_record_spread_keeps_value_copies_and_all_objective_contracts() {
+    let source = r#"
+        struct Point{int x;int y;}
+        export string run(){
+            Point seed=Point{1,2};
+            Record<Point> original=record{point:seed};
+            Record<Point> copy=record{...original};
+            seed.x=8;Point first=original.point??Point{0,0};first.x=7;
+            original.point=first;first.y=9;
+            Point saved=copy.point??Point{0,0};Point changed=original.point??Point{0,0};
+            return `${saved.x},${saved.y},${changed.x},${changed.y}`;
+        }
+        export int order(){
+            Record<int> source=record{value:1};
+            func()->int change=()=>{source.value=9;return 2;};
+            Record<int> copy=record{...source,other:change(),...record{third:3}};
+            return (copy.value??0)*100+(copy.other??0)*10+(copy.third??0);
+        }
+    "#;
+    for codec in ["raw", "gzip", "brotli"] {
+        for floor in ["es2015", "es2022"] {
+            for compact in ["on", "off"] {
+                let configured: ProjectConfig = toml::from_str(&format!(
+                    "objective.codecs='{codec}'\neffort.level=13\n\
+                     [javascript]\necmascript='{floor}'\n\
+                     [policy.tactics]\ntarget-compaction='{compact}'"
+                ))
+                .unwrap();
+                let compiled =
+                    compile_source(source, &configured, ServiceOptions::default()).unwrap();
+                check_scores(&compiled);
+                let objective = match codec {
+                    "raw" => Objective::Raw,
+                    "gzip" => Objective::Gzip,
+                    _ => Objective::Brotli,
+                };
+                let javascript = compiled.javascript(objective).unwrap().javascript();
+                assert_eq!(
+                    execute_javascript(
+                        javascript,
+                        "",
+                        "console.log(library.run(),library.order());"
+                    ),
+                    "1,2,7,2 123\n"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn stable_rule_scheduling_preserves_searched_artifacts_and_behavior() {
     let source = r#"
         int add(int value){return value+1;}

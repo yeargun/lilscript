@@ -6,6 +6,14 @@ use super::super::raw_domains::Admission;
 use super::*;
 
 impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
+    fn product_record_keys(&self, context: ContextId, call: CallId) -> bool {
+        let data = self.data(context);
+        let call = &data.calls[call.index()];
+        matches!(call.target, CallTarget::Builtin(BuiltinCall::ObjectKeys))
+            && matches!(data.arguments(call.arguments).unwrap(), [CallArgument::Value(value)]
+                if matches!(self.program.types[data.values[value.index()].ty.index()], Type::Record(_)))
+    }
+
     fn struct_boundary_value(&self, context: ContextId, value: ValueId) -> bool {
         self.struct_plan.boundary_types[self.data(context).values[value.index()].ty.index()]
     }
@@ -215,7 +223,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 match self.member_declared_type(context, place)? {
                     Some(declared) => declared,
                     None => {
-                        return Err(self.error(span, "value-struct storage requires an ABI adapter"))
+                        return Err(self.error(span, "value-struct storage requires an ABI adapter"));
                     }
                 }
             }
@@ -288,7 +296,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     Some(declared) => declared,
                     // Dynamic host receivers lack a product interface.
                     None => {
-                        return Err(self.error(span, "value-struct load requires an ABI adapter"))
+                        return Err(self.error(span, "value-struct load requires an ABI adapter"));
                     }
                 }
             }
@@ -485,6 +493,10 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                             );
                         }
                     }
+                } else if self.product_record_keys(context, *call) {
+                    // Typed record keys describe the record's public storage,
+                    // independently of the representation of its payloads.
+                    // No product is passed to or returned from this intrinsic.
                 } else if self.product_array_method(
                     context,
                     operation,
@@ -788,8 +800,11 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     if boundary && self.product_array_method(context, operation, &site.target)? {
                         boundary = false;
                     }
-                    // `JS.assume` runs no code; its transfer was checked.
-                    if matches!(site.target, CallTarget::Builtin(BuiltinCall::JsAssume)) {
+                    // `JS.assume`'s transfer was checked. Record key queries
+                    // expose no payload backing; their input shape was checked.
+                    if matches!(site.target, CallTarget::Builtin(BuiltinCall::JsAssume))
+                        || self.product_record_keys(context, call)
+                    {
                         boundary = false;
                     }
                     if boundary {

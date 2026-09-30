@@ -1320,10 +1320,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             return Ok(None);
         }
         let Some(
-            &[ValueUse::Operand {
-                operation: initialize,
-                position: 0,
-            }],
+            &[
+                ValueUse::Operand {
+                    operation: initialize,
+                    position: 0,
+                },
+            ],
         ) = uses.unit(semantic).and_then(|uses| uses.value_uses(value))
         else {
             return Ok(None);
@@ -1843,7 +1845,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             OperationKind::Call(_) => 2, // Assign→inline schedule Sequence→expression.
                             _ => {
                                 return Err(self
-                                    .error(Span::default(), "unsupported physical context owner"))
+                                    .error(Span::default(), "unsupported physical context owner"));
                             }
                         };
                         self.entry_depths[child.index()] = site_depth.saturating_add(layers);
@@ -1867,6 +1869,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             ..
                         } => 4,
                         OperationKind::ShortCircuit { .. } => 3,
+                        // A counted-copy block in an expression stays at its
+                        // occurrence as Call → Function → body, rather than
+                        // a statement block. Include that frame in placement.
+                        OperationKind::Block(_)
+                            if call_frames != 0 || expression_regions[parent.index()] => 3,
                         // Statement child or loop condition/update Sequence.
                         _ => 1,
                     };
@@ -1938,7 +1945,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 let binding = {
                     let binding = js::Binding {
-                        source_symbol: Some(cell.source_symbol),
+                        source_symbol: cell.source_symbol,
                         scope: self.module.regions[region.index()].scope,
                         // Stable legal spelling also handles reserved words in the
                         // source language; observable function names live on values.
@@ -2951,7 +2958,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 ValueStorage::Absent => {}
                 ValueStorage::Rematerialized => {
-                    return Err(self.error(operation.span, "rematerialized load was formed"))
+                    return Err(self.error(operation.span, "rematerialized load was formed"));
                 }
                 _ => return Err(self.error(operation.span, "value placement was not completed")),
             }
@@ -3845,7 +3852,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         }
                     }
                     Some(Type::String) => {
-                        return Err(self.error(span, "string Array.pop before ES2020"))
+                        return Err(self.error(span, "string Array.pop before ES2020"));
                     }
                     _ => popped,
                 }
@@ -4224,8 +4231,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let operands = self.data(unit).operands(operation.operands).unwrap();
         let node = match operation.kind {
             OperationKind::Constant(_) => return Ok(None),
+            OperationKind::Block(body) => self.statement_expression(unit, body, operation.span)?,
             OperationKind::PrepareReference { call, position } => {
-                return Ok(Some(self.prepare_reference(unit, call, position)?))
+                return Ok(Some(self.prepare_reference(unit, call, position)?));
             }
             OperationKind::CheckPlace(place) => {
                 // Access checks never perform the leaf value's result recipe.
@@ -4404,7 +4412,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         }
                     }
                     None => {
-                        return Err(self.error(operation.span, "type test without a runtime test"))
+                        return Err(self.error(operation.span, "type test without a runtime test"));
                     }
                 }
             }
@@ -4910,6 +4918,102 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             .module
             .expression_in(node, operation.origin, self.budget)?;
         self.save(unit, &operation, value)
+    }
+
+    /// Compiler-created counted copies can occur inside a call argument,
+    /// conditional arm or loop test. Keep their complete schedule at that
+    /// occurrence. A private strict arrow preserves lexical this/arguments
+    /// and hides the added frame from sloppy callers. Only typed storage and
+    /// primitive arithmetic enter this frame: no host call, dynamic access,
+    /// suspension or transfer out of the surrounding function is moved here.
+    fn statement_expression(
+        &mut self,
+        unit: ContextId,
+        body: RegionId,
+        span: Span,
+    ) -> Result<js::Expr, FormationError> {
+        let mut pending = self.budget.vector(AllocationClass::Scratch, 1)?;
+        self.budget
+            .push(AllocationClass::Scratch, &mut pending, body)?;
+        while let Some(region) = pending.pop() {
+            for &id in &self.data(unit).regions[region.index()].operations {
+                self.work(1)?;
+                let operation = &self.data(unit).operations[id.index()];
+                let data = self.data(unit);
+                let allowed = match operation.kind {
+                    OperationKind::Constant(_)
+                    | OperationKind::CopyValue
+                    | OperationKind::IntBinary(_)
+                    | OperationKind::Loop { .. }
+                    | OperationKind::Block(_) => true,
+                    OperationKind::Initialize(cell) | OperationKind::Declare(cell) => {
+                        self.program.cells[cell.index()].synthetic
+                            && self.program.cells[cell.index()].source_symbol.is_none()
+                    }
+                    OperationKind::Load(place) | OperationKind::Store(place) => {
+                        match data.places[place.index()] {
+                            Place::Cell(cell) => {
+                                self.program.cells[cell.index()].synthetic
+                                    && self.program.cells[cell.index()].source_symbol.is_none()
+                            }
+                            Place::Index { receiver, .. } => matches!(
+                                self.program.types[data.values[receiver.index()].ty.index()],
+                                Type::Array(_) | Type::Record(_)
+                            ),
+                            _ => false,
+                        }
+                    }
+                    OperationKind::Binary(_) => data
+                        .operands(operation.operands)
+                        .unwrap()
+                        .iter()
+                        .all(|value| {
+                            matches!(
+                                self.program.types[data.values[value.index()].ty.index()],
+                                Type::Int | Type::Float | Type::Bool | Type::String
+                            )
+                        }),
+                    OperationKind::Intrinsic(ResolvedIntrinsic::Property(
+                        crate::primitive::Intrinsic::ArrayLength,
+                    )) => true,
+                    _ => false,
+                };
+                if !allowed {
+                    self.drop_scratch(pending)?;
+                    return Err(
+                        self.error(span, "statement expression requires an unobservable frame")
+                    );
+                }
+                for child in operation.kind.child_regions() {
+                    self.budget
+                        .push(AllocationClass::Scratch, &mut pending, child)?;
+                }
+            }
+        }
+        self.drop_scratch(pending)?;
+        self.statement_region(unit, body)?;
+        let body = self.plan(unit).regions[body.index()];
+        let function = js::FunctionId::try_new(self.module.functions.len())
+            .ok_or(AllocationError::Capacity)?;
+        self.budget.push(
+            AllocationClass::Retained,
+            &mut self.module.functions,
+            js::Function {
+                parameters: Vec::new(),
+                body,
+                arrow: true,
+                name: js::FunctionName::Unobserved,
+                strict: true,
+                length: None,
+                suspension: js::Suspension::None,
+            },
+        )?;
+        let callee = self.expression(js::Expr::Function(function))?;
+        Ok(js::Expr::Call {
+            callee,
+            arguments: Vec::new(),
+            invocation: Invocation::Value,
+        })
     }
 
     /// A kept class as a JavaScript class value: its name, its base (a host

@@ -2,11 +2,11 @@ use super::*;
 use crate::output_budget::{AllocationBudget, AllocationClass::Scratch, AllocationError};
 #[path = "verify_scratch.rs"]
 mod scratch;
-use crate::check::binary_types::{checked_binary_type_with, BinaryTypeError};
+use crate::check::binary_types::{BinaryTypeError, checked_binary_type_with};
 use crate::check::type_admission::TypeQueryAdmission;
 use crate::check::type_relation::{
-    is_type_assignable_with as structurally_assignable, type_equal_with, RelationAdmission,
-    RelationEvent,
+    RelationAdmission, RelationEvent, is_type_assignable_with as structurally_assignable,
+    type_equal_with,
 };
 use crate::check::type_substitution::substitute_signature_with;
 
@@ -52,10 +52,13 @@ impl VerificationError {
                     eprintln!(
                         "type mismatch in module {} unit {:?} ({:?}) at {:?}: result {:?}, operands {:?}",
                         data.module.index(),
-                        data.function_name.map(|name| &program.strings[name.index()]),
+                        data.function_name
+                            .map(|name| &program.strings[name.index()]),
                         data.callable_type.map(|ty| &program.types[ty.index()]),
                         operation.span,
-                        operation.result.map(|value| &program.types[data.values[value.index()].ty.index()]),
+                        operation
+                            .result
+                            .map(|value| &program.types[data.values[value.index()].ty.index()]),
                         operands
                             .iter()
                             .map(|value| &program.types[data.values[value.index()].ty.index()])
@@ -362,11 +365,17 @@ fn verify_tables(
             return fail("cell has a dangling unit owner");
         };
         let identity = if index < checked_cells {
-            !cell.synthetic && cell.source_symbol.0 as usize == index
+            !cell.synthetic
+                && cell
+                    .source_symbol
+                    .is_some_and(|symbol| symbol.0 as usize == index)
         } else {
             // A synthetic parameter is an implicit constructor's instance.
             cell.synthetic
-                && (cell.source_symbol.0 as usize) < checked_cells
+                && match cell.source_symbol {
+                    Some(symbol) => (symbol.0 as usize) < checked_cells,
+                    None => cell.binding == CellBinding::Local,
+                }
                 && matches!(
                     cell.binding,
                     CellBinding::Local | CellBinding::Function(_) | CellBinding::Parameter(0)
@@ -1234,7 +1243,7 @@ fn verify_type_contracts(
     program: &Program<'_>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), VerificationError> {
-    use crate::check::type_payload::{measure_payload, Payload, PayloadError};
+    use crate::check::type_payload::{Payload, PayloadError, measure_payload};
     work(budget, program.types.len())?;
     for ty in program.types.iter() {
         measure_payload(Payload::Type(ty), budget, |node| match node {

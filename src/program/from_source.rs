@@ -861,7 +861,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 Retained,
                 building_table(&mut self.program.cells),
                 Cell {
-                    source_symbol: symbol.id,
+                    source_symbol: Some(symbol.id),
                     name,
                     ty,
                     owner: self.program.modules[module].initializer,
@@ -1197,7 +1197,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             return self.ty(&ty.without_unknown());
         }
         use crate::check::type_admission::TypeQueryAdmission;
-        use crate::check::type_payload::{measure_payload, Payload, PayloadError, PayloadMeasure};
+        use crate::check::type_payload::{Payload, PayloadError, PayloadMeasure, measure_payload};
         fn measure(
             ty: &Type<'_>,
             budget: &mut AllocationBudget<'_>,
@@ -1477,6 +1477,18 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         ty: TypeId,
     ) -> Result<CellId, ConversionError> {
         let source_symbol = self.program.cells[self.cell(provenance)?.index()].source_symbol;
+        self.temporary_cell(unit, region, source_symbol, provenance.span, name, ty)
+    }
+
+    fn temporary_cell(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        source_symbol: Option<SymbolId>,
+        span: Span,
+        name: &str,
+        ty: TypeId,
+    ) -> Result<CellId, ConversionError> {
         let id = CellId::from_index(self.program.cells.len()).ok_or(AllocationError::Capacity)?;
         let name = self.budget.string(Retained, name)?;
         self.budget.push(
@@ -1488,7 +1500,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 ty,
                 owner: unit,
                 region,
-                declaration: provenance.span,
+                declaration: span,
                 reassigned: true,
                 observable_before_initialization: true,
                 binding: CellBinding::Local,
@@ -1652,7 +1664,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             ty => match crate::typed_array::TypedArrayKind::from_type(ty) {
                 Some(kind) => kind.length_intrinsic(),
                 None => {
-                    return self.unsupported(iterable.span(), "for-of over a non-indexed iterable")
+                    return self.unsupported(iterable.span(), "for-of over a non-indexed iterable");
                 }
             },
         };
@@ -2950,7 +2962,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 }
                 Some(Type::Class(declaration)) => (declaration.identity, Vec::new()),
                 _ => {
-                    return self.unsupported(span, "generic class body on another class's receiver")
+                    return self.unsupported(span, "generic class body on another class's receiver");
                 }
             };
             let parameters = info.type_params.clone();
@@ -3778,7 +3790,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             )?),
             ast::MatchPattern::Bool(value, _) => Constant::Boolean(value),
             ast::MatchPattern::Wildcard(_) => {
-                return self.unsupported(span, "match wildcard before the last arm")
+                return self.unsupported(span, "match wildcard before the last arm");
             }
         };
         let scrutinee_ty = self.units[unit.index()].values[scrutinee.index()].ty;
@@ -4330,7 +4342,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             | Place::ClassField { .. }
             | Place::Index { .. } => {}
             Place::Value(_) => {
-                return self.unsupported(span, "mutation of a temporary struct value")
+                return self.unsupported(span, "mutation of a temporary struct value");
             }
             Place::Field { .. } => unreachable!("field bases were walked to their root"),
         }
@@ -4609,8 +4621,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     self.prepare_mutable_place(unit, region, place, false, target.span())?;
                     let loaded_type = self.expression_type(target)?;
                     let old = self.value(
-                        unit, region, OperationKind::Load(place), &[], loaded_type,
-                        Some(target.id), target.span(),
+                        unit,
+                        region,
+                        OperationKind::Load(place),
+                        &[],
+                        loaded_type,
+                        Some(target.id),
+                        target.span(),
                     )?;
                     let right = self.region(unit, region, span)?;
                     let rhs = self.expression(unit, right, value)?;
@@ -4621,9 +4638,16 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     self.effect(unit, right, OperationKind::Store(place), &[copied], span)?;
                     self.units[unit.index()].regions[right.index()].result = Some(rhs);
                     return self.value(
-                        unit, region,
-                        OperationKind::ShortCircuit { kind: ShortCircuit::Nullish, right },
-                        &[old], ty, origin, span,
+                        unit,
+                        region,
+                        OperationKind::ShortCircuit {
+                            kind: ShortCircuit::Nullish,
+                            right,
+                        },
+                        &[old],
+                        ty,
+                        origin,
+                        span,
                     );
                 }
                 let place = self.place(unit, region, target)?;
@@ -4976,6 +5000,12 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 (self.allocation(unit, kind)?, values)
             }
             ExprKind::RecordLiteral { entries, .. } | ExprKind::ObjectLiteral { entries, .. } => {
+                if entries
+                    .iter()
+                    .any(|entry| matches!(entry, RecordElement::Spread { .. }))
+                {
+                    return self.spread_record(unit, region, expr, entries, ty);
+                }
                 let mut keys = self.budget.vector(Retained, entries.len())?;
                 let mut values = self.budget.vector(Scratch, entries.len())?;
                 for entry in *entries {
@@ -5099,6 +5129,212 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let result = self.value(unit, region, kind, &operands, ty, origin, span)?;
         drop_vector(operands, Scratch, self.budget)?;
         Ok(result)
+    }
+
+    /// A typed spread copies the source's own keys in order, finishing before
+    /// the next source entry is evaluated. Explicit copies keep value structs
+    /// independent; assigning the source record itself would only alias it.
+    fn spread_record(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        expr: &ast::Expr<'ast, 'src>,
+        entries: &[ast::RecordElement<'ast, 'src>],
+        ty: TypeId,
+    ) -> Result<ValueId, ConversionError> {
+        let span = expr.span();
+        if !matches!(expr.kind, ExprKind::RecordLiteral { .. })
+            || !matches!(self.program.types[ty.index()], Type::Record(_))
+        {
+            return self.unsupported(span, "dynamic record spread");
+        }
+        let allocation = self.allocation(unit, AllocationKind::Record(Vec::new()))?;
+        let record = self.value(unit, region, allocation, &[], ty, Some(expr.id), span)?;
+        for entry in entries {
+            self.work(1)?;
+            match entry {
+                RecordElement::Entry(entry) => {
+                    let key =
+                        self.decoded_string(entry.key.name, entry.span, "record key decoding")?;
+                    let value = self.expression(unit, region, &entry.value)?;
+                    self.infer_creation_id(unit, &entry.value, value, key);
+                    let value = self.copy_value(unit, region, value, entry.value.span())?;
+                    let place = self.push_place(
+                        unit,
+                        Place::Member {
+                            receiver: record,
+                            key,
+                        },
+                    )?;
+                    self.effect(
+                        unit,
+                        region,
+                        OperationKind::Store(place),
+                        &[value],
+                        entry.span,
+                    )?;
+                }
+                RecordElement::Spread { value, span } => {
+                    let source = self.expression(unit, region, value)?;
+                    let source_ty = self.units[unit.index()].values[source.index()].ty;
+                    let Type::Record(element) = self.program.types[source_ty.index()].clone()
+                    else {
+                        return self.unsupported(*span, "typed record spread source");
+                    };
+                    let item_ty = self.ty(&element)?;
+                    self.copy_record_entries(unit, region, record, source, item_ty, *span)?;
+                }
+            }
+        }
+        Ok(record)
+    }
+
+    fn copy_record_entries(
+        &mut self,
+        unit: UnitId,
+        region: RegionId,
+        target: ValueId,
+        source: ValueId,
+        item_ty: TypeId,
+        span: Span,
+    ) -> Result<(), ConversionError> {
+        let string = self.ty(&Type::String)?;
+        let keys_ty = self.ty(&Type::Array(Box::new(Type::String)))?;
+        let contract = CallContract {
+            signature: None,
+            instantiation: None,
+            supplied: 1,
+            defaults: DefaultConvention::MaterializeAtCaller,
+        };
+        let (call, operands) = self.prepare_call_values(
+            unit,
+            region,
+            CallTarget::Builtin(BuiltinCall::ObjectKeys),
+            contract,
+            &[source],
+            span,
+        )?;
+        let keys = self.value(unit, region, call, &operands, keys_ty, None, span)?;
+        drop_vector(operands, Scratch, self.budget)?;
+        let int = self.ty(&Type::Int)?;
+        let boolean = self.ty(&Type::Bool)?;
+        let scope = self.region(unit, region, span)?;
+        let counter = self.temporary_cell(unit, scope, None, span, "$spread_index", int)?;
+        let zero = self.value(
+            unit,
+            scope,
+            OperationKind::Constant(Constant::Integer(0)),
+            &[],
+            int,
+            None,
+            span,
+        )?;
+        self.effect(
+            unit,
+            scope,
+            OperationKind::Initialize(counter),
+            &[zero],
+            span,
+        )?;
+
+        let test = self.region(unit, scope, span)?;
+        let index = self.load_cell(unit, test, counter, span)?;
+        let length = self.value(
+            unit,
+            test,
+            OperationKind::Intrinsic(ResolvedIntrinsic::Property(
+                crate::primitive::Intrinsic::ArrayLength,
+            )),
+            &[keys],
+            int,
+            None,
+            span,
+        )?;
+        let more = self.value(
+            unit,
+            test,
+            OperationKind::Binary(BinaryOp::Less),
+            &[index, length],
+            boolean,
+            None,
+            span,
+        )?;
+        self.units[unit.index()].regions[test.index()].result = Some(more);
+
+        let body = self.region(unit, scope, span)?;
+        let index = self.load_cell(unit, body, counter, span)?;
+        let selected = self.push_place(
+            unit,
+            Place::Index {
+                receiver: keys,
+                key: index,
+            },
+        )?;
+        let key = self.value(
+            unit,
+            body,
+            OperationKind::Load(selected),
+            &[],
+            string,
+            None,
+            span,
+        )?;
+        let from = self.push_place(
+            unit,
+            Place::Index {
+                receiver: source,
+                key,
+            },
+        )?;
+        let value = self.value(
+            unit,
+            body,
+            OperationKind::Load(from),
+            &[],
+            item_ty,
+            None,
+            span,
+        )?;
+        let value = self.copy_value(unit, body, value, span)?;
+        let to = self.push_place(
+            unit,
+            Place::Index {
+                receiver: target,
+                key,
+            },
+        )?;
+        self.effect(unit, body, OperationKind::Store(to), &[value], span)?;
+
+        let update = self.region(unit, scope, span)?;
+        let index = self.load_cell(unit, update, counter, span)?;
+        let one = self.value(
+            unit,
+            update,
+            OperationKind::Constant(Constant::Integer(1)),
+            &[],
+            int,
+            None,
+            span,
+        )?;
+        let next = self.value(
+            unit,
+            update,
+            OperationKind::IntBinary(IntBinary::Add),
+            &[index, one],
+            int,
+            None,
+            span,
+        )?;
+        let place = self.push_place(unit, Place::Cell(counter))?;
+        self.effect(unit, update, OperationKind::Store(place), &[next], span)?;
+        self.effect(
+            unit,
+            scope,
+            OperationKind::Loop { test, body, update },
+            &[],
+            span,
+        )?;
+        self.effect(unit, region, OperationKind::Block(scope), &[], span)
     }
     /// All calls, including construction, enter one checked scheduling
     /// envelope. The target is fixed before any supplied argument evaluation.
