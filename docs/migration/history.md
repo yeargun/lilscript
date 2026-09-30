@@ -211,6 +211,8 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 
 **Full checker verification.** The complete library suite passes **1,697 tests with four existing ignores**, excluding the separately qualified expensive table case. The same run also covers the scheduler timing correction. Log: `/tmp/lilscript-s4-primitive-full.log`. Release generic/port qualification follows.
 
+**Release qualification.** The [generic gate and reference ports](../../benchmarks/migration-results/2026-09-30-s4-primitive/README.md) pass. Every generic table entry and all 20 reported port files equal the preceding scheduler qualification. The detached primitive-method defect is closed; other S4 contracts remain owned separately.
+
 ## 2026-09-30: C2 paired runtime measurements (pre-registration)
 
 1. Add a generic isolated-process runner with alternating reference/candidate samples, pinned engine/workload/artifact/input identities, complete samples and spread. Separate artifact import/startup from warmed work, and retain total process CPU as a separate measurement.
@@ -218,3 +220,13 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 3. Refuse changed inputs, incomplete samples and incorrect results. Add integration checks for bad oracles, engine/workload failures and input drift, then retain a reproducible generic smoke measurement. Port workloads and performance claims require their own matched contracts and qualification.
 
 **Prediction.** This supplies missing runtime evidence machinery without changing compiler output or asserting runtime parity. Ratios and individual samples remain visible; no noisy measurement becomes an unconditional optimization permission or a global speed claim.
+
+**Verification.** Seven integration tests pass, including actual alternating workers, oracle/counter refusals, dependency drift, timeout and retained-memory reporting. The [generic five-pair smoke](../../benchmarks/migration-results/2026-09-30-c2-runtime/README.md) passes every independent oracle and pins the compiler-written artifact, workload, engine and runner. Fixed worker environment excludes ambient Node preloads. This qualifies the machinery; representative port runtime comparisons and the complete competitor contract remain C2 work.
+
+## 2026-09-30: G1 frequency allocation inside local scopes (pre-registration)
+
+1. Add a naming plan alternative that allocates local bindings by static use frequency within each lexical scope. Keep declaration order and root read order as independent choices. Preserve the scope/interference allocator, required spellings, host exclusions and final capture verification.
+2. Offer the local-order change through the existing exactly judged terminal naming moves, with `naming-search` and `identifier-mangling` vetoes. Include it in memo keys, provenance, deterministic ties, replay and explanation. Register the changed search schedule with a policy algorithm revision.
+3. Cover capture, required names, independent sibling scopes, more than one alphabet digit, allocation accounting and actual public searched output under raw/gzip/Brotli. Run the generic size gate, reference ports and paired compilation comparison before accepting the default search opportunity.
+
+**Prediction.** Frequent locals can earn shorter names once a scope spans multiple name lengths; smaller scopes can expose codec ordering gains. This is a heuristic candidate, not a proof of raw or compressed improvement. Existing incumbents remain eligible. Extra formation/codec judgments must earn their compilation cost in the measured tradeoff. No property-name or reflected-boundary semantics change in this batch.

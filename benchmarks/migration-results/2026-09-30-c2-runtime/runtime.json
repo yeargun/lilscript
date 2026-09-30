@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "workloads": [{
+    "id": "bounded-integer-loop",
+    "contract": {
+      "exports": ["score"],
+      "target": "ESM",
+      "domain": "integer seeds 0 through 65535; sum 32 consecutive low bytes",
+      "host": "Node; no ambient services or host setup",
+      "oracle_derivation": "Every byte occurs 256 times per offset: 32 * 256 * (255 * 256 / 2) = 267386880"
+    },
+    "workload": "workload.mjs",
+    "iterations": 65536,
+    "warmup_runs": 3,
+    "expected": 267386880,
+    "counters": {"calls": 65536},
+    "implementations": {
+      "reference": {"entry": "reference.mjs"},
+      "candidate": {"entry": "candidate.mjs", "inputs": ["candidate.lil", "config.toml", "build.json"]}
+    }
+  }]
+}

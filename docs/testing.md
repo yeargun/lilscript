@@ -297,6 +297,77 @@ effective policies. Target availability, program contract, objective encoder
 settings, runtime priority, effort and resource/acceptance limits must still
 match; this option cannot relax them. Without it, any policy mismatch fails.
 
+## Paired generated-program runtime
+
+`scripts/runtime-cost.py` measures generated programs against a reference on a
+shared workload. Every sample gets a fresh Node process, the same declared host
+setup and oracle, then separate import/startup and warmed-work timers. Pairs
+alternate reference/candidate order. The report preserves each sample, median,
+range, standard deviation, paired ratios, host load and process CPU/wall time.
+A short synthetic run qualifies the machinery; it cannot establish port parity.
+
+```sh
+python3 scripts/runtime-cost.py --manifest runtime.json --work /tmp/runtime-pair-1 \
+  --json /tmp/runtime-pair-1.json --rounds 5
+python3 scripts/runtime_cost_test.py
+```
+
+The report path must be new and the work directory empty. The manifest is JSON:
+
+```json
+{
+  "schema": 1,
+  "workloads": [{
+    "id": "sum",
+    "contract": {"exports": ["twice"], "target": "ESM", "semantics": "bounded integers"},
+    "workload": "workload.mjs",
+    "iterations": 100,
+    "warmup_runs": 1,
+    "expected": 9900,
+    "counters": {"calls": 100},
+    "inputs": [],
+    "implementations": {
+      "reference": {"entry": "reference.mjs", "inputs": []},
+      "candidate": {"entry": "candidate.mjs", "inputs": ["candidate.lil", "config.toml"]}
+    }
+  }]
+}
+```
+
+All paths resolve relative to the manifest. Declare every transitive source,
+artifact, data and dependency file in `inputs`; the runner does not infer a
+module graph. It hashes these files, both entries, the workload, manifest,
+engine and runner before sampling and checks for drift afterward. The report
+retains those identities and the effective engine versions/arguments. Workers
+use a fixed environment (`PATH`, UTC timezone and C locale), without ambient
+Node preload flags. A workload must declare other external dependencies in its
+contract and make them reproducible; this tool does not pin operating-system
+libraries or external services.
+
+The common workload module exports `run(namespace, iterations)` and optionally
+an asynchronous `install()` for host setup before artifact import. It must not
+preload either artifact. Each `run` returns `{oracle, counters}`; every warm-up
+and measured invocation is checked against the manifest's independently derived
+`expected` and declared counters. Counters describe workload operations, not
+compiler instructions. A workload must reset its state as required by its
+contract so that successive invocations have that same expected result. Keep
+logging off stdout, which carries the worker protocol.
+
+Only artifact import and the measured `run` are inside their respective timers;
+verification, forced GC and warm-up are outside them. `startup_cpu_us` and
+`steady_cpu_us` measure Node process CPU; wall fields are nanoseconds. Separate
+`process_*_seconds` fields include process launch, host setup, warm-up and GC.
+The optional `retained` result field keeps a workload object alive across GC and
+enables post-GC heap/ArrayBuffer deltas. These noisy deltas can be negative and
+are preserved without clamping; they are **not allocation totals or peaks**.
+Without `retained`, those two fields are null. `rss_bytes` is the post-GC process
+resident size. Nonpositive baselines have no memory ratio.
+
+Wrong oracles/counters, worker failures, timeouts and changed inputs leave an
+incomplete report and fail the command. An incomplete report cannot qualify an
+optimization. Choose enough work and pairs to distinguish a change from the
+retained sample spread; inspect startup, steady state and memory separately.
+
 ## The expected-failure ledgers
 
 | Ledger | Entry |

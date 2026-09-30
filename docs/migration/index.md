@@ -9,7 +9,7 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 - One compiler; the existing typed IR, facts, edit machinery, formation, naming and exact codec judging are the foundation.
 - **S1** now evaluates bounded constant loops; the generic objective gates and reference port suites pass. **S2** generalizes private record payloads under complete-use and capture proofs, with generic/port qualification.
 - **C1** enforces target-rule, pooling/packing and reconstruction permissions, records implemented producer stages and prerequisites, and diagnoses unavailable or conflicting settings. Its reconstruction correction has paired measurements and port qualification. **D1**'s private application IIFE and explicit bare output have separate size reports and pass the reference port suites.
-- C2 retains alternating compilation samples and input/artifact identities. Q2 reuses exact byte measurements and unchanged semantic views; stable-rule scheduling passes generic/port gates and paired CPU measurement. G1's configurable, exactly judged alphabet trials pass the generic objective gate and the three reference port suites. S4's nullish assignment passes the generic gate and JavaScript/native checks.
+- C2 retains alternating compilation and runtime samples, explicit runtime oracles and input/artifact identities. Q2 reuses exact byte measurements and unchanged semantic views; stable-rule scheduling passes generic/port gates and paired CPU measurement. G1's configurable, exactly judged alphabet trials pass the generic objective gate and the three reference port suites. S4's nullish assignment and detached primitive-method checks are qualified.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
@@ -26,7 +26,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 | State | Task | Still to complete |
 |---|---|---|
 | [~] | [C1](plan.md#c1) Controls | Remaining family/risk registry coverage, precedence audit and compatibility migration |
-| [~] | [C2](plan.md#c2) Evidence | Oracle coverage, fair benchmark contract, runtime counters and paired runner |
+| [~] | [C2](plan.md#c2) Evidence | Broader oracle coverage, fair competitor contract and representative port runtime/counter qualification |
 | [ ] | [C3](plan.md#c3) Calibration | Generic calibration, protected held-out set, objective/work reports |
 | [~] | [S1](plan.md#s1) Folding | Broader supported evaluation, remaining propagation/defaults/removal |
 | [~] | [S2](plan.md#s2) Objects | Broader aliases/escape, fields, flattening and copy elision |

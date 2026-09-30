@@ -1,0 +1,7 @@
+export int score(int seed) {
+    int total = 0;
+    for (int index = 0; index < 32; index += 1) {
+        total += (seed + index) & 255;
+    }
+    return total;
+}

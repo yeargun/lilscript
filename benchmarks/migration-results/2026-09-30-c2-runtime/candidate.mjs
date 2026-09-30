@@ -1,0 +1,1 @@
+let score=function(a){let b=0;for(let c=0;c<32;++c)b=b+((a+c|0)&255)|0;return b};export{score};
