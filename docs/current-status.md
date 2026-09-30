@@ -1,6 +1,6 @@
 # Current status
 
-Updated 2026-09-30. The latest qualified source here is `8bc28c1f`; implementation in progress is tracked in the checklist below.
+Updated 2026-09-30. The latest qualified source here is `aa1a3783`; implementation in progress is tracked in the checklist below.
 
 There is one compiler. The [migration plan](migration/plan.md) owns the target architecture and acceptance rules; the [checklist](migration/index.md) owns live progress. This page reports evidence, not a second task list.
 
@@ -13,6 +13,8 @@ Application output now defaults to a private IIFE, with classic-script strictnes
 ## Evidence
 
 The [Q2 mention-reuse record](../benchmarks/migration-results/2026-09-30-q2-statement-mentions/README.md) passes all 1,747 active library tests, including the large table oracle, with four existing ignores. All 642 generic programs pass under each objective. It preserves all 1,926 generic outputs and all 20 measured reference-port artifacts from the preceding Q3 release; Marked/Zod/PostHog suites pass 29/1,353/21. Paired measurements show lower Marked/Zod compilation CPU with unchanged peak accounted memory; this is not a runtime-performance claim.
+
+The [D3 independent-objective record](../benchmarks/migration-results/2026-09-30-d3-independent-objectives/README.md) qualifies the Rust build API's separate policies, portfolios and winners over one checked program. All 1,753 active library tests and nine CLI tests pass; all generic and reference-port outputs remain identical. TOML/CLI objective-set delivery is in progress.
 
 The [Q3 higher-effort record](../benchmarks/migration-results/2026-09-30-q3-level14/README.md) documents why expensive deferred naming starts default to effort 14+, with an explicit level-13 opt-in and veto. Core gains and external-wrapper regressions are both reported. [Configuration](configuration.md) describes each control's situation, default, effort gate and tradeoffs.
 

@@ -1,0 +1,15 @@
+# D3: independent objective requests over one checked program
+
+Source `aa1a378317bc600caecf315b46bd39a0a8b0c6e2`. Compiler SHA-256 `741a5b6980bca79c5c471868c1230139b680deb2243279731e7ad503e57b4c22`; codec SHA-256 `c05440ae2341a1027774733457a75573b7c8f5ebb1cc2767e36272d0c0551bbf`. The [identity receipt](identity.json) names the immutable pin.
+
+The Rust build service now resolves `Objectives::One(codec)` through the configuration owner, so an API override cannot keep the configured codec's spelling or pruning policy. `Objectives::All` owns three policies and independent structural portfolios, walks and winners. Raw/gzip use their own zero proxy margin; Brotli keeps its configured policy. Input discovery, checking, semantic defaults and safe analysis/measurement caches remain shared.
+
+Every mandatory baseline is retained before one ledger seal. The remaining objectives receive equal shares of remaining optional work in raw/gzip/Brotli order; unused work returns to the common allowance. Consumed counters, memory ownership and deadline never reset. A resource stop retains every admitted baseline. The report exposes each effective policy, search, allowance, work and stop. Result handoff performs no additional formation. A callback unwind restores the quota and discards completed handoffs.
+
+All 1,753 active library tests are qualified, with four existing ignores: the full run passed 1,751, its old shared-target/score assertion passes after correction, and the large table oracle passed in the 96-test build run. All nine CLI tests and schema consistency pass. New tests compare combined and separate policies, output, scores and search records at efforts 0/3/13/14; preserve naming vetoes; cover every configured/requested codec pair and noncanonical settings; measure fresh output; execute independent Node oracles; and exercise mandatory/optional refusal and callback panic cleanup.
+
+The extra baselines and optional continuations require their own formation and memory; this API correction is not a compilation-speed claim. Tight shared limits can stop earlier than separate builds with full limits each. TOML/CLI multi-output delivery and additional formats remain D3/D1 work. The low-level single-policy portfolio API remains available for its existing experiments and explicitly documented as distinct from the independent build service.
+
+Logs: `/tmp/lilscript-d3-independent-{check,focused2,build-tests,full,handoff2,cli,release}.log`.
+
+The [generic gate](ratchet.md), with [full receipt](ratchet.json), passes all 642 programs under each objective. Every one of the 1,926 complete output hashes and selected sizes is identical to the preceding Q2 pin. The [port report](ports.json) passes Marked/Zod/PostHog's 29/1,353/21 tests and preserves all 20 artifact hashes and every measured coordinate. The [verifier](summarize.py) retains a hashed [comparison](comparison.json). No accepted baseline threshold changes. Logs: `/tmp/lilscript-d3-independent-{ratchet,ports,summary}.log`. These are maintained development/reference boundaries, not held-out or whole-migration qualification.
