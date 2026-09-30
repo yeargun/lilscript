@@ -151,7 +151,25 @@ fn target_reach_requests_match_the_original_capture_and_strictness_walk() {
             body: loop_body,
         },
     ]);
+    let shared_binding = binding(&mut module, root, 1002, "sharedBinding");
+    let zero = number(&mut module, 0.0);
+    module.regions[root.index()]
+        .statements
+        .push(Statement::Let {
+            binding: shared_binding,
+            value: Some(zero),
+        });
+    // Distinct references from distinct functions must report capture.
+    for index in [0, 1] {
+        let read = expr(&mut module, Expr::Binding(shared_binding));
+        let body = module.functions[index].body;
+        module.regions[body.index()]
+            .statements
+            .push(Statement::Evaluate(read));
+    }
     compare(&module);
+    let full = module.reach(&mut AllocationBudget::new(None)).unwrap();
+    assert!(full.captured[shared_binding.index()]);
     let reached = module.reach_tree(&mut AllocationBudget::new(None)).unwrap();
     assert_eq!(reached.strict_expressions[shared.index()], 3);
     assert_eq!(reached.strict_regions[module.functions[0].body.index()], 3);

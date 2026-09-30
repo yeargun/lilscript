@@ -26,8 +26,33 @@ pub(super) struct Reach {
 
 struct Captures {
     declared: Vec<Option<Option<FunctionId>>>,
-    references: Vec<(BindingId, Option<FunctionId>)>,
+    references: Vec<ReferenceOwners>,
     parameters: Vec<bool>,
+}
+
+#[derive(Clone, Copy)]
+enum ReferenceOwners {
+    None,
+    One(Option<FunctionId>),
+    Several,
+}
+
+impl ReferenceOwners {
+    fn add(&mut self, owner: Option<FunctionId>) {
+        match *self {
+            Self::None => *self = Self::One(owner),
+            Self::One(first) if first != owner => *self = Self::Several,
+            _ => {}
+        }
+    }
+
+    fn captured(self, declared: Option<Option<FunctionId>>) -> bool {
+        match self {
+            Self::None => false,
+            Self::One(owner) => declared != Some(owner),
+            Self::Several => true,
+        }
+    }
 }
 
 impl Captures {
@@ -93,28 +118,27 @@ impl Module {
         let mut phase = budget.scope();
         let captures = Captures {
             declared: phase.filled(AllocationClass::Scratch, self.bindings.len(), None)?,
-            references: Vec::new(),
+            references: phase.filled(
+                AllocationClass::Scratch,
+                self.bindings.len(),
+                ReferenceOwners::None,
+            )?,
             parameters: phase.filled(AllocationClass::Retained, self.bindings.len(), false)?,
         };
         let (tree, captures) = self.walk_reach::<true>(Some(captures), &mut phase)?;
         let captures = captures.unwrap();
-        let mut captured = phase.filled(AllocationClass::Retained, self.bindings.len(), false)?;
+        let mut captured = phase.vector(AllocationClass::Retained, self.bindings.len())?;
         phase.work(Analysis, captures.references.len() as u64)?;
-        for &(binding, owner) in &captures.references {
+        for (&owners, &declared) in captures.references.iter().zip(&captures.declared) {
             // An undeclared binding (an import or host) counts as captured.
-            if captures.declared[binding.index()] != Some(owner) {
-                captured[binding.index()] = true;
-            }
+            captured.push(owners.captured(declared));
         }
         let Captures {
             declared,
             references,
             parameters,
         } = captures;
-        let references_bytes =
-            (references.capacity() * std::mem::size_of::<(BindingId, Option<FunctionId>)>()) as u64;
         drop((declared, references));
-        phase.release(AllocationClass::Retained, references_bytes)?;
         phase.finish_retained()?;
         let ReachTree {
             expressions,
@@ -145,12 +169,13 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(ReachTree, Option<Captures>), AllocationError> {
         let mut phase = budget.scope();
-        // Any partially grown reference buffer drops before this walk's
-        // admission scope on refusal; no caller-owned buffer outlives it.
+        // Capture buffers keep their outer owner; this walk never grows them.
         let mut captures = captures;
         let mut reach = ReachTree {
-            expressions: Vec::new(),
-            regions: Vec::new(),
+            // Each node enters its result once, even if reached in both
+            // strictness contexts. Admit those bounds once, before the walk.
+            expressions: phase.vector(AllocationClass::Retained, self.expressions.len())?,
+            regions: phase.vector(AllocationClass::Retained, self.regions.len())?,
             strict_regions: phase.filled(AllocationClass::Retained, self.regions.len(), 0)?,
             strict_expressions: phase.filled(
                 AllocationClass::Retained,
@@ -174,7 +199,7 @@ impl Module {
             }
             reach.strict_regions[region.index()] |= mask;
             if seen == 0 {
-                phase.push(AllocationClass::Retained, &mut reach.regions, region)?;
+                reach.regions.push(region);
             }
             for statement in &self.regions[region.index()].statements {
                 phase.work(Analysis, 1)?;
@@ -239,17 +264,11 @@ impl Module {
                     }
                     reach.strict_expressions[id.index()] |= mask;
                     if seen == 0 {
-                        phase.push(AllocationClass::Retained, &mut reach.expressions, (id, at))?;
+                        reach.expressions.push((id, at));
                     }
                     if CAPTURES {
                         if let Expr::Binding(binding) = expression {
-                            // This vector belongs to the outer capture phase;
-                            // transfer its backing with the successful walk.
-                            phase.push(
-                                AllocationClass::Retained,
-                                &mut captures.as_mut().unwrap().references,
-                                (*binding, owner),
-                            )?;
+                            captures.as_mut().unwrap().references[binding.index()].add(owner);
                         }
                     }
                     for function in expression.created_functions() {
