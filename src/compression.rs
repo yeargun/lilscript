@@ -1,5 +1,6 @@
 //! Canonical complete-artifact size encoders. Inspection and compilation-owned
-//! scoring share these paths; neither owns a cache or candidate search policy.
+//! scoring share these paths. The artifact owner may retain exact measurement
+//! receipts; this service owns their cold work and scratch admission contract.
 use crate::compilation_policy::WorkKind;
 use crate::config::CompressionCostModel;
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
@@ -118,7 +119,7 @@ impl Default for GzipSettings {
 
 /// Whether one encode is an exact judgement or the proxy's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Role {
+pub(crate) enum Role {
     Exact,
     Proxy,
 }
@@ -193,7 +194,7 @@ pub(crate) fn measure_admitted_with(
     settings: &CodecSettings,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<usize, CodecError> {
-    measure_admitted_at(bytes, model, settings, Role::Exact, budget)
+    measure_admitted_at(bytes, model, settings, Role::Exact, budget).map(|measured| measured.size)
 }
 
 /// The Brotli quality every exact judgement and delivered size uses.
@@ -204,27 +205,36 @@ pub const BROTLI_QUALITY: u32 = 11;
 /// it never keeps.
 pub const PROXY_BROTLI_QUALITY: u32 = 5;
 
-/// The walk's proxy judge: gzip and raw are cheap enough to be their own
-/// proxy; Brotli runs at min(quality, `PROXY_BROTLI_QUALITY`) with the
-/// objective's window and mode (architecture §9.4).
-pub(crate) fn measure_proxy_admitted(
-    bytes: &[u8],
-    model: CompressionCostModel,
-    settings: &CodecSettings,
-    budget: &mut AllocationBudget<'_>,
-) -> Result<usize, CodecError> {
-    measure_admitted_at(bytes, model, settings, Role::Proxy, budget)
+/// Completed deterministic encoder work, independent of artifact eligibility.
+/// A hit pays the cold logical tariff and must fit the cold scratch peak; its
+/// physical memory/time savings are not extra search allowance.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Measurement {
+    pub size: usize,
+    work: u64,
+    scratch_peak: u64,
+}
+impl Measurement {
+    pub(crate) fn replay(self, budget: &mut AllocationBudget<'_>) -> Result<usize, CodecError> {
+        budget.check_scratch(self.scratch_peak)?;
+        budget.work(WorkKind::Codec, self.work)?;
+        Ok(self.size)
+    }
 }
 
-fn measure_admitted_at(
+pub(crate) fn measure_admitted_at(
     bytes: &[u8],
     model: CompressionCostModel,
     settings: &CodecSettings,
     role: Role,
     budget: &mut AllocationBudget<'_>,
-) -> Result<usize, CodecError> {
+) -> Result<Measurement, CodecError> {
     if model == CompressionCostModel::Raw {
-        return Ok(bytes.len());
+        return Ok(Measurement {
+            size: bytes.len(),
+            work: 0,
+            scratch_peak: 0,
+        });
     }
     let brotli = BrotliSettings {
         quality: match role {
@@ -240,20 +250,23 @@ fn measure_admitted_at(
         (CompressionCostModel::Raw, _) => unreachable!(),
     };
     let mut phase = budget.scope();
-    phase.work(
-        WorkKind::Codec,
-        u64::try_from(bytes.len()).map_err(|_| CodecError::Capacity)?,
-    )?;
-    let result = {
+    let input_work = u64::try_from(bytes.len()).map_err(|_| CodecError::Capacity)?;
+    phase.work(WorkKind::Codec, input_work)?;
+    let (result, work, scratch_peak) = {
         let mut memory = CodecMemory {
             budget: &mut phase,
             error: None,
+            work: input_work,
+            live: 0,
+            peak: 0,
         };
-        match model {
+        let result = match model {
             CompressionCostModel::Raw => unreachable!(),
             CompressionCostModel::Gzip => gzip_size(bytes, &settings.gzip, &mut memory),
             CompressionCostModel::Brotli => brotli_size(bytes, &brotli, &mut memory),
-        }
+        };
+        debug_assert_eq!(memory.live, 0, "encoder guards release every allocation");
+        (result, memory.work, memory.peak)
     };
     // A final C CPU segment can cross the deadline without another allocation
     // callback. Its state/output guards have now freed all scratch. Preserve
@@ -261,7 +274,11 @@ fn measure_admitted_at(
     // which checks time without changing the deterministic work tariff.
     let size = result?;
     phase.work(WorkKind::Codec, 0)?;
-    Ok(size)
+    Ok(Measurement {
+        size,
+        work,
+        scratch_peak,
+    })
 }
 
 pub fn canonical_zlib_version() -> Result<&'static str, String> {
@@ -295,8 +312,17 @@ const OUTPUT_CHUNK: usize = 16 * 1024;
 struct CodecMemory<'a, 'ledger> {
     budget: &'a mut AllocationBudget<'ledger>,
     error: Option<CodecError>,
+    work: u64,
+    live: u64,
+    peak: u64,
 }
 impl CodecMemory<'_, '_> {
+    fn charge(&mut self, units: u64) -> Result<(), CodecError> {
+        let next = self.work.checked_add(units).ok_or(CodecError::Capacity)?;
+        self.budget.work(WorkKind::Codec, units)?;
+        self.work = next;
+        Ok(())
+    }
     fn fail(&mut self, error: CodecError) -> *mut c_void {
         if self.error.is_none() {
             self.error = Some(error);
@@ -307,7 +333,7 @@ impl CodecMemory<'_, '_> {
         if let Some(error) = self.error {
             return Err(error);
         }
-        self.budget.work(WorkKind::Codec, 1).map_err(Into::into)
+        self.charge(1)
     }
     fn allocate(&mut self, bytes: usize, zero: bool) -> *mut c_void {
         if self.error.is_some() {
@@ -326,9 +352,12 @@ impl CodecMemory<'_, '_> {
         let Some(work) = work.checked_add(1) else {
             return self.fail(CodecError::Capacity);
         };
-        if let Err(error) = self.budget.work(WorkKind::Codec, work) {
-            return self.fail(error.into());
+        if let Err(error) = self.charge(work) {
+            return self.fail(error);
         }
+        let Some(live) = self.live.checked_add(charge) else {
+            return self.fail(CodecError::Capacity);
+        };
         if let Err(error) = self.budget.retain(AllocationClass::Scratch, charge) {
             return self.fail(error.into());
         }
@@ -345,6 +374,8 @@ impl CodecMemory<'_, '_> {
             let _ = self.budget.release(AllocationClass::Scratch, charge);
             return self.fail(CodecError::Admission(AllocationError::AllocationFailed));
         }
+        self.live = live;
+        self.peak = self.peak.max(live);
         unsafe {
             allocation
                 .cast::<AllocationHeader>()
@@ -364,6 +395,7 @@ impl CodecMemory<'_, '_> {
         unsafe {
             dealloc(base, layout);
         }
+        self.live -= bytes as u64;
         if let Err(error) = self.budget.release(AllocationClass::Scratch, bytes as u64) {
             self.fail(error.into());
         }

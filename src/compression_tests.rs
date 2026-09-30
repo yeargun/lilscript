@@ -167,6 +167,9 @@ fn late_brotli_denial_does_not_exit_the_process() {
         let mut memory = CodecMemory {
             budget: &mut budget,
             error: None,
+            work: 0,
+            live: 0,
+            peak: 0,
         };
         let state = unsafe {
             compu_brotli_sys::BrotliEncoderCreateInstance(
@@ -217,6 +220,63 @@ fn late_brotli_denial_does_not_exit_the_process() {
     }
     assert_eq!(ledger.retained_bytes(), 0);
     println!("late allocation denial survived");
+}
+
+#[test]
+fn completed_measurement_replays_cold_work_and_refuses_insufficient_cold_memory() {
+    let input = noise(16_385);
+    for model in [CompressionCostModel::Gzip, CompressionCostModel::Brotli] {
+        for role in [Role::Exact, Role::Proxy] {
+            let mut cold = ledger(100_000_000, 100_000_000);
+            let measured = measure_admitted_at(
+                &input,
+                model,
+                &CodecSettings::CANONICAL,
+                role,
+                &mut AllocationBudget::new(Some((&mut cold, WorkDomain::Optional))),
+            )
+            .unwrap();
+            assert_eq!(measured.work, cold.work_used(WorkDomain::Optional));
+            assert_eq!(measured.scratch_peak, cold.peak_retained_bytes());
+            assert_eq!(cold.retained_bytes(), 0);
+            let mut warm = ledger(measured.scratch_peak, measured.work);
+            assert_eq!(
+                measured
+                    .replay(&mut AllocationBudget::new(Some((
+                        &mut warm,
+                        WorkDomain::Optional
+                    ))))
+                    .unwrap(),
+                measured.size
+            );
+            assert_eq!(warm.work_used(WorkDomain::Optional), measured.work);
+            assert_eq!(
+                warm.peak_retained_bytes(),
+                0,
+                "replay allocates no encoder scratch"
+            );
+            let mut cramped = ledger(measured.scratch_peak - 1, measured.work);
+            assert!(matches!(
+                measured.replay(&mut AllocationBudget::new(Some((
+                    &mut cramped,
+                    WorkDomain::Optional
+                )))),
+                Err(CodecError::Admission(AllocationError::Budget(
+                    BudgetError::MemoryExhausted(WorkDomain::Optional)
+                )))
+            ));
+            let mut exhausted = ledger(measured.scratch_peak, measured.work - 1);
+            assert!(matches!(
+                measured.replay(&mut AllocationBudget::new(Some((
+                    &mut exhausted,
+                    WorkDomain::Optional
+                )))),
+                Err(CodecError::Admission(AllocationError::Budget(
+                    BudgetError::WorkExhausted(WorkDomain::Optional)
+                )))
+            ));
+        }
+    }
 }
 
 #[test]

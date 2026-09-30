@@ -141,6 +141,15 @@ impl<'a> AllocationBudget<'a> {
         Ok(())
     }
 
+    /// Validate a completed service's cold scratch requirement on reuse.
+    /// This does not report a physical allocation that did not happen.
+    pub(crate) fn check_scratch(&mut self, bytes: u64) -> Result<(), AllocationError> {
+        if let Some(ledger) = self.ledger.as_deref() {
+            ledger.clone().retain(self.domain, bytes)?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn retain(
         &mut self,
         class: AllocationClass,

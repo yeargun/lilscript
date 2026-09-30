@@ -21,6 +21,8 @@ use crate::js::{
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError, RetainedCharge};
 use std::mem::size_of;
 use std::sync::atomic::{AtomicUsize, Ordering};
+#[path = "artifact_compression.rs"]
+pub(super) mod compression_cache;
 #[path = "artifact_native.rs"]
 mod native;
 use native::NativeRecord;
@@ -321,6 +323,8 @@ impl Record {
         &self,
         codec: CompressionCostModel,
         settings: &CodecSettings,
+        cache: &mut compression_cache::Measurements,
+        owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<usize>, CandidateError> {
         let mut sizes = Vec::with_capacity(self.files.len());
@@ -329,10 +333,12 @@ impl Record {
             let size = match file.sizes.measured(codec) {
                 Some(size) => size,
                 None => {
-                    let size = crate::compression::measure_admitted_with(
+                    let size = cache.measure(
+                        owner,
                         file.code.as_bytes(),
                         codec,
                         settings,
+                        crate::compression::Role::Exact,
                         budget,
                     )?;
                     file.sizes.publish(codec, size)?
@@ -347,11 +353,17 @@ impl Record {
         &self,
         codec: CompressionCostModel,
         settings: &CodecSettings,
+        cache: &mut compression_cache::Measurements,
+        owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<u64>, CandidateError> {
         match &self.layout {
-            None => Ok(vec![self.measure(codec, settings, budget)? as u64]),
-            Some(layout) => Ok(layout.rows(&self.file_sizes(codec, settings, budget)?)),
+            None => Ok(vec![
+                self.measure(codec, settings, cache, owner, budget)? as u64
+            ]),
+            Some(layout) => {
+                Ok(layout.rows(&self.file_sizes(codec, settings, cache, owner, budget)?))
+            }
         }
     }
     /// The proxy judge's size under `codec`: gzip and raw are their own
@@ -362,10 +374,12 @@ impl Record {
         &self,
         codec: CompressionCostModel,
         settings: &CodecSettings,
+        cache: &mut compression_cache::Measurements,
+        owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, CandidateError> {
         if proxy_is_exact(codec, settings, self.layout.is_some()) {
-            return self.measure(codec, settings, budget);
+            return self.measure(codec, settings, cache, owner, budget);
         }
         budget.work(WorkKind::Codec, 1)?;
         let slot = &self.sizes.brotli_proxy;
@@ -373,10 +387,12 @@ impl Record {
         if cached != 0 {
             return Ok(cached);
         }
-        let size = crate::compression::measure_proxy_admitted(
+        let size = cache.measure(
+            owner,
             self.text.as_bytes(),
             codec,
             settings,
+            crate::compression::Role::Proxy,
             budget,
         )?;
         if size == 0 {
@@ -389,6 +405,8 @@ impl Record {
         &self,
         codec: CompressionCostModel,
         settings: &CodecSettings,
+        cache: &mut compression_cache::Measurements,
+        owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, CandidateError> {
         // A cache lookup is work, but it neither allocates nor invokes a codec.
@@ -397,17 +415,19 @@ impl Record {
             return Ok(size);
         }
         let size = match &self.layout {
-            None => crate::compression::measure_admitted_with(
+            None => cache.measure(
+                owner,
                 self.text.as_bytes(),
                 codec,
                 settings,
+                crate::compression::Role::Exact,
                 budget,
             )?,
             // The sum of the entries' rows: shared code weighs by how many
             // entries load it. A refusal in any file, a zero score, or an
             // overflowing sum never publishes a partial coordinate.
             Some(layout) => {
-                let rows = layout.rows(&self.file_sizes(codec, settings, budget)?);
+                let rows = layout.rows(&self.file_sizes(codec, settings, cache, owner, budget)?);
                 let total = rows
                     .iter()
                     .try_fold(0u64, |sum, row| sum.checked_add(*row))
@@ -603,11 +623,16 @@ pub(super) struct ArtifactArena {
     /// The codec settings every size this arena measures is judged with:
     /// the objective's, bound with the JavaScript contract (law B2).
     settings: CodecSettings,
+    measurements: std::cell::RefCell<compression_cache::Measurements>,
     bound: bool,
 }
 impl ArtifactArena {
     pub(super) fn new(owner: RevisionId) -> Self {
         Self::with_settings(owner, CodecSettings::CANONICAL)
+    }
+    #[cfg(test)]
+    pub(super) fn measurement_hits(&self) -> usize {
+        self.measurements.borrow().hits
     }
     fn with_settings(owner: RevisionId, settings: CodecSettings) -> Self {
         Self {
@@ -617,6 +642,7 @@ impl ArtifactArena {
             charge: None,
             free: None,
             settings,
+            measurements: std::cell::RefCell::default(),
             bound: false,
         }
     }
@@ -658,6 +684,7 @@ impl ArtifactArena {
             StoredRecord::Native(_) => Err(CandidateError::Artifact("not a JavaScript artifact")),
         }
     }
+    #[cfg(test)]
     fn get_mut(&mut self, id: Handle) -> Result<&mut Record, CandidateError> {
         let index = self.index(id)?;
         match self.slots[index].record.as_mut().unwrap() {
@@ -748,6 +775,7 @@ impl ArtifactArena {
         Ok(record)
     }
     fn clear(&mut self, budget: &mut AllocationBudget<'_>) {
+        self.measurements.get_mut().clear(self.owner, budget);
         for slot in self.slots.drain(..) {
             if let Some(record) = slot.record {
                 record.discard(self.owner, budget);
@@ -773,7 +801,13 @@ impl ArtifactArena {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, CandidateError> {
         let settings = self.settings;
-        self.get_mut(id.0)?.measure(codec, &settings, budget)
+        self.get(id.0)?.measure(
+            codec,
+            &settings,
+            &mut self.measurements.borrow_mut(),
+            self.owner,
+            budget,
+        )
     }
     /// The walk's proxy judgement of an artifact (architecture §9.4).
     pub(super) fn measure_proxy(
@@ -783,7 +817,13 @@ impl ArtifactArena {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, CandidateError> {
         let settings = self.settings;
-        self.get_mut(id.0)?.proxy(codec, &settings, budget)
+        self.get(id.0)?.proxy(
+            codec,
+            &settings,
+            &mut self.measurements.borrow_mut(),
+            self.owner,
+            budget,
+        )
     }
     /// Whether the proxy judge's size under `codec` is the exact one, so its
     /// measurement spent the exact codec (gzip, raw, a delivery plan's
@@ -1077,7 +1117,13 @@ impl ArtifactArena {
         codec: CompressionCostModel,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<u64>, CandidateError> {
-        self.get(id.0)?.rows(codec, &self.settings, budget)
+        self.get(id.0)?.rows(
+            codec,
+            &self.settings,
+            &mut self.measurements.borrow_mut(),
+            self.owner,
+            budget,
+        )
     }
     pub(super) fn discard(
         &mut self,
@@ -1364,9 +1410,13 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
     ) -> Result<usize, CandidateError> {
         self.output.with_allocation_budget(|budget| {
             let settings = self.staging.settings;
-            self.staging
-                .get_mut(id.0)?
-                .measure(codec, &settings, budget)
+            self.staging.get(id.0)?.measure(
+                codec,
+                &settings,
+                &mut self.retained.measurements.borrow_mut(),
+                self.retained.owner,
+                budget,
+            )
         })
     }
     pub fn retain_artifact(&mut self, id: ScopedArtifactId) -> Result<ArtifactId, CandidateError> {

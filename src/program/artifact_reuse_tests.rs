@@ -118,6 +118,63 @@ fn retained_equal_bytes_reuse_requested_codecs_without_merging_records() {
 }
 
 #[test]
+fn discarded_bytes_keep_only_scores_with_identical_cold_work_and_fresh_admission() {
+    for physical_reuse in [true, false] {
+        let run = || {
+            with_candidates(|compilation, candidates, policy| {
+                let donor = render(compilation, candidates[0], policy);
+                // First use allocates the bounded memo; subsequent cold/warm
+                // encodes have the same deterministic tariff and lookup work.
+                let size = compilation
+                    .measure_artifact(donor, CompressionCostModel::Brotli, WorkDomain::Baseline)
+                    .unwrap();
+                compilation.discard_artifact(donor).unwrap();
+                let target = render(compilation, candidates[1], policy);
+                let before = compilation.ledger().work_by_kind(WorkKind::Codec);
+                assert_eq!(
+                    compilation
+                        .measure_artifact(
+                            target,
+                            CompressionCostModel::Brotli,
+                            WorkDomain::Baseline
+                        )
+                        .unwrap(),
+                    size
+                );
+                let after = compilation.ledger().work_by_kind(WorkKind::Codec);
+                assert!(
+                    after - before > 1,
+                    "replay pays encoder work, not just a lookup"
+                );
+                let denied: crate::config::ProjectConfig =
+                    toml::from_str("[policy.tactics]\nidentifier-mangling='off'").unwrap();
+                let denied = denied
+                    .resolve_policy(CompilationRequest::JavaScript {
+                        preserve_root_exports: true,
+                    })
+                    .unwrap();
+                assert!(compilation
+                    .qualify_artifact(
+                        target,
+                        &denied,
+                        CompressionCostModel::Brotli,
+                        ArtifactRuntimeEvidence::default(),
+                        None,
+                        WorkDomain::Baseline
+                    )
+                    .is_err());
+                compilation.discard_artifact(target).unwrap();
+            })
+        };
+        if physical_reuse {
+            run();
+        } else {
+            compression_cache::without_reuse(run);
+        }
+    }
+}
+
+#[test]
 fn refused_reuse_does_not_publish_a_partially_found_codec() {
     with_candidates(|compilation, candidates, policy| {
         let gzip = render(compilation, candidates[0], policy);
@@ -168,7 +225,7 @@ fn refused_reuse_does_not_publish_a_partially_found_codec() {
 }
 
 #[test]
-fn discarded_donors_leave_no_score_history_or_retained_bytes() {
+fn live_donor_reuse_does_not_consume_the_byte_measurement_memo() {
     with_candidates(|compilation, candidates, policy| {
         let donor = render(compilation, candidates[0], policy);
         let target = render(compilation, candidates[1], policy);

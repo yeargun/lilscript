@@ -77,6 +77,8 @@ struct Run {
     baseline: String,
     winners: [Option<(usize, String)>; 3],
     report: TerminalReport,
+    logical_work: [u64; 2],
+    cache_hits: usize,
 }
 
 fn search(policy: &ResolvedPolicy, objectives: Objectives, challenge: bool) -> Run {
@@ -139,12 +141,40 @@ fn search_source(
         });
         (winners, report)
     };
+    let logical_work = [WorkDomain::Baseline, WorkDomain::Optional]
+        .map(|domain| compilation.ledger().work_used(domain));
+    let cache_hits = compilation.artifacts.measurement_hits();
     assert_eq!(compilation.finish().retained_bytes(), 0);
     Run {
         scored,
         baseline,
         winners: run.0,
         report: run.1,
+        logical_work,
+        cache_hits,
+    }
+}
+
+#[test]
+fn codec_reuse_preserves_logical_search_and_final_bytes_for_every_objective() {
+    for codec in ["raw", "gzip", "brotli"] {
+        let policy = policy(codec, 15);
+        let objective = Objectives::One(policy.objective().unwrap().codec);
+        let warm = search(&policy, objective, true);
+        let cold =
+            super::artifacts::compression_cache::without_reuse(|| search(&policy, objective, true));
+        assert_eq!(warm.logical_work, cold.logical_work, "{codec}");
+        assert_eq!(cold.cache_hits, 0);
+        if codec != "raw" {
+            assert!(
+                warm.cache_hits > 0,
+                "fixture must exercise a hit for {codec}"
+            );
+        }
+        assert_eq!(warm.baseline, cold.baseline, "{codec}");
+        assert_eq!(warm.scored, cold.scored, "{codec}");
+        assert_eq!(warm.winners, cold.winners, "{codec}");
+        assert_eq!(warm.report, cold.report, "{codec}");
     }
 }
 

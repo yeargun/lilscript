@@ -217,6 +217,15 @@ retained bytes and cooperative wall time. Exhausting one stops optional work
 and keeps the best artifact found; a ceiling below what the mandatory artifact
 needs fails the build.
 
+Exact codec measurements are reused across identical file bytes within one
+compilation, including candidates whose artifacts were discarded. A bounded
+table keys the byte digest, codec settings and exact/proxy role. Reuse pays the
+cold logical work tariff and checks the cold encoder scratch requirement;
+it cannot buy extra search or replace artifact permission/admission checks.
+With `LILSCRIPT_TIMING`, `codec_lookup` and `codec_reuse` report this work
+separately from physical `canonical_gzip`, `canonical_brotli` and
+`proxy_brotli` encodes. These timing buckets report elapsed time, not CPU.
+
 ## Permission: tactics
 
 Every optional transformation belongs to a tactic in `[policy.tactics]`, each

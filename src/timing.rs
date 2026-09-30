@@ -78,13 +78,16 @@ pub static CANONICAL_GZIP: Bucket = Bucket::new("canonical_gzip");
 pub static CANONICAL_BROTLI: Bucket = Bucket::new("canonical_brotli");
 /// The walk's proxy judge (architecture §9.4): Brotli at a low quality.
 pub static PROXY_BROTLI: Bucket = Bucket::new("proxy_brotli");
+/// Cross-artifact lookups and replay attempts, separate from physical encodes.
+pub static CODEC_LOOKUP: Bucket = Bucket::new("codec_lookup");
+pub static CODEC_REUSE: Bucket = Bucket::new("codec_reuse");
 /// The admission parse (plan task M2.5): the printed tree's structural digest,
 /// taken at each render, and the independent parse of the delivered text,
 /// once per qualified artifact.
 pub static ADMISSION_STRUCTURE: Bucket = Bucket::new("admission_structure");
 pub static ADMISSION_PARSE: Bucket = Bucket::new("admission_parse");
 
-const PHASE_BUCKETS: [&Bucket; 12] = [
+const PHASE_BUCKETS: [&Bucket; 14] = [
     &JS_DEMAND,
     &JS_FORMATION,
     &TARGET_VERIFY,
@@ -95,6 +98,8 @@ const PHASE_BUCKETS: [&Bucket; 12] = [
     &CANONICAL_GZIP,
     &CANONICAL_BROTLI,
     &PROXY_BROTLI,
+    &CODEC_LOOKUP,
+    &CODEC_REUSE,
     &ADMISSION_STRUCTURE,
     &ADMISSION_PARSE,
 ];
