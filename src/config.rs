@@ -658,10 +658,8 @@ impl ProjectConfig {
         let maximum_preset = self.optimization.preset == OptimizationPreset::Maximum;
         for tactic in TacticId::ALL {
             let spec = tactic.spec();
-            if spec.javascript_only && !javascript {
-                continue;
-            }
-            let (legacy_explicit, configured_default) = self.configured_tactic(tactic, javascript);
+            let (legacy_explicit, configured_default) =
+                self.configured_tactic(tactic, javascript)?;
             let default = configured_default.unwrap_or(spec.default.enabled(maximum_preset));
             let configured = policy
                 .tactics
@@ -681,7 +679,14 @@ impl ProjectConfig {
                 (TacticPermission::Auto, Some(false)) => TacticPermission::Off,
                 _ => configured,
             };
-            let enabled = (!spec.javascript_only || javascript)
+            let available = !spec.producers.is_empty() && (!spec.javascript_only || javascript);
+            if permission == TacticPermission::On && !available {
+                diagnostics.push(format!(
+                    "`policy.tactics.{}` was requested on but has no implementation for {}; it remains unavailable",
+                    spec.name, if javascript { "JavaScript" } else { "native" }
+                ));
+            }
+            let enabled = available
                 && match permission {
                     TacticPermission::Off => false,
                     TacticPermission::On => true,
@@ -693,6 +698,44 @@ impl ProjectConfig {
                 permission,
                 enabled,
             };
+        }
+        // Registry order is deliberately not a dependency-order contract.
+        // Propagate vetoes to a fixed point; dependencies can only disable.
+        loop {
+            let mut changed = false;
+            for tactic in TacticId::ALL {
+                if tactics[tactic as usize].enabled {
+                    if let Some(required) = tactic
+                        .spec()
+                        .prerequisites
+                        .iter()
+                        .find(|id| !tactics[**id as usize].enabled)
+                    {
+                        tactics[tactic as usize].enabled = false;
+                        diagnostics.push(format!(
+                            "`policy.tactics.{}` is unavailable because required tactic `{}` is disabled",
+                            tactic.spec().name, required.spec().name
+                        ));
+                        changed = true;
+                    }
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        for tactic in TacticId::ALL {
+            let state = tactics[tactic as usize];
+            if state.enabled
+                && state.permission == TacticPermission::Auto
+                && effort >= 16
+                && tactic.spec().startup_at_level_16
+            {
+                diagnostics.push(format!(
+                    "compatibility: effort 16 grants startup reconstruction to `{}`; set `policy.tactics.{}` explicitly to `on` to permit its runtime tradeoffs or `off` to veto it independently of effort",
+                    tactic.spec().name, tactic.spec().name
+                ));
+            }
         }
         let (contract, objective) = match request {
             CompilationRequest::Native => (
@@ -868,8 +911,19 @@ impl ProjectConfig {
         &self,
         tactic: crate::compilation_policy::TacticId,
         javascript: bool,
-    ) -> (Option<bool>, Option<bool>) {
+    ) -> Result<(Option<bool>, Option<bool>), String> {
         use crate::compilation_policy::TacticId as T;
+        let consistent = |left: (&str, Option<bool>), right: (&str, Option<bool>)| {
+            if let (Some(a), Some(b)) = (left.1, right.1) {
+                if a != b {
+                    return Err(format!(
+                        "`{}` contradicts `{}` for `policy.tactics.{}`; remove one alias or use the same permission",
+                        left.0, right.0, tactic.spec().name
+                    ));
+                }
+            }
+            Ok(left.1.or(right.1))
+        };
         let compression = |decision| {
             (
                 self.javascript
@@ -879,22 +933,27 @@ impl ProjectConfig {
                 Some(self.javascript.compression_enabled(decision)),
             )
         };
-        match tactic {
+        Ok(match tactic {
             T::DeadCodeElimination => (self.optimization.dead_code_elimination, None),
             T::ConstantFolding => (self.optimization.constant_folding, None),
             T::Inlining => (self.optimization.inlining, None),
             T::ScalarReplacement => (self.optimization.scalar_replacement, None),
             T::CallSpecialization => {
-                let explicit = self.optimization.call_site_specialization.or_else(|| {
-                    if javascript {
-                        self.javascript
-                            .optimizations
-                            .as_ref()
-                            .map(|v| v.contains(&JavaScriptOptimization::CallSiteSpecialization))
-                    } else {
-                        None
-                    }
-                });
+                let listed = if javascript {
+                    self.javascript
+                        .optimizations
+                        .as_ref()
+                        .map(|v| v.contains(&JavaScriptOptimization::CallSiteSpecialization))
+                } else {
+                    None
+                };
+                let explicit = consistent(
+                    (
+                        "optimization.call_site_specialization",
+                        self.optimization.call_site_specialization,
+                    ),
+                    ("javascript.optimizations", listed),
+                )?;
                 (explicit, None)
             }
             T::HelperSharing => {
@@ -907,7 +966,13 @@ impl ProjectConfig {
                         .javascript
                         .compression_enabled(CompressionDecision::ParameterizedFunctionMerging);
                 (
-                    self.optimization.parameterized_function_merging.or(legacy),
+                    consistent(
+                        (
+                            "optimization.parameterized_function_merging",
+                            self.optimization.parameterized_function_merging,
+                        ),
+                        ("javascript.compression", legacy),
+                    )?,
                     Some(default),
                 )
             }
@@ -917,15 +982,33 @@ impl ProjectConfig {
             ),
             T::IdentifierMangling => {
                 let (legacy, _) = compression(CompressionDecision::IdentifierMangling);
-                (self.mangle.identifiers.or(legacy), None)
+                (
+                    consistent(
+                        ("mangle.identifiers", self.mangle.identifiers),
+                        ("javascript.compression", legacy),
+                    )?,
+                    None,
+                )
             }
             T::PropertyMangling => {
                 let (legacy, default) = compression(CompressionDecision::PropertyMangling);
-                (self.mangle.properties.or(legacy), default)
+                (
+                    consistent(
+                        ("mangle.properties", self.mangle.properties),
+                        ("javascript.compression", legacy),
+                    )?,
+                    default,
+                )
             }
             T::StringPooling => {
                 let (legacy, default) = compression(CompressionDecision::StringPooling);
-                (self.mangle.pool_strings.or(legacy), default)
+                (
+                    consistent(
+                        ("mangle.pool_strings", self.mangle.pool_strings),
+                        ("javascript.compression", legacy),
+                    )?,
+                    default,
+                )
             }
             T::StringArrayPacking => compression(CompressionDecision::StringArrayPacking),
             T::StartupReconstruction | T::RecurringReconstruction | T::NamingAlphabet => {
@@ -939,7 +1022,7 @@ impl ProjectConfig {
                     .map(|v| v.contains(&JavaScriptOptimization::EntropyCrossScopeReuse));
                 (explicit, None)
             }
-        }
+        })
     }
 
     pub fn validate(&self) -> Result<(), String> {

@@ -37,9 +37,13 @@ when the JavaScript emitter selects a built-in spelling. Mutators retain a preci
 receiver-mutation effect. An explicit `JsValue` coercion or proxy-sensitive access
 is a different semantic boundary and cannot inherit these purity facts.
 `Record<T>` keys remain observable data even when internal nominal fields mangle.
-The record family can replace a captured `Record<int>` that never escapes with
-scalars. It never permits key renaming or ordinary-object backing for a surviving
-record. The deleted route's record projection is in
+The record family can replace a private `Record<T>` with scalars when all uses
+are proved constant-key projections after initialization, including captured
+uses. The payload can be primitive, reference or value-struct data; its identity,
+copy operations and missing-key normalization are preserved. Whole-record
+aliases, escape, reassignment and dynamic keys remain ineligible. This never
+permits key renaming or ordinary-object backing for a surviving record. The
+deleted route's record projection is in
 [history](../history/compilation/aggregate-lowering.md#closed-record-observation-projection).
 
 Collection tests need aliasing and mutation, callback evaluation order, absent keys,

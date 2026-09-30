@@ -360,6 +360,15 @@ fn build(
 ) -> Result<(), String> {
     let result = lilscript::compile_entries(entries, config, options)
         .map_err(|error| render_service_error(&error))?;
+    if let Some(targets) = result.report()["policy_diagnostics"].as_object() {
+        for (target, messages) in targets {
+            if let Some(messages) = messages.as_array() {
+                for message in messages.iter().filter_map(Value::as_str) {
+                    eprintln!("warning: {target}: {message}");
+                }
+            }
+        }
+    }
     if let Some(format) = args.explain {
         let text = match format {
             ExplainFormat::Json => {
@@ -881,18 +890,31 @@ fn explain_human(report: &Value) -> String {
 /// every axis — contract, objective, effort, tactic permissions, resources and
 /// constraints — without reading source, and a receipt can pin its fingerprint.
 fn print_policy(args: &Args, loaded: &LoadedConfig, options: ServiceOptions) -> Result<(), String> {
-    let resolve = |request| -> Result<(String, Value), String> {
+    let receipt = policy_report(args, loaded, options)?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&receipt).map_err(|error| error.to_string())?
+    );
+    Ok(())
+}
+
+fn policy_report(
+    args: &Args,
+    loaded: &LoadedConfig,
+    options: ServiceOptions,
+) -> Result<Value, String> {
+    let resolve = |request| -> Result<(String, Value, Value), String> {
         let policy = loaded.config.resolve_policy(request)?;
         let fingerprint = policy
             .fingerprint()
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect();
-        Ok((fingerprint, policy.receipt()))
+        Ok((fingerprint, policy.receipt(), json!(policy.diagnostics())))
     };
     let javascript = options.javascript_request().map(resolve).transpose()?;
     let native = options.native_request().map(resolve).transpose()?;
-    let (fingerprint, policy) = javascript
+    let (fingerprint, policy, diagnostics) = javascript
         .clone()
         .or_else(|| native.clone())
         .expect("every target resolves a policy");
@@ -912,17 +934,15 @@ fn print_policy(args: &Args, loaded: &LoadedConfig, options: ServiceOptions) -> 
         },
         "fingerprint": fingerprint,
         "policy": policy,
+        "diagnostics": diagnostics,
     });
     // `--target all` also builds C, under its own policy.
-    if let (Some(_), Some((fingerprint, policy))) = (&javascript, native) {
+    if let (Some(_), Some((fingerprint, policy, diagnostics))) = (&javascript, native) {
         receipt["native_fingerprint"] = json!(fingerprint);
         receipt["native_policy"] = policy;
+        receipt["native_diagnostics"] = diagnostics;
     }
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&receipt).map_err(|error| error.to_string())?
-    );
-    Ok(())
+    Ok(receipt)
 }
 
 /// Every file the build reads — source modules, delivered host modules, the
@@ -1115,6 +1135,42 @@ mod tests {
         assert_eq!(requests("c"), (None, Some(R::Native)));
         assert_eq!(requests("native"), (None, Some(R::Native)));
         assert_eq!(requests("all"), (script, Some(R::Native)));
+    }
+
+    #[test]
+    fn policy_report_explains_unavailable_controls_for_each_target() {
+        let args = Args::try_parse_from([
+            "lilscript",
+            "input.lil",
+            "--target",
+            "all",
+            "--print-policy",
+        ])
+        .unwrap();
+        let loaded = LoadedConfig {
+            config: toml::from_str("[policy.tactics]\nproperty-mangling='on'").unwrap(),
+            path: None,
+            warnings: vec![],
+        };
+        let report = policy_report(&args, &loaded, service_options(&args)).unwrap();
+        for key in ["diagnostics", "native_diagnostics"] {
+            assert!(report[key]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|value| value.as_str().unwrap().contains("property-mangling")));
+        }
+        for key in ["policy", "native_policy"] {
+            let tactic = report[key]["tactics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|value| value["id"] == "property-mangling")
+                .unwrap();
+            assert_eq!(tactic["available"], false);
+            assert_eq!(tactic["state"]["enabled"], false);
+            assert!(report[key].get("diagnostics").is_none());
+        }
     }
 
     #[test]

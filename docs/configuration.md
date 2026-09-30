@@ -232,8 +232,22 @@ separately from physical `canonical_gzip`, `canonical_brotli` and
 
 Every optional transformation belongs to a tactic in `[policy.tactics]`, each
 `auto` (the default), `on` (permitted, never forced) or `off` (vetoed in direct
-and searched use). `--print-policy` lists them with their resolved state. `auto`
-follows the tactic's own default and its effort gate.
+and searched use). `--print-policy` generates the tactic reference from the
+registry: requested permission, effective state, target availability, producer
+stages, prerequisites, analysis requirements and defaults. `auto` follows the
+tactic's own default and its effort gate. A missing producer cannot be enabled
+by a flag: `helper-sharing`, `property-mangling` and `recurring-reconstruction`
+currently report unavailable, with a diagnostic when explicitly requested on.
+Native has no scalar-replacement or call-specialization producer yet.
+Disabling identifier mangling also disables its dependent naming search and
+alphabet trials, with the reason in the policy diagnostics.
+
+`--print-policy` includes resolved `diagnostics` alongside the canonical policy;
+build reports expose them per target in `policy_diagnostics`, and ordinary CLI
+builds print them as warnings. Diagnostic wording is outside the policy
+fingerprint. The level-16 compatibility grant is diagnosed until the relevant
+reconstruction permission is explicitly set. Algorithm version 3 records this
+availability and receipt correction; it adds no new optimizer representation.
 
 `target-compaction` permits the JavaScript target's optional rule schedule.
 Its folding, function inlining and object scalarization also require
@@ -264,10 +278,20 @@ that family was explicitly enabled.
 
 Constant folding includes bounded evaluation of small functions at constant
 call sites. Evaluation preserves argument effects and declines unsupported
-control flow, unknown captures and exhausted limits. Folding replaceable
+control flow, unknown captures and exhausted limits. Structured loops may fold
+when evaluation completes within the existing shared 1,024-step bound, including
+nested break, continue and return. Nontermination is never assumed away.
+Folding replaceable
 builtin methods also requires `javascript.assume_pristine_builtins = true`
 (native compilation uses its fixed runtime). The rule receipt's `folded_calls`
 counts calls replaced with constants; it does not claim a compressed-size win.
+
+`scalar-replacement` permits private record storage alternatives for checked
+payload types, including strings, floats, booleans, references and value structs.
+The proof requires complete constant-key uses, one initialization and safe
+capture timing. Whole-record aliases, escape, reassignment and dynamic keys keep
+their original storage. Reference identity, value-copy boundaries and absent-key
+normalization remain unchanged; each objective judges the complete alternative.
 
 `naming-alphabet` permits joint trials that reorder identifier characters by
 their frequency in the currently delivered JavaScript. It also requires
@@ -280,7 +304,9 @@ after the existing literal and naming-style alternatives.
 
 Several older keys set a tactic's permission. An explicit `true` is `on` and an
 explicit `false` is `off`; a `[policy.tactics]` value that contradicts one is an
-error.
+error. Contradictions between explicit legacy aliases also fail, including
+`mangle` settings versus the compression allowlist and specialization/sharing
+settings versus their allowlists. File ordering does not choose a winner.
 
 | Key | Tactic |
 |---|---|

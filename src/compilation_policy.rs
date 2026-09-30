@@ -17,7 +17,7 @@ use crate::config::{CompressionCostModel, JavaScriptPriority};
 
 pub const POLICY_SCHEMA_VERSION: u32 = 2;
 pub const LEGACY_TRANSLATOR_RETIREMENT_SCHEMA: u32 = 3;
-pub const POLICY_ALGORITHM_VERSION: u32 = 2;
+pub const POLICY_ALGORITHM_VERSION: u32 = 3;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -148,7 +148,8 @@ pub enum TacticId {
     NamingAlphabet,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum AnalysisRequirement {
     UsesAndEffects,
     Values,
@@ -159,7 +160,8 @@ pub enum AnalysisRequirement {
 }
 
 /// What `auto` resolves a tactic to, before the effort gate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum TacticDefault {
     On,
     /// Only an explicit `on` enables it.
@@ -178,7 +180,18 @@ impl TacticDefault {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Implemented owners, not a promise that a source contains an eligible site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TacticProducer {
+    SharedRules,
+    JavaScriptFormation,
+    StructuralSearch,
+    OutputFamilies,
+    Naming,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct TacticSpec {
     pub id: TacticId,
     pub name: &'static str,
@@ -197,6 +210,8 @@ pub struct TacticSpec {
     /// conditional on whether this tactic is enabled.
     pub analysis: AnalysisRequirement,
     pub default: TacticDefault,
+    pub producers: &'static [TacticProducer],
+    pub prerequisites: &'static [TacticId],
 }
 
 impl TacticId {
@@ -236,7 +251,7 @@ impl TacticId {
                 T::Inlining => ("inlining", false, 0, false, A::CallsAndCaptures, D::Preset),
                 T::ScalarReplacement => (
                     "scalar-replacement",
-                    false,
+                    true,
                     0,
                     false,
                     A::OwnershipAndObservations,
@@ -244,7 +259,7 @@ impl TacticId {
                 ),
                 T::CallSpecialization => (
                     "call-specialization",
-                    false,
+                    true,
                     0,
                     false,
                     A::CallsAndCaptures,
@@ -305,6 +320,24 @@ impl TacticId {
                     D::On,
                 ),
             };
+        use TacticProducer as P;
+        let producers: &'static [P] = match self {
+            T::DeadCodeElimination | T::ConstantFolding | T::Inlining => {
+                &[P::SharedRules, P::JavaScriptFormation]
+            }
+            T::ScalarReplacement => &[P::JavaScriptFormation, P::StructuralSearch],
+            T::CallSpecialization => &[P::StructuralSearch],
+            T::TargetCompaction => &[P::JavaScriptFormation, P::OutputFamilies],
+            T::IdentifierMangling | T::NamingSearch | T::NamingAlphabet => &[P::Naming],
+            T::StringPooling | T::StringArrayPacking => &[P::OutputFamilies],
+            T::StartupReconstruction => &[P::JavaScriptFormation],
+            T::HelperSharing | T::PropertyMangling | T::RecurringReconstruction => &[],
+        };
+        let prerequisites: &'static [T] = match self {
+            T::NamingSearch => &[T::IdentifierMangling],
+            T::NamingAlphabet => &[T::IdentifierMangling, T::NamingSearch],
+            _ => &[],
+        };
         TacticSpec {
             id: self,
             name,
@@ -313,6 +346,8 @@ impl TacticId {
             startup_at_level_16,
             analysis,
             default,
+            producers,
+            prerequisites,
         }
     }
 }
@@ -1007,7 +1042,11 @@ impl ResolvedPolicy {
             }),
         };
         let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
-        json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| json!({"id":id, "state":self.tactic(id)})), "resources":self.resources, "constraints":self.constraints})
+        json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| {
+            let spec = id.spec();
+            let available = !spec.producers.is_empty() && (!spec.javascript_only || self.javascript_contract().is_some());
+            json!({"id":id, "state":self.tactic(id), "available":available, "definition":spec})
+        }), "resources":self.resources, "constraints":self.constraints})
     }
     pub fn fingerprint(&self) -> [u8; 32] {
         self.fingerprint
@@ -1672,7 +1711,11 @@ mod tests {
                 "effort.level=0\n[policy.tactics]\n{}='on'",
                 tactic.spec().name
             ));
-            assert!(on.tactic(tactic).enabled, "{tactic:?}");
+            assert_eq!(
+                on.tactic(tactic).enabled,
+                !tactic.spec().producers.is_empty(),
+                "{tactic:?}"
+            );
             assert_eq!(
                 on.compare(
                     CandidateCost {
@@ -1710,6 +1753,132 @@ mod tests {
                 preserve_root_exports: true,
             });
         assert!(conflict.unwrap_err().contains("contradicts"));
+    }
+
+    #[test]
+    fn unavailable_producers_keep_requested_permissions_and_explain_the_refusal() {
+        for tactic in [
+            TacticId::HelperSharing,
+            TacticId::PropertyMangling,
+            TacticId::RecurringReconstruction,
+        ] {
+            for permission in ["auto", "on", "off"] {
+                let p = js(&format!(
+                    "[policy.tactics]\n{}='{permission}'",
+                    tactic.spec().name
+                ));
+                assert!(!p.tactic(tactic).enabled);
+                assert_eq!(
+                    p.tactic(tactic).permission,
+                    match permission {
+                        "on" => TacticPermission::On,
+                        "off" => TacticPermission::Off,
+                        _ => TacticPermission::Auto,
+                    }
+                );
+                assert_eq!(
+                    p.diagnostics()
+                        .iter()
+                        .any(|text| text.contains("no implementation")),
+                    permission == "on"
+                );
+                assert_eq!(
+                    p.admit(
+                        &[usage(tactic, RuntimeRisk::Neutral)],
+                        CandidateCost::default(),
+                        CandidateCost::default()
+                    ),
+                    Err(AdmissionError::ForbiddenTactic(tactic))
+                );
+                let receipt = p.receipt();
+                let row = &receipt["tactics"][tactic as usize];
+                assert_eq!(row["available"], false);
+                assert_eq!(row["definition"]["producers"], serde_json::json!([]));
+            }
+        }
+    }
+
+    #[test]
+    fn registry_dependencies_propagate_parent_vetoes_and_native_availability() {
+        let p = js(
+            "[policy.tactics]\nidentifier-mangling='off'\nnaming-search='on'\nnaming-alphabet='on'",
+        );
+        assert!(!p.tactic(TacticId::NamingSearch).enabled);
+        assert!(!p.tactic(TacticId::NamingAlphabet).enabled);
+        assert_eq!(p.diagnostics().len(), 2);
+        let p = config("[policy.tactics]\nscalar-replacement='on'\ncall-specialization='on'")
+            .resolve_policy(CompilationRequest::Native)
+            .unwrap();
+        assert!(!p.tactic(TacticId::ScalarReplacement).enabled);
+        assert!(!p.tactic(TacticId::CallSpecialization).enabled);
+        assert_eq!(p.diagnostics().len(), 2);
+        for tactic in TacticId::ALL {
+            let spec = tactic.spec();
+            assert_eq!(spec.id, tactic);
+            for dependency in spec.prerequisites {
+                assert_ne!(*dependency, tactic, "a tactic cannot enable itself");
+            }
+            assert_eq!(
+                p.tactic(tactic).enabled,
+                spec.producers.contains(&TacticProducer::SharedRules)
+            );
+        }
+    }
+
+    #[test]
+    fn explicit_alias_conflicts_fail_instead_of_selecting_an_order() {
+        for (left, right) in [
+            (
+                "[mangle]\nidentifiers=false",
+                "[javascript]\ncompression=['identifier-mangling']",
+            ),
+            (
+                "[mangle]\nproperties=false",
+                "[javascript]\ncompression=['property-mangling']",
+            ),
+            (
+                "[mangle]\npool_strings=false",
+                "[javascript]\ncompression=['string-pooling']",
+            ),
+            (
+                "[optimization]\nparameterized_function_merging=false",
+                "[javascript]\ncompression=['parameterized-function-merging']",
+            ),
+            (
+                "[optimization]\ncall_site_specialization=false",
+                "[javascript]\noptimizations=['call-site-specialization']",
+            ),
+        ] {
+            for source in [format!("{left}\n{right}"), format!("{right}\n{left}")] {
+                let p = config(&source).resolve_policy(CompilationRequest::JavaScript {
+                    preserve_root_exports: true,
+                });
+                assert!(p.unwrap_err().contains("contradicts"), "{source}");
+            }
+            let consistent = format!("{}\n{right}", left.replace("false", "true"));
+            config(&consistent)
+                .resolve_policy(CompilationRequest::JavaScript {
+                    preserve_root_exports: true,
+                })
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn compatibility_startup_grants_are_diagnosed_until_explicitly_migrated() {
+        let legacy = js("effort.level=16\n[policy]");
+        assert_eq!(
+            legacy
+                .diagnostics()
+                .iter()
+                .filter(|text| text.starts_with("compatibility:"))
+                .count(),
+            2
+        );
+        for permission in ["off", "on"] {
+            let p = js(&format!("effort.level=16\n[policy.tactics]\nstring-array-packing='{permission}'\nstartup-reconstruction='{permission}'"));
+            assert!(p.diagnostics().is_empty(), "{:?}", p.diagnostics());
+        }
     }
 
     #[test]

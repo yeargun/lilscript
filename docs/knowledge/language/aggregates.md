@@ -14,7 +14,7 @@ Parent: [Language](README.md). Related: [types](types-not-glue.md), [escape](bou
 
 Positional storage and plain locals are common size wins, not a theorem. Which
 layout an allocation gets is a representation choice: today the product family
-(value-struct scalars) and the record family (captured `Record<int>` scalars) make
+(value-struct scalars) and the record family (private `Record<T>` scalars) make
 it per candidate, and plan M9.7 turns layout into one codec-judged choice per
 nominal or allocation (scalars, positional, named object, real class). ES `class`
 is constructor identity, not instance backing. The deleted route's layout

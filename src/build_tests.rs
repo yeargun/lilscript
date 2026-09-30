@@ -516,6 +516,35 @@ fn bounded_loop_folding_obeys_configuration_for_javascript_and_native() {
 }
 
 #[test]
+fn service_reports_unsupported_permissions_separately_from_policy_identity() {
+    let result = compile_source(
+        "print(7);",
+        &config("[policy.tactics]\nproperty-mangling='on'"),
+        ServiceOptions::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        execute_javascript(
+            result.javascript(Objective::Brotli).unwrap().javascript(),
+            "",
+            ""
+        ),
+        "7\n"
+    );
+    let report = result.report();
+    assert!(report["policy_diagnostics"]["javascript"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|value| value.as_str().unwrap().contains("property-mangling")));
+    assert!(report["javascript_policy"].get("diagnostics").is_none());
+    let tactic = &report["javascript_policy"]["tactics"][TacticId::PropertyMangling as usize];
+    assert_eq!(tactic["state"]["permission"], "on");
+    assert_eq!(tactic["available"], false);
+    assert_eq!(tactic["state"]["enabled"], false);
+}
+
+#[test]
 fn native_and_all_share_checked_meaning_without_native_codec_work() {
     let source = "int twice(int value){return value*2;}print(twice(21));";
     let javascript = compile_source(

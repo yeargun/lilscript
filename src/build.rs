@@ -786,6 +786,10 @@ impl<'src> CheckedSourceSession<'src> {
                 "effective_retained_bytes":options.retained_bytes.min(limits.retained_bytes.unwrap_or(u64::MAX))},
             "inputs":inputs,"shape":shape,"javascript_policy":javascript.as_ref().map(ResolvedPolicy::receipt),
             "native_policy":native.as_ref().map(ResolvedPolicy::receipt), "phases_ns":phases,"total_ns":nanos(started),
+            "policy_diagnostics":{
+                "javascript":javascript.as_ref().map(ResolvedPolicy::diagnostics),
+                "native":native.as_ref().map(ResolvedPolicy::diagnostics)
+            },
             "ledger_before_finish":before,
             "resources":{
                 "baseline_work":ledger.work_used(WorkDomain::Baseline),"optional_work":ledger.work_used(WorkDomain::Optional),
