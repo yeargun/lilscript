@@ -147,7 +147,7 @@ struct Placement {
 }
 
 /// Where a single-use call stands, and what its result feeds.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Site {
     /// `f(a);`
     Discard,
@@ -157,6 +157,16 @@ enum Site {
     Assign(BindingId),
     /// `return f(a);`
     Return,
+}
+
+/// One binding's occurrences and first supported call statement. The index
+/// belongs to a single unchanged tree, so an edit cannot leave stale sites.
+#[derive(Clone, Copy, Default)]
+struct SingleCall {
+    calls: usize,
+    uses: usize,
+    function: Option<FunctionId>,
+    site: Option<(RegionId, usize, Site, ExprId)>,
 }
 
 impl Module {
@@ -213,33 +223,40 @@ impl Module {
         AllocationError,
     > {
         use crate::compilation_policy::WorkKind::Analysis;
+        let mut scratch = budget.scope();
+        let budget = &mut scratch;
         let reach = self.reach(budget)?;
         // Every reference counts, a statement's own root included; the one
         // allowed is the single call.
-        let mut calls = vec![0usize; self.bindings.len()];
-        let mut uses = vec![0usize; self.bindings.len()];
+        let mut calls = budget.filled(
+            AllocationClass::Scratch,
+            self.bindings.len(),
+            SingleCall::default(),
+        )?;
         for &(id, _) in &reach.expressions {
             budget.work(Analysis, 1)?;
             match &self.expressions[id.index()] {
-                Expr::Binding(binding) => uses[binding.index()] += 1,
+                Expr::Binding(binding) => calls[binding.index()].uses += 1,
                 Expr::Call {
                     callee,
                     invocation: Invocation::Value | Invocation::Reference,
                     ..
                 } => {
                     if let Expr::Binding(binding) = self.expressions[callee.index()] {
-                        calls[binding.index()] += 1;
+                        calls[binding.index()].calls += 1;
                     }
                 }
                 _ => {}
             }
         }
+        budget.work(Analysis, self.exports.len() as u64)?;
         for export in &self.exports {
-            uses[export.binding.index()] += 1;
+            calls[export.binding.index()].uses += 1;
         }
+        self.index_single_call_sites(&reach, &mut calls, budget)?;
         // Each region's parent statement: (region, index), or a function
         // created at that statement.
-        let parents = self.region_parents(budget)?;
+        let mut parents = None;
         let mut depths = None;
         for &declaring in &reach.regions {
             for (at, statement) in self.regions[declaring.index()]
@@ -258,17 +275,32 @@ impl Module {
                 let Expr::Function(function) = self.expressions[value.index()] else {
                     continue;
                 };
-                if calls[binding.index()] != 1
-                    || uses[binding.index()] != 1
+                if calls[binding.index()].calls != 1
+                    || calls[binding.index()].uses != 1
                     || self.bindings[binding.index()].pinned
-                    || !self.block_inlinable(function)
                 {
                     continue;
                 }
-                let Some((region, index, site, arguments)) =
-                    self.single_call_site(&reach, binding, function)
-                else {
+                let found = calls[binding.index()].site;
+                #[cfg(test)]
+                assert_eq!(
+                    found.map(|(region, index, site, call)| {
+                        let Expr::Call { arguments, .. } = &self.expressions[call.index()] else {
+                            unreachable!()
+                        };
+                        (region, index, site, arguments.clone())
+                    }),
+                    self.single_call_site(&reach, binding, function),
+                    "indexed call site differs from the independent scan"
+                );
+                let Some((region, index, site, call)) = found else {
                     continue;
+                };
+                if !self.block_inlinable(function) {
+                    continue;
+                }
+                let Expr::Call { arguments, .. } = &self.expressions[call.index()] else {
+                    unreachable!("indexed call site is a call")
                 };
                 // The call runs only after the declaration: the declaring
                 // region's statement holding it follows the declaration and
@@ -283,6 +315,10 @@ impl Module {
                 {
                     continue;
                 }
+                if parents.is_none() {
+                    parents = Some(self.region_parents(budget)?);
+                }
+                let parents = parents.as_ref().expect("initialized above");
                 let mut path = (region, index);
                 let mut encloses = false;
                 for _ in 0..verify::MAX_NESTING * 4 {
@@ -319,7 +355,7 @@ impl Module {
                 // body and arguments would see `undefined` where the call
                 // throws.
                 if let Site::Declare(declared) = site {
-                    if self.mentions(&[own], &arguments, declared, false) {
+                    if self.mentions(&[own], arguments, declared, false) {
                         continue;
                     }
                 }
@@ -334,7 +370,13 @@ impl Module {
                     continue;
                 }
                 return Ok(Some((
-                    declaring, at, function, region, index, site, arguments,
+                    declaring,
+                    at,
+                    function,
+                    region,
+                    index,
+                    site,
+                    arguments.clone(),
                 )));
             }
         }
@@ -609,7 +651,100 @@ impl Module {
             && self.frame_free(function)
     }
 
-    /// The one call of `binding`, when it stands as a whole statement form.
+    /// Find every eligible binding's first whole-statement call in traversal
+    /// order. A body cannot be placed into itself. Arguments stay borrowed
+    /// until the selected candidate is returned, rather than being cloned for
+    /// every rejected declaration.
+    fn index_single_call_sites(
+        &self,
+        reach: &super::inline::Reach,
+        calls: &mut [SingleCall],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        for &region in &reach.regions {
+            for statement in &self.regions[region.index()].statements {
+                budget.work(Analysis, 1)?;
+                if let Statement::Let {
+                    binding,
+                    value: Some(value),
+                } = *statement
+                {
+                    let entry = &mut calls[binding.index()];
+                    if entry.calls == 1 && entry.uses == 1 && !self.bindings[binding.index()].pinned
+                    {
+                        if let Expr::Function(function) = self.expressions[value.index()] {
+                            entry.function = Some(function);
+                        }
+                    }
+                }
+            }
+        }
+        for &region in &reach.regions {
+            for (index, statement) in self.regions[region.index()].statements.iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                let (call, site) = match *statement {
+                    Statement::Evaluate(value) => {
+                        let value = match self.expressions[value.index()] {
+                            Expr::Unary {
+                                op: Unary::Void,
+                                value,
+                            } => value,
+                            _ => value,
+                        };
+                        match self.expressions[value.index()] {
+                            Expr::Assign { target, value } => {
+                                let Expr::Binding(target) = self.expressions[target.index()] else {
+                                    continue;
+                                };
+                                (value, Site::Assign(target))
+                            }
+                            _ => (value, Site::Discard),
+                        }
+                    }
+                    Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } => (value, Site::Declare(binding)),
+                    Statement::Return(Some(value)) => (value, Site::Return),
+                    _ => continue,
+                };
+                let Expr::Call {
+                    callee,
+                    arguments,
+                    invocation: Invocation::Value | Invocation::Reference,
+                } = &self.expressions[call.index()]
+                else {
+                    continue;
+                };
+                let Expr::Binding(binding) = self.expressions[callee.index()] else {
+                    continue;
+                };
+                let entry = &mut calls[binding.index()];
+                let Some(function) = entry.function.map(|id| &self.functions[id.index()]) else {
+                    continue;
+                };
+                if entry.site.is_some()
+                    || region == function.body
+                    || arguments.len() != function.parameters.len()
+                {
+                    continue;
+                }
+                budget.work(Analysis, arguments.len() as u64)?;
+                if arguments
+                    .iter()
+                    .any(|id| matches!(self.expressions[id.index()], Expr::Spread(_)))
+                {
+                    continue;
+                }
+                entry.site = Some((region, index, site, call));
+            }
+        }
+        Ok(())
+    }
+
+    /// Independent scan oracle for the binding-indexed lookup.
+    #[cfg(test)]
     fn single_call_site(
         &self,
         reach: &super::inline::Reach,

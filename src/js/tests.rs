@@ -4,6 +4,9 @@ use std::process::Command;
 #[path = "projection_tests.rs"]
 mod projection;
 
+#[path = "single_call_tests.rs"]
+mod single_call;
+
 fn expr(module: &mut Module, node: Expr) -> ExprId {
     module.expression(node, None)
 }
