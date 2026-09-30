@@ -203,8 +203,10 @@ impl Module {
                 // branch, with only inert evaluations before the last such read.
                 // One whose value cannot change may also be read again or not at
                 // all. Where the call is the function's only one (so the function
-                // goes), a stable argument may also be read at any time: measured,
-                // doing that at every call grows markedlil and zodlil.
+                // goes), a stable argument may also be read at any time. For
+                // repeated calls the compatibility policy only substitutes
+                // repeatable arguments, avoiding repeated expression expansion.
+                // Broader duplicating alternatives belong to call search (S3).
                 let single = calls[binding.index()] == 1;
                 let mut fits = true;
                 let mut last: Option<usize> = None;

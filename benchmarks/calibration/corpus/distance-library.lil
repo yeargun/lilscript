@@ -1,0 +1,2 @@
+export int distance(string a,string b){Array<int> row=[];for(int j=0;j<=b.length;j++){row.push(j);}for(int i=1;i<=a.length;i++){int diagonal=row[0];row[0]=i;for(int j=1;j<=b.length;j++){int prior=row[j];int replace=diagonal+(a.codeUnitAt(i-1)==b.codeUnitAt(j-1)?0:1);int insert=row[j-1]+1;int erase=prior+1;row[j]=replace<insert?(replace<erase?replace:erase):(insert<erase?insert:erase);diagonal=prior;}}return row[b.length];}
+export int probe(int input){string a=(input&1)==0?"compiler😀":"compressλ";string b=(input&2)==0?"compression😀":"compilationλ";return distance(a,b);}

@@ -17,8 +17,7 @@
 //! **Spellings** re-spell the same evaluations. Each group is a family the
 //! objective seeds and the terminal stage offers as a challenger
 //! (`StatementSpellings`): Terser's `conditionals`, `if_return` and
-//! `sequences`, which a leave-one-out on jquerylil's raw build ranks first
-//! (1,452, 630 and 450 bytes), and Closure's late MinimizeExitPoints,
+//! `sequences`, and Closure's late MinimizeExitPoints,
 //! MinimizeConditions and StatementFusion:
 //!
 //! * `if(c){a;b}` is `c&&(a,b)`, `if(c)a;else b` is `c?a:b`, and an empty

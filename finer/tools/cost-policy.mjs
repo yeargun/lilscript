@@ -16,6 +16,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { fingerprint } from "./artifact-evidence.mjs"
+import { SIZE_VERDICT_POLICY } from "../../scripts/lib/size-verdict.mjs"
 
 const toolsDirectory = dirname(fileURLToPath(import.meta.url))
 export const REPOSITORY_ROOT = resolve(toolsDirectory, "../..")
@@ -157,7 +158,7 @@ export const DELIVERY_ACCOUNTING = {
     "An artifact that fails its boundary's required cases is ineligible at any size.",
     "Cross-codec wins do not transfer: each of raw, gzip and Brotli is selected independently.",
   ],
-  openDecision: "D4's numeric strict-win threshold remains open: this policy fixes what is measured and counted, not how many bytes constitute a win.",
+  sizeVerdicts: SIZE_VERDICT_POLICY,
 }
 
 /**

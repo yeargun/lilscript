@@ -22,7 +22,7 @@
 //!
 //! No shared adapter factory is emitted for such a callback, so no function
 //! body serves two callbacks (law P1: a shared factory's one inner call site
-//! turns megamorphic; katex-perf 2026-09-27). Legality: the callback does not
+//! can see unrelated receiver types). Legality: the callback does not
 //! suspend, reads no `this` or `arguments` of an enclosing function unless it
 //! is an arrow (a function of its own would see its own; an arrow sees the
 //! enclosing ones, as the lambda did), and carries no struct across a

@@ -25,10 +25,9 @@
 //! best saving above zero, else the literal), never the decision. The
 //! artifact's `ChoiceMap` names the alternative formation applies; the
 //! terminal stage offers the others, each kept only when the whole artifact
-//! shrinks under the requested codec. Measured on the splice experiments of
-//! 2026-09-23: katex's font metrics as global columns of ×1e5 integers with
-//! delta keys were −2,529 Brotli, a value dictionary −19,722 raw but only
-//! −1,302 Brotli; micromark's named entities front-coded −1,054 Brotli.
+//! shrinks under the requested codec. Raw savings estimate the work order;
+//! codec-specific savings need an exact complete-artifact measurement.
+//! Historical experiments are retained outside compiler policy sources.
 //!
 //! **Exactness is the legality.** The decoded graph equals the literal's:
 //! the same keys stored in the same order (index keys enumerate first either
@@ -470,8 +469,8 @@ struct Columns<'d> {
 /// collections and their shapes, how each column is read (scale,
 /// dictionary, split separator) and which dictionaries exist. The data
 /// stays in the call's streams. Two tables of one schema decode through
-/// one decoder (architecture §10.2: decoders are keyed by schema at
-/// formation, so katexlil's two byte-identical decoders become one).
+/// one decoder: formation keys decoders by their complete schema, so equal
+/// decoders share code independently of table values or source identity.
 #[derive(Debug, Clone, PartialEq)]
 struct Schema {
     collections: Vec<Collection>,

@@ -9,6 +9,7 @@ import {dirname, join, resolve, isAbsolute} from "node:path";
 import {fileURLToPath} from "node:url";
 import {brotliCompressSync, gzipSync, constants} from "node:zlib";
 import {fileIdentity, fingerprint, snapshotDependencyTree} from "../finer/tools/artifact-evidence.mjs";
+import {SIZE_VERDICT_POLICY, sizeVerdict} from "./lib/size-verdict.mjs";
 
 const scripts = dirname(fileURLToPath(import.meta.url));
 export const RECIPE_IDS = ["terser", "swc", "oxc", "rolldown", "esbuild", "closure-advanced", "upstream"];
@@ -46,6 +47,7 @@ export function runBars({manifestPath,lockPath,work,reportPath,writeLock=false,t
   const pin = path => {path=absolute(path);files.set(path,fileIdentity(path));return path;};
   pin(manifestPath); pin(process.execPath);
   for (const name of ["bars.mjs","bars-worker.mjs","bars-recipe.mjs"]) pin(join(scripts,name));
+  pin(join(scripts,"lib/size-verdict.mjs"));
   pin(join(scripts,"../finer/tools/artifact-evidence.mjs"));
   const codec = pin(manifest.codec);
   const inspector = manifest.inspector ? pin(manifest.inspector) : null;
@@ -91,6 +93,7 @@ export function runBars({manifestPath,lockPath,work,reportPath,writeLock=false,t
   } else assert.deepEqual(JSON.parse(readFileSync(lockPath,"utf8")),lock,"benchmark input/tool content differs from lock");
   mkdirSync(work,{recursive:true});
   const report={schema:1,kind:"qualified-benchmark-contracts",complete:false,lock_sha256:fingerprint(lock),programs:[],environment:env,
+    size_verdict_policy:SIZE_VERDICT_POLICY,
     limitations:["Behavior is established over the explicit oracle, not all possible inputs.","Language/host equivalence is declared and reviewed; a tool cannot prove those source contracts automatically.","CPU for native subprocess tools is unavailable here; wall cost includes the complete child process."]};
   const invoke = (script,request,stem) => {
     const path=join(work,`${stem}.request.json`);writeFileSync(path,JSON.stringify(request)+"\n");
@@ -153,6 +156,8 @@ export function runBars({manifestPath,lockPath,work,reportPath,writeLock=false,t
       assert.ok(OBJECTIVES.every(objective=>row.minima[objective]),"no eligible competitor for one or more objectives");
       row.deltas=Object.fromEntries(OBJECTIVES.map(objective=>[objective,
         row.artifacts.find(artifact=>artifact.objective===objective).sizes[objective]-row.minima[objective].bytes]));
+      row.size_verdicts=Object.fromEntries(OBJECTIVES.map(objective=>[objective,
+        sizeVerdict(row.artifacts.find(artifact=>artifact.objective===objective).sizes[objective],row.minima[objective].bytes)]));
     }
     for (const [path,identity] of files) assert.deepEqual(fileIdentity(path),identity,`input changed during benchmark: ${path}`);
     assert.equal(snapshotDependencyTree(join(toolchain,"node_modules"),{maxBytes:2*1024**3,maxEntries:100_000}).sha256,dependencies.sha256,"installed tool content changed");

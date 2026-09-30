@@ -210,9 +210,8 @@ pub struct OutputFamilies {
     pub compound_assignments: bool,
     /// Print a string in the quote it escapes least (`'{"a":1}'`). A codec
     /// keeps one delimiter: the escaped `\"` pairs of a JSON text compress
-    /// well, and switching quotes costs more than the escapes
-    /// (react-markdown's entity table: −7,008 raw, +53 Brotli; katexlil's
-    /// `' class="'` strings, +80 Brotli).
+    /// well, so fewer escapes need not produce a smaller compressed artifact.
+    /// Both spellings are exact-judged choices under every objective.
     pub quotes: bool,
     /// A redundant `|0` where the compiler printed one before R1, R10 and
     /// R11 made it unnecessary: after an `int` field, member or element read,
@@ -356,25 +355,16 @@ impl Spelling {
 /// A declared terminal challenger: a named alternative applied to the final
 /// candidate's assignment. The order is the declared schedule and the
 /// policy's effort sets how long a prefix of it is tried, so the order is
-/// the expected value per trial. Measured when the stage landed, on seven
-/// reference ports with every challenger tried: conditional values, exit
-/// points and loop fusion were kept under Brotli on three, three and one
-/// ports (−49, −152, −124; record 013-T7.2 found the same codec-selected
-/// subset, −462 over six ports); block inlining was kept under Brotli on two
-/// ports (−21), and turned off under raw on motionlil (−993); the raw
-/// spelling turned off under raw on posthoglil (−161); conditional returns
-/// won one port (−27). An earlier run of the same schedule, from seeds
-/// without the generalized exit rules, also kept logical statements on
-/// katexlil (−51). The rest won nowhere there and stay for the artifact
-/// where they do: the other objective's whole seed, flat blocks, loop heads,
-/// string pooling and logical branches (if to `&&`, +1,180 in total in the
-/// record).
+/// a prior for value per trial, never a semantic rule. The inherited order
+/// remains a compatibility policy until generic calibration supports a change;
+/// it is not a claim that every workload has that ranking. Complete-artifact
+/// exact judging admits each challenger. Source provenance and calibration
+/// scope are recorded in `benchmarks/calibration/policy-provenance.md`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Challenger {
-    /// The other objective's whole seed: the raw seed under gzip or Brotli
-    /// (katexlil's raw build scored 64,693 Brotli against its Brotli build's
-    /// 64,886), the codec seed under raw (probe f1's raw artifact was larger
-    /// in raw bytes than its Brotli one).
+    /// The other objective's whole seed, judged under the current objective.
+    /// Compression can reverse the ranking of two raw spellings; neither
+    /// seed is assumed to dominate the other.
     OtherSeed,
     ConditionalValues,
     ExitPoints,

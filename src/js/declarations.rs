@@ -2,8 +2,8 @@
 //!
 //! * `let a=1;S;let b;` is `let a=1,b;S`: an uninitialized declaration joins
 //!   the one before it when nothing between names it. No read could meet
-//!   its TDZ, and it initializes to `undefined` either way (Terser's
-//!   `join_vars`, measured −46 Brotli on katexlil).
+//!   its TDZ, and it initializes to `undefined` either way. Joining removes
+//!   a declaration keyword without moving an observable initializer.
 //! * `X.prototype.a=f;X.prototype.b=g` is `Object.assign(X.prototype,{a:f,
 //!   b:g})` under pristine builtins and pure member reads (`X.prototype` is
 //!   read once instead of per store), when each value only creates something

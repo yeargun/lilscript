@@ -195,9 +195,10 @@ pub(crate) struct Context<'a> {
     pub(crate) choices: Option<&'a ChoiceMap>,
 }
 
-/// Bodies up to six nodes: measured best on the reference ports (a limit of
-/// 3 keeps markedlil 97 bytes larger; 10 and 20 add nothing). A parameter of
-/// the transitional inliner, deleted with it (M7.5a).
+/// Compatibility bound on duplicated expression bodies, not a legality fact
+/// or a universal optimum. Single-use bodies have a separate bounded move
+/// path. S3 replaces this prior with objective-judged call alternatives;
+/// provenance: `benchmarks/calibration/policy-provenance.md`.
 const INLINE_LIMIT: usize = 6;
 
 /// Rounds a rule set may take. Each rule's edits remove or move structure,

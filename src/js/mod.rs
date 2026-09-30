@@ -1090,13 +1090,13 @@ pub struct Module {
     pub carried: Vec<String>,
     /// Print `{let i=v;for(;c;u)b}` as `for(let i=v;c;u)b`: the
     /// `loop_heads` output family, written here by formation. Shorter, but
-    /// measured both +125 and −33 Brotli on katexlil, so the codec judges it
+    /// shortening a loop can change repetition, so the codec judges it
     /// per artifact (a terminal challenger).
     pub loop_head_declarations: bool,
     /// Print `if(c)e;` as `c&&e;` (and `if(!c)e;` as `c||e;`) where neither
     /// side needs grouping: the `logical_statements` output family. Shorter,
-    /// but measured +34 Brotli on zodlil and +38 on katexlil (−4 on
-    /// markedlil), so the codec judges it per artifact as well.
+    /// but changing repeated statement forms can grow compressed bytes,
+    /// so the codec judges it per artifact as well.
     pub logical_statements: bool,
     /// Print `x=x+y` as `x+=y`: the `compound_assignments` output family,
     /// written here by formation (M8.3: a family of its own).
@@ -2124,8 +2124,9 @@ impl Module {
                 }
             }
             // Calls passing the default literal keep it as an argument (the
-            // check no longer lets `drop_default_arguments` drop it): measured
-            // better than keeping the check for them (motionlil −159).
+            // check no longer lets `drop_default_arguments` drop it). The
+            // `defined` proof establishes that no observed call needs the
+            // default. This removes a redundant test, not a call argument.
             let mut dropped = 0;
             for function in functions {
                 let body = module.functions[function.index()].body;

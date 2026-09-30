@@ -1,0 +1,330 @@
+{
+  "schema": 1,
+  "generator_sha256": "7f73e1335a8c6aef75422b7cece0bf3e13d8c9d030eac54c892ca9ae3286ec94",
+  "workloads": [
+    {
+      "id": "arithmetic-128",
+      "split": "training",
+      "family": "arithmetic",
+      "entry": "arithmetic-128.lil",
+      "source_sha256": "a5b4038b7d686af83f91b62982ca69f1c6e82cd3911749000872327c5fee9305",
+      "source_bytes": 16914,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        1079136121,
+        -1362457763,
+        -1006213481,
+        1367031259,
+        519206428,
+        -451009660,
+        730649542,
+        -718334923
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+    },
+    {
+      "id": "arithmetic-384",
+      "split": "training",
+      "family": "arithmetic",
+      "entry": "arithmetic-384.lil",
+      "source_sha256": "54b99207c318c1c4df988e84d8189801712572260a1772729b046fcc4bb8aa93",
+      "source_bytes": 51295,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        1694481468,
+        -326752327,
+        16116972,
+        1839641356,
+        1879889688,
+        1951502156,
+        1813167965,
+        162325468
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+    },
+    {
+      "id": "branches-128",
+      "split": "training",
+      "family": "branches",
+      "entry": "branches-128.lil",
+      "source_sha256": "18eebdba2172668c690831aeab5c4a3a4c1006c3a31b906f8d78b2af2c39ea0d",
+      "source_bytes": 54459,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        733533,
+        6523242,
+        13529665,
+        268107,
+        6786889,
+        13531969,
+        2428393,
+        154555
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+    },
+    {
+      "id": "branches-384",
+      "split": "training",
+      "family": "branches",
+      "entry": "branches-384.lil",
+      "source_sha256": "1d4166d9f89c5b92b43bc9fbfc05d262b400d1f5ce171513ed6390f34452654d",
+      "source_bytes": 163838,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        5706243,
+        -7715143,
+        8765188,
+        6643343,
+        16613582,
+        8753540,
+        11299354,
+        5073668
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+    },
+    {
+      "id": "strings-128",
+      "split": "training",
+      "family": "strings",
+      "entry": "strings-128.lil",
+      "source_sha256": "8213230343b03c9e45fbf616f8ba5098e8826b567bb9bfb799caadfb9581ab3b",
+      "source_bytes": 42759,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        18,
+        20,
+        10,
+        18,
+        20,
+        10,
+        5,
+        10
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+    },
+    {
+      "id": "strings-384",
+      "split": "training",
+      "family": "strings",
+      "entry": "strings-384.lil",
+      "source_sha256": "5cbb9abb53db0e923dee801039a236dd5ac93230fdbeff63412a943fa171453a",
+      "source_bytes": 129805,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        26,
+        17,
+        12,
+        26,
+        17,
+        12,
+        2,
+        12
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+    },
+    {
+      "id": "records-128",
+      "split": "training",
+      "family": "records",
+      "entry": "records-128.lil",
+      "source_sha256": "ff650def5217f59e8658fc041252e871cbededa9241c70d7acf18fac60462cbf",
+      "source_bytes": 29915,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        1642221,
+        85843,
+        -1642193,
+        1642221,
+        1642419,
+        1654255,
+        2836347,
+        -1642193
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+    },
+    {
+      "id": "records-384",
+      "split": "training",
+      "family": "records",
+      "entry": "records-384.lil",
+      "source_sha256": "5efa0c56877abc93ee23cb543faf9941cbbfef2e32094e236fca82823836ddac",
+      "source_bytes": 90273,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        1202161,
+        1726647,
+        -1201949,
+        1202161,
+        1200839,
+        1186915,
+        2844375,
+        -1201949
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Available for tuning."
+    },
+    {
+      "id": "checksum-library",
+      "split": "evaluation",
+      "family": "checksum-library",
+      "entry": "checksum-library.lil",
+      "source_sha256": "a6a8170d1c8f05e999f36d39759e453a8f2e2dd7138a2bc415553699b08094a1",
+      "source_bytes": 3100,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        579979911,
+        1605032995,
+        1569496228,
+        579979911,
+        -14573074,
+        891452005,
+        1398864359,
+        1569496228
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Protected from parameter selection; not blind to the author. Failure inspection requires promotion and replacement."
+    },
+    {
+      "id": "distance-library",
+      "split": "evaluation",
+      "family": "distance-library",
+      "entry": "distance-library.lil",
+      "source_sha256": "c9a4dd38d4eadabf38f1ba6b06ade177e795a2a0d39cc88edb2c721efc2a7dd8",
+      "source_bytes": 584,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        7,
+        5,
+        7,
+        7,
+        5,
+        7,
+        5,
+        7
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Protected from parameter selection; not blind to the author. Failure inspection requires promotion and replacement."
+    },
+    {
+      "id": "interval-library",
+      "split": "evaluation",
+      "family": "interval-library",
+      "entry": "interval-library.lil",
+      "source_sha256": "d8fea3cb8f31b9c1605c930744db8812d6e14f2d8b98726b9292de57e768f38c",
+      "source_bytes": 5912,
+      "inputs": [
+        -2147483648,
+        -1234567,
+        -1,
+        0,
+        1,
+        31,
+        123456789,
+        2147483647
+      ],
+      "expected": [
+        -97,
+        20801,
+        -97,
+        -97,
+        -97,
+        -97,
+        4250,
+        -97
+      ],
+      "exposure": "Authored generator/formulas; no compiler measurements before the frozen split. Protected from parameter selection; not blind to the author. Failure inspection requires promotion and replacement."
+    }
+  ],
+  "prior_exposure": {
+    "development": "All previously measured ports and 642 ratchet programs, including their derivatives.",
+    "monacolil": "Previously inspected scoreboards and idiom census; not blind.",
+    "solidlil": "Previously inspected scoreboards and idiom census; not blind."
+  }
+}

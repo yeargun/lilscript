@@ -506,13 +506,14 @@ impl WalkSchedule {
 
     /// Schedule version 2. Levels 1–12 are the fast tiers (§13.4): one pass
     /// from the level-0 artifact, over short prefixes at 1–9 and every move
-    /// from 10, with exact budgets that keep what the reference ports keep
-    /// early in the pass (batch B1's calibration). From the default level 13
+    /// from 10. These are inherited bounded-work priors, with provenance in
+    /// `benchmarks/calibration/policy-provenance.md`. From default level 13
     /// size comes first (AM2): several starts, each walked without an exact
     /// budget in passes to its fixed point; above 13 the structural search
     /// widens (`StructuralSchedule`).
-    /// The proxy margin prunes no move a walk without pruning keeps on the
-    /// reference ports (B1); gzip and raw are their own proxies.
+    /// The margin is a heuristic, not a bound on final search loss. Even
+    /// exact raw/gzip rejection can exclude a seed whose later refinement
+    /// wins. Generic audit and no-prune runs measure those separately.
     pub fn at(level: u8, codec: CompressionCostModel) -> Self {
         let margin = match codec {
             CompressionCostModel::Brotli => 150,
