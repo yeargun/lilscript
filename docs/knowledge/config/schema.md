@@ -25,7 +25,7 @@ error, not a silently ignored setting.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `codecs` | `Vec<CompressionCostModel>` | `vec![CompressionCostModel::Brotli]` | `codecs = ["brotli"]`, or one codec as a string. |
+| `codecs` | `Vec<CompressionCostModel>` | `vec![CompressionCostModel::Brotli]` | A nonempty, duplicate-free set of independently optimized codecs, such as `["raw", "gzip", "brotli"]`, or one codec as a string. |
 | `brotli` | `crate::compression::BrotliSettings` | `crate::compression::BrotliSettings::CANONICAL` | `[objective.brotli]`: `quality` 0–11 (11), `window` 10–24 (22) and `mode` `generic`, `text` or `font` (`generic`). |
 | `gzip` | `crate::compression::GzipSettings` | `crate::compression::GzipSettings::CANONICAL` | `[objective.gzip]`: `level` 1–9 (9) and `window` 9–15 (15). |
 

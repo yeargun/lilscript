@@ -3,10 +3,10 @@
 Why knobs exist, precedence, and how they change compilation: [knowledge/config](knowledge/config/README.md). The generated key-by-key reference, with defaults, is [knowledge/config/schema.md](knowledge/config/schema.md). This page explains the file.
 
 The [migration configuration contract](migration/plan.md#3-configuration-is-a-product-contract)
-describes planned completion separately from this accepted schema. TOML/CLI builds
-currently select one objective. The Rust build API supports independent raw/gzip/Brotli
-results in one request; CLI multi-output delivery and completion of the family
-registry remain under [D3](migration/plan.md#d3) and C1.
+describes planned completion separately from this accepted schema. TOML, CLI and
+the Rust build API support any nonempty set of independent raw/gzip/Brotli
+results in one request. Remaining consumer integration and family-registry
+completion are tracked under [D3](migration/plan.md#d3) and C1.
 
 The CLI discovers `lilscript.toml` by walking from the input module toward the
 filesystem root. Pass `--config path/to/config.toml` to select one explicitly.
@@ -32,7 +32,7 @@ A configuration is read in two steps:
 
 ```toml
 [objective]
-codecs = ["brotli"]           # raw | gzip | brotli: the codec whose bytes are minimized
+codecs = ["brotli"]           # any nonempty subset of raw | gzip | brotli; separate results
 [objective.brotli]
 quality = 11                  # 0..11
 window = 22                   # 10..24 (log2 bytes)
@@ -216,17 +216,37 @@ are fingerprinted and printed in the policy, and every exact judgement and
 reported size of the build uses them. The defaults are the canonical settings
 (Brotli quality 11, window 22, generic mode; gzip level 9, window 15), which
 `lilscript-codec` and the benchmark contract always use. The walk's proxy is
-Brotli at min(quality, 5) with the objective's window and mode. TOML currently
-accepts one codec per CLI build; it may be written as a string, `codecs = "gzip"`.
+Brotli at min(quality, 5) with the objective's window and mode. A single codec
+may also be written as a string, `codecs = "gzip"`. Lists must be nonempty and
+contain no duplicates. List order does not affect policies or search order.
+
+Request several codecs when publishing independently optimized alternatives or
+comparing their results, for example `codecs = ["raw", "gzip", "brotli"]`.
+The CLI requires `--out-dir dist` and writes each complete tree under
+`dist/raw`, `dist/gzip` or `dist/brotli`. The files are JavaScript optimized for
+that codec; this setting does not emit compressed `.gz` or `.br` files. Relative
+imports and compiler-scored bytes are preserved. The root manifest identifies
+every objective, policy, encoder setting and file hash; see
+[delivery manifests](modules-and-delivery.md#files-names-and-the-manifest).
+Stdout and `-o FILE` are ambiguous for several results and are rejected before
+compilation. Single-objective output paths and manifest version 3 are unchanged.
+With `--target all`, one C file and executable are also written under
+`dist/native`, named after the source entry; they are outside the JavaScript
+manifest. Native-only targets do not repeat work for JavaScript objectives.
 
 In the Rust build API, `ServiceOptions.objectives = Some(Objectives::One(codec))`
 overrides the file's objective through the same policy resolver, retaining its
-encoder settings. `Some(Objectives::All)` optimizes three results independently:
+encoder settings. `Some(Objectives::Two(first, second))` requests two codecs,
+`Some(Objectives::All)` requests all three, and `None` follows the TOML set.
+`Objectives::from_codecs` builds a normalized API set. Each result is independent:
 each has its own codec policy, spelling, structural frontier, naming walk and
 qualified winner. It shares source discovery, checking, semantic defaults and
 safe analysis/measurement caches. The report's `javascript_policies` and
 `search.objectives` expose each policy and search; `javascript_policy` remains
-the configured primary policy for compatibility.
+the configured primary codec if requested, otherwise the first requested codec
+in raw/gzip/Brotli order. For several objectives, `--print-policy` reports both
+the whole-set fingerprint and each individual policy fingerprint; it retains the
+primary policy under `policy` and its hash under `primary_fingerprint`.
 
 A combined request first admits every mandatory baseline, then divides the
 remaining optional work among the remaining objectives in raw/gzip/Brotli order.
@@ -234,9 +254,10 @@ Unused work remains available to later objectives. Memory and the cooperative
 deadline are common hard limits; consumed work never resets. Each search retains
 its baseline if optional work cannot proceed. With sufficient resources, results
 match separate requests; tight shared limits can stop searches earlier. This
-avoids repeating checking, but it still pays for three objective searches and
-keeps three qualified results, even when some bytes are identical. TOML/CLI
-multi-output naming and delivery remain D3 work.
+avoids repeating checking, but it still pays for each requested objective search
+and retains each qualified result, even when some bytes are identical. Selecting
+one codec avoids that additional compilation and memory cost. Selecting several
+does not increase effort or grant additional runtime assumptions.
 
 `[effort] level` (0 to 16, default 13) is a work budget with a versioned
 schedule (`--print-policy` prints it). The existing level-16 startup-risk grant

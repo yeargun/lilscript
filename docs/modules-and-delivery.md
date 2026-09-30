@@ -188,6 +188,24 @@ runs code, ready for `package.json`. The search ranks by the sum of rows, and
 the terminal stage keeps a challenger only when that sum shrinks and no entry's
 row grows.
 
+Several `[objective] codecs` require `--out-dir DIR`, with no `-o FILE`.
+Each objective's complete delivery lives under its `raw`, `gzip` or `brotli`
+subdirectory. The compiler optimizes each independently; all JavaScript bytes
+and relative imports remain exactly as judged. These are alternative JavaScript
+trees, not precompressed files. A single-objective build keeps the layout and
+version 3 manifest described above.
+
+A combined manifest uses version 4. Its `codecs` list is in raw/gzip/Brotli
+order, and each `outputs` item retains the version 3 fields plus `codec`,
+`codec_settings` and `policy_fingerprint`. File, entry, closure, static/dynamic
+import and side-effect paths are relative to the root output directory and
+include the codec prefix; logical labels and source-module names are unchanged.
+Each file hash and measured size still describes that file's exact bytes.
+Rebuilding with a different objective set, including returning to one objective,
+removes only obsolete regular files listed in the previous manifest. Unrelated
+files remain in place. `--target all` additionally writes one C file and native
+executable under `native`; those are not JavaScript manifest entries.
+
 ## Packages and lockfiles
 
 Bare imports resolve through `[dependencies]`. The current package transport is

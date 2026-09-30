@@ -1145,15 +1145,12 @@ impl ProjectConfig {
         if self.effort.level > 16 {
             return Err("`effort.level` must be between 0 and 16".to_string());
         }
-        match self.objective.codecs.len() {
-            0 => return Err("`objective.codecs` names no codec".to_string()),
-            1 => {}
-            _ => {
-                return Err(
-                    "`objective.codecs` names several codecs: this compiler delivers one \
-winner per build until the multi-objective build (plan M3.4); name one"
-                        .to_string(),
-                )
+        if self.objective.codecs.is_empty() {
+            return Err("`objective.codecs` names no codec".to_string());
+        }
+        for (index, codec) in self.objective.codecs.iter().enumerate() {
+            if self.objective.codecs[..index].contains(codec) {
+                return Err(format!("`objective.codecs` contains duplicate `{}`", codec.name()));
             }
         }
         self.objective.settings().validate()?;
@@ -1321,7 +1318,8 @@ impl CompressionDecision {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ObjectiveConfig {
-    /// `codecs = ["brotli"]`, or one codec as a string.
+    /// A nonempty, duplicate-free set of independently optimized codecs,
+    /// such as `["raw", "gzip", "brotli"]`, or one codec as a string.
     #[serde(deserialize_with = "one_or_many_codecs")]
     pub codecs: Vec<CompressionCostModel>,
     /// `[objective.brotli]`: `quality` 0–11 (11), `window` 10–24 (22) and
@@ -1342,13 +1340,17 @@ impl Default for ObjectiveConfig {
 }
 
 impl ObjectiveConfig {
-    /// The objective's codec; validation admits exactly one until the
-    /// multi-objective build (M3.4).
+    /// Primary codec for single-policy consumers, in canonical order. Builds
+    /// resolve every configured coordinate independently; list order is inert.
     pub fn codec(&self) -> CompressionCostModel {
-        self.codecs
-            .first()
-            .copied()
-            .unwrap_or(CompressionCostModel::Brotli)
+        [
+            CompressionCostModel::Raw,
+            CompressionCostModel::Gzip,
+            CompressionCostModel::Brotli,
+        ]
+        .into_iter()
+        .find(|codec| self.codecs.contains(codec))
+        .unwrap_or(CompressionCostModel::Brotli)
     }
 
     pub fn settings(&self) -> crate::compression::CodecSettings {
@@ -2407,15 +2409,15 @@ mod tests {
             "{:?}",
             both.warnings
         );
-        // Ranges and the one-codec rule until M3.4.
+        // Encoder/effort ranges and a nonempty, duplicate-free objective set.
         for (source, error) in [
             ("[objective.brotli]\nquality = 12\n", "quality"),
             ("[objective.brotli]\nwindow = 9\n", "window"),
             ("[objective.gzip]\nlevel = 0\n", "level"),
             ("[objective.gzip]\nwindow = 16\n", "window"),
             (
-                "[objective]\ncodecs = [\"raw\", \"brotli\"]\n",
-                "several codecs",
+                "[objective]\ncodecs = [\"raw\", \"raw\"]\n",
+                "duplicate",
             ),
             ("[objective]\ncodecs = []\n", "no codec"),
             ("[effort]\nlevel = 17\n", "between 0 and 16"),

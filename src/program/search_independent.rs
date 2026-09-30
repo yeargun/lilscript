@@ -17,19 +17,29 @@ impl<'src> Compilation<'src> {
     pub(crate) fn search_javascript_independent(
         &mut self,
         source: SemanticId,
-        requests: [(&ResolvedPolicy, SearchRequest); 3],
+        requests: &[(&ResolvedPolicy, SearchRequest)],
         mut observe: impl FnMut(SearchObservation<'_>),
-    ) -> Result<[IndependentSearchResult; 3], SearchError> {
-        for (index, (policy, request)) in requests.iter().enumerate() {
-            assert_eq!(request.objectives, Objectives::One(codec(index)));
-            assert_eq!(policy.objective().unwrap().codec, codec(index));
+    ) -> Result<[Option<IndependentSearchResult>; 3], SearchError> {
+        assert!((2..=3).contains(&requests.len()));
+        let mut previous = None;
+        for (policy, request) in requests {
+            let codec = policy.objective().unwrap().codec;
+            assert_eq!(request.objectives, Objectives::One(codec));
+            assert!(previous.is_none_or(|prior| prior < index(codec)));
+            previous = Some(index(codec));
         }
         let mut results = [None, None, None];
         let outcome = catch_unwind(AssertUnwindSafe(|| {
-            self.prepare_independent_objectives(source, &requests, &mut results, &mut observe)
+            self.prepare_independent_objectives(
+                source,
+                requests,
+                requests.len(),
+                &mut results,
+                &mut observe,
+            )
         }));
         match outcome {
-            Ok(Ok(_)) => Ok(results.map(Option::unwrap)),
+            Ok(Ok(_)) => Ok(results),
             other => {
                 // Active searches release their own owners on unwinding. Only
                 // earlier completed handoffs remain outside those owners.
@@ -50,6 +60,7 @@ impl<'src> Compilation<'src> {
         &mut self,
         source: SemanticId,
         requests: &[(&ResolvedPolicy, SearchRequest)],
+        total: usize,
         results: &mut [Option<IndependentSearchResult>; 3],
         observe: &mut impl FnMut(SearchObservation<'_>),
     ) -> Result<BaselineSeal, SearchError> {
@@ -72,10 +83,13 @@ impl<'src> Compilation<'src> {
         continuation?;
         let seal = search
             .compilation
-            .prepare_independent_objectives(source, earlier, results, observe)?;
+            .prepare_independent_objectives(source, earlier, total, results, observe)?;
         search.sealed = Some(seal);
         let slot = index(objective.codec);
-        let share = search.compilation.ledger.begin_objective_share(3 - slot);
+        let share = search
+            .compilation
+            .ledger
+            .begin_objective_share(total + 1 - requests.len());
         let (_, allowance) = search.compilation.ledger.optional_search_work();
         let outcome = catch_unwind(AssertUnwindSafe(|| {
             if objective.walk.starts && objective.optional_alternatives != 0 {

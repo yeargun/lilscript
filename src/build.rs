@@ -71,7 +71,7 @@ pub struct ServiceOptions {
     pub preserve_root_exports: bool,
     /// Delivered chunk file names end in this.
     pub chunk_extension: ChunkExtension,
-    /// None requests the independently resolved policy's codec.
+    /// None requests the TOML objective set; Some overrides that set.
     pub objectives: Option<Objectives>,
     /// Finite defaults, further restricted by policy.resources.
     pub logical_work: u64,
@@ -80,20 +80,53 @@ pub struct ServiceOptions {
 
 impl ServiceOptions {
     /// Resolve the single-objective policy, including an explicit API codec
-    /// override and finite caller ceilings. For All this is the configured
-    /// primary policy; the build's javascript_policies report lists all three
-    /// independently resolved policies. A whole-build cache identity must also
+    /// override and finite caller ceilings. For a set this is the configured
+    /// primary codec if requested, otherwise the first requested codec. The
+    /// build's javascript_policies report lists every independently resolved
+    /// policy. A whole-build cache identity must also
     /// include the objective request, input graph and compiler identity.
     pub fn resolve_policy(
         &self,
         config: &ProjectConfig,
         request: CompilationRequest,
     ) -> Result<ResolvedPolicy, String> {
-        let objective = match (request, self.objectives) {
-            (CompilationRequest::JavaScript { .. }, Some(Objectives::One(codec))) => Some(codec),
-            _ => None,
+        let objective = match request {
+            CompilationRequest::JavaScript { .. } => {
+                let requested = self.requested_objectives(config)?;
+                let primary = config.objective.codec();
+                Some(
+                    requested
+                        .iter()
+                        .find(|codec| *codec == primary)
+                        .unwrap_or_else(|| requested.iter().next().unwrap()),
+                )
+            }
+            CompilationRequest::Native => None,
         };
         self.resolve_objective_policy(config, request, objective)
+    }
+
+    /// Canonical effective request: an explicit API override, or the TOML set.
+    pub fn requested_objectives(&self, config: &ProjectConfig) -> Result<Objectives, String> {
+        self.objectives
+            .map(Objectives::normalized)
+            .or_else(|| Objectives::from_codecs(&config.objective.codecs))
+            .ok_or_else(|| "`objective.codecs` names no codec".to_string())
+    }
+
+    /// Resolve once per requested JavaScript objective, before source work.
+    /// Native-only builds return no JavaScript policies.
+    pub fn resolve_javascript_policies(
+        &self,
+        config: &ProjectConfig,
+    ) -> Result<Vec<ResolvedPolicy>, String> {
+        let Some(request) = self.javascript_request() else {
+            return Ok(Vec::new());
+        };
+        self.requested_objectives(config)?
+            .iter()
+            .map(|codec| self.resolve_objective_policy(config, request, Some(codec)))
+            .collect()
     }
 
     fn resolve_objective_policy(
@@ -294,7 +327,7 @@ struct Frontend {
     started: Instant,
     options: ServiceOptions,
     javascript: Option<ResolvedPolicy>,
-    independent_javascript: Option<[ResolvedPolicy; 3]>,
+    independent_javascript: Option<Vec<ResolvedPolicy>>,
     native: Option<ResolvedPolicy>,
     ledger: BudgetLedger,
     phases: Value,
@@ -361,23 +394,32 @@ impl Frontend {
 
     fn new(config: &ProjectConfig, options: ServiceOptions) -> Result<Self, ServiceError> {
         let started = Instant::now();
-        let resolve = |request: Option<CompilationRequest>| {
-            request
-                .map(|request| options.resolve_policy(config, request))
-                .transpose()
-                .map_err(|error| ServiceError::new("policy", error))
-        };
-        let javascript = resolve(options.javascript_request())?;
-        let native = resolve(options.native_request())?;
-        let independent_javascript = if javascript.is_some() && options.objectives == Some(Objectives::All) {
-            let [raw, gzip, brotli] = [Objective::Raw, Objective::Gzip, Objective::Brotli].map(|codec| {
-                options.resolve_objective_policy(config, options.javascript_request().unwrap(), Some(codec))
-                    .map_err(|error| ServiceError::new("policy", error))
-            });
-            Some([raw?, gzip?, brotli?])
+        let mut options = options;
+        if options.javascript_request().is_some() {
+            options.objectives = Some(
+                options
+                    .requested_objectives(config)
+                    .map_err(|error| ServiceError::new("policy", error))?,
+            );
+        }
+        let mut policies = options
+            .resolve_javascript_policies(config)
+            .map_err(|error| ServiceError::new("policy", error))?;
+        let (javascript, independent_javascript) = if policies.len() <= 1 {
+            (policies.pop(), None)
         } else {
-            None
+            let primary = policies
+                .iter()
+                .find(|policy| policy.objective().unwrap().codec == config.objective.codec())
+                .unwrap_or(&policies[0])
+                .clone();
+            (Some(primary), Some(policies))
         };
+        let native = options
+            .native_request()
+            .map(|request| options.resolve_policy(config, request))
+            .transpose()
+            .map_err(|error| ServiceError::new("policy", error))?;
         let policy = javascript.as_ref().or(native.as_ref()).unwrap();
         let ledger = BudgetLedger::new_baseline_first(
             policy.resources(),
@@ -505,7 +547,7 @@ pub struct CheckedSourceSession<'src> {
     started: Instant,
     options: ServiceOptions,
     javascript: Option<ResolvedPolicy>,
-    independent_javascript: Option<[ResolvedPolicy; 3]>,
+    independent_javascript: Option<Vec<ResolvedPolicy>>,
     native: Option<ResolvedPolicy>,
     compilation: Compilation<'src>,
     source: SemanticId,
@@ -646,7 +688,7 @@ impl<'src> CheckedSourceSession<'src> {
         observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<ServiceJavaScriptBatch, ServiceError> {
         let objectives = self.objectives()?;
-        if objectives == Objectives::All {
+        if objectives.iter().count() > 1 {
             return self.search_independent_javascript(source, observe);
         }
         let policy = self.javascript.as_ref().unwrap();
@@ -726,26 +768,28 @@ impl<'src> CheckedSourceSession<'src> {
         observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<ServiceJavaScriptBatch, ServiceError> {
         let policies = self.independent_javascript.as_ref().unwrap();
-        let requests = std::array::from_fn(|index| {
-            let policy = &policies[index];
-            (
-                policy,
-                search_request(
-                    self.options,
+        let requests: Vec<_> = policies
+            .iter()
+            .map(|policy| {
+                (
                     policy,
-                    Objectives::One(policy.objective().unwrap().codec),
-                ),
-            )
-        });
+                    search_request(
+                        self.options,
+                        policy,
+                        Objectives::One(policy.objective().unwrap().codec),
+                    ),
+                )
+            })
+            .collect();
         let results = self
             .compilation
-            .search_javascript_independent(source, requests, observe)
+            .search_javascript_independent(source, &requests, observe)
             .map_err(|error| ServiceError::output("javascript", error))?;
         let mut report = json!({
             "independent": true,
-            "order": ["raw", "gzip", "brotli"],
+            "order": self.objectives()?.iter().map(Objective::name).collect::<Vec<_>>(),
             "resource_schedule": "all baselines first; equal shares of remaining optional work; shared hard memory and deadline",
-            "request": search_request_report(search_request(self.options, self.javascript.as_ref().unwrap(), Objectives::All)),
+            "request": search_request_report(search_request(self.options, self.javascript.as_ref().unwrap(), self.objectives()?)),
             "terminal": {"objectives": []},
             "objectives": [],
             "stop": null,
@@ -763,7 +807,10 @@ impl<'src> CheckedSourceSession<'src> {
             report[field] = json!(0);
         }
         let mut stops = Vec::new();
-        for (index, result) in results.iter().enumerate() {
+        for (index, policy) in policies.iter().enumerate() {
+            let result = results[codec_index(policy.objective().unwrap().codec)]
+                .as_ref()
+                .unwrap();
             let mut lane = search_report(
                 search_request_report(requests[index].1),
                 result.counters,
@@ -799,12 +846,19 @@ impl<'src> CheckedSourceSession<'src> {
             report["stop"] = json!(stops.join("; "));
         }
         let mut artifacts = Vec::new();
-        let mut results = results.into_iter();
-        while let Some(result) = results.next() {
+        let mut winners = [None; 3];
+        let mut results = results
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, result)| result.map(|result| (index, result)));
+        while let Some((index, result)) = results.next() {
             match deliver_javascript(&mut self.compilation, result.winner) {
-                Ok(artifact) => artifacts.push(artifact),
+                Ok(artifact) => {
+                    winners[index] = Some(artifacts.len());
+                    artifacts.push(artifact);
+                }
                 Err(error) => {
-                    for pending in results {
+                    for (_, pending) in results {
                         self.compilation
                             .discard_artifact(pending.winner.artifact())
                             .map_err(|error| ServiceError::new("handoff cleanup", error))?;
@@ -815,7 +869,7 @@ impl<'src> CheckedSourceSession<'src> {
         }
         Ok(ServiceJavaScriptBatch {
             artifacts,
-            winners: [Some(0), Some(1), Some(2)],
+            winners,
             report,
         })
     }
@@ -932,7 +986,7 @@ impl<'src> CheckedSourceSession<'src> {
                 "effective_logical_work":options.logical_work.min(limits.logical_work.unwrap_or(u64::MAX)),
                 "effective_retained_bytes":options.retained_bytes.min(limits.retained_bytes.unwrap_or(u64::MAX))},
             "inputs":inputs,"shape":shape,"javascript_policy":javascript.as_ref().map(ResolvedPolicy::receipt),
-            "javascript_policies":independent_javascript.as_ref().map(|policies| policies.each_ref().map(ResolvedPolicy::receipt)),
+            "javascript_policies":independent_javascript.as_ref().map(|policies| policies.iter().map(ResolvedPolicy::receipt).collect::<Vec<_>>()),
             "native_policy":native.as_ref().map(ResolvedPolicy::receipt), "phases_ns":phases,"total_ns":nanos(started),
             "policy_diagnostics":{
                 "javascript":javascript.as_ref().map(ResolvedPolicy::diagnostics),

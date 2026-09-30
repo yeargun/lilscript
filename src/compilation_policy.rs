@@ -17,10 +17,11 @@ use crate::config::{CompressionCostModel, JavaScriptPriority};
 
 pub const POLICY_SCHEMA_VERSION: u32 = 2;
 pub const LEGACY_TRANSLATOR_RETIREMENT_SCHEMA: u32 = 3;
+// Version10 resolves configured objective sets and two-objective requests.
 // Version9 resolves independent objective searches with shared baseline admission.
 // Version8 reuses admitted statement mention facts during target forwarding.
 // Version7 jointly identifies private-field and integer-hint formation heads.
-pub const POLICY_ALGORITHM_VERSION: u32 = 9;
+pub const POLICY_ALGORITHM_VERSION: u32 = 10;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
