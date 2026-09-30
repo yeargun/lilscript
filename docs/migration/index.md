@@ -8,7 +8,7 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 - One compiler; the existing typed IR, facts, edit machinery, formation, naming and exact codec judging are the foundation.
 - **S1** now evaluates bounded constant loops; the generic objective gates and reference port suites pass. **S2** generalizes private record payloads under complete-use and capture proofs, with generic/port qualification.
-- **C1** enforces target-rule, pooling/packing and reconstruction permissions, records implemented producer stages and prerequisites, and diagnoses unavailable or conflicting settings. Its reconstruction correction has paired measurements and port qualification. **D1**'s private application IIFE and explicit bare output are in verification.
+- **C1** enforces target-rule, pooling/packing and reconstruction permissions, records implemented producer stages and prerequisites, and diagnoses unavailable or conflicting settings. Its reconstruction correction has paired measurements and port qualification. **D1**'s private application IIFE and explicit bare output have separate size reports and pass the reference port suites.
 - C2 retains alternating compilation samples and input/artifact identities. Q2 reuses exact byte measurements with cold logical work and output-owner lifetimes. G1's configurable, exactly judged alphabet trials pass the generic objective gate and the three reference port suites.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
@@ -39,7 +39,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 | [~] | [Q2](plan.md#q2) Reuse | Dirty scheduling, incremental formation, persistent reuse and resource completion |
 | [~] | [Q3](plan.md#q3) Search policy | Gzip's policy, calibrated estimates/proxies and useful effort progression |
 | [~] | [Q4](plan.md#q4) Data | Const data, helpers, encodings and schema specialization |
-| [~] | [D1](plan.md#d1) Formats | Application wrapper qualification; CJS/library-IIFE/UMD and remaining manifests |
+| [~] | [D1](plan.md#d1) Formats | CJS/library-IIFE/UMD and remaining manifests |
 | [~] | [D2](plan.md#d2) Consumers | Shakeability, placement, lazy effects/cycles, host modules and source maps |
 | [~] | [D3](plan.md#d3) Integration | Shared graph/API, multi-objective requests and compiler-written port builds |
 | [ ] | [V1](plan.md#v1) Qualification | Maintained/held-out size and runtime gaps, independently per objective |

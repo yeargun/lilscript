@@ -159,6 +159,8 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 
 **Semantic checkpoint.** The default private IIFE and explicit bare application output now flow through policy, final-byte printing and independent structural admission. Repeated loads/colliding roots, classic `this`, incompatible imports/exports, exact objective scores and retained cross-format refusal pass. The full library run passes 1,679 tests and identifies two old bare-output expectations; after updating those for the approved container, both focused reruns pass: **1,681 passed, nine existing ignores**, with the separately passing expensive table case excluded. All six CLI tests pass. Logs: `/tmp/lilscript-d1-wrapper-full.log`, `/tmp/lilscript-d1-wrapper-fixtures.log`, `/tmp/lilscript-d1-wrapper-cli.log`. Default-versus-bare size qualification follows; library-global exports and CJS/UMD are not implemented by this slice.
 
+**Delivery qualification.** Pinned source `dd935b80` passes the [explicit bare generic gate and all reference port suites](../../benchmarks/migration-results/2026-09-30-d1-wrapper/README.md). Every bare lane's state, size and hash is identical to S1. The separately recorded default IIFE has the same 36 ledgered failures and adds 6,930 raw, 5,667 gzip and 4,341 Brotli bytes in total. Its size verdict against the historical bare baseline is deliberately **fail**; the approved container overhead is not presented as a compression win. The runner records the contract and blocks replacing a differently scoped baseline; all 16 runner tests pass.
+
 ## 2026-09-30: Q2 unchanged semantic views (pre-registration)
 
 1. Stop the rule editor from invalidating all effect/range views after a rule that touched no unit or table. Preserve the existing revision checks and clear views after every actual unit/table edit.
@@ -168,3 +170,13 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 **Prediction.** Fewer repeated call/effect/initialization analyses during unchanged rule passes, with unchanged decisions, logical search work and bytes. This addresses a smaller frontend repetition found during Q2's formation audit; it does not claim to remove the much larger repeated target formation or complete resource accounting for the rule phase.
 
 **Semantic checkpoint.** The editor preserves views across unchanged commits, invalidates unit and table edits, and drops all rule-phase views before publication. All 44 rule tests pass, including cold-versus-reused byte/receipt equivalence with independent execution checks, both sealing modes and every editor mutation owner. The initial new capture fixture used unsupported nested declaration syntax; its corrected lambda fixture passes. Log: `/tmp/lilscript-q2-rule-views-fixed.log`. Paired release measurement follows.
+
+**Full verification.** The complete library run passes **1,683 tests with nine existing ignores**, excluding only the separately qualified expensive table case. Log: `/tmp/lilscript-q2-rule-views-full.log`.
+
+## 2026-09-30: S4 nullish assignment through checked places (pre-registration)
+
+1. Remove the conversion refusal for `??=` by expressing it with the existing checked place, load, lazy nullish region and store operations. Evaluate receiver and key once, read before the lazy branch, and store only on the absent path.
+2. Preserve assignment-result and value-copy semantics, temporal initialization, host getter/setter order and binding-only callable name inference. Use existing target lowering and syntax-floor handling; do not add a text rewrite or a second assignment model.
+3. Enable the four carried legality cases and add throwing getter/RHS/setter and receiver/key mutation coverage. Check production search and the relevant native subset independently, then the generic output gate.
+
+**Prediction.** Previously refused programs gain a checked implementation. Programs without nullish assignment retain their IR and output. This is an S4 coverage correction while the isolated Q2 release is built and measured, not a naming or compression heuristic change.
