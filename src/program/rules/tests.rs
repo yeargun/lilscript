@@ -269,6 +269,24 @@ fn constant_scalar_methods_fold_through_nested_pure_calls() {
 }
 
 #[test]
+fn constant_numeric_conversion_needs_no_pristine_host_assumption() {
+    let source = r#"
+        int truncate(float n){return n.toInt();}
+        int calculate(float n){return truncate(n)+1;}
+        print(calculate(4294967297.5));
+        print(calculate(-4294967297.5));
+    "#;
+    optimized(source, FOLD_ONLY, |program, receipt| {
+        assert!(!instantiated(program, "calculate"), "{receipt:?}");
+        assert!(!instantiated(program, "truncate"), "{receipt:?}");
+        assert_eq!(
+            count(program, |kind| matches!(kind, OperationKind::Call(_))),
+            2
+        );
+    });
+}
+
+#[test]
 fn bounded_constant_calls_preserve_nontermination_and_throwing_methods() {
     for source in [
         "int spin(int n){return spin(n+1);} export int go(){return spin(0);}",

@@ -355,7 +355,12 @@ impl Evaluator<'_, '_> {
         let caller = self.program.unit(unit)?;
         let callee = self.effects.graph().callee(unit, call);
         match callee {
-            Callee::Intrinsic(_) if self.pristine => {}
+            // This checked numeric primitive lowers to ToInt32 itself. It
+            // does not look up a mutable Number/Math method. Other supported
+            // methods still need the host assumption before evaluation.
+            Callee::Intrinsic(operation)
+                if self.pristine
+                    || matches!(operation, ResolvedIntrinsic::Method(Intrinsic::FloatToInt)) => {}
             Callee::Builtin(crate::check::BuiltinCall::MathImul) if self.pristine => {}
             Callee::Unit(body) if self.program.unit(body)?.operations.len() <= MAX_OPERATIONS => {}
             _ => return None,
@@ -379,7 +384,7 @@ impl Evaluator<'_, '_> {
                 };
                 Some(Exact::Integer(integer(left)?.wrapping_mul(integer(right)?)))
             }
-            Callee::Intrinsic(operation) if self.pristine => {
+            Callee::Intrinsic(operation) => {
                 let CallTarget::Intrinsic { receiver, .. } = site.target else {
                     return None;
                 };

@@ -43,4 +43,3 @@ Failures (compile, crash or oracle): 0. Verdict: **pass**.
 - loss fell: cases/catalog/effect/edge-generator-range-2n10n2 gzip9 vs competitor: +11 -> +10
 - loss fell: cases/catalog/effect/edge-generator-range-2n10n2 gzip9 vs old: +10 -> +9
 - loss fell: cases/catalog/control/enum-int-dispatch-10 gzip9 vs old: +2 -> +0
-

@@ -348,8 +348,9 @@ when evaluation completes within the existing shared 1,024-step bound, including
 nested break, continue and return. Nontermination is never assumed away.
 The supported scalar methods include constant `toInt()` conversion and
 `codePointLength()`, preserving signed-32-bit wrapping and UTF-16 surrogate
-behavior, including through nested constant calls. Method evaluation currently
-requires `javascript.assume_pristine_builtins = true`
+behavior, including through nested constant calls. Primitive numeric `toInt()`
+needs no host assumption: it lowers directly to the numeric conversion.
+Host-backed methods still require `javascript.assume_pristine_builtins = true`
 (native compilation uses its fixed runtime). The rule receipt's `folded_calls`
 counts calls replaced with constants; it does not claim a compressed-size win.
 

@@ -525,10 +525,10 @@ fn constant_scalar_methods_obey_toml_and_match_native_and_javascript() {
         print(points("A😀B"));print(points(""));
     "#;
     for codec in ["raw", "gzip", "brotli"] {
-        for permission in ["off", "on"] {
+        for (permission, pristine) in [("off", false), ("on", false), ("off", true), ("on", true)] {
             let config: ProjectConfig = toml::from_str(&format!(
                 "objective.codecs='{codec}'\neffort.level=13\n\
-                 javascript.assume_pristine_builtins=true\n\
+                 javascript.assume_pristine_builtins={pristine}\n\
                  [policy.tactics]\nconstant-folding='{permission}'\n\
                  inlining='off'\ncall-specialization='off'"
             ))
@@ -554,6 +554,41 @@ fn constant_scalar_methods_obey_toml_and_match_native_and_javascript() {
             assert_eq!(
                 execute_native(result.native_c().unwrap()),
                 "1\n-1\n0\n0\n3\n0\n"
+            );
+        }
+    }
+}
+
+#[test]
+fn numeric_primitive_folding_keeps_host_lookups_and_argument_effects() {
+    let source = r#"
+        extern float next();
+        int truncate(float value){return value.toInt();}
+        print(truncate(4294967297.5));
+        print(truncate(next()));
+        print(2.5.floor());
+    "#;
+    for codec in ["raw", "gzip", "brotli"] {
+        for permission in ["off", "on"] {
+            let config: ProjectConfig = toml::from_str(&format!(
+                "objective.codecs='{codec}'\neffort.level=13\njavascript.assume_pristine_builtins=false\n[policy.tactics]\nconstant-folding='{permission}'\ninlining='off'\ncall-specialization='off'"
+            )).unwrap();
+            let result = compile_source(source, &config, ServiceOptions::default()).unwrap();
+            let javascript = result
+                .javascript(config.objective.codecs[0])
+                .unwrap()
+                .javascript();
+            assert_eq!(execute_javascript(javascript,
+                "let calls=0;globalThis.next=()=>{calls++;return -4294967297.5};Math.floor=()=>91;Number.prototype.valueOf=()=>{throw Error('primitive conversion must not call valueOf')};",
+                "console.log(calls);"), "1\n-1\n91\n1\n");
+            assert_eq!(
+                result.report()["phases_ns"]["rules"]["folded_calls"]
+                    .as_u64()
+                    .unwrap()
+                    > 0,
+                permission == "on",
+                "{}",
+                result.report()
             );
         }
     }
