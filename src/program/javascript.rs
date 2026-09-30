@@ -366,6 +366,7 @@ pub(super) fn lower_admitted(
         mode,
         compact,
         js::TargetRules::SEMANTIC,
+        &[],
         // The canonical families: what a codec objective seeds.
         js::OutputFamilies::seed(js::selection::Objective::Brotli),
         &js::ChoiceMap::SEEDS,
@@ -384,6 +385,7 @@ pub(super) fn lower_output_admitted(
     mode: DemandMode,
     compact: bool,
     rules: js::TargetRules,
+    preserved_properties: &[String],
     families: js::OutputFamilies,
     choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
@@ -407,6 +409,7 @@ pub(super) fn lower_output_admitted(
         &demand,
         compact,
         rules,
+        preserved_properties,
         families,
         choices,
         hosts,
@@ -453,6 +456,7 @@ fn form(
         &demand,
         false,
         js::TargetRules::NONE,
+        &[],
         js::OutputFamilies::NONE,
         &js::ChoiceMap::SEEDS,
         None,
@@ -478,6 +482,7 @@ fn form_with_demand(
     demand: &DemandPlan<'_, '_>,
     compact: bool,
     rules: js::TargetRules,
+    preserved_properties: &[String],
     families: js::OutputFamilies,
     choices: &js::ChoiceMap,
     hosts: Option<&crate::host_modules::HostDelivery>,
@@ -491,6 +496,7 @@ fn form_with_demand(
         demand,
         compact,
         rules,
+        preserved_properties,
         families.head(),
         hosts,
         budget,
@@ -559,6 +565,7 @@ pub(super) fn form_head_admitted(
     demand: &DemandPlan<'_, '_>,
     compact: bool,
     rules: js::TargetRules,
+    preserved_properties: &[String],
     head: js::HeadChoices,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
@@ -571,6 +578,7 @@ pub(super) fn form_head_admitted(
         demand,
         compact,
         rules,
+        preserved_properties,
         head,
         hosts,
         budget,
@@ -596,6 +604,7 @@ fn form_head(
     demand: &DemandPlan<'_, '_>,
     compact: bool,
     rules: js::TargetRules,
+    preserved_properties: &[String],
     head: js::HeadChoices,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
@@ -603,7 +612,7 @@ fn form_head(
     let mut phase = budget.scope();
     let struct_plan = structs::plan(program, contract, &mut phase)?;
     let reference_plan = references::Plan::new();
-    let private_fields = super::private_fields::Plan::new(program, &mut phase)?;
+    let private_fields = super::private_fields::Plan::new(program, preserved_properties, &mut phase)?;
     let mut records = phase.vector(AllocationClass::Scratch, demand.records().len())?;
     for family in demand.records() {
         phase.work(WorkKind::Render, 1)?;
@@ -654,6 +663,7 @@ fn form_head(
         crossing_checks: Vec::new(),
         int32_hints: head.int32_hints,
         property_mangling: head.property_mangling,
+        preserved_properties,
         private_fields,
         property_sites: 0,
         hint_sites: 0,
@@ -1134,6 +1144,7 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     /// host call's result.
     int32_hints: bool,
     property_mangling: bool,
+    preserved_properties: &'demand [String],
     private_fields: super::private_fields::Plan,
     property_sites: usize,
     /// The reads and call results the family hints, counted whatever its
@@ -1635,19 +1646,30 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     }
 
     fn class_field_key(&mut self, field: FieldRef) -> Result<js::ExprId, FormationError> {
-        let slot = self.private_fields.slot(field, self.budget)?;
+        let (key, _) = self
+            .program
+            .class_field(field)
+            .ok_or_else(|| self.error(Span::default(), "unknown class field"))?;
+        let declared = &self.program.strings[key.index()];
+        let mut preserved = false;
+        for name in self.preserved_properties {
+            self.budget
+                .work(WorkKind::Analysis, name.len() as u64 + 1)?;
+            preserved |= declared.as_unicode() == Some(name.as_str());
+        }
+        let slot = self
+            .private_fields
+            .slot(field, self.budget)?
+            .filter(|_| !preserved);
         self.property_sites += usize::from(slot.is_some());
         let text = if let Some(slot) = slot.filter(|_| self.property_mangling) {
             super::private_fields::Plan::spelling(slot, self.budget)?.into()
         } else {
-            let (key, _) = self
-                .program
-                .class_field(field)
-                .ok_or_else(|| self.error(Span::default(), "unknown class field"))?;
-            self.string(&self.program.strings[key.index()])?
+            self.string(declared)?
         };
         self.literal(js::Literal::String(text))
     }
+
     fn reference(&mut self, binding: js::BindingId) -> Result<js::ExprId, FormationError> {
         self.expression(js::Expr::Binding(binding))
     }

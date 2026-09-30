@@ -16,6 +16,9 @@ struct Class {
 
 pub(super) struct Plan {
     classes: Vec<Class>,
+    /// Logical short-name slots mapped around reserved public spellings.
+    /// Empty when there are no reserved names, so the common map is identity.
+    ordinals: Vec<usize>,
 }
 
 fn root(
@@ -45,6 +48,7 @@ fn root(
 impl Plan {
     pub(super) fn new(
         program: &Program<'_>,
+        preserved: &[String],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, AllocationError> {
         budget.work(WorkKind::Analysis, program.classes.len() as u64)?;
@@ -116,10 +120,29 @@ impl Plan {
                 .checked_add(classes[index].fields - classes[index].inherited)
                 .ok_or(AllocationError::Capacity)?;
         }
+        let mut ordinals = Vec::new();
+        if !preserved.is_empty() {
+            let count = next.iter().copied().max().unwrap_or(0);
+            ordinals = budget.vector(Scratch, count)?;
+            let mut ordinal = 0usize;
+            while ordinals.len() != count {
+                let mut bytes = [0; usize::BITS as usize];
+                let spelling = spelling_bytes(ordinal, &mut bytes);
+                let mut reserved = false;
+                for name in preserved {
+                    budget.work(WorkKind::Analysis, name.len() as u64 + 1)?;
+                    reserved |= name.as_bytes() == spelling;
+                }
+                if !reserved {
+                    ordinals.push(ordinal);
+                }
+                ordinal = ordinal.checked_add(1).ok_or(AllocationError::Capacity)?;
+            }
+        }
         discard(parents, budget)?;
         discard(blocked, budget)?;
         discard(next, budget)?;
-        Ok(Self { classes })
+        Ok(Self { classes, ordinals })
     }
 
     pub(super) fn slot(
@@ -140,7 +163,12 @@ impl Plan {
                 return Ok(None);
             }
             if slot >= class.inherited {
-                return Ok(Some(class.first + slot - class.inherited));
+                let slot = class.first + (slot - class.inherited);
+                return Ok(Some(if self.ordinals.is_empty() {
+                    slot
+                } else {
+                    self.ordinals[slot]
+                }));
             }
             owner = class.base.ok_or(AllocationError::Capacity)?;
         }
@@ -150,27 +178,32 @@ impl Plan {
     /// The same base54 sequence as the lexical allocator. Property keys may
     /// be keywords, and constructors create these as own data properties.
     pub(super) fn spelling(
-        mut slot: usize,
+        slot: usize,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<String, AllocationError> {
-        const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_";
         let mut bytes = [0; usize::BITS as usize];
-        let mut length = 0;
-        loop {
-            bytes[length] = ALPHABET[slot % ALPHABET.len()];
-            length += 1;
-            slot /= ALPHABET.len();
-            if slot == 0 {
-                break;
-            }
-            slot -= 1;
-        }
-        budget.work(WorkKind::Render, length as u64)?;
+        let spelling = spelling_bytes(slot, &mut bytes);
+        budget.work(WorkKind::Render, spelling.len() as u64)?;
         budget.string(
             crate::output_budget::AllocationClass::Retained,
-            std::str::from_utf8(&bytes[..length]).expect("ASCII property alphabet"),
+            std::str::from_utf8(spelling).expect("ASCII property alphabet"),
         )
     }
+}
+
+fn spelling_bytes(mut slot: usize, bytes: &mut [u8; usize::BITS as usize]) -> &[u8] {
+    const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_";
+    let mut length = 0;
+    loop {
+        bytes[length] = ALPHABET[slot % ALPHABET.len()];
+        length += 1;
+        slot /= ALPHABET.len();
+        if slot == 0 {
+            break;
+        }
+        slot -= 1;
+    }
+    &bytes[..length]
 }
 
 fn discard<T>(value: Vec<T>, budget: &mut AllocationBudget<'_>) -> Result<(), AllocationError> {

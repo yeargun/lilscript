@@ -441,6 +441,10 @@ fn private_properties_are_vetoed_before_direct_and_cached_formation() {
                     WorkDomain::Optional,
                     |formations| {
                         assert!(matches!(
+                            formations.survey(&mangled),
+                            Err(CandidateError::ForbiddenTactic(TacticId::PropertyMangling))
+                        ));
+                        assert!(matches!(
                             formations.form(mangled, |_| ()),
                             Err(CandidateError::ForbiddenTactic(TacticId::PropertyMangling))
                         ));
@@ -451,6 +455,74 @@ fn private_properties_are_vetoed_before_direct_and_cached_formation() {
             assert_eq!(compiler.ledger().retained_bytes(), before);
         },
     );
+}
+
+#[test]
+fn private_properties_keep_requested_keys_and_avoid_reserved_short_names() {
+    let source = r#"
+        class Base{int retainedCounter=2;}
+        class Child extends Base{int verboseOffset=4;}
+        class Other{int privateOther=7;}
+        export func(int)->int make(){
+            Child child=new Child();Base alias=child;Other other=new Other();
+            return (int n)=>{alias.retainedCounter+=n;return child.retainedCounter+child.verboseOffset+other.privateOther;};
+        }
+    "#;
+    let resolved = policy("[mangle]\npreserve_properties=['retainedCounter','a','b']\n[policy.tactics]\nproperty-mangling='on'\nscalar-replacement='off'\ninlining='off'");
+    with_candidate(source, &resolved, |compiler, candidate| {
+        let output = OutputTactics::from_policy(&resolved);
+        compiler
+            .with_implementation_description(candidate, WorkDomain::Optional, |_| ())
+            .unwrap();
+        let before = compiler.ledger().retained_bytes();
+        compiler
+            .with_javascript_formations_in(
+                candidate,
+                &resolved,
+                output.dead_code_elimination,
+                output.target_compaction,
+                output.rules,
+                output.families.head(),
+                WorkDomain::Optional,
+                |formations| {
+                    for int32_hints in [false, true] {
+                        let mut choices = output.clone();
+                        choices.families.property_mangling = true;
+                        choices.families.int32_hints = int32_hints;
+                        let javascript = formations
+                            .form(choices, |target| {
+                                let artifact = target.render(&Plan::new(Style::Global))?;
+                                target.take_artifact(artifact)
+                            })
+                            .unwrap()
+                            .unwrap();
+                        assert!(javascript.contains("retainedCounter"), "{javascript}");
+                        for removed in ["verboseOffset", "privateOther", "a:", "b:", ".a", ".b"] {
+                            assert!(!javascript.contains(removed), "{removed}: {javascript}");
+                        }
+                        assert_eq!(
+                            execute(
+                                &javascript,
+                                "",
+                                "const step=library.make();events.push(step(3),step(-2));"
+                            ),
+                            serde_json::json!([16, 14])
+                        );
+                    }
+                },
+            )
+            .unwrap();
+        assert_eq!(compiler.ledger().retained_bytes(), before);
+        let mut choices = output;
+        choices.families.property_mangling = true;
+        let direct = emit(compiler, candidate, &resolved, choices);
+        assert!(direct.contains("retainedCounter"));
+        assert!(!direct.contains("privateOther"));
+        assert_eq!(
+            execute(&direct, "", "events.push(library.make()(5));"),
+            serde_json::json!([18])
+        );
+    });
 }
 
 #[test]

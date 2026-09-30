@@ -895,6 +895,16 @@ impl JavaScriptTarget<'_, '_> {
     }
 }
 
+fn preserved_properties(policy: &ResolvedPolicy) -> &[String] {
+    match policy.contract() {
+        CompilationContract::JavaScript {
+            preserved_properties,
+            ..
+        } => preserved_properties,
+        CompilationContract::Native { .. } => &[],
+    }
+}
+
 fn formation_error(error: super::javascript::FormationError) -> CandidateError {
     match error {
         super::javascript::FormationError::Unsupported(error) => CandidateError::Unsupported(error),
@@ -919,6 +929,7 @@ pub(super) struct Formations<'scope, 'src> {
     /// Both concrete formation choices participate in head identity. Four
     /// bounded slots avoid an allocator whose backing outlives a child scope.
     head_choices: crate::js::HeadChoices,
+    preserved_properties: &'scope [String],
     other_heads: [Option<(
         super::javascript::FormedHead,
         crate::output_budget::RetainedCharge<RevisionId>,
@@ -952,6 +963,7 @@ impl Formations<'_, '_> {
                 self.demand,
                 self.target_compaction,
                 self.rules,
+                self.preserved_properties,
                 choices,
                 self.hosts,
                 &mut budget,
@@ -1061,8 +1073,15 @@ impl Formations<'_, '_> {
         choices: &OutputTactics,
     ) -> Result<Vec<crate::js::ChoiceSite>, CandidateError> {
         self.ledger.charge(self.domain, WorkKind::Analysis, 2)?;
+        choices.check_policy(self.policy).map_err(|error| match error {
+            crate::compilation_policy::AdmissionError::ForbiddenTactic(tactic) => {
+                CandidateError::ForbiddenTactic(tactic)
+            }
+            error => CandidateError::Admission(error),
+        })?;
         if choices.dead_code_elimination != self.dead_code_elimination
             || choices.target_compaction != self.target_compaction
+            || choices.rules != self.rules
         {
             return Err(CandidateError::Artifact(
                 "a formation's head belongs to other dead-code or compaction choices",
@@ -2317,6 +2336,7 @@ impl<'src> Compilation<'src> {
             demand,
             choices.target_compaction,
             choices.rules,
+            preserved_properties(policy),
             choices.families,
             &choices.choices,
             self.host_modules.as_ref().map(|(delivery, _)| delivery),
@@ -2434,6 +2454,7 @@ impl<'src> Compilation<'src> {
             &demand,
             compact,
             rules,
+            preserved_properties(policy),
             head_choices,
             hosts,
             &mut budget,
@@ -2473,6 +2494,7 @@ impl<'src> Compilation<'src> {
             identity,
             head: &head,
             head_choices,
+            preserved_properties: preserved_properties(policy),
             other_heads: std::array::from_fn(|_| None),
             demand: &demand,
             language: target.language(),

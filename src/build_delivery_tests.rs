@@ -435,7 +435,12 @@ fn every_lazily_loaded_module_gets_its_file() {
     );
     let two = compile(&directory, "split");
     assert_eq!(delivered(&two).len(), 3, "{:?}", delivered(&two));
-    assert_eq!(run(&directory, &two), "1\n2\n");
+    // Independent dynamic imports can finish in either order. Both callbacks
+    // must run once with the value exported by their own module.
+    let output = run(&directory, &two);
+    let mut lines = output.lines().collect::<Vec<_>>();
+    lines.sort_unstable();
+    assert_eq!(lines, ["1", "2"]);
     let _ = fs::remove_dir_all(directory);
 }
 
