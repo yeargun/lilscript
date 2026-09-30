@@ -166,7 +166,13 @@ Only the single-module/no-host workloads of this generator are supported.
     if previous.get("schema") != 1 or previous.get("split") != "training":
         raise ValueError("reuse accepts training measurements only")
     for key in tools.keys() - {"runner"}:
-        if previous["identity"].get(key) != tools[key]:
+        before, after = previous["identity"].get(key), tools[key]
+        # This pure report decoder is imported from the measurement checkout;
+        # relocating the same bytes does not change its interpretation.
+        equal = before == after
+        if key == "decoder" and isinstance(before, dict):
+            equal = before.get("sha256") == after["sha256"]
+        if not equal:
             raise ValueError(f"reused {key} differs from this experiment")
     for key in ["runner", "decoder"]:
         if identity(previous["identity"][key]["path"]) != previous["identity"][key]:
