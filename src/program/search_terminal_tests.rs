@@ -208,6 +208,34 @@ fn codec_reuse_preserves_logical_search_and_final_bytes_for_every_objective() {
 }
 
 #[test]
+fn local_read_order_polish_protects_the_completed_search_under_each_objective() {
+    let geometry = include_str!("../../comparison/algorithms/cases/collection-geometry/main.lil");
+    for (codec, index) in [("raw", 0), ("gzip", 1), ("brotli", 2)] {
+        let resolved = policy(codec, 15);
+        let objective = Objectives::One(resolved.objective().unwrap().codec);
+        for source in [PROGRAM, geometry] {
+            let original = without_local_polish(|| search_source(source, &resolved, objective, true));
+            let polished = search_source(source, &resolved, objective, true);
+            assert!(polished.winners[index].as_ref().unwrap().0 <= original.winners[index].as_ref().unwrap().0,
+                "local naming must retain the completed {codec} winner");
+            let stage = &polished.report.objectives[0];
+            assert_eq!(replay(stage), stage.after);
+            let trials = stage.joint_trials.iter().filter(|trial| trial.name == "naming:local-read-order").collect::<Vec<_>>();
+            assert_eq!(trials.len(), 1);
+            assert!(trials[0].pass > original.report.objectives[0].passes);
+            if source == geometry {
+                let javascript = &polished.winners[index].as_ref().unwrap().1;
+                let output = std::process::Command::new("node").args(["-e", &format!(
+                    "globalThis.algorithmCount=()=>4;globalThis.algorithmInt=i=>i+1;{javascript}"
+                )]).output().unwrap();
+                assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+                assert_eq!(String::from_utf8(output.stdout).unwrap(), "3\n");
+            }
+        }
+    }
+}
+
+#[test]
 fn terminal_family_vetoes_hold_under_each_objective() {
     let source = r#"export string[] make() { return ["aa","bb","cc","dd","ee","ff","gg","hh"]; }"#;
     for codec in ["raw", "gzip", "brotli"] {

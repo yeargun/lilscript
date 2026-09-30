@@ -868,7 +868,7 @@ impl Walker<'_, '_, '_> {
             let pass = self.report.passes;
             let kept = self.choice_moves(incumbent, pass)?
                 | self.challengers(incumbent, pass)?
-                | self.joint_moves(incumbent, pass)?;
+                | self.joint_moves(incumbent, pass, false)?;
             if passes == 1 {
                 self.finish_replay(incumbent)?;
             }
@@ -1158,7 +1158,7 @@ impl Walker<'_, '_, '_> {
     /// literal spelling (only target compaction may observe weak literals),
     /// then each naming seed the policy permits other than the incumbent's.
     /// Whether one was kept.
-    fn joint_moves(&mut self, incumbent: &mut Incumbent, pass: usize) -> Result<bool, SearchError> {
+    fn joint_moves(&mut self, incumbent: &mut Incumbent, pass: usize, local_only: bool) -> Result<bool, SearchError> {
         use crate::js::LiteralOutput;
         let other = match incumbent.literals {
             LiteralOutput::Original => LiteralOutput::Observed,
@@ -1173,17 +1173,20 @@ impl Walker<'_, '_, '_> {
             LocalReadOrder,
         }
         let mut joints: Vec<(String, Joint)> = Vec::new();
-        if other == LiteralOutput::Original || self.output.target_compaction {
-            joints.push((format!("literals:{other:?}"), Joint::Literals));
-        }
-        for &style in self.naming {
-            if style != incumbent.plan.style {
-                joints.push((format!("naming:{style:?}"), Joint::Style(style)));
+        if local_only {
+            joints.push(("naming:local-read-order".into(), Joint::LocalReadOrder));
+        } else {
+            if other == LiteralOutput::Original || self.output.target_compaction {
+                joints.push((format!("literals:{other:?}"), Joint::Literals));
             }
+            for &style in self.naming {
+                if style != incumbent.plan.style {
+                    joints.push((format!("naming:{style:?}"), Joint::Style(style)));
+                }
+            }
+            joints.push(("alphabet:sequential".into(), Joint::SequentialAlphabet));
+            joints.push(("alphabet:frequency".into(), Joint::ObservedAlphabet));
         }
-        joints.push(("alphabet:sequential".into(), Joint::SequentialAlphabet));
-        joints.push(("alphabet:frequency".into(), Joint::ObservedAlphabet));
-        joints.push(("naming:local-read-order".into(), Joint::LocalReadOrder));
         let mut kept = false;
         for (name, joint) in joints {
             self.replay(incumbent)?;
@@ -1226,12 +1229,8 @@ impl Walker<'_, '_, '_> {
                             self.report.joint_trials.push(record);
                             continue;
                         }
-                        if plan.style != Style::Scoped {
-                            record.outcome = ChallengerOutcome::Identical;
-                            self.report.joint_trials.push(record);
-                            continue;
-                        }
-                        plan.local_read_order ^= true;
+                        plan.local_read_order = plan.style != Style::Scoped || !plan.local_read_order;
+                        plan.style = Style::Scoped;
                     }
                     Joint::SequentialAlphabet | Joint::ObservedAlphabet => {
                         let policy = self.judge.policy;
@@ -1407,7 +1406,7 @@ impl Walker<'_, '_, '_> {
     }
 
     /// Walk from a start the portfolio holds, then settle its result.
-    fn walk_start(&mut self, name: &str, start: Incumbent) -> Result<(), SearchError> {
+    fn walk_start(&mut self, name: &str, start: Incumbent, phase: WalkPhase) -> Result<(), SearchError> {
         let slot = self.report.starts.len();
         self.report.starts.push(StartTrial {
             name: name.to_string(),
@@ -1420,7 +1419,16 @@ impl Walker<'_, '_, '_> {
             audit: None,
         });
         let mut result = start;
-        self.passes(&mut result)?;
+        let refine = match phase {
+            WalkPhase::Search { .. } => true,
+            WalkPhase::LocalNaming => {
+                self.report.passes += 1;
+                self.joint_moves(&mut result, self.report.passes, true)?
+            }
+        };
+        if refine {
+            self.passes(&mut result)?;
+        }
         self.settle(slot, result)
     }
 
@@ -1505,6 +1513,29 @@ impl Walker<'_, '_, '_> {
         self.passes(&mut result)?;
         self.settle(slot, result)
     }
+}
+
+#[derive(Clone, Copy)]
+enum WalkPhase {
+    Search { restarts: bool },
+    /// Extend the selected result after the earlier walks have converged.
+    /// A losing trial cannot redirect their useful trajectories.
+    LocalNaming,
+}
+
+#[cfg(test)]
+thread_local! {
+    static SKIP_LOCAL_POLISH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+pub(crate) fn without_local_polish<T>(run: impl FnOnce() -> T) -> T {
+    struct Reset(bool);
+    impl Drop for Reset {
+        fn drop(&mut self) { SKIP_LOCAL_POLISH.with(|flag| flag.set(self.0)); }
+    }
+    let _reset = Reset(SKIP_LOCAL_POLISH.with(|flag| flag.replace(true)));
+    run()
 }
 
 /// The choice schedule of one surveyed artifact, as moves (each a set of
@@ -1662,7 +1693,7 @@ impl JavaScriptSearch<'_, '_> {
                 codec,
                 "search",
                 winner,
-                false,
+                WalkPhase::Search { restarts: false },
                 &mut report,
             )?;
         }
@@ -1672,9 +1703,20 @@ impl JavaScriptSearch<'_, '_> {
             codec,
             "level-0",
             level0,
-            walk.starts,
+            WalkPhase::Search { restarts: walk.starts },
             &mut report,
         )?;
+        #[cfg(test)]
+        let polish = !SKIP_LOCAL_POLISH.with(std::cell::Cell::get);
+        #[cfg(not(test))]
+        let polish = true;
+        // Fast tiers keep the existing prefix. The final naming start belongs
+        // to the default-and-higher schedule together with its restarts.
+        if polish && walk.starts {
+            let selected = self.portfolio.selected[index(codec)].expect("an objective keeps its winner");
+            self.walk_from(policy, objective, codec, "local-naming", selected,
+                WalkPhase::LocalNaming, &mut report)?;
+        }
         let delivered =
             self.portfolio.selected[index(codec)].expect("an objective keeps its winner");
         report.after = size(self, delivered)?;
@@ -1702,9 +1744,27 @@ impl JavaScriptSearch<'_, '_> {
         codec: Objective,
         name: &str,
         position: usize,
-        restarts: bool,
+        phase: WalkPhase,
         report: &mut TerminalObjective,
     ) -> Result<(), SearchError> {
+        if matches!(phase, WalkPhase::LocalNaming) {
+            let outcome = if report.examined >= objective.walk.prefix || report.judged >= objective.walk.exact {
+                Some(ChallengerOutcome::Budget)
+            } else if !policy.tactic(TacticId::IdentifierMangling).enabled
+                || !policy.tactic(TacticId::NamingSearch).enabled {
+                Some(ChallengerOutcome::Vetoed)
+            } else {
+                None
+            };
+            if let Some(outcome) = outcome {
+                report.examined += usize::from(outcome == ChallengerOutcome::Vetoed);
+                report.joint_trials.push(JointTrial {
+                    name: "naming:local-read-order".into(), pass: report.passes + 1,
+                    outcome, size: None, delta: None, proxy: None, audit: None,
+                });
+                return Ok(());
+            }
+        }
         let (artifact, state) = {
             let entry = self.portfolio.entries.get(position).unwrap();
             (entry.artifact, entry.state)
@@ -1796,8 +1856,8 @@ impl JavaScriptSearch<'_, '_> {
                     memo: Vec::new(),
                     replay,
                 };
-                let walked = walker.walk_start(name, origin.clone()).and_then(|()| {
-                    if restarts {
+                let walked = walker.walk_start(name, origin.clone(), phase).and_then(|()| {
+                    if let WalkPhase::Search { restarts: true } = phase {
                         for &style in &naming {
                             if style != origin.plan.style {
                                 walker.restart(&origin, style)?;

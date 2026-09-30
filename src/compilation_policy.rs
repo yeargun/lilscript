@@ -19,7 +19,7 @@ pub const POLICY_SCHEMA_VERSION: u32 = 2;
 pub const LEGACY_TRANSLATOR_RETIREMENT_SCHEMA: u32 = 3;
 // Version4 skips proved-stable rule applications. The resulting work tariff
 // can admit more existing candidates within the same compilation allowance.
-pub const POLICY_ALGORITHM_VERSION: u32 = 5;
+pub const POLICY_ALGORITHM_VERSION: u32 = 6;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -597,7 +597,7 @@ pub struct OptimizationObjective {
 /// `StructuralSchedule::at` state. Receipts carry it; a changed value is a
 /// changed schedule.
 // Version 3 appends measured sequential/frequency alphabet joint moves.
-pub const WALK_SCHEDULE_VERSION: u32 = 4;
+pub const WALK_SCHEDULE_VERSION: u32 = 5;
 
 /// The walk's budget at one effort level (architecture §9.6, §13.3–§13.4;
 /// plan M3.5): budgets are counts (AM1), never the clock.

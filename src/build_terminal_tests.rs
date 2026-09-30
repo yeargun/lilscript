@@ -235,7 +235,7 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
     let restart = |trial: &Value| {
         trial["name"]
             .as_str()
-            .is_some_and(|name| !matches!(name, "search" | "level-0" | "beam"))
+            .is_some_and(|name| !matches!(name, "search" | "level-0" | "beam" | "local-naming"))
     };
     let restarts = |outcomes: &[&str]| {
         walk.iter()
