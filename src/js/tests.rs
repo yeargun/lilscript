@@ -10,6 +10,9 @@ mod single_call;
 #[path = "strict_inline_tests.rs"]
 mod strict_inline;
 
+#[path = "scalar_initialization_tests.rs"]
+mod scalar_initialization;
+
 fn expr(module: &mut Module, node: Expr) -> ExprId {
     module.expression(node, None)
 }

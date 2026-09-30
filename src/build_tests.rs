@@ -646,6 +646,33 @@ fn strict_target_inlining_obeys_toml_for_imported_struct_helpers() {
 }
 
 #[test]
+fn scalar_objects_public_construction_preserves_callback_initialization_errors() {
+    let source = "class State{int early;int late;init(int a,int b){this.early=a;this.late=b;}}\n\
+        extern int initialize(func()->int read);\n\
+        int make(){State state=new State(1,initialize(()=>state.early));return state.early;}\n\
+        try{print(make());}catch(auto error){print(99);}";
+    let after = "try{console.log(saved())}catch(error){console.log(error.name)}";
+    for codec in ["raw", "gzip", "brotli"] {
+        for permission in ["off", "on"] {
+            let config: ProjectConfig = toml::from_str(&format!(
+                "objective.codecs='{codec}'\neffort.level=13\n[policy.tactics]\nscalar-replacement='{permission}'"
+            )).unwrap();
+            let result = compile_source(source, &config, ServiceOptions::default()).unwrap();
+            let javascript = result
+                .javascript(config.objective.codecs[0])
+                .unwrap()
+                .javascript();
+            assert_eq!(execute_javascript(javascript,
+                "globalThis.saved=null;globalThis.initialize=read=>{saved=read;try{console.log(read())}catch(error){console.log('during:'+error.name)}return 2;};",
+                after), "during:ReferenceError\n1\n1\n", "{codec}/{permission}\n{javascript}");
+            assert_eq!(execute_javascript(javascript,
+                "globalThis.saved=null;globalThis.initialize=read=>{saved=read;throw Error('initializer');};",
+                after), "99\nReferenceError\n", "{codec}/{permission}\n{javascript}");
+        }
+    }
+}
+
+#[test]
 fn service_reports_unsupported_permissions_separately_from_policy_identity() {
     let result = compile_source(
         "print(7);",

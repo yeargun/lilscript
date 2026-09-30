@@ -63,6 +63,7 @@ impl Module {
         }
         // Candidates, per region: (index, binding, keys in order).
         let mut candidates: Vec<(RegionId, usize, BindingId, Vec<(String, ExprId)>)> = Vec::new();
+        let mut frames = None;
         for &region in &reach.regions {
             if region == self.root {
                 continue;
@@ -108,6 +109,40 @@ impl Module {
                         .iter()
                         .all(|(_, key)| keys.iter().any(|(name, _)| name == key))
                 {
+                    continue;
+                }
+                // The object binding becomes initialized only after every
+                // field initializer completes. Separate lets would expose
+                // earlier fields to a reentrant capture, or leave them readable
+                // after a later initializer throws. Inert creation and reads
+                // proven initialized cannot expose that intermediate state.
+                // An uncaptured object also needs to keep a direct initializer
+                // self-read in its TDZ.
+                let mut initialization_safe = true;
+                for &(_, value) in &keys {
+                    if self.inert_value(value, budget)? {
+                        continue;
+                    }
+                    let safe = if reach.captured[binding.index()] {
+                        if frames.is_none() {
+                            frames = Some(self.frames(budget)?);
+                        }
+                        self.scalar_initializer_is_quiet(
+                            value,
+                            region,
+                            index,
+                            frames.as_ref().unwrap(),
+                            budget,
+                        )?
+                    } else {
+                        !self.mentions_within(value, binding, budget)?
+                    };
+                    if !safe {
+                        initialization_safe = false;
+                        break;
+                    }
+                }
+                if !initialization_safe {
                     continue;
                 }
                 candidates.push((region, index, binding, keys));
@@ -158,5 +193,43 @@ impl Module {
                 .splice(index..=index, lets);
         }
         Ok(replaced)
+    }
+
+    /// Creation and initialized reads cannot call out or throw. In particular,
+    /// a parameter read is safe even when the new object is captured later.
+    fn scalar_initializer_is_quiet(
+        &self,
+        value: ExprId,
+        region: RegionId,
+        index: usize,
+        frames: &Frames,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        budget.work(Analysis, 1)?;
+        match &self.expressions[value.index()] {
+            Expr::Binding(binding) => self.initialized_at(*binding, region, index, frames, budget),
+            Expr::Array(items) => {
+                for &item in items {
+                    if !self.scalar_initializer_is_quiet(item, region, index, frames, budget)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            Expr::Object(entries) => {
+                for (key, item) in entries {
+                    if matches!(key, Property::Computed(key)
+                        if !matches!(self.expressions[key.index()],
+                            Expr::Literal(Literal::String(_) | Literal::Number(_))))
+                        || !self
+                            .scalar_initializer_is_quiet(*item, region, index, frames, budget)?
+                    {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            _ => self.inert_value(value, budget),
+        }
     }
 }
