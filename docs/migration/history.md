@@ -297,3 +297,17 @@ The corrected [release](../../benchmarks/migration-results/2026-09-30-g2-private
 Three final alternating CPU pairs give median ratios 1.400, 2.579 and 1.012 on the frozen marked/zod/posthog workloads, buying 307, 69 and 0 Brotli bytes. Exact judgments are 49 → 68, 28 → 67 and 25 → 25. The first two costs are material and their sampled ranges are separated; the third overlaps. Earlier five-pair results remain retained. This first family is accepted for size quality at default/higher effort, with its cost explicit; Q2 owns reducing repeated rule/formation work. No runtime parity or global optimum is inferred.
 
 **Q2 attribution verification.** The isolated timing oracle passes with timing on/off, identical deterministic artifacts/resource results, and individual rule call counts summing to the aggregate. Static counters are generated alongside rule identities. An initial static-slice declaration was corrected to an owned static array before the passing build. Log: `/tmp/lilscript-q2-rule-cost-timing-fixed.log`. Release profiling follows.
+
+## 2026-09-30: Q2 indexed single-call sites (pre-registration)
+
+1. Replace the block inliner's repeated whole-program statement search for each eligible function with one binding-indexed call-site pass per unchanged tree. Preserve declaration traversal, the first eligible site, argument/receiver restrictions, strictness, dominance, frame and depth checks. Rebuild after each edit, as before; do not remove opportunities or lower the round bound.
+2. Admit the index as temporary storage, release it before editing, and count its construction. Delay expensive body checks until a supported call site exists. Keep an independent scan oracle in tests to compare the index, including refused and nested sites.
+3. Run target semantic/resource checks, the library suite, generic/port output comparisons and paired CPU measurements. Default output is predicted unchanged; any speed claim requires the paired evidence. A single diagnostic zod profile places single-call inlining at 3.47 of 9.16 seconds of target-rule elapsed time; that selects this bounded algorithmic change but is not a comparative performance result.
+
+The owner reaffirmed that default effort **13** prioritizes smaller files and may spend substantial compilation work to earn them. This batch removes redundant lookup work while retaining useful search and the existing effort controls.
+
+## 2026-09-30: C1 resources and Q2 attribution qualification
+
+The [release evidence](../../benchmarks/migration-results/2026-09-30-c1-resources-q2-profile/README.md) preserves every generic cell and all 20 port files from qualified G2. All 642 programs pass under every objective and the 29/1,353/21 reference tests pass. Resource controls and diagnostic instrumentation are qualified without a size or speed claim. One frozen effort-13 Zod profile retains the 67 exact judgments and 26,573 Brotli bytes; single-call block inlining and single-use forwarding account for about 63% of its target-rule elapsed time. The profile selects bounded repeated-work inspection; it does not justify removing useful candidates.
+
+**Indexed-call focused verification.** Both new effect/resource tests pass, covering discarded, void, declaration, assignment and nested return sites, temporary-storage release after every edit round and refusal before mutation. In test builds every eligible lookup also compares against the independent old scan. Full target/library verification and paired release measurement follow. Log: `/tmp/lilscript-q2-call-index-focused.log`.
