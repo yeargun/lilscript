@@ -42,8 +42,11 @@ enum DeliveryArg {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum FormatArg {
+    Auto,
     Esm,
     Cjs,
+    Iife,
+    Bare,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -212,8 +215,11 @@ fn run() -> Result<(), String> {
     }
     if let Some(format) = args.format {
         loaded.config.target.javascript.format = match format {
+            FormatArg::Auto => JavaScriptFormat::Auto,
             FormatArg::Esm => JavaScriptFormat::Esm,
             FormatArg::Cjs => JavaScriptFormat::Cjs,
+            FormatArg::Iife => JavaScriptFormat::Iife,
+            FormatArg::Bare => JavaScriptFormat::Bare,
         };
     }
     if args.delegate_bundling {
@@ -480,7 +486,7 @@ fn write_delivery(
     // One entry in one file: a delivery of one file, named and listed like
     // any entry file (design §4, §10).
     let single_name;
-    let single_layout;
+    let mut single_layout;
     match selected.layout() {
         None => {
             let name = entries.first().map_or("main", |entry| entry.name.as_str());
@@ -506,6 +512,9 @@ fn write_delivery(
                 },
             );
             single_layout = lilscript::js::manifest::one_file_layout(name, modules.len());
+            single_layout.format = config
+                .delivery_contract(matches!(args.target, Target::JsModule))?
+                .format;
             written.push((directory.join(&single_name), selected.javascript()));
             outputs.push(lilscript::ManifestOutput {
                 files: vec![lilscript::ManifestFile {

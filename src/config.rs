@@ -870,13 +870,19 @@ impl ProjectConfig {
         library: bool,
     ) -> Result<crate::compilation_policy::DeliveryContract, String> {
         let delivery = &self.delivery;
-        // M3.3a delivers ES modules; the other containers arrive with their
-        // printers in M3.3b (design §9), never as ESM text in another file.
-        if self.target.javascript.format != JavaScriptFormat::Esm {
-            return Err(format!(
-                "`format = \"{}\"` arrives with plan M3.3b; this compiler delivers ES modules (`format = \"esm\"`)",
-                self.target.javascript.format.name()
-            ));
+        let format = match self.target.javascript.format {
+            JavaScriptFormat::Auto if library => JavaScriptFormat::Esm,
+            JavaScriptFormat::Auto => JavaScriptFormat::Iife,
+            format => format,
+        };
+        if format == JavaScriptFormat::Cjs {
+            return Err("CommonJS delivery is not implemented; use `esm` for a library or `iife`/`bare` for a classic application script".into());
+        }
+        if library && matches!(format, JavaScriptFormat::Iife | JavaScriptFormat::Bare) {
+            return Err(format!("`format = \"{}\"` currently delivers a private application: use `--target js`; library global exports are not implemented", format.name()));
+        }
+        if !library && format == JavaScriptFormat::Esm {
+            return Err("`format = \"esm\"` requires module execution: use `--target js-module`, or choose `iife`/`bare` for a classic script".into());
         }
         if delivery.mode != DeliveryMode::Single && !library {
             return Err(format!(
@@ -886,7 +892,7 @@ impl ProjectConfig {
         }
         Ok(crate::compilation_policy::DeliveryContract {
             mode: delivery.mode,
-            format: self.target.javascript.format,
+            format,
             preload: if delivery.mode == DeliveryMode::Single {
                 PreloadPolicy::None
             } else {
@@ -1699,24 +1705,33 @@ impl DeliveryMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum JavaScriptFormat {
-    /// ES modules: `import`/`export`, `import()`.
+    /// ESM for a library; a private IIFE for a classic application script.
     #[default]
+    Auto,
+    /// ES modules: `import`/`export`, `import()`.
     Esm,
     /// CommonJS: `require`, `exports`.
     Cjs,
+    /// Private application frame, with the classic script's strictness.
+    Iife,
+    /// Unwrapped code for an embedding that owns its private root scope.
+    Bare,
 }
 
 impl JavaScriptFormat {
     pub const fn name(self) -> &'static str {
         match self {
+            Self::Auto => "auto",
             Self::Esm => "esm",
             Self::Cjs => "cjs",
+            Self::Iife => "iife",
+            Self::Bare => "bare",
         }
     }
     /// The `[ext]` of a delivered file in this container.
     pub const fn extension(self) -> &'static str {
         match self {
-            Self::Esm => "js",
+            Self::Auto | Self::Esm | Self::Iife | Self::Bare => "js",
             Self::Cjs => "cjs",
         }
     }
@@ -1840,8 +1855,8 @@ pub struct TargetConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct TargetJavaScriptConfig {
-    /// The container delivered files are written in: `esm` (plan M3.3b
-    /// brings the others).
+    /// `auto`: ESM for libraries, private IIFE for application scripts.
+    /// Explicit containers are checked against the requested execution.
     pub format: JavaScriptFormat,
 }
 

@@ -545,6 +545,139 @@ fn service_reports_unsupported_permissions_separately_from_policy_identity() {
 }
 
 #[test]
+fn application_iife_owns_private_roots_and_independent_loads_under_each_objective() {
+    let source = "extern int next();extern void retain(func()->int callback);int shared=next();retain(()=>shared);";
+    for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        let mut config = config("[policy.tactics]\nidentifier-mangling='off'");
+        config.objective.codecs = vec![codec];
+        let result = compile_source(
+            source,
+            &config,
+            ServiceOptions {
+                preserve_root_exports: false,
+                ..ServiceOptions::default()
+            },
+        )
+        .unwrap();
+        check_scores(&result);
+        let artifact = result.javascript(codec).unwrap();
+        assert_eq!(
+            result.report()["javascript_policy"]["contract"]["delivery"]["format"],
+            "iife"
+        );
+        assert_eq!(artifact.details()["execution"], "Script");
+        let script = format!(
+            r#"
+            const vm=require('node:vm');const callbacks=[];let value=0;
+            const context=vm.createContext({{next:()=>++value,retain:f=>callbacks.push(f)}});
+            vm.runInContext('let shared=91;var a=18',context);
+            const before=Object.keys(context).sort();const code={};
+            vm.runInContext(code,context);vm.runInContext(code,context);
+            const actual=callbacks.map(f=>f());
+            if(JSON.stringify(actual)!=='[1,2]' ||
+               JSON.stringify(before)!==JSON.stringify(Object.keys(context).sort()) ||
+               vm.runInContext('shared',context)!==91)throw Error('private scope leaked');
+            console.log(JSON.stringify(actual));
+        "#,
+            serde_json::to_string(artifact.javascript()).unwrap()
+        );
+        let oracle = Command::new("node").args(["-e", &script]).output().unwrap();
+        assert!(
+            oracle.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&oracle.stderr),
+            artifact.javascript()
+        );
+        assert_eq!(oracle.stdout, b"[1,2]\n");
+    }
+}
+
+#[test]
+fn private_wrapper_preserves_classic_this_and_accepts_explicit_bare() {
+    let source = "extern JsValue this;extern void invoke(func()->void callback);extern bool isGlobal(JsValue value);void probe(){print(isGlobal(this));}invoke(probe);";
+    for format in [
+        crate::config::JavaScriptFormat::Iife,
+        crate::config::JavaScriptFormat::Bare,
+    ] {
+        let mut config = config("");
+        config.target.javascript.format = format;
+        let result = compile_source(
+            source,
+            &config,
+            ServiceOptions {
+                preserve_root_exports: false,
+                ..ServiceOptions::default()
+            },
+        )
+        .unwrap();
+        let artifact = result.javascript(Objective::Brotli).unwrap();
+        assert_eq!(
+            artifact.javascript().starts_with("(()=>{"),
+            format == crate::config::JavaScriptFormat::Iife
+        );
+        let script = format!(
+            "const vm=require('node:vm');vm.runInThisContext({}+{});",
+            serde_json::to_string(
+                "globalThis.invoke=f=>f();globalThis.isGlobal=value=>value===globalThis;"
+            )
+            .unwrap(),
+            serde_json::to_string(artifact.javascript()).unwrap()
+        );
+        let output = Command::new("node").args(["-e", &script]).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout, b"true\n");
+    }
+}
+
+#[test]
+fn script_containers_refuse_module_exports_and_imports() {
+    for format in ["iife", "bare"] {
+        let settings = config(&format!("[target.javascript]\nformat='{format}'"));
+        let error = compile_source(
+            "export int answer(){return 7;}",
+            &settings,
+            ServiceOptions::default(),
+        )
+        .unwrap_err();
+        assert!(error.message.contains("library global exports"), "{error}");
+    }
+    let error = compile_source(
+        "print(7);",
+        &config("[target.javascript]\nformat='esm'"),
+        ServiceOptions {
+            preserve_root_exports: false,
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap_err();
+    assert!(
+        error.message.contains("requires module execution"),
+        "{error}"
+    );
+    let scratch = Scratch::new();
+    let entry = scratch.0.join("entry.lil");
+    std::fs::write(
+        &entry,
+        r#"import extern { next } from "host";extern int next();print(next());"#,
+    )
+    .unwrap();
+    let error = compile_path(
+        &entry,
+        &config(""),
+        ServiceOptions {
+            preserve_root_exports: false,
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap_err();
+    assert!(error.message.contains("static imports require"), "{error}");
+}
+
+#[test]
 fn native_and_all_share_checked_meaning_without_native_codec_work() {
     let source = "int twice(int value){return value*2;}print(twice(21));";
     let javascript = compile_source(
@@ -2051,5 +2184,9 @@ fn an_application_scripts_roots_are_the_programs_own() {
         .javascript(Objective::Brotli)
         .expect("the Brotli artifact")
         .javascript();
-    assert_eq!(javascript.trim(), "console.log(0);", "{javascript}");
+    assert_eq!(
+        javascript.trim(),
+        "(()=>{console.log(0);})();",
+        "{javascript}"
+    );
 }

@@ -14,8 +14,26 @@ use crate::admission_parse::{self, Canon, CanonFunction, StructureDigest};
 pub(crate) fn digest(
     module: &Module,
     hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
+    format: crate::config::JavaScriptFormat,
 ) -> StructureDigest {
-    admission_parse::digest(&program(module, hosts))
+    let body = program(module, hosts);
+    if format == crate::config::JavaScriptFormat::Iife {
+        let function = CanonFunction {
+            arrow: true,
+            asynchronous: false,
+            generator: false,
+            strict: false,
+            parameters: vec![],
+            rest: false,
+            body: admission_parse::statement_list(body),
+        };
+        admission_parse::digest(&[Canon::statement(Canon::Call(
+            Box::new(Canon::Function(Box::new(function))),
+            vec![],
+        ))])
+    } else {
+        admission_parse::digest(&body)
+    }
 }
 
 fn hosted(hosts: Option<&crate::host_modules::HostDelivery>, import: &Import) -> bool {

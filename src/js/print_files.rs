@@ -61,9 +61,8 @@ pub(in crate::js) fn render_planned_file_admitted(
         lazy: &lazy,
     };
     match plan.format {
-        JavaScriptFormat::Esm | JavaScriptFormat::Cjs => {
-            esm(&mut printer, plan, planned, hosts, &specifier)
-        }
+        JavaScriptFormat::Esm => esm(&mut printer, plan, planned, hosts, &specifier),
+        _ => return Err(PrintError::Container),
     }
     let Buffer { text, error, .. } = printer.output;
     if let Some(error) = error {

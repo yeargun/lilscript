@@ -92,6 +92,7 @@ pub(super) fn render(module: &Module, names: &Names) -> String {
 pub(crate) enum PrintError {
     Admission(AllocationError),
     ByteLimit,
+    Container,
 }
 
 pub(super) fn render_bounded(
@@ -103,6 +104,7 @@ pub(super) fn render_bounded(
     render_admitted(module, names, limit, &mut budget).map_err(|error| match error {
         PrintError::ByteLimit => "render exceeds candidate byte budget".into(),
         PrintError::Admission(error) => format!("render admission failed: {error:?}"),
+        PrintError::Container => "unsupported output container".into(),
     })
 }
 
@@ -123,6 +125,7 @@ pub(super) fn render_admitted(
         limit,
         budget,
         None,
+        crate::config::JavaScriptFormat::Bare,
     )
 }
 
@@ -134,6 +137,7 @@ pub(super) fn render_with_literals_admitted(
     limit: usize,
     budget: &mut AllocationBudget<'_>,
     hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
+    format: crate::config::JavaScriptFormat,
 ) -> Result<String, PrintError> {
     let _timing = crate::timing::TARGET_PRINT.scope(0);
     let mut phase = budget.scope();
@@ -152,6 +156,12 @@ pub(super) fn render_with_literals_admitted(
         discarded_root: None,
         lazy: &[],
     };
+    let wrapped = format == crate::config::JavaScriptFormat::Iife;
+    if wrapped {
+        // Arrow scope preserves the entry's lexical `this` and strictness.
+        // The complete private frame belongs to exact scoring.
+        printer.text("(()=>{");
+    }
     printer.foreign_imports(0..module.imports.len(), hosts, None);
     if let Some(hosts) = hosts {
         printer.host_bindings(hosts, 0..module.imports.len());
@@ -177,6 +187,9 @@ pub(super) fn render_with_literals_admitted(
             }
         }
         printer.text("};");
+    }
+    if wrapped {
+        printer.text("})();");
     }
     let Buffer { text, error, .. } = printer.output;
     if let Some(error) = error {

@@ -10,7 +10,7 @@ The entry `.lil` file plus every **transitive static import** is one compilation
 discover → parse → check the module graph → elaborate once → optimize the whole program → emit / deliver
 ```
 
-Private functions, variables and structs in different files cannot collide. **Until plan M4.1**, two modules' private classes or enums with the same name are refused, because the checker still keys classes and enums by name. Side-effect-only `import "./startup.lil"` still runs in dependency-first order. Static import cycles are errors. Dynamic import cycles are allowed.
+Private functions, variables, structs, classes and enums in different files have distinct module identities. Side-effect-only `import "./startup.lil"` still runs in dependency-first order. Static cycles may link when the checker's initialization and use rules permit them; dynamic import cycles are allowed.
 
 ## Two worlds
 
@@ -20,6 +20,8 @@ Private functions, variables and structs in different files cannot collide. **Un
 | `js-module` | Reusable library | Root **runtime** exports are retention roots. Internals still mangle. Compact `export{b as square}`. Type-only struct/class exports emit no JS binding. |
 
 This is the opposite of TypeScript `export` which is both a type and a JS binding unless `import type` is used. LilScript does not need that glue: structs/classes are type exports; functions/globals are runtime.
+
+Classic application scripts default to a private IIFE. Separate loads have separate root bindings, and generated names cannot collide with another script's roots. The wrapper preserves the entry's strictness and lexical `this`; closed-world compilation does not make a script strict. Its bytes participate in the selected objective's exact score. Explicit `format = "bare"` is for an embedding that supplies the private root scope, not a promise to publish globals or preserve their names.
 
 ## Why closed world exists
 
@@ -33,7 +35,8 @@ Foreign JS/TS is not inside the world. `import extern` plus a matching `extern` 
 
 ## Config that changes the world
 
-- `[bundle].mode` — still optimizes the full graph first; only delivery changes. [`[bundle]`](../config/bundle.md)
+- `[delivery].mode` — still optimizes the full graph first; only delivery changes. `[bundle]` is a diagnosed compatibility alias.
+- `[target.javascript].format` — the delivered container; `auto` resolves from the target
 - `--target js-module` vs executable targets — retention roots
 - `[package]` / `[dependencies]` — what bare imports may see
 - `mangle.preserve_properties` and declared boundaries (D2) — how much of the library world is a public JS ABI. `public_aggregate_abi` and `mangle.exports` are retired: public aggregates are plain objects with named fields, and a library keeps its export names

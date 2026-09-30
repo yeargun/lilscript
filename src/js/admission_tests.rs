@@ -98,14 +98,42 @@ fn a_printed_tree_is_admitted() {
     let module = program(2);
     let text = printed(&module);
     assert!(text.contains("(1+2)*3"), "{text}");
-    admit(&digest(&module, None), &text, false).unwrap();
-    admit(&digest(&module, None), &text, true).unwrap();
+    admit(
+        &digest(&module, None, crate::config::JavaScriptFormat::Bare),
+        &text,
+        false,
+    )
+    .unwrap();
+    admit(
+        &digest(&module, None, crate::config::JavaScriptFormat::Bare),
+        &text,
+        true,
+    )
+    .unwrap();
+}
+
+#[test]
+fn private_frame_is_part_of_independently_admitted_structure() {
+    let module = program(2);
+    let bare = printed(&module);
+    let wrapped = format!("(()=>{{{bare}}})();");
+    let expected = digest(&module, None, crate::config::JavaScriptFormat::Iife);
+    admit(&expected, &wrapped, false).unwrap();
+    assert!(admit(&expected, &bare, false).is_err());
+    // Replacing the arrow changes lexical this/arguments semantics.
+    assert!(admit(&expected, &wrapped.replacen("()=>", "function()", 1), false).is_err());
+    assert!(admit(
+        &expected,
+        &wrapped.replacen("{", "{'use strict';", 1),
+        false
+    )
+    .is_err());
 }
 
 #[test]
 fn a_misprinted_tree_is_refused() {
     let module = program(2);
-    let expected = digest(&module, None);
+    let expected = digest(&module, None, crate::config::JavaScriptFormat::Bare);
     // Another structure printed: the second statement left the `if`.
     let moved = printed(&program(1));
     let refusal = admit(&expected, &moved, false).unwrap_err();
@@ -134,5 +162,10 @@ fn every_module_the_printer_spells_differently_is_one_structure() {
             mangle_bindings: true,
         })
         .unwrap();
-    admit(&digest(&module, None), &text, false).unwrap();
+    admit(
+        &digest(&module, None, crate::config::JavaScriptFormat::Bare),
+        &text,
+        false,
+    )
+    .unwrap();
 }

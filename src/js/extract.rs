@@ -56,6 +56,7 @@ impl std::error::Error for OutputError {}
 /// structure and target facts across every candidate render.
 pub struct Output<'a> {
     module: &'a Module,
+    format: crate::config::JavaScriptFormat,
     pub(super) basis: naming::Basis<'a>,
     naming: naming::Eligibility,
     literal_alternatives: &'a [LiteralAlternative],
@@ -111,6 +112,7 @@ impl<'a> Output<'a> {
         };
         Ok(Self {
             module,
+            format: crate::config::JavaScriptFormat::Bare,
             basis,
             naming,
             literal_alternatives,
@@ -152,7 +154,11 @@ impl<'a> Output<'a> {
         let mut budget = self.budget.borrow_mut();
         let nodes = self.module.expressions.len() + self.module.regions.len();
         budget.work(WorkKind::Analysis, nodes as u64)?;
-        Ok(super::admission::digest(self.module, self.hosts))
+        Ok(super::admission::digest(
+            self.module,
+            self.hosts,
+            self.format,
+        ))
     }
 
     /// Coordinate the compilation's private artifact owner without exposing the
@@ -201,10 +207,14 @@ impl<'a> Output<'a> {
                 limit,
                 &mut render,
                 self.hosts,
+                self.format,
             )
             .map_err(|error| match error {
                 print::PrintError::Admission(error) => OutputError::Admission(error),
                 print::PrintError::ByteLimit => OutputError::ByteLimit,
+                print::PrintError::Container => {
+                    OutputError::Invalid("unsupported output container")
+                }
             })
         })();
         // Lazy Basis caches already installed by this render stay live even if
@@ -329,6 +339,9 @@ impl<'a> Output<'a> {
                     .map_err(|error| match error {
                         print::PrintError::Admission(error) => OutputError::Admission(error),
                         print::PrintError::ByteLimit => OutputError::ByteLimit,
+                        print::PrintError::Container => {
+                            OutputError::Invalid("unsupported output container")
+                        }
                     })?;
                     used += text.len();
                     texts.push(text);
@@ -423,8 +436,13 @@ impl Module {
             .javascript_contract()
             .expect("naming checked the target")
             .ecmascript;
-        Output::from_module_in(self, naming, Some(edition), AllocationBudget::new(None))
-            .map_err(|error| error.to_string())
+        let mut output =
+            Output::from_module_in(self, naming, Some(edition), AllocationBudget::new(None))
+                .map_err(|error| error.to_string())?;
+        output.format = policy.delivery().expect("JavaScript delivery").format;
+        self.check_container(output.format)
+            .map_err(|error| error.to_string())?;
+        Ok(output)
     }
 
     /// Production retains verifier/naming storage under the compilation's one
@@ -469,7 +487,9 @@ impl Module {
             .javascript_contract()
             .expect("naming checked the target")
             .ecmascript;
-        Output::from_module_with_literals_in(
+        let format = policy.delivery().expect("JavaScript delivery").format;
+        self.check_container(format)?;
+        let mut output = Output::from_module_with_literals_in(
             self,
             naming,
             Some(edition),
@@ -478,7 +498,20 @@ impl Module {
                 .tactic(crate::compilation_policy::TacticId::TargetCompaction)
                 .enabled,
             parent.scope(),
-        )
+        )?;
+        output.format = format;
+        Ok(output)
+    }
+
+    fn check_container(&self, format: crate::config::JavaScriptFormat) -> Result<(), OutputError> {
+        use crate::config::JavaScriptFormat as F;
+        match format {
+            F::Auto | F::Cjs => Err("unresolved or unsupported output container".into()),
+            F::Iife | F::Bare if !self.exports.is_empty() || self.delivery.is_some() => Err(
+                "a private script container cannot publish exports or a module file plan".into(),
+            ),
+            _ => Ok(()),
+        }
     }
 }
 

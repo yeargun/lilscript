@@ -7,13 +7,14 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Now
 
 - One compiler; the existing typed IR, facts, edit machinery, formation, naming and exact codec judging are the foundation.
-- Last semantic batch: **S1**, bounded constant-call and exact primitive-method evaluation. It passes the production matrix and improves every generic objective total; default IIFE wrapping remains open.
-- C1 enforces target-rule, pooling/packing and reconstruction permissions; port measurements of reconstruction continue. C2 retains alternating compilation samples and input/artifact identities. Q2 reuses exact byte measurements with cold logical work and output-owner lifetimes. G1's configurable, exactly judged alphabet trials pass the generic objective gate and the three reference port suites.
+- **S1** now evaluates bounded constant loops; the generic objective gates and reference port suites pass. **S2** generalizes private record payloads under complete-use and capture proofs, with generic/port qualification.
+- **C1** enforces target-rule, pooling/packing and reconstruction permissions, records implemented producer stages and prerequisites, and diagnoses unavailable or conflicting settings. Its reconstruction correction has paired measurements and port qualification. **D1**'s private application IIFE and explicit bare output are in verification.
+- C2 retains alternating compilation samples and input/artifact identities. Q2 reuses exact byte measurements with cold logical work and output-owner lifetimes. G1's configurable, exactly judged alphabet trials pass the generic objective gate and the three reference port suites.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-1. **C1:** complete the remaining producer/risk registry and control compatibility; the terminal pooling/packing and fixed target-rule vetoes are covered.
+1. **C1/D1:** finish current delivery qualification, remaining family/risk coverage and compatibility migration; producer availability, prerequisite vetoes and contradictory aliases are covered.
 2. **S1 with C2/C3:** continue propagation/defaults/removal beyond the implemented bounded primitive evaluator. The raw-bound-as-codec-proof claim is corrected; calibration precedes tuning new heuristic defaults.
 3. **Q2:** remove repeated formation and scoring, starting from the markedlil trace; preserve the best existing output.
 4. **S2 and G1/G2:** escape/field facts and flattening; lexical naming and safe private-property mangling as their facts allow. Continue D1's existing format work when its batch is ready.
@@ -24,11 +25,11 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 
 | State | Task | Still to complete |
 |---|---|---|
-| [~] | [C1](plan.md#c1) Controls | Registry, permission coverage, precedence and compatibility migration |
+| [~] | [C1](plan.md#c1) Controls | Remaining family/risk registry coverage, precedence audit and compatibility migration |
 | [~] | [C2](plan.md#c2) Evidence | Oracle coverage, fair benchmark contract, runtime counters and paired runner |
 | [ ] | [C3](plan.md#c3) Calibration | Generic calibration, protected held-out set, objective/work reports |
 | [~] | [S1](plan.md#s1) Folding | Broader supported evaluation, remaining propagation/defaults/removal |
-| [~] | [S2](plan.md#s2) Objects | Generalized private record payloads in verification; broader escape, fields, flattening and copy elision |
+| [~] | [S2](plan.md#s2) Objects | Broader aliases/escape, fields, flattening and copy elision |
 | [~] | [S3](plan.md#s3) Calls | Remaining inlining, devirtualization, specialization and sharing |
 | [~] | [S4](plan.md#s4) Contracts | Remaining identities, fact consumers, catalog and language coverage |
 | [~] | [G1](plan.md#g1) Lexical names | Local allocation/seed refinement, broader final-byte tie and workload qualification |
@@ -38,7 +39,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 | [~] | [Q2](plan.md#q2) Reuse | Dirty scheduling, incremental formation, persistent reuse and resource completion |
 | [~] | [Q3](plan.md#q3) Search policy | Gzip's policy, calibrated estimates/proxies and useful effort progression |
 | [~] | [Q4](plan.md#q4) Data | Const data, helpers, encodings and schema specialization |
-| [~] | [D1](plan.md#d1) Formats | CJS/IIFE/UMD/bare, application wrapping and manifests |
+| [~] | [D1](plan.md#d1) Formats | Application wrapper qualification; CJS/library-IIFE/UMD and remaining manifests |
 | [~] | [D2](plan.md#d2) Consumers | Shakeability, placement, lazy effects/cycles, host modules and source maps |
 | [~] | [D3](plan.md#d3) Integration | Shared graph/API, multi-objective requests and compiler-written port builds |
 | [ ] | [V1](plan.md#v1) Qualification | Maintained/held-out size and runtime gaps, independently per objective |

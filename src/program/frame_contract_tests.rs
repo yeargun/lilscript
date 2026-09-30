@@ -226,7 +226,9 @@ fn an_application_script_drops_the_frame_of_a_coercing_forwarding_function() {
     // could see that frame as its caller, but host reflection over the
     // program's frames is outside an application's contract (owner answer
     // Y5, the frames amendment): in a script as in a module the call becomes
-    // `+opaque()`, and the hook is called from the top level.
+    // `+opaque()`. A script calls the hook from its private application
+    // wrapper; a module calls it from its strict top level. Neither retains
+    // helper's frame, and neither acquires the other's strictness.
     let source = "extern JsValue opaque();number helper(JsValue value){return JS.number(value);}print(helper(opaque()));";
     for module in [false, true] {
         compiled(source, module, |compiler, direct, _, policy| {
@@ -234,7 +236,7 @@ fn an_application_script_drops_the_frame_of_a_coercing_forwarding_function() {
             assert!(javascript.contains("+opaque()"), "{javascript}");
             assert_eq!(
                 execute(&javascript, module, true),
-                json!([["caller-visible", false], ["value", 4]])
+                json!([["caller-visible", !module], ["value", 4]])
             );
         });
     }

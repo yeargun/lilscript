@@ -258,6 +258,36 @@ fn baseline_receipts_survive_byte_disposal_but_cannot_cross_source_meanings() {
     });
 }
 
+#[test]
+fn a_private_wrapper_cannot_be_replayed_as_a_bare_script() {
+    with_source(|compilation, source| {
+        let wrapped = policy("[target.javascript]\nformat='iife'", false);
+        let bare = policy("[target.javascript]\nformat='bare'", false);
+        let artifact = render(compilation, source, &wrapped);
+        compilation
+            .qualify_artifact(
+                artifact,
+                &wrapped,
+                CompressionCostModel::Raw,
+                ArtifactRuntimeEvidence::default(),
+                None,
+                WorkDomain::Baseline,
+            )
+            .unwrap();
+        assert!(compilation
+            .qualify_artifact(
+                artifact,
+                &bare,
+                CompressionCostModel::Raw,
+                ArtifactRuntimeEvidence::default(),
+                None,
+                WorkDomain::Baseline
+            )
+            .is_err());
+        compilation.discard_artifact(artifact).unwrap();
+    });
+}
+
 /// The admission parse (plan task M2.5): a delivered file whose independent
 /// parse is not the printed tree, or that does not parse, is refused with a
 /// diagnostic before any score can select it; the printed file is admitted.

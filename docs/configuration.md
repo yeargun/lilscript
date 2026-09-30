@@ -92,7 +92,7 @@ render_batch = 8
 diversity_interval = 4
 
 [target.javascript]
-format = "esm"                # esm; cjs, iife, umd and bare arrive with plan M3.3b
+format = "auto"               # libraries: esm; application scripts: iife; explicit bare for an embedding
 
 [delivery]
 mode = "single"               # single | split | preserve-modules
@@ -403,8 +403,18 @@ program, all entries together, before any file boundary is chosen.
   1 GiB each), added to each entry's row: per file it loads beyond its first,
   and per static import level beyond the first. The objective's codec prices
   every file; there is no other cost model.
-- `[target.javascript] format` is `esm`; any other container is refused until
-  plan M3.3b.
+- `[target.javascript] format` defaults to `auto`: `esm` for a library
+  (`--target js-module`) and a private `iife` for an application script
+  (`--target js`, or the JavaScript part of `--target all`). The wrapper is
+  included in every exact size judgment and keeps the script's original
+  strictness and lexical `this`. Repeated application loads own separate roots.
+- Explicit `bare` delivers unwrapped application code for an embedding that
+  owns its private root scope. It retains the same private-root contract; it
+  does not publish globals or make their names stable. `esm` requires module
+  execution; `iife` and `bare` currently require a closed application without
+  static foreign imports. Embedded host modules remain supported.
+- Library-global IIFE/UMD and CommonJS exports are still D1 work. Unsupported
+  containers are refused, never emitted as mislabeled ESM.
 
 The old `[bundle]` table translates before the file is read: `mode`, `preload`
 and `host_modules` move to `[delivery]` (with a warning to rename them);

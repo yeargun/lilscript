@@ -1882,6 +1882,31 @@ mod tests {
     }
 
     #[test]
+    fn resolved_script_containers_have_distinct_identity_without_changing_strictness() {
+        use crate::config::JavaScriptFormat as F;
+        let resolve = |source| {
+            config(source)
+                .resolve_policy(CompilationRequest::JavaScript {
+                    preserve_root_exports: false,
+                })
+                .unwrap()
+        };
+        let default = resolve("");
+        let iife = resolve("[target.javascript]\nformat='iife'");
+        let bare = resolve("[target.javascript]\nformat='bare'");
+        assert_eq!(default.delivery().unwrap().format, F::Iife);
+        assert_eq!(default.fingerprint(), iife.fingerprint());
+        assert_ne!(default.fingerprint(), bare.fingerprint());
+        assert_eq!(default.javascript_contract(), bare.javascript_contract());
+        assert!(!default
+            .javascript_contract()
+            .unwrap()
+            .execution
+            .guarantees_strict_execution());
+        assert_eq!(js("").delivery().unwrap().format, F::Esm);
+    }
+
+    #[test]
     fn legacy_and_new_permissions_have_the_same_resolved_identity() {
         let old = js("[optimization]\ninlining=false");
         let new = js("[policy]\nversion=2\n[policy.tactics]\ninlining='off'");
