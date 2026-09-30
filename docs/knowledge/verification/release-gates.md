@@ -2,7 +2,7 @@
 
 Parent: [verification](README.md). Active rollout: plan phase M12, qualification and
 publication, in the [migration plan](../../migration/index.md) (the earlier step 014
-is in the [record](../../migration/record-2026-09.md#014-retirement-and-final-certification)).
+is in the [record](../../old-history/migration/record-2026-09.md#014-retirement-and-final-certification)).
 The runners that check a binary: [testing.md](../../testing.md).
 
 ## Gate layers

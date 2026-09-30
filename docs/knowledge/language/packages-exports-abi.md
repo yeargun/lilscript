@@ -14,7 +14,7 @@ runs once in dependency-first order.
 Compilation world and public roots determine what an export means; artifact
 format determines how it is delivered. The current compiler still couples some
 of these choices; plan task M3.1 separates `execution`, `world` and `format` as
-independent contract axes ([future architecture §14](../../future-architecture.md#14-configuration-and-interfaces)).
+independent contract axes ([future architecture §14](../../old-history/future-architecture.md#14-configuration-and-interfaces)).
 
 | World/boundary | Export behavior |
 |---|---|

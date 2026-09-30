@@ -219,6 +219,6 @@ A forked library that still loses is classified before any compiler change:
    vendored unminified host files. Rewrite representation, do not add a fold.
 4. **Legitimate dynamic hatch** — clsx. Measure and keep `JsValue`.
 
-The [migration plan](../../../migration/record-2026-09.md#013-compression-qualification) assigns
+The [migration plan](../../../old-history/migration/record-2026-09.md#013-compression-qualification) assigns
 losses to evidence, facts, reusable families, ports, search or delivery owners.
 None belongs in a library-specific matcher in `js_peephole`.

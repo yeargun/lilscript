@@ -2,7 +2,7 @@
 
 Parent: [knowledge tree](../README.md). The compiler today:
 [current architecture](../compilation/current-architecture.md), the architecture
-[future-architecture.md](../../future-architecture.md) and the plan
+[future-architecture.md](../../old-history/future-architecture.md) and the plan
 [migration/index.md](../../migration/index.md).
 
 Until 2026-09-23 two compilers shared one binary behind `--backend`. The first
@@ -66,4 +66,4 @@ refused ([configuration.md](../../configuration.md#retired-keys)).
 
 - [Implementation status, 2026-09-20](status-2026-09-20.md): the status page
   while both routes shipped.
-- The milestone record 001–013 is [migration/record-2026-09.md](../../migration/record-2026-09.md).
+- The milestone record 001–013 is [migration/record-2026-09.md](../../old-history/migration/record-2026-09.md).

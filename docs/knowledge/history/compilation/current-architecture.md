@@ -4,7 +4,7 @@
 
 Authority: source and tests. Status snapshot:
 [`docs/current-status.md`](../../../current-status.md). Parent:
-[compilation](../../compilation/README.md). Future design: [joint discussion](../../../compiler-design.md).
+[compilation](../../compilation/README.md). Future design: [joint discussion](../../../old-history/compiler-design-2026-09-18.md).
 
 This page describes implemented behavior in the 2026-08-29 checkout. It does
 not turn current limitations into design goals.

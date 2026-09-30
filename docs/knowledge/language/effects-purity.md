@@ -1,6 +1,6 @@
 # Effects and purity
 
-Parent: [Language](README.md). Related: [escape](boundaries-escape.md), [future architecture §7 (facts)](../../future-architecture.md#7-facts).
+Parent: [Language](README.md). Related: [escape](boundaries-escape.md), [future architecture §7 (facts)](../../old-history/future-architecture.md#7-facts).
 
 ## Inference first, `pure` as a contract
 

@@ -1,18 +1,19 @@
-// Validate the migration plan's progress table against accepted evidence.
+// Validate the archived 001–014 migration table against its accepted evidence.
 //
 // 001 asks for a receipt/progress validator built from the evidence primitives
 // that already exist, with negative probes that reject stale artifacts, missing
 // cases, changed installed dependencies or configuration, tampered hashes,
 // empty competitor sets and checked milestones without accepted evidence.
 //
-// The plan itself stays the single source of truth for what is claimed; this
+// The historical table stays the source of truth for what was claimed; this
 // tool only refuses claims the receipts do not support. It reads:
 //
-//   docs/migration/index.md                       the claimed state per milestone
+//   docs/old-history/migration/record-2026-09.md   the historical milestone states
 //   benchmarks/migration-results/accepted.json    which receipt backs which claim
 //   benchmarks/migration-results/<run>/...        the receipts themselves
 //
-// and reports one finding per unsupported claim. It never edits the plan.
+// and reports one finding per unsupported historical claim. It never edits the
+// archive or certifies the active migration checklist.
 
 import { existsSync, readFileSync } from "node:fs"
 import { dirname, isAbsolute, join, resolve } from "node:path"
@@ -138,7 +139,7 @@ export function validateReceipt({ root = REPOSITORY_ROOT, entry, label }) {
  * every row so a reviewer can see what is claimed, not only what failed.
  */
 export function validateProgress({ root = REPOSITORY_ROOT, markdown, ledger } = {}) {
-  markdown ??= readFileSync(join(root, "docs/migration/index.md"), "utf8")
+  markdown ??= readFileSync(join(root, "docs/old-history/migration/record-2026-09.md"), "utf8")
   ledger ??= readLedger(root)
   const rows = parsePlanTable(markdown)
   const findings = []

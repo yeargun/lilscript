@@ -4,7 +4,7 @@
 
 Parent: [Compilation](../../compilation/README.md). Architecture:
 [current architecture](current-architecture.md). Target:
-[compiler design](../../../compiler-design.md). Source: `src/js_peephole/`
+[compiler design](../../../old-history/compiler-design-2026-09-18.md). Source: `src/js_peephole/`
 (`optimize_generated_javascript` in `mod.rs`). Feature: `parsed-peephole`
 (minimum `optimization_level` 9).
 
@@ -18,7 +18,7 @@ It does **not** do unparsed text substitution.
 It is also, today, a **second optimizer**: class identity fusion, copy
 coalescing, ASI, integer coercions, declaration merging, and more. That second
 job is architectural debt
-([target/delivery replacement](../../../migration/record-2026-09.md#008-whole-program-js-and-delivery)).
+([target/delivery replacement](../../../old-history/migration/record-2026-09.md#008-whole-program-js-and-delivery)).
 The target design performs compaction through checked target identities and
 retains independent final-byte parsing as verification. Exact codecs select
 complete artifacts; ordinary cheap cleanup need not score each tiny rewrite.

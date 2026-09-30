@@ -1,0 +1,74 @@
+{
+  "source_commit": "8b3d5cc5a1429919b6000831085ce807ec9aeed3",
+  "archived_on": "2026-09-29",
+  "changes": "Archive banner and Markdown navigation links only; code spans and fenced examples preserved. Links to removed files use the pinned source revision.",
+  "files": [
+    {
+      "original": "docs/migration/index.md",
+      "archive": "docs/old-history/migration/index.md",
+      "original_sha256": "94fecbf44a9a2f35d23d2f4d558c3ca8162ff21410044dabfd6d7536525aeed5",
+      "archive_sha256": "e85963e8d167fc07711504447fa463c3fd5f2486aae9052f4d46b9c49e4eae6c"
+    },
+    {
+      "original": "docs/migration/plan.md",
+      "archive": "docs/old-history/migration/plan.md",
+      "original_sha256": "92572f91e7f26fc3b19e63032d4bd732ba6b0a9add5ce760d5588f9dc76700e2",
+      "archive_sha256": "f97a4aa7c6ba9407c52d49dc451886105fc5119da812a38901f8da7337e05f56"
+    },
+    {
+      "original": "docs/migration/history.md",
+      "archive": "docs/old-history/migration/history.md",
+      "original_sha256": "c1d5a01f0300103db8b3022db4a4bc9030ad6154ce049745c5f7fe463de36f24",
+      "archive_sha256": "3034374134dbca62aba4793c18f4ff47827ee1ef5a7bad5fd2bd6c4a68b24ee2"
+    },
+    {
+      "original": "docs/migration/record-2026-09.md",
+      "archive": "docs/old-history/migration/record-2026-09.md",
+      "original_sha256": "ea65d8555dfbe6df35a498a988c6391bdab5801de54e94f709e1f64f76a6cafa",
+      "archive_sha256": "22febf07e4e3b475a2725827b17ed19eca6f01cf188c942d1aebbc8b8396e281"
+    },
+    {
+      "original": "docs/future-architecture.md",
+      "archive": "docs/old-history/future-architecture.md",
+      "original_sha256": "197b26f294617fbc687f6ca079a77ff0ca6fd3c7174f76364454caabcb5f63e2",
+      "archive_sha256": "efce2e418a0f12103a5b5059779db4516ea726a7f515da48fab0d9c5dfab4678"
+    },
+    {
+      "original": "docs/compiler-design.md",
+      "archive": "docs/old-history/compiler-design.md",
+      "original_sha256": "fd8eccf0c01ba28ed2acc8a8caf6127e42559a7f0746e9f497cca4dab398dd7f",
+      "archive_sha256": "9e77957d7d0a61effc1cd3f286ceafc097712904cb263a9cb7c5b2c599e85b01"
+    },
+    {
+      "original": "docs/current-status.md",
+      "archive": "docs/old-history/current-status.md",
+      "original_sha256": "643109bcdfbc48ec8b777384b5fcf37e38ad2a8860140cf81a9321c441ec906c",
+      "archive_sha256": "e6c10e6125883e2252e89ea285269cf52c374fc3ff776e87fe4f260d5b596730"
+    },
+    {
+      "original": "docs/knowledge/compilation/current-architecture.md",
+      "archive": "docs/old-history/knowledge/compilation/current-architecture.md",
+      "original_sha256": "76f2d47dc658edbc2ef1c6e82bf2335ee56e5e9d5e69c71b5b455eb35695cdcb",
+      "archive_sha256": "ae97181c06efa4a89723ac282e9c411488ef98ad1060e20edb30898a9f099e95"
+    },
+    {
+      "original": "finer/status.md",
+      "archive": "docs/old-history/finer/status.md",
+      "original_sha256": "11b46b30c7ad165c561a8fd4937bc19ee20d0547127c44b45cf2cf27467b35bc",
+      "archive_sha256": "cc598802c588e6bf194023e9d87d82ed06f4f6bf75b0cfa85a7e0a9084223526"
+    },
+    {
+      "original": "finer/objective.md",
+      "archive": "docs/old-history/finer/objective.md",
+      "original_sha256": "7b729fc761217147a68903adc325a1201291df88edea3d923bcb1179780c972d",
+      "archive_sha256": "904b78f155031d30a607e9df51f264cd5b9bc79c8a5c4a923c1a0a67fe45f376"
+    },
+    {
+      "original": "docs/compiler-design.md",
+      "source_commit": "d362338f",
+      "archive": "docs/old-history/compiler-design-2026-09-18.md",
+      "original_sha256": "ab3b352cf0bc6c630ddfe0aed367f0e079e1f5b409b36f4149bb5e2e24c1c3fb",
+      "archive_sha256": "00852e234d3d115e8c7ce83b8f7edee454b80bd1f56b55518f20cacd54bdc628"
+    }
+  ]
+}

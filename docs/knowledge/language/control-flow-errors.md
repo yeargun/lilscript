@@ -28,7 +28,7 @@ native JavaScript completion order is preserved: `finally` runs for normal and a
 completion and may replace the earlier completion. Catch values are `JsValue`; no
 error-record shape is assumed.
 
-Owner decision [D3](../../future-architecture.md#d3-in-full) settles that
+Owner decision [D3](../../old-history/future-architecture.md#d3-in-full) settles that
 implementation-specific resource-exhaustion timing may differ after optimization,
 while results, ordinary throws, argument errors, host effects and divergence remain
 observable; each clause has an executable case. It is not permission to remove

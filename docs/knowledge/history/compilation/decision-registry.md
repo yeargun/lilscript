@@ -4,7 +4,7 @@
 
 Parent: [Compilation](../../compilation/README.md). Architecture:
 [current architecture](current-architecture.md),
-[target compiler design](../../../compiler-design.md). Ranking math:
+[target compiler design](../../../old-history/compiler-design-2026-09-18.md). Ranking math:
 [objectives](objectives.md). Search mechanics:
 [candidate search](candidate-search.md). Knobs: [config](../../config/README.md).
 Migration: [single implementation plan](../../../migration/index.md).
@@ -346,7 +346,7 @@ illegal-to-flip fields must not appear as family names. Reversible priors,
 named-class emission, scored canonical/search-off challengers, reserved slices,
 starvation reporting, and expression-language cases have landed. Remaining
 consolidation and target work is in the
-[migration plan](../../../migration/record-2026-09.md#003-policy-and-resource-ownership).
+[migration plan](../../../old-history/migration/record-2026-09.md#003-policy-and-resource-ownership).
 
 The planned registry consumes two separate normalized values:
 

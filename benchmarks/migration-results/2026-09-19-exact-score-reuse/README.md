@@ -1,7 +1,7 @@
 # Exact-Score Reuse Evidence
 
 Verification of migration task 006-P1, not a new plan or a completed milestone.
-The sole task record remains in [the migration plan](../../../docs/migration/index.md#006-p1-exact-score-reuse).
+The sole task record remains in [the migration plan](../../../docs/old-history/migration/record-2026-09.md#006-p1-exact-score-reuse).
 
 ## Result
 

@@ -12,14 +12,15 @@ behavior.
 
 1. **Language and configuration contracts** define supported interfaces.
 2. **Source and tests** define implemented behavior.
-3. **[future-architecture.md](future-architecture.md) is the architecture** of the
-   compiler and the size-relevant language design.
-   [Current architecture](knowledge/compilation/current-architecture.md) describes
-   today's code against it, without overriding the source.
-4. **[migration/plan.md](migration/plan.md) is the plan**: every task, the order of
-   work and the rules. [migration/index.md](migration/index.md) is its progress, one
-   line per task, and [migration/history.md](migration/history.md) records each
-   batch. There is no other plan, board or packet.
+3. **[migration/plan.md](migration/plan.md) is the active architecture and plan**:
+   the objective, TOML contract, mechanisms, dependencies and acceptance rules.
+   [Current architecture](knowledge/compilation/current-architecture.md) maps
+   the implementation without overriding source and tests.
+4. **[migration/index.md](migration/index.md) is progress**.
+   [migration/history.md](migration/history.md) records new batches;
+   [coverage.md](migration/coverage.md) assigns unfinished legacy work.
+   Previous plans and evidence are preserved in [old-history](old-history/README.md)
+   and do not prescribe current work.
 5. **[testing.md](testing.md) is the verification tools**: the case runner, the port
    runner and their expected-failure ledgers. Tracked generated reports define
    numerical evidence.
@@ -40,10 +41,11 @@ If two pages disagree, use the higher authority and fix the lower one.
 | TOML behavior | [Configuration](configuration.md) |
 | Why a design choice exists | [Design decisions](knowledge/decisions/README.md) |
 | How the compiler works now | [Current architecture](knowledge/compilation/current-architecture.md) |
-| The design of the language and the compiler (version 1): the answer to "is the migration proper", laws, pipeline, the one decision procedure, per-objective decisions, compile-time budget, runtime floor, native, benchmark contract, owner questions Y1–Y7 | [Future architecture](future-architecture.md) |
+| Architecture, independent objectives, configurable behavior, mangling and bounded search | [Active design and plan](migration/plan.md) |
 | Where the migration stands: every task done or open, and what is next | [Migration progress](migration/index.md) |
 | Implement a migration task: what it is, its rules and its order | [Migration plan](migration/plan.md) |
-| What a migration batch landed, measured and left open | [Migration history](migration/history.md) |
+| What a new migration batch landed, measured and left open | [Migration history](migration/history.md) |
+| Previous plans, batches through Y5 and their unfinished-task descriptions | [Old history](old-history/README.md) |
 | Check a compiler binary: the case runner, the port runner and their expected-failure ledgers | [Testing](testing.md) |
 | Whether a size claim is valid | [Verification](knowledge/verification/README.md) → [evidence](knowledge/evidence/README.md) |
 | How the deleted route did something | [History](knowledge/history/README.md) |
@@ -60,7 +62,6 @@ If two pages disagree, use the higher authority and fix the lower one.
 | [web-platform.md](web-platform.md) | Host and `extern` boundary |
 | [differential-testing.md](differential-testing.md) | Independent semantic oracle |
 
-Do not create separate migration packets or boards. Add bounded work under its
-phase in the single plan, its state to the progress list and its evidence to the
-history. The architecture owns the target; the plan owns how to reach it and how
-replacement is verified.
+Keep bounded work in the active plan, progress in its checklist and evidence in
+its history. The coverage map preserves ownership without creating another
+execution order. Update these documents together when a batch closes work.

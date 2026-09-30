@@ -1,6 +1,6 @@
 # LilScript
 
-**One compiler, 2026-09-24.** The route that shared the binary with it until 2026-09-23 is deleted (plan phase M1). The architecture is [docs/future-architecture.md](docs/future-architecture.md), the only plan is [docs/migration/plan.md](docs/migration/plan.md) with its progress in [docs/migration/index.md](docs/migration/index.md), and what stands today is [docs/current-status.md](docs/current-status.md). Implementation gates remain unverified.
+**One compiler.** The [migration plan](docs/migration/plan.md) owns the architecture and work order, the [checklist](docs/migration/index.md) owns progress, and [current status](docs/current-status.md) reports verified evidence. Previous designs and batch records are in [old-history](docs/old-history/README.md).
 
 **LilScript is built to make correct web programs smaller than equivalent JavaScript.**
 
@@ -21,19 +21,17 @@ port already wins.
 
 ## Evidence Status
 
-Mixed, and stated per library. On the goal boundaries (six reference ports and
-the react-markdown family), the one compiler beats the strongest pinned bar on 11
-of 13 in patched scratch builds; motionlil and zodlil still lose. On small closed
-programs it is behind the deleted route: the canonical paired micro corpus
-(`comparison/cases`) is 9 wins, 6 ties and 38 losses under Brotli against the
-smallest competitor, where the old route was 53/1/0. Read
+Mixed, and stated per boundary and objective. The accepted Y5 ratchet wins
+against Closure ADVANCED on application totals under raw, gzip and Brotli,
+while algorithm totals and some individual applications still lose. Full
+compiler-written delivery and runtime qualification remain open. Read
 [current status](docs/current-status.md) before quoting a result. Measurement
 meaning and eligible comparisons are defined by the
 [verification contract](docs/knowledge/verification/README.md); tracked reports
 and scoped interpretations are indexed under
 [evidence](docs/knowledge/evidence/README.md).
-The compiler and the language follow [the architecture](docs/future-architecture.md)
-and its [migration plan](docs/migration/plan.md) ([progress](docs/migration/index.md)). Open language decisions remain explicit. Former migration plans are retired;
+The compiler follows the [active design and plan](docs/migration/plan.md)
+([progress](docs/migration/index.md)). Open language decisions remain explicit. Former migration plans are retired;
 [finer/](finer/README.md) retains measurement tools and historical experiments.
 
 ## How it compresses JS finer than Vite / Oxc / Terser / esbuild

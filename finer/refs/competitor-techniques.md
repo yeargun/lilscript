@@ -1,6 +1,6 @@
 # Competitor technique inventory: oxc_minifier vs terser vs LilScript
 
-**Historical multi-date inventory.** Current capability requirements and their verification belong to the [compiler design](../../docs/compiler-design.md#compression-capabilities-to-preserve-and-exceed) and [single migration plan](../../docs/migration/index.md#009-reusable-compression-families). The September 12 review is preserved in the external planning archive. Neither this inventory nor a prior local result establishes current parity or universally superior policy.
+**Historical multi-date inventory.** Current capability requirements and their verification belong to the [compiler design](../../docs/old-history/compiler-design-2026-09-18.md#compression-capabilities-to-preserve-and-exceed) and [single migration plan](../../docs/old-history/migration/record-2026-09.md#009-reusable-compression-families). The September 12 review is preserved in the external planning archive. Neither this inventory nor a prior local result establishes current parity or universally superior policy.
 
 Standing homework (objective.md §7, harvest), not tied to a hypothesis folder. Read directly from the
 vendored sources below; nothing was downloaded.

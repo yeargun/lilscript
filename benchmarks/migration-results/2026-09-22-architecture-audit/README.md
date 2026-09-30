@@ -24,7 +24,7 @@ What the rows say:
 
 ## 2. Optimization: the gains are real, but they come from a minifier on the target tree, not from types
 
-**Where the semantic bytes come from.** 009's ablation, re-run after batch 5, shows it. Target compaction, naming and liveness carry the output. The typed proof families (scalar replacement, leaf-helper inlining, constant folding, call specialization, string pooling) add 0–48 bytes on every reference port ([009 ablation](../../../docs/migration/index.md#009-ablation-re-run-after-batch-5-2026-09-22)). The 009–013 batches are generic rewrites of the finished JS tree: forwarding, inlining, store folding, namespace flattening and spellings. Terser does the same kinds of rewrite.
+**Where the semantic bytes come from.** 009's ablation, re-run after batch 5, shows it. Target compaction, naming and liveness carry the output. The typed proof families (scalar replacement, leaf-helper inlining, constant folding, call specialization, string pooling) add 0–48 bytes on every reference port ([009 ablation](../../../docs/old-history/migration/record-2026-09.md#009-ablation-re-run-after-batch-5-2026-09-22)). The 009–013 batches are generic rewrites of the finished JS tree: forwarding, inlining, store folding, namespace flattening and spellings. Terser does the same kinds of rewrite.
 
 **What a general minifier still finds in our output** ([terser-over-our-output.txt](data/terser-over-our-output.txt)): Terser (compress passes 2 + mangle, toplevel) applied to our own artifacts.
 

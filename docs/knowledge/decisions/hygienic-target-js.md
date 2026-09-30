@@ -1,6 +1,6 @@
 # Use a narrow hygienic target-JS representation
 
-Status: historical rationale; current target is contract A5 in [future architecture §4](../../future-architecture.md#4-contracts-carried-from-the-2026-09-18-design) and the JavaScript target in [§10](../../future-architecture.md#10-the-javascript-target). Parent: [design decisions](README.md).
+Status: historical rationale; current target is contract A5 in [future architecture §4](../../old-history/future-architecture.md#4-contracts-carried-from-the-2026-09-18-design) and the JavaScript target in [§10](../../old-history/future-architecture.md#10-the-javascript-target). Parent: [design decisions](README.md).
 
 ## Intent
 
@@ -28,4 +28,4 @@ identities from formation to printing, and no stage parses its own output to
 optimize it. An independent parser of every delivered file remains a
 verification tool (plan M2.5). Do not build a second general optimizer.
 
-Plan: [ownership and replacement rules](../../migration/record-2026-09.md#ownership-and-replacement-rules).
+Plan: [ownership and replacement rules](../../old-history/migration/record-2026-09.md#ownership-and-replacement-rules).

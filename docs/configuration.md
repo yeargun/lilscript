@@ -2,6 +2,12 @@
 
 Why knobs exist, precedence, and how they change compilation: [knowledge/config](knowledge/config/README.md). The generated key-by-key reference, with defaults, is [knowledge/config/schema.md](knowledge/config/schema.md). This page explains the file.
 
+The [migration configuration contract](migration/plan.md#3-configuration-is-a-product-contract)
+describes planned completion separately from this accepted schema. Today a build
+selects one objective; multi-objective requests and complete family-veto coverage
+are still open. In particular, terminal string pooling/packing has a tracked
+permission gap owned by [C1](migration/plan.md#c1).
+
 The CLI discovers `lilscript.toml` by walking from the input module toward the
 filesystem root. Pass `--config path/to/config.toml` to select one explicitly.
 `lilscript <input> --print-policy` prints the exact policy a build uses: the

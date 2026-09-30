@@ -211,7 +211,7 @@ test("a progress table that cannot be read is an error, not a pass", t => {
   assert.throws(() => parsePlanTable("| Done | Step | Prerequisites for closure | State | Accepted receipt |\n|---|---|---|---|---|\n| [ ] | not a step | None | ready | None |\n"), /does not name a numbered step/)
 })
 
-test("the repository's own plan parses and every declared step is present", () => {
+test("the archived milestone table parses and every historical step is present", () => {
   const result = validateProgress()
   assert.equal(result.rows.length, 14)
   assert.deepEqual(result.rows.map(row => row.step), Array.from({ length: 14 }, (_, index) => String(index + 1).padStart(3, "0")))

@@ -11,9 +11,10 @@ artifacts are legal; the configured objective ranks only legal alternatives.
 | Page | Question |
 |---|---|
 | [Current architecture](current-architecture.md) | What does the code do today, stage by stage, and which plan task closes each gap? |
-| [Future architecture](../../future-architecture.md) | What is the compiler's architecture, and the size-relevant language design? |
+| [Active design and plan](../../migration/plan.md) | What architecture, objective policies and configuration behavior are we building? |
 | [Migration plan](../../migration/index.md) | Which bounded steps get there, and how is each verified? |
 | [History](../history/README.md) | How did the deleted route work (typed CFG/SSA IR, optimizer, emitter, text peephole, decision registry, search)? |
 
-The history pages are prior art: plan rule 7 asks each batch to read the old
-route's version of what it rebuilds. They never describe current behavior.
+The history pages and [previous migration documents](../../old-history/README.md)
+are prior art. Read the relevant evidence when replacing a mechanism; use the
+active plan and current source for implementation decisions.

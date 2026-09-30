@@ -55,7 +55,7 @@ Every surface construct is judged by whether it gives the compiler a **proof** i
 
 ## Compilation consequence
 
-Language design is upstream of [compilation](../compilation/README.md). If a feature cannot be checked, escaped, and represented, the compressor cannot legally rewrite it. Prefer a smaller, explicit surface over a JS convenience that would force conservative lowering. Which legal representations are rules and which are codec-judged choices is the architecture's [§8–§9](../../future-architecture.md#8-edits-and-the-rule-scheduler); the language additions designed for size are [§12](../../future-architecture.md#12-the-language-designed-for-size). How to write a port so Terser/Oxc/Closure can lose: [compressor surface](compressor-surface.md).
+Language design is upstream of [compilation](../compilation/README.md). If a feature cannot be checked, escaped, and represented, the compressor cannot legally rewrite it. Prefer a smaller, explicit surface over a JS convenience that would force conservative lowering. Which legal representations are rules and which are codec-judged choices is the architecture's [§8–§9](../../old-history/future-architecture.md#8-edits-and-the-rule-scheduler); the language additions designed for size are [§12](../../old-history/future-architecture.md#12-the-language-designed-for-size). How to write a port so Terser/Oxc/Closure can lose: [compressor surface](compressor-surface.md).
 
 Config that changes **language-visible ABI** is contract, not a codec preference
 (architecture law L12):

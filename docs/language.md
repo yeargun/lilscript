@@ -4,9 +4,11 @@
 - **in force**: the compiler implements it, and v0.1 says the same;
 - **target (task)**: the plan task that implements it ([migration/plan.md](migration/plan.md); its state is in [migration/index.md](migration/index.md)); until it lands, v0.1's clause governs. When the task lands, the clause becomes *in force* and its v0.1 text is deleted. When every clause is in force, v0.1 is retired and this page is the only contract.
 
-**⚖ Yn** marks a clause that amends an earlier owner choice and waits for the owner's yes to question Yn ([future-architecture.md §21](future-architecture.md#21-owner-decisions)). Every other clause is decided (§21.2 there). The page changes only by amendment ([future-architecture.md §22](future-architecture.md#22-stability-and-change-control)); rule ids R1–R18 are frozen.
+The 2026-09-29 replan preserves this language work. Legacy M-task labels map to current owners in [coverage.md](migration/coverage.md); use that map and the active checklist for implementation status. A planning change does not by itself implement a language clause.
 
-v0.1 line references are to `git show d1d48c4c:docs/language-v0.1.md`. The architecture is [future-architecture.md §12](future-architecture.md#12-the-language-designed-for-size). The rules come from the language review (`~/lilscript-work/out/design/review-language.md`, with probes and a fleet census in `review-language-probes/`), the Closure ADVANCED review's recovery-pass clauses, the runtime review's laws P1–P9, and three critiques of the first draft.
+**⚖ Yn** identifies an earlier owner decision, whose original wording is [archived](old-history/future-architecture.md#21-owner-decisions). Y1 and Y5 were approved; Y2/Y3/Y4 remain explicit in the active plan's [language compatibility section](migration/plan.md#10-language-compatibility-and-plan-maintenance). Changes to observable language semantics require an explicit language amendment. Rule ids R1–R18 remain stable.
+
+v0.1 line references are to `git show d1d48c4c:docs/language-v0.1.md`. The [active plan](migration/plan.md) owns the compiler architecture; the [previous language rationale](old-history/future-architecture.md#12-the-language-designed-for-size) remains evidence. The rules come from the language review (`~/lilscript-work/out/design/review-language.md`, with probes and a fleet census in `review-language-probes/`), the Closure ADVANCED review's recovery-pass clauses, the runtime review's laws P1–P9, and three critiques of the first draft.
 
 ---
 
@@ -20,7 +22,7 @@ v0.1 line references are to `git show d1d48c4c:docs/language-v0.1.md`. The archi
 4. **Reflection is an operation.** Names, lengths, constructibility, key order and prototype identity are unobservable except at a declared boundary or on a nominal in the checker's reflected set.
 5. **One meaning, capabilities per target.** Every type and operation declares its targets. The checker refuses non-portable use with a span.
 
-Two laws bind every rule: a typed form never costs more bytes **or time** than its untyped equivalent (L13, P9), and a fact the author knows is stated before the compiler builds an analysis to recover it (L14).
+Typed forms should remove avoidable representation and runtime costs, and declarations should expose guarantees the compiler can consume. These are engineering goals: static typing alone does not prove smaller compressed output or faster execution. The active plan verifies size under each objective and runtime on declared workloads. The older L13/P9/L14 labels identify the historical rationale.
 
 **Evidence that the language is the primary lever.** On the five losing entries of 2026-09-27, about 1,040 of the roughly 1,800 verified recoverable Brotli bytes come from ceremony the language forces or fails to replace (review-language §2.3). The 27 ports hold 38,586 `JsValue` and 46,053 `JS.*` mentions, and use `ref` 0 times, `export constructor` 0 times and `match` 11 times. Typed ports run at or above upstream speed (markedlil 0.876 on its spec lane); untyped transliterations run slower (katexlil 1.10 in Node).
 

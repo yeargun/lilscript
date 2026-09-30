@@ -96,5 +96,5 @@ survivor set is heuristic. See [objectives](objectives.md).
 Budgets, broad-module phase-order collapse, and one-way codec priors are
 documented in [decision registry](decision-registry.md) and
 [current architecture](current-architecture.md). Planned guarantees and explicit
-non-goals are in [compiler design](../../../compiler-design.md) and its
-[bounded-search implementation step](../../../migration/record-2026-09.md#010-bounded-codec-search).
+non-goals are in [compiler design](../../../old-history/compiler-design-2026-09-18.md) and its
+[bounded-search implementation step](../../../old-history/migration/record-2026-09.md#010-bounded-codec-search).

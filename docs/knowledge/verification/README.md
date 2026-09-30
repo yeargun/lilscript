@@ -11,7 +11,7 @@ This folder defines what a LilScript compression result must mean. It is deliber
 stricter than “both snippets print the same line and one file is shorter.” Web code
 has public APIs, host effects, modules, lazy artifacts, codec-specific sizes, runtime
 contracts, and tool-specific eligibility constraints. Selection by exact codec:
-[future architecture §9](../../future-architecture.md#9-choices-search-and-the-objective). Glue-TS vs missing proof:
+[future architecture §9](../../old-history/future-architecture.md#9-choices-search-and-the-objective). Glue-TS vs missing proof:
 [compressor surface](../language/compressor-surface.md).
 
 ## Documents
@@ -59,7 +59,7 @@ it must not be relabelled as direct compiler output.
   release-wired. Durable reviewed cases live in
   [`comparison/cases/canonical/`](../../../comparison/cases/canonical/). The
   generated catalog remains a parameterized regression net with a checked-in oracle
-  digest. See the [support inventory](../../migration/record-2026-09.md#001-baselines-and-support-inventory).
+  digest. See the [support inventory](../../old-history/migration/record-2026-09.md#001-baselines-and-support-inventory).
 - The micro catalog is not structural whole-program evidence. The separate
   [algorithm lane](algorithm-challenges.md) owns multi-function/module interaction,
   runtime vectors, and codec-window scaling.

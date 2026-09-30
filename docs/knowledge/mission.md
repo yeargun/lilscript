@@ -120,4 +120,4 @@ or a more abstract architecture is not automatically better.
 7. Does the appropriate semantic/API corpus pass before a size claim is made?
 
 Existing implementation: [current architecture](compilation/current-architecture.md).
-Architecture: [future-architecture.md](../future-architecture.md). Plan: [migration/plan.md](../migration/plan.md), progress: [migration/index.md](../migration/index.md); old plans are retired.
+Architecture: [future-architecture.md](../migration/plan.md). Plan: [migration/plan.md](../migration/plan.md), progress: [migration/index.md](../migration/index.md); old plans are retired.

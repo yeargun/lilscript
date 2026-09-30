@@ -1,6 +1,6 @@
 # JavaScript vs native
 
-Parent: [Language](README.md). Related: [mission](../mission.md), [current architecture](../compilation/current-architecture.md), [future architecture §11](../../future-architecture.md#11-native-and-cross-target).
+Parent: [Language](README.md). Related: [mission](../mission.md), [current architecture](../compilation/current-architecture.md), [future architecture §11](../../old-history/future-architecture.md#11-native-and-cross-target).
 
 ## One checked program, two targets
 

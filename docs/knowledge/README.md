@@ -17,10 +17,10 @@ more specific question and links to detail instead of repeating it.
    narrow target representation.
 5. **Implementation:** [current architecture](compilation/current-architecture.md)
    describes the one compiler as it exists now.
-6. **Architecture and plan:** [future-architecture.md](../future-architecture.md) is
-   the compiler's architecture and the size-relevant language design; the single
-   [migration plan](../migration/plan.md) contains all implementation steps, and
-   [its progress](../migration/index.md) says which are done.
+6. **Architecture and plan:** the [migration plan](../migration/plan.md) owns
+   the objective, configuration contract, mechanisms and implementation steps;
+   [its checklist](../migration/index.md) owns progress. Previous plans and
+   measurements are preserved in [old-history](../old-history/README.md).
 7. **Verification tools:** [testing.md](../testing.md) (the case runner, the port
    runner and their expected-failure ledgers); [verification](verification/README.md)
    defines valid evidence; [evidence](evidence/README.md) links results.
@@ -40,8 +40,8 @@ more specific question and links to detail instead of repeating it.
 | Why is a semantic rule not a codec choice? | [Contracts before objectives](decisions/contracts-before-objectives.md) |
 | Why not add a library-specific fold? | [Typed proofs, not glue](decisions/typed-proofs-not-glue.md) |
 | What pipeline exists now? | [Current architecture](compilation/current-architecture.md) |
-| What is the architecture we are building? | [Future architecture](../future-architecture.md) |
-| How are raw/gzip/Brotli winners selected? | [Future architecture §9](../future-architecture.md#9-choices-search-and-the-objective) |
+| What is the architecture we are building? | [Active design and plan](../migration/plan.md) |
+| How are raw/gzip/Brotli winners selected? | [Bounded search and compilation cost](../migration/plan.md#6-bounded-search-and-compilation-cost) |
 | How did the old route do something? | [History](history/README.md) |
 | Is a size number publishable? | [Verification](verification/README.md) -> [evidence](evidence/README.md) |
 | How do I check a compiler binary? | [Testing](../testing.md) |
@@ -73,7 +73,7 @@ more specific question and links to detail instead of repeating it.
 [Compilation index](compilation/README.md)
 
 - [Current architecture](compilation/current-architecture.md)
-- [Future architecture](../future-architecture.md)
+- [Active design and plan](../migration/plan.md)
 - [History of the deleted route](history/README.md)
 
 ### Operation
@@ -89,9 +89,9 @@ more specific question and links to detail instead of repeating it.
 
 ## Source Authority Map
 
-After plan M1.7's rename. Where a path moves again, the
-[architecture's source layout](../future-architecture.md#15-source-layout-at-the-end-of-the-migration)
-says where to.
+Use the [current source map](compilation/current-architecture.md) and source
+itself for paths. The active plan moves code with its ownership changes rather
+than requiring a separate repository-layout migration.
 
 | Concern | Primary source |
 |---|---|

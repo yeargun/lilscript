@@ -12,7 +12,7 @@ TypeScript checks, then **erases**. The leftover JavaScript still has:
 - `Promise<T>` with untyped rejection;
 - module interop wrappers.
 
-Closure `ADVANCED` then tries to recover what the type layer threw away. LilScript never throws it away. `Type` in `src/check.rs` drives elaboration into the Program IR, formation, and both targets' representations. Architecture law L13 states the other half: a typed form must never cost more bytes than its untyped equivalent, or authors learn to hide facts ([future architecture §12](../../future-architecture.md#12-the-language-designed-for-size)).
+Closure `ADVANCED` then tries to recover what the type layer threw away. LilScript never throws it away. `Type` in `src/check.rs` drives elaboration into the Program IR, formation, and both targets' representations. Architecture law L13 states the other half: a typed form must never cost more bytes than its untyped equivalent, or authors learn to hide facts ([future architecture §12](../../old-history/future-architecture.md#12-the-language-designed-for-size)).
 
 ## Each type has two representations
 

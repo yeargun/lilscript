@@ -1115,7 +1115,7 @@ the selected boundary permit them.
 The implemented pipeline is documented in
 [current architecture](knowledge/compilation/current-architecture.md), and the
 architecture it is moving to, including what the compiler learns from Closure
-ADVANCED, in [future-architecture.md](future-architecture.md). Project-wide
+ADVANCED, in [future-architecture.md](migration/plan.md). Project-wide
 completion criteria and current state live in the
 [migration plan](migration/index.md) and [current status](current-status.md),
 not in the language semantics contract. The clauses marked **Until M…** are the

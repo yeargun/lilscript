@@ -32,6 +32,6 @@ alternative or interaction worth measuring.
 - No full Cartesian product, unbounded codec probing, or solver without a
   measured case that requires it.
 
-Details: [future architecture §9](../../future-architecture.md#9-choices-search-and-the-objective).
+Details: [bounded search and compilation cost](../../migration/plan.md#6-bounded-search-and-compilation-cost).
 The deleted route's implementation: [objectives](../history/compilation/objectives.md),
 [candidate search](../history/compilation/candidate-search.md).

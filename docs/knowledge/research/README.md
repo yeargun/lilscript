@@ -11,9 +11,9 @@ proof, registered candidate, and reproducible ablation before it enters the
 canonical architecture.
 
 How those ideas must enter the compiler (registered recipe, not a package-shaped
-special case): [compiler design](../../compiler-design.md),
+special case): [compiler design](../../old-history/compiler-design-2026-09-18.md),
 [objectives](../history/compilation/objectives.md),
-[migration plan](../../migration/record-2026-09.md#009-reusable-compression-families).
+[migration plan](../../old-history/migration/record-2026-09.md#009-reusable-compression-families).
 What the language must state so Closure/Terser cannot uniquely guess it:
 [compressor surface](../language/compressor-surface.md).
 

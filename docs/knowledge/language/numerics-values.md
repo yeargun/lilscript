@@ -9,13 +9,13 @@ both targets and the interpreter in `src/primitive.rs`, primitive domains in
 LilScript distinguishes values whose JavaScript spelling looks similar because the
 distinction supplies optimization proofs.
 
-Owner decision [D1](../../future-architecture.md#appendix-a-owner-decisions-d1d5-verbatim-from-the-2026-09-18-design-git-show-d362338fdocscompiler-designmd)
+Owner decision [D1](../../old-history/future-architecture.md#appendix-a-owner-decisions-d1d5-verbatim-from-the-2026-09-18-design-git-show-d362338fdocscompiler-designmd)
 selects **value structs with explicit mutable references**. Caller-mutating helpers
 require an explicit `ref` to the original place
 ([language contract](../../language-v0.1.md#mutable-references-ref)); flattening
 cannot change assignment semantics. Nested/generic/nullable copies, reference
 fields and capture/lifetime details are specified and tested in
-[step 002](../../migration/record-2026-09.md#002-language-and-public-boundaries).
+[step 002](../../old-history/migration/record-2026-09.md#002-language-and-public-boundaries).
 The architecture proposes revising D1 to immutable value structs with functional
 update (L6, plan M10.9, needs an owner ruling).
 

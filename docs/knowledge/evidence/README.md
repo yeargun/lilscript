@@ -17,7 +17,7 @@ that route, never a claim about the one compiler. Current standings are in
 
 How the compiler decides representations (including heuristics that evidence
 cannot yet justify as global): [current architecture](../compilation/current-architecture.md),
-[future architecture §9](../../future-architecture.md#9-choices-search-and-the-objective). When a port loses, classify
+[future architecture §9](../../old-history/future-architecture.md#9-choices-search-and-the-objective). When a port loses, classify
 compiler bug vs missing proof vs JS-shaped rewrite:
 [compressor surface](../language/compressor-surface.md).
 
@@ -79,5 +79,5 @@ Related labs: [`benchmarks/popular/RESULTS.md`](../../../benchmarks/popular/RESU
 `comparison/cases/summary.json` and other working summaries may be ignored or
 regenerated. Publication requires a tracked immutable report. The current
 large-library seed does not yet represent every latest Motion, Marked, MobX, and
-jQuery artifact; the [baseline/support inventory](../../migration/record-2026-09.md#001-baselines-and-support-inventory)
+jQuery artifact; the [baseline/support inventory](../../old-history/migration/record-2026-09.md#001-baselines-and-support-inventory)
 must requalify the complete maintained set.

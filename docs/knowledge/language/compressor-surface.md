@@ -1,10 +1,10 @@
 # Language surface for the compressor
 
 Parent: [Language](README.md). Contract: [`docs/language-v0.1.md`](../../language-v0.1.md).
-Objectives: [future architecture §9](../../future-architecture.md#9-choices-search-and-the-objective).
+Objectives: [future architecture §9](../../old-history/future-architecture.md#9-choices-search-and-the-objective).
 Ports: [corpora](../evidence/corpora-and-lanes.md), [jQuery](../evidence/jquery.md).
 Plan: phase M10, language for size, in the [migration plan](../../migration/index.md); the
-earlier [reusable compression families](../../migration/record-2026-09.md#009-reusable-compression-families) are in the record.
+earlier [reusable compression families](../../old-history/migration/record-2026-09.md#009-reusable-compression-families) are in the record.
 
 LilScript beats Terser, Oxc, and Closure ADVANCED when the program is **written
 in LilScript**. It does not beat them by transliterating JavaScript into
@@ -184,7 +184,7 @@ because the deleted route's SSA coalescing and name-keyed host lowering
 miscompiled large graphs (historical identity-lane evidence). The one compiler's
 target tree carries binding identities from formation to printing, and
 name-keyed host lowering is gone
-([step 008](../../migration/record-2026-09.md#008-whole-program-js-and-delivery)).
+([step 008](../../old-history/migration/record-2026-09.md#008-whole-program-js-and-delivery)).
 Do not grow syntax to paper over an unsound coalescer.
 
 Search ranking unresolved names (ident-05 (archived: `repository/docs/knowledge/migration/board/notes/ident-05.md`))
