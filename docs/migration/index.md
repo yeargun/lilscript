@@ -20,8 +20,8 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 **Active: S1 only.** Finish known-method and bounded pure-call evaluation,
 finite value propagation, defaults/returns and the dead work made removable by
-those facts. Write and satisfy the finite S1 acceptance contract before opening
-S2. C3 is [complete and qualified](../../benchmarks/migration-results/2026-10-01-c3-complete/README.md):
+those facts under the [finite S1 acceptance contract](s1-acceptance.md) before
+opening S2. C3 is [complete and qualified](../../benchmarks/migration-results/2026-10-01-c3-complete/README.md):
 all 24 training and nine protected evaluation cells pass independent oracles;
 the retained no-prune result supports no production-policy change. Follow the
 [single milestone order](plan.md#8-working-order). Existing partial work below
