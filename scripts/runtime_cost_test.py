@@ -7,8 +7,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import importlib.util
 
 RUNNER = Path(__file__).with_name("runtime-cost.py")
+SPEC = importlib.util.spec_from_file_location("runtime_cost", RUNNER)
+RUNTIME = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(RUNTIME)
 
 
 class RuntimeCostTest(unittest.TestCase):
@@ -116,6 +120,26 @@ export function run(api, iterations) {
         self.assertFalse(report["complete"])
         self.assertIn("non-finite JSON number", report["error"])
         self.assertNotIn("workloads", report)
+
+    def test_controls_retain_identical_oracles_and_warmup_samples(self):
+        self.manifest["schema"] = 2
+        self.manifest["workloads"][0]["runtime_limits"] = {"steady_cpu_us": .1}
+        result, report = self.run_measurement()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        row = report["workloads"][0]
+        self.assertEqual(len(row["samples"]), 5)
+        self.assertEqual({sample["implementation"] for sample in row["samples"]},
+                         {"reference", "candidate", "control-0", "control-1", "control-2"})
+        self.assertTrue(all(len(sample["warmup"]) == 1 for sample in row["samples"]))
+        self.assertEqual(row["judgments"]["steady_cpu_us"]["verdict"], "inconclusive")
+
+    def test_noise_and_small_samples_cannot_establish_parity(self):
+        quiet = [[1, 1.01, .99, 1, 1]]
+        self.assertEqual(RUNTIME.judge_ratios([1.5]*5, quiet, .05)["verdict"], "regression")
+        self.assertEqual(RUNTIME.judge_ratios([1.01]*5, quiet, .05)["verdict"], "within-declared-limit")
+        self.assertEqual(RUNTIME.judge_ratios([1.0], quiet, .05)["verdict"], "inconclusive")
+        self.assertEqual(RUNTIME.judge_ratios([1.0]*5, [[1.2]*5], .05)["verdict"], "inconclusive")
+        self.assertEqual(RUNTIME.judge_ratios([1.0]*5, [], .05)["verdict"], "inconclusive")
 
 
 if __name__ == "__main__":

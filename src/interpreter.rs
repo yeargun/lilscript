@@ -15,6 +15,9 @@ use crate::check::{BuiltinCall, CheckedModule, SymbolId, Type};
 use crate::span::Span;
 use crate::typed_array::TypedArrayKind;
 
+mod aggregates;
+use aggregates::copy_for_store;
+
 const DEFAULT_STEP_LIMIT: u64 = 10_000_000;
 const DEFAULT_RECURSION_LIMIT: usize = 256;
 
@@ -57,12 +60,22 @@ enum Value {
     Bool(bool),
     Array(Rc<RefCell<Vec<Value>>>),
     Record(Rc<RefCell<IndexMap<String, Value>>>),
+    Struct(Rc<AggregateValue>),
+    Instance(Rc<AggregateValue>),
+    Map(Rc<RefCell<Vec<Option<(Value, Value)>>>>),
+    Set(Rc<RefCell<Vec<Option<Value>>>>),
     Buffer(Rc<BufferValue>),
     TypedArray(Rc<TypedArrayValue>),
     Symbol(Rc<SymbolValue>),
     Callable(Callable),
     Null,
     Void,
+}
+
+#[derive(Debug)]
+struct AggregateValue {
+    name: String,
+    fields: Rc<RefCell<IndexMap<String, Value>>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -132,6 +145,8 @@ impl Value {
             Self::Float(value) => Ok(value.to_string()),
             Self::String(value) => Ok(value.clone()),
             Self::Bool(value) => Ok(value.to_string()),
+            Self::Struct(_) | Self::Instance(_) | Self::Map(_) | Self::Set(_) => Err(
+                InterpretError::new(span, "aggregate values cannot be printed directly")),
             Self::Array(_) => Err(InterpretError::new(
                 span,
                 "array value cannot be printed directly",
@@ -216,6 +231,7 @@ struct ReferenceInterpreter<'program, 'ast, 'src> {
     globals: AHashMap<SymbolId, Value>,
     frames: Vec<AHashMap<SymbolId, BindingCell>>,
     closures: Vec<RuntimeClosure<'ast, 'src>>,
+    constructors: Vec<(Rc<AggregateValue>, &'program crate::ast::ClassDecl<'ast, 'src>)>,
     output: String,
     remaining_steps: u64,
     recursion_depth: usize,
@@ -245,6 +261,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             globals: AHashMap::new(),
             frames: Vec::new(),
             closures: Vec::new(),
+            constructors: Vec::new(),
             output: String::new(),
             remaining_steps: limits.steps,
             recursion_depth: 0,
@@ -270,8 +287,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                         ));
                     }
                 },
-                Item::Enum(_) | Item::Struct(_) | Item::Function(_) => {}
-                Item::Class(_) | Item::ExternClass(_) | Item::Extern(_) | Item::ExternGlobal(_) => {
+                Item::Enum(_) | Item::Struct(_) | Item::Function(_) | Item::Class(_) => {}
+                Item::ExternClass(_) | Item::Extern(_) | Item::ExternGlobal(_) => {
                     return Err(InterpretError::new(
                         item.span(),
                         "reference interpreter does not support host or class declarations",
@@ -391,10 +408,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     format!("uncaught thrown value: {value:?}"),
                 ))
             }
-            Stmt::SuperCall { span, .. } => Err(InterpretError::new(
-                *span,
-                "class constructors are only available through compiled targets",
-            )),
+            Stmt::SuperCall { args, span } => {
+                self.evaluate_super(args, *span)?;
+                Ok(Flow::Next)
+            },
             Stmt::Yield { span, .. } => Err(InterpretError::new(
                 *span,
                 "generators are only available for JavaScript targets",
@@ -590,7 +607,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 let mut values = Vec::with_capacity(elements.len());
                 for element in *elements {
                     match element {
-                        ArrayElement::Value(value) => values.push(self.evaluate(value)?),
+                        ArrayElement::Value(value) => values.push(copy_for_store(self.evaluate(value)?)),
                         ArrayElement::Spread { value, .. } => {
                             let Value::Array(spread) = self.evaluate(value)? else {
                                 return Err(InterpretError::new(
@@ -931,13 +948,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     "exhaustive match selected no arm",
                 ))
             }
-            Expr {
-                kind: ExprKind::StructLiteral { span, .. },
-                ..
-            } => Err(InterpretError::new(
-                *span,
-                "reference interpreter does not support nominal aggregate or class expressions",
-            )),
+            Expr { kind: ExprKind::StructLiteral { name, values, span }, .. } => {
+                self.evaluate_struct(name.name, values, *span)
+            },
         }
     }
 
@@ -957,6 +970,18 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         args: &'ast [crate::ast::Argument<'ast, 'src>],
         span: Span,
     ) -> Result<Value, InterpretError> {
+        if name == "Map" && args.is_empty() {
+            return Ok(Value::Map(Rc::new(RefCell::new(Vec::new()))));
+        }
+        if name == "Set" && args.is_empty() {
+            return Ok(Value::Set(Rc::new(RefCell::new(Vec::new()))));
+        }
+        if let Some(class) = self.class_declaration(name) {
+            let values = self.evaluate_arguments(args)?;
+            let receiver = Rc::new(AggregateValue { name: name.into(), fields: Rc::default() });
+            self.initialize_class(receiver.clone(), class, values, span)?;
+            return Ok(Value::Instance(receiver));
+        }
         if name == "Symbol" {
             if args.len() > 1 {
                 return Err(InterpretError::new(
@@ -1009,6 +1034,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         span: Span,
     ) -> Result<Value, InterpretError> {
         match (object, property) {
+            (Value::Struct(value) | Value::Instance(value), property) => value.fields.borrow()
+                .get(property).cloned().ok_or_else(|| InterpretError::new(span, "read of an uninitialized field")),
+            (Value::Map(values), "size") => Ok(Value::Int(values.borrow().iter().flatten().count() as i32)),
+            (Value::Set(values), "size") => Ok(Value::Int(values.borrow().iter().flatten().count() as i32)),
             (Value::Record(record), property) => Ok(record
                 .borrow()
                 .get(property)
@@ -1427,9 +1456,22 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         span: Span,
     ) -> Result<Value, InterpretError> {
         let receiver = self.evaluate(object)?;
+        // Resolve the callee before evaluating arguments, which may replace a
+        // callable field. Class methods are looked up on the dynamic class.
+        if let Value::Instance(instance) = &receiver {
+            let field = instance.fields.borrow().get(method).cloned();
+            let function = self.class_method(&instance.name, method);
+            let values = self.evaluate_arguments(args)?;
+            if let Some(field) = field { return self.invoke_callable(field, values, span); }
+            let function = function.ok_or_else(|| InterpretError::new(span, "unknown class method"))?;
+            return self.invoke_method(instance.clone(), function, values, span);
+        }
         let mut arguments = Vec::with_capacity(args.len());
         for argument in args {
             arguments.push(self.evaluate(&argument.expression)?);
+        }
+        if matches!(receiver, Value::Map(_) | Value::Set(_)) {
+            return self.evaluate_collection_method(receiver, method, &arguments, span);
         }
         if matches!(method, "truthy" | "isArray" | "isObject") {
             if !arguments.is_empty() {
@@ -1445,7 +1487,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     Value::String(value) => !value.is_empty(),
                     Value::Bool(value) => *value,
                     Value::Null | Value::Void => false,
-                    Value::Array(_)
+                    Value::Struct(_) | Value::Instance(_) | Value::Map(_) | Value::Set(_)
+                    | Value::Array(_)
                     | Value::Record(_)
                     | Value::Buffer(_)
                     | Value::TypedArray(_)
@@ -1455,7 +1498,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 "isArray" => matches!(receiver, Value::Array(_)),
                 "isObject" => matches!(
                     receiver,
-                    Value::Array(_)
+                    Value::Struct(_) | Value::Instance(_) | Value::Map(_) | Value::Set(_)
+                        | Value::Array(_)
                         | Value::Record(_)
                         | Value::Buffer(_)
                         | Value::TypedArray(_)
@@ -1521,7 +1565,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     return Err(InterpretError::new(span, "array push requires one value"));
                 };
                 let mut array = array.borrow_mut();
-                array.push(value.clone());
+                array.push(copy_for_store(value.clone()));
                 Ok(Value::Int(i32::try_from(array.len()).map_err(|_| {
                     InterpretError::new(span, "array length exceeds the i32 range")
                 })?))
@@ -2027,6 +2071,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     },
                 ..
             } => match self.evaluate(object)? {
+                Value::Struct(value) | Value::Instance(value) => Ok(RuntimePlace::RecordEntry {
+                    record: value.fields.clone(), key: property.name.to_string(),
+                }),
                 Value::Record(record) => Ok(RuntimePlace::RecordEntry {
                     record,
                     key: property.name.to_string(),
@@ -2177,7 +2224,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
 }
 
 fn coerce_value_to_type(value: Value, ty: &Type<'_>) -> Value {
-    match (value, ty) {
+    match (copy_for_store(value), ty) {
         (Value::Int(value), Type::Float) => Value::Float(f64::from(value)),
         (value, Type::Nullable(inner)) if !matches!(value, Value::Null) => {
             coerce_value_to_type(value, inner)
@@ -2213,6 +2260,10 @@ fn values_equal(lhs: &Value, rhs: &Value) -> bool {
         (Value::Float(lhs), Value::Int(rhs)) => *lhs == f64::from(*rhs),
         (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
         (Value::Bool(lhs), Value::Bool(rhs)) => lhs == rhs,
+        (Value::Instance(lhs), Value::Instance(rhs)) => Rc::ptr_eq(lhs, rhs),
+        (Value::Map(lhs), Value::Map(rhs)) => Rc::ptr_eq(lhs, rhs),
+        (Value::Set(lhs), Value::Set(rhs)) => Rc::ptr_eq(lhs, rhs),
+        (Value::Callable(lhs), Value::Callable(rhs)) => lhs == rhs,
         (Value::Array(lhs), Value::Array(rhs)) => Rc::ptr_eq(lhs, rhs),
         (Value::Record(lhs), Value::Record(rhs)) => Rc::ptr_eq(lhs, rhs),
         (Value::Buffer(lhs), Value::Buffer(rhs)) => Rc::ptr_eq(lhs, rhs),
@@ -2289,6 +2340,8 @@ fn value_to_json(value: &Value, span: Span) -> Result<serde_json::Value, Interpr
                 .map(|value| value_to_json(value, span))
                 .collect::<Result<_, _>>()?,
         ),
+        Value::Struct(value) | Value::Instance(value) => value_to_json(&Value::Record(value.fields.clone()), span)?,
+        Value::Map(_) | Value::Set(_) => serde_json::Value::Object(serde_json::Map::new()),
         Value::Record(record) => {
             let record = record.borrow();
             let mut object = serde_json::Map::new();
@@ -2895,6 +2948,32 @@ mod tests {
         let program = parse_source(&arena, source).unwrap();
         let semantics = analyze(&program).unwrap();
         interpret_program(&program, &semantics).unwrap()
+    }
+
+    #[test]
+    fn nominal_and_collection_conformance_uses_checked_in_oracles() {
+        for (source, expected) in [
+            (include_str!("../tests/cases/19_class.lil"), include_str!("../tests/cases/19_class.out")),
+            (include_str!("../tests/cases/20_class_loop.lil"), include_str!("../tests/cases/20_class_loop.out")),
+            (include_str!("../tests/cases/aggregate_defaults.lil"), include_str!("../tests/cases/aggregate_defaults.out")),
+            (include_str!("../tests/cases/maps_sets.lil"), include_str!("../tests/cases/maps_sets.out")),
+            (include_str!("../tests/cases/symbol_map_keys.lil"), include_str!("../tests/cases/symbol_map_keys.out")),
+        ] { assert_eq!(run(source), expected); }
+    }
+
+    #[test]
+    fn struct_stores_copy_nested_values_and_classes_keep_identity() {
+        assert_eq!(run("struct Point{int x;}struct Pair{Point p;}Point a=Point{3};Pair pair=Pair{a};Point[] array=[a];Point b=a;b.x=9;pair.p.x=7;array[0].x=8;print(a.x);print(b.x);print(pair.p.x);print(array[0].x);"), "3\n9\n7\n8\n");
+    }
+
+    #[test]
+    fn inherited_dispatch_super_and_generic_calls_are_independent() {
+        assert_eq!(run("class Base{int x;init(int x){this.x=x;}int get(){return this.x;}}class Child extends Base{int y=4;init(int x){super(x);}int get(){return this.x+this.y;}}T identity<T>(T x){return x;}Base a=new Child(3);print(identity(a).get());"), "7\n");
+    }
+
+    #[test]
+    fn collection_same_value_zero_retains_distinct_reference_keys() {
+        assert_eq!(run("Map<float,int> m=new Map<float,int>();float nan=0.0/0.0;m.set(nan,1);m.set(nan,2);m.set(-0.0,3);print(m.size);print(m.get(0.0)??0);print(m.get(nan)??0);Set<float> s=new Set<float>();s.add(nan).add(nan).add(-0.0).add(0.0);print(s.size);"), "2\n3\n2\n2\n");
     }
 
     #[test]

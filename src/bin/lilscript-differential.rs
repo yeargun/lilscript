@@ -4,8 +4,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use bumpalo::Bump;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use lilscript::{analyze, interpret_program, parse_source};
+use serde_json::json;
+use sha2::{Digest, Sha256};
 
 const DEFAULT_SEED: u64 = 0x6c69_6c73_6372_6970;
 
@@ -40,6 +42,17 @@ struct Args {
     /// Directory for generated sources and compiled artifacts.
     #[arg(long)]
     output_dir: Option<PathBuf>,
+
+    /// Portable typed programs, JavaScript records, or both independent masks.
+    #[arg(long, value_enum, default_value_t = Features::All)]
+    features: Features,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Features {
+    Portable,
+    Javascript,
+    All,
 }
 
 fn main() {
@@ -52,122 +65,188 @@ fn main() {
 fn run() -> Result<(), String> {
     let mut args = Args::parse();
     if args.cases == 0 {
-        return Err("--cases must be greater than zero".to_string());
+        return Err("--cases must be greater than zero".into());
     }
     if args.random_seed {
         args.seed = entropy_seed();
     }
-    // Announced before any work so a hang, a timeout or a crash still names the
-    // seed. The divergence and success paths repeat it; only this line survives
-    // a run that never reaches either.
     eprintln!(
-        "lilscript-differential: seed {:#018x}, {} cases",
+        "lilscript-differential: seed {:#018x}, {} cases per mask",
         args.seed, args.cases
     );
-
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let output_dir = args
-        .output_dir
-        .unwrap_or_else(|| root.join("target/differential"));
-    fs::create_dir_all(&output_dir)
-        .map_err(|error| format!("failed to create {}: {error}", output_dir.display()))?;
-    let source_path = output_dir.join("generated.lil");
-    let expected_path = output_dir.join("expected.out");
-    let source = ProgramGenerator::new(args.seed).generate(args.cases);
-
-    let arena = Bump::new();
-    let program = parse_source(&arena, &source)
-        .map_err(|error| format!("generated source did not parse: {error}"))?;
-    let semantics = analyze(&program)
-        .map_err(|error| format!("generated source did not type-check: {error}"))?;
-    let expected = interpret_program(&program, &semantics)
-        .map_err(|error| format!("reference evaluation failed: {error}"))?;
-    fs::write(&source_path, source)
-        .map_err(|error| format!("failed to write {}: {error}", source_path.display()))?;
-    fs::write(&expected_path, &expected)
-        .map_err(|error| format!("failed to write {}: {error}", expected_path.display()))?;
-
-    let compiler = match args.compiler {
-        Some(compiler) => compiler,
-        None => std::env::current_exe()
-            .map_err(|error| format!("failed to locate current executable: {error}"))?
-            .parent()
-            .expect("an executable has a parent directory")
-            .join(executable_name("lilscript")),
-    };
-    if !compiler.is_file() {
-        return Err(format!(
-            "compiler not found at {}; build all release binaries first or pass --compiler",
-            compiler.display()
-        ));
+    let output_dir = args.output_dir.clone().unwrap_or_else(|| {
+        root.join(format!(
+            "target/differential/{}-{:x}",
+            std::process::id(),
+            args.seed
+        ))
+    });
+    if output_dir.exists()
+        && fs::read_dir(&output_dir)
+            .map_err(|e| e.to_string())?
+            .next()
+            .is_some()
+    {
+        return Err("output directory must be empty; preserve previous reproductions".into());
     }
+    fs::create_dir_all(&output_dir).map_err(|e| e.to_string())?;
+    let compiler = args.compiler.clone().unwrap_or(
+        std::env::current_exe()
+            .map_err(|e| e.to_string())?
+            .parent()
+            .unwrap()
+            .join(executable_name("lilscript")),
+    );
+    let compiler = compiler
+        .canonicalize()
+        .map_err(|e| format!("compiler {}: {e}", compiler.display()))?;
+    let mut report = json!({"schema":1,"complete":false,"seed":args.seed,"cases_per_mask":args.cases,
+        "compiler":{"path":compiler,"sha256":format!("{:x}",Sha256::digest(fs::read(&compiler).map_err(|e| e.to_string())?))},"batches":[]});
+    let result = (|| {
+        for javascript in [false, true] {
+            if (javascript && args.features == Features::Portable)
+                || (!javascript && args.features == Features::Javascript)
+            {
+                continue;
+            }
+            let batch = run_batch(&args, &root, &output_dir, &compiler, javascript)?;
+            report["batches"].as_array_mut().unwrap().push(batch);
+        }
+        Ok::<(), String>(())
+    })();
+    report["complete"] = json!(result.is_ok());
+    if let Err(error) = &result {
+        report["error"] = json!(error);
+    }
+    fs::write(
+        output_dir.join("report.json"),
+        format!("{}\n", serde_json::to_string_pretty(&report).unwrap()),
+    )
+    .map_err(|e| e.to_string())?;
+    result?;
+    println!(
+        "Independent typed programs matched every eligible lane (seed {:#018x}); {}",
+        args.seed,
+        output_dir.display()
+    );
+    Ok(())
+}
 
-    // The JavaScript lanes: the production policy (the repository's
-    // `lilscript.toml`, which keeps `print`), development mode (the same
-    // policy without candidate search), and formation only (every tactic
-    // vetoed and no search, `tests/config/no-optimization.toml`). Each names
-    // its configuration, so the output directory does not decide it.
-    //
-    // The native lanes are masked. Every generated program uses `Record<int>`
-    // (the `differentialIdentity` prelude), which the native target refuses
-    // until native records land; plan M11.4 owns them and restores these lanes.
-    let production = root.join("lilscript.toml");
-    let formation_only = root.join("tests/config/no-optimization.toml");
-    let lanes: [(&str, Vec<&std::ffi::OsStr>); 3] = [
-        (
-            "production JavaScript",
-            vec![
-                "--mode".as_ref(),
-                "production".as_ref(),
-                "--config".as_ref(),
-                production.as_os_str(),
-            ],
-        ),
-        (
-            "development JavaScript",
-            vec![
-                "--mode".as_ref(),
-                "development".as_ref(),
-                "--config".as_ref(),
-                production.as_os_str(),
-            ],
-        ),
-        (
-            "formation-only JavaScript",
-            vec![
-                "--mode".as_ref(),
-                "production".as_ref(),
-                "--config".as_ref(),
-                formation_only.as_os_str(),
-            ],
-        ),
-    ];
+fn run_batch(
+    args: &Args,
+    root: &Path,
+    directory: &Path,
+    compiler: &Path,
+    javascript_only: bool,
+) -> Result<serde_json::Value, String> {
+    let mask = if javascript_only {
+        "javascript-records"
+    } else {
+        "portable"
+    };
+    let output_dir = directory.join(mask);
+    fs::create_dir_all(&output_dir).map_err(|e| e.to_string())?;
+    let source_path = output_dir.join("generated.lil");
+    let source = ProgramGenerator::new(args.seed).generate_mask(args.cases, javascript_only);
+    // Retain even a generator/checker/interpreter failure, before invoking any compiler.
+    fs::write(&source_path, &source).map_err(|e| e.to_string())?;
+    let arena = Bump::new();
+    let program = parse_source(&arena, &source).map_err(|e| format!("{mask}: parse: {e}"))?;
+    let semantics = analyze(&program).map_err(|e| format!("{mask}: check: {e}"))?;
+    let expected =
+        interpret_program(&program, &semantics).map_err(|e| format!("{mask}: reference: {e}"))?;
+    fs::write(output_dir.join("expected.out"), &expected).map_err(|e| e.to_string())?;
     let node = std::env::var_os("NODE").unwrap_or_else(|| "node".into());
-    for (index, (lane, flags)) in lanes.iter().enumerate() {
-        let javascript = output_dir.join(format!("lane-{index}.js"));
+    let cc = std::env::var_os("LILSCRIPT_NATIVE_CLANG")
+        .or_else(|| std::env::var_os("CC"))
+        .unwrap_or_else(|| "clang".into());
+    let mut lanes = Vec::new();
+    for (index, (mode, codec)) in [
+        ("production", "raw"),
+        ("production", "gzip"),
+        ("production", "brotli"),
+        ("development", "raw"),
+        ("formation-only", "raw"),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let config = output_dir.join(format!("lane-{index}.toml"));
+        let text = if *mode == "formation-only" {
+            fs::read_to_string(root.join("tests/config/no-optimization.toml"))
+                .map_err(|e| e.to_string())?
+        } else {
+            format!("[policy]\nversion=3\n[objective]\ncodecs=[\"{codec}\"]\n[effort]\nlevel=13\n")
+        };
+        fs::write(&config, text).map_err(|e| e.to_string())?;
+        let native = !javascript_only && *codec == "raw";
+        let output = output_dir.join(format!("lane-{index}"));
+        let lane = format!("{mask}/{mode}/{codec}");
         run_checked(
-            Command::new(&compiler)
+            Command::new(compiler)
                 .arg(&source_path)
-                .args(["--target", "js"])
-                .args(flags)
+                .args([
+                    "--target",
+                    if native { "all" } else { "js" },
+                    "--mode",
+                    if *mode == "development" {
+                        "development"
+                    } else {
+                        "production"
+                    },
+                ])
+                .arg("--config")
+                .arg(&config)
                 .arg("-o")
-                .arg(&javascript),
+                .arg(if native {
+                    output.clone()
+                } else {
+                    output.with_extension("js")
+                }),
             &format!("{lane} compilation"),
         )?;
         compare_output(
-            lane,
+            &lane,
             &expected,
-            run_checked(Command::new(&node).arg(&javascript), lane)?,
+            run_checked(Command::new(&node).arg(output.with_extension("js")), &lane)?,
             args.seed,
             &source_path,
         )?;
+        lanes.push(format!("{lane}/javascript"));
+        if native {
+            compare_output(
+                &lane,
+                &expected,
+                run_checked(&mut Command::new(&output), &lane)?,
+                args.seed,
+                &source_path,
+            )?;
+            lanes.push(format!("{lane}/native"));
+            let c_binary = output.with_extension("from-c");
+            run_checked(
+                Command::new(&cc)
+                    .args(["-std=c11", "-O3", "-fno-fast-math", "-ffp-contract=off"])
+                    .arg(output.with_extension("c"))
+                    .arg("-o")
+                    .arg(&c_binary)
+                    .arg("-lm"),
+                "independent C compilation",
+            )?;
+            compare_output(
+                &lane,
+                &expected,
+                run_checked(&mut Command::new(c_binary), &lane)?,
+                args.seed,
+                &source_path,
+            )?;
+            lanes.push(format!("{lane}/independent-c"));
+        }
     }
-
-    println!(
-        "{} deterministic programs matched the Rust reference evaluator across production, development and formation-only JavaScript; the native lanes are masked until native records land (plan M11.4) (seed {:#018x}).",
-        args.cases, args.seed
-    );
-    Ok(())
+    Ok(
+        json!({"mask":mask,"source_sha256":format!("{:x}",Sha256::digest(source.as_bytes())),"oracle_sha256":format!("{:x}",Sha256::digest(expected.as_bytes())),"lanes":lanes,
+        "native_mask_reason":if javascript_only {Some("Record values are owned by native completion N2")} else {None}}),
+    )
 }
 
 /// A seed drawn from the clock and the process id, mixed so that two runs
@@ -257,33 +336,32 @@ impl ProgramGenerator {
         }
     }
 
+    #[cfg(test)]
     fn generate(&mut self, cases: usize) -> String {
+        self.generate_mask(cases, false)
+    }
+
+    fn generate_mask(&mut self, cases: usize, javascript_only: bool) -> String {
         let mut source = String::from(
-            "int differentialCalls=0;\n\
-             bool differentialProbe(int value){differentialCalls++;return (value&1)==0;}\n\
-             int differentialRotate(int value,int amount){return (value<<amount)|(value>>>(32-amount));}\n\
-             int differentialMemory(int seed){ArrayBuffer storage=new ArrayBuffer(6);Uint8Array bytes=new Uint8Array(storage);bytes[0]=seed;bytes[1]=seed>>>8;bytes[2]=-1;Uint8Array alias=bytes.subarray(1,4);int old=alias[0]++;Uint8Array copied=bytes.slice(-5,4);copied[0]^=255;ArrayBuffer middle=storage.slice(1,4);Uint8Array middleBytes=new Uint8Array(middle);SharedArrayBuffer shared=new SharedArrayBuffer(2);Uint8Array sharedBytes=new Uint8Array(shared);sharedBytes[0]=copied[0]+middleBytes[1];return bytes[0]+(bytes[1]<<8)+(bytes[2]<<16)+old+alias.byteOffset+copied.length+shared.byteLength+sharedBytes[0];}\n\
-             int differentialSnapshotWrite(Record<int> node,int next){int saved=node.href??0;node.href=next;return saved+(node.href??0);}\n\
-             int differentialSnapshotRebind(Record<int> node,Record<int> next){int saved=node.href??0;node=next;return saved+(node.href??0);}\n\
-             int differentialSnapshotComputed(Record<int> node,int next){int saved=node[\"href\"]??0;node.href=next;return saved+(node.href??0);}\n\
-             int differentialSnapshotCapturedRebind(Record<int> node,int next){int saved=node.href??0;func()->void rebind=()=>{node=record{href:next,title:0};};rebind();return saved+(node.href??0);}\n\
-             int differentialIdentity(int seed){Record<int> written=record{href:seed,title:seed^1};Record<int> reboundFrom=record{href:seed,title:seed^1};Record<int> reboundTo=record{href:seed^7,title:seed^3};Record<int> computed=record{href:seed,title:seed^1};Record<int> captured=record{href:seed,title:seed^1};int prev=0;int cur=seed&15;if(cur==0){cur=1;}int count=0;while(prev!=cur){prev=cur;if(cur>3){cur=cur-3;}else{cur=0;}count=count+1;}return differentialSnapshotWrite(written,seed^9)+differentialSnapshotRebind(reboundFrom,reboundTo)+differentialSnapshotComputed(computed,seed^11)+differentialSnapshotCapturedRebind(captured,seed^13)+count;}\n",
+            "int differentialCalls=0;\nbool differentialProbe(int value){differentialCalls++;return (value&1)==0;}\nint differentialRotate(int value,int amount){return (value<<amount)|(value>>>(32-amount));}\n",
         );
         let mut calls = String::new();
         for case in 0..cases {
             self.generate_case(case, &mut source);
+            if javascript_only {
+                let key = format!("field{}", self.random.bounded(4));
+                let value = self.integer_expression(2, &["x", "y"]);
+                writeln!(source, "int recordCase{case}(int x,int y){{Record<int> a=record{{{key}:x}};Record<int> alias=a;int saved=a.{key}??0;alias[\"{key}\"]={value};return saved+(a.{key}??y);}}").unwrap();
+            }
             let lhs = self.random.literal();
             let rhs = self.random.literal();
             writeln!(calls, "print(differentialCase{case}({lhs},{rhs}));")
                 .expect("writing to String cannot fail");
+            if javascript_only {
+                writeln!(calls, "print(recordCase{case}({lhs},{rhs}));").unwrap();
+            }
         }
         source.push_str(&calls);
-        let memory_seed = self.random.literal();
-        writeln!(source, "print(differentialMemory({memory_seed}));")
-            .expect("writing to String cannot fail");
-        let identity_seed = self.random.literal();
-        writeln!(source, "print(differentialIdentity({identity_seed}));")
-            .expect("writing to String cannot fail");
         source.push_str("print(differentialCalls);\n");
         source
     }
@@ -482,14 +560,29 @@ mod tests {
         });
         let semantics = analyze(&program).unwrap();
         let output = interpret_program(&program, &semantics).unwrap();
-        // One line per generated case, plus memory, identity, and probe-count
-        // summaries appended by `generate`.
-        assert_eq!(output.lines().count(), 8 + 3);
+        // One typed case result and a final observable side-effect counter.
+        assert_eq!(output.lines().count(), 8 + 1);
     }
 
     #[test]
     fn seed_parser_accepts_decimal_and_hex() {
         assert_eq!(parse_seed("42").unwrap(), 42);
         assert_eq!(parse_seed("0x2a").unwrap(), 42);
+    }
+
+    #[test]
+    fn javascript_mask_is_checked_without_polluting_portable_programs() {
+        for seed in [0, 1, 42, u64::MAX] {
+            for javascript in [false, true] {
+                let source = ProgramGenerator::new(seed).generate_mask(8, javascript);
+                assert_eq!(source.contains("Record<int>"), javascript);
+                assert!(!source.contains("differentialMemory"));
+                let arena = Bump::new();
+                let program = parse_source(&arena, &source).unwrap();
+                let semantics = analyze(&program).unwrap();
+                let output = interpret_program(&program, &semantics).unwrap();
+                assert_eq!(output.lines().count(), if javascript { 17 } else { 9 });
+            }
+        }
     }
 }

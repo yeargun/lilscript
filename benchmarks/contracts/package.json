@@ -1,0 +1,13 @@
+{
+  "name": "lilscript-benchmark-contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@swc/core": "1.16.2",
+    "esbuild": "0.28.1",
+    "google-closure-compiler-linux": "20260803.0.0",
+    "rolldown": "1.2.5",
+    "terser": "5.51.2"
+  }
+}
