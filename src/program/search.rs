@@ -19,6 +19,8 @@ mod selection;
 use selection::Portfolio;
 #[path = "search_terminal.rs"]
 mod terminal;
+#[path = "search_independent.rs"]
+mod independent;
 pub use terminal::{ChallengerOutcome, ChallengerTrial, TerminalObjective, TerminalReport};
 
 #[cfg(test)]
@@ -231,6 +233,9 @@ pub struct JavaScriptSearch<'a, 'src> {
 }
 
 impl<'src> Compilation<'src> {
+    /// Low-level exploration under one resolved policy. Multiple requested
+    /// score coordinates share this portfolio and policy. Independent objective
+    /// optimization is owned by the build API's `ServiceOptions::objectives`.
     pub fn search_javascript<'a>(
         &'a mut self,
         source: SemanticId,
@@ -290,9 +295,50 @@ impl<'src> Compilation<'src> {
         mut observe: impl FnMut(SearchObservation<'_>),
         explore: bool,
     ) -> Result<JavaScriptSearch<'a, 'src>, SearchError> {
+        let objective = policy.objective().ok_or(CandidateError::NotJavaScript)?;
+        let seeds = Plan::seeds_for_policy(policy).map_err(CandidateError::from)?;
+        let mut search = self.prepare_javascript_search(source, policy)?;
+        if !explore {
+            let (_, continuation) = search.evaluate_baseline(
+                policy,
+                request.objectives,
+                &seeds[..1],
+                false,
+                true,
+                &mut observe,
+            )?;
+            continuation?;
+            return Ok(search);
+        }
+        let (baseline_renders, continuation) = search.evaluate_baseline(
+            policy,
+            request.objectives,
+            seeds,
+            true,
+            true,
+            &mut observe,
+        )?;
+        if objective.optional_alternatives == 0 {
+            return Ok(search);
+        }
+        search.explore_after_baseline(
+            policy,
+            request,
+            seeds,
+            baseline_renders,
+            continuation,
+            &mut observe,
+        );
+        Ok(search)
+    }
+    fn prepare_javascript_search<'a>(
+        &'a mut self,
+        source: SemanticId,
+        policy: &ResolvedPolicy,
+    ) -> Result<JavaScriptSearch<'a, 'src>, SearchError> {
         self.lookup(source)?;
         self.ledger.require_preparing_baseline()?;
-        let objective = policy.objective().ok_or(CandidateError::NotJavaScript)?;
+        policy.objective().ok_or(CandidateError::NotJavaScript)?;
         // This first producer has exact transfer evidence only. Do not compile
         // under constraints it cannot establish, including an explicit zero.
         policy.admit_evidence(
@@ -300,7 +346,6 @@ impl<'src> Compilation<'src> {
             CandidateCostEvidence::size_only(0),
             CandidateCostEvidence::size_only(0),
         )?;
-        let seeds = Plan::seeds_for_policy(policy).map_err(CandidateError::from)?;
         let owner = RevisionId::fresh();
         let header_charge = {
             let mut budget = AllocationBudget::new(Some((&mut self.ledger, WorkDomain::Baseline)));
@@ -329,63 +374,52 @@ impl<'src> Compilation<'src> {
             .compilation
             .direct_javascript(source, policy, WorkDomain::Baseline)?;
         search.insert_state(direct, 0, WorkDomain::Baseline)?;
-        if !explore {
-            let (_, continuation) = search.evaluate_baseline(
-                policy,
-                request.objectives,
-                &seeds[..1],
-                false,
-                &mut observe,
-            )?;
-            continuation?;
-            return Ok(search);
-        }
-        let (baseline_renders, continuation) =
-            search.evaluate_baseline(policy, request.objectives, seeds, true, &mut observe)?;
-        if objective.optional_alternatives == 0 {
-            return Ok(search);
-        }
+        Ok(search)
+    }
+
+}
+
+impl JavaScriptSearch<'_, '_> {
+    fn explore_after_baseline(
+        &mut self,
+        policy: &ResolvedPolicy,
+        request: SearchRequest,
+        seeds: &[Style],
+        baseline_renders: usize,
+        continuation: Result<(), SearchError>,
+        observe: &mut impl FnMut(SearchObservation<'_>),
+    ) {
+        let objective = policy.objective().unwrap();
         let exploration = continuation.and_then(|()| {
-            search.explore(
-                policy,
-                objective,
-                request,
-                seeds,
-                baseline_renders,
-                &mut observe,
-            )
+            self.explore(policy, objective, request, seeds, baseline_renders, observe)
         });
         match exploration {
             Ok(()) => {
-                search.stopped = search
-                    .drain_pending(policy, request.objectives, &mut observe)
+                self.stopped = self
+                    .drain_pending(policy, request.objectives, observe)
                     .err();
             }
             Err(SearchError::Limit(
                 limit @ (SearchLimit::Alternatives | SearchLimit::WalkReserve),
             )) => {
-                search.stopped = Some(
-                    search
-                        .drain_pending(policy, request.objectives, &mut observe)
+                self.stopped = Some(
+                    self.drain_pending(policy, request.objectives, observe)
                         .err()
                         .unwrap_or(SearchError::Limit(limit)),
                 );
             }
             Err(error) if error.optional_memory_refusal() => {
-                search.discovery_refusal = Some(error);
-                search.stopped = search
+                self.discovery_refusal = Some(error);
+                self.stopped = self
                     .finish_discovery()
-                    .and_then(|()| search.drain_pending(policy, request.objectives, &mut observe))
+                    .and_then(|()| self.drain_pending(policy, request.objectives, observe))
                     .err();
             }
-            Err(error) => search.stopped = Some(error),
+            Err(error) => self.stopped = Some(error),
         }
-        search.abandon_pending();
-        Ok(search)
+        self.abandon_pending();
     }
-}
 
-impl JavaScriptSearch<'_, '_> {
     pub fn counters(&self) -> SearchCounters {
         self.counters
     }
@@ -586,6 +620,7 @@ impl JavaScriptSearch<'_, '_> {
         objectives: Objectives,
         styles: &[Style],
         continue_optional: bool,
+        seal_now: bool,
         observe: &mut impl FnMut(SearchObservation<'_>),
     ) -> Result<(usize, Result<(), SearchError>), SearchError> {
         let objective = policy.objective().unwrap();
@@ -625,7 +660,7 @@ impl JavaScriptSearch<'_, '_> {
                 if continue_optional {
                     portfolio.pin_selected(objectives);
                 }
-                if !continue_optional
+                if !seal_now || !continue_optional
                     || objective.optional_alternatives == 0
                     || (styles.len() <= 1 && !alternative)
                 {
@@ -663,7 +698,9 @@ impl JavaScriptSearch<'_, '_> {
         match continuation {
             Some(result) => Ok((baseline_renders, result)),
             None => {
-                *sealed = Some(compilation.ledger.seal_baseline()?);
+                if seal_now {
+                    *sealed = Some(compilation.ledger.seal_baseline()?);
+                }
                 Ok((baseline_renders, Ok(())))
             }
         }
@@ -1500,10 +1537,7 @@ fn walk_reserve(output: &mut super::BudgetedJavaScriptOutput<'_, '_>) -> Result<
     let (used, limit) = output.with_allocation_budget(|budget| {
         budget.with_ledger(|ledger| {
             let ledger = ledger.unwrap().0;
-            (
-                ledger.work_used(WorkDomain::Optional),
-                ledger.work_limit(WorkDomain::Optional),
-            )
+            ledger.optional_search_work()
         })
     });
     if used.saturating_mul(2) >= limit {

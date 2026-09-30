@@ -61,7 +61,7 @@ inlining = "auto"
 string-pooling = "off"
 ```
 
-The parser currently admits one objective per build. Several objectives in one request are D3 work. Terminal string pooling/packing and fixed target-rule vetoes are enforced; C1 continues the remaining producer/risk and compatibility audit. A parsed setting is not evidence that every path obeys it.
+The parser currently admits one objective per CLI build. The Rust build API independently resolves and searches all three objectives over one checked program, with all mandatory baselines admitted before optional work. TOML/CLI multi-output delivery remains D3 work. Terminal string pooling/packing and fixed target-rule vetoes are enforced; C1 continues the remaining producer/risk and compatibility audit. A parsed setting is not evidence that every path obeys it.
 
 | Axis | Meaning and target behavior |
 |---|---|

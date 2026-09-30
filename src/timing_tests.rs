@@ -117,10 +117,13 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             physical + calls("proxy_brotli") + reuse
         );
         if !inlining {
+            // Independent objectives each form one mandatory target. After
+            // all three baselines are sealed, an optional continuation forms
+            // its own target once and reuses it across its naming seeds.
             let expected = if proposals == 0 {
-                [1; 7]
+                [3; 7]
             } else {
-                [1, 1, 2, 2, 2, 3, 3]
+                [6, 6, 6, 6, 6, 9, 9]
             };
             let terminal = [
                 heads,

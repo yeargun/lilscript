@@ -450,10 +450,9 @@ fn public_service_transfers_winners_without_reforming_targets() {
         },
     )
     .unwrap();
-    // The search forms one target and two prepared outputs (the level-0
-    // artifact's, then the naming continuation's); each move the walks form,
-    // a challenger, a joint move or a restart's start, forms its own (from
-    // one shared head per start), and the handoff forms none.
+    // Each independent objective forms its baseline, drops that target before
+    // the common seal, then forms its optional naming continuation. Each walk
+    // move forms its own target from a shared head; handoff still forms none.
     let stages = output.report()["search"]["terminal"]["objectives"]
         .as_array()
         .unwrap();
@@ -469,7 +468,7 @@ fn public_service_transfers_winners_without_reforming_targets() {
     let after = counts();
     assert_eq!(
         (after.0 - before.0, after.1 - before.1),
-        (1 + moves, 2 + moves),
+        (6 + moves, 6 + moves),
         "{stages:?}"
     );
     for (codec, stage) in CODECS.into_iter().zip(stages) {
@@ -478,7 +477,9 @@ fn public_service_transfers_winners_without_reforming_targets() {
         if stage["before"] == stage["after"] {
             assert_eq!(artifact.javascript(), MANGLED);
         }
-        exact_sizes(artifact.javascript(), artifact.sizes());
+        assert_eq!(artifact.sizes().raw, artifact.javascript().len());
+        assert_eq!(artifact.sizes().get(codec), Some(
+            crate::compression::measure(artifact.javascript().as_bytes(), codec).unwrap()));
         execute_answer(artifact.javascript());
     }
 }

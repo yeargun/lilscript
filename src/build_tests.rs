@@ -11,7 +11,7 @@ fn config(extra: &str) -> ProjectConfig {
     )).unwrap()
 }
 
-fn execute_javascript(javascript: &str, setup: &str, body: &str) -> String {
+pub(super) fn execute_javascript(javascript: &str, setup: &str, body: &str) -> String {
     let script = format!(
         "{setup}\nconst library=await import('data:text/javascript,'+encodeURIComponent({}));{body}",
         serde_json::to_string(javascript).unwrap(),
@@ -220,7 +220,7 @@ fn path_service_publishes_re_exported_value_struct_functions_with_source_names()
 }
 
 #[test]
-fn shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api() {
+fn independent_winner_handoff_and_all_optional_off_keep_source_literals_and_api() {
     let mut config = config("");
     config.policy = Some(PolicyConfig {
         tactics: TacticId::ALL
@@ -240,22 +240,28 @@ fn shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api() {
     .unwrap();
     check_scores(&result);
     assert_eq!(result.report()["search"]["proposals"], 0);
-    // One search winner serves every codec; a codec whose terminal stage
-    // kept a challenger delivers its own artifact instead.
-    let stages = result.report()["search"]["terminal"]["objectives"]
-        .as_array()
-        .unwrap();
-    let unchanged: Vec<Objective> = [Objective::Raw, Objective::Gzip, Objective::Brotli]
+    // Even equal bytes have independent policy qualifications. Each codec's
+    // disabled search must retain its own direct artifact and public ABI.
+    for (index, codec) in [Objective::Raw, Objective::Gzip, Objective::Brotli]
         .into_iter()
-        .zip(stages)
-        .filter(|(_, stage)| stage["before"] == stage["after"])
-        .map(|(codec, _)| codec)
-        .collect();
-    for pair in unchanged.windows(2) {
-        assert!(std::ptr::eq(
-            result.javascript(pair[0]).unwrap(),
-            result.javascript(pair[1]).unwrap()
-        ));
+        .enumerate()
+    {
+        assert_eq!(
+            result.report()["search"]["objectives"][index]["proposals"],
+            0
+        );
+        let mut one_config = config.clone();
+        one_config.objective.codecs = vec![codec];
+        let one = compile_source(
+            "export string answer(){return \"kept\";}",
+            &one_config,
+            ServiceOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            result.javascript(codec).unwrap().javascript(),
+            one.javascript(codec).unwrap().javascript()
+        );
     }
     for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
         assert_eq!(
@@ -1245,7 +1251,7 @@ fn scoped_search_and_default_service_share_winners_handoff_and_budget() {
                 baselines += usize::from(observation.baseline);
             })
             .unwrap();
-        assert_eq!(baselines, 1);
+        assert_eq!(baselines, 3);
         batch
     })
     .unwrap();

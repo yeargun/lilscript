@@ -1,6 +1,6 @@
 # Current status
 
-Updated for the 2026-09-29 planning revision, from implementation commit `8b3d5cc5a1429919b6000831085ce807ec9aeed3`.
+Updated 2026-09-30. The latest qualified source here is `8bc28c1f`; implementation in progress is tracked in the checklist below.
 
 There is one compiler. The [migration plan](migration/plan.md) owns the target architecture and acceptance rules; the [checklist](migration/index.md) owns live progress. This page reports evidence, not a second task list.
 
@@ -8,15 +8,15 @@ There is one compiler. The [migration plan](migration/plan.md) owns the target a
 
 The compiler checks into a typed Program IR with shared facts and edit machinery, applies program rules, forms target code, allocates names and judges JavaScript alternatives with the requested codec. Native has its own formation and remaining coverage gaps. See the [source map](knowledge/compilation/current-architecture.md).
 
-Y5a/b is the last verified implementation batch: application scripts own their private roots and frames, while lexical strictness is preserved separately. Default IIFE wrapping is still planned. The new plan does not imply that its remaining configuration, naming, search or measurement work is already implemented.
+Application output now defaults to a private IIFE, with classic-script strictness preserved. Qualified batches also cover bounded primitive evaluation, typed record spread, private-field naming, lexical naming refinements and several forms of analysis/measurement reuse. Their exact scopes and remaining work are in the [live checklist](migration/index.md), rather than a second milestone list here.
 
 ## Evidence
 
-The accepted [ratchet baseline](../tests/ratchet/baseline.json) is Y5. Its application totals beat the pinned Closure ADVANCED totals under raw, gzip and Brotli, with individual application losses remaining. Its algorithm totals still lose under all three objectives. The figures are recorded in the [replanning record](migration/history.md#2026-09-29-focused-plan-and-archive).
+The [Q2 mention-reuse record](../benchmarks/migration-results/2026-09-30-q2-statement-mentions/README.md) passes all 1,747 active library tests, including the large table oracle, with four existing ignores. All 642 generic programs pass under each objective. It preserves all 1,926 generic outputs and all 20 measured reference-port artifacts from the preceding Q3 release; Marked/Zod/PostHog suites pass 29/1,353/21. Paired measurements show lower Marked/Zod compilation CPU with unchanged peak accounted memory; this is not a runtime-performance claim.
 
-The [Y5 record](old-history/migration/history.md#2026-09-30-batch-y5-an-application-script-owns-its-roots-and-frames-owner-answer-y5-halves-a-and-b) contains unit/case results, port accounting and compile-cost measurements. Seven primary port suites passed and their 681 compared delivered files were byte-identical to V2. Four known site receipt failures remained. This evidence does not establish full runtime parity or that every delivered port file is already compiler-written without a post-minifier.
+The [Q3 higher-effort record](../benchmarks/migration-results/2026-09-30-q3-level14/README.md) documents why expensive deferred naming starts default to effort 14+, with an explicit level-13 opt-in and veto. Core gains and external-wrapper regressions are both reported. [Configuration](configuration.md) describes each control's situation, default, effort gate and tradeoffs.
 
-The benchmark contract, calibration/held-out program, dedicated runtime runner and remaining delivery migration are open work. Therefore broad competitor and runtime victory claims remain unqualified. Keep the exact binary, source, configuration and artifact scope with every measurement.
+The accepted [ratchet baseline](../tests/ratchet/baseline.json) is current through that qualification. [History](migration/history.md) owns earlier Y5 and subsequent measurements. The broader maintained/held-out competitor contract, runtime qualification, compiler-written final formats, native coverage and release work remain open. None of these bounded results establishes blanket Closure ADVANCED superiority or complete migration.
 
 ## Verification tools
 

@@ -79,21 +79,37 @@ pub struct ServiceOptions {
 }
 
 impl ServiceOptions {
-    /// Resolve the policy actually used by this service, including the finite
-    /// caller ceilings. Configuration can restrict those ceilings further.
-    /// Use this for a pre-build policy receipt or cache identity.
+    /// Resolve the single-objective policy, including an explicit API codec
+    /// override and finite caller ceilings. For All this is the configured
+    /// primary policy; the build's javascript_policies report lists all three
+    /// independently resolved policies. A whole-build cache identity must also
+    /// include the objective request, input graph and compiler identity.
     pub fn resolve_policy(
         &self,
         config: &ProjectConfig,
         request: CompilationRequest,
     ) -> Result<ResolvedPolicy, String> {
-        config.resolve_policy_with_ceilings(
+        let objective = match (request, self.objectives) {
+            (CompilationRequest::JavaScript { .. }, Some(Objectives::One(codec))) => Some(codec),
+            _ => None,
+        };
+        self.resolve_objective_policy(config, request, objective)
+    }
+
+    fn resolve_objective_policy(
+        &self,
+        config: &ProjectConfig,
+        request: CompilationRequest,
+        objective: Option<Objective>,
+    ) -> Result<ResolvedPolicy, String> {
+        config.resolve_policy_for_objective(
             request,
             crate::compilation_policy::ResourceLimits {
                 logical_work: Some(self.logical_work),
                 retained_bytes: Some(self.retained_bytes),
                 wall_time_ms: None,
             },
+            objective,
         )
     }
 
@@ -278,6 +294,7 @@ struct Frontend {
     started: Instant,
     options: ServiceOptions,
     javascript: Option<ResolvedPolicy>,
+    independent_javascript: Option<[ResolvedPolicy; 3]>,
     native: Option<ResolvedPolicy>,
     ledger: BudgetLedger,
     phases: Value,
@@ -311,6 +328,7 @@ impl Frontend {
         let policies: Vec<&ResolvedPolicy> = [&self.javascript, &self.native]
             .into_iter()
             .flatten()
+            .chain(self.independent_javascript.iter().flatten())
             .collect();
         if policies.is_empty() {
             return None;
@@ -351,6 +369,15 @@ impl Frontend {
         };
         let javascript = resolve(options.javascript_request())?;
         let native = resolve(options.native_request())?;
+        let independent_javascript = if javascript.is_some() && options.objectives == Some(Objectives::All) {
+            let [raw, gzip, brotli] = [Objective::Raw, Objective::Gzip, Objective::Brotli].map(|codec| {
+                options.resolve_objective_policy(config, options.javascript_request().unwrap(), Some(codec))
+                    .map_err(|error| ServiceError::new("policy", error))
+            });
+            Some([raw?, gzip?, brotli?])
+        } else {
+            None
+        };
         let policy = javascript.as_ref().or(native.as_ref()).unwrap();
         let ledger = BudgetLedger::new_baseline_first(
             policy.resources(),
@@ -365,6 +392,7 @@ impl Frontend {
             started,
             options,
             javascript,
+            independent_javascript,
             native,
             ledger,
             phases: json!({"policy_ns": nanos(started)}),
@@ -396,6 +424,7 @@ impl Frontend {
             started,
             options,
             javascript,
+            independent_javascript,
             native,
             ledger,
             mut phases,
@@ -456,6 +485,7 @@ impl Frontend {
             started,
             options,
             javascript,
+            independent_javascript,
             native,
             compilation,
             source,
@@ -475,6 +505,7 @@ pub struct CheckedSourceSession<'src> {
     started: Instant,
     options: ServiceOptions,
     javascript: Option<ResolvedPolicy>,
+    independent_javascript: Option<[ResolvedPolicy; 3]>,
     native: Option<ResolvedPolicy>,
     compilation: Compilation<'src>,
     source: SemanticId,
@@ -486,7 +517,8 @@ pub struct CheckedSourceSession<'src> {
     source_buffer_bytes: Option<u64>,
 }
 
-/// Delivered winners share one owned buffer whenever their artifact is shared.
+/// Independently optimized winners retain each objective's qualification.
+/// A direct multi-coordinate rendering may still share one artifact.
 #[derive(Debug)]
 pub struct ServiceJavaScriptBatch {
     artifacts: Vec<ServiceJavaScript>,
@@ -614,6 +646,9 @@ impl<'src> CheckedSourceSession<'src> {
         observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<ServiceJavaScriptBatch, ServiceError> {
         let objectives = self.objectives()?;
+        if objectives == Objectives::All {
+            return self.search_independent_javascript(source, observe);
+        }
         let policy = self.javascript.as_ref().unwrap();
         let request = search_request(self.options, policy, objectives);
         let resolved_request = search_request_report(request);
@@ -630,15 +665,8 @@ impl<'src> CheckedSourceSession<'src> {
             .map(|report| serde_json::to_value(report).unwrap_or(Value::Null))
             .map_err(|error| ServiceError::output("javascript", error))?;
         let counters = search.counters();
-        let report = json!({
-            "request": resolved_request,
-            "proposals": counters.proposals, "structures": counters.structures,
-            "renders": counters.renders, "codec_probes": counters.codec_probes,
-            "proof_queries": counters.proof_queries, "beam_evictions": counters.beam_evictions,
-            "admitted_artifacts": counters.admitted_artifacts,
-            "stop": search.stopped().map(|error| format!("{error:?}")),
-            "terminal": terminal,
-        });
+        let report = search_report(resolved_request, counters,
+            search.stopped().map(|error| format!("{error:?}")), terminal);
         let selected = objectives
             .iter()
             .map(|codec| {
@@ -688,6 +716,106 @@ impl<'src> CheckedSourceSession<'src> {
         Ok(ServiceJavaScriptBatch {
             artifacts,
             winners,
+            report,
+        })
+    }
+
+    fn search_independent_javascript(
+        &mut self,
+        source: SemanticId,
+        observe: impl FnMut(SearchObservation<'_>),
+    ) -> Result<ServiceJavaScriptBatch, ServiceError> {
+        let policies = self.independent_javascript.as_ref().unwrap();
+        let requests = std::array::from_fn(|index| {
+            let policy = &policies[index];
+            (
+                policy,
+                search_request(
+                    self.options,
+                    policy,
+                    Objectives::One(policy.objective().unwrap().codec),
+                ),
+            )
+        });
+        let results = self
+            .compilation
+            .search_javascript_independent(source, requests, observe)
+            .map_err(|error| ServiceError::output("javascript", error))?;
+        let mut report = json!({
+            "independent": true,
+            "order": ["raw", "gzip", "brotli"],
+            "resource_schedule": "all baselines first; equal shares of remaining optional work; shared hard memory and deadline",
+            "request": search_request_report(search_request(self.options, self.javascript.as_ref().unwrap(), Objectives::All)),
+            "terminal": {"objectives": []},
+            "objectives": [],
+            "stop": null,
+        });
+        let counters = [
+            "proposals",
+            "structures",
+            "renders",
+            "codec_probes",
+            "proof_queries",
+            "beam_evictions",
+            "admitted_artifacts",
+        ];
+        for field in counters {
+            report[field] = json!(0);
+        }
+        let mut stops = Vec::new();
+        for (index, result) in results.iter().enumerate() {
+            let mut lane = search_report(
+                search_request_report(requests[index].1),
+                result.counters,
+                result.stopped.clone(),
+                serde_json::to_value(&result.terminal).unwrap(),
+            );
+            lane["policy"] = policies[index].receipt();
+            lane["optional_work_allowance"] = json!(result.optional_work_allowance);
+            lane["optional_work_used"] = json!(result.optional_work_used);
+            for field in counters {
+                report[field] =
+                    json!(report[field].as_u64().unwrap() + lane[field].as_u64().unwrap());
+            }
+            if let Some(stop) = &result.stopped {
+                stops.push(format!(
+                    "{:?}: {stop}",
+                    policies[index].objective().unwrap().codec
+                ));
+            }
+            report["terminal"]["objectives"]
+                .as_array_mut()
+                .unwrap()
+                .extend(
+                    lane["terminal"]["objectives"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .cloned(),
+                );
+            report["objectives"].as_array_mut().unwrap().push(lane);
+        }
+        if !stops.is_empty() {
+            report["stop"] = json!(stops.join("; "));
+        }
+        let mut artifacts = Vec::new();
+        let mut results = results.into_iter();
+        while let Some(result) = results.next() {
+            match deliver_javascript(&mut self.compilation, result.winner) {
+                Ok(artifact) => artifacts.push(artifact),
+                Err(error) => {
+                    for pending in results {
+                        self.compilation
+                            .discard_artifact(pending.winner.artifact())
+                            .map_err(|error| ServiceError::new("handoff cleanup", error))?;
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        Ok(ServiceJavaScriptBatch {
+            artifacts,
+            winners: [Some(0), Some(1), Some(2)],
             report,
         })
     }
@@ -778,6 +906,7 @@ impl<'src> CheckedSourceSession<'src> {
             started,
             options,
             javascript,
+            independent_javascript,
             native,
             compilation,
             phases,
@@ -803,6 +932,7 @@ impl<'src> CheckedSourceSession<'src> {
                 "effective_logical_work":options.logical_work.min(limits.logical_work.unwrap_or(u64::MAX)),
                 "effective_retained_bytes":options.retained_bytes.min(limits.retained_bytes.unwrap_or(u64::MAX))},
             "inputs":inputs,"shape":shape,"javascript_policy":javascript.as_ref().map(ResolvedPolicy::receipt),
+            "javascript_policies":independent_javascript.as_ref().map(|policies| policies.each_ref().map(ResolvedPolicy::receipt)),
             "native_policy":native.as_ref().map(ResolvedPolicy::receipt), "phases_ns":phases,"total_ns":nanos(started),
             "policy_diagnostics":{
                 "javascript":javascript.as_ref().map(ResolvedPolicy::diagnostics),
@@ -1065,6 +1195,23 @@ fn ledger_report(ledger: &BudgetLedger) -> Value {
         "retained_bytes":ledger.retained_bytes(),"peak_retained_bytes":ledger.peak_retained_bytes(),
         "analysis_work":ledger.work_by_kind(WorkKind::Analysis),"edit_work":ledger.work_by_kind(WorkKind::Edit),
         "render_work":ledger.work_by_kind(WorkKind::Render),"codec_work":ledger.work_by_kind(WorkKind::Codec)})
+}
+
+fn search_report(
+    request: Value,
+    counters: SearchCounters,
+    stopped: Option<String>,
+    terminal: Value,
+) -> Value {
+    json!({
+        "request": request,
+        "proposals": counters.proposals, "structures": counters.structures,
+        "renders": counters.renders, "codec_probes": counters.codec_probes,
+        "proof_queries": counters.proof_queries, "beam_evictions": counters.beam_evictions,
+        "admitted_artifacts": counters.admitted_artifacts,
+        "stop": stopped,
+        "terminal": terminal,
+    })
 }
 
 fn search_request_report(request: SearchRequest) -> Value {
@@ -1772,3 +1919,7 @@ mod budget_tests;
 #[cfg(test)]
 #[path = "build_delivery_tests.rs"]
 mod delivery_tests;
+
+#[cfg(test)]
+#[path = "build_objective_tests.rs"]
+mod objective_tests;

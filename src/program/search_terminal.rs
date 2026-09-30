@@ -21,12 +21,12 @@
 //! of its own and kept only when its result is strictly smaller, and the
 //! structural beam (`beam_move`) until M9.1's rest deletes it.
 //!
-//! Monotone by construction: nothing the walk reads depends on the level,
-//! and every level's counts are at least the level below's, so the walk at
-//! L+1 passes through level L's stopping point and every later change is a
-//! strict exact win: size(L+1) <= size(L). Everything here is sequential and
-//! deterministic: no thread count, time or allocation address enters a
-//! decision.
+//! The fast tiers replay a fixed move sequence, and each walk retains its
+//! best admitted result. A wider structural frontier or a shared hard limit
+//! can change which moves later effort levels reach; universal non-growth
+//! across levels is not established. Decisions are sequential and deterministic
+//! given the request and admitted resources, independent of thread count and
+//! allocation addresses.
 //!
 //! Why the list runs on the final artifact and not inside the search: a
 //! rewrite that runs on every emission moves which plan the search ranks

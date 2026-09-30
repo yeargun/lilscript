@@ -645,6 +645,17 @@ impl ProjectConfig {
         request: crate::compilation_policy::CompilationRequest,
         ceilings: crate::compilation_policy::ResourceLimits,
     ) -> Result<crate::compilation_policy::ResolvedPolicy, String> {
+        self.resolve_policy_for_objective(request, ceilings, None)
+    }
+
+    /// An API objective override passes through the same configuration owner;
+    /// its walk, spelling and fingerprint must agree with the requested codec.
+    pub(crate) fn resolve_policy_for_objective(
+        &self,
+        request: crate::compilation_policy::CompilationRequest,
+        ceilings: crate::compilation_policy::ResourceLimits,
+        codec: Option<CompressionCostModel>,
+    ) -> Result<crate::compilation_policy::ResolvedPolicy, String> {
         use crate::compilation_contract::{
             JavaScriptAbiContract, JavaScriptCompilationContract, JavaScriptEffectPolicy,
             JavaScriptExecution, JavaScriptUnsafeAssumptions, JavaScriptWorld,
@@ -658,6 +669,7 @@ impl ProjectConfig {
         let policy = self.policy.as_ref().unwrap_or(&defaults);
         let javascript = matches!(request, CompilationRequest::JavaScript { .. });
         let effort = if javascript { self.effort.level } else { 0 };
+        let codec = codec.unwrap_or_else(|| self.objective.codec());
         let mut diagnostics = Vec::new();
         if self.policy.is_none() {
             diagnostics.push(format!("legacy optimizer configuration translated to policy schema {}; translation retires at schema {}", crate::compilation_policy::POLICY_SCHEMA_VERSION, crate::compilation_policy::LEGACY_TRANSLATOR_RETIREMENT_SCHEMA));
@@ -807,13 +819,13 @@ impl ProjectConfig {
                 } else {
                     crate::compilation_policy::WalkSchedule::at(
                         self.effort.level,
-                        self.objective.codec(),
+                        codec,
                     )
                 };
                 let structural =
                     crate::compilation_policy::StructuralSchedule::at(self.effort.level);
                 let objective = OptimizationObjective {
-                    codec: self.objective.codec(),
+                    codec,
                     codec_settings: self.objective.settings(),
                     rank: ObjectiveRank {
                         priority: self.javascript.priority,

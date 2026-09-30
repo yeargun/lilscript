@@ -3,9 +3,10 @@
 Why knobs exist, precedence, and how they change compilation: [knowledge/config](knowledge/config/README.md). The generated key-by-key reference, with defaults, is [knowledge/config/schema.md](knowledge/config/schema.md). This page explains the file.
 
 The [migration configuration contract](migration/plan.md#3-configuration-is-a-product-contract)
-describes planned completion separately from this accepted schema. Today a build
-selects one objective; multi-objective requests and completion of the family
-registry are still open under [C1](migration/plan.md#c1) and D3.
+describes planned completion separately from this accepted schema. TOML/CLI builds
+currently select one objective. The Rust build API supports independent raw/gzip/Brotli
+results in one request; CLI multi-output delivery and completion of the family
+registry remain under [D3](migration/plan.md#d3) and C1.
 
 The CLI discovers `lilscript.toml` by walking from the input module toward the
 filesystem root. Pass `--config path/to/config.toml` to select one explicitly.
@@ -215,9 +216,27 @@ are fingerprinted and printed in the policy, and every exact judgement and
 reported size of the build uses them. The defaults are the canonical settings
 (Brotli quality 11, window 22, generic mode; gzip level 9, window 15), which
 `lilscript-codec` and the benchmark contract always use. The walk's proxy is
-Brotli at min(quality, 5) with the objective's window and mode. One codec per
-build for now: several, one winner each, come with the multi-objective build
-(plan M3.4). A single codec may be written as a string, `codecs = "gzip"`.
+Brotli at min(quality, 5) with the objective's window and mode. TOML currently
+accepts one codec per CLI build; it may be written as a string, `codecs = "gzip"`.
+
+In the Rust build API, `ServiceOptions.objectives = Some(Objectives::One(codec))`
+overrides the file's objective through the same policy resolver, retaining its
+encoder settings. `Some(Objectives::All)` optimizes three results independently:
+each has its own codec policy, spelling, structural frontier, naming walk and
+qualified winner. It shares source discovery, checking, semantic defaults and
+safe analysis/measurement caches. The report's `javascript_policies` and
+`search.objectives` expose each policy and search; `javascript_policy` remains
+the configured primary policy for compatibility.
+
+A combined request first admits every mandatory baseline, then divides the
+remaining optional work among the remaining objectives in raw/gzip/Brotli order.
+Unused work remains available to later objectives. Memory and the cooperative
+deadline are common hard limits; consumed work never resets. Each search retains
+its baseline if optional work cannot proceed. With sufficient resources, results
+match separate requests; tight shared limits can stop searches earlier. This
+avoids repeating checking, but it still pays for three objective searches and
+keeps three qualified results, even when some bytes are identical. TOML/CLI
+multi-output naming and delivery remain D3 work.
 
 `[effort] level` (0 to 16, default 13) is a work budget with a versioned
 schedule (`--print-policy` prints it). The existing level-16 startup-risk grant
@@ -372,7 +391,10 @@ the smaller value wins for each resource. The CLI retains its default of
 40,000,000,000 work units and 256,000,000 retained bytes. `--logical-work UNITS`
 and `--retained-bytes BYTES` set explicit service ceilings. Embedded clients
 use `ServiceOptions` (default 200,000,000 work units and 256,000,000 bytes) and
-`ServiceOptions::resolve_policy` to obtain the same effective policy as a build.
+`ServiceOptions::resolve_policy` to obtain the single-objective policy (or the
+configured primary policy for `All`); a combined build reports every resolved
+policy as described above. Whole-build cache keys must include the objective
+request, source graph and compiler identity as well as resolved policies.
 `ProjectConfig::resolve_policy` describes configuration before service ceilings.
 
 `LILSCRIPT_SEMANTIC_WORK` remains a deprecated CLI adapter when `--logical-work`

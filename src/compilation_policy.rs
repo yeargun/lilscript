@@ -17,9 +17,10 @@ use crate::config::{CompressionCostModel, JavaScriptPriority};
 
 pub const POLICY_SCHEMA_VERSION: u32 = 2;
 pub const LEGACY_TRANSLATOR_RETIREMENT_SCHEMA: u32 = 3;
+// Version9 resolves independent objective searches with shared baseline admission.
 // Version8 reuses admitted statement mention facts during target forwarding.
 // Version7 jointly identifies private-field and integer-hint formation heads.
-pub const POLICY_ALGORITHM_VERSION: u32 = 8;
+pub const POLICY_ALGORITHM_VERSION: u32 = 9;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -680,8 +681,9 @@ pub const WALK_SCHEDULE_VERSION: u32 = 8;
 /// passes through level L's stopping point, and every other start replaces
 /// the result only on a strict exact win: size(L+1) ≤ size(L) by
 /// construction. Above 13 the structural search widens with the level
-/// (`StructuralSchedule`), which is monotone in practice, not by
-/// construction.
+/// (`StructuralSchedule`), which need not retain the lower level's frontier.
+/// These replay statements assume enough resources to reach those stopping
+/// points; hard limits can interrupt the structural search or walk earlier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct WalkSchedule {
     pub prefix: usize,
@@ -1245,6 +1247,9 @@ pub enum BudgetError {
 pub struct BudgetLedger {
     baseline_work_limit: u64,
     optional_work_limit: u64,
+    // The current independent objective's structural/walk reserve is relative
+    // to its own start, while all admissions keep the cumulative counters.
+    optional_work_origin: u64,
     work_used: [u64; 2],
     work_by_kind: [u64; 4],
     baseline_memory_reserve: u64,
@@ -1253,6 +1258,12 @@ pub struct BudgetLedger {
     peak_memory: u64,
     deadline: Option<BudgetDeadline>,
     phase: BudgetPhase,
+}
+
+/// Internal one-use restoration token; this does not own or replenish work.
+pub(crate) struct OptionalWorkShare {
+    previous_limit: u64,
+    previous_origin: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1300,6 +1311,7 @@ impl BudgetLedger {
         Ok(Self {
             baseline_work_limit: plan.baseline_work,
             optional_work_limit: plan.optional_work.min(work_limit - plan.baseline_work),
+            optional_work_origin: 0,
             work_used: [0; 2],
             work_by_kind: [0; 4],
             baseline_memory_reserve: plan.baseline_retained_bytes,
@@ -1402,6 +1414,36 @@ impl BudgetLedger {
         self.baseline_memory_reserve = 0;
         self.phase = BudgetPhase::SealedBaseline;
         Ok(receipt)
+    }
+
+    /// Bound the next independent objective to an equal share of the work
+    /// still available to the remaining objectives. Consumed work never resets.
+    /// The caller restores this opaque ceiling after the search, even on error.
+    pub(crate) fn begin_objective_share(&mut self, remaining: usize) -> OptionalWorkShare {
+        assert!(self.baseline_is_sealed() && remaining != 0);
+        let share = OptionalWorkShare {
+            previous_limit: self.optional_work_limit,
+            previous_origin: self.optional_work_origin,
+        };
+        let used = self.work_used[1];
+        self.optional_work_limit = used + (self.optional_work_limit - used) / remaining as u64;
+        self.optional_work_origin = used;
+        share
+    }
+
+    /// Release the temporary ceiling without forgiving work or moving the
+    /// deadline. Cleanup remains possible after work/deadline exhaustion.
+    pub(crate) fn end_objective_share(&mut self, share: OptionalWorkShare) {
+        assert!(self.optional_work_limit <= share.previous_limit);
+        self.optional_work_limit = share.previous_limit;
+        self.optional_work_origin = share.previous_origin;
+    }
+
+    pub(crate) fn optional_search_work(&self) -> (u64, u64) {
+        (
+            self.work_used[1] - self.optional_work_origin,
+            self.optional_work_limit - self.optional_work_origin,
+        )
     }
 
     pub fn charge(
@@ -2515,6 +2557,62 @@ mod tests {
             huge.charge(WorkDomain::Baseline, WorkKind::Render, 0),
             Err(BudgetError::DeadlineExceeded)
         );
+    }
+
+    #[test]
+    fn independent_objective_shares_preserve_counters_deadline_and_released_allowance() {
+        let mut ledger = BudgetLedger::new_baseline_first(
+            ResourceLimits {
+                wall_time_ms: Some(100),
+                ..ResourceLimits::default()
+            },
+            BaselineFirstPlan {
+                logical_work: 100,
+                retained_bytes: 16,
+                terminal_work: 0,
+            },
+        )
+        .unwrap();
+        ledger
+            .charge(WorkDomain::Baseline, WorkKind::Analysis, 10)
+            .unwrap();
+        ledger.retain(WorkDomain::Baseline, 8).unwrap();
+        ledger.seal_baseline().unwrap();
+        let first = ledger.begin_objective_share(3);
+        assert_eq!(ledger.optional_search_work(), (0, 30));
+        ledger
+            .charge(WorkDomain::Optional, WorkKind::Analysis, 10)
+            .unwrap();
+        ledger.end_objective_share(first);
+        assert_eq!(ledger.optional_search_work(), (10, 90));
+        let second = ledger.begin_objective_share(2);
+        assert_eq!(ledger.optional_search_work(), (0, 40));
+        ledger
+            .charge(WorkDomain::Optional, WorkKind::Render, 40)
+            .unwrap();
+        assert_eq!(
+            ledger.charge(WorkDomain::Optional, WorkKind::Render, 1),
+            Err(BudgetError::WorkExhausted(WorkDomain::Optional))
+        );
+        ledger.end_objective_share(second);
+        let third = ledger.begin_objective_share(1);
+        assert_eq!(ledger.optional_search_work(), (0, 40));
+        ledger.set_deadline_elapsed_for_test(Duration::from_millis(100));
+        assert_eq!(
+            ledger.charge(WorkDomain::Optional, WorkKind::Render, 0),
+            Err(BudgetError::DeadlineExceeded)
+        );
+        ledger.end_objective_share(third);
+        assert_eq!(ledger.work_used(WorkDomain::Optional), 50);
+        assert_eq!(ledger.work_by_kind(WorkKind::Analysis), 20);
+        assert_eq!(ledger.work_by_kind(WorkKind::Render), 40);
+        assert_eq!(ledger.work_limit(WorkDomain::Optional), 90);
+        assert_eq!(
+            ledger.charge(WorkDomain::Optional, WorkKind::Analysis, 0),
+            Err(BudgetError::DeadlineExceeded)
+        );
+        ledger.release(WorkDomain::Baseline, 8).unwrap();
+        assert_eq!(ledger.retained_bytes(), 0);
     }
 
     fn baseline_first_plan() -> BaselineFirstPlan {
