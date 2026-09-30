@@ -169,7 +169,13 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             Rc::new(RefCell::new(Value::Instance(receiver))),
         );
         self.execute_callable_frame(frame, function.body, None, span)
-            .map(copy_for_store)
+            .map(|value| {
+                if matches!(function.return_type.kind, TypeKind::Float) {
+                    coerce_value_to_type(value, &Type::Float)
+                } else {
+                    copy_for_store(value)
+                }
+            })
     }
 
     pub(super) fn initialize_class(

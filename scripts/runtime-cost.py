@@ -121,7 +121,12 @@ def measure(args, report):
             entry = pin(implementation["entry"])
             for path in implementation.get("inputs", []):
                 pin(path)
-            workload["implementations"][label] = {**implementation, "entry": entry}
+            inventory = None
+            if implementation.get("inventory"):
+                inventory = read_json(Path(pin(implementation["inventory"])).read_text())
+                if inventory.get("artifact", {}).get("sha256") != identities[entry]:
+                    raise ValueError(f"{identifier}/{label}: inventory belongs to another artifact")
+            workload["implementations"][label] = {**implementation, "entry": entry, "static_inventory": inventory}
         limits = workload.get("runtime_limits", {})
         for metric, tolerance in limits.items():
             if metric not in ["startup_wall_ns", "startup_cpu_us", "steady_wall_ns", "steady_cpu_us", "rss_bytes", "retained_heap_bytes", "retained_array_buffer_bytes"]:
@@ -144,7 +149,8 @@ def measure(args, report):
     for number, workload in enumerate(workloads):
         directory = args.work / str(number)
         directory.mkdir(parents=True, exist_ok=True)
-        row = {"id": workload["id"], "contract": workload["contract"], "samples": []}
+        row = {"id": workload["id"], "contract": workload["contract"], "samples": [],
+               "implementations": workload["implementations"]}
         report["workloads"].append(row)
         samples = {label: [] for label in ["reference", "candidate", *[f"control-{n}" for n in range(control_count)]]}
         for round_index in range(args.rounds):

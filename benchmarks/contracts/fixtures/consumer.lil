@@ -1,0 +1,4 @@
+import { transform } from "./library.lil";
+int total = 0;
+for (int index = 0; index < 64; index++) { total += transform(index); }
+print(total);

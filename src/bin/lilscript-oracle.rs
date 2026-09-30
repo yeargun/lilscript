@@ -65,11 +65,25 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let mut rows = Vec::new();
     let mut pending = Vec::new();
     let mut failed = false;
+    let mut names = std::collections::HashSet::new();
     for path in sources {
+        if !names.insert(path.file_stem().unwrap().to_owned()) {
+            return Err(format!("ambiguous case name: {}", path.display()).into());
+        }
         let source = fs::read_to_string(&path)?;
         let expected_path = path.with_extension("out");
+        let hosts = [
+            path.with_extension("host.js"),
+            path.with_extension("module-probe.mjs"),
+        ]
+        .into_iter()
+        .filter(|path| path.exists())
+        .collect::<Vec<_>>();
         let arena = Bump::new();
         let evaluated: Result<String, String> = (|| {
+            if !hosts.is_empty() {
+                return Err("host-model: this case requires its declared JavaScript prelude or module observer; checked-AST evaluation alone is not its behavior oracle".into());
+            }
             let program =
                 parse_source(&arena, &source).map_err(|error| format!("parse: {error}"))?;
             let semantics = analyze(&program).map_err(|error| format!("check: {error}"))?;
@@ -85,6 +99,10 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         })();
         let mut row = json!({"case": path.file_stem().unwrap().to_string_lossy(), "source":path,
             "source_sha256": hash(source.as_bytes()), "status":"uncovered"});
+        row["host_inputs"] = json!(hosts
+            .iter()
+            .map(|path| fs::read(path).map(|bytes| json!({"path":path,"sha256":hash(&bytes)})))
+            .collect::<Result<Vec<_>, _>>()?);
         match evaluated {
             Err(error) => {
                 row["reason"] = json!(error);

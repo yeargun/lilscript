@@ -16,7 +16,9 @@ use crate::span::Span;
 use crate::typed_array::TypedArrayKind;
 
 mod aggregates;
+mod strings;
 use aggregates::copy_for_store;
+use strings::{string_units, string_value, decode_source_units};
 
 const DEFAULT_STEP_LIMIT: u64 = 10_000_000;
 const DEFAULT_RECURSION_LIMIT: usize = 256;
@@ -57,6 +59,7 @@ enum Value {
     Int(i32),
     Float(f64),
     String(String),
+    StringUnits(Rc<Vec<u16>>),
     Bool(bool),
     Array(Rc<RefCell<Vec<Value>>>),
     Record(Rc<RefCell<IndexMap<String, Value>>>),
@@ -142,8 +145,10 @@ impl Value {
             Self::Float(value) if value.is_nan() => Ok("NaN".to_string()),
             Self::Float(value) if *value == f64::INFINITY => Ok("Infinity".to_string()),
             Self::Float(value) if *value == f64::NEG_INFINITY => Ok("-Infinity".to_string()),
+            Self::Float(value) if *value == 0.0 => Ok("0".into()),
             Self::Float(value) => Ok(value.to_string()),
             Self::String(value) => Ok(value.clone()),
+            Self::StringUnits(value) => Ok(String::from_utf16_lossy(value)),
             Self::Bool(value) => Ok(value.to_string()),
             Self::Struct(_) | Self::Instance(_) | Self::Map(_) | Self::Set(_) => Err(
                 InterpretError::new(span, "aggregate values cannot be printed directly")),
@@ -291,7 +296,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 Item::ExternClass(_) | Item::Extern(_) | Item::ExternGlobal(_) => {
                     return Err(InterpretError::new(
                         item.span(),
-                        "reference interpreter does not support host or class declarations",
+                        "reference interpreter requires a declared independent host model",
                     ));
                 }
             }
@@ -370,7 +375,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 let record = record.borrow();
                 for binding in *bindings {
                     let value = record
-                        .get(&decode_source_string(binding.key.name))
+                        .get(&decode_source_string(binding.key.name)?)
                         .cloned()
                         .unwrap_or(Value::Null);
                     self.declare(self.symbol(&binding.name)?, value);
@@ -379,7 +384,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     let excluded = bindings
                         .iter()
                         .map(|binding| decode_source_string(binding.key.name))
-                        .collect::<std::collections::HashSet<_>>();
+                        .collect::<Result<std::collections::HashSet<_>, _>>()?;
                     let mut remaining = IndexMap::new();
                     for key in ordered_record_keys(&record) {
                         if !excluded.contains(&key) {
@@ -571,9 +576,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 ..
             } => Ok(Value::Float(*value)),
             Expr {
-                kind: ExprKind::String(value, _),
+                kind: ExprKind::String(value, span),
                 ..
-            } => Ok(Value::String(decode_source_string(value))),
+            } => Ok(string_value(decode_source_units(value, *span)?)),
             Expr {
                 kind: ExprKind::Bool(value, _),
                 ..
@@ -615,7 +620,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                                     "array spread requires an array",
                                 ));
                             };
-                            values.extend(spread.borrow().iter().cloned());
+                            values.extend(spread.borrow().iter().cloned().map(copy_for_store));
                         }
                     }
                 }
@@ -630,7 +635,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     match entry {
                         RecordElement::Entry(entry) => {
                             values.insert(
-                                decode_source_string(entry.key.name),
+                                decode_source_string(entry.key.name)?,
                                 self.evaluate(&entry.value)?,
                             );
                         }
@@ -663,7 +668,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                         ));
                     };
                     values.insert(
-                        decode_source_string(entry.key.name),
+                        decode_source_string(entry.key.name)?,
                         self.evaluate(&entry.value)?,
                     );
                 }
@@ -792,19 +797,20 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 kind: ExprKind::Template { parts, span },
                 ..
             } => {
-                let mut output = String::new();
+                let mut output = Vec::new();
                 for part in *parts {
                     match part {
-                        TemplatePart::String(value, _) => output.push_str(value),
+                        TemplatePart::String(value, span) => output.extend(decode_source_units(value, *span)?),
                         TemplatePart::Expr(value) => {
-                            output.push_str(&self.evaluate(value)?.display(value.span())?);
+                            let evaluated = self.evaluate(value)?;
+                            output.extend(string_units(&evaluated).unwrap_or(evaluated.display(value.span())?.encode_utf16().collect()));
                         }
                     }
                 }
                 if self.semantics.expression_type(expression.id) != Some(&Type::String) {
                     return Err(InterpretError::new(*span, "template has no string type"));
                 }
-                Ok(Value::String(output))
+                Ok(string_value(output))
             }
             Expr {
                 kind:
@@ -1047,6 +1053,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 i32::try_from(values.borrow().len())
                     .map_err(|_| InterpretError::new(span, "array length exceeds the i32 range"))?,
             )),
+            (Value::StringUnits(value), "length") => Ok(Value::Int(value.len() as i32)),
             (Value::String(value), "length") => {
                 self.evaluate_string_method(&value, "length", &[], span)
             }
@@ -1108,6 +1115,17 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             Add, BitAnd, BitOr, Div, Eq, Greater, GreaterEq, Less, LessEq, Mod, Mul, NotEq,
             ShiftLeft, ShiftRight, Sub, UnsignedShiftRight, Xor,
         };
+        if op == Add && (string_units(&lhs).is_some() || string_units(&rhs).is_some()) {
+            let mut units = string_units(&lhs).unwrap_or(lhs.display(span)?.encode_utf16().collect());
+            units.extend(string_units(&rhs).unwrap_or(rhs.display(span)?.encode_utf16().collect()));
+            return Ok(string_value(units));
+        }
+        if matches!(op, Less | LessEq | Greater | GreaterEq) {
+            if let (Some(lhs), Some(rhs)) = (string_units(&lhs), string_units(&rhs)) {
+                let order = lhs.cmp(&rhs);
+                return Ok(Value::Bool(match op { Less => order.is_lt(), LessEq => !order.is_gt(), Greater => order.is_gt(), GreaterEq => !order.is_lt(), _ => unreachable!() }));
+            }
+        }
         match (op, lhs, rhs) {
             (Add, Value::Int(lhs), Value::Int(rhs)) => Ok(Value::Int(lhs.wrapping_add(rhs))),
             (Sub, Value::Int(lhs), Value::Int(rhs)) => Ok(Value::Int(lhs.wrapping_sub(rhs))),
@@ -1485,6 +1503,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     Value::Int(value) => *value != 0,
                     Value::Float(value) => *value != 0.0 && !value.is_nan(),
                     Value::String(value) => !value.is_empty(),
+                    Value::StringUnits(value) => !value.is_empty(),
                     Value::Bool(value) => *value,
                     Value::Null | Value::Void => false,
                     Value::Struct(_) | Value::Instance(_) | Value::Map(_) | Value::Set(_)
@@ -1549,8 +1568,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             };
             return Ok(Value::Float(result));
         }
-        if let Value::String(receiver) = &receiver {
-            return self.evaluate_string_method(receiver, method, &arguments, span);
+        if let Some(units) = string_units(&receiver) {
+            return self.evaluate_string_units(&units, method, &arguments, span);
         }
         let Value::Array(array) = receiver else {
             return Err(InterpretError::new(
@@ -1616,8 +1635,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             }
             "join" => {
                 let separator = match arguments.as_slice() {
-                    [] => ",",
-                    [Value::String(separator)] => separator.as_str(),
+                    [] => vec![44],
+                    [value] if string_units(value).is_some() => string_units(value).unwrap(),
                     _ => {
                         return Err(InterpretError::new(
                             span,
@@ -1626,16 +1645,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     }
                 };
                 let array = array.borrow();
-                let mut output = String::new();
+                let mut output = Vec::new();
                 for (index, value) in array.iter().enumerate() {
-                    if index != 0 {
-                        output.push_str(separator);
-                    }
+                    if index != 0 { output.extend_from_slice(&separator); }
                     if !matches!(value, Value::Null) {
-                        output.push_str(&value.display(span)?);
+                        output.extend(string_units(value).unwrap_or(value.display(span)?.encode_utf16().collect()));
                     }
                 }
-                Ok(Value::String(output))
+                Ok(string_value(output))
             }
             "some" | "every" | "findIndex" => {
                 let [callback] = arguments.as_slice() else {
@@ -1683,8 +1700,8 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 let left = array.borrow();
                 let right = other.borrow();
                 let mut values = Vec::with_capacity(left.len() + right.len());
-                values.extend(left.iter().cloned());
-                values.extend(right.iter().cloned());
+                values.extend(left.iter().cloned().map(copy_for_store));
+                values.extend(right.iter().cloned().map(copy_for_store));
                 Ok(Value::Array(Rc::new(RefCell::new(values))))
             }
             "copyWithin" => {
@@ -1705,7 +1722,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 let start = normalize_slice_index(start, values.len());
                 let end = normalize_slice_index(end, values.len()).max(start);
                 let count = (end - start).min(values.len() - target);
-                let copied = values[start..start + count].to_vec();
+                let copied = values[start..start + count].iter().cloned().map(copy_for_store).collect::<Vec<_>>();
                 values[target..target + count].clone_from_slice(&copied);
                 drop(values);
                 Ok(Value::Array(array.clone()))
@@ -2253,6 +2270,7 @@ impl PartialEq for Flow {
 }
 
 fn values_equal(lhs: &Value, rhs: &Value) -> bool {
+    if let (Some(lhs), Some(rhs)) = (string_units(lhs), string_units(rhs)) { return lhs == rhs; }
     match (lhs, rhs) {
         (Value::Int(lhs), Value::Int(rhs)) => lhs == rhs,
         (Value::Float(lhs), Value::Float(rhs)) => lhs == rhs,
@@ -2291,9 +2309,9 @@ fn compare_js_strings(lhs: &str, rhs: &str) -> std::cmp::Ordering {
     lhs.encode_utf16().cmp(rhs.encode_utf16())
 }
 
-fn decode_source_string(value: &str) -> String {
-    let encoded = format!("\"{value}\"");
-    serde_json::from_str(&encoded).unwrap_or_else(|_| value.to_string())
+fn decode_source_string(value: &str) -> Result<String, InterpretError> {
+    String::from_utf16(&decode_source_units(value, Span::default())?)
+        .map_err(|_| InterpretError::new(Span::default(), "unsupported unpaired-surrogate property key"))
 }
 
 fn record_array_index(key: &str) -> Option<u32> {
@@ -2350,7 +2368,8 @@ fn value_to_json(value: &Value, span: Span) -> Result<serde_json::Value, Interpr
             }
             serde_json::Value::Object(object)
         }
-        Value::Buffer(_)
+        Value::StringUnits(_)
+        | Value::Buffer(_)
         | Value::TypedArray(_)
         | Value::Symbol(_)
         | Value::Callable(_)
@@ -2391,7 +2410,7 @@ fn value_matches_type(value: &Value, target: TypeKind<'_, '_>) -> Option<bool> {
     match target {
         TypeKind::Int => Some(matches!(value, Value::Int(_))),
         TypeKind::Float => Some(matches!(value, Value::Float(_))),
-        TypeKind::String => Some(matches!(value, Value::String(_))),
+        TypeKind::String => Some(matches!(value, Value::String(_) | Value::StringUnits(_))),
         TypeKind::Bool => Some(matches!(value, Value::Bool(_))),
         TypeKind::Array(_) => Some(matches!(value, Value::Array(_))),
         TypeKind::Function { .. } => Some(matches!(value, Value::Callable(_))),
@@ -2668,252 +2687,6 @@ fn js_max(left: f64, right: f64) -> f64 {
     }
 }
 
-impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
-    fn evaluate_string_method(
-        &self,
-        receiver: &str,
-        method: &str,
-        arguments: &[Value],
-        span: Span,
-    ) -> Result<Value, InterpretError> {
-        match method {
-            "charCodeAt" => {
-                let Value::Int(index) = arguments.first().cloned().unwrap_or(Value::Int(0)) else {
-                    return Err(InterpretError::new(
-                        span,
-                        "charCodeAt requires an int index",
-                    ));
-                };
-                let code = if index < 0 {
-                    0
-                } else {
-                    receiver
-                        .encode_utf16()
-                        .nth(usize::try_from(index).unwrap_or(usize::MAX))
-                        .unwrap_or(0)
-                };
-                Ok(Value::Int(i32::from(code)))
-            }
-            // In range by precondition (R11): past the end is an error here,
-            // as an index read is.
-            "codeUnitAt" => {
-                let Value::Int(index) = arguments.first().cloned().unwrap_or(Value::Int(0)) else {
-                    return Err(InterpretError::new(
-                        span,
-                        "codeUnitAt requires an int index",
-                    ));
-                };
-                usize::try_from(index)
-                    .ok()
-                    .and_then(|index| receiver.encode_utf16().nth(index))
-                    .map(|code| Value::Int(i32::from(code)))
-                    .ok_or_else(|| InterpretError::new(span, "string index is out of bounds"))
-            }
-            "charAt" => {
-                let Value::Int(index) = arguments.first().cloned().unwrap_or(Value::Int(0)) else {
-                    return Err(InterpretError::new(span, "charAt requires an int index"));
-                };
-                let unit = if index < 0 {
-                    None
-                } else {
-                    receiver
-                        .encode_utf16()
-                        .nth(usize::try_from(index).unwrap_or(usize::MAX))
-                };
-                Ok(Value::String(match unit {
-                    None => String::new(),
-                    Some(unit) => char::decode_utf16([unit])
-                        .next()
-                        .and_then(Result::ok)
-                        .map(|value| value.to_string())
-                        .unwrap_or_default(),
-                }))
-            }
-            "includes" | "startsWith" | "endsWith" => {
-                let [Value::String(needle)] = arguments else {
-                    return Err(InterpretError::new(
-                        span,
-                        format!("{method} requires one string argument"),
-                    ));
-                };
-                Ok(Value::Bool(match method {
-                    "includes" => receiver.contains(needle),
-                    "startsWith" => receiver.starts_with(needle),
-                    "endsWith" => receiver.ends_with(needle),
-                    _ => unreachable!(),
-                }))
-            }
-            "indexOf" | "lastIndexOf" => {
-                let Some(Value::String(needle)) = arguments.first() else {
-                    return Err(InterpretError::new(
-                        span,
-                        format!("{method} requires a string argument"),
-                    ));
-                };
-                let default = if method == "indexOf" { 0 } else { i32::MAX };
-                let position = match arguments.get(1) {
-                    None => default,
-                    Some(Value::Int(value)) => *value,
-                    Some(_) => {
-                        return Err(InterpretError::new(
-                            span,
-                            format!("{method} position must be int"),
-                        ));
-                    }
-                };
-                Ok(Value::Int(utf16_string_index(
-                    receiver,
-                    needle,
-                    position,
-                    method == "lastIndexOf",
-                )))
-            }
-            "repeat" => {
-                let [Value::Int(count)] = arguments else {
-                    return Err(InterpretError::new(span, "repeat requires one int count"));
-                };
-                let count = usize::try_from(*count)
-                    .map_err(|_| InterpretError::new(span, "repeat count must be non-negative"))?;
-                receiver
-                    .len()
-                    .checked_mul(count)
-                    .ok_or_else(|| InterpretError::new(span, "repeated string is too large"))?;
-                Ok(Value::String(receiver.repeat(count)))
-            }
-            "toUpperCase" => Ok(Value::String(receiver.to_uppercase())),
-            "toLowerCase" => Ok(Value::String(receiver.to_lowercase())),
-            "trim" => Ok(Value::String(
-                receiver.trim_matches(is_js_trim_char).to_string(),
-            )),
-            "trimStart" => Ok(Value::String(
-                receiver.trim_start_matches(is_js_trim_char).to_string(),
-            )),
-            "trimEnd" => Ok(Value::String(
-                receiver.trim_end_matches(is_js_trim_char).to_string(),
-            )),
-            "slice" => {
-                let Some(Value::Int(start)) = arguments.first() else {
-                    return Err(InterpretError::new(span, "slice requires an int start"));
-                };
-                let end = match arguments.get(1) {
-                    None => None,
-                    Some(Value::Int(value)) => Some(*value),
-                    Some(_) => {
-                        return Err(InterpretError::new(span, "slice end must be int"));
-                    }
-                };
-                Ok(Value::String(utf16_string_slice(receiver, *start, end)))
-            }
-            "split" => {
-                let Some(Value::String(separator)) = arguments.first() else {
-                    return Err(InterpretError::new(
-                        span,
-                        "split requires a string separator",
-                    ));
-                };
-                Ok(Value::Array(Rc::new(RefCell::new(
-                    js_string_split(receiver, separator)
-                        .into_iter()
-                        .map(Value::String)
-                        .collect(),
-                ))))
-            }
-            "codePointLength" => Ok(Value::Int(
-                i32::try_from(receiver.chars().count()).map_err(|_| {
-                    InterpretError::new(span, "code point length exceeds the i32 range")
-                })?,
-            )),
-            "length" => Ok(Value::Int(
-                i32::try_from(receiver.encode_utf16().count()).map_err(|_| {
-                    InterpretError::new(span, "string length exceeds the i32 range")
-                })?,
-            )),
-            _ => Err(InterpretError::new(
-                span,
-                format!("unsupported interpreted string method `{method}`"),
-            )),
-        }
-    }
-}
-
-fn is_js_trim_char(ch: char) -> bool {
-    ch.is_whitespace() || ch == '\u{feff}'
-}
-
-fn utf16_string_slice(receiver: &str, start: i32, end: Option<i32>) -> String {
-    let units = receiver.encode_utf16().collect::<Vec<_>>();
-    let len = units.len() as i32;
-    let start = if start < 0 {
-        (len + start).max(0)
-    } else {
-        start.min(len)
-    };
-    let start = start as usize;
-    let end = match end {
-        None => units.len(),
-        Some(end) => {
-            let end = if end < 0 {
-                (len + end).max(0)
-            } else {
-                end.min(len)
-            };
-            end as usize
-        }
-    };
-    let end = end.max(start);
-    char::decode_utf16(units[start..end].iter().copied())
-        .map(|unit| unit.unwrap_or(char::REPLACEMENT_CHARACTER))
-        .collect()
-}
-
-fn js_string_split(receiver: &str, separator: &str) -> Vec<String> {
-    if separator.is_empty() {
-        return receiver
-            .encode_utf16()
-            .map(|unit| {
-                char::decode_utf16([unit])
-                    .next()
-                    .and_then(Result::ok)
-                    .map(|value| value.to_string())
-                    .unwrap_or_default()
-            })
-            .collect();
-    }
-    receiver.split(separator).map(str::to_string).collect()
-}
-
-fn utf16_string_index(receiver: &str, needle: &str, position: i32, last: bool) -> i32 {
-    let receiver = receiver.encode_utf16().collect::<Vec<_>>();
-    let needle = needle.encode_utf16().collect::<Vec<_>>();
-    let position = if position < 0 {
-        0
-    } else {
-        usize::try_from(position)
-            .unwrap_or(usize::MAX)
-            .min(receiver.len())
-    };
-    if needle.is_empty() {
-        return position as i32;
-    }
-    if needle.len() > receiver.len() {
-        return -1;
-    }
-    if last {
-        let start = position.min(receiver.len() - needle.len());
-        (0..=start)
-            .rev()
-            .find(|index| receiver[*index..*index + needle.len()] == needle)
-            .map_or(-1, |index| index as i32)
-    } else {
-        if position + needle.len() > receiver.len() {
-            return -1;
-        }
-        (position..=receiver.len() - needle.len())
-            .find(|index| receiver[*index..*index + needle.len()] == needle)
-            .map_or(-1, |index| index as i32)
-    }
-}
-
 fn js_i32_multiply(lhs: i32, rhs: i32) -> i32 {
     let product = f64::from(lhs) * f64::from(rhs);
     (product as i64 as u32) as i32
@@ -2951,6 +2724,16 @@ mod tests {
     }
 
     #[test]
+    fn utf16_and_identity_escapes_use_independent_code_units() {
+        for (source,expected) in [
+            (include_str!("../tests/cases/string_code_units.lil"), include_str!("../tests/cases/string_code_units.out")),
+            (include_str!("../tests/cases/regressions/opt-decoded_strings_execute_in_native_c_before_and_after_folding.lil"), include_str!("../tests/cases/regressions/opt-decoded_strings_execute_in_native_c_before_and_after_folding.out")),
+            (include_str!("../tests/cases/regressions/opt-closed_record_projection_uses_decoded_identity_escapes.lil"), include_str!("../tests/cases/regressions/opt-closed_record_projection_uses_decoded_identity_escapes.out")),
+        ] { assert_eq!(run(source),expected); }
+        assert_eq!(run(r#"string value="😀";string[] units=value.split("");print(units.length);print(units.join("").length);print(value.slice(0,1).charCodeAt(0));"#), "2\n2\n55357\n");
+    }
+
+    #[test]
     fn nominal_and_collection_conformance_uses_checked_in_oracles() {
         for (source, expected) in [
             (include_str!("../tests/cases/19_class.lil"), include_str!("../tests/cases/19_class.out")),
@@ -2968,7 +2751,7 @@ mod tests {
 
     #[test]
     fn inherited_dispatch_super_and_generic_calls_are_independent() {
-        assert_eq!(run("class Base{int x;init(int x){this.x=x;}int get(){return this.x;}}class Child extends Base{int y=4;init(int x){super(x);}int get(){return this.x+this.y;}}T identity<T>(T x){return x;}Base a=new Child(3);print(identity(a).get());"), "7\n");
+        assert_eq!(run("class Base{int x;init(int x){this.x=x;}int get(){return this.x;}}class Child extends Base{int y=4;init(int x){super(x);}int total(){return this.get()+this.y;}}T identity<T>(T x){return x;}Child a=new Child(3);print(identity(a).total());"), "7\n");
     }
 
     #[test]

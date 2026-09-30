@@ -1,0 +1,16 @@
+export int calls(int value) {
+  int result = value;
+  for (int index = 0; index < 32; index++) { result = (result + index) ^ (index << 2); }
+  return result;
+}
+export int allocation(int value) {
+  int[] values = [value, value + 1, value + 2, value + 3];
+  values.push(value + 4);
+  int result = 0;
+  for (int item of values) { result += item; }
+  return result;
+}
+export int strings(int value) {
+  string[] names = ["alpha", "beta", "gamma", "delta"];
+  return names[value & 3].length;
+}
