@@ -1,0 +1,684 @@
+{
+  "schema": 1,
+  "source": "79c1d607",
+  "scope": "development corpus and reference ports; no held-out qualification",
+  "summarizer_sha256": "e6acb5d0194563e960b39b5454651ddcb9265257cfc021c88df0ed9c4e3bd7a8",
+  "reports": {
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-s1-primitive-assumptions/ratchet.json": "88fb18bcdc71d892abab62dc8fe88f952740bdbb4305a721e3f04d82c38a632c",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-s1-primitive-assumptions/ports.json": "e8d84f09cdf9abddfa114f98958f4601c6d54a156525d626dfff713a78c98c75",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-level14/ratchet.json": "6a3f53afa91ad7c63144a5f1efe5428f2075d1932659de9fe97d3438e39ea17d",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-level14/ports.json": "3fdd8fa9991d30675d02bb2b6dc3002445e53d370903d546a1d8287c05675a78",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-level14/compile-cost-13.json": "85973d7a04a27c1e46b936345b0417015888d8e9e58f82671e8d04fd1c39e4e0",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-level14/compile-cost-14.json": "b6492ba108dd33b261fed9ac6547a37025018f41546c232908721f742e72be9f"
+  },
+  "generic": {
+    "compared": 1926,
+    "changed": [
+      {
+        "item": "cases/catalog/closure/edge-closure-mutation-3nn1n5",
+        "metric": "gzip9",
+        "before": 110,
+        "after": 109,
+        "sha256": [
+          "f39245bd88477f71cbd0abc772dc22a0dbd8a59668897bad908e61309df056e7",
+          "eb5c7cda700e0edacb22a71e0e107af0b45cd18975153ce2200553a5bca00095"
+        ]
+      }
+    ]
+  },
+  "ports": {
+    "changed": [
+      {
+        "port": "markedlil",
+        "path": "dist/marked.cjs",
+        "coordinates": {
+          "raw": [
+            34600,
+            34525
+          ],
+          "gzip9": [
+            10093,
+            10052
+          ],
+          "brotli11": [
+            9006,
+            9000
+          ]
+        },
+        "sha256": [
+          "ecd674bbc6b1fdaf1b6a72133efa682f4e92bc82b1e2f0d97a9d0cb05e27f463",
+          "733801fa7e34f52e23a192623ddbe061a570d0f601e1d1121be0a98529625798"
+        ]
+      },
+      {
+        "port": "markedlil",
+        "path": "dist/marked.closed.js",
+        "coordinates": {
+          "raw": [
+            34295,
+            34221
+          ],
+          "gzip9": [
+            9931,
+            9890
+          ],
+          "brotli11": [
+            8851,
+            8829
+          ]
+        },
+        "sha256": [
+          "e78605dc281bf61730fd18870cd439f99862622c6ac98fb3df09a6902ecfea72",
+          "f48b0de442bf79a69f101b2133d3e810dc7740868a8bf70070a55b99284b818e"
+        ]
+      },
+      {
+        "port": "markedlil",
+        "path": "dist/marked.esm.js",
+        "coordinates": {
+          "raw": [
+            34379,
+            34305
+          ],
+          "gzip9": [
+            9987,
+            9947
+          ],
+          "brotli11": [
+            8903,
+            8911
+          ]
+        },
+        "sha256": [
+          "d7bb3492c8c5a6cf42a0374eefb47d0ed4246e2f543a44e45bebf65e8f51d085",
+          "55159fdd54697e2c62b879ed2fc73220c8b8bd680260c17b2a27fb12a48f6f05"
+        ]
+      },
+      {
+        "port": "markedlil",
+        "path": "dist/marked.gzip.js",
+        "coordinates": {
+          "raw": [
+            33744,
+            33748
+          ],
+          "gzip9": [
+            9859,
+            9858
+          ],
+          "brotli11": [
+            8846,
+            8862
+          ]
+        },
+        "sha256": [
+          "1c1e6978b38caf78e0141f52be4a8239b5cbfeff57b3ac15fbb0effb3f1fba3b",
+          "55be1adb80fad66296aec98b0f8ddeeedba45f8fbc27f5702957eb9b91ec2479"
+        ]
+      },
+      {
+        "port": "markedlil",
+        "path": "dist/marked.raw.js",
+        "coordinates": {
+          "raw": [
+            34295,
+            34221
+          ],
+          "gzip9": [
+            9931,
+            9890
+          ],
+          "brotli11": [
+            8851,
+            8829
+          ]
+        },
+        "sha256": [
+          "e78605dc281bf61730fd18870cd439f99862622c6ac98fb3df09a6902ecfea72",
+          "f48b0de442bf79a69f101b2133d3e810dc7740868a8bf70070a55b99284b818e"
+        ]
+      },
+      {
+        "port": "markedlil",
+        "path": "dist/marked.umd.js",
+        "coordinates": {
+          "raw": [
+            34325,
+            34250
+          ],
+          "gzip9": [
+            9981,
+            9937
+          ],
+          "brotli11": [
+            8901,
+            8895
+          ]
+        },
+        "sha256": [
+          "2d2b9b7ceff4a981f0f201cbb115e4e7a03166b46e613a1a3e4d1819979ac98b",
+          "7555f45b3ed223c08869d8ce05d6f7d8351ddb1f64a60ccc4a7c978aac0c2dc1"
+        ]
+      },
+      {
+        "port": "zodlil",
+        "path": "dist/index.cjs",
+        "coordinates": {
+          "raw": [
+            139191,
+            139696
+          ],
+          "gzip9": [
+            37771,
+            37876
+          ],
+          "brotli11": [
+            32802,
+            32851
+          ]
+        },
+        "sha256": [
+          "4ef774d6f0047be07c1d61253837ab0f6a1eb814b42d4b85069757dad76177ec",
+          "5e7eabab42a3b2b6e462312ced64e99732a14a0ceba25ec7ebd7331e209c702a"
+        ]
+      },
+      {
+        "port": "zodlil",
+        "path": "dist/zod.core.js",
+        "coordinates": {
+          "raw": [
+            89650,
+            88985
+          ],
+          "gzip9": [
+            29821,
+            29742
+          ],
+          "brotli11": [
+            26573,
+            26562
+          ]
+        },
+        "sha256": [
+          "2ad2653b206b21a9967061972f56d8e12012ece1a529db788c49f53cbe964770",
+          "d29a08a6136c5846d4df88659881e29ef4905978004fd973169878ce3f809d86"
+        ]
+      }
+    ],
+    "compared": 20
+  },
+  "cpu": {
+    "13": [
+      {
+        "id": "markedlil-raw",
+        "codec": "raw",
+        "size": [
+          32700,
+          32700
+        ],
+        "judged": [
+          4,
+          4
+        ],
+        "codec_probes": [
+          0,
+          0
+        ],
+        "optional_work": [
+          158003856,
+          158003856
+        ],
+        "peak_retained_bytes": [
+          24381852,
+          24381852
+        ],
+        "cpu": {
+          "previous": {
+            "median": 2.7964349999999976,
+            "min": 2.740236999999999,
+            "max": 2.9109589999999996,
+            "stdev": 0.08700571155964462
+          },
+          "candidate": {
+            "median": 2.7839060000000004,
+            "min": 2.693197000000002,
+            "max": 2.893283,
+            "stdev": 0.10018803837950484
+          }
+        },
+        "ratio": 0.9955196527006717
+      },
+      {
+        "id": "markedlil-gzip",
+        "codec": "gzip",
+        "size": [
+          9859,
+          9859
+        ],
+        "judged": [
+          8,
+          8
+        ],
+        "codec_probes": [
+          89,
+          89
+        ],
+        "optional_work": [
+          180240729,
+          180240729
+        ],
+        "peak_retained_bytes": [
+          24439741,
+          24439741
+        ],
+        "cpu": {
+          "previous": {
+            "median": 2.355067000000002,
+            "min": 2.2017389999999994,
+            "max": 2.8143259999999986,
+            "stdev": 0.31877137503075686
+          },
+          "candidate": {
+            "median": 2.4406480000000066,
+            "min": 2.3148740000000028,
+            "max": 2.5676939999999915,
+            "stdev": 0.1264105333111073
+          }
+        },
+        "ratio": 1.0363390935374683
+      },
+      {
+        "id": "markedlil-brotli",
+        "codec": "brotli",
+        "size": [
+          8851,
+          8851
+        ],
+        "judged": [
+          68,
+          68
+        ],
+        "codec_probes": [
+          68,
+          68
+        ],
+        "optional_work": [
+          176731817,
+          176731817
+        ],
+        "peak_retained_bytes": [
+          25935768,
+          25935768
+        ],
+        "cpu": {
+          "previous": {
+            "median": 7.570742999999999,
+            "min": 6.506236000000007,
+            "max": 7.756360000000002,
+            "stdev": 0.6745910908486183
+          },
+          "candidate": {
+            "median": 6.263766000000006,
+            "min": 6.247837999999997,
+            "max": 6.545055000000001,
+            "stdev": 0.16719008532904514
+          }
+        },
+        "ratio": 0.8273647645944402
+      },
+      {
+        "id": "zodlil-raw",
+        "codec": "raw",
+        "size": [
+          81708,
+          81708
+        ],
+        "judged": [
+          5,
+          5
+        ],
+        "codec_probes": [
+          0,
+          0
+        ],
+        "optional_work": [
+          547700077,
+          547700077
+        ],
+        "peak_retained_bytes": [
+          43356726,
+          43356726
+        ],
+        "cpu": {
+          "previous": {
+            "median": 8.598729999999993,
+            "min": 7.98218499999999,
+            "max": 9.104433999999998,
+            "stdev": 0.562036044313
+          },
+          "candidate": {
+            "median": 8.667626000000011,
+            "min": 8.09716800000001,
+            "max": 8.89447699999999,
+            "stdev": 0.41080923136454245
+          }
+        },
+        "ratio": 1.0080123460092383
+      },
+      {
+        "id": "zodlil-gzip",
+        "codec": "gzip",
+        "size": [
+          29648,
+          29648
+        ],
+        "judged": [
+          11,
+          11
+        ],
+        "codec_probes": [
+          106,
+          106
+        ],
+        "optional_work": [
+          651556334,
+          651556334
+        ],
+        "peak_retained_bytes": [
+          43363615,
+          43363615
+        ],
+        "cpu": {
+          "previous": {
+            "median": 9.427725999999971,
+            "min": 9.410377000000016,
+            "max": 12.448193999999994,
+            "stdev": 1.7488977505995977
+          },
+          "candidate": {
+            "median": 10.827560000000004,
+            "min": 9.680398999999989,
+            "max": 11.514815999999987,
+            "stdev": 0.9267672217036672
+          }
+        },
+        "ratio": 1.1484805561807838
+      },
+      {
+        "id": "zodlil-brotli",
+        "codec": "brotli",
+        "size": [
+          26573,
+          26573
+        ],
+        "judged": [
+          67,
+          67
+        ],
+        "codec_probes": [
+          67,
+          67
+        ],
+        "optional_work": [
+          623709269,
+          623709269
+        ],
+        "peak_retained_bytes": [
+          48711075,
+          48711075
+        ],
+        "cpu": {
+          "previous": {
+            "median": 18.500885999999984,
+            "min": 18.070238999999926,
+            "max": 19.408552000000054,
+            "stdev": 0.6831783676481711
+          },
+          "candidate": {
+            "median": 18.077092,
+            "min": 18.014513000000036,
+            "max": 19.299607000000016,
+            "stdev": 0.7245602856562938
+          }
+        },
+        "ratio": 0.977093313260782
+      },
+      {
+        "id": "posthoglil-raw",
+        "codec": "raw",
+        "size": [
+          16360,
+          16360
+        ],
+        "judged": [
+          5,
+          5
+        ],
+        "codec_probes": [
+          0,
+          0
+        ],
+        "optional_work": [
+          27326093,
+          27326093
+        ],
+        "peak_retained_bytes": [
+          19777973,
+          19777973
+        ],
+        "cpu": {
+          "previous": {
+            "median": 0.39688500000000926,
+            "min": 0.35783100000001866,
+            "max": 0.5007850000000067,
+            "stdev": 0.07388760725136896
+          },
+          "candidate": {
+            "median": 0.42369600000002716,
+            "min": 0.3668760000000011,
+            "max": 0.435034999999969,
+            "stdev": 0.03652107748044788
+          }
+        },
+        "ratio": 1.0675535734533108
+      },
+      {
+        "id": "posthoglil-gzip",
+        "codec": "gzip",
+        "size": [
+          5809,
+          5809
+        ],
+        "judged": [
+          11,
+          11
+        ],
+        "codec_probes": [
+          47,
+          47
+        ],
+        "optional_work": [
+          57726803,
+          57726803
+        ],
+        "peak_retained_bytes": [
+          19843135,
+          19843135
+        ],
+        "cpu": {
+          "previous": {
+            "median": 0.6619569999999695,
+            "min": 0.5969239999999654,
+            "max": 0.6754190000000051,
+            "stdev": 0.04197614711159925
+          },
+          "candidate": {
+            "median": 0.6593149999999839,
+            "min": 0.6339510000000055,
+            "max": 0.6811940000000216,
+            "stdev": 0.02364291361769272
+          }
+        },
+        "ratio": 0.996008804197273
+      },
+      {
+        "id": "posthoglil-brotli",
+        "codec": "brotli",
+        "size": [
+          5224,
+          5224
+        ],
+        "judged": [
+          25,
+          25
+        ],
+        "codec_probes": [
+          25,
+          25
+        ],
+        "optional_work": [
+          30246117,
+          30246117
+        ],
+        "peak_retained_bytes": [
+          20903865,
+          20903865
+        ],
+        "cpu": {
+          "previous": {
+            "median": 0.9366989999999493,
+            "min": 0.921339000000049,
+            "max": 0.9430649999999539,
+            "stdev": 0.011168964678913193
+          },
+          "candidate": {
+            "median": 0.9125870000000198,
+            "min": 0.908769999999997,
+            "max": 0.9279799999999809,
+            "stdev": 0.010169710238402088
+          }
+        },
+        "ratio": 0.9742585398298377
+      }
+    ],
+    "14": [
+      {
+        "id": "markedlil-brotli-14",
+        "codec": "brotli",
+        "size": [
+          8851,
+          8829
+        ],
+        "judged": [
+          152,
+          194
+        ],
+        "codec_probes": [
+          152,
+          194
+        ],
+        "optional_work": [
+          369778053,
+          449733818
+        ],
+        "peak_retained_bytes": [
+          26455153,
+          28114063
+        ],
+        "cpu": {
+          "previous": {
+            "median": 11.280733000000007,
+            "min": 11.255692,
+            "max": 11.287796000000002,
+            "stdev": 0.01687011393955011
+          },
+          "candidate": {
+            "median": 13.723755,
+            "min": 13.658408000000005,
+            "max": 13.779041999999993,
+            "stdev": 0.06038687044658496
+          }
+        },
+        "ratio": 1.2165658915958735
+      },
+      {
+        "id": "zodlil-brotli-14",
+        "codec": "brotli",
+        "size": [
+          26573,
+          26562
+        ],
+        "judged": [
+          144,
+          188
+        ],
+        "codec_probes": [
+          144,
+          188
+        ],
+        "optional_work": [
+          1299051962,
+          1665887664
+        ],
+        "peak_retained_bytes": [
+          48711075,
+          51856492
+        ],
+        "cpu": {
+          "previous": {
+            "median": 37.54216599999997,
+            "min": 37.40534300000001,
+            "max": 38.105556000000014,
+            "stdev": 0.3711304960967331
+          },
+          "candidate": {
+            "median": 48.193002000000014,
+            "min": 47.98553300000002,
+            "max": 48.43144899999996,
+            "stdev": 0.2231372659843854
+          }
+        },
+        "ratio": 1.283703289788875
+      },
+      {
+        "id": "posthoglil-brotli-14",
+        "codec": "brotli",
+        "size": [
+          5200,
+          5200
+        ],
+        "judged": [
+          97,
+          99
+        ],
+        "codec_probes": [
+          97,
+          99
+        ],
+        "optional_work": [
+          114917145,
+          116482297
+        ],
+        "peak_retained_bytes": [
+          21418794,
+          21418794
+        ],
+        "cpu": {
+          "previous": {
+            "median": 3.21063499999999,
+            "min": 3.2042740000000163,
+            "max": 3.2342849999999945,
+            "stdev": 0.015813733177202707
+          },
+          "candidate": {
+            "median": 3.2495280000000104,
+            "min": 3.2355770000000166,
+            "max": 3.2686900000000465,
+            "stdev": 0.016624697561174823
+          }
+        },
+        "ratio": 1.0121138030327397
+      }
+    ]
+  }
+}

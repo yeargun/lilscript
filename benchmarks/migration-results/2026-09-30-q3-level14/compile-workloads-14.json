@@ -1,0 +1,25 @@
+{
+  "workloads": [
+    {
+      "id": "markedlil-brotli-14",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/markedlil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-level14/configs/markedlil-brotli-14.toml",
+      "arguments": []
+    },
+    {
+      "id": "zodlil-brotli-14",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/zodlil",
+      "entry": "scripts/zod.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-level14/configs/zodlil-brotli-14.toml",
+      "arguments": []
+    },
+    {
+      "id": "posthoglil-brotli-14",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+      "entry": "src/entry.lil",
+      "config": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-q3-level14/configs/posthoglil-brotli-14.toml",
+      "arguments": []
+    }
+  ]
+}
