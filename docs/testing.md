@@ -170,6 +170,14 @@ The runners' pure parts (feature detection, lane selection, configuration mergin
 
 ## The generic corpus ratchet
 
+`scripts/naming-perturbations.py --compiler <bin> --codec <codec> --work <dir>
+--json <report>` exercises captured bindings below and above the one-character
+name limit, with three source-name perturbations and two independent closure
+activations. It compares alphabet search permitted/vetoed under raw, gzip and
+Brotli, checks an independent Node arithmetic/event-order oracle, and retains
+sources, configurations, output hashes and all three measured sizes. This is
+development coverage, not a held-out calibration set.
+
 ```sh
 node scripts/ratchet.mjs --compiler target/release/lilscript
 node scripts/ratchet.mjs --compiler <bin> --filter 'apps/*,cases/catalog/loop/*' --json out.json --markdown out.md
@@ -281,6 +289,12 @@ are outside timed samples. Input changes, policy mismatches and unstable
 output fail the run. A median alone is insufficient evidence of a speed win;
 inspect the retained samples and explain changed work counts. This runner
 measures compilation, not the generated program's runtime.
+
+An intentional compiler schedule/tactic revision can use
+`--allow-policy-change "reason"`. The report retains the reason and both
+effective policies. Target availability, program contract, objective encoder
+settings, runtime priority, effort and resource/acceptance limits must still
+match; this option cannot relax them. Without it, any policy mismatch fails.
 
 ## The expected-failure ledgers
 

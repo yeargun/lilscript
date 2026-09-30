@@ -72,7 +72,7 @@ impl<'a> Output<'a> {
     pub(super) fn from_module(module: &'a Module) -> Result<Self, String> {
         Self::from_module_in(
             module,
-            naming::Eligibility::Search,
+            naming::Eligibility::Search { alphabets: true },
             None,
             AllocationBudget::new(None),
         )

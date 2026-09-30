@@ -76,13 +76,42 @@ def summary(samples):
     return result
 
 
+def compare_policies(previous, candidate, reason=None):
+    """Record an intentional compiler-policy change without relaxing the task."""
+    differences = []
+    for field in ["javascript_policy", "native_policy"]:
+        if field not in previous or field not in candidate:
+            raise RuntimeError(f"missing {field} in explain report")
+        before, after = previous[field], candidate[field]
+        if before == after:
+            continue
+        if not reason or not reason.strip():
+            raise RuntimeError(f"compilers resolved different {field}; explain an intentional change with --allow-policy-change")
+        if not isinstance(before, dict) or not isinstance(after, dict):
+            raise RuntimeError(f"changed target availability in {field}")
+        for key in ["contract", "effort", "resources", "constraints"]:
+            if key not in before or key not in after or before[key] != after[key]:
+                raise RuntimeError(f"changed {key} in {field}; this is not a matched compilation task")
+        left, right = before.get("objective"), after.get("objective")
+        if left is None or right is None:
+            if left != right:
+                raise RuntimeError(f"changed objective in {field}")
+        else:
+            for key in ["codec", "codec_settings", "priority"]:
+                if key not in left or key not in right or left[key] != right[key]:
+                    raise RuntimeError(f"changed objective {key} in {field}")
+        differences.append(field)
+    return differences
+
+
 def measure(args, report):
     manifest = json.loads(args.manifest.read_text())
     binaries = {key: str(Path(getattr(args, key)).resolve()) for key in ["previous", "candidate"]}
     identities = {key: {"path": path, "sha256": digest(path)} for key, path in binaries.items()}
     codec = str(args.codec.resolve())
     report.update({"schema": 1, "compilers": identities, "codec": {"path": codec, "sha256": digest(codec)},
-                   "manifest": manifest, "rounds": args.rounds, "workloads": [], "complete": False})
+                   "manifest": manifest, "rounds": args.rounds, "workloads": [], "complete": False,
+                   "policy_change_reason": args.allow_policy_change})
     seen = set()
     for index, original in enumerate(manifest["workloads"]):
         workload = dict(original)
@@ -100,15 +129,11 @@ def measure(args, report):
         previous, candidate = [warm[key]["explain"] for key in binaries]
         if previous["inputs"] != candidate["inputs"]:
             raise RuntimeError(f"{workload['id']}: compilers reported different inputs")
-        for field in ["javascript_policy", "native_policy"]:
-            if field not in previous or field not in candidate:
-                raise RuntimeError(f"{workload['id']}: missing {field} in explain report")
-            if previous[field] != candidate[field]:
-                raise RuntimeError(f"{workload['id']}: compilers resolved different {field}")
         samples, ordered = {key: [] for key in binaries}, []
         row = {"id": workload["id"], "cwd": workload["cwd"], "config_sha256": config_hash,
                "warmup": warm, "samples": ordered}
         report["workloads"].append(row)
+        row["policy_differences"] = compare_policies(previous, candidate, args.allow_policy_change)
         for round_index in range(args.rounds):
             order = ["previous", "candidate"] if round_index % 2 == 0 else ["candidate", "previous"]
             for key in order:
@@ -144,6 +169,8 @@ def main():
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=1800)
+    parser.add_argument("--allow-policy-change", metavar="REASON",
+                        help="record an intentional schedule/tactic change; contract, objective, effort and limits must still match")
     args = parser.parse_args()
     if args.rounds < 1 or args.timeout <= 0:
         parser.error("rounds and timeout must be positive")

@@ -231,6 +231,7 @@ impl ArtifactProvenance {
         Ok(Self {
             naming: Plan {
                 style: naming.style,
+                alphabet: naming.alphabet,
                 source_names,
                 self_named: naming.self_named,
                 read_order: naming.read_order,
@@ -286,6 +287,20 @@ impl ArtifactProvenance {
             .cmp(&other.naming.source_names.len());
         if length != Ordering::Equal {
             return Ok(length);
+        }
+        budget.work(WorkKind::Analysis, 56)?;
+        let spelling = (
+            self.naming.self_named,
+            self.naming.read_order,
+            self.naming.alphabet,
+        )
+            .cmp(&(
+                other.naming.self_named,
+                other.naming.read_order,
+                other.naming.alphabet,
+            ));
+        if spelling != Ordering::Equal {
+            return Ok(spelling);
         }
         budget.work(WorkKind::Analysis, 1)?;
         Ok(self.output.cmp(&other.output))
@@ -382,6 +397,43 @@ mod tests {
         policy(
             "[policy.tactics]\nidentifier-mangling='on'\nnaming-search='on'\nscalar-replacement='on'\ndead-code-elimination='on'\ntarget-compaction='on'",
         )
+    }
+
+    #[test]
+    fn retained_alphabet_keeps_its_own_veto_and_parent_permissions() {
+        let resolved = enabled();
+        let owner = RevisionId::fresh();
+        let mut ledger = ledger(WORK, MEMORY);
+        let mut plan = Plan::new(Style::Scoped);
+        plan.alphabet = crate::js::selection::Alphabet::observed(
+            [b"zzzzz".as_slice()],
+            &mut AllocationBudget::new(None),
+        )
+        .unwrap();
+        let evidence = build(
+            owner,
+            &mut ledger,
+            WorkDomain::Optional,
+            &resolved,
+            &plan,
+            &[],
+            NO_OUTPUT,
+        );
+        assert!(evidence
+            .tactics()
+            .iter()
+            .any(|usage| usage.tactic == TacticId::NamingAlphabet));
+        assert_eq!(evidence.naming().alphabet, plan.alphabet);
+        for tactic in [
+            TacticId::NamingAlphabet,
+            TacticId::NamingSearch,
+            TacticId::IdentifierMangling,
+        ] {
+            let off = policy(&format!("[policy.tactics]\n{}='off'", tactic.spec().name));
+            assert!(admit(&evidence, &off, &mut ledger).is_err());
+        }
+        evidence.discard(owner, &mut ledger).unwrap();
+        assert_eq!(ledger.retained_bytes(), 0);
     }
     fn ledger(work: u64, memory: u64) -> BudgetLedger {
         BudgetLedger::new(
@@ -549,6 +601,7 @@ mod tests {
         let mut ledger = ledger(WORK, MEMORY);
         let mut plan = Plan {
             style: Style::Global,
+            alphabet: Default::default(),
             source_names: vec![BindingId::new(8), BindingId::new(2), BindingId::new(8)],
             self_named: false,
             read_order: false,
@@ -820,6 +873,7 @@ mod tests {
         let owner = RevisionId::fresh();
         let plan = Plan {
             style: Style::Global,
+            alphabet: Default::default(),
             source_names: vec![BindingId::new(1), BindingId::new(2)],
             self_named: false,
             read_order: false,

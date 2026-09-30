@@ -222,6 +222,8 @@ compilation, including candidates whose artifacts were discarded. A bounded
 table keys the byte digest, codec settings and exact/proxy role. Reuse pays the
 cold logical work tariff and checks the cold encoder scratch requirement;
 it cannot buy extra search or replace artifact permission/admission checks.
+Callback-local measurements release with that output; a retained search memo
+lasts while at least one artifact is live and releases with the last artifact.
 With `LILSCRIPT_TIMING`, `codec_lookup` and `codec_reuse` report this work
 separately from physical `canonical_gzip`, `canonical_brotli` and
 `proxy_brotli` encodes. These timing buckets report elapsed time, not CPU.
@@ -249,6 +251,15 @@ control flow, unknown captures and exhausted limits. Folding replaceable
 builtin methods also requires `javascript.assume_pristine_builtins = true`
 (native compilation uses its fixed runtime). The rule receipt's `folded_calls`
 counts calls replaced with constants; it does not claim a compressed-size win.
+
+`naming-alphabet` permits joint trials that reorder identifier characters by
+their frequency in the currently delivered JavaScript. It also requires
+`naming-search` and `identifier-mangling`. The sequential alphabet remains the
+allocator seed; `off` vetoes alternative alphabets in direct rendering, search
+and retained admission. `on` permits a trial, never forces its result. Each
+objective compares the complete renamed artifact, and its receipt records
+the alphabet actually delivered. Walk schedule version 3 appends these moves
+after the existing literal and naming-style alternatives.
 
 Several older keys set a tactic's permission. An explicit `true` is `on` and an
 explicit `false` is `off`; a `[policy.tactics]` value that contradicts one is an

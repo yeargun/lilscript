@@ -14,9 +14,50 @@ pub enum Style {
     Source,
 }
 
+/// A validated permutation of the identifier alphabet. Its private storage
+/// prevents a naming plan from supplying duplicate or illegal characters.
+/// It is an explicit joint choice because changing it can rename every scope.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Alphabet([u8; 54]);
+
+impl Default for Alphabet {
+    fn default() -> Self {
+        Self(*b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_")
+    }
+}
+
+impl Alphabet {
+    pub fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.0).expect("validated ASCII identifier alphabet")
+    }
+
+    /// A candidate prior from the actual delivered text, including helpers,
+    /// literals and syntax. Frequency predicts opportunities, not codec wins.
+    pub(crate) fn observed<'a>(
+        chunks: impl IntoIterator<Item = &'a [u8]>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        let mut counts = [0u64; 256];
+        for bytes in chunks {
+            budget.work(WorkKind::Analysis, bytes.len() as u64)?;
+            for &byte in bytes {
+                counts[byte as usize] = counts[byte as usize].saturating_add(1);
+            }
+        }
+        let original = Self::default();
+        let mut positions: [usize; 54] = std::array::from_fn(|index| index);
+        budget.work(WorkKind::Analysis, sort_work(positions.len(), 1)?)?;
+        positions.sort_unstable_by_key(|&index| {
+            (std::cmp::Reverse(counts[original.0[index] as usize]), index)
+        });
+        Ok(Self(positions.map(|index| original.0[index])))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Plan {
     pub style: Style,
+    pub alphabet: Alphabet,
     /// Lexical names retained as a compression choice, not a semantic pin.
     pub source_names: Vec<BindingId>,
     /// Each function that is not an arrow and has an exact name prints as
@@ -40,6 +81,7 @@ impl Plan {
     pub fn spelled(style: Style, raw: bool) -> Self {
         Self {
             style,
+            alphabet: Alphabet::default(),
             source_names: vec![],
             self_named: raw,
             read_order: raw,
@@ -63,10 +105,12 @@ impl Plan {
         let eligibility = Eligibility::from_policy_in(policy)?;
         eligibility.check_in(self)?;
         Ok(NamingProvenance {
-            mangling: self.style != Style::Source,
+            mangling: self.style != Style::Source || self.alphabet != Alphabet::default(),
+            alphabet: self.alphabet != Alphabet::default(),
             // The allocator's seed (`Scoped`) is not a search, at any level;
             // every other plan is one of the search's alternatives.
             search: self.style == Style::Global
+                || self.alphabet != Alphabet::default()
                 || !self.source_names.is_empty()
                 || (self.style == Style::Source && eligibility.permits_search()),
         })
@@ -80,6 +124,7 @@ impl Plan {
 pub(crate) struct NamingProvenance {
     mangling: bool,
     search: bool,
+    alphabet: bool,
 }
 
 impl NamingProvenance {
@@ -107,6 +152,13 @@ impl NamingProvenance {
             tactic: TacticId::NamingSearch,
             risk: RuntimeRisk::Neutral,
         };
+        const ALPHABET: TacticUse = TacticUse {
+            tactic: TacticId::NamingAlphabet,
+            risk: RuntimeRisk::Neutral,
+        };
+        if self.alphabet {
+            return &[MANGLE, SEARCH, ALPHABET];
+        }
         match (self.mangling, self.search) {
             (false, false) => &[],
             (true, false) => &[MANGLE],
@@ -127,7 +179,7 @@ impl NamingProvenance {
 pub(super) enum Eligibility {
     SourceOnly,
     SeedOnly,
-    Search,
+    Search { alphabets: bool },
 }
 
 impl Eligibility {
@@ -140,15 +192,25 @@ impl Eligibility {
         } else if !policy.tactic(TacticId::NamingSearch).enabled {
             Self::SeedOnly
         } else {
-            Self::Search
+            Self::Search {
+                alphabets: policy.tactic(TacticId::NamingAlphabet).enabled,
+            }
         })
     }
 
     pub(super) fn check_in(self, plan: &Plan) -> Result<(), OutputError> {
         let permitted = match self {
-            Self::SourceOnly => plan.style == Style::Source && plan.source_names.is_empty(),
-            Self::SeedOnly => plan.style == Style::Scoped && plan.source_names.is_empty(),
-            Self::Search => true,
+            Self::SourceOnly => {
+                plan.style == Style::Source
+                    && plan.source_names.is_empty()
+                    && plan.alphabet == Alphabet::default()
+            }
+            Self::SeedOnly => {
+                plan.style == Style::Scoped
+                    && plan.source_names.is_empty()
+                    && plan.alphabet == Alphabet::default()
+            }
+            Self::Search { alphabets } => alphabets || plan.alphabet == Alphabet::default(),
         };
         if permitted {
             Ok(())
@@ -156,7 +218,7 @@ impl Eligibility {
             Err(match self {
                 Self::SourceOnly => "identifier mangling is disabled; only the source naming plan is eligible",
                 Self::SeedOnly => "naming search is disabled; only the allocator's seed without naming overrides is eligible",
-                Self::Search => unreachable!(),
+                Self::Search { .. } => "naming alphabet search is disabled; only the sequential alphabet is eligible",
             }.into())
         }
     }
@@ -165,12 +227,12 @@ impl Eligibility {
         match self {
             Self::SourceOnly => &[Style::Source],
             Self::SeedOnly => &[Style::Scoped],
-            Self::Search => &[Style::Scoped, Style::Global, Style::Source],
+            Self::Search { .. } => &[Style::Scoped, Style::Global, Style::Source],
         }
     }
 
     pub(super) fn permits_search(self) -> bool {
-        matches!(self, Self::Search)
+        matches!(self, Self::Search { .. })
     }
 }
 
@@ -658,13 +720,12 @@ impl<'a> Basis<'a> {
                     let mut bytes = [0u8; usize::BITS as usize];
                     let mut index = next;
                     next = next.checked_add(1).ok_or(AllocationError::Capacity)?;
-                    const ALPHABET: &[u8] =
-                        b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_";
+                    let alphabet = &plan.alphabet.0;
                     let mut length = 0;
                     loop {
-                        bytes[length] = ALPHABET[index % ALPHABET.len()];
+                        bytes[length] = alphabet[index % alphabet.len()];
                         length += 1;
-                        index /= ALPHABET.len();
+                        index /= alphabet.len();
                         if index == 0 {
                             break;
                         }

@@ -490,6 +490,35 @@ fn a_vetoed_family_is_never_formed() {
 }
 
 #[test]
+fn each_objective_judges_alphabets_and_the_dedicated_toml_flag_vetoes_them() {
+    for codec in ["raw", "gzip", "brotli"] {
+        for permission in ["on", "off"] {
+            let compiled = compile(
+                codec,
+                &format!("effort.level=13\n[policy.tactics]\nnaming-alphabet='{permission}'"),
+            );
+            check_spellings(&compiled, codec);
+            let attempts: Vec<_> = joint_trials(stage(&compiled))
+                .iter()
+                .filter(|trial| trial["name"].as_str().unwrap().starts_with("alphabet:"))
+                .collect();
+            assert!(!attempts.is_empty());
+            if permission == "off" {
+                assert!(attempts.iter().all(|trial| outcome(trial) == "vetoed"));
+                assert_eq!(
+                    compiled.javascript(codec_of(codec)).unwrap().details()["output"]["alphabet"],
+                    crate::js::selection::Alphabet::default().as_str()
+                );
+            } else {
+                assert!(attempts
+                    .iter()
+                    .any(|trial| !matches!(outcome(trial), "vetoed" | "budget" | "stopped")));
+            }
+        }
+    }
+}
+
+#[test]
 fn the_stage_is_deterministic_across_runs_and_threads() {
     let key = |compiled: &ServiceCompilation| {
         (

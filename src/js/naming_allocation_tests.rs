@@ -88,6 +88,66 @@ fn discard(text: String, charge: RetainedCharge<u64>, ledger: &mut BudgetLedger)
 }
 
 #[test]
+fn observed_alphabet_preserves_captures_public_names_and_each_permission_boundary() {
+    let alphabet =
+        Alphabet::observed([b"ZZZZzz_$$".as_slice()], &mut AllocationBudget::new(None)).unwrap();
+    assert!(alphabet.as_str().starts_with("Zz$_"));
+    let mut actual = alphabet.0;
+    let mut expected = Alphabet::default().0;
+    actual.sort_unstable();
+    expected.sort_unstable();
+    assert_eq!(actual, expected);
+    assert_eq!(
+        Alphabet::observed([b"".as_slice()], &mut AllocationBudget::new(None)).unwrap(),
+        Alphabet::default()
+    );
+    let module = fixture();
+    let enabled = policy();
+    for style in [Style::Global, Style::Scoped, Style::Source] {
+        let mut plan = Plan::new(style);
+        plan.alphabet = alphabet;
+        let code = module
+            .prepare_output_with_policy(&enabled)
+            .unwrap()
+            .render(&plan)
+            .unwrap();
+        let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));console.log(m.read(99),m.read.name,m.read.length);", serde_json::to_string(&code).unwrap());
+        let output = std::process::Command::new("node")
+            .args(["--input-type=module", "-e", &script])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{code}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8(output.stdout).unwrap(), "7 readState 1\n");
+    }
+    for (setting, style) in [
+        ("identifier-mangling", Style::Source),
+        ("naming-search", Style::Scoped),
+        ("naming-alphabet", Style::Scoped),
+    ] {
+        let config: crate::config::ProjectConfig =
+            toml::from_str(&format!("[policy.tactics]\n{setting}='off'")).unwrap();
+        let policy = config
+            .resolve_policy(CompilationRequest::JavaScript {
+                preserve_root_exports: true,
+            })
+            .unwrap();
+        let mut plan = Plan::new(style);
+        assert!(plan.check_policy(&policy).is_ok());
+        plan.alphabet = alphabet;
+        assert!(plan.check_policy(&policy).is_err());
+        assert!(module
+            .prepare_output_with_policy(&policy)
+            .unwrap()
+            .render(&plan)
+            .is_err());
+    }
+}
+
+#[test]
 fn prepared_output_matches_all_inspection_styles_and_transfers_only_artifact_capacity() {
     let module = fixture();
     let policy = policy();

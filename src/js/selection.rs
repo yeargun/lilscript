@@ -1,7 +1,7 @@
 //! The vocabulary of output selection: naming plans, codec objectives and
 //! measured sizes. The search over them is `program::search`.
 
-pub use super::naming::{Plan, Style};
+pub use super::naming::{Alphabet, Plan, Style};
 pub use crate::config::CompressionCostModel as Objective;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -145,6 +145,7 @@ pub enum TacticId {
     StartupReconstruction,
     RecurringReconstruction,
     NamingSearch,
+    NamingAlphabet,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -199,7 +200,7 @@ pub struct TacticSpec {
 }
 
 impl TacticId {
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::DeadCodeElimination,
         Self::ConstantFolding,
         Self::Inlining,
@@ -214,6 +215,7 @@ impl TacticId {
         Self::StartupReconstruction,
         Self::RecurringReconstruction,
         Self::NamingSearch,
+        Self::NamingAlphabet,
     ];
 
     pub const fn spec(self) -> TacticSpec {
@@ -294,6 +296,14 @@ impl TacticId {
                     D::Off,
                 ),
                 T::NamingSearch => ("naming-search", true, 0, false, A::NamesAndBoundary, D::On),
+                T::NamingAlphabet => (
+                    "naming-alphabet",
+                    true,
+                    0,
+                    false,
+                    A::NamesAndBoundary,
+                    D::On,
+                ),
             };
         TacticSpec {
             id: self,
@@ -549,7 +559,8 @@ pub struct OptimizationObjective {
 /// The version of the effort schedule `WalkSchedule::at` and
 /// `StructuralSchedule::at` state. Receipts carry it; a changed value is a
 /// changed schedule.
-pub const WALK_SCHEDULE_VERSION: u32 = 2;
+// Version 3 appends measured sequential/frequency alphabet joint moves.
+pub const WALK_SCHEDULE_VERSION: u32 = 3;
 
 /// The walk's budget at one effort level (architecture §9.6, §13.3–§13.4;
 /// plan M3.5): budgets are counts (AM1), never the clock.

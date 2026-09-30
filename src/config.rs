@@ -928,7 +928,9 @@ impl ProjectConfig {
                 (self.mangle.pool_strings.or(legacy), default)
             }
             T::StringArrayPacking => compression(CompressionDecision::StringArrayPacking),
-            T::StartupReconstruction | T::RecurringReconstruction => (None, None),
+            T::StartupReconstruction | T::RecurringReconstruction | T::NamingAlphabet => {
+                (None, None)
+            }
             T::NamingSearch => {
                 let explicit = self
                     .javascript

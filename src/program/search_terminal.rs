@@ -445,6 +445,7 @@ impl Judge<'_> {
         };
         let named = Plan {
             style: plan.style,
+            alphabet: plan.alphabet,
             source_names: plan.source_names.clone(),
             self_named: spelling.self_named,
             read_order: spelling.read_order,
@@ -639,6 +640,7 @@ struct Assignment {
     spelling: Spelling,
     choices: ChoiceMap,
     style: Style,
+    alphabet: crate::js::selection::Alphabet,
     source_names: Vec<crate::js::BindingId>,
     literals: crate::js::LiteralOutput,
 }
@@ -773,6 +775,7 @@ impl Walker<'_, '_, '_> {
             spelling: spelling.effective(),
             choices: choices.clone(),
             style: plan.style,
+            alphabet: plan.alphabet,
             source_names: plan.source_names.clone(),
             literals,
         };
@@ -1143,17 +1146,26 @@ impl Walker<'_, '_, '_> {
             LiteralOutput::Original => LiteralOutput::Observed,
             LiteralOutput::Observed => LiteralOutput::Original,
         };
-        let mut joints: Vec<(String, Option<Style>)> = Vec::new();
+        #[derive(Clone, Copy)]
+        enum Joint {
+            Literals,
+            Style(Style),
+            SequentialAlphabet,
+            ObservedAlphabet,
+        }
+        let mut joints: Vec<(String, Joint)> = Vec::new();
         if other == LiteralOutput::Original || self.output.target_compaction {
-            joints.push((format!("literals:{other:?}"), None));
+            joints.push((format!("literals:{other:?}"), Joint::Literals));
         }
         for &style in self.naming {
             if style != incumbent.plan.style {
-                joints.push((format!("naming:{style:?}"), Some(style)));
+                joints.push((format!("naming:{style:?}"), Joint::Style(style)));
             }
         }
+        joints.push(("alphabet:sequential".into(), Joint::SequentialAlphabet));
+        joints.push(("alphabet:frequency".into(), Joint::ObservedAlphabet));
         let mut kept = false;
-        for (name, style) in joints {
+        for (name, joint) in joints {
             self.replay(incumbent)?;
             let mut record = JointTrial {
                 name,
@@ -1170,20 +1182,66 @@ impl Walker<'_, '_, '_> {
                 self.report.examined += 1;
                 // A naming move keeps the incumbent's literal spelling, which
                 // the literal move may just have changed.
-                let literals = if style.is_some() {
-                    incumbent.literals
-                } else {
+                let literals = if matches!(joint, Joint::Literals) {
                     other
+                } else {
+                    incumbent.literals
                 };
-                let plan = match style {
-                    Some(style) => Plan {
-                        style,
-                        source_names: Vec::new(),
-                        self_named: incumbent.spelling.self_named,
-                        read_order: incumbent.spelling.read_order,
-                    },
-                    None => incumbent.plan.clone(),
-                };
+                let mut plan = incumbent.plan.clone();
+                match joint {
+                    Joint::Literals => (),
+                    Joint::Style(style) => {
+                        plan.style = style;
+                        plan.source_names.clear();
+                    }
+                    Joint::SequentialAlphabet | Joint::ObservedAlphabet => {
+                        let policy = self.judge.policy;
+                        if !policy.tactic(TacticId::IdentifierMangling).enabled
+                            || !policy.tactic(TacticId::NamingSearch).enabled
+                            || !policy.tactic(TacticId::NamingAlphabet).enabled
+                        {
+                            record.outcome = ChallengerOutcome::Vetoed;
+                            self.report.joint_trials.push(record);
+                            continue;
+                        }
+                        use crate::js::selection::Alphabet;
+                        let alphabet = match joint {
+                            Joint::SequentialAlphabet => Ok(Alphabet::default()),
+                            _ => self.formations.with_arena(|arena, _, budget| {
+                                arena
+                                    .with_artifact(incumbent.artifact, |view| {
+                                        Alphabet::observed(
+                                            std::iter::once(view.javascript.as_bytes()).chain(
+                                                view.files.iter().map(|file| file.code.as_bytes()),
+                                            ),
+                                            budget,
+                                        )
+                                    })?
+                                    .map_err(CandidateError::from)
+                            }),
+                        };
+                        plan.alphabet = match alphabet {
+                            Ok(alphabet) => alphabet,
+                            Err(error) => {
+                                record.outcome = if exhausted(&error) {
+                                    self.stopped = true;
+                                    ChallengerOutcome::Stopped
+                                } else {
+                                    ChallengerOutcome::Refused
+                                };
+                                self.report.joint_trials.push(record);
+                                continue;
+                            }
+                        };
+                        if plan.alphabet == incumbent.plan.alphabet {
+                            record.outcome = ChallengerOutcome::Duplicate;
+                            self.report.joint_trials.push(record);
+                            continue;
+                        }
+                    }
+                }
+                plan.self_named = incumbent.spelling.self_named;
+                plan.read_order = incumbent.spelling.read_order;
                 let (judgement, proxy, probed) = self.judge_move(
                     incumbent.spelling,
                     &incumbent.choices,
@@ -1356,6 +1414,7 @@ impl Walker<'_, '_, '_> {
         self.report.restarts_tried += 1;
         let plan = Plan {
             style,
+            alphabet: origin.plan.alphabet,
             source_names: Vec::new(),
             self_named: origin.spelling.self_named,
             read_order: origin.spelling.read_order,
