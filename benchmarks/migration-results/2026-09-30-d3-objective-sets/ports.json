@@ -1,0 +1,310 @@
+{
+ "schema": 1,
+ "kind": "lilscript-port-runner",
+ "started": "2026-09-30T18:14:36.179Z",
+ "completed": "2026-09-30T18:17:02.531Z",
+ "repository": {
+  "path": "/home/azureuser/lilscript",
+  "head": "1484b18dacc48d73ae87b44f09e913a1aca50401",
+  "dirty": true
+ },
+ "compiler": {
+  "source": "/home/azureuser/lilscript-work/bin/d3-objective-sets-1/lilscript",
+  "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-d3-objective-sets/ports/bin/lilscript-f599953f46c6c4cc",
+  "sha256": "f599953f46c6c4ccf8438c386ef0bc825fed7df54b5927b1f81d7b03aaa661ea",
+  "version": "lilscript 0.1.0",
+  "unchangedDuringRun": true
+ },
+ "codec": {
+  "source": "/home/azureuser/lilscript-work/bin/d3-objective-sets-1/lilscript-codec",
+  "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-d3-objective-sets/ports/bin/lilscript-5743649b59006c74",
+  "sha256": "5743649b59006c7448d9fcd9913442b53523d18e92668951f626f139c9b776e0",
+  "version": "lilscript-codec 0.1.0"
+ },
+ "node": "v20.19.0",
+ "objective": "shipped",
+ "patches": "none",
+ "portsRoot": "/home/azureuser",
+ "ledger": {
+  "path": "tests/ports/expected-failures.json",
+  "sha256": "9789493fa6ba44eda6a7075be3f3cde54e90474c906f9b573d801634fa71ab65",
+  "entries": 7
+ },
+ "unknownPorts": [],
+ "ports": [
+  {
+   "port": "markedlil",
+   "source": {
+    "path": "/home/azureuser/markedlil",
+    "head": "019e9b449c01721f78e467ca772742c67f9ac377",
+    "dirty": true
+   },
+   "build": {
+    "command": "npm run build",
+    "status": 0,
+    "ms": 36554,
+    "timedOut": false,
+    "compilerInvocations": 4,
+    "errors": []
+   },
+   "artifacts": [
+    {
+     "path": "dist/marked.bytes.js",
+     "bytes": 32700,
+     "sha256": "dbbc8f04aa3f64b0f3d2970bd8cc40a37548ecefd3bbcafd15be2815d92ea834",
+     "raw": 32700,
+     "gzip9": 10226,
+     "brotli11": 9130
+    },
+    {
+     "path": "dist/marked.cjs",
+     "bytes": 34525,
+     "sha256": "733801fa7e34f52e23a192623ddbe061a570d0f601e1d1121be0a98529625798",
+     "raw": 34525,
+     "gzip9": 10052,
+     "brotli11": 9000
+    },
+    {
+     "path": "dist/marked.closed.js",
+     "bytes": 34221,
+     "sha256": "f48b0de442bf79a69f101b2133d3e810dc7740868a8bf70070a55b99284b818e",
+     "raw": 34221,
+     "gzip9": 9890,
+     "brotli11": 8829
+    },
+    {
+     "path": "dist/marked.esm.js",
+     "bytes": 34305,
+     "sha256": "55159fdd54697e2c62b879ed2fc73220c8b8bd680260c17b2a27fb12a48f6f05",
+     "raw": 34305,
+     "gzip9": 9947,
+     "brotli11": 8911
+    },
+    {
+     "path": "dist/marked.gzip.js",
+     "bytes": 33748,
+     "sha256": "55be1adb80fad66296aec98b0f8ddeeedba45f8fbc27f5702957eb9b91ec2479",
+     "raw": 33748,
+     "gzip9": 9858,
+     "brotli11": 8862
+    },
+    {
+     "path": "dist/marked.raw.js",
+     "bytes": 34221,
+     "sha256": "f48b0de442bf79a69f101b2133d3e810dc7740868a8bf70070a55b99284b818e",
+     "raw": 34221,
+     "gzip9": 9890,
+     "brotli11": 8829
+    },
+    {
+     "path": "dist/marked.umd.js",
+     "bytes": 34250,
+     "sha256": "7555f45b3ed223c08869d8ce05d6f7d8351ddb1f64a60ccc4a7c978aac0c2dc1",
+     "raw": 34250,
+     "gzip9": 9937,
+     "brotli11": 8895
+    }
+   ],
+   "compilerInvocations": 4,
+   "test": {
+    "command": "npm test",
+    "status": 0,
+    "signal": null,
+    "ms": 616,
+    "tests": 29,
+    "pass": 29,
+    "fail": 0,
+    "failing": [],
+    "tail": "    1..6\nok 7 - @itslil/marked option API\n  ---\n  duration_ms: 2.960367\n  type: 'suite'\n  ...\n1..7\n# tests 29\n# suites 7\n# pass 29\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 459.934988"
+   },
+   "failing": [],
+   "ledgered": [],
+   "regressions": [],
+   "nowPassing": [],
+   "ledgerEntries": [],
+   "state": "green"
+  },
+  {
+   "port": "zodlil",
+   "source": {
+    "path": "/home/azureuser/zodlil",
+    "head": "4709ad60b36f2b8e7dc07105bcc999ab1d40d60f",
+    "dirty": false
+   },
+   "build": {
+    "command": "npm run build",
+    "status": 0,
+    "ms": 45375,
+    "timedOut": false,
+    "compilerInvocations": 1,
+    "errors": []
+   },
+   "artifacts": [
+    {
+     "path": "dist/compat.js",
+     "bytes": 769,
+     "sha256": "6d2fa816d36e9549f7d6edbaea2322f29e9992694096ddaabb015da6f13426f9",
+     "raw": 769,
+     "gzip9": 398,
+     "brotli11": 314
+    },
+    {
+     "path": "dist/core.js",
+     "bytes": 584,
+     "sha256": "e7e7ac74ba05b3fba5a77054843c36932360598c423b39afee708995927d29ae",
+     "raw": 584,
+     "gzip9": 283,
+     "brotli11": 229
+    },
+    {
+     "path": "dist/index.cjs",
+     "bytes": 139696,
+     "sha256": "5e7eabab42a3b2b6e462312ced64e99732a14a0ceba25ec7ebd7331e209c702a",
+     "raw": 139696,
+     "gzip9": 37876,
+     "brotli11": 32851
+    },
+    {
+     "path": "dist/index.js",
+     "bytes": 3996,
+     "sha256": "84667fc4d4d9e29d9271a37d2b0fb315a51e09f3bb39acb47d9bab9f674df6c1",
+     "raw": 3996,
+     "gzip9": 993,
+     "brotli11": 870
+    },
+    {
+     "path": "dist/locales.js",
+     "bytes": 90,
+     "sha256": "070c3c2981625e3674672e53051be382a51eaf515bd78dc5f2142d89b45ed82d",
+     "raw": 90,
+     "gzip9": 91,
+     "brotli11": 74
+    },
+    {
+     "path": "dist/mini.js",
+     "bytes": 69,
+     "sha256": "7bd2c1c718cc77b5ffec305e09b545d74cd97460c7cfb2a5ce2af87d2f21460a",
+     "raw": 69,
+     "gzip9": 67,
+     "brotli11": 62
+    },
+    {
+     "path": "dist/zod.core.js",
+     "bytes": 88985,
+     "sha256": "d29a08a6136c5846d4df88659881e29ef4905978004fd973169878ce3f809d86",
+     "raw": 88985,
+     "gzip9": 29742,
+     "brotli11": 26562
+    }
+   ],
+   "compilerInvocations": 2,
+   "test": {
+    "command": "npm test",
+    "status": 0,
+    "signal": null,
+    "ms": 54398,
+    "tests": 1353,
+    "pass": 1353,
+    "fail": 0,
+    "failing": [],
+    "tail": " Test Files  82 passed (82)\n      Tests  1353 passed (1353)\n   Start at  18:16:45\n   Duration  8.49s (transform 4.85s, setup 0ms, import 13.26s, tests 12.82s, environment 15ms)\n\n\nwarning: /home/azureuser/lilscript-work/measurements/2026-09-30-d3-objective-sets/ports/runs/zodlil/zodlil/lilscript.toml: `javascript.candidate_search` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it\nwarning: /home/azureuser/lilscript-work/measurements/2026-09-30-d3-objective-sets/ports/runs/zodlil/zodlil/lilscript.toml: `javascript.cost_model` is replaced by `objective.codecs`, which takes its value: the objective is its own table with its codecs' settings (schema v3, architecture §14.1); rename it\nwarning: /home/azureuser/lilscript-work/measurements/2026-09-30-d3-objective-sets/ports/runs/zodlil/zodlil/lilscript.toml: `javascript.optimization_level` is replaced by `effort.level`, which takes its value: the effort level is its own table (schema v3, architecture §14.1); rename it\nwarning: /home/azureuser/lilscript-work/measurements/2026-09-30-d3-objective-sets/ports/runs/zodlil/zodlil/lilscript.toml: `javascript.candidate_limit` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it\nwarning: /home/azureuser/lilscript-work/measurements/2026-09-30-d3-objective-sets/ports/runs/zodlil/zodlil/lilscript.toml: `javascript.candidate_byte_budget` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it\nwarning: /home/azureuser/lilscript-work/measurements/2026-09-30-d3-objective-sets/ports/runs/zodlil/zodlil/lilscript.toml: `javascript.candidate_beam_width` has no effect in this compiler: the effort level's versioned schedule budgets the walk and the structural search (architecture §13.4; `--print-policy` prints it); a per-project search budget will be refused (Y7); remove it\nwarning: /home/azureuser/lilscript-work/measurements/2026-09-30-d3-objective-sets/ports/runs/zodlil/zodlil/lilscript.toml: `javascript.strip_console` is replaced by `javascript.strip_debug`, which takes its value: `print` is a program effect and is never stripped; the key's other half, dropping `debugLog` calls, is `javascript.strip_debug` (host `console.*` calls are `javascript.strip_console_calls`); rename it\nwarning: /home/azureuser/lilscript-work/measurements/2026-09-30-d3-objective-sets/ports/runs/zodlil/zodlil/lilscript.toml: `bundle.mode` is now `delivery.mode`; rename it\nwarning: javascript: legacy optimizer configuration translated to policy schema 2; translation retires at schema 3"
+   },
+   "failing": [],
+   "ledgered": [],
+   "regressions": [],
+   "nowPassing": [],
+   "ledgerEntries": [
+    {
+     "index": 6,
+     "owner": "M2.6 (the runner: host-dependent timing)"
+    }
+   ],
+   "state": "green"
+  },
+  {
+   "port": "posthoglil",
+   "source": {
+    "path": "/home/azureuser/posthoglil",
+    "head": "140790807a95c8f2be1c323bf296387b0e2a934b",
+    "dirty": false
+   },
+   "build": {
+    "command": "npm run build",
+    "status": 0,
+    "ms": 5518,
+    "timedOut": false,
+    "compilerInvocations": 3,
+    "errors": []
+   },
+   "artifacts": [
+    {
+     "path": "dist/posthog.bytes.js",
+     "bytes": 14667,
+     "sha256": "f7958013bfe1a3d92836f53234b5d51b479c6bdc264a6fc9435fc2ffdf94031a",
+     "raw": 14667,
+     "gzip9": 5963,
+     "brotli11": 5288
+    },
+    {
+     "path": "dist/posthog.cjs",
+     "bytes": 19030,
+     "sha256": "5497e3fb12c822afe56403f7baf51af3ed3c54aab1383a4251f35f7191ad4d53",
+     "raw": 19030,
+     "gzip9": 6517,
+     "brotli11": 5811
+    },
+    {
+     "path": "dist/posthog.esm.js",
+     "bytes": 15769,
+     "sha256": "7465b3c20c6ed0875dfe5ff03919624851eba2c55ad47dd16a8f0cd6c0cee150",
+     "raw": 15769,
+     "gzip9": 5590,
+     "brotli11": 5015
+    },
+    {
+     "path": "dist/posthog.gzip.js",
+     "bytes": 15711,
+     "sha256": "5facfb2c53cd52b8667c664bd44383c8580ffb4b8f646f3901114313956d75ad",
+     "raw": 15711,
+     "gzip9": 5518,
+     "brotli11": 4947
+    },
+    {
+     "path": "dist/posthog.raw.js",
+     "bytes": 15678,
+     "sha256": "d0aeb2342904a1fa799964099d8bdc351b3c528809f1691c59b797877aa345be",
+     "raw": 15678,
+     "gzip9": 5534,
+     "brotli11": 4940
+    },
+    {
+     "path": "dist/posthog.umd.js",
+     "bytes": 19102,
+     "sha256": "3f07c9c34ddb177b47415218d7e6a3a14e4a941ee363a4082e6df442a2a2fdbb",
+     "raw": 19102,
+     "gzip9": 6548,
+     "brotli11": 5832
+    }
+   ],
+   "compilerInvocations": 3,
+   "test": {
+    "command": "npm test",
+    "status": 0,
+    "signal": null,
+    "ms": 287,
+    "tests": 21,
+    "pass": 21,
+    "fail": 0,
+    "failing": [],
+    "tail": "    1..1\nok 8 - bucketed rate limiter\n  ---\n  duration_ms: 0.497252\n  type: 'suite'\n  ...\n1..8\n# tests 21\n# suites 8\n# pass 21\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 137.71496"
+   },
+   "failing": [],
+   "ledgered": [],
+   "regressions": [],
+   "nowPassing": [],
+   "ledgerEntries": [],
+   "state": "green"
+  }
+ ],
+ "regressions": 0
+}

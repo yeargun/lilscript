@@ -1,0 +1,13 @@
+# D3: configured objective sets and CLI delivery
+
+Source `1484b18dacc48d73ae87b44f09e913a1aca50401`. Compiler SHA-256 `f599953f46c6c4ccf8438c386ef0bc825fed7df54b5927b1f81d7b03aaa661ea`; codec SHA-256 `5743649b59006c7448d9fcd9913442b53523d18e92668951f626f139c9b776e0`. The [identity receipt](identity.json) pins this release.
+
+TOML accepts any nonempty, duplicate-free objective set. Each codec is independently resolved and searched, with one checked program and a shared ledger. Canonical raw/gzip/Brotli order is independent of list order. Explicit API requests override the configured set, including two-codec requests. All requested baselines precede optional work; optional shares count only requested objectives. Default effort remains 13, with no change to strategy gates or runtime assumptions.
+
+Several CLI results require `--out-dir`, with separate codec subdirectories preserving every judged byte and relative import. The combined version 4 manifest names each objective, encoder settings, policy, file hash and measured score. Single-objective layout and manifest version 3 remain compatible. Policy introspection identifies the complete objective set and every individual policy. The configuration guide explains use cases and additional compilation/memory cost.
+
+All 1,755 active library tests pass: 1,754 in the full run plus the separately executed large table oracle; four existing ignores remain. All 13 CLI tests pass. New coverage checks every subset and reversed list order against independent builds, explicit overrides, shared limits, early output refusal, exact delivered bytes/hashes/scores, safe stale cleanup, multi-entry lazy/host imports in both placement modes, and one native build beside the JavaScript alternatives. Node executes the delivered files. Schema generation/check passes.
+
+The [generic gate](ratchet.md), with [full receipt](ratchet.json), passes 642 programs under each objective. All 1,926 complete output hashes and selected sizes are identical to the preceding independent-API pin. The [port report](ports.json) passes Marked/Zod/PostHog's 29/1,353/21 reference tests and preserves all 20 artifact hashes and every measured coordinate. The [verifier](summarize.py) retains the hashed [comparison](comparison.json). No baseline threshold changes and no compilation-speed claim accompany this interface completion.
+
+Logs: `/tmp/lilscript-d3-objective-sets-{focused,cli2,full,release,ratchet,ports,summary}.log`. These are maintained development/reference boundaries. Graph consumers, compiler-written port formats, held-out qualification and the remaining migration packages stay open.

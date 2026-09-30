@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "source": "1484b18dacc48d73ae87b44f09e913a1aca50401",
+  "binaries": {
+    "lilscript": "f599953f46c6c4ccf8438c386ef0bc825fed7df54b5927b1f81d7b03aaa661ea",
+    "lilscript-codec": "5743649b59006c7448d9fcd9913442b53523d18e92668951f626f139c9b776e0"
+  },
+  "generic_artifacts_unchanged": 1926,
+  "port_artifacts_unchanged": 20,
+  "summarizer_sha256": "ef66be53702f5ae828ad6c07053e32889bb82da8f5450ac50fea8870834e8771",
+  "reports": {
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-d3-independent-objectives/ratchet.json": "223d3dace12236efbbe405f3fccb07b340ca2ec554f1754884f1a2a61be34252",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-d3-independent-objectives/ports.json": "40607cab1e573db523a26f641d8311672723d152bdad18569a713610b17c7520",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-d3-objective-sets/ratchet.json": "7b7a700758b53f119f21712839705eb8775390916bf1692272177852fdd4f179",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-d3-objective-sets/ports.json": "9ffbce5f4ea77f93aa95c4ea58bc99f3bd3d6d61a5baeecc6166707a2a14d2e6"
+  }
+}

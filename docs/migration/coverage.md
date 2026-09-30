@@ -21,7 +21,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M3.3c | [D2](plan.md#d2) | Facts and choices |
 | M3.3d | [D2](plan.md#d2) | Lazy effects and cycles |
 | M3.3e | [D3](plan.md#d3) | Ports, with M12.2 for motionlil |
-| M3.4 | [D3](plan.md#d3) | Remaining consumer API and shared formation; independent objective build API implemented |
+| M3.4 | [D3](plan.md#d3) | Remaining graph consumers and shared formation; independent TOML/API/CLI objective sets implemented |
 | M3.5 | [Q3](plan.md#q3) | `-j` scoring (after M5.6) |
 | M3.7 | [C1](plan.md#c1) | Environment variables |
 | M3.8a | [D2](plan.md#d2) | Consumer-shakeable delivery, first half |
