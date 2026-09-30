@@ -903,6 +903,44 @@ fn check_service_diagnoses_detached_primitive_methods_before_target_selection() 
 }
 
 #[test]
+fn searched_local_read_order_is_independently_judged_and_reports_its_veto() {
+    let parameters = (0..60).map(|index| format!("int input{index}")).collect::<Vec<_>>().join(",");
+    let expression = ["input59"; 8].join("+");
+    let source = format!("export int hot({parameters}){{return {expression};}}");
+    for codec in ["raw", "gzip", "brotli"] {
+        for allowed in [true, false] {
+            let configured: ProjectConfig = toml::from_str(&format!(
+                "objective.codecs='{codec}'\neffort.level=14\n[policy.tactics]\n\
+                 naming-search='{}'\nnaming-alphabet='off'\ntarget-compaction='off'\n\
+                 inlining='off'\ncall-specialization='off'\nconstant-folding='off'",
+                if allowed { "on" } else { "off" }
+            )).unwrap();
+            let compiled = compile_source(&source, &configured, ServiceOptions::default()).unwrap();
+            check_scores(&compiled);
+            let objective = match codec { "raw" => Objective::Raw, "gzip" => Objective::Gzip, _ => Objective::Brotli };
+            let artifact = compiled.javascript(objective).unwrap();
+            assert_eq!(execute_javascript(artifact.javascript(), "",
+                "console.log(library.hot(...Array.from({length:60},(_,i)=>i)),library.hot.name,library.hot.length);"),
+                "472 hot 60\n");
+            let report = compiled.report();
+            let objectives = report["search"]["terminal"]["objectives"].as_array().unwrap();
+            let trials = objectives[0]["joint_trials"].as_array().unwrap();
+            let local = trials.iter().filter(|trial| trial["name"] == "naming:local-read-order").collect::<Vec<_>>();
+            assert!(!local.is_empty(), "{report}");
+            if allowed {
+                assert!(local.iter().any(|trial| matches!(trial["outcome"].as_str(), Some("kept" | "rejected" | "identical"))));
+                if codec == "raw" {
+                    assert_eq!(artifact.details["output"]["local_read_order"], true);
+                }
+            } else {
+                assert!(local.iter().all(|trial| trial["outcome"] == "vetoed"));
+                assert_eq!(artifact.details["output"]["local_read_order"], false);
+            }
+        }
+    }
+}
+
+#[test]
 fn scoped_search_and_default_service_share_winners_handoff_and_budget() {
     let source =
         "int byte(int value){return value&255;}export int answer(int value){return byte(value)+1;}";

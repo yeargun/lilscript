@@ -87,13 +87,6 @@
       "owner": "M8.7 (M7.5a's removal-only inlining replaces it)"
     },
     {
-      "file": "src/js/naming.rs",
-      "name": "zod",
-      "count": 1,
-      "reason": "A naming order is justified by a zodlil measurement (+647); listed in the plan's port-shaped inventory (`js/naming.rs:484`).",
-      "owner": "M8.7 (M9.5's one allocator)"
-    },
-    {
       "file": "src/js/statements.rs",
       "name": "jquery",
       "count": 1,

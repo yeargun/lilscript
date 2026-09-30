@@ -70,6 +70,9 @@ pub struct Plan {
     /// order, which a codec prefers (measured where the order is computed): a
     /// family of its own (M8.3).
     pub read_order: bool,
+    /// Allocate each non-root scope by its own static read counts. This is
+    /// an exactly judged search alternative; declaration order stays the seed.
+    pub local_read_order: bool,
 }
 
 impl Plan {
@@ -85,6 +88,7 @@ impl Plan {
             source_names: vec![],
             self_named: raw,
             read_order: raw,
+            local_read_order: false,
         }
     }
 
@@ -105,12 +109,15 @@ impl Plan {
         let eligibility = Eligibility::from_policy_in(policy)?;
         eligibility.check_in(self)?;
         Ok(NamingProvenance {
-            mangling: self.style != Style::Source || self.alphabet != Alphabet::default(),
+            mangling: self.style != Style::Source
+                || self.alphabet != Alphabet::default()
+                || self.local_read_order,
             alphabet: self.alphabet != Alphabet::default(),
             // The allocator's seed (`Scoped`) is not a search, at any level;
             // every other plan is one of the search's alternatives.
             search: self.style == Style::Global
                 || self.alphabet != Alphabet::default()
+                || self.local_read_order
                 || !self.source_names.is_empty()
                 || (self.style == Style::Source && eligibility.permits_search()),
         })
@@ -199,16 +206,21 @@ impl Eligibility {
     }
 
     pub(super) fn check_in(self, plan: &Plan) -> Result<(), OutputError> {
+        if plan.local_read_order && plan.style != Style::Scoped {
+            return Err("local read ordering requires scoped naming".into());
+        }
         let permitted = match self {
             Self::SourceOnly => {
                 plan.style == Style::Source
                     && plan.source_names.is_empty()
                     && plan.alphabet == Alphabet::default()
+                    && !plan.local_read_order
             }
             Self::SeedOnly => {
                 plan.style == Style::Scoped
                     && plan.source_names.is_empty()
                     && plan.alphabet == Alphabet::default()
+                    && !plan.local_read_order
             }
             Self::Search { alphabets } => alphabets || plan.alphabet == Alphabet::default(),
         };
@@ -549,11 +561,9 @@ impl<'a> Basis<'a> {
         }
         phase.work(WorkKind::Analysis, sort_work(order.len(), 1)?)?;
         order.sort_unstable_by_key(|binding| (module.bindings[binding.index()].scope, *binding));
-        // For raw bytes, the root's most read bindings take its shortest
-        // names, as a frequency renamer gives them (esbuild's top-level
-        // slots). Nested scopes keep declaration order either way, so the
-        // same position in every function spells the same name. A codec
-        // prefers the declaration order: measured +647 Brotli on zodlil.
+        // Root and local frequency orders are independent choices. Sorting
+        // never moves a binding across scopes, and stable identity breaks
+        // ties. A codec judges whether frequency or declaration order wins.
         let mut reads = phase.filled(AllocationClass::Scratch, module.bindings.len(), 0u32)?;
         for &(expression, _) in &self.references {
             phase.work(WorkKind::Analysis, 1)?;
@@ -565,19 +575,13 @@ impl<'a> Basis<'a> {
         let mut by_reads = phase.vector(AllocationClass::Retained, order.len())?;
         phase.extend_copy(AllocationClass::Retained, &mut by_reads, &order)?;
         phase.work(WorkKind::Analysis, sort_work(by_reads.len(), 1)?)?;
-        by_reads.sort_by_key(|binding| {
+        by_reads.sort_unstable_by_key(|binding| {
             let scope = module.bindings[binding.index()].scope;
-            (
-                scope,
-                if scope == root {
-                    u32::MAX - reads[binding.index()]
-                } else {
-                    0
-                },
-            )
+            (scope, u32::MAX - reads[binding.index()], *binding)
         });
         self.scoped
             .set(Scoped {
+                root,
                 order,
                 by_reads,
                 free,
@@ -774,13 +778,13 @@ impl<'a> Basis<'a> {
             Ok(())
         };
         if let Some(scoped) = scoped {
-            let order = if plan.read_order {
-                &scoped.by_reads
-            } else {
-                &scoped.order
-            };
-            for &symbol in order {
-                allocate(symbol)?;
+            for (index, &symbol) in scoped.order.iter().enumerate() {
+                let by_reads = if module.bindings[symbol.index()].scope == scoped.root {
+                    plan.read_order
+                } else {
+                    plan.local_read_order
+                };
+                allocate(if by_reads { scoped.by_reads[index] } else { symbol })?;
             }
         } else {
             for id in 0..module.bindings.len() {
@@ -862,8 +866,9 @@ fn name_available(
 }
 
 struct Scoped {
+    root: ScopeId,
     order: Vec<BindingId>,
-    /// `order` with the root's bindings by descending reads, for raw plans.
+    /// Same scope groups as `order`, each by descending reads then identity.
     by_reads: Vec<BindingId>,
     free: Vec<Vec<BindingId>>,
 }

@@ -309,8 +309,18 @@ their frequency in the currently delivered JavaScript. It also requires
 allocator seed; `off` vetoes alternative alphabets in direct rendering, search
 and retained admission. `on` permits a trial, never forces its result. Each
 objective compares the complete renamed artifact, and its receipt records
-the alphabet actually delivered. Walk schedule version 3 appends these moves
+the alphabet actually delivered. Walk schedule version 3 added these moves
 after the existing literal and naming-style alternatives.
+
+Policy algorithm 5 and walk schedule version 4 add a local frequency-order
+trial after the alphabet moves. Under scoped naming, each non-root scope can
+give its most-used bindings the shortest available names. This is independent
+of root read ordering. Declaration order remains the seed, and raw, gzip and
+Brotli judge the complete alternative separately. `naming-search = "off"` or
+`identifier-mangling = "off"` vetoes the trial in rendering, search and retained
+admission. The explanation records the delivered `local_read_order`; permitting
+the trial does not force it. Scope interference, required public names and host
+identifiers constrain both orders.
 
 Several older keys set a tactic's permission. An explicit `true` is `on` and an
 explicit `false` is `off`; a `[policy.tactics]` value that contradicts one is an

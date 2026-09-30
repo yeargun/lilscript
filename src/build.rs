@@ -898,7 +898,7 @@ fn deliver_javascript(
             "output":{"dead_code_elimination":view.output.dead_code_elimination,
                 "rules":view.output.rules,
                 "target_compaction":view.output.target_compaction,"literals":format!("{:?}",view.output.literals),
-                "families":format!("{:?}",view.output.families),"self_named":plan.self_named,"read_order":plan.read_order,"alphabet":plan.alphabet.as_str(),
+                "families":format!("{:?}",view.output.families),"self_named":plan.self_named,"read_order":plan.read_order,"local_read_order":plan.local_read_order,"alphabet":plan.alphabet.as_str(),
                 "choices":view.output.choices.iter().map(|(key,alternative)| json!({"family":key.family,"site":key.site,"alternative":alternative.0})).collect::<Vec<_>>()},
             "sizes":[Some(view.sizes.raw),view.sizes.gzip9,view.sizes.brotli11],
             "delivery":view.layout.map(|layout| delivery_report(layout, view.files)),

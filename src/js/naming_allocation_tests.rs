@@ -88,6 +88,85 @@ fn discard(text: String, charge: RetainedCharge<u64>, ledger: &mut BudgetLedger)
 }
 
 #[test]
+fn local_read_order_shortens_hot_locals_without_capturing_or_renaming_other_scopes() {
+    let mut module = fixture();
+    let body = module.functions[0].body;
+    let scope = module.regions[body.index()].scope;
+    for index in 1..60 {
+        let parameter = module.binding(Binding {
+            source_symbol: Some(SymbolId((index + 2) as u32)),
+            scope,
+            spelling: format!("argument{index}"),
+            pinned: false,
+            class: None,
+            defined: false,
+        });
+        module.functions[0].parameters.push(parameter);
+    }
+    let hot = *module.functions[0].parameters.last().unwrap();
+    let mut sum = module.expression(Expr::Binding(BindingId::new(0)), None);
+    for _ in 0..8 {
+        let read = module.expression(Expr::Binding(hot), None);
+        sum = module.expression(Expr::Binary { op: Binary::Add, left: sum, right: read }, None);
+    }
+    module.regions[body.index()].statements = vec![Statement::Return(Some(sum))];
+    // An unrelated sibling keeps its binding spellings even though the first
+    // function's allocation order changes; the first still captures root state.
+    let sibling_body = module.region(ScopeId::new(0));
+    let sibling_local = module.binding(Binding {
+        source_symbol: Some(SymbolId(100)),
+        scope: module.regions[sibling_body.index()].scope,
+        spelling: "siblingInput".into(),
+        pinned: false, class: None, defined: false,
+    });
+    let sibling = module.binding(Binding {
+        source_symbol: Some(SymbolId(101)), scope: ScopeId::new(0),
+        spelling: "sibling".into(), pinned: false, class: None, defined: false,
+    });
+    let read = module.expression(Expr::Binding(sibling_local), None);
+    module.regions[sibling_body.index()].statements = vec![Statement::Return(Some(read))];
+    let function = FunctionId::new(module.functions.len());
+    module.functions.push(Function {
+        parameters: vec![sibling_local], body: sibling_body, arrow: false,
+        name: FunctionName::Exact("sibling".into()), strict: false,
+        length: None, suspension: Suspension::None,
+    });
+    module.regions[0].statements.push(Statement::Function { binding: sibling, function });
+    module.exports.push(Export { binding: sibling, name: "sibling".into() });
+    let original = Plan::new(Style::Scoped);
+    let mut local = original.clone();
+    local.local_read_order = true;
+    let mut budget = AllocationBudget::new(None);
+    let structure = verify::verify_in(&module, &mut budget).unwrap();
+    let basis = naming::Basis::new_in(&module, &structure, &mut budget).unwrap();
+    let before = basis.names_in(&original, &mut budget).unwrap();
+    let after = basis.names_in(&local, &mut budget).unwrap();
+    assert!(after.get(hot).len() < before.get(hot).len());
+    for unchanged in [BindingId::new(0), BindingId::new(1), sibling, sibling_local] {
+        assert_eq!(before.get(unchanged), after.get(unchanged));
+    }
+    let resolved = policy();
+    let output = module.prepare_output_with_policy(&resolved).unwrap();
+    let old_code = output.render(&original).unwrap();
+    let code = output.render(&local).unwrap();
+    assert!(code.len() < old_code.len());
+    let script = format!("const m=await import('data:text/javascript,'+encodeURIComponent({}));console.log(m.read(...Array.from({{length:60}},(_,i)=>i)),m.read.name,m.read.length,m.sibling(23));", serde_json::to_string(&code).unwrap());
+    let actual = std::process::Command::new("node")
+        .args(["--input-type=module", "-e", &script]).output().unwrap();
+    assert!(actual.status.success(), "{}", String::from_utf8_lossy(&actual.stderr));
+    assert_eq!(String::from_utf8(actual.stdout).unwrap(), "479 readState 60 23\n");
+    for setting in ["identifier-mangling", "naming-search"] {
+        let config: crate::config::ProjectConfig =
+            toml::from_str(&format!("[policy.tactics]\n{setting}='off'")).unwrap();
+        let disabled = config.resolve_policy(CompilationRequest::JavaScript {
+            preserve_root_exports: true,
+        }).unwrap();
+        assert!(local.check_policy(&disabled).is_err());
+        assert!(module.prepare_output_with_policy(&disabled).unwrap().render(&local).is_err());
+    }
+}
+
+#[test]
 fn observed_alphabet_preserves_captures_public_names_and_each_permission_boundary() {
     let alphabet =
         Alphabet::observed([b"ZZZZzz_$$".as_slice()], &mut AllocationBudget::new(None)).unwrap();

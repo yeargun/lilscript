@@ -468,6 +468,7 @@ impl Judge<'_> {
             source_names: plan.source_names.clone(),
             self_named: spelling.self_named,
             read_order: spelling.read_order,
+            local_read_order: plan.local_read_order,
         };
         let rendered = formations
             .form(tactics, |target| {
@@ -658,6 +659,7 @@ struct Assignment {
     style: Style,
     alphabet: crate::js::selection::Alphabet,
     source_names: Vec<crate::js::BindingId>,
+    local_read_order: bool,
     literals: crate::js::LiteralOutput,
 }
 
@@ -794,6 +796,7 @@ impl Walker<'_, '_, '_> {
             alphabet: plan.alphabet,
             source_names: plan.source_names.clone(),
             literals,
+            local_read_order: plan.local_read_order,
         };
         let recalled = self
             .memo
@@ -1167,6 +1170,7 @@ impl Walker<'_, '_, '_> {
             Style(Style),
             SequentialAlphabet,
             ObservedAlphabet,
+            LocalReadOrder,
         }
         let mut joints: Vec<(String, Joint)> = Vec::new();
         if other == LiteralOutput::Original || self.output.target_compaction {
@@ -1179,6 +1183,7 @@ impl Walker<'_, '_, '_> {
         }
         joints.push(("alphabet:sequential".into(), Joint::SequentialAlphabet));
         joints.push(("alphabet:frequency".into(), Joint::ObservedAlphabet));
+        joints.push(("naming:local-read-order".into(), Joint::LocalReadOrder));
         let mut kept = false;
         for (name, joint) in joints {
             self.replay(incumbent)?;
@@ -1208,6 +1213,25 @@ impl Walker<'_, '_, '_> {
                     Joint::Style(style) => {
                         plan.style = style;
                         plan.source_names.clear();
+                        if style != Style::Scoped {
+                            plan.local_read_order = false;
+                        }
+                    }
+                    Joint::LocalReadOrder => {
+                        let policy = self.judge.policy;
+                        if !policy.tactic(TacticId::IdentifierMangling).enabled
+                            || !policy.tactic(TacticId::NamingSearch).enabled
+                        {
+                            record.outcome = ChallengerOutcome::Vetoed;
+                            self.report.joint_trials.push(record);
+                            continue;
+                        }
+                        if plan.style != Style::Scoped {
+                            record.outcome = ChallengerOutcome::Identical;
+                            self.report.joint_trials.push(record);
+                            continue;
+                        }
+                        plan.local_read_order ^= true;
                     }
                     Joint::SequentialAlphabet | Joint::ObservedAlphabet => {
                         let policy = self.judge.policy;
@@ -1433,6 +1457,7 @@ impl Walker<'_, '_, '_> {
             source_names: Vec::new(),
             self_named: origin.spelling.self_named,
             read_order: origin.spelling.read_order,
+            local_read_order: style == Style::Scoped && origin.plan.local_read_order,
         };
         let (measured, proxy, probed) = self.judge.measure(
             self.formations,

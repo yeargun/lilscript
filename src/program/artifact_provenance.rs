@@ -263,6 +263,7 @@ impl ArtifactProvenance {
                 source_names,
                 self_named: naming.self_named,
                 read_order: naming.read_order,
+                local_read_order: naming.local_read_order,
             },
             naming_origin,
             output,
@@ -316,15 +317,17 @@ impl ArtifactProvenance {
         if length != Ordering::Equal {
             return Ok(length);
         }
-        budget.work(WorkKind::Analysis, 56)?;
+        budget.work(WorkKind::Analysis, 57)?;
         let spelling = (
             self.naming.self_named,
             self.naming.read_order,
+            self.naming.local_read_order,
             self.naming.alphabet,
         )
             .cmp(&(
                 other.naming.self_named,
                 other.naming.read_order,
+                other.naming.local_read_order,
                 other.naming.alphabet,
             ));
         if spelling != Ordering::Equal {
@@ -461,6 +464,28 @@ mod tests {
             assert!(admit(&evidence, &off, &mut ledger).is_err());
         }
         evidence.discard(owner, &mut ledger).unwrap();
+        assert_eq!(ledger.retained_bytes(), 0);
+    }
+
+    #[test]
+    fn retained_local_read_order_keeps_search_permission_and_distinct_provenance() {
+        let resolved = enabled();
+        let owner = RevisionId::fresh();
+        let mut ledger = ledger(WORK, MEMORY);
+        let mut plan = Plan::new(Style::Scoped);
+        let plain = build(owner, &mut ledger, WorkDomain::Optional, &resolved, &plan, &[], NO_OUTPUT);
+        plan.local_read_order = true;
+        let local = build(owner, &mut ledger, WorkDomain::Optional, &resolved, &plan, &[], NO_OUTPUT);
+        assert!(local.naming().local_read_order);
+        assert!(local.tactics().iter().any(|usage| usage.tactic == TacticId::NamingSearch));
+        assert_eq!(plain.compare_output(&local, &mut AllocationBudget::new(None)).unwrap(), Ordering::Less);
+        for setting in ["identifier-mangling", "naming-search"] {
+            let disabled = policy(&format!("[policy.tactics]\n{setting}='off'"));
+            assert!(admit(&local, &disabled, &mut ledger).is_err());
+        }
+        for evidence in [plain, local] {
+            evidence.discard(owner, &mut ledger).unwrap();
+        }
         assert_eq!(ledger.retained_bytes(), 0);
     }
     fn ledger(work: u64, memory: u64) -> BudgetLedger {
@@ -633,6 +658,7 @@ mod tests {
             source_names: vec![BindingId::new(8), BindingId::new(2), BindingId::new(8)],
             self_named: false,
             read_order: false,
+            local_read_order: false,
         };
         let first = build(
             owner,
@@ -966,6 +992,7 @@ mod tests {
             source_names: vec![BindingId::new(1), BindingId::new(2)],
             self_named: false,
             read_order: false,
+            local_read_order: false,
         };
         for domain in [WorkDomain::Baseline, WorkDomain::Optional] {
             let mut ledger = ledger(WORK, MEMORY);
