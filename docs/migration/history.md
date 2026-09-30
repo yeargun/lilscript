@@ -173,6 +173,8 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 
 **Full verification.** The complete library run passes **1,683 tests with nine existing ignores**, excluding only the separately qualified expensive table case. Log: `/tmp/lilscript-q2-rule-views-full.log`.
 
+**Qualification.** Pinned `af5124fd` passes the [generic gate and paired compilation comparison](../../benchmarks/migration-results/2026-09-30-q2-rule-views/README.md). Generic lane states, sizes and hashes are unchanged; all three measured port outputs are byte-identical. CPU ratios 0.999, 0.996 and 0.992 do not establish a speed improvement above sample spread. The larger formation repetition remains the next performance owner.
+
 ## 2026-09-30: S4 nullish assignment through checked places (pre-registration)
 
 1. Remove the conversion refusal for `??=` by expressing it with the existing checked place, load, lazy nullish region and store operations. Evaluate receiver and key once, read before the lazy branch, and store only on the absent path.
@@ -182,3 +184,11 @@ The first full library run with G1 found 84 retained-byte assertion failures and
 **Prediction.** Previously refused programs gain a checked implementation. Programs without nullish assignment retain their IR and output. This is an S4 coverage correction while the isolated Q2 release is built and measured, not a naming or compression heuristic change.
 
 **Semantic checkpoint.** The existing place/load/lazy-region/store IR now represents nullish assignment. All four carried cases are enabled. The 18 focused tests pass, including receiver/key capture, getter/RHS/setter exceptions, absent versus falsy values, temporal initialization and inferred callable names. Public searched outputs preserve value-struct copies and host access traces under all three objectives, ES2015/ES2022 and target compaction on/off. The native fixture passes GCC/Clang O0/O2 and sanitizer execution. Logs: `/tmp/lilscript-s4-nullish-focused.log` and `/tmp/lilscript-s4-nullish-tests.log`. Generic qualification follows; the library's remaining ignored cases stay open.
+
+## 2026-09-30: Q2 scheduling unchanged rules (pre-registration)
+
+1. Avoid rerunning the stable suffix of a fixed-point round. Retry the prefix through its last changed rule; if any prefix rule edits, reopen the whole suffix immediately in the same order. Keep the round ceiling and verification boundaries. This needs constant scheduler storage, not retained target trees.
+2. Carry the formed head's fixed point into its tail for the five overlapping rules whose inputs do not depend on output-family choices. Invalidate this initial stability after the first tail edit. Every family-specific rule still runs; no certificate crosses a semantic candidate or a policy/context change.
+3. Add a dense-schedule audit switch for tests, compare rounds/meaning and complete output under all objectives, and verify coupled rules, permissions, resource refusal and existing generic/port behavior. Record actual rule executions in optional timing telemetry.
+
+**Prediction.** Less target-rule scanning on unchanged trees, with the same fixed point and order of actual edits. Logical work falls because this is a versioned scheduling algorithm, not a transparent memo cache: policy algorithm 4 identifies the new tariff. Under finite work budgets this can permit more existing candidates, which must be reported and measured. No larger search family is added. Full formation reuse remains open; avoiding repeated stable work is the bounded change before adding a persistent allocation owner.
