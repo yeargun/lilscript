@@ -30,11 +30,6 @@ const toolsDirectory = dirname(fileURLToPath(import.meta.url))
 export const REPOSITORY_ROOT = resolve(toolsDirectory, "../..")
 const CODEC = join(REPOSITORY_ROOT, "target/release/lilscript-codec")
 
-// How far the reconstructed bar's raw size may sit from ours before the two
-// stop being the same program. The +/-20-25% convention comes from
-// finer/tools/rebuild-bars.mjs, which found the same disparity.
-const MASS_BAND = [0.8, 1.25]
-
 // Where each tool is installed. These are ports' own dev dependencies rather
 // than a private toolbox, so a recipe measures what the project already has.
 const TOOL_HOMES = {
@@ -199,9 +194,8 @@ export function runCompetitors({ boundary, packageDirectory, ourArtifact, ourArt
         receipt.refused.push({ id: recipe.id, reason: (error.stderr || error.message || String(error)).slice(0, 600) })
       }
     }
-    // Two artifacts are the same boundary when they publish the same names.
-    // A raw-size gulf is reported, but it is not the test: a port that emits a
-    // much smaller program is the outcome we want, not a sign of cheating.
+    // Record surface and raw-size differences as descriptive observations.
+    // Neither establishes functional equivalence.
     const ourExports = exportedNames(ourArtifact)
     receipt.publicSurface = { ours: ourExports }
     for (const competitor of receipt.competitors) {
@@ -211,28 +205,16 @@ export function runCompetitors({ boundary, packageDirectory, ourArtifact, ourArt
       competitor.extraInOurs = ourExports.filter(name => !competitor.exports.includes(name))
       competitor.rawRatio = Number((competitor.sizes.raw / receipt.ourSizes.raw).toFixed(3))
     }
-    // Two signals, both necessary. The names say whether it is the same API;
-    // the raw mass says whether it is the same program. Several ports bundle a
-    // pinned source graph rather than the npm package's dependency tree, and
-    // the npm entry then yields a much smaller program — so a bar at 63% of our
-    // raw size is not a bar we lost to, it is a different program.
+    // Historical construction receipts have no shared behavior oracle or
+    // matched language contract. Neither API-name similarity nor raw-size
+    // similarity can qualify them. scripts/bars.mjs owns current comparisons.
     for (const competitor of receipt.competitors) {
-      competitor.massMatches = competitor.rawRatio >= MASS_BAND[0] && competitor.rawRatio <= MASS_BAND[1]
-      competitor.comparable = competitor.surfaceMatches && competitor.massMatches
+      competitor.comparable = false;
+      competitor.eligible = false;
     }
-    receipt.comparable = receipt.competitors.length > 0 && receipt.competitors.every(competitor => competitor.comparable)
-    if (!receipt.comparable) {
-      const bySurface = receipt.competitors.filter(competitor => !competitor.surfaceMatches)
-      const byMass = receipt.competitors.filter(competitor => competitor.surfaceMatches && !competitor.massMatches)
-      if (bySurface.length) {
-        const missing = [...new Set(bySurface.flatMap(competitor => competitor.missingFromOurs))].sort()
-        const extra = [...new Set(bySurface.flatMap(competitor => competitor.extraInOurs))].sort()
-        receipt.limitations.push(`NOT COMPARABLE (public surface): our artifact publishes ${ourExports.length} names, the reconstructed upstream ${bySurface[0].exports.length}.${missing.length ? ` Absent from ours: ${missing.join(", ")}.` : ""}${extra.length ? ` Only in ours: ${extra.join(", ")}.` : ""} A reduced export set is its own boundary, not a whole-library win (001).`)
-      }
-      if (byMass.length) {
-        receipt.limitations.push(`NOT COMPARABLE (program mass): the reconstructed upstream is ${(byMass[0].rawRatio * 100).toFixed(1)}% of our artifact's raw size (${byMass[0].sizes.raw} against ${receipt.ourSizes.raw}), outside the ${MASS_BAND[0]}-${MASS_BAND[1]} band. This port bundles a different dependency graph than the npm entry does, so the two are not the same program.`)
-      }
-    }
+    receipt.comparable = false;
+    receipt.behaviorQualified = false;
+    receipt.limitations.push("Unqualified construction receipt. Use scripts/bars.mjs with a pinned boundary contract and common oracle before making a competitive size claim.");
     receipt.passed = receipt.competitors.length > 0
   } catch (error) {
     receipt.failure = { message: error.message, stack: error.stack }

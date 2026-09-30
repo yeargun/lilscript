@@ -22,8 +22,9 @@ function compile(source,stem,codec) {
   pin(source);
   const config=write(`${stem}.${codec}.toml`,`[policy]\nversion=3\n[objective]\ncodecs=["${codec}"]\n[effort]\nlevel=13\n`);
   const artifact=join(output,`${stem}.${codec}.mjs`);
-  const argv=[source,"--target","js","--config",config,"-o",artifact];
-  execFileSync(resolve(args.compiler),argv,{stdio:"pipe",timeout:120000});
+  const target=["library","micro"].includes(stem)?"js-module":"js";
+  const argv=[source,"--target",target,"--config",config,"-o",artifact];
+  execFileSync(resolve(args.compiler),argv,{stdio:"pipe",timeout:120000,env:{PATH:"/usr/bin:/bin",TZ:"UTC",LANG:"C",LC_ALL:"C"}});
   receipt.builds.push({compiler:resolve(args.compiler),args:argv,config:fileIdentity(config),artifact:{path:artifact,...fileIdentity(artifact)}});
   commands.push(argv);
   return {artifact,config};
@@ -93,10 +94,11 @@ for(const [id,boundary,format] of [["library","open-library","esm"],["applicatio
     semantics:{arithmetic:"signed int32, explicitly coerced in JavaScript",builtins:"standard unmodified; console.log observed",reflection:"only declared exports"},
     equivalence:"Same bounded integer recurrence/function with int32 wraparound; consumer imports the same transform contract"},
     upstream:{entry,inputs:[pin(join(fixtures,"library.mjs"))],...(id==="application"?{minified:entry}:{})},
-    candidate:{artifacts,inputs:[pin(join(fixtures,`${id}.lil`)),pin(join(fixtures,"library.lil")),...Object.keys(artifacts).map(codec=>join(output,`${id}.${codec}.toml`))],provenance:{compiler:resolve(args.compiler),config}},
+    candidate:{artifacts,inputs:[pin(join(fixtures,`${id}.lil`)),pin(join(fixtures,"library.lil")),...Object.keys(artifacts).map(codec=>join(output,`${id}.${codec}.toml`))],provenance:{compiler:resolve(args.compiler),config,receipt:join(output,"preparation.json")}},
     oracle:{entry:pin(join(fixtures,id==="library"?"library-oracle.mjs":"console-oracle.mjs")),expected:id==="library"?{exports:["transform"],values:[0,7,0,5,7]}:["4320"]}});
 }
 write("bars.json",{schema:1,toolchain:resolve(here,"../contracts"),codec:resolve(args.codec),inspector:resolve(args.inspector),programs});
 for(const [path,identity] of Object.entries(receipt.inputs)) if(fileIdentity(path).sha256!==identity.sha256) throw new Error(`preparation input changed: ${path}`);
+receipt.complete=true;
 write("preparation.json",receipt);
 console.log(JSON.stringify({output,workloads:workloads.map(row=>row.id),contracts:programs.map(row=>row.id)}));

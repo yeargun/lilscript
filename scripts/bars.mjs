@@ -64,7 +64,20 @@ export function runBars({manifestPath,lockPath,work,reportPath,writeLock=false,t
     assert.deepEqual(Object.keys(row.candidate.artifacts).sort(),[...OBJECTIVES].sort(),"declare our artifact for every objective");
     for (const objective of OBJECTIVES) row.candidate.artifacts[objective]=pin(row.candidate.artifacts[objective]);
     assert.ok(row.candidate.provenance?.compiler && row.candidate.provenance?.config,"candidate requires compiler and configuration provenance");
-    pin(row.candidate.provenance.compiler);pin(row.candidate.provenance.config);
+    const compiler=pin(row.candidate.provenance.compiler);pin(row.candidate.provenance.config);
+    assert.ok(row.candidate.provenance.receipt,"candidate requires a compiler build receipt");
+    const buildReceipt=JSON.parse(readFileSync(pin(row.candidate.provenance.receipt),"utf8"));
+    assert.equal(buildReceipt.complete,true,"candidate preparation is incomplete");
+    assert.equal(buildReceipt.inputs?.[compiler]?.sha256,fileIdentity(compiler).sha256,"candidate receipt names another compiler");
+    for(const objective of OBJECTIVES) {
+      const artifact=row.candidate.artifacts[objective];
+      const build=buildReceipt.builds?.find(build=>build.artifact?.path===artifact && build.compiler===compiler);
+      assert.ok(build,`missing actual compiler invocation for ${objective}`);
+      assert.equal(build.artifact.sha256,fileIdentity(artifact).sha256,`candidate ${objective} differs from compiler build receipt`);
+      const index=build.args.indexOf("--config");
+      assert.ok(index>=0 && build.args[index+1],"compiler invocation lacks explicit config");
+      assert.equal(fileIdentity(pin(build.args[index+1])).sha256,build.config.sha256,"compiler configuration changed after build");
+    }
     if (row.externs) row.externs=pin(row.externs);
     if (row.upstream.minified) row.upstream.minified=pin(row.upstream.minified);
     return row;
