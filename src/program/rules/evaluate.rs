@@ -15,6 +15,10 @@ const MAX_DEPTH: usize = 8;
 const MAX_OPERATIONS: usize = 64;
 const MAX_STEPS: u32 = 1024;
 
+#[cfg(test)]
+#[path = "evaluate_scalar_tests.rs"]
+mod scalar_tests;
+
 fn string<'a>(program: &'a Program<'_>, value: &'a Exact) -> Option<&'a StringValue> {
     match value {
         Exact::String(StoredString::Source(id)) => program.strings.get(id.index()),
@@ -60,7 +64,9 @@ fn intrinsic(
         Intrinsic::FloatAbs
         | Intrinsic::FloatFloor
         | Intrinsic::FloatCeil
-        | Intrinsic::FloatRound => 0..=0,
+        | Intrinsic::FloatRound
+        | Intrinsic::FloatToInt
+        | Intrinsic::StringCodePointLength => 0..=0,
         Intrinsic::FloatMin | Intrinsic::FloatMax => 1..=1,
         _ => crate::catalog::intrinsic_recipe(method)?.arguments,
     };
@@ -97,6 +103,17 @@ fn intrinsic(
         return Some(computed(units));
     }
     if let Some(value) = number(receiver) {
+        if method == I::FloatToInt {
+            // Truncate before reducing modulo 2^32. A Rust float-to-int cast
+            // alone saturates; the source operation wraps and maps every
+            // non-finite value and either zero sign to positive zero.
+            let value = if value.is_finite() {
+                value.trunc().rem_euclid(4_294_967_296.0) as u32 as i32
+            } else {
+                0
+            };
+            return Some(Exact::Integer(value));
+        }
         let result = match method {
             I::FloatAbs => value.abs(),
             I::FloatFloor => value.floor(),
@@ -157,6 +174,22 @@ fn intrinsic(
     let argument =
         |at: usize, default: i32| -> Option<i32> { args.get(at).map_or(Some(default), integer) };
     match method {
+        I::StringCodePointLength => {
+            if !work.charge(len as u64) {
+                return None;
+            }
+            let mut count = 0usize;
+            let mut at = 0;
+            while at < len {
+                let pair = matches!(units[at], 0xd800..=0xdbff)
+                    && units
+                        .get(at + 1)
+                        .is_some_and(|unit| matches!(unit, 0xdc00..=0xdfff));
+                at += if pair { 2 } else { 1 };
+                count += 1;
+            }
+            Some(Exact::Integer(count as i32))
+        }
         I::StringCharCodeAt | I::StringCodeUnitAt | I::StringCharAt => {
             let position = integer(args.first()?)?;
             let unit = usize::try_from(position)

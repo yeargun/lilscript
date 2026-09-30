@@ -242,6 +242,33 @@ fn known_methods_fold_only_with_the_builtin_contract() {
 }
 
 #[test]
+fn constant_scalar_methods_fold_through_nested_pure_calls() {
+    let source = r#"
+        int truncate(float n){return n.toInt();}
+        int count(string s){return s.codePointLength();}
+        int calculate(float n,string s){return truncate(n)+count(s);}
+        print(calculate(4294967297.5,"😀x"));
+        print(calculate(-4294967297.5,"A"));
+    "#;
+    optimized(
+        source,
+        RuleRequest {
+            pristine_builtins: true,
+            ..FOLD_ONLY
+        },
+        |program, receipt| {
+            assert!(!instantiated(program, "calculate"), "{receipt:?}");
+            assert!(!instantiated(program, "truncate"), "{receipt:?}");
+            assert!(!instantiated(program, "count"), "{receipt:?}");
+            assert_eq!(
+                count(program, |kind| matches!(kind, OperationKind::Call(_))),
+                2
+            );
+        },
+    );
+}
+
+#[test]
 fn bounded_constant_calls_preserve_nontermination_and_throwing_methods() {
     for source in [
         "int spin(int n){return spin(n+1);} export int go(){return spin(0);}",

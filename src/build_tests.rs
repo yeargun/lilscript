@@ -516,6 +516,77 @@ fn bounded_loop_folding_obeys_configuration_for_javascript_and_native() {
 }
 
 #[test]
+fn constant_scalar_methods_obey_toml_and_match_native_and_javascript() {
+    let source = r#"
+        int truncated(float value){return value.toInt();}
+        int points(string value){return value.codePointLength();}
+        print(truncated(4294967297.75));print(truncated(-4294967297.75));
+        print(truncated(0.0/0.0));print(truncated(1.0/0.0));
+        print(points("A😀B"));print(points(""));
+    "#;
+    for codec in ["raw", "gzip", "brotli"] {
+        for permission in ["off", "on"] {
+            let config: ProjectConfig = toml::from_str(&format!(
+                "objective.codecs='{codec}'\neffort.level=13\n\
+                 javascript.assume_pristine_builtins=true\n\
+                 [policy.tactics]\nconstant-folding='{permission}'\n\
+                 inlining='off'\ncall-specialization='off'"
+            ))
+            .unwrap();
+            let result = compile_source(
+                source,
+                &config,
+                ServiceOptions {
+                    target: ServiceTarget::All,
+                    ..ServiceOptions::default()
+                },
+            )
+            .unwrap();
+            let folded = result.report()["phases_ns"]["rules"]["folded_calls"]
+                .as_u64()
+                .unwrap();
+            assert_eq!(folded > 0, permission == "on", "{}", result.report());
+            let objective = config.objective.codecs[0];
+            assert_eq!(
+                execute_javascript(result.javascript(objective).unwrap().javascript(), "", ""),
+                "1\n-1\n0\n0\n3\n0\n"
+            );
+            assert_eq!(
+                execute_native(result.native_c().unwrap()),
+                "1\n-1\n0\n0\n3\n0\n"
+            );
+        }
+    }
+}
+
+#[test]
+fn constant_scalar_code_point_method_keeps_an_observable_host_iterator() {
+    let config: ProjectConfig = toml::from_str(
+        "objective.codecs='raw'\neffort.level=13\n\
+         javascript.assume_pristine_builtins=false\n\
+         [policy.tactics]\nconstant-folding='on'",
+    )
+    .unwrap();
+    let result = compile_source(
+        "print(\"abc\".codePointLength());",
+        &config,
+        ServiceOptions::default(),
+    )
+    .unwrap();
+    assert_eq!(result.report()["phases_ns"]["rules"]["folded_calls"], 0);
+    let javascript = result.javascript(Objective::Raw).unwrap().javascript();
+    assert_eq!(execute_javascript(javascript, "", ""), "3\n");
+    assert_eq!(
+        execute_javascript(
+            javascript,
+            "String.prototype[Symbol.iterator]=function*(){yield 'changed';};",
+            ""
+        ),
+        "1\n"
+    );
+}
+
+#[test]
 fn service_reports_unsupported_permissions_separately_from_policy_identity() {
     let result = compile_source(
         "print(7);",
