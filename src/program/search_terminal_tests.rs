@@ -236,6 +236,21 @@ fn local_read_order_polish_protects_the_completed_search_under_each_objective() 
 }
 
 #[test]
+fn private_properties_polish_protects_the_completed_search_and_replays() {
+    let source = include_str!("fixtures/private-fields.lil");
+    for (codec, index) in [("raw", 0), ("gzip", 1), ("brotli", 2)] {
+        let resolved = policy(codec, 15);
+        let objective = Objectives::One(resolved.objective().unwrap().codec);
+        let previous = without_property_polish(|| search_source(source, &resolved, objective, true));
+        let renamed = search_source(source, &resolved, objective, true);
+        assert!(renamed.winners[index].as_ref().unwrap().0 <= previous.winners[index].as_ref().unwrap().0);
+        let stage = &renamed.report.objectives[0];
+        assert_eq!(replay(stage), stage.after);
+        assert_eq!(stage.joint_trials.iter().filter(|trial| trial.name == "properties:private-fields").count(), 1);
+    }
+}
+
+#[test]
 fn terminal_family_vetoes_hold_under_each_objective() {
     let source = r#"export string[] make() { return ["aa","bb","cc","dd","ee","ff","gg","hh"]; }"#;
     for codec in ["raw", "gzip", "brotli"] {
@@ -444,7 +459,7 @@ fn a_terminal_formation_of_the_winners_own_assignment_is_the_winner() {
                     output.dead_code_elimination,
                     output.target_compaction,
                     output.rules,
-                    output.families.int32_hints,
+                    output.families.head(),
                     WorkDomain::Optional,
                     |formations| {
                         formations.form(output.clone(), |target| {

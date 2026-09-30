@@ -30,6 +30,7 @@ mod families;
 pub use families::{
     ArrayPacking, Challenger, OutputFamilies, Spelling, StatementSpellings, TargetRules,
 };
+pub(crate) use families::HeadChoices;
 pub mod extract;
 mod literal_output;
 pub mod manifest;

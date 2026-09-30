@@ -914,16 +914,15 @@ pub(super) struct Formations<'scope, 'src> {
     semantic: &'scope SemanticSnapshot<'src>,
     implementations: &'scope ImplementationMap,
     identity: &'scope mut Option<SharedImplementationIdentity>,
-    /// The candidate formed up to its output families, with `head_hints`.
+    /// The candidate formed up to its output families, with `head_choices`.
     head: &'scope super::javascript::FormedHead,
-    /// The `int32_hints` family is decided at the head: `head` carries this
-    /// value, and the head with the other one is formed when a challenger
-    /// first asks for it.
-    head_hints: bool,
-    other_head: Option<(
+    /// Both concrete formation choices participate in head identity. Four
+    /// bounded slots avoid an allocator whose backing outlives a child scope.
+    head_choices: crate::js::HeadChoices,
+    other_heads: [Option<(
         super::javascript::FormedHead,
         crate::output_budget::RetainedCharge<RevisionId>,
-    )>,
+    )>; 4],
     /// What forming the other head reads.
     demand: &'scope super::demand::DemandPlan<'scope, 'src>,
     language: &'scope crate::compilation_contract::JavaScriptCompilationContract,
@@ -939,13 +938,12 @@ pub(super) struct Formations<'scope, 'src> {
 }
 
 impl Formations<'_, '_> {
-    /// The head for `hints`: the one formed first, or the other, formed now
-    /// if no challenger asked for it before.
-    fn head_for(&mut self, hints: bool) -> Result<&super::javascript::FormedHead, CandidateError> {
-        if hints == self.head_hints || !self.target_compaction {
-            return Ok(self.head);
+    fn head_for(&mut self, choices: crate::js::HeadChoices) -> Result<(), CandidateError> {
+        if choices == self.head_choices || !self.target_compaction {
+            return Ok(());
         }
-        if self.other_head.is_none() {
+        let slot = choices.index();
+        if self.other_heads[slot].is_none() {
             let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
             let head = super::javascript::form_head_admitted(
                 &self.semantic.program,
@@ -954,7 +952,7 @@ impl Formations<'_, '_> {
                 self.demand,
                 self.target_compaction,
                 self.rules,
-                hints,
+                choices,
                 self.hosts,
                 &mut budget,
             )
@@ -962,29 +960,34 @@ impl Formations<'_, '_> {
             let bytes = budget.retained_bytes(crate::output_budget::AllocationClass::Retained);
             let charge = budget.detach_retained(self.store, bytes)?;
             drop(budget);
-            self.other_head = Some((head, charge));
+            self.other_heads[slot] = Some((head, charge));
         }
-        Ok(&self.other_head.as_ref().unwrap().0)
+        Ok(())
     }
 
-    /// Whether a challenger asked for the other head.
-    pub(super) fn other_head_formed(&self) -> bool {
-        self.other_head.is_some()
+    pub(super) fn other_heads_formed(&self) -> usize {
+        self.other_heads
+            .iter()
+            .filter(|head| head.is_some())
+            .count()
     }
 
-    /// Whether the `int32_hints` family prints nothing in this candidate:
-    /// the other head would render the same bytes.
     pub(super) fn hints_inert(&self) -> bool {
         self.head.hints_inert()
     }
 
-    /// Releases the other head, if one was formed.
-    fn release_other_head(&mut self) -> Result<(), CandidateError> {
-        if let Some((head, charge)) = self.other_head.take() {
-            drop(head);
-            charge
-                .discard(&self.store, self.ledger)
-                .map_err(|(_, error)| CandidateError::from(error))?;
+    pub(super) fn properties_inert(&self) -> bool {
+        self.head.properties_inert()
+    }
+
+    fn release_other_heads(&mut self) -> Result<(), CandidateError> {
+        for slot in &mut self.other_heads {
+            if let Some((head, charge)) = slot.take() {
+                drop(head);
+                charge
+                    .discard(&self.store, self.ledger)
+                    .map_err(|(_, error)| CandidateError::from(error))?;
+            }
         }
         Ok(())
     }
@@ -1013,11 +1016,14 @@ impl Formations<'_, '_> {
                 "a formation's head belongs to other dead-code or compaction choices",
             ));
         }
-        self.head_for(choices.families.int32_hints)?;
-        let head = if choices.families.int32_hints == self.head_hints || !self.target_compaction {
+        self.head_for(choices.families.head())?;
+        let head = if choices.families.head() == self.head_choices || !self.target_compaction {
             self.head
         } else {
-            &self.other_head.as_ref().unwrap().0
+            &self.other_heads[choices.families.head().index()]
+                .as_ref()
+                .unwrap()
+                .0
         };
         let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
         let head = head.clone_in(&mut budget)?;
@@ -1062,11 +1068,14 @@ impl Formations<'_, '_> {
                 "a formation's head belongs to other dead-code or compaction choices",
             ));
         }
-        self.head_for(choices.families.int32_hints)?;
-        let head = if choices.families.int32_hints == self.head_hints || !self.target_compaction {
+        self.head_for(choices.families.head())?;
+        let head = if choices.families.head() == self.head_choices || !self.target_compaction {
             self.head
         } else {
-            &self.other_head.as_ref().unwrap().0
+            &self.other_heads[choices.families.head().index()]
+                .as_ref()
+                .unwrap()
+                .0
         };
         let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
         let head = head.clone_in(&mut budget)?;
@@ -2351,10 +2360,20 @@ impl<'src> Compilation<'src> {
         dead_code_elimination: bool,
         compact: bool,
         rules: crate::js::TargetRules,
-        int32_hints: bool,
+        head_choices: crate::js::HeadChoices,
         domain: WorkDomain,
         drive: impl FnOnce(&mut Formations<'_, 'src>) -> R,
     ) -> Result<R, CandidateError> {
+        if head_choices.property_mangling
+            && (!compact
+                || !policy
+                    .tactic(crate::compilation_policy::TacticId::PropertyMangling)
+                    .enabled)
+        {
+            return Err(CandidateError::ForbiddenTactic(
+                crate::compilation_policy::TacticId::PropertyMangling,
+            ));
+        }
         let index = self.candidate_slot(candidate)?;
         self.check_existing_javascript_contract(policy, domain)?;
         let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
@@ -2415,7 +2434,7 @@ impl<'src> Compilation<'src> {
             &demand,
             compact,
             rules,
-            int32_hints,
+            head_choices,
             hosts,
             &mut budget,
         );
@@ -2453,8 +2472,8 @@ impl<'src> Compilation<'src> {
             implementations: map,
             identity,
             head: &head,
-            head_hints: int32_hints,
-            other_head: None,
+            head_choices,
+            other_heads: std::array::from_fn(|_| None),
             demand: &demand,
             language: target.language(),
             dead_code_elimination,
@@ -2468,7 +2487,7 @@ impl<'src> Compilation<'src> {
             domain,
         };
         let result = drive(&mut formations);
-        let released = formations.release_other_head();
+        let released = formations.release_other_heads();
         drop(formations);
         drop(head);
         released?;

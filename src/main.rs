@@ -1157,7 +1157,7 @@ mod tests {
         ])
         .unwrap();
         let loaded = LoadedConfig {
-            config: toml::from_str("[policy.tactics]\nproperty-mangling='on'").unwrap(),
+            config: toml::from_str("[policy.tactics]\nhelper-sharing='on'").unwrap(),
             path: None,
             warnings: vec![],
         };
@@ -1167,14 +1167,14 @@ mod tests {
                 .as_array()
                 .unwrap()
                 .iter()
-                .any(|value| value.as_str().unwrap().contains("property-mangling")));
+                .any(|value| value.as_str().unwrap().contains("helper-sharing")));
         }
         for key in ["policy", "native_policy"] {
             let tactic = report[key]["tactics"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .find(|value| value["id"] == "property-mangling")
+                .find(|value| value["id"] == "helper-sharing")
                 .unwrap();
             assert_eq!(tactic["available"], false);
             assert_eq!(tactic["state"]["enabled"], false);

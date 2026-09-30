@@ -246,7 +246,7 @@ and searched use). `--print-policy` generates the tactic reference from the
 registry: requested permission, effective state, target availability, producer
 stages, prerequisites, analysis requirements and defaults. `auto` follows the
 tactic's own default and its effort gate. A missing producer cannot be enabled
-by a flag: `helper-sharing`, `property-mangling` and `recurring-reconstruction`
+by a flag: `helper-sharing` and `recurring-reconstruction`
 currently report unavailable, with a diagnostic when explicitly requested on.
 Native has no scalar-replacement or call-specialization producer yet.
 Disabling identifier mangling also disables its dependent naming search and
@@ -256,8 +256,18 @@ alphabet trials, with the reason in the policy diagnostics.
 build reports expose them per target in `policy_diagnostics`, and ordinary CLI
 builds print them as warnings. Diagnostic wording is outside the policy
 fingerprint. The level-16 compatibility grant is diagnosed until the relevant
-reconstruction permission is explicitly set. Algorithm version 3 records this
-availability and receipt correction; it adds no new optimizer representation.
+reconstruction permission is explicitly set.
+
+`property-mangling` permits an exactly judged private-field alternative at
+default and higher effort. Constructors and typed accesses use one assignment
+through inheritance, while unrelated private class families reuse short names.
+An inheritance family keeps its declared keys when any member is reflected,
+external, generic or retained as a JavaScript class identity. Trusted host views,
+public results, callbacks, thrown values and erased generic inputs preserve
+their reachable shapes. These property trials require `target-compaction` and
+are independent of `identifier-mangling`; disabling lexical mangling does not
+disable private property trials. `off` vetoes direct formation, cached heads and
+search. `on` permits the trial without forcing its selection.
 
 `target-compaction` permits the JavaScript target's optional rule schedule.
 Its folding, function inlining and object scalarization also require
@@ -351,8 +361,8 @@ the preset (dead-code elimination, constant folding, inlining, scalar
 replacement, call specialization, helper sharing); explicit settings still
 apply. `javascript.compression` and `javascript.optimizations` are exact
 allowlists: when present, a listed entry is on and an entry the list omits is
-off. `helper-sharing` and `property-mangling` have no producer in this compiler
-yet, so their permission changes nothing today.
+off. `helper-sharing` has no producer in this compiler
+yet, so its permission changes nothing today.
 
 ## Retired keys
 

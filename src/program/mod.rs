@@ -33,6 +33,7 @@ mod native_memory;
 mod native_plan;
 mod native_runtime;
 mod native_string_runtime;
+mod private_fields;
 #[cfg(test)]
 mod product_demand_tests;
 mod product_family;
@@ -587,6 +588,9 @@ pub struct ClassDefinition {
     /// The module whose scope declares the class.
     pub module: ModuleId,
     pub external: bool,
+    /// The checked reflected-set closure exposes this class's storage keys.
+    /// Kept independently from constructor identity (`observed`).
+    pub reflected: bool,
     pub base: Option<NominalId>,
     /// The class's own type parameters, and its base's type arguments in
     /// terms of them (empty for a non-generic base): an upcast of an

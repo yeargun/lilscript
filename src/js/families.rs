@@ -224,6 +224,21 @@ pub struct OutputFamilies {
     /// challenger runs first, so a level that searches keeps the previous
     /// compiler's spelling wherever the codec says it is smaller (AM2).
     pub int32_hints: bool,
+    /// Rename proved private instance fields coherently before target cleanup.
+    /// This is a concrete representation candidate, not a printer substitution.
+    pub property_mangling: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct HeadChoices {
+    pub int32_hints: bool,
+    pub property_mangling: bool,
+}
+
+impl HeadChoices {
+    pub(crate) fn index(self) -> usize {
+        usize::from(self.int32_hints) | (usize::from(self.property_mangling) << 1)
+    }
 }
 
 impl OutputFamilies {
@@ -240,6 +255,7 @@ impl OutputFamilies {
         compound_assignments: false,
         quotes: false,
         int32_hints: false,
+        property_mangling: false,
     };
 
     /// The alternative each family starts from under `codec`. Raw bytes seed
@@ -262,6 +278,7 @@ impl OutputFamilies {
                 compound_assignments: true,
                 quotes: true,
                 int32_hints: false,
+                property_mangling: false,
             },
             Objective::Gzip | Objective::Brotli => Self {
                 loop_heads: true,
@@ -272,12 +289,13 @@ impl OutputFamilies {
 
     /// Semantic permissions required by this assignment. Keep generation,
     /// admission and retained provenance on the same registry.
-    pub fn tactics(self) -> [(bool, TacticId); 4] {
+    pub fn tactics(self) -> [(bool, TacticId); 5] {
         [
             (self.block_inlining, TacticId::Inlining),
             (self.string_constants, TacticId::ConstantFolding),
             (self.string_pooling, TacticId::StringPooling),
             (self.string_array_packing, TacticId::StringArrayPacking),
+            (self.property_mangling, TacticId::PropertyMangling),
         ]
     }
 
@@ -291,7 +309,15 @@ impl OutputFamilies {
         self.string_constants &= policy.tactic(TacticId::ConstantFolding).enabled;
         self.string_pooling &= policy.tactic(TacticId::StringPooling).enabled;
         self.string_array_packing &= ArrayPacking::from_policy(policy) != ArrayPacking::Disabled;
+        self.property_mangling &= policy.tactic(TacticId::PropertyMangling).enabled;
         self
+    }
+
+    pub(crate) fn head(self) -> HeadChoices {
+        HeadChoices {
+            int32_hints: self.int32_hints,
+            property_mangling: self.property_mangling,
+        }
     }
 }
 

@@ -334,6 +334,187 @@ fn int32_hints_restore_the_previous_normalizations() {
 }
 
 #[test]
+fn private_properties_share_one_inherited_assignment_and_release_all_heads() {
+    let source = include_str!("fixtures/private-fields.lil");
+    let resolved = policy(
+        "[policy.tactics]\nproperty-mangling='on'\nscalar-replacement='off'\ninlining='off'",
+    );
+    with_candidate(source, &resolved, |compiler, candidate| {
+        let output = OutputTactics::from_policy(&resolved);
+        compiler
+            .with_implementation_description(candidate, WorkDomain::Optional, |_| ())
+            .unwrap();
+        let before = compiler.ledger().retained_bytes();
+        compiler.with_javascript_formations_in(candidate, &resolved,
+            output.dead_code_elimination, output.target_compaction, output.rules,
+            output.families.head(), WorkDomain::Optional, |formations| {
+                assert!(!formations.properties_inert());
+                for property_mangling in [false, true] {
+                    for int32_hints in [false, true] {
+                        let mut choices = output.clone();
+                        choices.families.property_mangling = property_mangling;
+                        choices.families.int32_hints = int32_hints;
+                        let javascript = formations.form(choices, |target| {
+                            let artifact = target.render(&Plan::new(Style::Global))?;
+                            target.take_artifact(artifact)
+                        }).unwrap().unwrap();
+                        for name in ["accumulatedValue", "offsetValue", "independentValue"] {
+                            assert_eq!(javascript.contains(name), !property_mangling, "{javascript}");
+                        }
+                        assert_eq!(execute(&javascript,
+                            "Object.defineProperty(Object.prototype,'a',{configurable:true,set(){throw 'inherited setter';}});",
+                            "const a=library.make(2),b=library.make(10);events.push(a(3),b(1),a(-2));"),
+                            serde_json::json!([15,21,13]));
+                    }
+                }
+                assert_eq!(formations.other_heads_formed(), 3);
+            }).unwrap();
+        assert_eq!(compiler.ledger().retained_bytes(), before);
+    });
+}
+
+#[test]
+fn private_properties_keep_reflected_shapes_and_trusted_host_keys() {
+    let source = r#"
+        extern JsValue hostValue;
+        class Base{int baseValue;init(){this.baseValue=4;}}
+        class Child extends Base{int childValue;init(){super();this.childValue=9;}}
+        class HostShape{int hostField;}
+        class Thrown{int thrownField;init(){this.thrownField=17;}}
+        export Base make(){return new Child();}
+        export int readHost(){HostShape value=JS.assume(hostValue);return value.hostField;}
+        export void fail(){throw new Thrown();}
+    "#;
+    let resolved = enabled();
+    with_candidate(source, &resolved, |compiler, candidate| {
+        let mut choices = OutputTactics::from_policy(&resolved);
+        choices.families.property_mangling = true;
+        let javascript = emit(compiler, candidate, &resolved, choices);
+        assert_eq!(execute(&javascript, "globalThis.hostValue={hostField:23};",
+            "const value=library.make();events.push(Object.keys(value),value.baseValue,value.childValue,library.readHost());try{library.fail()}catch(value){events.push(Object.keys(value),value.thrownField)}"),
+            serde_json::json!([["baseValue","childValue"],4,9,23,["thrownField"],17]));
+    });
+}
+
+#[test]
+fn private_properties_are_vetoed_before_direct_and_cached_formation() {
+    let resolved = policy("[policy.tactics]\nproperty-mangling='off'");
+    with_candidate(
+        include_str!("fixtures/private-fields.lil"),
+        &resolved,
+        |compiler, candidate| {
+            let output = OutputTactics::from_policy(&resolved);
+            let mut mangled = output.clone();
+            mangled.families.property_mangling = true;
+            let before = compiler.ledger().retained_bytes();
+            assert!(matches!(
+                compiler.with_javascript_output_choices_in(
+                    candidate,
+                    &resolved,
+                    mangled.clone(),
+                    WorkDomain::Optional,
+                    |_| ()
+                ),
+                Err(CandidateError::ForbiddenTactic(TacticId::PropertyMangling))
+            ));
+            assert!(matches!(
+                compiler.with_javascript_formations_in(
+                    candidate,
+                    &resolved,
+                    output.dead_code_elimination,
+                    output.target_compaction,
+                    output.rules,
+                    mangled.families.head(),
+                    WorkDomain::Optional,
+                    |_| ()
+                ),
+                Err(CandidateError::ForbiddenTactic(TacticId::PropertyMangling))
+            ));
+            compiler
+                .with_javascript_formations_in(
+                    candidate,
+                    &resolved,
+                    output.dead_code_elimination,
+                    output.target_compaction,
+                    output.rules,
+                    output.families.head(),
+                    WorkDomain::Optional,
+                    |formations| {
+                        assert!(matches!(
+                            formations.form(mangled, |_| ()),
+                            Err(CandidateError::ForbiddenTactic(TacticId::PropertyMangling))
+                        ));
+                        assert_eq!(formations.other_heads_formed(), 0);
+                    },
+                )
+                .unwrap();
+            assert_eq!(compiler.ledger().retained_bytes(), before);
+        },
+    );
+}
+
+#[test]
+fn private_properties_preserve_implicit_host_crossings_and_published_methods() {
+    let source = r#"
+        extern JsValue inspect;
+        class Returned{int returnedField=11;}
+        class Literal{int literalField=13;}
+        class Spread{int spreadField=17;}
+        class Payload{int payloadField=19;}
+        class Argument{int argumentField;}
+        class Factory{
+            Payload make(){return new Payload();}
+            int read(Argument value){return value.argumentField;}
+        }
+        export constructor Factory;
+        export JsValue returned(){return new Returned();}
+        export JsValue literal(){return record{item:new Literal()};}
+        export void spread(){Spread[] values=[new Spread()];inspect(...values);}
+    "#;
+    let resolved = enabled();
+    with_candidate(source, &resolved, |compiler, candidate| {
+        for property_mangling in [false, true] {
+            let mut choices = OutputTactics::from_policy(&resolved);
+            choices.families.property_mangling = property_mangling;
+            let javascript = emit(compiler, candidate, &resolved, choices);
+            assert_eq!(execute(&javascript,
+                "globalThis.inspect=value=>events.push(Object.keys(value),value.spreadField);",
+                "const r=library.returned(),l=library.literal().item,f=new library.Factory(),p=f.make();events.push(Object.keys(r),r.returnedField,Object.keys(l),l.literalField,Object.keys(p),p.payloadField,f.read({argumentField:23}));library.spread();"),
+                serde_json::json!([["returnedField"],11,["literalField"],13,["payloadField"],19,23,["spreadField"],17]));
+        }
+    });
+}
+
+#[test]
+fn private_properties_preserve_extern_inheritance_and_observed_class_layouts() {
+    let source = r#"
+        extern class HostBase{int firstHostField;int secondHostField;}
+        extern class HostChild extends HostBase{}
+        extern HostChild host;
+        class Observed{int identityField;init(){this.identityField=7;}}
+        export int read(){
+            Observed value=new Observed();
+            if(value is Observed){return host.firstHostField+host.secondHostField+value.identityField;}
+            return 0;
+        }
+    "#;
+    let resolved = enabled();
+    with_candidate(source, &resolved, |compiler, candidate| {
+        let mut choices = OutputTactics::from_policy(&resolved);
+        choices.families.property_mangling = true;
+        let javascript = emit(compiler, candidate, &resolved, choices);
+        assert_eq!(
+            execute(
+                &javascript,
+                "globalThis.host={firstHostField:2,secondHostField:3};",
+                "events.push(library.read());"
+            ),
+            serde_json::json!([12])
+        );
+    });
+}
+
+#[test]
 fn pooling_and_packing_are_independent_and_preserve_fresh_arrays() {
     let source = r#"
         extern void observe(string value);

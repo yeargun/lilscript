@@ -491,7 +491,7 @@ fn form_with_demand(
         demand,
         compact,
         rules,
-        families.int32_hints,
+        families.head(),
         hosts,
         budget,
     )?;
@@ -511,6 +511,7 @@ pub(super) struct FormedHead {
     /// hint without pristine builtins. Its other head renders this one's
     /// bytes.
     hints_inert: bool,
+    properties_inert: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -535,11 +536,16 @@ impl FormedHead {
             module,
             tail: self.tail,
             hints_inert: self.hints_inert,
+            properties_inert: self.properties_inert,
         })
     }
 
     pub(super) fn hints_inert(&self) -> bool {
         self.hints_inert
+    }
+
+    pub(super) fn properties_inert(&self) -> bool {
+        self.properties_inert
     }
 }
 
@@ -553,7 +559,7 @@ pub(super) fn form_head_admitted(
     demand: &DemandPlan<'_, '_>,
     compact: bool,
     rules: js::TargetRules,
-    int32_hints: bool,
+    head: js::HeadChoices,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<FormedHead, FormationError> {
@@ -565,7 +571,7 @@ pub(super) fn form_head_admitted(
         demand,
         compact,
         rules,
-        int32_hints,
+        head,
         hosts,
         budget,
     )
@@ -590,13 +596,14 @@ fn form_head(
     demand: &DemandPlan<'_, '_>,
     compact: bool,
     rules: js::TargetRules,
-    int32_hints: bool,
+    head: js::HeadChoices,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<FormedHead, FormationError> {
     let mut phase = budget.scope();
     let struct_plan = structs::plan(program, contract, &mut phase)?;
     let reference_plan = references::Plan::new();
+    let private_fields = super::private_fields::Plan::new(program, &mut phase)?;
     let mut records = phase.vector(AllocationClass::Scratch, demand.records().len())?;
     for family in demand.records() {
         phase.work(WorkKind::Render, 1)?;
@@ -625,7 +632,7 @@ fn form_head(
     module.pristine_builtins = contract.assumptions.pristine_builtins;
     module.pure_property_reads = contract.assumptions.pure_property_reads;
     module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
-    module.int32_hints = int32_hints;
+    module.int32_hints = head.int32_hints;
     // The program's value ranges (M6.4b), once per program under its seal.
     let ranges = program.ranges(super::call_graph::Seal::from_execution(contract.execution));
     let mut formation = Formation {
@@ -645,7 +652,10 @@ fn form_head(
         host_factories: Vec::new(),
         index_check: None,
         crossing_checks: Vec::new(),
-        int32_hints,
+        int32_hints: head.int32_hints,
+        property_mangling: head.property_mangling,
+        private_fields,
+        property_sites: 0,
         hint_sites: 0,
         forming: None,
         unit_functions: Vec::new(),
@@ -933,6 +943,8 @@ fn form_head(
         struct_plan,
         reference_plan,
         hint_sites,
+        property_sites,
+        private_fields,
         ..
     } = formation;
     drop(contexts);
@@ -940,6 +952,7 @@ fn form_head(
     drop(records);
     drop(struct_plan);
     drop(reference_plan);
+    drop(private_fields);
     // Without pristine builtins the printer hints an integer intrinsic's
     // result under the family; the tail creates none.
     let hints_inert = hint_sites == 0
@@ -956,6 +969,7 @@ fn form_head(
         module,
         tail,
         hints_inert,
+        properties_inert: property_sites == 0,
     })
 }
 
@@ -1119,6 +1133,9 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     /// R1 and R11 after an `int` field, member or element read and an `int`
     /// host call's result.
     int32_hints: bool,
+    property_mangling: bool,
+    private_fields: super::private_fields::Plan,
+    property_sites: usize,
     /// The reads and call results the family hints, counted whatever its
     /// value.
     hint_sites: usize,
@@ -1320,12 +1337,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             return Ok(None);
         }
         let Some(
-            &[
-                ValueUse::Operand {
-                    operation: initialize,
-                    position: 0,
-                },
-            ],
+            &[ValueUse::Operand {
+                operation: initialize,
+                position: 0,
+            }],
         ) = uses.unit(semantic).and_then(|uses| uses.value_uses(value))
         else {
             return Ok(None);
@@ -1618,6 +1633,21 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     fn literal(&mut self, literal: js::Literal) -> Result<js::ExprId, FormationError> {
         self.expression(js::Expr::Literal(literal))
     }
+
+    fn class_field_key(&mut self, field: FieldRef) -> Result<js::ExprId, FormationError> {
+        let slot = self.private_fields.slot(field, self.budget)?;
+        self.property_sites += usize::from(slot.is_some());
+        let text = if let Some(slot) = slot.filter(|_| self.property_mangling) {
+            super::private_fields::Plan::spelling(slot, self.budget)?.into()
+        } else {
+            let (key, _) = self
+                .program
+                .class_field(field)
+                .ok_or_else(|| self.error(Span::default(), "unknown class field"))?;
+            self.string(&self.program.strings[key.index()])?
+        };
+        self.literal(js::Literal::String(text))
+    }
     fn reference(&mut self, binding: js::BindingId) -> Result<js::ExprId, FormationError> {
         self.expression(js::Expr::Binding(binding))
     }
@@ -1873,7 +1903,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         // occurrence as Call → Function → body, rather than
                         // a statement block. Include that frame in placement.
                         OperationKind::Block(_)
-                            if call_frames != 0 || expression_regions[parent.index()] => 3,
+                            if call_frames != 0 || expression_regions[parent.index()] =>
+                        {
+                            3
+                        }
                         // Statement child or loop condition/update Sequence.
                         _ => 1,
                     };
@@ -2627,15 +2660,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             // A class field is the instance's own data property of the
             // field's spelling.
             Place::ClassField { receiver, field } => {
-                let (key, _) = self
-                    .program
-                    .class_field(field)
-                    .ok_or_else(|| self.error(Span::default(), "unknown class field"))?;
-                let key = {
-                    let literal =
-                        js::Literal::String(self.string(&self.program.strings[key.index()])?);
-                    self.literal(literal)
-                }?;
+                let key = self.class_field_key(field)?;
                 (receiver, js::Property::Computed(key))
             }
             Place::Index { receiver, key } => {
@@ -4656,13 +4681,20 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         let property = js::Property::Named(self.text("__proto__")?);
                         self.append(&mut entries, (property, null))?;
                     }
-                    for (&key, &operand) in keys.iter().zip(operands) {
+                    for (slot, (&key, &operand)) in keys.iter().zip(operands).enumerate() {
                         self.work(1)?;
                         let value = self.value(unit, operand)?;
                         // Kept a string occurrence; the printer spells an
                         // identifier key `name:` (never `__proto__:`).
-                        let payload = self.string(&self.program.strings[key.index()])?;
-                        let key = self.literal(js::Literal::String(payload))?;
+                        let key = if let AllocationKind::Instance { class, .. } = kind {
+                            self.class_field_key(FieldRef {
+                                nominal: *class,
+                                slot: slot as u32,
+                            })?
+                        } else {
+                            let payload = self.string(&self.program.strings[key.index()])?;
+                            self.literal(js::Literal::String(payload))?
+                        };
                         self.append(&mut entries, (js::Property::Computed(key), value))?;
                     }
                     js::Expr::Object(entries)

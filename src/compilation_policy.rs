@@ -17,9 +17,9 @@ use crate::config::{CompressionCostModel, JavaScriptPriority};
 
 pub const POLICY_SCHEMA_VERSION: u32 = 2;
 pub const LEGACY_TRANSLATOR_RETIREMENT_SCHEMA: u32 = 3;
-// Version4 skips proved-stable rule applications. The resulting work tariff
-// can admit more existing candidates within the same compilation allowance.
-pub const POLICY_ALGORITHM_VERSION: u32 = 6;
+// Version7 admits private-field alternatives after the completed naming walk.
+// Property and integer-hint choices jointly identify cached formation heads.
+pub const POLICY_ALGORITHM_VERSION: u32 = 7;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -333,11 +333,13 @@ impl TacticId {
             T::IdentifierMangling | T::NamingSearch | T::NamingAlphabet => &[P::Naming],
             T::StringPooling | T::StringArrayPacking => &[P::OutputFamilies],
             T::StartupReconstruction => &[P::JavaScriptFormation],
-            T::HelperSharing | T::PropertyMangling | T::RecurringReconstruction => &[],
+            T::PropertyMangling => &[P::JavaScriptFormation, P::OutputFamilies],
+            T::HelperSharing | T::RecurringReconstruction => &[],
         };
         let prerequisites: &'static [T] = match self {
             T::NamingSearch => &[T::IdentifierMangling],
             T::NamingAlphabet => &[T::IdentifierMangling, T::NamingSearch],
+            T::PropertyMangling => &[T::TargetCompaction],
             _ => &[],
         };
         TacticSpec {
@@ -596,8 +598,8 @@ pub struct OptimizationObjective {
 /// The version of the effort schedule `WalkSchedule::at` and
 /// `StructuralSchedule::at` state. Receipts carry it; a changed value is a
 /// changed schedule.
-// Version 3 appends measured sequential/frequency alphabet joint moves.
-pub const WALK_SCHEDULE_VERSION: u32 = 5;
+// Version 6 judges private-field names after the protected local naming trial.
+pub const WALK_SCHEDULE_VERSION: u32 = 6;
 
 /// The walk's budget at one effort level (architecture §9.6, §13.3–§13.4;
 /// plan M3.5): budgets are counts (AM1), never the clock.
@@ -1759,11 +1761,7 @@ mod tests {
 
     #[test]
     fn unavailable_producers_keep_requested_permissions_and_explain_the_refusal() {
-        for tactic in [
-            TacticId::HelperSharing,
-            TacticId::PropertyMangling,
-            TacticId::RecurringReconstruction,
-        ] {
+        for tactic in [TacticId::HelperSharing, TacticId::RecurringReconstruction] {
             for permission in ["auto", "on", "off"] {
                 let p = js(&format!(
                     "[policy.tactics]\n{}='{permission}'",

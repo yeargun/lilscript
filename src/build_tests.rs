@@ -519,7 +519,7 @@ fn bounded_loop_folding_obeys_configuration_for_javascript_and_native() {
 fn service_reports_unsupported_permissions_separately_from_policy_identity() {
     let result = compile_source(
         "print(7);",
-        &config("[policy.tactics]\nproperty-mangling='on'"),
+        &config("[policy.tactics]\nhelper-sharing='on'"),
         ServiceOptions::default(),
     )
     .unwrap();
@@ -536,9 +536,9 @@ fn service_reports_unsupported_permissions_separately_from_policy_identity() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|value| value.as_str().unwrap().contains("property-mangling")));
+        .any(|value| value.as_str().unwrap().contains("helper-sharing")));
     assert!(report["javascript_policy"].get("diagnostics").is_none());
-    let tactic = &report["javascript_policy"]["tactics"][TacticId::PropertyMangling as usize];
+    let tactic = &report["javascript_policy"]["tactics"][TacticId::HelperSharing as usize];
     assert_eq!(tactic["state"]["permission"], "on");
     assert_eq!(tactic["available"], false);
     assert_eq!(tactic["state"]["enabled"], false);
@@ -988,6 +988,48 @@ fn searched_local_read_order_is_independently_judged_and_reports_its_veto() {
                 assert_eq!(artifact.details["output"]["local_read_order"], false);
             }
         }
+    }
+}
+
+#[test]
+fn searched_private_properties_are_independent_and_preserve_each_objective_winner() {
+    let source = include_str!("program/fixtures/private-fields.lil");
+    for codec in ["raw", "gzip", "brotli"] {
+        let objective = match codec { "raw" => Objective::Raw, "gzip" => Objective::Gzip, _ => Objective::Brotli };
+        let mut sizes = Vec::new();
+        for permission in ["off", "on"] {
+            let configured: ProjectConfig = toml::from_str(&format!(
+                "objective.codecs='{codec}'\neffort.level=14\n[policy.tactics]\nproperty-mangling='{permission}'\nscalar-replacement='off'\ninlining='off'"
+            )).unwrap();
+            let compiled = compile_source(source, &configured, ServiceOptions::default()).unwrap();
+            check_scores(&compiled);
+            let artifact = compiled.javascript(objective).unwrap();
+            assert_eq!(execute_javascript(artifact.javascript(), "",
+                "const a=library.make(2),b=library.make(10);console.log(a(3),b(1),a(-2));"), "15 21 13\n");
+            sizes.push(artifact.sizes.get(objective).unwrap());
+            let report = compiled.report();
+            let trials = report["search"]["terminal"]["objectives"][0]["joint_trials"].as_array().unwrap();
+            let properties = trials.iter().filter(|t| t["name"] == "properties:private-fields").collect::<Vec<_>>();
+            assert_eq!(properties.len(), 1, "{report}");
+            if permission == "off" {
+                assert_eq!(properties[0]["outcome"], "vetoed");
+                assert_eq!(artifact.details["output"]["property_mangling"], false);
+            } else if codec == "raw" {
+                assert_eq!(properties[0]["outcome"], "kept");
+                assert_eq!(artifact.details["output"]["property_mangling"], true);
+            }
+        }
+        assert!(sizes[1] <= sizes[0], "{codec}: {sizes:?}");
+    }
+    for (identifiers, compact, expected) in [("off", "on", true), ("on", "off", false)] {
+        let configured: ProjectConfig = toml::from_str(&format!(
+            "objective.codecs='raw'\neffort.level=14\n[policy.tactics]\nproperty-mangling='on'\nidentifier-mangling='{identifiers}'\ntarget-compaction='{compact}'\nscalar-replacement='off'\ninlining='off'"
+        )).unwrap();
+        let compiled = compile_source(source, &configured, ServiceOptions::default()).unwrap();
+        check_scores(&compiled);
+        let artifact = compiled.javascript(Objective::Raw).unwrap();
+        assert_eq!(artifact.details["output"]["property_mangling"], expected);
+        assert_eq!(execute_javascript(artifact.javascript(), "", "console.log(library.make(2)(3));"), "15\n");
     }
 }
 

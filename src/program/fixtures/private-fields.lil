@@ -1,0 +1,21 @@
+class Accumulator {
+    int accumulatedValue;
+    init(int seed){this.accumulatedValue=seed;}
+}
+class Offset extends Accumulator {
+    int offsetValue;
+    init(int seed){super(seed);this.offsetValue=7;}
+}
+class Other {
+    int independentValue;
+    init(int value){this.independentValue=value;}
+}
+export func(int)->int make(int seed){
+    Offset state=new Offset(seed);
+    Accumulator alias=state;
+    Other extra=new Other(3);
+    return (int step)=>{
+        alias.accumulatedValue+=step;
+        return state.accumulatedValue+state.offsetValue+extra.independentValue;
+    };
+}

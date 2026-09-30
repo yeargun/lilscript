@@ -1293,7 +1293,11 @@ impl<'src> DeclarationTables<'src> {
     /// arguments a seed names are reflected too.
     pub(super) fn close_reflected(&mut self) {
         let mut set = std::mem::take(self.reflected.get_mut());
+        let mut descendants = vec![Vec::new(); self.classes.len()];
         for (index, class) in self.classes.iter().enumerate() {
+            if let Some(base) = class_base_index(&self.classes, index) {
+                descendants[base].push(class.declaration.identity);
+            }
             let hosted = {
                 let mut current = class_base_index(&self.classes, index);
                 let mut hosted = false;
@@ -1323,8 +1327,17 @@ impl<'src> DeclarationTables<'src> {
                     if let Some(base) = &class.base {
                         nominals_in(base, &mut found);
                     }
+                    // A value published as a base can hold any subclass.
+                    // Enumeration and serialization see its additional fields.
+                    found.extend_from_slice(&descendants[nominal.index()]);
                     for field in class.fields.values() {
                         nominals_in(&field.ty, &mut found);
+                    }
+                    for method in class.methods.values() {
+                        nominals_in(&Type::Function(method.signature.clone()), &mut found);
+                    }
+                    if let Some(constructor) = &class.constructor {
+                        nominals_in(&Type::Function(constructor.clone()), &mut found);
                     }
                 }
                 NominalKind::Struct => {
@@ -4471,6 +4484,21 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         expr: &'ast Expr<'ast, 'src>,
         expected: Option<&Type<'src>>,
     ) -> Result<Type<'src>, AdmittedCheckError> {
+        let actual = self.analyze_expr_value(expr, expected)?;
+        // Contextual literals and return expressions do not all pass through
+        // require_assignable. Preserve every implicit host-erased boundary,
+        // including early-return expression paths, in this common owner.
+        if expected.is_some_and(|expected| expected != &actual && contains_host_value(expected)) {
+            self.declarations.reflect(&actual);
+        }
+        Ok(actual)
+    }
+
+    fn analyze_expr_value(
+        &mut self,
+        expr: &'ast Expr<'ast, 'src>,
+        expected: Option<&Type<'src>>,
+    ) -> Result<Type<'src>, AdmittedCheckError> {
         self.facts.source_info[expr.id.index()] = SourceInfo {
             expression: Some(expr),
             resolution: ExpressionResolution::None,
@@ -4928,6 +4956,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             })
                         })
                         .collect::<Result<Vec<_>, _>>()?;
+                    // Inferred constructor arguments cross the same unknown
+                    // generic-body boundary as explicitly written arguments.
+                    for argument in &resolved_args {
+                        self.declarations.reflect(argument);
+                    }
                     for ((arg, pattern), actual) in args.iter().zip(params).zip(&actual_args) {
                         let resolved = substitute_type(&pattern.ty, &substitutions);
                         self.require_assignable(&resolved, actual, arg.span)?;
@@ -5460,6 +5493,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     // An explicit view as `JsValue` crosses to the host (R6).
                     self.declarations.reflect(&source);
                 }
+                if is_js_value_or_nullable_js_value(&source) {
+                    self.declarations.reflect(&target);
+                }
                 if !is_js_value(&target) && !is_js_value_or_nullable_js_value(&source) {
                     return Err(AdmittedCheckError::new(
                         *span,
@@ -5967,14 +6003,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     /// method read cannot silently lose the receiver its checked signature
     /// requires. Nominal callable fields and explicit dynamic host reads keep
     /// their separate value semantics.
-    fn check_member_value(
-        &self,
-        id: SourceNodeId,
-        span: Span,
-    ) -> Result<(), AdmittedCheckError> {
-        if matches!(self.facts.source_info[id.index()].resolution,
-            ExpressionResolution::Primitive(crate::primitive::ResolvedIntrinsic::Method(_)))
-        {
+    fn check_member_value(&self, id: SourceNodeId, span: Span) -> Result<(), AdmittedCheckError> {
+        if matches!(
+            self.facts.source_info[id.index()].resolution,
+            ExpressionResolution::Primitive(crate::primitive::ResolvedIntrinsic::Method(_))
+        ) {
             return Err(AdmittedCheckError::new(span,
                 "a primitive method must be called through its receiver; use a closure to pass it as a value"));
         }
@@ -6079,6 +6112,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         format!("a spread argument is an array or a `JsValue`, found `{spread}`"),
                     ));
                 }
+                self.declarations.reflect(&spread);
                 continue;
             }
             let actual = self.analyze_value_argument(argument, Some(&Type::Dynamic))?;
@@ -7791,6 +7825,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             "`JS.assume` result cannot be `void`",
                         ));
                     }
+                    // A trusted host view uses the declared public keys.
+                    self.declarations.reflect(&result);
                     (BuiltinCall::JsAssume, result, vec![js.clone()])
                 }
                 "strictEqual" => {
@@ -8207,6 +8243,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     format!("cannot infer type argument `{parameter}`"),
                 ));
             }
+            // Until generic bodies publish an instantiated reflection summary,
+            // a type parameter may be erased to JsValue in that body. Preserve
+            // every concrete nominal supplied through this unknown boundary.
+            self.declarations.reflect(&substitutions[parameter]);
         }
         for ((arg, pattern), actual) in args
             .iter()
@@ -8849,9 +8889,16 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ),
             ));
         }
-        args.iter()
+        let resolved: Vec<_> = args
+            .iter()
             .map(|argument| self.resolve_value_type(*argument, "type argument"))
-            .collect()
+            .collect::<Result<_, _>>()?;
+        if self.binds_aggregate_type(name) {
+            for argument in &resolved {
+                self.declarations.reflect(argument);
+            }
+        }
+        Ok(resolved)
     }
 
     /// Whether this scope binds `name` to a struct or class, which shadows a
@@ -8940,6 +8987,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 .tested_classes
                 .insert(declaration.identity);
         }
+        if is_js_value_or_nullable_js_value(value) {
+            self.declarations.reflect(target);
+        }
         Ok(true)
     }
 
@@ -8949,8 +8999,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         actual: &Type<'src>,
         span: Span,
     ) -> Result<(), AdmittedCheckError> {
-        // A value widened to `JsValue` or `unknown` crosses to the host (R6).
-        if is_js_value_or_nullable_js_value(expected) {
+        // Erasure can occur inside a covariant result or callback as well as
+        // at the outer type. Equal typed contracts introduce no new crossing.
+        if expected != actual && contains_host_value(expected) {
             self.declarations.reflect(actual);
         }
         if self.is_assignable(expected, actual) {
@@ -10662,6 +10713,37 @@ fn statement_guarantees_return(statement: &Stmt<'_, '_>) -> bool {
                     && catch
                         .as_ref()
                         .is_none_or(|clause| statements_guarantee_return(clause.body)))
+        }
+        _ => false,
+    }
+}
+
+/// Whether a type contains a host-erased position. This does not inspect a
+/// nominal's fields: their exposure belongs to the reflected-set closure.
+fn contains_host_value(ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Dynamic | Type::Unknown => true,
+        Type::Array(inner)
+        | Type::Record(inner)
+        | Type::Set(inner)
+        | Type::Task(inner)
+        | Type::Generator(inner)
+        | Type::Nullable(inner) => contains_host_value(inner),
+        Type::Map(key, value) => contains_host_value(key) || contains_host_value(value),
+        Type::Union(types)
+        | Type::ClassInstance { args: types, .. }
+        | Type::StructInstance { args: types, .. } => types.iter().any(contains_host_value),
+        Type::Function(signature) => {
+            signature.params.iter().any(|p| contains_host_value(&p.ty))
+                || contains_host_value(&signature.return_type)
+        }
+        Type::GenericFunction(function) => {
+            function
+                .signature
+                .params
+                .iter()
+                .any(|p| contains_host_value(&p.ty))
+                || contains_host_value(&function.signature.return_type)
         }
         _ => false,
     }
@@ -13496,5 +13578,92 @@ mod tests {
         assert!(model.is_reflected(class("Inner")));
         assert!(model.is_reflected(class("Thrown")));
         assert!(!model.is_reflected(class("Private")));
+    }
+
+    #[test]
+    fn reflection_closes_over_subclasses_and_their_payloads() {
+        let arena = Bump::new();
+        let source = parse_source(
+            &arena,
+            r#"
+            class Leaf{int payload;}
+            class Base{int inherited;}
+            class Child extends Base{Leaf? childOnly;}
+            class Grandchild extends Child{int extra;}
+            class Unrelated{int secret;}
+            extern void expose(Base value);
+        "#,
+        )
+        .unwrap();
+        let model = analyze(&source).unwrap();
+        for name in ["Base", "Child", "Grandchild", "Leaf"] {
+            assert!(
+                model.is_reflected(model.type_binding(name).unwrap()),
+                "{name}"
+            );
+        }
+        assert!(!model.is_reflected(model.type_binding("Unrelated").unwrap()));
+    }
+
+    #[test]
+    fn reflection_preserves_trusted_host_views_and_guards() {
+        let arena = Bump::new();
+        let source = parse_source(
+            &arena,
+            r#"
+            extern JsValue opaque;
+            class Assumed{int publicField;}
+            class Viewed{int publicField;}
+            class Guarded{int publicField;}
+            class Private{int privateField;}
+            Assumed a=JS.assume(opaque);
+            Viewed b=opaque as Viewed;
+            if(opaque is Guarded){print(opaque.publicField);}
+        "#,
+        )
+        .unwrap();
+        let model = analyze(&source).unwrap();
+        for name in ["Assumed", "Viewed", "Guarded"] {
+            assert!(
+                model.is_reflected(model.type_binding(name).unwrap()),
+                "{name}"
+            );
+        }
+        assert!(!model.is_reflected(model.type_binding("Private").unwrap()));
+    }
+
+    #[test]
+    fn reflection_covers_nested_erasure_and_unqualified_generic_bodies() {
+        let arena = Bump::new();
+        let source = parse_source(
+            &arena,
+            r#"
+            class Yielded{int key;}
+            class Returned{int key;}
+            class Generic{int key;}
+            class Held{int key;}
+            class Explicit{int key;}
+            class Private{int key;}
+            generator Yielded values(){yield new Yielded();}
+            Generator<JsValue> erased=values();
+            func()->Returned owned=()=>new Returned();
+            func()->JsValue callback=owned;
+            T identity<T>(T value){return value;}
+            Generic generic=identity(new Generic());
+            class Holder<T>{T value;init(T value){this.value=value;}JsValue expose(){return this.value;}}
+            auto inferredHolder=new Holder(new Held());
+            Holder<Explicit> explicitHolder=new Holder<Explicit>(new Explicit());
+            Private local=new Private();
+        "#,
+        )
+        .unwrap();
+        let model = analyze(&source).unwrap();
+        for name in ["Yielded", "Returned", "Generic", "Held", "Explicit"] {
+            assert!(
+                model.is_reflected(model.type_binding(name).unwrap()),
+                "{name}"
+            );
+        }
+        assert!(!model.is_reflected(model.type_binding("Private").unwrap()));
     }
 }
