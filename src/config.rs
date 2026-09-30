@@ -634,6 +634,17 @@ impl ProjectConfig {
         &self,
         request: crate::compilation_policy::CompilationRequest,
     ) -> Result<crate::compilation_policy::ResolvedPolicy, String> {
+        self.resolve_policy_with_ceilings(
+            request,
+            crate::compilation_policy::ResourceLimits::default(),
+        )
+    }
+
+    pub(crate) fn resolve_policy_with_ceilings(
+        &self,
+        request: crate::compilation_policy::CompilationRequest,
+        ceilings: crate::compilation_policy::ResourceLimits,
+    ) -> Result<crate::compilation_policy::ResolvedPolicy, String> {
         use crate::compilation_contract::{
             JavaScriptAbiContract, JavaScriptCompilationContract, JavaScriptEffectPolicy,
             JavaScriptExecution, JavaScriptUnsafeAssumptions, JavaScriptWorld,
@@ -855,7 +866,7 @@ impl ProjectConfig {
             objective,
             effort,
             tactics,
-            policy.resources,
+            policy.resources.restricted_by(ceilings),
             policy.constraints,
             diagnostics,
         ))

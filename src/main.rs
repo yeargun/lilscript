@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::Write;
-use std::num::NonZeroUsize;
+use std::num::{NonZeroU64, NonZeroUsize};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -112,6 +112,14 @@ struct Args {
     /// a warning for one release (architecture §14.2), with no effect.
     #[arg(long, hide = true, value_name = "N")]
     codec_jobs: Option<NonZeroUsize>,
+
+    /// Service work ceiling; project policy may restrict it further.
+    #[arg(long, value_name = "UNITS")]
+    logical_work: Option<NonZeroU64>,
+
+    /// Service memory ceiling; project policy may restrict it further.
+    #[arg(long, value_name = "BYTES")]
+    retained_bytes: Option<NonZeroU64>,
 
     /// Development skips the candidate search; production uses project policy.
     #[arg(long, value_enum, default_value_t = BuildMode::Production)]
@@ -273,7 +281,10 @@ fn run() -> Result<(), String> {
             loaded.config.delivery.entry_names = Some(name.to_string());
         }
     }
-    let options = service_options(&args);
+    let options = service_options(&args)?;
+    if std::env::var_os("LILSCRIPT_SEMANTIC_WORK").is_some() {
+        eprintln!("warning: LILSCRIPT_SEMANTIC_WORK is deprecated; use --logical-work for the service ceiling or [policy.resources] logical_work to restrict it");
+    }
     if args.print_dependencies {
         return print_dependencies(&entries, &loaded, options);
     }
@@ -331,8 +342,28 @@ fn entries(args: &Args, loaded: &LoadedConfig) -> Result<Vec<EntrySource>, Strin
 
 /// The one mapping from the command line to what the compiler builds. The
 /// build and `--print-policy` both use it.
-fn service_options(args: &Args) -> ServiceOptions {
-    ServiceOptions {
+fn service_options(args: &Args) -> Result<ServiceOptions, String> {
+    service_options_with_environment(args, std::env::var_os("LILSCRIPT_SEMANTIC_WORK").as_deref())
+}
+
+fn service_options_with_environment(
+    args: &Args,
+    legacy_work: Option<&std::ffi::OsStr>,
+) -> Result<ServiceOptions, String> {
+    // Preserve the existing finite CLI ceiling. A CLI flag has precedence
+    // over the deprecated environment adapter; TOML caps both at resolution.
+    let logical_work = match args.logical_work {
+        Some(work) => work.get(),
+        None => match legacy_work {
+            Some(value) => value
+                .to_str()
+                .and_then(|value| value.parse::<NonZeroU64>().ok())
+                .map(NonZeroU64::get)
+                .ok_or("LILSCRIPT_SEMANTIC_WORK must be a positive 64-bit integer; use --logical-work or [policy.resources] logical_work")?,
+            None => 40_000_000_000,
+        },
+    };
+    Ok(ServiceOptions {
         target: match args.target {
             Target::Js | Target::JsModule => ServiceTarget::JavaScript,
             Target::C | Target::Native => ServiceTarget::Native,
@@ -345,17 +376,13 @@ fn service_options(args: &Args) -> ServiceOptions {
             .filter(|_| args.out_dir.is_none())
             .map(ChunkExtension::of)
             .unwrap_or_default(),
-        // Whole ports exceed the library default: Micromark's 303 KB of
-        // source uses 354M units, and motionlil's full entry 4.4G, most of it
-        // in conversion (3 s). This interim CLI ceiling only stops a runaway
-        // compile; 012 sets the cost policy. `LILSCRIPT_SEMANTIC_WORK`
-        // overrides it for measurement, and policy resources still restrict it.
-        logical_work: std::env::var("LILSCRIPT_SEMANTIC_WORK")
-            .ok()
-            .and_then(|value| value.parse().ok())
-            .unwrap_or(40_000_000_000),
+        logical_work,
+        retained_bytes: args
+            .retained_bytes
+            .map(NonZeroU64::get)
+            .unwrap_or(ServiceOptions::default().retained_bytes),
         ..ServiceOptions::default()
-    }
+    })
 }
 
 fn build(
@@ -913,7 +940,7 @@ fn policy_report(
     options: ServiceOptions,
 ) -> Result<Value, String> {
     let resolve = |request| -> Result<(String, Value, Value), String> {
-        let policy = loaded.config.resolve_policy(request)?;
+        let policy = options.resolve_policy(&loaded.config, request)?;
         let fingerprint = policy
             .fingerprint()
             .iter()
@@ -931,6 +958,7 @@ fn policy_report(
         "config": loaded.path.as_ref().map(|path| path.display().to_string()),
         // Retired keys the file set: each has no effect in this compiler.
         "warnings": loaded.warnings,
+        "request": {"logical_work": options.logical_work, "retained_bytes": options.retained_bytes},
         // How this run executes, after command-line overrides. Deliberately
         // outside the fingerprint: thread counts must never change the output.
         "execution": {
@@ -1078,6 +1106,78 @@ mod tests {
             Some(8)
         );
         assert!(Args::try_parse_from(["lilscript", "input.lil", "--codec-jobs", "0"]).is_err());
+        for flag in ["--logical-work", "--retained-bytes"] {
+            for invalid in ["0", "-1", "garbage", "18446744073709551616"] {
+                assert!(Args::try_parse_from(["lilscript", "input.lil", flag, invalid]).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn explicit_resource_flags_override_the_legacy_environment_with_toml_caps() {
+        let args = Args::try_parse_from([
+            "lilscript",
+            "input.lil",
+            "--logical-work",
+            "1000000",
+            "--retained-bytes",
+            "3000000",
+        ])
+        .unwrap();
+        let options = service_options_with_environment(
+            &args,
+            Some(std::ffi::OsStr::new("invalid ignored adapter")),
+        )
+        .unwrap();
+        assert_eq!(options.logical_work, 1_000_000);
+        assert_eq!(options.retained_bytes, 3_000_000);
+        let loaded = LoadedConfig {
+            config: toml::from_str(
+                "[policy.resources]\nlogical_work=800000\nretained_bytes=2000000",
+            )
+            .unwrap(),
+            path: None,
+            warnings: vec![],
+        };
+        let report = policy_report(&args, &loaded, options).unwrap();
+        let expected = options
+            .resolve_policy(&loaded.config, options.javascript_request().unwrap())
+            .unwrap();
+        assert_eq!(report["policy"], expected.receipt());
+        assert_eq!(report["policy"]["resources"]["logical_work"], 800_000);
+        assert_eq!(report["policy"]["resources"]["retained_bytes"], 2_000_000);
+        assert_eq!(
+            report["fingerprint"],
+            expected
+                .fingerprint()
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        );
+    }
+
+    #[test]
+    fn invalid_legacy_work_never_silently_falls_back_to_the_default() {
+        let args = Args::try_parse_from(["lilscript", "input.lil"]).unwrap();
+        assert_eq!(
+            service_options_with_environment(&args, None)
+                .unwrap()
+                .logical_work,
+            40_000_000_000
+        );
+        assert_eq!(
+            service_options_with_environment(&args, Some(std::ffi::OsStr::new("12345")))
+                .unwrap()
+                .logical_work,
+            12345
+        );
+        for invalid in ["", "0", "-1", "bad", "18446744073709551616"] {
+            assert!(
+                service_options_with_environment(&args, Some(std::ffi::OsStr::new(invalid)))
+                    .unwrap_err()
+                    .contains("LILSCRIPT_SEMANTIC_WORK")
+            );
+        }
     }
 
     #[test]
@@ -1130,7 +1230,7 @@ mod tests {
         let requests = |target: &str| {
             let args =
                 Args::try_parse_from(["lilscript", "input.lil", "--target", target]).unwrap();
-            let options = service_options(&args);
+            let options = service_options_with_environment(&args, None).unwrap();
             (options.javascript_request(), options.native_request())
         };
         let script = Some(R::JavaScript {
@@ -1161,7 +1261,7 @@ mod tests {
             path: None,
             warnings: vec![],
         };
-        let report = policy_report(&args, &loaded, service_options(&args)).unwrap();
+        let report = policy_report(&args, &loaded, service_options_with_environment(&args, None).unwrap()).unwrap();
         for key in ["diagnostics", "native_diagnostics"] {
             assert!(report[key]
                 .as_array()

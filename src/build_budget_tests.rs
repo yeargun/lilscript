@@ -97,6 +97,18 @@ fn small_service_options_and_policy_limits_have_the_same_search_budget() {
         from_options.report()["search"],
         from_policy.report()["search"]
     );
+    assert_eq!(
+        from_options.report()["javascript_policy"],
+        from_policy.report()["javascript_policy"]
+    );
+    assert_eq!(
+        from_options.report()["javascript_policy"]["resources"]["logical_work"],
+        2_000_000
+    );
+    assert_eq!(
+        from_options.report()["javascript_policy"]["resources"]["retained_bytes"],
+        1_000_000
+    );
     let report = from_options.report();
     assert!(report["search"]["proof_queries"].as_u64().unwrap() > 0);
     assert!(
@@ -108,6 +120,55 @@ fn small_service_options_and_policy_limits_have_the_same_search_budget() {
     assert!(!report["search"]["stop"]
         .to_string()
         .contains("InvalidLimits"));
+}
+
+#[test]
+fn service_ceilings_participate_in_policy_identity_without_loosening_toml() {
+    let plain = config("", "off");
+    let capped = config(
+        "[policy.resources]\nlogical_work=1000000\nretained_bytes=2000000\nwall_time_ms=5000",
+        "off",
+    );
+    let small = ServiceOptions {
+        logical_work: 800_000,
+        retained_bytes: 3_000_000,
+        ..ServiceOptions::default()
+    };
+    let large = ServiceOptions {
+        logical_work: 900_000,
+        ..small
+    };
+    for request in [
+        CompilationRequest::JavaScript {
+            preserve_root_exports: true,
+        },
+        CompilationRequest::Native,
+    ] {
+        let a = small.resolve_policy(&plain, request).unwrap();
+        let b = large.resolve_policy(&plain, request).unwrap();
+        assert_ne!(a.fingerprint(), b.fingerprint());
+        let c = small.resolve_policy(&capped, request).unwrap();
+        assert_eq!(
+            c.resources(),
+            ResourceLimits {
+                logical_work: Some(800_000),
+                retained_bytes: Some(2_000_000),
+                wall_time_ms: Some(5000)
+            }
+        );
+        let roomier = ServiceOptions {
+            logical_work: 2_000_000,
+            retained_bytes: 4_000_000,
+            ..small
+        };
+        assert_eq!(
+            roomier
+                .resolve_policy(&capped, request)
+                .unwrap()
+                .fingerprint(),
+            capped.resolve_policy(request).unwrap().fingerprint()
+        );
+    }
 }
 
 #[test]

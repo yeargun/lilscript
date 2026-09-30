@@ -79,6 +79,24 @@ pub struct ServiceOptions {
 }
 
 impl ServiceOptions {
+    /// Resolve the policy actually used by this service, including the finite
+    /// caller ceilings. Configuration can restrict those ceilings further.
+    /// Use this for a pre-build policy receipt or cache identity.
+    pub fn resolve_policy(
+        &self,
+        config: &ProjectConfig,
+        request: CompilationRequest,
+    ) -> Result<ResolvedPolicy, String> {
+        config.resolve_policy_with_ceilings(
+            request,
+            crate::compilation_policy::ResourceLimits {
+                logical_work: Some(self.logical_work),
+                retained_bytes: Some(self.retained_bytes),
+                wall_time_ms: None,
+            },
+        )
+    }
+
     /// The JavaScript policy request this service resolves, if it builds
     /// JavaScript. `--print-policy` resolves exactly this.
     pub fn javascript_request(&self) -> Option<CompilationRequest> {
@@ -327,7 +345,7 @@ impl Frontend {
         let started = Instant::now();
         let resolve = |request: Option<CompilationRequest>| {
             request
-                .map(|request| config.resolve_policy(request))
+                .map(|request| options.resolve_policy(config, request))
                 .transpose()
                 .map_err(|error| ServiceError::new("policy", error))
         };

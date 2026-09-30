@@ -252,6 +252,20 @@ Native has no scalar-replacement or call-specialization producer yet.
 Disabling identifier mangling also disables its dependent naming search and
 alphabet trials, with the reason in the policy diagnostics.
 
+The service's finite work and memory ceilings also enter the resolved resource
+policy and its fingerprint. TOML `[policy.resources]` restricts those ceilings;
+the smaller value wins for each resource. The CLI retains its default of
+40,000,000,000 work units and 256,000,000 retained bytes. `--logical-work UNITS`
+and `--retained-bytes BYTES` set explicit service ceilings. Embedded clients
+use `ServiceOptions` (default 200,000,000 work units and 256,000,000 bytes) and
+`ServiceOptions::resolve_policy` to obtain the same effective policy as a build.
+`ProjectConfig::resolve_policy` describes configuration before service ceilings.
+
+`LILSCRIPT_SEMANTIC_WORK` remains a deprecated CLI adapter when `--logical-work`
+is absent. It must be a positive 64-bit integer; invalid values fail instead
+of silently selecting the default. An explicit flag overrides that adapter;
+the TOML hard limit still applies. The library API does not read this variable.
+
 `--print-policy` includes resolved `diagnostics` alongside the canonical policy;
 build reports expose them per target in `policy_diagnostics`, and ordinary CLI
 builds print them as warnings. Diagnostic wording is outside the policy
@@ -268,6 +282,8 @@ their reachable shapes. These property trials require `target-compaction` and
 are independent of `identifier-mangling`; disabling lexical mangling does not
 disable private property trials. `off` vetoes direct formation, cached heads and
 search. `on` permits the trial without forcing its selection.
+`mangle.preserve_properties` keeps the requested keys and excludes those names
+from new assignments; other eligible private fields can still rename.
 
 `target-compaction` permits the JavaScript target's optional rule schedule.
 Its folding, function inlining and object scalarization also require

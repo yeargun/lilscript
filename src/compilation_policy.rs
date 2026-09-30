@@ -443,6 +443,23 @@ pub struct ResourceLimits {
     pub wall_time_ms: Option<u64>,
 }
 
+impl ResourceLimits {
+    /// Intersect independent hard ceilings before computing policy identity.
+    pub(crate) fn restricted_by(self, ceilings: Self) -> Self {
+        fn minimum(left: Option<u64>, right: Option<u64>) -> Option<u64> {
+            match (left, right) {
+                (Some(left), Some(right)) => Some(left.min(right)),
+                (left, right) => left.or(right),
+            }
+        }
+        Self {
+            logical_work: minimum(self.logical_work, ceilings.logical_work),
+            retained_bytes: minimum(self.retained_bytes, ceilings.retained_bytes),
+            wall_time_ms: minimum(self.wall_time_ms, ceilings.wall_time_ms),
+        }
+    }
+}
+
 /// Scheduling changes when complete candidates reach the canonical codecs,
 /// never their semantic eligibility or exact-artifact comparison rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
