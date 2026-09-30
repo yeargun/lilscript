@@ -3,8 +3,8 @@
  "about": "Accepted state of the generic corpus ratchet (scripts/ratchet.mjs, plan task M2.13): each item's artifact size per objective lane, or its failure state. Loss counts and losses are derived against bars.json (barsSha256). Written only by --update-baseline, which refuses while anything regresses; see docs/testing.md.",
  "recorded": "2026-09-30",
  "compiler": {
-  "source": "/home/azureuser/lilscript-work/bin/s4-nullish-1/lilscript",
-  "sha256": "599f70fec9044290254fd2f9b0e2673da1cfa31c6005ad083515bb2fa4b1e88b",
+  "source": "/home/azureuser/lilscript-work/bin/g1-local-polish-1/lilscript",
+  "sha256": "0e53dce81d3cb28d3e00d698747b9777fa689d87f1817a94e19844b598d75acd",
   "version": "lilscript 0.1.0",
   "label": null
  },
@@ -61,7 +61,7 @@
    },
    "brotli11": {
     "competitor": 4,
-    "closure": 9,
+    "closure": 8,
     "old": 11
    }
   }
@@ -83,24 +83,24 @@
    "gzip9": {
     "competitor": {
      "items": 613,
-     "ours": 48149,
+     "ours": 48147,
      "bar": 54771
     },
     "old": {
      "items": 611,
-     "ours": 47975,
+     "ours": 47973,
      "bar": 45258
     }
    },
    "brotli11": {
     "competitor": {
      "items": 613,
-     "ours": 38615,
+     "ours": 38600,
      "bar": 43620
     },
     "old": {
      "items": 612,
-     "ours": 38566,
+     "ours": 38551,
      "bar": 33697
     }
    }
@@ -179,34 +179,34 @@
    "gzip9": {
     "competitor": {
      "items": 11,
-     "ours": 3157,
+     "ours": 3153,
      "bar": 3440
     },
     "closure": {
      "items": 11,
-     "ours": 3157,
+     "ours": 3153,
      "bar": 3031
     },
     "old": {
      "items": 11,
-     "ours": 3157,
+     "ours": 3153,
      "bar": 2662
     }
    },
    "brotli11": {
     "competitor": {
      "items": 11,
-     "ours": 2880,
+     "ours": 2874,
      "bar": 3039
     },
     "closure": {
      "items": 11,
-     "ours": 2880,
+     "ours": 2874,
      "bar": 2703
     },
     "old": {
      "items": 11,
-     "ours": 2880,
+     "ours": 2874,
      "bar": 2305
     }
    }
@@ -220,7 +220,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 188
+    "size": 187
    },
    "brotli11": {
     "state": "pass",
@@ -238,7 +238,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 213
+    "size": 212
    }
   },
   "algorithms/dictionary-template-router": {
@@ -248,7 +248,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 375
+    "size": 374
    },
    "brotli11": {
     "state": "pass",
@@ -322,7 +322,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 245
+    "size": 244
    }
   },
   "algorithms/stateful-packet-decoder": {
@@ -346,11 +346,11 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 214
+    "size": 212
    },
    "brotli11": {
     "state": "pass",
-    "size": 196
+    "size": 192
    }
   },
   "algorithms/string-dictionary": {
@@ -1215,7 +1215,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 145
+    "size": 144
    }
   },
   "cases/catalog/aggregate/class-counter-0-8": {
@@ -1509,7 +1509,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 151
+    "size": 145
    }
   },
   "cases/catalog/aggregate/nested-struct-1-1-2-3-5-8-13-21": {
@@ -1537,7 +1537,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 149
+    "size": 148
    }
   },
   "cases/catalog/aggregate/nested-struct-10-20-30-40": {
@@ -1635,7 +1635,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 150
+    "size": 149
    }
   },
   "cases/catalog/aggregate/record-transform-2": {
@@ -1845,7 +1845,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 122
+    "size": 121
    }
   },
   "cases/catalog/aggregate/struct-pairs-3-1-4-1-5-9": {
@@ -1929,7 +1929,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 125
+    "size": 124
    }
   },
   "cases/catalog/boolean/bool-logic-0": {
@@ -2195,7 +2195,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 95
+    "size": 92
    }
   },
   "cases/catalog/closure/edge-closure-mutation-2n7n5": {
@@ -2233,7 +2233,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 109
+    "size": 108
    },
    "brotli11": {
     "state": "pass",
@@ -2247,7 +2247,7 @@
    },
    "gzip9": {
     "state": "pass",
-    "size": 110
+    "size": 109
    },
    "brotli11": {
     "state": "pass",
@@ -9165,7 +9165,7 @@
    },
    "brotli11": {
     "state": "pass",
-    "size": 145
+    "size": 144
    }
   }
  }

@@ -32,7 +32,7 @@ After these, follow the [working order](plan.md#8-working-order). Closure parity
 | [~] | [S2](plan.md#s2) Objects | Broader aliases/escape, fields, flattening and copy elision |
 | [~] | [S3](plan.md#s3) Calls | Remaining inlining, devirtualization, specialization and sharing |
 | [~] | [S4](plan.md#s4) Contracts | Remaining identities, fact consumers, catalog and language coverage |
-| [~] | [G1](plan.md#g1) Lexical names | Local allocation/seed refinement, broader final-byte tie and workload qualification |
+| [~] | [G1](plan.md#g1) Lexical names | Broader final-byte tie and workload qualification; local frequency allocation and protected final refinement are qualified |
 | [ ] | [G2](plan.md#g2) Property names | Private renaming and safe reuse, with reflection and ABI coverage |
 | [~] | [G3](plan.md#g3) JS generation | Per-site spellings, ordering/locality and printer cleanup |
 | [~] | [Q1](plan.md#q1) Choices | One family mechanism, coupled moves and deletion of bespoke mechanisms |

@@ -1,0 +1,3188 @@
+{
+  "schema": 1,
+  "compilers": {
+    "previous": {
+      "path": "/home/azureuser/lilscript-work/bin/s4-primitive-1/lilscript",
+      "sha256": "5f29c9cbb89de554b38eb8e2539e311b23217e4fa4793a61c27ceb1fbf0daac9"
+    },
+    "candidate": {
+      "path": "/home/azureuser/lilscript-work/bin/g1-local-polish-1/lilscript",
+      "sha256": "0e53dce81d3cb28d3e00d698747b9777fa689d87f1817a94e19844b598d75acd"
+    }
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/g1-local-polish-1/lilscript-codec",
+    "sha256": "1c1b7cc876d9427f5ad5c09f7ce47af5e26104a9da5d2fae4bffb53c650f77fd"
+  },
+  "manifest": {
+    "workloads": [
+      {
+        "id": "posthoglil",
+        "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+        "entry": "src/entry.lil",
+        "config": "lilscript.frozen-l13.toml",
+        "arguments": []
+      }
+    ]
+  },
+  "rounds": 7,
+  "workloads": [
+    {
+      "id": "posthoglil",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+      "config_sha256": "55a72620efd0c449c280f0adef229ed1c588557d8ce2827ea567ef2f31ab96d8",
+      "warmup": {
+        "previous": {
+          "cpu_seconds": 0.8999809999999999,
+          "wall_seconds": 0.9004007360053947,
+          "load_before": [
+            1.828125,
+            2.86767578125,
+            3.19677734375
+          ],
+          "load_after": [
+            1.828125,
+            2.86767578125,
+            3.19677734375
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "explain": {
+            "artifacts": [
+              {
+                "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+                "raw": 16936,
+                "gzip9": null,
+                "brotli11": 5224,
+                "details": {
+                  "recipe_words": [
+                    3,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "recipe_fingerprint": 12139990537254341990,
+                  "semantic": {
+                    "snapshot_identity": "RevisionId(988)",
+                    "meaning_identity": "RevisionId(989)",
+                    "identity_scope": "process-local diagnostics, not canonical recipe identity",
+                    "rewrite_order": "newest-first",
+                    "rewrites": []
+                  },
+                  "execution": "Module",
+                  "style": "Scoped",
+                  "source_names": [],
+                  "tactics": [
+                    {
+                      "tactic": "dead-code-elimination",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "constant-folding",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "inlining",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "scalar-replacement",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "target-compaction",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "identifier-mangling",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "naming-search",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "naming-alphabet",
+                      "risk": "neutral"
+                    }
+                  ],
+                  "output": {
+                    "dead_code_elimination": true,
+                    "rules": {
+                      "constant_folding": true,
+                      "inlining": true,
+                      "scalar_replacement": true,
+                      "data_encoding": false,
+                      "array_packing": "disabled"
+                    },
+                    "target_compaction": true,
+                    "literals": "Original",
+                    "families": "OutputFamilies { block_inlining: false, flat_blocks: false, statements: StatementSpellings { conditional_values: true, exit_points: true, loop_fusion: true, conditional_returns: false, logical_branches: false }, string_pooling: false, string_array_packing: false, string_constants: false, loop_heads: true, logical_statements: false, compound_assignments: false, quotes: false, int32_hints: false }",
+                    "self_named": false,
+                    "read_order": true,
+                    "alphabet": "etaironslucfdbgpmh_yFvkECPLRANIT$wOxHSUjMDVzBKqGJQXYWZ",
+                    "choices": []
+                  },
+                  "sizes": [
+                    16936,
+                    null,
+                    5224
+                  ],
+                  "delivery": null,
+                  "policy_fingerprint": [
+                    245,
+                    193,
+                    4,
+                    232,
+                    241,
+                    251,
+                    60,
+                    216,
+                    150,
+                    113,
+                    228,
+                    106,
+                    143,
+                    95,
+                    206,
+                    99,
+                    36,
+                    120,
+                    145,
+                    145,
+                    155,
+                    205,
+                    65,
+                    149,
+                    12,
+                    164,
+                    216,
+                    190,
+                    45,
+                    104,
+                    163,
+                    158
+                  ]
+                }
+              }
+            ],
+            "winners": [
+              null,
+              null,
+              0
+            ],
+            "native_sha256": null,
+            "native_delivery": null,
+            "first_artifact_ns": 72844283,
+            "search": {
+              "request": {
+                "objectives": [
+                  "Brotli"
+                ],
+                "scalar": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "helper": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "string": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "local_facts": {
+                  "work": 1000000,
+                  "result_bytes": 512000
+                },
+                "facts_cache": {
+                  "entries": 128,
+                  "bytes": 16000000,
+                  "result_bytes": 512000
+                }
+              },
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "proof_queries": 649,
+              "beam_evictions": 0,
+              "admitted_artifacts": 3,
+              "stop": null,
+              "terminal": {
+                "objectives": [
+                  {
+                    "codec": "brotli",
+                    "prefix": null,
+                    "exact": null,
+                    "margin": 150,
+                    "pass_limit": null,
+                    "passes": 2,
+                    "examined": 50,
+                    "judged": 24,
+                    "pruned": 10,
+                    "tried": 34,
+                    "scored": 22,
+                    "codec_probes": 24,
+                    "before": 5310,
+                    "searched": 5310,
+                    "after": 5224,
+                    "spelling": [
+                      "conditional-values",
+                      "exit-points",
+                      "loop-fusion",
+                      "read-order",
+                      "loop-heads"
+                    ],
+                    "style": "Scoped",
+                    "trials": [
+                      {
+                        "challenger": "int32-hints",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5312,
+                        "delta": 2,
+                        "proxy": 15
+                      },
+                      {
+                        "challenger": "string-constants",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5322,
+                        "delta": 12,
+                        "proxy": -7
+                      },
+                      {
+                        "challenger": "conditional-values",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 5292,
+                        "delta": -18,
+                        "proxy": -34
+                      },
+                      {
+                        "challenger": "exit-points",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 5275,
+                        "delta": -17,
+                        "proxy": 2
+                      },
+                      {
+                        "challenger": "loop-fusion",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 5253,
+                        "delta": -22,
+                        "proxy": -18
+                      },
+                      {
+                        "challenger": "block-inlining",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5253,
+                        "delta": 0,
+                        "proxy": -10
+                      },
+                      {
+                        "challenger": "self-named-functions",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 533
+                      },
+                      {
+                        "challenger": "read-order",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 5235,
+                        "delta": -18,
+                        "proxy": 7
+                      },
+                      {
+                        "challenger": "compound-assignments",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5267,
+                        "delta": 32,
+                        "proxy": 3
+                      },
+                      {
+                        "challenger": "quotes",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-statements",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-returns",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5247,
+                        "delta": 12,
+                        "proxy": -13
+                      },
+                      {
+                        "challenger": "other-objective-seed",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 600
+                      },
+                      {
+                        "challenger": "flat-blocks",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "loop-heads",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "pooling-and-packing",
+                        "pass": 1,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-branches",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5261,
+                        "delta": 26,
+                        "proxy": 10
+                      },
+                      {
+                        "challenger": "string-pooling",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5290,
+                        "delta": 55,
+                        "proxy": 66
+                      },
+                      {
+                        "challenger": "string-array-packing",
+                        "pass": 1,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "int32-hints",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5256,
+                        "delta": 32,
+                        "proxy": 17
+                      },
+                      {
+                        "challenger": "string-constants",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5236,
+                        "delta": 12,
+                        "proxy": -8
+                      },
+                      {
+                        "challenger": "conditional-values",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5270,
+                        "delta": 46,
+                        "proxy": 33
+                      },
+                      {
+                        "challenger": "exit-points",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5243,
+                        "delta": 19,
+                        "proxy": 0
+                      },
+                      {
+                        "challenger": "loop-fusion",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5244,
+                        "delta": 20,
+                        "proxy": 17
+                      },
+                      {
+                        "challenger": "block-inlining",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5230,
+                        "delta": 6,
+                        "proxy": -11
+                      },
+                      {
+                        "challenger": "self-named-functions",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 520
+                      },
+                      {
+                        "challenger": "read-order",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5255,
+                        "delta": 31,
+                        "proxy": 9
+                      },
+                      {
+                        "challenger": "compound-assignments",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5244,
+                        "delta": 20,
+                        "proxy": 3
+                      },
+                      {
+                        "challenger": "quotes",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-statements",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-returns",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5234,
+                        "delta": 10,
+                        "proxy": -15
+                      },
+                      {
+                        "challenger": "other-objective-seed",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 605
+                      },
+                      {
+                        "challenger": "flat-blocks",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "loop-heads",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "pooling-and-packing",
+                        "pass": 2,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-branches",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5256,
+                        "delta": 32,
+                        "proxy": 12
+                      },
+                      {
+                        "challenger": "string-pooling",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5283,
+                        "delta": 59,
+                        "proxy": 65
+                      },
+                      {
+                        "challenger": "string-array-packing",
+                        "pass": 2,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      }
+                    ],
+                    "choices_tried": 0,
+                    "choices_scored": 0,
+                    "surveys": 2,
+                    "heads": 2,
+                    "choice_trials": [],
+                    "choices": [],
+                    "joints_tried": 8,
+                    "joint_trials": [
+                      {
+                        "name": "literals:Observed",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 992
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1033
+                      },
+                      {
+                        "name": "alphabet:sequential",
+                        "pass": 1,
+                        "outcome": "duplicate",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "alphabet:frequency",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 5224,
+                        "delta": -11,
+                        "proxy": -40
+                      },
+                      {
+                        "name": "literals:Observed",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1017
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1072
+                      },
+                      {
+                        "name": "alphabet:sequential",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": 5235,
+                        "delta": 11,
+                        "proxy": null
+                      },
+                      {
+                        "name": "alphabet:frequency",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5240,
+                        "delta": 16,
+                        "proxy": -2
+                      }
+                    ],
+                    "restarts_tried": 2,
+                    "starts": [
+                      {
+                        "name": "level-0",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "start": 5310,
+                        "size": 5224,
+                        "delta": -86,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 3,
+                        "outcome": "pruned",
+                        "start": null,
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1018
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 3,
+                        "outcome": "pruned",
+                        "start": null,
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1047
+                      }
+                    ],
+                    "stops": [
+                      {
+                        "level": 0,
+                        "size": 5310,
+                        "sha256": "3e3d01995e20c1265d21c0f2b9cd1a3bfc0c0fcd5495adfca986c66b68c32fdb"
+                      },
+                      {
+                        "level": 1,
+                        "size": 5310,
+                        "sha256": "3e3d01995e20c1265d21c0f2b9cd1a3bfc0c0fcd5495adfca986c66b68c32fdb"
+                      },
+                      {
+                        "level": 2,
+                        "size": 5310,
+                        "sha256": "3e3d01995e20c1265d21c0f2b9cd1a3bfc0c0fcd5495adfca986c66b68c32fdb"
+                      },
+                      {
+                        "level": 3,
+                        "size": 5310,
+                        "sha256": "3e3d01995e20c1265d21c0f2b9cd1a3bfc0c0fcd5495adfca986c66b68c32fdb"
+                      },
+                      {
+                        "level": 4,
+                        "size": 5310,
+                        "sha256": "3e3d01995e20c1265d21c0f2b9cd1a3bfc0c0fcd5495adfca986c66b68c32fdb"
+                      },
+                      {
+                        "level": 5,
+                        "size": 5275,
+                        "sha256": "461599c9f2917ca603c70a82f561ba817adfb09e5bd01045732cd16fde20dbea"
+                      },
+                      {
+                        "level": 6,
+                        "size": 5275,
+                        "sha256": "461599c9f2917ca603c70a82f561ba817adfb09e5bd01045732cd16fde20dbea"
+                      },
+                      {
+                        "level": 7,
+                        "size": 5275,
+                        "sha256": "461599c9f2917ca603c70a82f561ba817adfb09e5bd01045732cd16fde20dbea"
+                      },
+                      {
+                        "level": 8,
+                        "size": 5275,
+                        "sha256": "461599c9f2917ca603c70a82f561ba817adfb09e5bd01045732cd16fde20dbea"
+                      },
+                      {
+                        "level": 9,
+                        "size": 5275,
+                        "sha256": "461599c9f2917ca603c70a82f561ba817adfb09e5bd01045732cd16fde20dbea"
+                      },
+                      {
+                        "level": 10,
+                        "size": 5253,
+                        "sha256": "f9e93bc116012bfd6a2e45b22a595c345e1f701790427d47d69dc70905b24ff9"
+                      },
+                      {
+                        "level": 11,
+                        "size": 5235,
+                        "sha256": "b6d77d6ec6a33c31b419f422165fae83fe830e0c90471e6f57141413c921bc19"
+                      },
+                      {
+                        "level": 12,
+                        "size": 5224,
+                        "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "schema": 1,
+            "source_sha256": "fc9a2c4cf9e414cb93fa182c3759d2614dc57f9c2136bfff0d04b55a231ea69f",
+            "request": {
+              "target": "JavaScript",
+              "preserve_root_exports": true,
+              "logical_work": 40000000000,
+              "retained_bytes": 256000000,
+              "effective_logical_work": 40000000000,
+              "effective_retained_bytes": 256000000
+            },
+            "inputs": {
+              "root": 0,
+              "entries": [
+                {
+                  "name": "entry",
+                  "module": 0
+                }
+              ],
+              "modules": [
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/entry.lil",
+                  "bytes": 6827,
+                  "sha256": "50344ec8ce10be75f91e0ede30e4cd575d1aa3ff325b1f7ada17573b7bef317c",
+                  "dependencies": [
+                    1,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/uuid.lil",
+                  "bytes": 4975,
+                  "sha256": "78ab7697da821a1da659e2be31ca558142e79abb439f7ad855eeaffa7b1cfe4b",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/host.lil",
+                  "bytes": 4347,
+                  "sha256": "eb690eff1c0aaabd174ef5a5a39ebd13724abd9fcb10ec437e99be072f3158c1",
+                  "dependencies": [],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/flags.lil",
+                  "bytes": 7373,
+                  "sha256": "4967b254903aa60afd51c560202410b366ac8477b7dfd62ebafd4484ca6a71f8",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/cookie.lil",
+                  "bytes": 3999,
+                  "sha256": "4e27c42edc8be781d6d6404f81dba70b6b1b18c807c8934620cc0fcdb1ccf669",
+                  "dependencies": [
+                    2,
+                    1
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/router.lil",
+                  "bytes": 2684,
+                  "sha256": "3cf97b14dd5fa536a1f1ac951b18dde4092c1125c41716dcc47df9ba261d9a8d",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/rate-limit.lil",
+                  "bytes": 1140,
+                  "sha256": "58f15adf94fbdea0bb5f10c5db854b2edce83752658a7e36ae9b597c90ba265a",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/queue.lil",
+                  "bytes": 1937,
+                  "sha256": "f2c77b9b40b53f9bc7812d73e04e91ba9dd5fe7fe90f081c5217856f71592df7",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/bot.lil",
+                  "bytes": 2120,
+                  "sha256": "b6d067d8d0d697fa6c391377fba5f8efd05024a659eb277936ff41dcd8f90a07",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/string.lil",
+                  "bytes": 1767,
+                  "sha256": "fa02f5b7b2e7b3d1a9035a5a0b87d4945114a6ee37a93239e3234547ae37f0e0",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/number.lil",
+                  "bytes": 2077,
+                  "sha256": "2d6436d0c1c2574b41c608585640996c1b9a76cdb88d9ba0f1263c3e4aedd8f5",
+                  "dependencies": [
+                    2,
+                    11
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/types.lil",
+                  "bytes": 1888,
+                  "sha256": "7be15af0b62eba93fb86779131b92fcf0dde4915417ad15fa332aaf699937ae3",
+                  "dependencies": [
+                    2,
+                    9
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/json.lil",
+                  "bytes": 781,
+                  "sha256": "8b71a860e0680b50b1e661d067116a7ec1c8f3f02f6856a3c54ebf3f03b5be34",
+                  "dependencies": [],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/url.lil",
+                  "bytes": 365,
+                  "sha256": "3d65dae6a88c5349223c9000807763c45a9e06ddaf9bb96f7c574841ae223af0",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/bucketed.lil",
+                  "bytes": 2126,
+                  "sha256": "2e6563b5dd9fe754b4b21df2021ce715b735d2322c3b0649108aeac6c75aab1b",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                }
+              ],
+              "host_modules": []
+            },
+            "shape": {
+              "modules": 15,
+              "units": 139,
+              "operations": 4400,
+              "cells": 525
+            },
+            "javascript_policy": {
+              "schema": 2,
+              "algorithm": 4,
+              "contract": {
+                "target": "javascript",
+                "world": "ReusableLibrary",
+                "execution": "Module",
+                "ecmascript": "es2022",
+                "preserve_root_exports": true,
+                "keep_function_names": false,
+                "keep_published_function_names": true,
+                "pristine_builtins": true,
+                "pure_property_reads": false,
+                "unconstructed_callbacks": false,
+                "numeric_lengths": true,
+                "strip_debug": true,
+                "strip_console_calls": false,
+                "checks": "production",
+                "preserved_properties": [],
+                "delivery": {
+                  "mode": "single",
+                  "format": "esm",
+                  "preload": "none",
+                  "host_modules": "external",
+                  "entry_names": "[name].[ext]",
+                  "chunk_names": "[index].[ext]",
+                  "module_names": "[path].[ext]",
+                  "request_bytes": 0,
+                  "depth_bytes": 0
+                }
+              },
+              "objective": {
+                "codec": "Brotli",
+                "codec_settings": {
+                  "brotli": {
+                    "quality": 11,
+                    "window": 22,
+                    "mode": "generic"
+                  },
+                  "gzip": {
+                    "level": 9,
+                    "window": 15
+                  }
+                },
+                "priority": "SizeFirst",
+                "optional_alternatives": 1024,
+                "optional_codec_probes": 1536,
+                "retained_candidates": 1024,
+                "retained_candidate_bytes": 786432,
+                "beam_width": 10,
+                "walk": {
+                  "version": 3,
+                  "prefix": null,
+                  "exact": null,
+                  "margin": 150,
+                  "passes": null,
+                  "starts": true
+                },
+                "search": {
+                  "version": 26,
+                  "codec_schedule": "staged",
+                  "render_batch": 8,
+                  "diversity_interval": 4
+                }
+              },
+              "effort": 13,
+              "tactics": [
+                {
+                  "id": "dead-code-elimination",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "dead-code-elimination",
+                    "name": "dead-code-elimination",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "uses-and-effects",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "constant-folding",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "constant-folding",
+                    "name": "constant-folding",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "inlining",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "inlining",
+                    "name": "inlining",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "scalar-replacement",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "scalar-replacement",
+                    "name": "scalar-replacement",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "ownership-and-observations",
+                    "default": "preset",
+                    "producers": [
+                      "java-script-formation",
+                      "structural-search"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "call-specialization",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "call-specialization",
+                    "name": "call-specialization",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [
+                      "structural-search"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "helper-sharing",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": false,
+                  "definition": {
+                    "id": "helper-sharing",
+                    "name": "helper-sharing",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "target-compaction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "target-compaction",
+                    "name": "target-compaction",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "target-schedule",
+                    "default": "on",
+                    "producers": [
+                      "java-script-formation",
+                      "output-families"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "identifier-mangling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "identifier-mangling",
+                    "name": "identifier-mangling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "property-mangling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": false
+                  },
+                  "available": false,
+                  "definition": {
+                    "id": "property-mangling",
+                    "name": "property-mangling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "string-pooling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "string-pooling",
+                    "name": "string-pooling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "output-families"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "string-array-packing",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "string-array-packing",
+                    "name": "string-array-packing",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": true,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "output-families"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "startup-reconstruction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "startup-reconstruction",
+                    "name": "startup-reconstruction",
+                    "javascript_only": true,
+                    "minimum_effort": 16,
+                    "startup_at_level_16": true,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "java-script-formation"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "recurring-reconstruction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": false,
+                  "definition": {
+                    "id": "recurring-reconstruction",
+                    "name": "recurring-reconstruction",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "off",
+                    "producers": [],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "naming-search",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "naming-search",
+                    "name": "naming-search",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": [
+                      "identifier-mangling"
+                    ]
+                  }
+                },
+                {
+                  "id": "naming-alphabet",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "naming-alphabet",
+                    "name": "naming-alphabet",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": [
+                      "identifier-mangling",
+                      "naming-search"
+                    ]
+                  }
+                }
+              ],
+              "resources": {
+                "logical_work": null,
+                "retained_bytes": null,
+                "wall_time_ms": null
+              },
+              "constraints": {
+                "max_startup_work": null,
+                "max_recurring_work": null,
+                "max_runtime_memory_bytes": null,
+                "max_performance_regression_percent": null
+              }
+            },
+            "native_policy": null,
+            "phases_ns": {
+              "policy_ns": 208260,
+              "discovery_parse_ns": 2384949,
+              "check_ns": 1537631,
+              "convert_ns": 26847837,
+              "rules": {
+                "rounds": 4,
+                "folded_values": 5,
+                "folded_calls": 0,
+                "folded_branches": 2,
+                "removed_operations": 23,
+                "removed_stores": 0,
+                "retired_functions": 1,
+                "emptied_units": 1,
+                "unreachable_operations": 0,
+                "inlined_calls": 14,
+                "inlined_bodies": 4,
+                "dropped_parameters": 0,
+                "constant_parameters": 0,
+                "unused_results": 0
+              },
+              "frontend_release_ns": 223529,
+              "adopt_ns": 480891,
+              "javascript_ns": 864491929,
+              "finish_ns": 331922,
+              "source_release_ns": 2895
+            },
+            "total_ns": 896854167,
+            "policy_diagnostics": {
+              "javascript": [
+                "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3",
+                "`policy.tactics.property-mangling` was requested on but has no implementation for JavaScript; it remains unavailable"
+              ],
+              "native": null
+            },
+            "ledger_before_finish": {
+              "baseline_work": 13304756,
+              "optional_work": 28516529,
+              "retained_bytes": 17140187,
+              "peak_retained_bytes": 20895673,
+              "analysis_work": 33216377,
+              "edit_work": 14642,
+              "render_work": 7506058,
+              "codec_work": 1084208
+            },
+            "resources": {
+              "baseline_work": 13304756,
+              "optional_work": 28516529,
+              "codec_work": 1084208,
+              "peak_retained_bytes": 20895673,
+              "frontend_logical_work": 11654251,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 65280,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "ledger_after_finish": {
+              "baseline_work": 13304756,
+              "optional_work": 28516529,
+              "retained_bytes": 0,
+              "peak_retained_bytes": 20895673,
+              "analysis_work": 33216377,
+              "edit_work": 14642,
+              "render_work": 7506058,
+              "codec_work": 1084208
+            }
+          },
+          "phase_elapsed": {
+            "wall_ms": 897.4,
+            "js_demand_ms": 7.345,
+            "js_demand_calls": 2,
+            "js_formation_ms": 227.538,
+            "js_formation_calls": 49,
+            "target_verify_ms": 7.577,
+            "target_verify_calls": 46,
+            "target_edition_ms": 0.003,
+            "target_edition_calls": 46,
+            "target_basis_ms": 4.357,
+            "target_basis_calls": 46,
+            "target_names_ms": 13.752,
+            "target_names_calls": 47,
+            "target_print_ms": 15.495,
+            "target_print_calls": 47,
+            "canonical_gzip_ms": 0.0,
+            "canonical_gzip_calls": 0,
+            "canonical_brotli_ms": 528.77,
+            "canonical_brotli_calls": 27,
+            "proxy_brotli_ms": 19.814,
+            "proxy_brotli_calls": 35,
+            "codec_lookup_ms": 0.71,
+            "codec_lookup_calls": 62,
+            "codec_reuse_ms": 0.0,
+            "codec_reuse_calls": 0,
+            "admission_structure_ms": 11.807,
+            "admission_structure_calls": 47,
+            "admission_parse_ms": 15.628,
+            "admission_parse_calls": 27,
+            "js_rule_ms": 216.976,
+            "js_rule_calls": 1773
+          }
+        },
+        "candidate": {
+          "cpu_seconds": 0.972993,
+          "wall_seconds": 0.9733886380054173,
+          "load_before": [
+            1.828125,
+            2.86767578125,
+            3.19677734375
+          ],
+          "load_after": [
+            1.828125,
+            2.86767578125,
+            3.19677734375
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "explain": {
+            "artifacts": [
+              {
+                "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+                "raw": 16936,
+                "gzip9": null,
+                "brotli11": 5224,
+                "details": {
+                  "recipe_words": [
+                    3,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "recipe_fingerprint": 12139990537254341990,
+                  "semantic": {
+                    "snapshot_identity": "RevisionId(988)",
+                    "meaning_identity": "RevisionId(989)",
+                    "identity_scope": "process-local diagnostics, not canonical recipe identity",
+                    "rewrite_order": "newest-first",
+                    "rewrites": []
+                  },
+                  "execution": "Module",
+                  "style": "Scoped",
+                  "source_names": [],
+                  "tactics": [
+                    {
+                      "tactic": "dead-code-elimination",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "constant-folding",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "inlining",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "scalar-replacement",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "target-compaction",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "identifier-mangling",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "naming-search",
+                      "risk": "neutral"
+                    },
+                    {
+                      "tactic": "naming-alphabet",
+                      "risk": "neutral"
+                    }
+                  ],
+                  "output": {
+                    "dead_code_elimination": true,
+                    "rules": {
+                      "constant_folding": true,
+                      "inlining": true,
+                      "scalar_replacement": true,
+                      "data_encoding": false,
+                      "array_packing": "disabled"
+                    },
+                    "target_compaction": true,
+                    "literals": "Original",
+                    "families": "OutputFamilies { block_inlining: false, flat_blocks: false, statements: StatementSpellings { conditional_values: true, exit_points: true, loop_fusion: true, conditional_returns: false, logical_branches: false }, string_pooling: false, string_array_packing: false, string_constants: false, loop_heads: true, logical_statements: false, compound_assignments: false, quotes: false, int32_hints: false }",
+                    "self_named": false,
+                    "read_order": true,
+                    "local_read_order": false,
+                    "alphabet": "etaironslucfdbgpmh_yFvkECPLRANIT$wOxHSUjMDVzBKqGJQXYWZ",
+                    "choices": []
+                  },
+                  "sizes": [
+                    16936,
+                    null,
+                    5224
+                  ],
+                  "delivery": null,
+                  "policy_fingerprint": [
+                    52,
+                    251,
+                    253,
+                    41,
+                    6,
+                    62,
+                    59,
+                    39,
+                    126,
+                    239,
+                    245,
+                    237,
+                    246,
+                    194,
+                    96,
+                    189,
+                    76,
+                    166,
+                    154,
+                    43,
+                    14,
+                    99,
+                    213,
+                    132,
+                    107,
+                    181,
+                    13,
+                    61,
+                    215,
+                    205,
+                    19,
+                    249
+                  ]
+                }
+              }
+            ],
+            "winners": [
+              null,
+              null,
+              0
+            ],
+            "native_sha256": null,
+            "native_delivery": null,
+            "first_artifact_ns": 73176916,
+            "search": {
+              "request": {
+                "objectives": [
+                  "Brotli"
+                ],
+                "scalar": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "helper": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "string": {
+                  "work": 2000000,
+                  "scratch_bytes": 4000000,
+                  "output_bytes": 2000000
+                },
+                "local_facts": {
+                  "work": 1000000,
+                  "result_bytes": 512000
+                },
+                "facts_cache": {
+                  "entries": 128,
+                  "bytes": 16000000,
+                  "result_bytes": 512000
+                }
+              },
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "proof_queries": 649,
+              "beam_evictions": 0,
+              "admitted_artifacts": 3,
+              "stop": null,
+              "terminal": {
+                "objectives": [
+                  {
+                    "codec": "brotli",
+                    "prefix": null,
+                    "exact": null,
+                    "margin": 150,
+                    "pass_limit": null,
+                    "passes": 3,
+                    "examined": 51,
+                    "judged": 25,
+                    "pruned": 10,
+                    "tried": 34,
+                    "scored": 22,
+                    "codec_probes": 25,
+                    "before": 5310,
+                    "searched": 5310,
+                    "after": 5224,
+                    "spelling": [
+                      "conditional-values",
+                      "exit-points",
+                      "loop-fusion",
+                      "read-order",
+                      "loop-heads"
+                    ],
+                    "style": "Scoped",
+                    "trials": [
+                      {
+                        "challenger": "int32-hints",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5312,
+                        "delta": 2,
+                        "proxy": 15
+                      },
+                      {
+                        "challenger": "string-constants",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5322,
+                        "delta": 12,
+                        "proxy": -7
+                      },
+                      {
+                        "challenger": "conditional-values",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 5292,
+                        "delta": -18,
+                        "proxy": -34
+                      },
+                      {
+                        "challenger": "exit-points",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 5275,
+                        "delta": -17,
+                        "proxy": 2
+                      },
+                      {
+                        "challenger": "loop-fusion",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 5253,
+                        "delta": -22,
+                        "proxy": -18
+                      },
+                      {
+                        "challenger": "block-inlining",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5253,
+                        "delta": 0,
+                        "proxy": -10
+                      },
+                      {
+                        "challenger": "self-named-functions",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 533
+                      },
+                      {
+                        "challenger": "read-order",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 5235,
+                        "delta": -18,
+                        "proxy": 7
+                      },
+                      {
+                        "challenger": "compound-assignments",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5267,
+                        "delta": 32,
+                        "proxy": 3
+                      },
+                      {
+                        "challenger": "quotes",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-statements",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-returns",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5247,
+                        "delta": 12,
+                        "proxy": -13
+                      },
+                      {
+                        "challenger": "other-objective-seed",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 600
+                      },
+                      {
+                        "challenger": "flat-blocks",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "loop-heads",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "pooling-and-packing",
+                        "pass": 1,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-branches",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5261,
+                        "delta": 26,
+                        "proxy": 10
+                      },
+                      {
+                        "challenger": "string-pooling",
+                        "pass": 1,
+                        "outcome": "rejected",
+                        "size": 5290,
+                        "delta": 55,
+                        "proxy": 66
+                      },
+                      {
+                        "challenger": "string-array-packing",
+                        "pass": 1,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "int32-hints",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5256,
+                        "delta": 32,
+                        "proxy": 17
+                      },
+                      {
+                        "challenger": "string-constants",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5236,
+                        "delta": 12,
+                        "proxy": -8
+                      },
+                      {
+                        "challenger": "conditional-values",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5270,
+                        "delta": 46,
+                        "proxy": 33
+                      },
+                      {
+                        "challenger": "exit-points",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5243,
+                        "delta": 19,
+                        "proxy": 0
+                      },
+                      {
+                        "challenger": "loop-fusion",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5244,
+                        "delta": 20,
+                        "proxy": 17
+                      },
+                      {
+                        "challenger": "block-inlining",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5230,
+                        "delta": 6,
+                        "proxy": -11
+                      },
+                      {
+                        "challenger": "self-named-functions",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 520
+                      },
+                      {
+                        "challenger": "read-order",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5255,
+                        "delta": 31,
+                        "proxy": 9
+                      },
+                      {
+                        "challenger": "compound-assignments",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5244,
+                        "delta": 20,
+                        "proxy": 3
+                      },
+                      {
+                        "challenger": "quotes",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-statements",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "conditional-returns",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5234,
+                        "delta": 10,
+                        "proxy": -15
+                      },
+                      {
+                        "challenger": "other-objective-seed",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 605
+                      },
+                      {
+                        "challenger": "flat-blocks",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "loop-heads",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "pooling-and-packing",
+                        "pass": 2,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "challenger": "logical-branches",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5256,
+                        "delta": 32,
+                        "proxy": 12
+                      },
+                      {
+                        "challenger": "string-pooling",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5283,
+                        "delta": 59,
+                        "proxy": 65
+                      },
+                      {
+                        "challenger": "string-array-packing",
+                        "pass": 2,
+                        "outcome": "vetoed",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      }
+                    ],
+                    "choices_tried": 0,
+                    "choices_scored": 0,
+                    "surveys": 2,
+                    "heads": 3,
+                    "choice_trials": [],
+                    "choices": [],
+                    "joints_tried": 9,
+                    "joint_trials": [
+                      {
+                        "name": "literals:Observed",
+                        "pass": 1,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 992
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 1,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1033
+                      },
+                      {
+                        "name": "alphabet:sequential",
+                        "pass": 1,
+                        "outcome": "duplicate",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "alphabet:frequency",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "size": 5224,
+                        "delta": -11,
+                        "proxy": -40
+                      },
+                      {
+                        "name": "literals:Observed",
+                        "pass": 2,
+                        "outcome": "identical",
+                        "size": null,
+                        "delta": null,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1017
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 2,
+                        "outcome": "pruned",
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1072
+                      },
+                      {
+                        "name": "alphabet:sequential",
+                        "pass": 2,
+                        "outcome": "recalled",
+                        "size": 5235,
+                        "delta": 11,
+                        "proxy": null
+                      },
+                      {
+                        "name": "alphabet:frequency",
+                        "pass": 2,
+                        "outcome": "rejected",
+                        "size": 5240,
+                        "delta": 16,
+                        "proxy": -2
+                      },
+                      {
+                        "name": "naming:local-read-order",
+                        "pass": 3,
+                        "outcome": "rejected",
+                        "size": 5270,
+                        "delta": 46,
+                        "proxy": 21
+                      }
+                    ],
+                    "restarts_tried": 2,
+                    "starts": [
+                      {
+                        "name": "level-0",
+                        "pass": 1,
+                        "outcome": "kept",
+                        "start": 5310,
+                        "size": 5224,
+                        "delta": -86,
+                        "proxy": null
+                      },
+                      {
+                        "name": "naming:Global",
+                        "pass": 3,
+                        "outcome": "pruned",
+                        "start": null,
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1018
+                      },
+                      {
+                        "name": "naming:Source",
+                        "pass": 3,
+                        "outcome": "pruned",
+                        "start": null,
+                        "size": null,
+                        "delta": null,
+                        "proxy": 1047
+                      },
+                      {
+                        "name": "local-naming",
+                        "pass": 3,
+                        "outcome": "identical",
+                        "start": 5224,
+                        "size": 5224,
+                        "delta": 0,
+                        "proxy": null
+                      }
+                    ],
+                    "stops": [
+                      {
+                        "level": 0,
+                        "size": 5310,
+                        "sha256": "3e3d01995e20c1265d21c0f2b9cd1a3bfc0c0fcd5495adfca986c66b68c32fdb"
+                      },
+                      {
+                        "level": 1,
+                        "size": 5310,
+                        "sha256": "3e3d01995e20c1265d21c0f2b9cd1a3bfc0c0fcd5495adfca986c66b68c32fdb"
+                      },
+                      {
+                        "level": 2,
+                        "size": 5310,
+                        "sha256": "3e3d01995e20c1265d21c0f2b9cd1a3bfc0c0fcd5495adfca986c66b68c32fdb"
+                      },
+                      {
+                        "level": 3,
+                        "size": 5310,
+                        "sha256": "3e3d01995e20c1265d21c0f2b9cd1a3bfc0c0fcd5495adfca986c66b68c32fdb"
+                      },
+                      {
+                        "level": 4,
+                        "size": 5310,
+                        "sha256": "3e3d01995e20c1265d21c0f2b9cd1a3bfc0c0fcd5495adfca986c66b68c32fdb"
+                      },
+                      {
+                        "level": 5,
+                        "size": 5275,
+                        "sha256": "461599c9f2917ca603c70a82f561ba817adfb09e5bd01045732cd16fde20dbea"
+                      },
+                      {
+                        "level": 6,
+                        "size": 5275,
+                        "sha256": "461599c9f2917ca603c70a82f561ba817adfb09e5bd01045732cd16fde20dbea"
+                      },
+                      {
+                        "level": 7,
+                        "size": 5275,
+                        "sha256": "461599c9f2917ca603c70a82f561ba817adfb09e5bd01045732cd16fde20dbea"
+                      },
+                      {
+                        "level": 8,
+                        "size": 5275,
+                        "sha256": "461599c9f2917ca603c70a82f561ba817adfb09e5bd01045732cd16fde20dbea"
+                      },
+                      {
+                        "level": 9,
+                        "size": 5275,
+                        "sha256": "461599c9f2917ca603c70a82f561ba817adfb09e5bd01045732cd16fde20dbea"
+                      },
+                      {
+                        "level": 10,
+                        "size": 5253,
+                        "sha256": "f9e93bc116012bfd6a2e45b22a595c345e1f701790427d47d69dc70905b24ff9"
+                      },
+                      {
+                        "level": 11,
+                        "size": 5235,
+                        "sha256": "b6d77d6ec6a33c31b419f422165fae83fe830e0c90471e6f57141413c921bc19"
+                      },
+                      {
+                        "level": 12,
+                        "size": 5224,
+                        "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "schema": 1,
+            "source_sha256": "fc9a2c4cf9e414cb93fa182c3759d2614dc57f9c2136bfff0d04b55a231ea69f",
+            "request": {
+              "target": "JavaScript",
+              "preserve_root_exports": true,
+              "logical_work": 40000000000,
+              "retained_bytes": 256000000,
+              "effective_logical_work": 40000000000,
+              "effective_retained_bytes": 256000000
+            },
+            "inputs": {
+              "root": 0,
+              "entries": [
+                {
+                  "name": "entry",
+                  "module": 0
+                }
+              ],
+              "modules": [
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/entry.lil",
+                  "bytes": 6827,
+                  "sha256": "50344ec8ce10be75f91e0ede30e4cd575d1aa3ff325b1f7ada17573b7bef317c",
+                  "dependencies": [
+                    1,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/uuid.lil",
+                  "bytes": 4975,
+                  "sha256": "78ab7697da821a1da659e2be31ca558142e79abb439f7ad855eeaffa7b1cfe4b",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/host.lil",
+                  "bytes": 4347,
+                  "sha256": "eb690eff1c0aaabd174ef5a5a39ebd13724abd9fcb10ec437e99be072f3158c1",
+                  "dependencies": [],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/flags.lil",
+                  "bytes": 7373,
+                  "sha256": "4967b254903aa60afd51c560202410b366ac8477b7dfd62ebafd4484ca6a71f8",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/cookie.lil",
+                  "bytes": 3999,
+                  "sha256": "4e27c42edc8be781d6d6404f81dba70b6b1b18c807c8934620cc0fcdb1ccf669",
+                  "dependencies": [
+                    2,
+                    1
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/router.lil",
+                  "bytes": 2684,
+                  "sha256": "3cf97b14dd5fa536a1f1ac951b18dde4092c1125c41716dcc47df9ba261d9a8d",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/rate-limit.lil",
+                  "bytes": 1140,
+                  "sha256": "58f15adf94fbdea0bb5f10c5db854b2edce83752658a7e36ae9b597c90ba265a",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/queue.lil",
+                  "bytes": 1937,
+                  "sha256": "f2c77b9b40b53f9bc7812d73e04e91ba9dd5fe7fe90f081c5217856f71592df7",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/bot.lil",
+                  "bytes": 2120,
+                  "sha256": "b6d067d8d0d697fa6c391377fba5f8efd05024a659eb277936ff41dcd8f90a07",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/string.lil",
+                  "bytes": 1767,
+                  "sha256": "fa02f5b7b2e7b3d1a9035a5a0b87d4945114a6ee37a93239e3234547ae37f0e0",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/number.lil",
+                  "bytes": 2077,
+                  "sha256": "2d6436d0c1c2574b41c608585640996c1b9a76cdb88d9ba0f1263c3e4aedd8f5",
+                  "dependencies": [
+                    2,
+                    11
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/types.lil",
+                  "bytes": 1888,
+                  "sha256": "7be15af0b62eba93fb86779131b92fcf0dde4915417ad15fa332aaf699937ae3",
+                  "dependencies": [
+                    2,
+                    9
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/json.lil",
+                  "bytes": 781,
+                  "sha256": "8b71a860e0680b50b1e661d067116a7ec1c8f3f02f6856a3c54ebf3f03b5be34",
+                  "dependencies": [],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/url.lil",
+                  "bytes": 365,
+                  "sha256": "3d65dae6a88c5349223c9000807763c45a9e06ddaf9bb96f7c574841ae223af0",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                },
+                {
+                  "path": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil/src/bucketed.lil",
+                  "bytes": 2126,
+                  "sha256": "2e6563b5dd9fe754b4b21df2021ce715b735d2322c3b0649108aeac6c75aab1b",
+                  "dependencies": [
+                    2
+                  ],
+                  "dynamic_dependencies": []
+                }
+              ],
+              "host_modules": []
+            },
+            "shape": {
+              "modules": 15,
+              "units": 139,
+              "operations": 4400,
+              "cells": 525
+            },
+            "javascript_policy": {
+              "schema": 2,
+              "algorithm": 6,
+              "contract": {
+                "target": "javascript",
+                "world": "ReusableLibrary",
+                "execution": "Module",
+                "ecmascript": "es2022",
+                "preserve_root_exports": true,
+                "keep_function_names": false,
+                "keep_published_function_names": true,
+                "pristine_builtins": true,
+                "pure_property_reads": false,
+                "unconstructed_callbacks": false,
+                "numeric_lengths": true,
+                "strip_debug": true,
+                "strip_console_calls": false,
+                "checks": "production",
+                "preserved_properties": [],
+                "delivery": {
+                  "mode": "single",
+                  "format": "esm",
+                  "preload": "none",
+                  "host_modules": "external",
+                  "entry_names": "[name].[ext]",
+                  "chunk_names": "[index].[ext]",
+                  "module_names": "[path].[ext]",
+                  "request_bytes": 0,
+                  "depth_bytes": 0
+                }
+              },
+              "objective": {
+                "codec": "Brotli",
+                "codec_settings": {
+                  "brotli": {
+                    "quality": 11,
+                    "window": 22,
+                    "mode": "generic"
+                  },
+                  "gzip": {
+                    "level": 9,
+                    "window": 15
+                  }
+                },
+                "priority": "SizeFirst",
+                "optional_alternatives": 1024,
+                "optional_codec_probes": 1536,
+                "retained_candidates": 1024,
+                "retained_candidate_bytes": 786432,
+                "beam_width": 10,
+                "walk": {
+                  "version": 5,
+                  "prefix": null,
+                  "exact": null,
+                  "margin": 150,
+                  "passes": null,
+                  "starts": true
+                },
+                "search": {
+                  "version": 26,
+                  "codec_schedule": "staged",
+                  "render_batch": 8,
+                  "diversity_interval": 4
+                }
+              },
+              "effort": 13,
+              "tactics": [
+                {
+                  "id": "dead-code-elimination",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "dead-code-elimination",
+                    "name": "dead-code-elimination",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "uses-and-effects",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "constant-folding",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "constant-folding",
+                    "name": "constant-folding",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "inlining",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "inlining",
+                    "name": "inlining",
+                    "javascript_only": false,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [
+                      "shared-rules",
+                      "java-script-formation"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "scalar-replacement",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "scalar-replacement",
+                    "name": "scalar-replacement",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "ownership-and-observations",
+                    "default": "preset",
+                    "producers": [
+                      "java-script-formation",
+                      "structural-search"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "call-specialization",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "call-specialization",
+                    "name": "call-specialization",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [
+                      "structural-search"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "helper-sharing",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": false,
+                  "definition": {
+                    "id": "helper-sharing",
+                    "name": "helper-sharing",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "calls-and-captures",
+                    "default": "preset",
+                    "producers": [],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "target-compaction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "target-compaction",
+                    "name": "target-compaction",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "target-schedule",
+                    "default": "on",
+                    "producers": [
+                      "java-script-formation",
+                      "output-families"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "identifier-mangling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "identifier-mangling",
+                    "name": "identifier-mangling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "property-mangling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": false
+                  },
+                  "available": false,
+                  "definition": {
+                    "id": "property-mangling",
+                    "name": "property-mangling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "string-pooling",
+                  "state": {
+                    "permission": "on",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "string-pooling",
+                    "name": "string-pooling",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "output-families"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "string-array-packing",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "string-array-packing",
+                    "name": "string-array-packing",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": true,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "output-families"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "startup-reconstruction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "startup-reconstruction",
+                    "name": "startup-reconstruction",
+                    "javascript_only": true,
+                    "minimum_effort": 16,
+                    "startup_at_level_16": true,
+                    "analysis": "values",
+                    "default": "on",
+                    "producers": [
+                      "java-script-formation"
+                    ],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "recurring-reconstruction",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": false
+                  },
+                  "available": false,
+                  "definition": {
+                    "id": "recurring-reconstruction",
+                    "name": "recurring-reconstruction",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "values",
+                    "default": "off",
+                    "producers": [],
+                    "prerequisites": []
+                  }
+                },
+                {
+                  "id": "naming-search",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "naming-search",
+                    "name": "naming-search",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": [
+                      "identifier-mangling"
+                    ]
+                  }
+                },
+                {
+                  "id": "naming-alphabet",
+                  "state": {
+                    "permission": "auto",
+                    "enabled": true
+                  },
+                  "available": true,
+                  "definition": {
+                    "id": "naming-alphabet",
+                    "name": "naming-alphabet",
+                    "javascript_only": true,
+                    "minimum_effort": 0,
+                    "startup_at_level_16": false,
+                    "analysis": "names-and-boundary",
+                    "default": "on",
+                    "producers": [
+                      "naming"
+                    ],
+                    "prerequisites": [
+                      "identifier-mangling",
+                      "naming-search"
+                    ]
+                  }
+                }
+              ],
+              "resources": {
+                "logical_work": null,
+                "retained_bytes": null,
+                "wall_time_ms": null
+              },
+              "constraints": {
+                "max_startup_work": null,
+                "max_recurring_work": null,
+                "max_runtime_memory_bytes": null,
+                "max_performance_regression_percent": null
+              }
+            },
+            "native_policy": null,
+            "phases_ns": {
+              "policy_ns": 196949,
+              "discovery_parse_ns": 2419724,
+              "check_ns": 1513216,
+              "convert_ns": 26942243,
+              "rules": {
+                "rounds": 4,
+                "folded_values": 5,
+                "folded_calls": 0,
+                "folded_branches": 2,
+                "removed_operations": 23,
+                "removed_stores": 0,
+                "retired_functions": 1,
+                "emptied_units": 1,
+                "unreachable_operations": 0,
+                "inlined_calls": 14,
+                "inlined_bodies": 4,
+                "dropped_parameters": 0,
+                "constant_parameters": 0,
+                "unused_results": 0
+              },
+              "frontend_release_ns": 196829,
+              "adopt_ns": 498905,
+              "javascript_ns": 937745300,
+              "finish_ns": 306074,
+              "source_release_ns": 3116
+            },
+            "total_ns": 970120484,
+            "policy_diagnostics": {
+              "javascript": [
+                "legacy optimizer configuration translated to policy schema 2; translation retires at schema 3",
+                "`policy.tactics.property-mangling` was requested on but has no implementation for JavaScript; it remains unavailable"
+              ],
+              "native": null
+            },
+            "ledger_before_finish": {
+              "baseline_work": 13304756,
+              "optional_work": 30205450,
+              "retained_bytes": 17140187,
+              "peak_retained_bytes": 20895673,
+              "analysis_work": 34579802,
+              "edit_work": 14658,
+              "render_work": 7797525,
+              "codec_work": 1118221
+            },
+            "resources": {
+              "baseline_work": 13304756,
+              "optional_work": 30205450,
+              "codec_work": 1118221,
+              "peak_retained_bytes": 20895673,
+              "frontend_logical_work": 11654251,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 65280,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "ledger_after_finish": {
+              "baseline_work": 13304756,
+              "optional_work": 30205450,
+              "retained_bytes": 0,
+              "peak_retained_bytes": 20895673,
+              "analysis_work": 34579802,
+              "edit_work": 14658,
+              "render_work": 7797525,
+              "codec_work": 1118221
+            }
+          },
+          "phase_elapsed": {
+            "wall_ms": 970.7,
+            "js_demand_ms": 10.77,
+            "js_demand_calls": 3,
+            "js_formation_ms": 242.997,
+            "js_formation_calls": 51,
+            "target_verify_ms": 8.251,
+            "target_verify_calls": 47,
+            "target_edition_ms": 0.005,
+            "target_edition_calls": 47,
+            "target_basis_ms": 4.754,
+            "target_basis_calls": 47,
+            "target_names_ms": 14.751,
+            "target_names_calls": 48,
+            "target_print_ms": 15.701,
+            "target_print_calls": 48,
+            "canonical_gzip_ms": 0.0,
+            "canonical_gzip_calls": 0,
+            "canonical_brotli_ms": 574.051,
+            "canonical_brotli_calls": 28,
+            "proxy_brotli_ms": 23.161,
+            "proxy_brotli_calls": 36,
+            "codec_lookup_ms": 0.744,
+            "codec_lookup_calls": 64,
+            "codec_reuse_ms": 0.0,
+            "codec_reuse_calls": 0,
+            "admission_structure_ms": 12.343,
+            "admission_structure_calls": 48,
+            "admission_parse_ms": 17.067,
+            "admission_parse_calls": 28,
+            "js_rule_ms": 229.104,
+            "js_rule_calls": 1851
+          }
+        }
+      },
+      "samples": [
+        {
+          "cpu_seconds": 0.9022429999999997,
+          "wall_seconds": 0.9025640800027759,
+          "load_before": [
+            1.828125,
+            2.86767578125,
+            3.19677734375
+          ],
+          "load_after": [
+            1.828125,
+            2.86767578125,
+            3.19677734375
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "previous",
+          "round": 1
+        },
+        {
+          "cpu_seconds": 0.9845360000000001,
+          "wall_seconds": 0.9848778060040786,
+          "load_before": [
+            1.828125,
+            2.86767578125,
+            3.19677734375
+          ],
+          "load_after": [
+            1.828125,
+            2.86767578125,
+            3.19677734375
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "candidate",
+          "round": 1
+        },
+        {
+          "cpu_seconds": 1.0104990000000003,
+          "wall_seconds": 1.0109010769956512,
+          "load_before": [
+            1.828125,
+            2.86767578125,
+            3.19677734375
+          ],
+          "load_after": [
+            1.84228515625,
+            2.85302734375,
+            3.18994140625
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "candidate",
+          "round": 2
+        },
+        {
+          "cpu_seconds": 0.8944379999999993,
+          "wall_seconds": 0.8947246609968715,
+          "load_before": [
+            1.84228515625,
+            2.85302734375,
+            3.18994140625
+          ],
+          "load_after": [
+            1.84228515625,
+            2.85302734375,
+            3.18994140625
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "previous",
+          "round": 2
+        },
+        {
+          "cpu_seconds": 0.9169380000000007,
+          "wall_seconds": 0.9172470120029175,
+          "load_before": [
+            1.84228515625,
+            2.85302734375,
+            3.18994140625
+          ],
+          "load_after": [
+            1.84228515625,
+            2.85302734375,
+            3.18994140625
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "previous",
+          "round": 3
+        },
+        {
+          "cpu_seconds": 0.9568269999999995,
+          "wall_seconds": 0.9571138130049803,
+          "load_before": [
+            1.84228515625,
+            2.85302734375,
+            3.18994140625
+          ],
+          "load_after": [
+            1.84228515625,
+            2.85302734375,
+            3.18994140625
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "candidate",
+          "round": 3
+        },
+        {
+          "cpu_seconds": 0.9469250000000011,
+          "wall_seconds": 0.9473080930038122,
+          "load_before": [
+            1.84228515625,
+            2.85302734375,
+            3.18994140625
+          ],
+          "load_after": [
+            1.84228515625,
+            2.85302734375,
+            3.18994140625
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "candidate",
+          "round": 4
+        },
+        {
+          "cpu_seconds": 0.9315529999999997,
+          "wall_seconds": 0.9320640090008965,
+          "load_before": [
+            1.84228515625,
+            2.85302734375,
+            3.18994140625
+          ],
+          "load_after": [
+            1.85498046875,
+            2.83837890625,
+            3.18310546875
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "previous",
+          "round": 4
+        },
+        {
+          "cpu_seconds": 0.9102079999999985,
+          "wall_seconds": 0.9107723830020404,
+          "load_before": [
+            1.85498046875,
+            2.83837890625,
+            3.18310546875
+          ],
+          "load_after": [
+            1.85498046875,
+            2.83837890625,
+            3.18310546875
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "previous",
+          "round": 5
+        },
+        {
+          "cpu_seconds": 0.9523729999999998,
+          "wall_seconds": 0.952680540001893,
+          "load_before": [
+            1.85498046875,
+            2.83837890625,
+            3.18310546875
+          ],
+          "load_after": [
+            1.85498046875,
+            2.83837890625,
+            3.18310546875
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "candidate",
+          "round": 5
+        },
+        {
+          "cpu_seconds": 0.9758410000000002,
+          "wall_seconds": 0.9761255390039878,
+          "load_before": [
+            1.85498046875,
+            2.83837890625,
+            3.18310546875
+          ],
+          "load_after": [
+            1.85498046875,
+            2.83837890625,
+            3.18310546875
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "candidate",
+          "round": 6
+        },
+        {
+          "cpu_seconds": 0.9449099999999993,
+          "wall_seconds": 0.9452684509960818,
+          "load_before": [
+            1.85498046875,
+            2.83837890625,
+            3.18310546875
+          ],
+          "load_after": [
+            1.85498046875,
+            2.83837890625,
+            3.18310546875
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "previous",
+          "round": 6
+        },
+        {
+          "cpu_seconds": 0.9036709999999986,
+          "wall_seconds": 0.9039993330006837,
+          "load_before": [
+            1.85498046875,
+            2.83837890625,
+            3.18310546875
+          ],
+          "load_after": [
+            1.7861328125,
+            2.8076171875,
+            3.1708984375
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "previous",
+          "round": 7
+        },
+        {
+          "cpu_seconds": 0.930704,
+          "wall_seconds": 0.9310269560010056,
+          "load_before": [
+            1.7861328125,
+            2.8076171875,
+            3.1708984375
+          ],
+          "load_after": [
+            1.7861328125,
+            2.8076171875,
+            3.1708984375
+          ],
+          "bytes": 16936,
+          "sha256": "37eb396abc6eb7005bb45333dd971cb7fe020d650fc68d58a6b5d60c32736fb9",
+          "compiler": "candidate",
+          "round": 7
+        }
+      ],
+      "policy_differences": [
+        "javascript_policy"
+      ],
+      "summary": {
+        "previous": {
+          "cpu_seconds": {
+            "median": 0.9102079999999985,
+            "min": 0.8944379999999993,
+            "max": 0.9449099999999993,
+            "stdev": 0.01783749764641105
+          },
+          "wall_seconds": {
+            "median": 0.9107723830020404,
+            "min": 0.8947246609968715,
+            "max": 0.9452684509960818,
+            "stdev": 0.017872946475525155
+          }
+        },
+        "candidate": {
+          "cpu_seconds": {
+            "median": 0.9568269999999995,
+            "min": 0.930704,
+            "max": 1.0104990000000003,
+            "stdev": 0.026762712205960146
+          },
+          "wall_seconds": {
+            "median": 0.9571138130049803,
+            "min": 0.9310269560010056,
+            "max": 1.0109010769956512,
+            "stdev": 0.026780982302992938
+          }
+        }
+      },
+      "cpu_ratio": 1.0512179633666163,
+      "sizes": {
+        "schemaVersion": 1,
+        "codecs": {
+          "gzip9": {
+            "encoder": "upstream-stock-zlib-c",
+            "libraryVersion": "1.3.1",
+            "cargoPackage": "libz-sys",
+            "cargoPackageVersion": "1.1.24",
+            "level": 9,
+            "mtime": 0
+          },
+          "brotli11": {
+            "encoder": "official-google-brotli-c",
+            "libraryVersion": "1.1.0",
+            "cargoPackage": "compu-brotli-sys",
+            "cargoPackageVersion": "1.1.0",
+            "quality": 11,
+            "lgwin": 22,
+            "mode": "generic"
+          }
+        },
+        "artifacts": [
+          {
+            "path": "/home/azureuser/lilscript-work/measurements/g1-local-polish-posthog-repeat/0/previous.js",
+            "raw": 16936,
+            "gzip9": 5833,
+            "brotli11": 5224
+          },
+          {
+            "path": "/home/azureuser/lilscript-work/measurements/g1-local-polish-posthog-repeat/0/candidate.js",
+            "raw": 16936,
+            "gzip9": 5833,
+            "brotli11": 5224
+          }
+        ]
+      }
+    }
+  ],
+  "complete": true,
+  "policy_change_reason": "Repeat the noisy posthog comparison; algorithm 6 adds final local naming after the existing search."
+}

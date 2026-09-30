@@ -1,0 +1,11 @@
+{
+  "workloads": [
+    {
+      "id": "posthoglil",
+      "cwd": "/home/azureuser/lilscript-work/baselines/2026-09-27/_run/posthoglil",
+      "entry": "src/entry.lil",
+      "config": "lilscript.frozen-l13.toml",
+      "arguments": []
+    }
+  ]
+}
