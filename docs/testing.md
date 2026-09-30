@@ -465,6 +465,12 @@ Installed tools, including native binaries and runtime dependencies, are
 content-locked, not merely version-named. No wrapper, banner removal or
 post-minifier changes the candidate after scoring.
 
+Runtime debts are checked with `node scripts/runtime-ledger.mjs REPORT tests/runtime-evidence.json`. Each entry names its owner, reason and receipt and
+matches the exact engine, inputs, artifacts, contract, metric and disposition.
+A changed candidate cannot inherit an exemption. Unexpected or stale entries
+fail; an accounted-for inconclusive result still reports
+`parity_established: false`.
+
 ## The expected-failure ledgers
 
 | Ledger | Entry |

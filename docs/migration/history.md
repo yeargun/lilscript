@@ -514,3 +514,40 @@ The [C1 qualification](../../benchmarks/migration-results/2026-09-30-c1-complete
 All 1,764 active library tests are qualified, including the large table oracle; four existing ignores remain. The sole obsolete test expected a debug alias conflict to be ignored; its corrected conflict/equality check passes without changing production implementation. All 13 Rust CLI tests, 19 public CLI precedence/registry tests and schema consistency pass. The release passes 642 programs under each objective and 29/1,353/21 reference port tests. Full verification preserves all 1,926 generic and 20 port hashes/scores from `1484b18d`; no baselines change. This also completes release verification of the already implemented reach-accounting change, whose separately retained cost evidence is not a speed claim.
 
 Two plan clarifications prevent new partial-work cycles: producerless names remain only as diagnosed compatibility entries, avoiding unnecessary breaks to old configurations; future producers register their controls in their own milestone. S4's final fact-consumer cleanup follows S/G consumer migration, because its deletions depend on those replacements. C2 alone is now active; no other milestone is marked complete by this record.
+
+## 2026-09-30: C2 complete — independent oracles and fair evidence
+
+The [C2 acceptance](c2-acceptance.md) closes on compiler/oracle source
+`4316015c` and tools `6b236437`, with
+[full evidence](../../benchmarks/migration-results/2026-09-30-c2-complete/README.md).
+Thirty evaluator tests, three generator tests, six public Node tool tests and
+nine worker integration tests pass. Actual interpretation covers 132/382
+standalone cases with no disagreement; unsupported host/effect cases are
+explicit, rather than falsely covered. The audit fixed existing string escape
+and lone-surrogate oracle errors. No compiler-output blessing occurred.
+
+The full JavaScript matrix passes 1,571 executions with 37 existing ledgered
+case-lanes across 402 cases and four lanes. The harvested raw root-assignment
+failure passes. Generated typed programs pass eleven portable lanes (including
+native and independent C) and five JavaScript-only lanes, with seeds and source
+retained. The old fixed prologue is now an ordinary conformance case.
+
+Content-locked Terser/SWC/Oxc/Rolldown/esbuild/Closure/upstream recipes run common
+oracles under explicit open, closed and consumer contracts. All 27 qualified
+artifacts reproduce exactly on locked replay; inapplicable boundaries retain
+reasons. A setup error that removed API exports was caught by the oracle and
+fixed by selecting the correct compilation target. The former raw-size-similarity
+eligibility rule is removed from legacy construction receipts.
+
+One hundred runtime observations on Marked, Zod, PostHog and generic workloads
+pass their oracles/counters and retain controls, warm-up, bootstrap intervals,
+startup, CPU/wall and memory evidence. Their strict 5% limits are inconclusive
+under measured control spread; exact identity-scoped debts belong to V1, with
+no parity claim. MobX's test mapping is committed in its own repository at
+`ccccb1d`, and the three affected tests pass with unchanged artifact hashes;
+its independent compiler-build debt remains D3. Zod's unchanged upstream
+static-analysis timeout is explicitly classified as host-dependent evidence.
+
+C2 introduces no production optimizer/schedule change or size-baseline update.
+Its evidence protocol is complete; future producers add their own necessary
+oracles and affected runtime qualification. C3 alone is now active.

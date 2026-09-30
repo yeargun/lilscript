@@ -8,12 +8,12 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 
 | Legacy ID | Owner | Remaining scope |
 |---|---|---|
-| M2.3 | [C2](plan.md#c2) | interpreter-generated oracles |
-| M2.4 | [C2](plan.md#c2) | Interpreter extension |
-| M2.7 | [C2](plan.md#c2) | Differential |
-| M2.10 | [C2](plan.md#c2) | Benchmark contract |
+| M2.3 | [C2](plan.md#c2), complete | Independent generation, disagreement refusal and measured coverage receipts |
+| M2.4 | [C2](plan.md#c2), complete | Nominal/collection/generic/UTF-16 models; unsupported host/effect features explicitly use separate independent observers |
+| M2.7 | [C2](plan.md#c2), complete | Typed generation, feature masks, native/C lanes and regression-prologue migration |
+| M2.10 | [C2](plan.md#c2), complete | Pinned recipe grid and common behavior oracles; broader fleet verdicts remain V1 |
 | M2.11 | [C3](plan.md#c3) | Held-out libraries |
-| M2.12 | [C2](plan.md#c2) | Perf runner, runtime ledger, counters, micro perf gates |
+| M2.12 | [C2](plan.md#c2), complete | Paired controls/intervals, operation inventories and identity-scoped ledger; affected-workload runtime qualification remains V1 |
 | M2.15 | [C3](plan.md#c3) | Calibration corpus |
 | M3.1 | [C1](plan.md#c1) | Configuration contract; remaining format producers belong to D1, instrumentation to Q2 and runtime evidence to C2 |
 | M3.2 | [C1](plan.md#c1) | Family registry; new producers register permissions within their owning milestone |
@@ -153,8 +153,8 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | No owner yet | [C1](plan.md#c1) | `pool_strings` and `pack_string_arrays` ignore their permissions; |
 | No owner yet | [D3](plan.md#d3) | katexlil keeps `src/fontMetricsData.js` for two scripts. |
 | Ledger rows owned by done tasks | [S4](plan.md#s4) | M1.5's `objectHasOwn` prelude case; |
-| Ledger rows owned by done tasks | [C2](plan.md#c2) | M2.6's intermittent zodlil ReDoS test; |
-| Ledger rows owned by done tasks | [C2](plan.md#c2) | M2.8's mobxlil test-path mapping. |
+| Ledger rows owned by done tasks | [C2](plan.md#c2), resolved | Zod ReDoS timeout remains an exact host-dependent upstream-analysis ledger entry; unchanged assertion, quiet-host C1 suite passes |
+| Ledger rows owned by done tasks | [C2](plan.md#c2), resolved | MobX mapping committed locally at `ccccb1d`; all three affected public Jest tests pass, stale path entries removed |
 
 All 43 carried-item entries from the snapshot are represented above. C3 records the missing historical A1 CPU pair as a limitation; it establishes a current baseline rather than inventing old measurements. D1 inspects the existing `~/lilscript-work/portwork/m3.3b-wip.patch` before continuing the format work.
 
@@ -162,7 +162,7 @@ All 43 carried-item entries from the snapshot are represented above. C3 records 
 
 | Reference | Current disposition |
 |---|---|
-| M1.9 correctness debts | Struct/host/generic transport belongs to S4; wrapper-name/reflection cases to G2. C2 checks the harvested raw inlined-root-assignment case and its ledger disposition before treating it as an open regression |
+| M1.9 correctness debts | Struct/host/generic transport belongs to S4; wrapper-name/reflection cases to G2. C2 confirms the harvested root-assignment case passes all four JavaScript case lanes, including raw; it is not an open regression |
 | M3.6, M9.4 | Merged historically into M3.5; deterministic scoring/reuse belongs to Q2, schedule/selection to Q3 |
 | M8.1 | Merged historically into annotations and formation; remaining transfers belong to S4 and their G/Q consumers |
 | Y1, Y5a/b | Approved contracts retained. Y5c, the default application IIFE, belongs to D1 |

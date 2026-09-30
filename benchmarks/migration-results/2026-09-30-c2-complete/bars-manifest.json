@@ -1,0 +1,164 @@
+{
+  "schema": 1,
+  "toolchain": "/home/azureuser/lilscript/benchmarks/contracts",
+  "codec": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript-codec",
+  "inspector": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript-runtime-inventory",
+  "programs": [
+    {
+      "id": "library",
+      "contract": {
+        "boundary": "open-library",
+        "format": "esm",
+        "target": "es2020",
+        "exports": [
+          "transform"
+        ],
+        "externals": [],
+        "reflected_properties": [],
+        "semantics": {
+          "arithmetic": "signed int32, explicitly coerced in JavaScript",
+          "builtins": "standard unmodified; console.log observed",
+          "reflection": "only declared exports"
+        },
+        "equivalence": "Same bounded integer recurrence/function with int32 wraparound; consumer imports the same transform contract"
+      },
+      "upstream": {
+        "entry": "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.mjs",
+        "inputs": [
+          "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.mjs"
+        ]
+      },
+      "candidate": {
+        "artifacts": {
+          "raw": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.raw.mjs",
+          "gzip": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.gzip.mjs",
+          "brotli": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.brotli.mjs"
+        },
+        "inputs": [
+          "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.lil",
+          "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.lil",
+          "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.raw.toml",
+          "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.gzip.toml",
+          "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.brotli.toml"
+        ],
+        "provenance": {
+          "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+          "config": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.brotli.toml",
+          "receipt": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/preparation.json"
+        }
+      },
+      "oracle": {
+        "entry": "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library-oracle.mjs",
+        "expected": {
+          "exports": [
+            "transform"
+          ],
+          "values": [
+            0,
+            7,
+            0,
+            5,
+            7
+          ]
+        }
+      }
+    },
+    {
+      "id": "application",
+      "contract": {
+        "boundary": "closed-application",
+        "format": "script",
+        "target": "es2020",
+        "exports": [],
+        "externals": [],
+        "reflected_properties": [],
+        "semantics": {
+          "arithmetic": "signed int32, explicitly coerced in JavaScript",
+          "builtins": "standard unmodified; console.log observed",
+          "reflection": "only declared exports"
+        },
+        "equivalence": "Same bounded integer recurrence/function with int32 wraparound; consumer imports the same transform contract"
+      },
+      "upstream": {
+        "entry": "/home/azureuser/lilscript/benchmarks/contracts/fixtures/application.js",
+        "inputs": [
+          "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.mjs"
+        ],
+        "minified": "/home/azureuser/lilscript/benchmarks/contracts/fixtures/application.js"
+      },
+      "candidate": {
+        "artifacts": {
+          "raw": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.raw.mjs",
+          "gzip": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.gzip.mjs",
+          "brotli": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.brotli.mjs"
+        },
+        "inputs": [
+          "/home/azureuser/lilscript/benchmarks/contracts/fixtures/application.lil",
+          "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.lil",
+          "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.raw.toml",
+          "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.gzip.toml",
+          "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.brotli.toml"
+        ],
+        "provenance": {
+          "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+          "config": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.brotli.toml",
+          "receipt": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/preparation.json"
+        }
+      },
+      "oracle": {
+        "entry": "/home/azureuser/lilscript/benchmarks/contracts/fixtures/console-oracle.mjs",
+        "expected": [
+          "4320"
+        ]
+      }
+    },
+    {
+      "id": "consumer",
+      "contract": {
+        "boundary": "consumer-bundle",
+        "format": "script",
+        "target": "es2020",
+        "exports": [],
+        "externals": [],
+        "reflected_properties": [],
+        "semantics": {
+          "arithmetic": "signed int32, explicitly coerced in JavaScript",
+          "builtins": "standard unmodified; console.log observed",
+          "reflection": "only declared exports"
+        },
+        "equivalence": "Same bounded integer recurrence/function with int32 wraparound; consumer imports the same transform contract"
+      },
+      "upstream": {
+        "entry": "/home/azureuser/lilscript/benchmarks/contracts/fixtures/consumer.mjs",
+        "inputs": [
+          "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.mjs"
+        ]
+      },
+      "candidate": {
+        "artifacts": {
+          "raw": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.raw.mjs",
+          "gzip": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.gzip.mjs",
+          "brotli": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.brotli.mjs"
+        },
+        "inputs": [
+          "/home/azureuser/lilscript/benchmarks/contracts/fixtures/consumer.lil",
+          "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.lil",
+          "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.raw.toml",
+          "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.gzip.toml",
+          "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.brotli.toml"
+        ],
+        "provenance": {
+          "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+          "config": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.brotli.toml",
+          "receipt": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/preparation.json"
+        }
+      },
+      "oracle": {
+        "entry": "/home/azureuser/lilscript/benchmarks/contracts/fixtures/console-oracle.mjs",
+        "expected": [
+          "4320"
+        ]
+      }
+    }
+  ]
+}

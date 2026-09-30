@@ -1,0 +1,10 @@
+{
+  "source": "4316015c",
+  "files": {
+    "lilscript": "cbfaa03a736fa3e91d5445b0a3cafdd86290bdd62c478c93daf0584efc281056",
+    "lilscript-codec": "51365f6ee712fa8040dbc54ad4d74e82c08b311ae5204455d154341396b892ac",
+    "lilscript-oracle": "c4628d182471af05ca72565e961cc51dfdfea352179eeca33e3dfbecd9d9bd2f",
+    "lilscript-runtime-inventory": "09ab67803905b343707d32fe38237dea85127672a4b65ef6a6d4df01b9c6d7fb",
+    "lilscript-differential": "21a77a07445377128fbd577024cc1d61747b9bdf443b1b10bfe7243b9026d8d0"
+  }
+}

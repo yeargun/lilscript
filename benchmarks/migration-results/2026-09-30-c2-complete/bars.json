@@ -1,0 +1,1892 @@
+{
+  "schema": 1,
+  "kind": "qualified-benchmark-contracts",
+  "complete": true,
+  "lock_sha256": "ae273887eb46b9064ee1eee3e5d726ba8872ec8c278786f640a950f776262cf1",
+  "programs": [
+    {
+      "id": "library",
+      "contract": {
+        "boundary": "open-library",
+        "format": "esm",
+        "target": "es2020",
+        "exports": [
+          "transform"
+        ],
+        "externals": [],
+        "reflected_properties": [],
+        "semantics": {
+          "arithmetic": "signed int32, explicitly coerced in JavaScript",
+          "builtins": "standard unmodified; console.log observed",
+          "reflection": "only declared exports"
+        },
+        "equivalence": "Same bounded integer recurrence/function with int32 wraparound; consumer imports the same transform contract"
+      },
+      "artifacts": [
+        {
+          "id": "ours-raw",
+          "kind": "candidate",
+          "objective": "raw",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.raw.mjs",
+            "sha256": "2dcf1230c94dfa961efa3f7746d40b7edb9fb7dc8115756ecb497b8e3b6f86b7",
+            "bytes": 69
+          },
+          "sizes": {
+            "raw": 69,
+            "gzip": 80,
+            "brotli": 68
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 66,
+            "gzip6": 82,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.raw.mjs",
+              "sha256": "2dcf1230c94dfa961efa3f7746d40b7edb9fb7dc8115756ecb497b8e3b6f86b7"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 0,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "ours-gzip",
+          "kind": "candidate",
+          "objective": "gzip",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.gzip.mjs",
+            "sha256": "2dcf1230c94dfa961efa3f7746d40b7edb9fb7dc8115756ecb497b8e3b6f86b7",
+            "bytes": 69
+          },
+          "sizes": {
+            "raw": 69,
+            "gzip": 80,
+            "brotli": 68
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 66,
+            "gzip6": 82,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.gzip.mjs",
+              "sha256": "2dcf1230c94dfa961efa3f7746d40b7edb9fb7dc8115756ecb497b8e3b6f86b7"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 0,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "ours-brotli",
+          "kind": "candidate",
+          "objective": "brotli",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.brotli.mjs",
+            "sha256": "2dcf1230c94dfa961efa3f7746d40b7edb9fb7dc8115756ecb497b8e3b6f86b7",
+            "bytes": 69
+          },
+          "sizes": {
+            "raw": 69,
+            "gzip": 80,
+            "brotli": 68
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 66,
+            "gzip6": 82,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.brotli.mjs",
+              "sha256": "2dcf1230c94dfa961efa3f7746d40b7edb9fb7dc8115756ecb497b8e3b6f86b7"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 0,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "terser",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/library.terser.mjs",
+            "sha256": "f9a372482e3d8c114d3e188b4ca6109900f07b8135ab193256954cc94ae349d3",
+            "bytes": 70
+          },
+          "cost": {
+            "wall_ns": 102970746,
+            "cpu_us": 160973,
+            "includes_children": null,
+            "process_wall_ns": 136997408
+          },
+          "sizes": {
+            "raw": 70,
+            "gzip": 90,
+            "brotli": 73
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 69,
+            "gzip6": 90,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/library.terser.mjs",
+              "sha256": "f9a372482e3d8c114d3e188b4ca6109900f07b8135ab193256954cc94ae349d3"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 1,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 0,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "swc",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/library.swc.mjs",
+            "sha256": "0d65d4d2170f66f12708f064574a719bf6ad9f1a17f8e7eeed648b5ed93798ef",
+            "bytes": 70
+          },
+          "cost": {
+            "wall_ns": 19850694,
+            "cpu_us": 20832,
+            "includes_children": null,
+            "process_wall_ns": 53605119
+          },
+          "sizes": {
+            "raw": 70,
+            "gzip": 90,
+            "brotli": 69
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 69,
+            "gzip6": 90,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/library.swc.mjs",
+              "sha256": "0d65d4d2170f66f12708f064574a719bf6ad9f1a17f8e7eeed648b5ed93798ef"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 1,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 0,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "oxc",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/library.oxc.mjs",
+            "sha256": "1c32dbc997b30ee0f9e405f8a01c42ef7d479fce239dca1ed2ba73a4d0df6cb7",
+            "bytes": 70
+          },
+          "cost": {
+            "wall_ns": 51659553,
+            "cpu_us": 56302,
+            "includes_children": null,
+            "process_wall_ns": 86546951
+          },
+          "sizes": {
+            "raw": 70,
+            "gzip": 90,
+            "brotli": 70
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 69,
+            "gzip6": 90,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/library.oxc.mjs",
+              "sha256": "1c32dbc997b30ee0f9e405f8a01c42ef7d479fce239dca1ed2ba73a4d0df6cb7"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 1,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 0,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "rolldown",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/library.rolldown.mjs",
+            "sha256": "1c32dbc997b30ee0f9e405f8a01c42ef7d479fce239dca1ed2ba73a4d0df6cb7",
+            "bytes": 70
+          },
+          "cost": {
+            "wall_ns": 62995022,
+            "cpu_us": 79067,
+            "includes_children": null,
+            "process_wall_ns": 103120554
+          },
+          "sizes": {
+            "raw": 70,
+            "gzip": 90,
+            "brotli": 70
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 69,
+            "gzip6": 90,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/library.rolldown.mjs",
+              "sha256": "1c32dbc997b30ee0f9e405f8a01c42ef7d479fce239dca1ed2ba73a4d0df6cb7"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 1,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 0,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "esbuild",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/library.esbuild.mjs",
+            "sha256": "f78a3105cba0f8b21d17249053ad3e94e589bd4f9ba54cfb366fb67350e10928",
+            "bytes": 71
+          },
+          "cost": {
+            "wall_ns": 30639979,
+            "cpu_us": 55657,
+            "includes_children": null,
+            "process_wall_ns": 70041024
+          },
+          "sizes": {
+            "raw": 71,
+            "gzip": 91,
+            "brotli": 73
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 71,
+            "gzip6": 91,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/library.esbuild.mjs",
+              "sha256": "f78a3105cba0f8b21d17249053ad3e94e589bd4f9ba54cfb366fb67350e10928"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 1,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 0,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        }
+      ],
+      "refused": [
+        {
+          "id": "closure-advanced",
+          "status": "inapplicable",
+          "reason": "This pinned Closure CLI recipe does not preserve an open ESM export boundary. Closed script consumers are measured separately."
+        },
+        {
+          "id": "upstream",
+          "status": "inapplicable",
+          "reason": "No upstream minified artifact is declared for this exact boundary."
+        }
+      ],
+      "bundle": {
+        "wall_ns": 31237298,
+        "cpu_us": 57871,
+        "includes_children": null,
+        "process_wall_ns": 76403605
+      },
+      "minima": {
+        "raw": {
+          "id": "oxc",
+          "bytes": 70,
+          "sha256": "1c32dbc997b30ee0f9e405f8a01c42ef7d479fce239dca1ed2ba73a4d0df6cb7"
+        },
+        "gzip": {
+          "id": "oxc",
+          "bytes": 90,
+          "sha256": "1c32dbc997b30ee0f9e405f8a01c42ef7d479fce239dca1ed2ba73a4d0df6cb7"
+        },
+        "brotli": {
+          "id": "swc",
+          "bytes": 69,
+          "sha256": "0d65d4d2170f66f12708f064574a719bf6ad9f1a17f8e7eeed648b5ed93798ef"
+        }
+      },
+      "deltas": {
+        "raw": -1,
+        "gzip": -10,
+        "brotli": -1
+      }
+    },
+    {
+      "id": "application",
+      "contract": {
+        "boundary": "closed-application",
+        "format": "script",
+        "target": "es2020",
+        "exports": [],
+        "externals": [],
+        "reflected_properties": [],
+        "semantics": {
+          "arithmetic": "signed int32, explicitly coerced in JavaScript",
+          "builtins": "standard unmodified; console.log observed",
+          "reflection": "only declared exports"
+        },
+        "equivalence": "Same bounded integer recurrence/function with int32 wraparound; consumer imports the same transform contract"
+      },
+      "artifacts": [
+        {
+          "id": "ours-raw",
+          "kind": "candidate",
+          "objective": "raw",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.raw.mjs",
+            "sha256": "83949484b92e9d9a45835e852331c90d7dc426f5c2f5458d6669ba99f9e2967d",
+            "bytes": 75
+          },
+          "sizes": {
+            "raw": 75,
+            "gzip": 90,
+            "brotli": 72
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 68,
+            "gzip6": 92,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.raw.mjs",
+              "sha256": "83949484b92e9d9a45835e852331c90d7dc426f5c2f5458d6669ba99f9e2967d"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 2,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "ours-gzip",
+          "kind": "candidate",
+          "objective": "gzip",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.gzip.mjs",
+            "sha256": "83949484b92e9d9a45835e852331c90d7dc426f5c2f5458d6669ba99f9e2967d",
+            "bytes": 75
+          },
+          "sizes": {
+            "raw": 75,
+            "gzip": 90,
+            "brotli": 72
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 68,
+            "gzip6": 92,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.gzip.mjs",
+              "sha256": "83949484b92e9d9a45835e852331c90d7dc426f5c2f5458d6669ba99f9e2967d"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 2,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "ours-brotli",
+          "kind": "candidate",
+          "objective": "brotli",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.brotli.mjs",
+            "sha256": "83949484b92e9d9a45835e852331c90d7dc426f5c2f5458d6669ba99f9e2967d",
+            "bytes": 75
+          },
+          "sizes": {
+            "raw": 75,
+            "gzip": 90,
+            "brotli": 72
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 68,
+            "gzip6": 92,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.brotli.mjs",
+              "sha256": "83949484b92e9d9a45835e852331c90d7dc426f5c2f5458d6669ba99f9e2967d"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 2,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "terser",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.terser.js",
+            "sha256": "c609a59577f60dfaf845f38bce3fc34e7a575cbfcbbe08b894407f1c491ba4f6",
+            "bytes": 85
+          },
+          "cost": {
+            "wall_ns": 110026824,
+            "cpu_us": 169913,
+            "includes_children": null,
+            "process_wall_ns": 144400720
+          },
+          "sizes": {
+            "raw": 85,
+            "gzip": 103,
+            "brotli": 77
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 77,
+            "gzip6": 103,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.terser.js",
+              "sha256": "c609a59577f60dfaf845f38bce3fc34e7a575cbfcbbe08b894407f1c491ba4f6"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 3,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "swc",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.swc.js",
+            "sha256": "c609a59577f60dfaf845f38bce3fc34e7a575cbfcbbe08b894407f1c491ba4f6",
+            "bytes": 85
+          },
+          "cost": {
+            "wall_ns": 15365390,
+            "cpu_us": 16271,
+            "includes_children": null,
+            "process_wall_ns": 48354060
+          },
+          "sizes": {
+            "raw": 85,
+            "gzip": 103,
+            "brotli": 77
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 77,
+            "gzip6": 103,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.swc.js",
+              "sha256": "c609a59577f60dfaf845f38bce3fc34e7a575cbfcbbe08b894407f1c491ba4f6"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 3,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "oxc",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.oxc.js",
+            "sha256": "cfa27085c998ec9fc0798985bc163b0fa0d5a1f6a4edf6131b21dcd3a53df522",
+            "bytes": 85
+          },
+          "cost": {
+            "wall_ns": 45478145,
+            "cpu_us": 50649,
+            "includes_children": null,
+            "process_wall_ns": 79379574
+          },
+          "sizes": {
+            "raw": 85,
+            "gzip": 103,
+            "brotli": 76
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 77,
+            "gzip6": 103,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.oxc.js",
+              "sha256": "cfa27085c998ec9fc0798985bc163b0fa0d5a1f6a4edf6131b21dcd3a53df522"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 3,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "rolldown",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.rolldown.js",
+            "sha256": "9bf814792fbd075ae1d8f737b8cb8d4de4705fe1ffde6a2480dda217bfd7ef06",
+            "bytes": 91
+          },
+          "cost": {
+            "wall_ns": 53706119,
+            "cpu_us": 65373,
+            "includes_children": null,
+            "process_wall_ns": 88896567
+          },
+          "sizes": {
+            "raw": 91,
+            "gzip": 104,
+            "brotli": 80
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 77,
+            "gzip6": 105,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.rolldown.js",
+              "sha256": "9bf814792fbd075ae1d8f737b8cb8d4de4705fe1ffde6a2480dda217bfd7ef06"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 3,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "esbuild",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.esbuild.js",
+            "sha256": "a092a03ce29f057dafa81fba0725adac1ce413f005f3faf831c9efbe93a2c27b",
+            "bytes": 87
+          },
+          "cost": {
+            "wall_ns": 31311795,
+            "cpu_us": 58445,
+            "includes_children": null,
+            "process_wall_ns": 72155324
+          },
+          "sizes": {
+            "raw": 87,
+            "gzip": 105,
+            "brotli": 78
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 82,
+            "gzip6": 104,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.esbuild.js",
+              "sha256": "a092a03ce29f057dafa81fba0725adac1ce413f005f3faf831c9efbe93a2c27b"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 3,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "closure-advanced",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.closure-advanced.js",
+            "sha256": "89a9e287767d9fd36c40c292c165b66c534fb167a288230e672cae3cf2e41467",
+            "bytes": 76
+          },
+          "cost": {
+            "wall_ns": 563710067,
+            "cpu_us": 1780,
+            "includes_children": false,
+            "process_wall_ns": 596765351
+          },
+          "sizes": {
+            "raw": 76,
+            "gzip": 94,
+            "brotli": 80
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 71,
+            "gzip6": 96,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.closure-advanced.js",
+              "sha256": "89a9e287767d9fd36c40c292c165b66c534fb167a288230e672cae3cf2e41467"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 2,
+              "constructor_sites": 0,
+              "function_sites": 0,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 5,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "upstream",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.upstream.js",
+            "sha256": "b60ceb1ff02d089af6f02ebb632b85ae80fffb978099e3db85b438a62ba5cb75",
+            "bytes": 141
+          },
+          "cost": {
+            "wall_ns": 1136170,
+            "cpu_us": 207,
+            "includes_children": null,
+            "process_wall_ns": 32331217
+          },
+          "sizes": {
+            "raw": 141,
+            "gzip": 118,
+            "brotli": 104
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 94,
+            "gzip6": 121,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/application.upstream.js",
+              "sha256": "b60ceb1ff02d089af6f02ebb632b85ae80fffb978099e3db85b438a62ba5cb75"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 2,
+              "constructor_sites": 0,
+              "function_sites": 0,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 5,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        }
+      ],
+      "refused": [],
+      "bundle": {
+        "wall_ns": 31185211,
+        "cpu_us": 57210,
+        "includes_children": null,
+        "process_wall_ns": 69824939
+      },
+      "minima": {
+        "raw": {
+          "id": "closure-advanced",
+          "bytes": 76,
+          "sha256": "89a9e287767d9fd36c40c292c165b66c534fb167a288230e672cae3cf2e41467"
+        },
+        "gzip": {
+          "id": "closure-advanced",
+          "bytes": 94,
+          "sha256": "89a9e287767d9fd36c40c292c165b66c534fb167a288230e672cae3cf2e41467"
+        },
+        "brotli": {
+          "id": "oxc",
+          "bytes": 76,
+          "sha256": "cfa27085c998ec9fc0798985bc163b0fa0d5a1f6a4edf6131b21dcd3a53df522"
+        }
+      },
+      "deltas": {
+        "raw": -1,
+        "gzip": -4,
+        "brotli": -4
+      }
+    },
+    {
+      "id": "consumer",
+      "contract": {
+        "boundary": "consumer-bundle",
+        "format": "script",
+        "target": "es2020",
+        "exports": [],
+        "externals": [],
+        "reflected_properties": [],
+        "semantics": {
+          "arithmetic": "signed int32, explicitly coerced in JavaScript",
+          "builtins": "standard unmodified; console.log observed",
+          "reflection": "only declared exports"
+        },
+        "equivalence": "Same bounded integer recurrence/function with int32 wraparound; consumer imports the same transform contract"
+      },
+      "artifacts": [
+        {
+          "id": "ours-raw",
+          "kind": "candidate",
+          "objective": "raw",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.raw.mjs",
+            "sha256": "2c968159157fe808e691a07e21bbfda6050251457dee2ac66585b240c9a7e8ce",
+            "bytes": 89
+          },
+          "sizes": {
+            "raw": 89,
+            "gzip": 103,
+            "brotli": 76
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 81,
+            "gzip6": 102,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.raw.mjs",
+              "sha256": "2c968159157fe808e691a07e21bbfda6050251457dee2ac66585b240c9a7e8ce"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 3,
+              "constructor_sites": 0,
+              "function_sites": 2,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "ours-gzip",
+          "kind": "candidate",
+          "objective": "gzip",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.gzip.mjs",
+            "sha256": "2efdfb8be278abc573a06901190da8051241cdf225e42c043f58476e4ab6cbb9",
+            "bytes": 89
+          },
+          "sizes": {
+            "raw": 89,
+            "gzip": 102,
+            "brotli": 77
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 81,
+            "gzip6": 101,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.gzip.mjs",
+              "sha256": "2efdfb8be278abc573a06901190da8051241cdf225e42c043f58476e4ab6cbb9"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 3,
+              "constructor_sites": 0,
+              "function_sites": 2,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "ours-brotli",
+          "kind": "candidate",
+          "objective": "brotli",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.brotli.mjs",
+            "sha256": "2c968159157fe808e691a07e21bbfda6050251457dee2ac66585b240c9a7e8ce",
+            "bytes": 89
+          },
+          "sizes": {
+            "raw": 89,
+            "gzip": 103,
+            "brotli": 76
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 81,
+            "gzip6": 102,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.brotli.mjs",
+              "sha256": "2c968159157fe808e691a07e21bbfda6050251457dee2ac66585b240c9a7e8ce"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 3,
+              "constructor_sites": 0,
+              "function_sites": 2,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "terser",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.terser.js",
+            "sha256": "bed6743561e9203eef79331754be5e31b1fe2fb5a50eea085eaaeb153602eec5",
+            "bytes": 112
+          },
+          "cost": {
+            "wall_ns": 110819185,
+            "cpu_us": 170113,
+            "includes_children": null,
+            "process_wall_ns": 145039723
+          },
+          "sizes": {
+            "raw": 112,
+            "gzip": 122,
+            "brotli": 97
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 91,
+            "gzip6": 121,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.terser.js",
+              "sha256": "bed6743561e9203eef79331754be5e31b1fe2fb5a50eea085eaaeb153602eec5"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 4,
+              "constructor_sites": 0,
+              "function_sites": 2,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "swc",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.swc.js",
+            "sha256": "140a466d6a1d79f4386ac89b78fdac920426956b00ee0c413cb722d2e8711dfc",
+            "bytes": 95
+          },
+          "cost": {
+            "wall_ns": 15617976,
+            "cpu_us": 17124,
+            "includes_children": null,
+            "process_wall_ns": 48144359
+          },
+          "sizes": {
+            "raw": 95,
+            "gzip": 108,
+            "brotli": 88
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 84,
+            "gzip6": 111,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.swc.js",
+              "sha256": "140a466d6a1d79f4386ac89b78fdac920426956b00ee0c413cb722d2e8711dfc"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 3,
+              "constructor_sites": 0,
+              "function_sites": 1,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "oxc",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.oxc.js",
+            "sha256": "1ab0ef7bd0cdbd8b94f3f7ceaa84d2881906378679cd8b4a2c38d36fcac2ae57",
+            "bytes": 112
+          },
+          "cost": {
+            "wall_ns": 46177391,
+            "cpu_us": 51335,
+            "includes_children": null,
+            "process_wall_ns": 79570349
+          },
+          "sizes": {
+            "raw": 112,
+            "gzip": 123,
+            "brotli": 97
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 93,
+            "gzip6": 121,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.oxc.js",
+              "sha256": "1ab0ef7bd0cdbd8b94f3f7ceaa84d2881906378679cd8b4a2c38d36fcac2ae57"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 4,
+              "constructor_sites": 0,
+              "function_sites": 2,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "rolldown",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.rolldown.js",
+            "sha256": "5e06d36dc250f7dd099120e746f0bb37f50197f68b4c244b3ae88e200e803b9f",
+            "bytes": 118
+          },
+          "cost": {
+            "wall_ns": 97553888,
+            "cpu_us": 114020,
+            "includes_children": null,
+            "process_wall_ns": 133333657
+          },
+          "sizes": {
+            "raw": 118,
+            "gzip": 121,
+            "brotli": 94
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 92,
+            "gzip6": 121,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.rolldown.js",
+              "sha256": "5e06d36dc250f7dd099120e746f0bb37f50197f68b4c244b3ae88e200e803b9f"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 4,
+              "constructor_sites": 0,
+              "function_sites": 2,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "esbuild",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.esbuild.js",
+            "sha256": "f8190d4dbadf6959209c2537eed5732a1f6f45c0f3304f5050ec603110de8d36",
+            "bytes": 114
+          },
+          "cost": {
+            "wall_ns": 34960306,
+            "cpu_us": 65073,
+            "includes_children": null,
+            "process_wall_ns": 74343948
+          },
+          "sizes": {
+            "raw": 114,
+            "gzip": 126,
+            "brotli": 99
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 95,
+            "gzip6": 126,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.esbuild.js",
+              "sha256": "f8190d4dbadf6959209c2537eed5732a1f6f45c0f3304f5050ec603110de8d36"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 4,
+              "constructor_sites": 0,
+              "function_sites": 2,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 1,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        },
+        {
+          "id": "closure-advanced",
+          "kind": "competitor",
+          "eligible": true,
+          "artifact": {
+            "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.closure-advanced.js",
+            "sha256": "d2862e64b91a6be7ee165b08d084b4cdb71f066e1a22b15c895d2d19aa8c2f9e",
+            "bytes": 80
+          },
+          "cost": {
+            "wall_ns": 594493371,
+            "cpu_us": 1721,
+            "includes_children": false,
+            "process_wall_ns": 627115543
+          },
+          "sizes": {
+            "raw": 80,
+            "gzip": 97,
+            "brotli": 79
+          },
+          "codecs": {
+            "gzip9": {
+              "encoder": "upstream-stock-zlib-c",
+              "libraryVersion": "1.3.1",
+              "cargoPackage": "libz-sys",
+              "cargoPackageVersion": "1.1.24",
+              "level": 9,
+              "mtime": 0
+            },
+            "brotli11": {
+              "encoder": "official-google-brotli-c",
+              "libraryVersion": "1.1.0",
+              "cargoPackage": "compu-brotli-sys",
+              "cargoPackageVersion": "1.1.0",
+              "quality": 11,
+              "lgwin": 22,
+              "mode": "generic"
+            }
+          },
+          "robustness": {
+            "brotli5": 74,
+            "gzip6": 100,
+            "node_zlib": "1.3.0.1-motley-82a5fec",
+            "node_brotli": "1.1.0"
+          },
+          "inventory": {
+            "schema": 1,
+            "artifact": {
+              "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/bars4/consumer.closure-advanced.js",
+              "sha256": "d2862e64b91a6be7ee165b08d084b4cdb71f066e1a22b15c895d2d19aa8c2f9e"
+            },
+            "static_sites": {
+              "arguments_identifier_sites": 0,
+              "array_literal_sites": 0,
+              "call_sites": 2,
+              "constructor_sites": 0,
+              "function_sites": 0,
+              "object_literal_sites": 0,
+              "outer_statement_nodes": 5,
+              "rest_binding_sites": 0,
+              "single_return_call_functions": 0
+            },
+            "limitations": "Syntax sites, not dynamic counts. Function bodies include IIFEs; outer statement nodes do not assert startup execution frequency. Adapter identity, allocation totals and engine argument materialization require compiler provenance or engine profiles."
+          }
+        }
+      ],
+      "refused": [
+        {
+          "id": "upstream",
+          "status": "inapplicable",
+          "reason": "No upstream minified artifact is declared for this exact boundary."
+        }
+      ],
+      "bundle": {
+        "wall_ns": 30953544,
+        "cpu_us": 56403,
+        "includes_children": null,
+        "process_wall_ns": 71865280
+      },
+      "minima": {
+        "raw": {
+          "id": "closure-advanced",
+          "bytes": 80,
+          "sha256": "d2862e64b91a6be7ee165b08d084b4cdb71f066e1a22b15c895d2d19aa8c2f9e"
+        },
+        "gzip": {
+          "id": "closure-advanced",
+          "bytes": 97,
+          "sha256": "d2862e64b91a6be7ee165b08d084b4cdb71f066e1a22b15c895d2d19aa8c2f9e"
+        },
+        "brotli": {
+          "id": "closure-advanced",
+          "bytes": 79,
+          "sha256": "d2862e64b91a6be7ee165b08d084b4cdb71f066e1a22b15c895d2d19aa8c2f9e"
+        }
+      },
+      "deltas": {
+        "raw": 9,
+        "gzip": 5,
+        "brotli": -3
+      }
+    }
+  ],
+  "environment": {
+    "PATH": "/usr/bin:/bin",
+    "TZ": "UTC",
+    "LANG": "C",
+    "LC_ALL": "C"
+  },
+  "limitations": [
+    "Behavior is established over the explicit oracle, not all possible inputs.",
+    "Language/host equivalence is declared and reviewed; a tool cannot prove those source contracts automatically.",
+    "CPU for native subprocess tools is unavailable here; wall cost includes the complete child process."
+  ]
+}

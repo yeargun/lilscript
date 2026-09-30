@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "scope": "Public Jest configuration against the existing port distribution; this does not qualify a new compiler MobX build",
+  "port_mapping_commit": "ccccb1d",
+  "inputs_unchanged": {
+    "/home/azureuser/mobxlil/jest.config.cjs": {
+      "sha256": "9a37407484238c9ad4f2fbd18541013edeeb76bfd9038db69956b3e893fe1e32",
+      "bytes": 1266
+    },
+    "/home/azureuser/mobxlil/tests/setup.ts": {
+      "sha256": "3c587a8d1c789eb9295f09a2557d7e0cf2490cf27e8862c55ee88527d698803e",
+      "bytes": 722
+    },
+    "/home/azureuser/mobxlil/tests/tsconfig.json": {
+      "sha256": "f5ecd0e603cb092bf616e4f0bc0d3109c9957dd353fab2cacf0307088012f5e4",
+      "bytes": 633
+    },
+    "/home/azureuser/mobxlil/tests/upstream/base/make-observable.ts": {
+      "sha256": "caa0754177f5ce03b7b6bf28a2a7d61d4c73a990171bde9f5f157ec5ec1830b6",
+      "bytes": 32836
+    },
+    "/home/azureuser/mobxlil/tests/upstream/base/extras.js": {
+      "sha256": "4ca54159968f4a052393c18999de0da8696edea34cc770d354209d5d37594838",
+      "bytes": 28969
+    },
+    "/home/azureuser/mobxlil/dist/index.js": {
+      "sha256": "d3f67adc0979c1eb51d60f3848c52f0277d3901608badf96e5ee0b722bb41557",
+      "bytes": 185
+    },
+    "/home/azureuser/mobxlil/dist/mobx.cjs.development.js": {
+      "sha256": "db75e705a1a126d35ec50f7bfcfda0e72bca28476f7aeff9c7a583cebed47b99",
+      "bytes": 165163
+    },
+    "/home/azureuser/mobxlil/dist/mobx.cjs.production.js": {
+      "sha256": "498c2fee41bbc4b07aea15d996de27409b19b7e4f644261b02c27fcc4c039af9",
+      "bytes": 83018
+    },
+    "/home/azureuser/mobxlil/dist/mobx.cjs.production.min.js": {
+      "sha256": "8669556ffe78d9c870825a190883c76dc5fc9ffce03f90e979db11d4495a85ad",
+      "bytes": 85069
+    },
+    "/home/azureuser/mobxlil/dist/mobx.dev.esm.js": {
+      "sha256": "5426d20a3c349dfdceef97d0d148f92bf8f7bd316cfcd2b9b2a10c76420098d1",
+      "bytes": 130934
+    },
+    "/home/azureuser/mobxlil/dist/mobx.esm.development.js": {
+      "sha256": "5426d20a3c349dfdceef97d0d148f92bf8f7bd316cfcd2b9b2a10c76420098d1",
+      "bytes": 130934
+    },
+    "/home/azureuser/mobxlil/dist/mobx.esm.js": {
+      "sha256": "d1cc3874d5f12ca0ebd41f208d175f56acf39be9d778a422a8605fe06e3ffaf3",
+      "bytes": 59333
+    },
+    "/home/azureuser/mobxlil/dist/mobx.esm.js.mjs": {
+      "sha256": "d953a70c359ff3c13ab6439916155d82eb89680c8c6ba74cb04992473d1c3c96",
+      "bytes": 65664
+    },
+    "/home/azureuser/mobxlil/dist/mobx.esm.production.min.js": {
+      "sha256": "1353ddb98f15a6f0428316188cd4161f893e3a8500f2061a0e11249e0240d828",
+      "bytes": 61010
+    },
+    "/home/azureuser/mobxlil/dist/mobx.mjs": {
+      "sha256": "5426d20a3c349dfdceef97d0d148f92bf8f7bd316cfcd2b9b2a10c76420098d1",
+      "bytes": 130934
+    },
+    "/home/azureuser/mobxlil/dist/mobx.umd.development.js": {
+      "sha256": "ac6dbb48b811924bc42467bf8056d33295678e4e90f61346e7747b9909d25702",
+      "bytes": 173411
+    },
+    "/home/azureuser/mobxlil/dist/mobx.umd.production.js": {
+      "sha256": "6650b34f51e200cc95d2e8b67b23036a378770d878da1eb34d0c1f1d71011d6c",
+      "bytes": 87902
+    },
+    "/home/azureuser/mobxlil/dist/mobx.umd.production.min.js": {
+      "sha256": "92b1988b173a5a50fb6f5bbb832cc1c76d3087cd82a113af64b62598b09c8306",
+      "bytes": 90145
+    }
+  },
+  "tests": [
+    {
+      "name": "makeAutoObservable + production build #2751",
+      "status": "passed"
+    },
+    {
+      "name": "Default debug names - production",
+      "status": "passed"
+    },
+    {
+      "name": "User provided debug names are always respected",
+      "status": "passed"
+    }
+  ],
+  "passed": 3,
+  "failed": 0
+}

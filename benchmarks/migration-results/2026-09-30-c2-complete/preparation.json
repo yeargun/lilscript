@@ -1,0 +1,753 @@
+{
+  "schema": 1,
+  "inputs": {
+    "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript": {
+      "sha256": "cbfaa03a736fa3e91d5445b0a3cafdd86290bdd62c478c93daf0584efc281056",
+      "bytes": 13186968
+    },
+    "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript-codec": {
+      "sha256": "51365f6ee712fa8040dbc54ad4d74e82c08b311ae5204455d154341396b892ac",
+      "bytes": 2397072
+    },
+    "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript-runtime-inventory": {
+      "sha256": "09ab67803905b343707d32fe38237dea85127672a4b65ef6a6d4df01b9c6d7fb",
+      "bytes": 2528784
+    },
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-c1-complete/ports.json": {
+      "sha256": "b0f733a6bba5bfce68110980a23524c3f7f166aa3f8578d4b63a4a3fdc60f158",
+      "bytes": 11031
+    },
+    "/home/azureuser/lilscript/benchmarks/runtime/prepare.mjs": {
+      "sha256": "71b6383417b1b4ebdfb2ad3bdb4241eb04fe1e34762b7ef011c1861df5505a7e",
+      "bytes": 8940
+    },
+    "/home/azureuser/lilscript/benchmarks/contracts/package-lock.json": {
+      "sha256": "8be6793790ee54477de2da4c97554ac33aadbf7385d3302d967a3b396cb38140",
+      "bytes": 38095
+    },
+    "/home/azureuser/lilscript-work/measurements/2026-09-30-c1-complete/ports/runs/markedlil/markedlil/dist/marked.raw.js": {
+      "sha256": "f48b0de442bf79a69f101b2133d3e810dc7740868a8bf70070a55b99284b818e",
+      "bytes": 34221
+    },
+    "/home/azureuser/markedlil/node_modules/marked/lib/marked.esm.js": {
+      "sha256": "4cf47dfebb7f614a08fc0a579ab0fe407ff0ed2b717bf953040c85b2f493a4f0",
+      "bytes": 43018
+    },
+    "/home/azureuser/lilscript/benchmarks/runtime/marked-workload.mjs": {
+      "sha256": "949eebd445befe576f56d891623586787c139e2e7c8aa3119fc5c720a0eaeec5",
+      "bytes": 734
+    },
+    "/home/azureuser/lilscript-work/measurements/2026-09-30-c1-complete/ports/runs/zodlil/zodlil/dist/zod.core.js": {
+      "sha256": "d29a08a6136c5846d4df88659881e29ef4905978004fd973169878ce3f809d86",
+      "bytes": 88985
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/core.js": {
+      "sha256": "a5e713beaac4647151e03716a83f51ab714e5337cf66850f3b28eaf072a0bbfe",
+      "bytes": 2578
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/util.js": {
+      "sha256": "968e3433e810cf7ba5efb609a1cb6d9a6cfb51215fd1f699938228f7ac25deb3",
+      "bytes": 22018
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/errors.js": {
+      "sha256": "bdd0ed8fd4a6e9d04fe6423b0f9df3a0b403939bc7dcedd8930a4b8df1fb118c",
+      "bytes": 6413
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/parse.js": {
+      "sha256": "2578b8d1341c3882a6c089f9ec57ce1c1a16b8b2b477721d4d89ba3d3ee50c9c",
+      "bytes": 4444
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/regexes.js": {
+      "sha256": "3cb122080c1154321331322ebc0cbe04878fe104c8c7b335891d9f85fc4b3f63",
+      "bytes": 9078
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/checks.js": {
+      "sha256": "5a33a20dcad372b4d18ead8d1e58b1950454f136a2216e62f247e0e5601ac838",
+      "bytes": 20005
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/doc.js": {
+      "sha256": "e084bbcc536746a8942fd33b08afe4db345554b3a0383114f1dca95261c958d9",
+      "bytes": 1088
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/versions.js": {
+      "sha256": "bf082fde98fa7725412d713c7f56da3a5603bdef199d68d5769263f30ce9c756",
+      "bytes": 70
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/schemas.js": {
+      "sha256": "09da9b0cb9b9d2d795c349bc47c7521d5aaffe241885f0c9728f2aa7de3834c9",
+      "bytes": 83322
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ar.js": {
+      "sha256": "220ca3ca8cf67e4ccc05d789eeed2692d970269fe0cd82f05db8fd899b661b9e",
+      "bytes": 5188
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/az.js": {
+      "sha256": "4725ffef0b2f2df947194f9698c792b69f52a8c3a5a1e1bdfabbf62259a1dd46",
+      "bytes": 4511
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/be.js": {
+      "sha256": "da4bda7fbc940dd9f50efdd914caa9397243be779a505b82bd4be5395d3b795e",
+      "bytes": 6619
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/bg.js": {
+      "sha256": "48511ad2f86043f0eea6e7673d5e2b848a3295a26c9c4650e96b3884d640196d",
+      "bytes": 5785
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ca.js": {
+      "sha256": "796f9ba7dcd53648171aa0132c50271ef358936765cec0a44a642c41d05b3e8c",
+      "bytes": 4710
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/cs.js": {
+      "sha256": "670a75fe1db1104db090c95aabb01e4eb6decd451fe77fd830c2e4dafc79b49a",
+      "bytes": 4772
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/da.js": {
+      "sha256": "cdaad7a1fa370abda1943fe9c2caba961e7896b9808d51275daf33f964af49cc",
+      "bytes": 4804
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/de.js": {
+      "sha256": "521a4ed29fcaf3f781163875dc282cfb5262047773aa2b70a852996b1d8a51b9",
+      "bytes": 4588
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/el.js": {
+      "sha256": "9857a9e4909282b2efd86317fc3e67ed86e24287f32329cfa5ab833c05fc0d81",
+      "bytes": 5544
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/en.js": {
+      "sha256": "232a0828d64df8e410b23ac9825a667bd9d485fd70acdc4b4d0870539faef0a4",
+      "bytes": 4805
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/eo.js": {
+      "sha256": "ebe08048aa3ee9871ce9fe1271e254cb672b1968ec40ac253066d08d176e8a65",
+      "bytes": 4603
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/es.js": {
+      "sha256": "4edd9302e9724c408b024220e99092fbd2f90100ac3c6407a94543b79843610c",
+      "bytes": 5439
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/fa.js": {
+      "sha256": "2dc1bee1e984e8a15191fb3c69aaecaa26c922e12a0d4486ac005a0372b78565",
+      "bytes": 5131
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/fi.js": {
+      "sha256": "3911184979f01d2ae580ce611710ee40597eff97a410d0fa823ab6ea27cee88c",
+      "bytes": 4818
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/fr.js": {
+      "sha256": "3ea466ca5737984bb5acc9008822060272f596317004618cfe1e05109f707577",
+      "bytes": 5137
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/fr-CA.js": {
+      "sha256": "f8716c2baaccdfd1d958743bbc5250c9bdef5152d0801470e9b9a380d618f4ab",
+      "bytes": 4554
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/he.js": {
+      "sha256": "290512e43d2907700211da09dc3959fd98d120bfb89f8836e6e3f83a472e26fe",
+      "bytes": 12005
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/hr.js": {
+      "sha256": "1ea65433c32b89bead43113ac69b3acc520bb73ae231dd2e05fedf8e8c5656d6",
+      "bytes": 5052
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/hu.js": {
+      "sha256": "913ee94a253db79b31463ae23a337060b6fe28be73dfc7657d8a83a4942bd8a8",
+      "bytes": 4696
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/hy.js": {
+      "sha256": "0d3bbb96c0f8bc74468a2dfc7d066e838bb56fab64fd5ec03ce9c4d89eccbe99",
+      "bytes": 6390
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/id.js": {
+      "sha256": "cd2c19b5c30dade3ed91ffcff3deb0b068713be24f02248e7e46b87b2b9553ee",
+      "bytes": 4577
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/is.js": {
+      "sha256": "ead5b14eac892229f915fe38ec94ab3b1e676f8aa2df2a8450848ba9ca9a1612",
+      "bytes": 4635
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/it.js": {
+      "sha256": "439969d199427d77ebf1e477bf2295b226712804b25437d442f9dfc78aca95e0",
+      "bytes": 4582
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ja.js": {
+      "sha256": "43ee10378cac22b0b8aee912a66c3f36a834d5b4c76e9748f88a784044f248fd",
+      "bytes": 4851
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ka.js": {
+      "sha256": "0ab5322368f9ac6e6b58f93dac484a4f4f06cdf4c0677f4df88164e9d8b4bf81",
+      "bytes": 6202
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/km.js": {
+      "sha256": "dbdabda94dd93d4a1827e6c809505c79fa6aa7abefec91dc50fa0871382c99cc",
+      "bytes": 6242
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/kh.js": {
+      "sha256": "78c3d1991041bb8c8fc0f7c5d745aae422d4c2e4e8f30bae44f3fef4765900a8",
+      "bytes": 111
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ko.js": {
+      "sha256": "d2efe22ac069d9b32b0109fa07713ac0695ac1c1357afc4e4277056466f2e196",
+      "bytes": 4929
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/lt.js": {
+      "sha256": "dad886e52c56a1329d22e072f8b08dc8730f69c3dc5e5acf8267cac18df1ab28",
+      "bytes": 8082
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/mk.js": {
+      "sha256": "9eb4af0392fc5b9c438cdc6ceea446acc541b59e221dba918f7b80800d9da3d1",
+      "bytes": 5157
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ms.js": {
+      "sha256": "c550a9185d997e8fcd17311951aa1e29793a50b8e825e18310efd5a46c641795",
+      "bytes": 4491
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/nl.js": {
+      "sha256": "acba414579c5bbd7f83dc6661fa1a12d65f1822f9b0f5035549ac60f46d93763",
+      "bytes": 4762
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/no.js": {
+      "sha256": "1854483c7cf158b8f97f0faf6fd799eb1f762009018b5fde893ca33f2fb0b313",
+      "bytes": 4506
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ota.js": {
+      "sha256": "34ae496104bc17fea7d30c3d45c94cfe3d1d569b5d39a6ca51de6c177690c556",
+      "bytes": 4525
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ps.js": {
+      "sha256": "f977b5141fa8fb6a8459372e0b2895d74b381c9f2ff4899141f7ee3e639a4513",
+      "bytes": 4909
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/pl.js": {
+      "sha256": "18eab58f395e30b906e8e3fddc5f212eb19f2c4362410889a5c5e0141ebe2144",
+      "bytes": 4966
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/pt.js": {
+      "sha256": "df172afc585544dee7c063c484f5a07b5ed103e2c1072a782c763ad8ceb08e17",
+      "bytes": 4568
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ro.js": {
+      "sha256": "ecae409f4299ab91e2aff1095db14e23f3cf2c05b3654e242047655352c7f46b",
+      "bytes": 4774
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ru.js": {
+      "sha256": "c397a473e94d7d189a9c09c7890fe379c4f6f46d9556d52a040a90ffa56f7b93",
+      "bytes": 6714
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/sl.js": {
+      "sha256": "ee2ff3a19b62cd2f89b54b165088773b937de15df7253df220bef07d9adf2d80",
+      "bytes": 4567
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/sv.js": {
+      "sha256": "97d6718fb643e05d6fe30fa4f9f09b8d9a3eda4a3a350b57dfb2944943d19502",
+      "bytes": 4663
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ta.js": {
+      "sha256": "04bbde9766251f9047e786fdd77632f2ecd53aec2eb060eb2fc85bf576ad729d",
+      "bytes": 6369
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/th.js": {
+      "sha256": "aea70c9ac2b399fe4749e19ba3aa99c3efb4dfb50eadfb62b0b2a6e005748f3d",
+      "bytes": 6290
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/tr.js": {
+      "sha256": "4449f41d22c6f15ede5066f79d840a52ec45a6b694c859e16f9121062b6fad2f",
+      "bytes": 4454
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/uk.js": {
+      "sha256": "77136a2a60eef62f7cc803a0f9971aebbc641403af77c1b41fd5ce59abfa5de3",
+      "bytes": 5430
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ua.js": {
+      "sha256": "9391169ffbc72f777a83230b6ffcc3f4cf46ab5945ec540de9ef4609dca1f4cc",
+      "bytes": 111
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/ur.js": {
+      "sha256": "858f4f38d651073e7a3fbec7ed356692578b3ad1fae1b453cb3d85312a4f39d2",
+      "bytes": 5271
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/uz.js": {
+      "sha256": "d540bed482d15c47cb45439cff34e053379c53019c7c7c5fbe43f222d0c81f04",
+      "bytes": 4739
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/vi.js": {
+      "sha256": "2c61bd3f4a733f3cbb1ad85e75a053cb15a8ebeb83ab56dc21f2948b1138e12f",
+      "bytes": 4772
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/zh-CN.js": {
+      "sha256": "99a4b16af598834a0b11607fcdebd1c6de026386ff1d6a5a306b364c154c5899",
+      "bytes": 4452
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/zh-TW.js": {
+      "sha256": "37dcae620e1553e9174a4b9434bbcc4e465150a627e80c9c17fd01de8baaf59a",
+      "bytes": 4498
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/yo.js": {
+      "sha256": "98b9cbf31bf00c8b2c00de62725a9dd7cb718ac72d6e8fd4e0a1a7c49723e0f4",
+      "bytes": 4665
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/locales/index.js": {
+      "sha256": "d73f41a76614855d43eea493030a1aa05dca30c9a17015a0da5b8b70da61b6b1",
+      "bytes": 2149
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/registries.js": {
+      "sha256": "620ea1a715ccc4e6e605a271343bf47942dccae90885dc71f137b1f08a972e50",
+      "bytes": 1512
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/api.js": {
+      "sha256": "00cb5edcfde8098e5a169e66c1dce50c101484d21436e3d78e137e1fa87c4836",
+      "bytes": 28054
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/to-json-schema.js": {
+      "sha256": "fb3c9ab59947582f7671a53c8e20a3ced5eaa92d1c220ce8b27717a59033ad0d",
+      "bytes": 17006
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/json-schema-processors.js": {
+      "sha256": "ff15f567c9401dd7d3151ce11736283ff747c9a9e205cc08ee96f90eadc1c0c6",
+      "bytes": 20716
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/json-schema-generator.js": {
+      "sha256": "9cc884cdb535a9c87b85b66e61a593ff6b686222f038834f81c5e92552cd6e23",
+      "bytes": 3218
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/json-schema.js": {
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "bytes": 11
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/core/index.js": {
+      "sha256": "f9698820ee8371215e8d015cfa060230c62e65428397dce83f78e6538976301c",
+      "bytes": 594
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/classic/checks.js": {
+      "sha256": "78a162d29e06001b4d919e1ed08f6e7d0d665bba0ef983201373745410d7b354",
+      "bytes": 663
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/classic/iso.js": {
+      "sha256": "3cc5e6b4da086b8ffc7ee3188c69e4d3c945b368092e78d2299b5321182752c5",
+      "bytes": 1151
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/classic/errors.js": {
+      "sha256": "b155316267f79068ddc2dddc7046e13785804b768ca36e6deff1691d154f7c20",
+      "bytes": 1609
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/classic/parse.js": {
+      "sha256": "14cbcc416ab9169abc2cde97af77da54ca769684eac1e03a3753c16ea4a7cd95",
+      "bytes": 997
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/classic/schemas.js": {
+      "sha256": "eb4af7946a092aff8678b9251728ea58dab40154920cd65ec4a2ca1d4df68393",
+      "bytes": 51378
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/classic/compat.js": {
+      "sha256": "0e948b101771cc0e7b753e54b3f5b486929d3db9bd4c09d98fe4ce86271bcf7b",
+      "bytes": 1090
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/classic/from-json-schema.js": {
+      "sha256": "d8866bf5232e55d12cda032bde6a56a05a0a8b276945c2e4eed66432ef5cc9b2",
+      "bytes": 24161
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/classic/coerce.js": {
+      "sha256": "fb2efe3b6eacc475c77cbb571b5fb8650d92a10f316dc869e49b722973d83c3c",
+      "bytes": 550
+    },
+    "/home/azureuser/zodlil/node_modules/zod/v4/classic/external.js": {
+      "sha256": "179a03ace3d1d77895cc5b3c54a3fcbf2b7f8bad44d6f030092491c10e5d9097",
+      "bytes": 907
+    },
+    "/home/azureuser/zodlil/node_modules/zod/index.js": {
+      "sha256": "c733a1897d6b4b30dad6998597f6896b265b094a65534359ada34b08ecf8932c",
+      "bytes": 121
+    },
+    "/home/azureuser/lilscript/benchmarks/runtime/zod-workload.mjs": {
+      "sha256": "ffb0269cfc4d8a275ae61d1d6c3880cc6cbf5c4c50d6a73902aa7d7fb20d3b89",
+      "bytes": 818
+    },
+    "/home/azureuser/lilscript-work/measurements/2026-09-30-c1-complete/ports/runs/posthoglil/posthoglil/dist/posthog.raw.js": {
+      "sha256": "d0aeb2342904a1fa799964099d8bdc351b3c528809f1691c59b797877aa345be",
+      "bytes": 15678
+    },
+    "/home/azureuser/posthoglil/official/uuidv7.ts": {
+      "sha256": "6397ce81aeb83a515c2e413b9a0d8d7ccb05da030ca49cf2942f554559dfe258",
+      "bytes": 15323
+    },
+    "/home/azureuser/posthoglil/official/feature-flags.ts": {
+      "sha256": "e8ebc955771674318c82f8cb27e8291a989e20ca8704f2dd854183708cb4ce9a",
+      "bytes": 8860
+    },
+    "/home/azureuser/posthoglil/official/helpers.ts": {
+      "sha256": "7fbea53379f97481e1293bb9d04c9618f4a376d055a1bb283f1eb87a483e4963",
+      "bytes": 472
+    },
+    "/home/azureuser/posthoglil/official/cookie.ts": {
+      "sha256": "9a808382658ed8b828eccc019388d5a87c3405a3e35948d5cd28b80fdfab0f58",
+      "bytes": 3505
+    },
+    "/home/azureuser/posthoglil/official/router.ts": {
+      "sha256": "aadada497aa112cf2b9d31082c3a638fe55f9bff337e01ddbb46b5b0fbde6f6e",
+      "bytes": 2299
+    },
+    "/home/azureuser/posthoglil/official/rate-limit.ts": {
+      "sha256": "973570759702a2de51d41a4c23f904867f41b4a8a717f7f737c7604f45a3136d",
+      "bytes": 1084
+    },
+    "/home/azureuser/posthoglil/official/queue.ts": {
+      "sha256": "27fe8205b2b06d4e06e1ed4919e1cffaabb87deae1f71f4ce6d8cdb3f5b1066b",
+      "bytes": 1478
+    },
+    "/home/azureuser/posthoglil/official/bot-detection.ts": {
+      "sha256": "b11a8326a19ff76234a396d52e00fb35a71edc23c409c20d61c0a36542897b8c",
+      "bytes": 1796
+    },
+    "/home/azureuser/posthoglil/official/string-utils.ts": {
+      "sha256": "35c535c7751a707175e512e93d1b11b8667581ac04c42103aae57dda0f51a8df",
+      "bytes": 1387
+    },
+    "/home/azureuser/posthoglil/official/type-utils.ts": {
+      "sha256": "02100f2514788c6bce3a5d9814fd9e14875348025686051cd1ab9d7037744e08",
+      "bytes": 2241
+    },
+    "/home/azureuser/posthoglil/official/number-utils.ts": {
+      "sha256": "1540e59ef27a68e61ee8c8acce803b735e7ac3b49c08c31b273acc105220cb9b",
+      "bytes": 1935
+    },
+    "/home/azureuser/posthoglil/official/json-utils.ts": {
+      "sha256": "10cb91c8cfec16c8b358792d50d63867af88f1df5ea2bb9ae7680ee833fae5da",
+      "bytes": 583
+    },
+    "/home/azureuser/posthoglil/official/url.ts": {
+      "sha256": "d37720ca3588d4ec4b71c025b4fd43049b9c7330c0b62131083757ee2e057c92",
+      "bytes": 273
+    },
+    "/home/azureuser/posthoglil/official/bucketed-rate-limit.ts": {
+      "sha256": "93b407e1430f5ff0e48488fcd5d002d4af36e4a8a1ff4823152de595347bbe02",
+      "bytes": 1903
+    },
+    "/home/azureuser/posthoglil/official/entry.ts": {
+      "sha256": "42bda3445291a3984f4bdffcafb83b0b0ae92ab6dc19c98a4ce3b0c6a38f3d58",
+      "bytes": 5143
+    },
+    "/home/azureuser/lilscript/benchmarks/runtime/posthog-workload.mjs": {
+      "sha256": "9ba0141d344bab0ee1f0106ed8dd729b23e1c49d9f05862a7d11859db065ee71",
+      "bytes": 524
+    },
+    "/home/azureuser/lilscript/benchmarks/runtime/micro.lil": {
+      "sha256": "d3cde354e2aff923ba5a986116aface0c47d91fa3e1c1e32e69d4461859a9a1b",
+      "bytes": 488
+    },
+    "/home/azureuser/lilscript/benchmarks/runtime/micro-workload.mjs": {
+      "sha256": "6fda6467df2dfb07b87cf4a1db45b2571567f2a2202441674a702501abd46e88",
+      "bytes": 476
+    },
+    "/home/azureuser/lilscript/benchmarks/runtime/micro-reference.mjs": {
+      "sha256": "ff5f4c5397ab00fb0070ce2e5c025464adfa0cb9c023e3c2b239d504a185e3f5",
+      "bytes": 462
+    },
+    "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.lil": {
+      "sha256": "553b617f5c7140d6233c722881a6203e7e290d583cb3d6d4c80d2735a2cc985f",
+      "bytes": 72
+    },
+    "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.mjs": {
+      "sha256": "8e719158dfe754ed325bcae3dff8a9abc890bc0121b9805b02dd9deafa543e2e",
+      "bytes": 160
+    },
+    "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library-oracle.mjs": {
+      "sha256": "6b33e06c4222de3a72bd1ad6e14fff28fee6824325efaaf9e3ce53c4f5c923d1",
+      "bytes": 129
+    },
+    "/home/azureuser/lilscript/benchmarks/contracts/fixtures/application.lil": {
+      "sha256": "b3f9f794e29b0bfe5d29141167ea61c2a05e85fc6ee4cbd9aff8c21ef2cdff0f",
+      "bytes": 112
+    },
+    "/home/azureuser/lilscript/benchmarks/contracts/fixtures/application.js": {
+      "sha256": "b60ceb1ff02d089af6f02ebb632b85ae80fffb978099e3db85b438a62ba5cb75",
+      "bytes": 141
+    },
+    "/home/azureuser/lilscript/benchmarks/contracts/fixtures/console-oracle.mjs": {
+      "sha256": "f99fc1e2610228ae7c05ef7f8911efebb021807a5de99f003fed91466c825720",
+      "bytes": 158
+    },
+    "/home/azureuser/lilscript/benchmarks/contracts/fixtures/consumer.lil": {
+      "sha256": "9c65a859c0b45177dbd820d503690383c23fed1d1b326a4a9f549a7105e4c5b2",
+      "bytes": 144
+    },
+    "/home/azureuser/lilscript/benchmarks/contracts/fixtures/consumer.mjs": {
+      "sha256": "d98797c81862cfa6daec4ec000324e58e35ac379cb08ee32111da45f5e25b4b6",
+      "bytes": 157
+    }
+  },
+  "builds": [
+    {
+      "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/runtime/micro.lil",
+        "--target",
+        "js-module",
+        "--config",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/micro.brotli.toml",
+        "-o",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/micro.brotli.mjs"
+      ],
+      "config": {
+        "sha256": "60ca56b316df5ab162ce02b15e44708b68d58747f692514a9e768e0bda4b3428",
+        "bytes": 67
+      },
+      "artifact": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/micro.brotli.mjs",
+        "sha256": "57027efba2324ed4e4b8ef1b33e214137d32841b88923f45acb3ba76682df4d9",
+        "bytes": 299
+      }
+    },
+    {
+      "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.lil",
+        "--target",
+        "js-module",
+        "--config",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.raw.toml",
+        "-o",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.raw.mjs"
+      ],
+      "config": {
+        "sha256": "cd7ee830ef243366dfb81485f1cb981043f1274e35e75867d0c352a33e37cf62",
+        "bytes": 64
+      },
+      "artifact": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.raw.mjs",
+        "sha256": "2dcf1230c94dfa961efa3f7746d40b7edb9fb7dc8115756ecb497b8e3b6f86b7",
+        "bytes": 69
+      }
+    },
+    {
+      "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.lil",
+        "--target",
+        "js-module",
+        "--config",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.gzip.toml",
+        "-o",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.gzip.mjs"
+      ],
+      "config": {
+        "sha256": "674ebf7934edcb007732f12d12cfc573b1558f1df7880f21df3ec84e104b3870",
+        "bytes": 65
+      },
+      "artifact": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.gzip.mjs",
+        "sha256": "2dcf1230c94dfa961efa3f7746d40b7edb9fb7dc8115756ecb497b8e3b6f86b7",
+        "bytes": 69
+      }
+    },
+    {
+      "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/contracts/fixtures/library.lil",
+        "--target",
+        "js-module",
+        "--config",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.brotli.toml",
+        "-o",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.brotli.mjs"
+      ],
+      "config": {
+        "sha256": "60ca56b316df5ab162ce02b15e44708b68d58747f692514a9e768e0bda4b3428",
+        "bytes": 67
+      },
+      "artifact": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/library.brotli.mjs",
+        "sha256": "2dcf1230c94dfa961efa3f7746d40b7edb9fb7dc8115756ecb497b8e3b6f86b7",
+        "bytes": 69
+      }
+    },
+    {
+      "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/contracts/fixtures/application.lil",
+        "--target",
+        "js",
+        "--config",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.raw.toml",
+        "-o",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.raw.mjs"
+      ],
+      "config": {
+        "sha256": "cd7ee830ef243366dfb81485f1cb981043f1274e35e75867d0c352a33e37cf62",
+        "bytes": 64
+      },
+      "artifact": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.raw.mjs",
+        "sha256": "83949484b92e9d9a45835e852331c90d7dc426f5c2f5458d6669ba99f9e2967d",
+        "bytes": 75
+      }
+    },
+    {
+      "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/contracts/fixtures/application.lil",
+        "--target",
+        "js",
+        "--config",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.gzip.toml",
+        "-o",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.gzip.mjs"
+      ],
+      "config": {
+        "sha256": "674ebf7934edcb007732f12d12cfc573b1558f1df7880f21df3ec84e104b3870",
+        "bytes": 65
+      },
+      "artifact": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.gzip.mjs",
+        "sha256": "83949484b92e9d9a45835e852331c90d7dc426f5c2f5458d6669ba99f9e2967d",
+        "bytes": 75
+      }
+    },
+    {
+      "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/contracts/fixtures/application.lil",
+        "--target",
+        "js",
+        "--config",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.brotli.toml",
+        "-o",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.brotli.mjs"
+      ],
+      "config": {
+        "sha256": "60ca56b316df5ab162ce02b15e44708b68d58747f692514a9e768e0bda4b3428",
+        "bytes": 67
+      },
+      "artifact": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/application.brotli.mjs",
+        "sha256": "83949484b92e9d9a45835e852331c90d7dc426f5c2f5458d6669ba99f9e2967d",
+        "bytes": 75
+      }
+    },
+    {
+      "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/contracts/fixtures/consumer.lil",
+        "--target",
+        "js",
+        "--config",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.raw.toml",
+        "-o",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.raw.mjs"
+      ],
+      "config": {
+        "sha256": "cd7ee830ef243366dfb81485f1cb981043f1274e35e75867d0c352a33e37cf62",
+        "bytes": 64
+      },
+      "artifact": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.raw.mjs",
+        "sha256": "2c968159157fe808e691a07e21bbfda6050251457dee2ac66585b240c9a7e8ce",
+        "bytes": 89
+      }
+    },
+    {
+      "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/contracts/fixtures/consumer.lil",
+        "--target",
+        "js",
+        "--config",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.gzip.toml",
+        "-o",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.gzip.mjs"
+      ],
+      "config": {
+        "sha256": "674ebf7934edcb007732f12d12cfc573b1558f1df7880f21df3ec84e104b3870",
+        "bytes": 65
+      },
+      "artifact": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.gzip.mjs",
+        "sha256": "2efdfb8be278abc573a06901190da8051241cdf225e42c043f58476e4ab6cbb9",
+        "bytes": 89
+      }
+    },
+    {
+      "compiler": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/contracts/fixtures/consumer.lil",
+        "--target",
+        "js",
+        "--config",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.brotli.toml",
+        "-o",
+        "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.brotli.mjs"
+      ],
+      "config": {
+        "sha256": "60ca56b316df5ab162ce02b15e44708b68d58747f692514a9e768e0bda4b3428",
+        "bytes": 67
+      },
+      "artifact": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/consumer.brotli.mjs",
+        "sha256": "2c968159157fe808e691a07e21bbfda6050251457dee2ac66585b240c9a7e8ce",
+        "bytes": 89
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "markedlil",
+      "reference": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/markedlil.reference.mjs",
+        "sha256": "e108190bd8784566747d61c2c8559faeb5f433a461e5310df4cd2c16d7ac2d1b",
+        "bytes": 56349
+      },
+      "candidate": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/markedlil.candidate.mjs",
+        "sha256": "f48b0de442bf79a69f101b2133d3e810dc7740868a8bf70070a55b99284b818e",
+        "bytes": 34221
+      },
+      "compiler": {
+        "source": "/home/azureuser/lilscript-work/bin/c1-complete-1/lilscript",
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c1-complete/ports/bin/lilscript-a14b9b1c38fa3bd5",
+        "sha256": "a14b9b1c38fa3bd5d117e5dbccf1064a39e33b9400ff8395ac004a6350a2e611",
+        "version": "lilscript 0.1.0",
+        "unchangedDuringRun": true
+      }
+    },
+    {
+      "id": "zodlil",
+      "reference": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/zodlil.reference.mjs",
+        "sha256": "6d5c5d7ececa5102ec3392efe9f9cf431a424860737478894650f7c07bd2abe6",
+        "bytes": 546287
+      },
+      "candidate": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/zodlil.candidate.mjs",
+        "sha256": "d29a08a6136c5846d4df88659881e29ef4905978004fd973169878ce3f809d86",
+        "bytes": 88985
+      },
+      "compiler": {
+        "source": "/home/azureuser/lilscript-work/bin/c1-complete-1/lilscript",
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c1-complete/ports/bin/lilscript-a14b9b1c38fa3bd5",
+        "sha256": "a14b9b1c38fa3bd5d117e5dbccf1064a39e33b9400ff8395ac004a6350a2e611",
+        "version": "lilscript 0.1.0",
+        "unchangedDuringRun": true
+      }
+    },
+    {
+      "id": "posthoglil",
+      "reference": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/posthoglil.reference.mjs",
+        "sha256": "72567da78f306165ec78d6e8dd0594cc7ea5ad3866b1d400271389faa4f2dd7a",
+        "bytes": 35799
+      },
+      "candidate": {
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/posthoglil.candidate.mjs",
+        "sha256": "d0aeb2342904a1fa799964099d8bdc351b3c528809f1691c59b797877aa345be",
+        "bytes": 15678
+      },
+      "compiler": {
+        "source": "/home/azureuser/lilscript-work/bin/c1-complete-1/lilscript",
+        "path": "/home/azureuser/lilscript-work/measurements/2026-09-30-c1-complete/ports/bin/lilscript-a14b9b1c38fa3bd5",
+        "sha256": "a14b9b1c38fa3bd5d117e5dbccf1064a39e33b9400ff8395ac004a6350a2e611",
+        "version": "lilscript 0.1.0",
+        "unchangedDuringRun": true
+      }
+    }
+  ],
+  "toolchain": "0411963dfc48f7906224cddceeb0b4f8e24ac7aeffed1d70675d925b8cf9108d",
+  "complete": true
+}

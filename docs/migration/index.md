@@ -9,7 +9,7 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 - One compiler; the existing typed IR, facts, edit machinery, formation, naming and exact codec judging are the foundation.
 - **S1** evaluates bounded constant loops and scalar conversion/counting methods; generic objective gates and reference port suites pass. **S2** generalizes private record payloads under complete-use and capture proofs, with generic/port qualification; its target scalarizer now preserves initialization-time TDZ observations. **S3** now inlines explicit strict bodies into proven strict callers, with size and CPU qualification.
 - **C1 is complete.** One registry owns permissions, producers, prerequisites, risk and the generated reference. Policy version 3 uses explicit runtime permissions; legacy version 2 stays compatible. CLI/TOML/environment precedence, outcome receipts, direct/search/reuse vetoes and unchanged corpus/port output are qualified. **D1**'s private application IIFE and explicit bare output have separate size reports and pass the reference port suites.
-- C2 retains alternating compilation and runtime samples, explicit runtime oracles and input/artifact identities. Q2 reuses exact byte measurements and unchanged semantic views; stable-rule scheduling passes generic/port gates and paired CPU measurement. G1's alphabet and protected local-frequency trials are qualified. S4's typed record spread clears the last generic refusal: all 642 programs pass under each objective, with the reference port suites green.
+- **C2 is complete.** Measured interpreter coverage, per-target differential lanes, fair competitor contracts, runtime controls and static inventories are qualified; timing uncertainty remains explicit in the runtime ledger. Q2 reuses exact byte measurements and unchanged semantic views; stable-rule scheduling passes generic/port gates and paired CPU measurement. G1's alphabet and protected local-frequency trials are qualified. S4's typed record spread clears the last generic refusal: all 642 programs pass under each objective, with the reference port suites green.
 - G2’s first private-field family passes generic/port gates and paired compilation measurement, including reflection, explicit preserved keys and TOML vetoes. Q2’s indexed call lookup now removes repeated target-rule work with unchanged artifacts and useful search preserved; further formation reuse remains open.
 - Q3's deferred naming tail now defaults to effort 14+, with explicit opt-in at 13, and combines local naming/private-field refinements. Generic/port gates and paired costs qualify this slice; level 13 restores the established search. Final package wrappers can still reverse core rankings. Q2's statement-mention reuse is qualified: all active tests and unchanged generic/port output pass, with lower Marked/Zod CPU and unchanged peak accounted memory.
 - **D3** resolves and searches any TOML/API objective set independently over one checked program, with all baselines admitted before shared optional work. The CLI writes separate codec directories and a combined manifest; single-objective output stays compatible. Library/CLI, generic and port qualification pass with ordinary outputs preserved.
@@ -17,10 +17,12 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 ## Next
 
-**Active: C2 only.** Complete the independent-oracle coverage, fair pinned
-benchmark contracts and paired runtime/counter evidence before advancing to C3.
-Its acceptance checklist follows the existing-evidence audit; do not extend
-other milestones while it is active.
+**Active: C3 only.** Complete generic calibration, protected held-out workloads
+and pruning/work estimates before advancing to S1. C2 is
+[complete and qualified](../../benchmarks/migration-results/2026-09-30-c2-complete/README.md):
+independent oracle coverage, restored native differential lanes, content-locked
+competitor contracts and paired runtime/control/counter evidence. Its noisy
+runtime limits are explicitly owned by V1; they do not establish parity.
 
 C1 is [complete and qualified](../../benchmarks/migration-results/2026-09-30-c1-complete/README.md):
 registry and permissions, precedence/provenance, versioned runtime-risk
@@ -33,7 +35,7 @@ partial work below stays assigned to its milestone.
 | State | Task | Still to complete |
 |---|---|---|
 | [x] | [C1](plan.md#c1) Controls | Complete; new producers register their controls within their own milestone |
-| [~] | [C2](plan.md#c2) Evidence | Broader oracle coverage, fair competitor contract and representative port runtime/counter qualification |
+| [x] | [C2](plan.md#c2) Evidence | Complete; each later optimization supplies its needed independent oracle and affected-workload qualification |
 | [~] | [C3](plan.md#c3) Calibration | Larger generic programs that exercise Brotli pruning, protected held-out set and broader objective/work calibration |
 | [~] | [S1](plan.md#s1) Folding | Broader supported evaluation, remaining propagation/defaults/removal |
 | [~] | [S2](plan.md#s2) Objects | Broader aliases/escape, fields, flattening and copy elision |

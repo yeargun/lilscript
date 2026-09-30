@@ -1,0 +1,155 @@
+{
+  "schema": 2,
+  "workloads": [
+    {
+      "id": "markedlil",
+      "contract": {
+        "target": "ES2020 ESM",
+        "surface": [
+          "parse"
+        ],
+        "semantics": "Standard unmodified builtins; fixed deterministic input operations in the pinned workload; no API-wide parity claim",
+        "candidate_source_receipt": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-c1-complete/ports.json"
+      },
+      "workload": "/home/azureuser/lilscript/benchmarks/runtime/marked-workload.mjs",
+      "iterations": 1024,
+      "warmup_runs": 5,
+      "expected": {
+        "characters": 154624,
+        "last": "<h1>Hello</h1>\n<p>A <strong>small</strong> <a href=\"https://example.com\">link</a>.</p>\n"
+      },
+      "counters": {
+        "parse_calls": 3073,
+        "input_documents": 3
+      },
+      "runtime_limits": {
+        "steady_cpu_us": 0.05
+      },
+      "implementations": {
+        "reference": {
+          "entry": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/markedlil.reference.mjs",
+          "inventory": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/markedlil.reference.mjs.inventory.json"
+        },
+        "candidate": {
+          "entry": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/markedlil.candidate.mjs",
+          "inventory": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/markedlil.candidate.mjs.inventory.json"
+        }
+      }
+    },
+    {
+      "id": "zodlil",
+      "contract": {
+        "target": "ES2020 ESM",
+        "surface": [
+          "z.object",
+          "z.number",
+          "z.string",
+          "z.array",
+          "z.boolean"
+        ],
+        "semantics": "Standard unmodified builtins; fixed deterministic input operations in the pinned workload; no API-wide parity claim",
+        "candidate_source_receipt": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-c1-complete/ports.json"
+      },
+      "workload": "/home/azureuser/lilscript/benchmarks/runtime/zod-workload.mjs",
+      "iterations": 2048,
+      "warmup_runs": 5,
+      "expected": {
+        "sum": 261120,
+        "failures": 2048,
+        "retained_rows": 8
+      },
+      "counters": {
+        "parse_calls": 2048,
+        "safe_parse_calls": 2048
+      },
+      "runtime_limits": {
+        "steady_cpu_us": 0.05
+      },
+      "implementations": {
+        "reference": {
+          "entry": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/zodlil.reference.mjs",
+          "inventory": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/zodlil.reference.mjs.inventory.json"
+        },
+        "candidate": {
+          "entry": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/zodlil.candidate.mjs",
+          "inventory": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/zodlil.candidate.mjs.inventory.json"
+        }
+      }
+    },
+    {
+      "id": "posthoglil",
+      "contract": {
+        "target": "ES2020 ESM",
+        "surface": [
+          "parseUuid"
+        ],
+        "semantics": "Standard unmodified builtins; fixed deterministic input operations in the pinned workload; no API-wide parity claim",
+        "candidate_source_receipt": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-30-c1-complete/ports.json"
+      },
+      "workload": "/home/azureuser/lilscript/benchmarks/runtime/posthog-workload.mjs",
+      "iterations": 8192,
+      "warmup_runs": 5,
+      "expected": {
+        "characters": 1179648,
+        "canonical": "0189dcd5-5311-7d40-8db0-9496a2eef37b"
+      },
+      "counters": {
+        "parse_calls": 32768
+      },
+      "runtime_limits": {
+        "steady_cpu_us": 0.05
+      },
+      "implementations": {
+        "reference": {
+          "entry": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/posthoglil.reference.mjs",
+          "inventory": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/posthoglil.reference.mjs.inventory.json"
+        },
+        "candidate": {
+          "entry": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/posthoglil.candidate.mjs",
+          "inventory": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/posthoglil.candidate.mjs.inventory.json"
+        }
+      }
+    },
+    {
+      "id": "generic-allocation-calls-strings",
+      "contract": {
+        "target": "ES2020 ESM",
+        "exports": [
+          "allocation",
+          "calls",
+          "strings"
+        ],
+        "semantics": "signed int32; standard builtins"
+      },
+      "workload": "/home/azureuser/lilscript/benchmarks/runtime/micro-workload.mjs",
+      "iterations": 65536,
+      "warmup_runs": 5,
+      "expected": {
+        "allocations": 42434560,
+        "lengths": 311296,
+        "calls": 40861696
+      },
+      "counters": {
+        "calls": 196608,
+        "iterations": 65536
+      },
+      "runtime_limits": {
+        "steady_cpu_us": 0.05
+      },
+      "implementations": {
+        "reference": {
+          "entry": "/home/azureuser/lilscript/benchmarks/runtime/micro-reference.mjs",
+          "inventory": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/micro-reference.mjs.inventory.json"
+        },
+        "candidate": {
+          "entry": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/micro.brotli.mjs",
+          "inputs": [
+            "/home/azureuser/lilscript/benchmarks/runtime/micro.lil",
+            "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/micro.brotli.toml"
+          ],
+          "inventory": "/home/azureuser/lilscript-work/measurements/2026-09-30-c2-complete/inputs2/micro.brotli.mjs.inventory.json"
+        }
+      }
+    }
+  ]
+}

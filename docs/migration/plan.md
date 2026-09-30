@@ -61,7 +61,7 @@ inlining = "auto"
 string-pooling = "off"
 ```
 
-The parser admits any nonempty, duplicate-free objective set. CLI and Rust builds independently resolve and search the requested codecs over one checked program, with all mandatory baselines admitted before optional work. The CLI requires an explicit output directory for several results and writes complete codec subdirectories with a combined policy/hash manifest. Single-objective delivery remains compatible. Terminal string pooling/packing and fixed target-rule vetoes are enforced; C1 continues the remaining producer/risk and compatibility audit. A parsed setting is not evidence that every path obeys it.
+The parser admits any nonempty, duplicate-free objective set. CLI and Rust builds independently resolve and search the requested codecs over one checked program, with all mandatory baselines admitted before optional work. The CLI requires an explicit output directory for several results and writes complete codec subdirectories with a combined policy/hash manifest. Single-objective delivery remains compatible. Terminal string pooling/packing and fixed target-rule vetoes are enforced; C1 has qualified current producer/risk enforcement and compatibility. A parsed setting is not evidence that every path obeys it.
 
 | Axis | Meaning and target behavior |
 |---|---|

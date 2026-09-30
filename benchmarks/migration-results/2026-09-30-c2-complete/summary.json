@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "case_lanes": {
+    "formation-only/raw/module": {
+      "cases": 402,
+      "pass": 392,
+      "fail": 0,
+      "ledgered": 10,
+      "masked": 0,
+      "artifactBytes": 197707
+    },
+    "production/brotli/module": {
+      "cases": 402,
+      "pass": 393,
+      "fail": 0,
+      "ledgered": 9,
+      "masked": 0,
+      "artifactBytes": 67737
+    },
+    "production/gzip/module": {
+      "cases": 402,
+      "pass": 393,
+      "fail": 0,
+      "ledgered": 9,
+      "masked": 0,
+      "artifactBytes": 66463
+    },
+    "production/raw/module": {
+      "cases": 402,
+      "pass": 393,
+      "fail": 0,
+      "ledgered": 9,
+      "masked": 0,
+      "artifactBytes": 65705
+    }
+  },
+  "unexpected": 0,
+  "bar_artifacts_identical_on_replay": 27,
+  "bar_failures": [],
+  "bar_minima": {
+    "library": {
+      "raw": {
+        "id": "oxc",
+        "bytes": 70,
+        "sha256": "1c32dbc997b30ee0f9e405f8a01c42ef7d479fce239dca1ed2ba73a4d0df6cb7"
+      },
+      "gzip": {
+        "id": "oxc",
+        "bytes": 90,
+        "sha256": "1c32dbc997b30ee0f9e405f8a01c42ef7d479fce239dca1ed2ba73a4d0df6cb7"
+      },
+      "brotli": {
+        "id": "swc",
+        "bytes": 69,
+        "sha256": "0d65d4d2170f66f12708f064574a719bf6ad9f1a17f8e7eeed648b5ed93798ef"
+      }
+    },
+    "application": {
+      "raw": {
+        "id": "closure-advanced",
+        "bytes": 76,
+        "sha256": "89a9e287767d9fd36c40c292c165b66c534fb167a288230e672cae3cf2e41467"
+      },
+      "gzip": {
+        "id": "closure-advanced",
+        "bytes": 94,
+        "sha256": "89a9e287767d9fd36c40c292c165b66c534fb167a288230e672cae3cf2e41467"
+      },
+      "brotli": {
+        "id": "oxc",
+        "bytes": 76,
+        "sha256": "cfa27085c998ec9fc0798985bc163b0fa0d5a1f6a4edf6131b21dcd3a53df522"
+      }
+    },
+    "consumer": {
+      "raw": {
+        "id": "closure-advanced",
+        "bytes": 80,
+        "sha256": "d2862e64b91a6be7ee165b08d084b4cdb71f066e1a22b15c895d2d19aa8c2f9e"
+      },
+      "gzip": {
+        "id": "closure-advanced",
+        "bytes": 97,
+        "sha256": "d2862e64b91a6be7ee165b08d084b4cdb71f066e1a22b15c895d2d19aa8c2f9e"
+      },
+      "brotli": {
+        "id": "closure-advanced",
+        "bytes": 79,
+        "sha256": "d2862e64b91a6be7ee165b08d084b4cdb71f066e1a22b15c895d2d19aa8c2f9e"
+      }
+    }
+  },
+  "oracle_covered": 132,
+  "oracle_total": 382,
+  "runtime_samples": 100,
+  "runtime_parity_established": false
+}

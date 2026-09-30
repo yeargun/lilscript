@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "complete": true,
+  "seed": 5355698458505396547,
+  "cases_per_mask": 64,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/c2-evidence-2/lilscript",
+    "sha256": "cbfaa03a736fa3e91d5445b0a3cafdd86290bdd62c478c93daf0584efc281056"
+  },
+  "batches": [
+    {
+      "mask": "portable",
+      "source_sha256": "02958e2dbac7dd25c97d58f332772cb0f157819429f5633d124f4289c8264a2a",
+      "oracle_sha256": "625dd9188297ddbefff2255beaca16ce7bceb678c625fdaedd012f9a66f13253",
+      "lanes": [
+        "portable/production/raw/javascript",
+        "portable/production/raw/native",
+        "portable/production/raw/independent-c",
+        "portable/production/gzip/javascript",
+        "portable/production/brotli/javascript",
+        "portable/development/raw/javascript",
+        "portable/development/raw/native",
+        "portable/development/raw/independent-c",
+        "portable/formation-only/raw/javascript",
+        "portable/formation-only/raw/native",
+        "portable/formation-only/raw/independent-c"
+      ],
+      "native_mask_reason": null
+    },
+    {
+      "mask": "javascript-records",
+      "source_sha256": "830fa990db0767e3ddcd544c5cd0f032f7b66910b7dfc1430c6ff487e1b1030b",
+      "oracle_sha256": "1bf6f325d0a2fad26342c91997bac8823ba086d690b79ff43b39962983decb23",
+      "lanes": [
+        "javascript-records/production/raw/javascript",
+        "javascript-records/production/gzip/javascript",
+        "javascript-records/production/brotli/javascript",
+        "javascript-records/development/raw/javascript",
+        "javascript-records/formation-only/raw/javascript"
+      ],
+      "native_mask_reason": "Record values are owned by native completion N2"
+    }
+  ]
+}
