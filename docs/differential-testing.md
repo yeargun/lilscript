@@ -15,6 +15,8 @@ The evaluator currently covers:
 - direct functions, defaults, return, recursion limits, blocks, branches,
   `while`, `for`, `break`, `continue`, assignments, and prefix/postfix updates;
 - first-class named functions and value-capturing arrow functions;
+- nominal structs with copies on stores, classes/constructors/inheritance and
+  methods, enums/matches, generic calls, and identity-aware Map/Set operations;
 - reference-identity typed arrays, aliases, length, indexing, indexed
   assignment/update, `push`, `pop`, `map`, `filter`, `reduce`, and `forEach`,
   including callback-time mutation with entry-length snapshot semantics;
@@ -22,14 +24,42 @@ The evaluator currently covers:
   coercion, view metadata, copying slices, aliasing subarrays, and buffer/view
   identity;
 - open `Record<T>` values with null-prototype key order and `??` reads;
+- UTF-16 strings, including lone surrogates, source identity/hex/Unicode escapes,
+  slicing, code-unit indexing and splitting;
 - short-circuit evaluation and the observable `print` intrinsic.
 
-Struct/class instances, maps, sets, and host calls are rejected explicitly.
-Plan task M2.4 extends the interpreter to structs, classes, enums, generics and
-collections, feature by feature.
-They continue to be covered by the checked-in conformance matrix until their
-independent evaluator models exist. A step budget and recursion budget make a
-generated infinite program fail deterministically instead of hanging a gate.
+Host calls without a declared independent model, async/generator/exception
+execution, dynamic JavaScript operations, unpaired-surrogate property keys and
+some library operations are explicitly uncovered. They require independent
+JavaScript host/observer fixtures. The evaluator never imports compiler IR,
+formation or optimization helpers to fill a missing model. Its step/recursion
+limits reject unbounded executions instead of inventing a result.
+
+## Measured oracle coverage
+
+```sh
+cargo build --release --bin lilscript-oracle
+target/release/lilscript-oracle tests/cases tests/cases/regressions \
+  --json /tmp/oracles-new.json
+# On subsequent qualifications, coverage may grow but must not silently shrink:
+target/release/lilscript-oracle tests/cases tests/cases/regressions \
+  --baseline /tmp/oracles-new.json --json /tmp/oracles-next.json
+```
+
+The command executes each source through the checked-AST evaluator and compares
+its output byte for byte with the existing `.out`. A disagreement fails the
+batch. The receipt hashes the evaluator/source/expected output and reports
+actual covered cases, unsupported cases and their reasons; a feature name or
+an unexecuted branch is not coverage. A `.host.js` or `.module-probe.mjs` case
+requires that separate declared host model and is never counted as covered by
+standalone interpretation. The case runner executes those fixtures.
+
+`--write-missing` can create an absent `.out` **only from the independent
+evaluator**, after all existing covered outputs agree. It never overwrites an
+existing oracle. No compiler executable or compiler output is accepted by this
+command. The report path must be new. Every optimization adds or selects the
+independent oracle for the language and boundary behavior it changes before
+its compiler-generated output becomes evidence.
 
 ## Generated corpus
 
@@ -40,16 +70,17 @@ negative and oversized shift counts, branches, bounded loops, `break`,
 `continue`, short-circuit side effects, shadowing, function calls, updates,
 array aliases, indexed mutation, push/pop, captured arrows, and all four array
 callback pipelines. Each callback appends to its receiver, checking that the
-original iteration length is respected. Every batch also starts with a fixed
-prologue of pinned regression shapes: `Record<int>` snapshot, rebind and
-captured-rebind functions, and a binary memory kernel covering byte coercion,
-indexed updates, buffer/view aliasing, copying slices, shared storage, and
-negative range indices. The complete generated source and oracle output remain
-under `target/differential` after each run for reproduction.
+original iteration length is respected. Expression generation is directed by
+integer/boolean result type. A separate JavaScript mask generates varying
+record keys, aliases, snapshots and writes; it cannot disable native lanes for
+portable programs. The old pinned record/binary-memory prologue is now the
+ordinary `tests/cases/differential_pinned_regressions.lil` conformance case.
+Sources, independent expected output, configurations, artifacts, seed, compiler
+identity and lane outcomes remain in a fresh output directory after each run.
 
 ```sh
 cargo build --release --bins
-target/release/lilscript-differential --cases 64
+target/release/lilscript-differential --cases 64 --features all
 target/release/lilscript-differential --cases 64 --random-seed
 target/release/lilscript-differential \
   --cases 96 \
@@ -63,35 +94,26 @@ seed, prints it before starting and repeats it on every divergence, so a failure
 replays with `--seed <printed value>`. `scripts/verify.sh` draws a fresh seed
 unless `LILSCRIPT_DIFFERENTIAL_SEED` is set.
 
-For one generated batch, the harness requires exact output agreement between
-the checked-AST reference evaluator and three JavaScript lanes of the one
-compiler, each run in Node with `--target js` and a named configuration:
+Each selected mask runs production JavaScript independently for raw, gzip and
+Brotli, plus development and formation-only JavaScript. Production uses effort
+13 and explicit policy version 3. Formation-only names
+`tests/config/no-optimization.toml`, which vetoes optional tactics. Config files
+are explicit, so the output directory cannot silently select another policy.
 
-| Lane | Flags | What it checks |
-|---|---|---|
-| production | `--mode production --config lilscript.toml` | The repository's policy, which keeps `print`, with the candidate search |
-| development | `--mode development --config lilscript.toml` | The same policy without the candidate search |
-| formation-only | `--mode production --config tests/config/no-optimization.toml` | Every optional tactic vetoed and no search: formation and the mandatory work alone |
-
-The formation-only lane is the optimizer-disabled baseline: a divergence that
-appears only in production points at an optional transformation, one that
-appears in all three at formation or the printer.
-
-The native lanes are masked. Every generated program uses `Record<int>` (the
-prologue above), which the native target refuses until native records land;
-plan task M11.4 owns them and restores the native executable and
-independently compiled C lanes. The case runner's C lanes cover the native
-target meanwhile ([testing.md](testing.md)). Plan task M2.7 makes the generator
-type-directed, with per-target masks, and moves its pinned prologue shapes to
-`tests/cases`.
+The portable mask also runs native executables and independently compiled C
+for production, development and formation-only: eleven execution lanes. The
+JavaScript record mask runs five JavaScript lanes and records its native
+capability exclusion. `--features portable|javascript|all` selects the masks;
+`all` is the default. `LILSCRIPT_NATIVE_CLANG`, then `CC`, selects the independent
+C compiler. Inputs, integer wraparound and observable output are identical in
+all eligible lanes.
 
 During implementation, the pinned seed found an invalid `a--626380242` token
 boundary and two integer-expression precedence failures involving nested shifts
 and `|0` coercions. Widening the oracle to arrays also found native callback
 loops consuming elements appended during `reduce`; all array callback loops now
 snapshot their entry length. Regression tests pin these cases. Those findings
-were made on the compiler route deleted in plan M1; the prologue keeps their
-shapes.
+were made on the compiler route deleted in plan M1; the checked-in regression cases retain their shapes.
 
 This gate proves agreement only over generated programs in the documented
 subset. It complements rather than replaces module, nominal aggregate,

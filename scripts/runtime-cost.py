@@ -150,7 +150,7 @@ def measure(args, report):
         directory = args.work / str(number)
         directory.mkdir(parents=True, exist_ok=True)
         row = {"id": workload["id"], "contract": workload["contract"], "samples": [],
-               "implementations": workload["implementations"]}
+               "implementations": workload["implementations"], "workload": workload["workload"]}
         report["workloads"].append(row)
         samples = {label: [] for label in ["reference", "candidate", *[f"control-{n}" for n in range(control_count)]]}
         for round_index in range(args.rounds):
@@ -257,7 +257,7 @@ def main():
         measure(args, report)
         if args.require_limits:
             judgments = [item for row in report["workloads"] for item in row.get("judgments", {}).values()]
-            if not judgments or any(item["verdict"] != "within-declared-limit" for item in judgments):
+            if any(not row.get("judgments") for row in report["workloads"]) or not judgments or any(item["verdict"] != "within-declared-limit" for item in judgments):
                 raise RuntimeError("runtime limits were not established; inspect judgments and control spread")
     except Exception as error:
         report["error"] = str(error)

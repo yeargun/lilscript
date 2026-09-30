@@ -337,7 +337,7 @@ The report path must be new and the work directory empty. The manifest is JSON:
 
 ```json
 {
-  "schema": 1,
+  "schema": 2,
   "workloads": [{
     "id": "sum",
     "contract": {"exports": ["twice"], "target": "ESM", "semantics": "bounded integers"},
@@ -375,7 +375,7 @@ contract so that successive invocations have that same expected result. Keep
 logging off stdout, which carries the worker protocol.
 
 Only artifact import and the measured `run` are inside their respective timers;
-verification, forced GC and warm-up are outside them. `startup_cpu_us` and
+worker verification and forced GC are outside them. Warm-up has its own retained timers. Any checks authored inside a common workload are part of that workload on both sides. `startup_cpu_us` and
 `steady_cpu_us` measure Node process CPU; wall fields are nanoseconds. Separate
 `process_*_seconds` fields include process launch, host setup, warm-up and GC.
 The optional `retained` result field keeps a workload object alive across GC and
@@ -388,6 +388,82 @@ Wrong oracles/counters, worker failures, timeouts and changed inputs leave an
 incomplete report and fail the command. An incomplete report cannot qualify an
 optimization. Choose enough work and pairs to distinguish a change from the
 retained sample spread; inspect startup, steady state and memory separately.
+
+Runtime manifest **schema 2** adds three reference identity controls by default.
+Each loads the same reference bytes with a distinct import URL in a fresh
+process. Sample positions rotate and reverse; controls must pass the same
+oracle. These measure process/JIT/order variation, not encoder noise or a
+permission for runtime regressions. Schema 1 remains compatible without
+controls; `--controls 0..3` is explicit. A control-sensitive import must declare
+that limitation instead of treating a different program as a no-op control.
+
+Reports retain per-warm-up CPU/wall observations and deterministic 95% paired
+bootstrap intervals (2,000 resamples, seed 0). They resample process pairs,
+never inner iterations as independent observations. Optional `runtime_limits`
+map a metric to a nonnegative tolerated regression fraction, for example
+`{"steady_cpu_us": 0.05}`. Fewer than five pairs, missing controls, a control
+spread larger than the tolerance, or an interval crossing the limit is
+**inconclusive**. A lower interval bound beyond the limit is a regression;
+an upper bound within it establishes only the declared limit for that workload.
+`--require-limits` fails unless every declared workload establishes its limits.
+No universal percentage is a compiler policy: choose the bound and workload
+before measuring an affected change, retain startup/memory separately, and
+increase work or sample count when the result is inconclusive.
+
+`lilscript-runtime-inventory delivered.mjs` independently parses a delivered
+artifact and counts constructor/array/object/function/call/rest/arguments and
+forwarding-body syntax sites. Attach its JSON as an implementation's `inventory`;
+the runner verifies the artifact hash. These are static audit counters, not
+allocation totals, materialized arguments objects, proven adapter identities or
+execution frequencies. Dynamic workload counters and engine profiles serve
+those separate purposes. Unknown measurements stay unknown.
+
+`benchmarks/runtime/prepare.mjs` freezes compiler-written reference-port cores,
+independently bundled upstream entries and generic allocation/call/string
+workloads. Its receipt retains source/tool/artifact identities; expected values
+come from authored behavior fixtures or independent arithmetic, never from
+candidate output. Runtime qualification and compiler tactic permissions are
+separate: allowing a risky tactic in TOML does not establish parity.
+
+## Fair competitor contracts
+
+Install the pinned tools once with `npm ci --ignore-scripts` in
+`benchmarks/contracts`, then run:
+
+```sh
+node scripts/bars.mjs --manifest bars.json --lock /tmp/bars-lock.json \
+  --write-lock --work /tmp/bars-first --json /tmp/bars-first.json
+# Replay requires exact source, binary, runner and installed-dependency content:
+node scripts/bars.mjs --manifest bars.json --lock /tmp/bars-lock.json \
+  --work /tmp/bars-replay --json /tmp/bars-replay.json
+```
+
+The manifest declares open-library, closed-application or consumer-bundle
+boundaries separately, ES2020 delivery, exact exports/externals/reflected keys,
+language guarantees and host assumptions, source-equivalence reasoning,
+compiler/config provenance and one common independent observer. It identifies
+our artifact for **each** raw/gzip/Brotli objective. Open ESM entries are generated
+from the declared surface before bundling and minification. The observer runs
+against the unminified input, each candidate and each competitor in a fresh
+process. Wrong behavior cannot establish a bar. API-wide equivalence still
+requires adequate fixture coverage and review of the declared source contract.
+
+Recipes include Terser, SWC, the Oxc minifier, Rolldown as a separate bundler,
+esbuild, Closure ADVANCED and a declared upstream artifact. The pinned Closure
+CLI recipe refuses an open ESM boundary; closed script consumers can use
+ADVANCED, and open script APIs need externs. Other inapplicable boundaries or
+failed recipes retain reasons. A missing recipe is never a zero-byte result.
+Property renaming is permitted only under the declared reflection/extern
+contract. No raw-size similarity threshold substitutes for behavior.
+
+The runner selects the minimum eligible passing competitor independently per
+objective. It scores complete actual artifacts with the canonical codec, retains
+Brotli quality 5 and gzip level 6 robustness rows (with their Node codec versions),
+static inventories and complete-process wall cost. Recipe CPU is additionally
+reported where available; native child-process CPU is explicitly unavailable.
+Installed tools, including native binaries and runtime dependencies, are
+content-locked, not merely version-named. No wrapper, banner removal or
+post-minifier changes the candidate after scoring.
 
 ## The expected-failure ledgers
 
