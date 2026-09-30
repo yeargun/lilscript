@@ -840,6 +840,47 @@ fn searched_nullish_assignment_preserves_stores_and_value_copies_at_each_syntax_
 }
 
 #[test]
+fn stable_rule_scheduling_preserves_searched_artifacts_and_behavior() {
+    let source = r#"
+        int add(int value){return value+1;}
+        export int run(int input){
+            Record<int> pair=record{left:input,right:add(input)};
+            int total=0;
+            for(int i=0;i<4;i+=1){
+                if(i==1){continue;}
+                total+=(pair.left??0)+(pair.right??0);
+            }
+            if(input<0){return total+1;}return total;
+        }
+        export func(int)->int make(int initial){
+            Record<int> state=record{value:initial};
+            return (int step)=>{state.value=(state.value??0)+step;return state.value??0;};
+        }
+    "#;
+    for codec in ["raw", "gzip", "brotli"] {
+        let configured: ProjectConfig = toml::from_str(&format!(
+            "objective.codecs='{codec}'\neffort.level=13"
+        )).unwrap();
+        let objective = match codec {
+            "raw" => Objective::Raw,
+            "gzip" => Objective::Gzip,
+            _ => Objective::Brotli,
+        };
+        let runs = [false, true].map(|dense| {
+            let _audit = dense.then(crate::schedule::DenseAudit::new);
+            let compiled = compile_source(source, &configured, ServiceOptions::default()).unwrap();
+            check_scores(&compiled);
+            let artifact = compiled.javascript(objective).unwrap();
+            assert_eq!(execute_javascript(artifact.javascript(), "",
+                "const a=library.make(2),b=library.make(7);console.log(library.run(3),library.run(-1),a(3),b(4),a(1));"),
+                "21 -2 5 11 6\n");
+            (artifact.javascript().to_owned(), artifact.sizes, compiled.report()["phases_ns"]["rules"].clone())
+        });
+        assert_eq!(runs[0], runs[1], "{codec}");
+    }
+}
+
+#[test]
 fn scoped_search_and_default_service_share_winners_handoff_and_budget() {
     let source =
         "int byte(int value){return value&255;}export int answer(int value){return byte(value)+1;}";

@@ -68,6 +68,9 @@ impl Drop for Scope {
 /// byte totals are not defined.
 pub static JS_DEMAND: Bucket = Bucket::new("js_demand");
 pub static JS_FORMATION: Bucket = Bucket::new("js_formation");
+/// Actual target-rule applications, excluding rules proved unchanged.
+/// Nested in formation; durations must not be added to that enclosing phase.
+pub static JS_RULE: Bucket = Bucket::new("js_rule");
 pub static TARGET_VERIFY: Bucket = Bucket::new("target_verify");
 pub static TARGET_EDITION: Bucket = Bucket::new("target_edition");
 pub static TARGET_BASIS: Bucket = Bucket::new("target_basis");
@@ -87,7 +90,7 @@ pub static CODEC_REUSE: Bucket = Bucket::new("codec_reuse");
 pub static ADMISSION_STRUCTURE: Bucket = Bucket::new("admission_structure");
 pub static ADMISSION_PARSE: Bucket = Bucket::new("admission_parse");
 
-const PHASE_BUCKETS: [&Bucket; 14] = [
+const PHASE_BUCKETS: [&Bucket; 15] = [
     &JS_DEMAND,
     &JS_FORMATION,
     &TARGET_VERIFY,
@@ -102,6 +105,7 @@ const PHASE_BUCKETS: [&Bucket; 14] = [
     &CODEC_REUSE,
     &ADMISSION_STRUCTURE,
     &ADMISSION_PARSE,
+    &JS_RULE,
 ];
 
 /// `true` when the caller asked for a telemetry dump. Checked once; the

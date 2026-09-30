@@ -187,7 +187,8 @@ build for now: several, one winner each, come with the multi-objective build
 (plan M3.4). A single codec may be written as a string, `codecs = "gzip"`.
 
 `[effort] level` (0 to 16, default 13) is a work budget with a versioned
-schedule (`--print-policy` prints it) and grants no permission. Architecture
+schedule (`--print-policy` prints it). The existing level-16 startup-risk grant
+is a diagnosed compatibility exception; other risk permissions are explicit. Architecture
 §13.4 and §9.6 state the schedule:
 - Level 0 runs every rule and forms the level-0 artifact, and no codec runs:
   gzip and Brotli sizes are unmeasured.
@@ -205,9 +206,18 @@ Each level passes through every lower level's result (the replay check,
 `candidate_search = "off"` (and `--mode development`) keeps only the level-0
 artifact at any level.
 
-Level 13 is the default. It is the first level where the whole search runs
-and never grows a build because of a change (AM2). The measurements behind
-the choice are in [007](../finer/hypotheses/007-level-13-sweet-spot/README.md).
+Level 13 is the default. It enables structural search and repeated walks from
+multiple starting artifacts. Each walk keeps its best admitted output; bounded
+search does not establish a global minimum. Changes to defaults or legality
+can change the starting artifact, so batch size gates remain independent for
+raw, gzip and Brotli. Historical measurements behind the effort default are in
+[007](../finer/hypotheses/007-level-13-sweet-spot/README.md).
+
+Policy algorithm 4 avoids rerunning rules proved unchanged until another rule
+edits their input. It preserves the fixed point while reducing counted work;
+the same finite allowance can therefore reach more existing candidates.
+Optional timing reports include `js_rule_calls` and `js_rule_ms` for actual
+target-rule executions, nested within `js_formation_ms`.
 
 `[policy.search]` fixes the search's cadence: `codec_schedule` (`staged`
 groups renders before codec measurement, `immediate` scores each at once),

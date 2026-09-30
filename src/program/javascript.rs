@@ -1010,7 +1010,7 @@ fn form_tail(
     // The tail's choice sites are this artifact's own.
     module.choice_sites.clear();
     let result = module
-        .run_rules(&js::rules::tail(&families, prunes), &context, budget)
+        .run_tail_rules(&js::rules::tail(&families, prunes), &context, budget)
         .and_then(|_| {
             if families.string_pooling || families.string_array_packing {
                 let rules: Vec<_> = js::rules::pooling(&families).collect();

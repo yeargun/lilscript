@@ -312,11 +312,44 @@ impl Module {
         context: &Context<'_>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<u32, RuleError> {
+        self.run_rules_from(rules, context, budget, false)
+    }
+
+    /// A fresh copy of a completed head has already settled the overlapping
+    /// rules. These five read the same context in head and tail; printer flags,
+    /// statement spellings and choice maps are not their inputs. The first
+    /// actual tail edit invalidates this certificate for the whole tree.
+    pub(crate) fn run_tail_rules(
+        &mut self,
+        rules: &[Rule],
+        context: &Context<'_>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<u32, RuleError> {
+        self.run_rules_from(rules, context, budget, crate::schedule::reuses_stability())
+    }
+
+    fn run_rules_from(
+        &mut self,
+        rules: &[Rule],
+        context: &Context<'_>,
+        budget: &mut AllocationBudget<'_>,
+        mut head_unchanged: bool,
+    ) -> Result<u32, RuleError> {
         crate::schedule::fixed_point(
             self,
             rules,
             ROUND_CEILING,
-            |module, rule| module.apply_rule(rule, context, budget),
+            |module, rule| {
+                if head_unchanged && matches!(rule,
+                    Rule::EliminateAliases | Rule::ForwardSingleUses | Rule::FoldObjectStores
+                    | Rule::SimplifyOperators | Rule::MergeDeclarations
+                ) {
+                    return Ok(false);
+                }
+                let changed = module.apply_rule(rule, context, budget)?;
+                head_unchanged &= !changed;
+                Ok(changed)
+            },
             |module, round| {
                 if cfg!(any(test, debug_assertions)) {
                     verify::check(module, &mut AllocationBudget::new(None))
@@ -342,6 +375,7 @@ impl Module {
         if !rule.permitted(context) {
             return Ok(false);
         }
+        let _timing = crate::timing::JS_RULE.scope(0);
         #[cfg(any(test, debug_assertions))]
         let before = (self.clone(), self.measure());
         self.open_journal();

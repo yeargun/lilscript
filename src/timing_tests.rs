@@ -215,7 +215,11 @@ fn check_refusal_and_native() {
     assert_eq!(
         delta,
         if enabled() {
-            [0, 0, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+            PHASE_BUCKETS.map(|bucket| match bucket.name {
+                "target_verify" => 2,
+                "target_edition" | "target_basis" | "target_names" | "target_print" => 1,
+                _ => 0,
+            })
         } else {
             [0; PHASE_BUCKETS.len()]
         }
