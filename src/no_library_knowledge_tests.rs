@@ -1,9 +1,6 @@
-//! NO3 (architecture §18.3; plan rule 10, task M2.13): no library knowledge in
-//! the compiler. Non-test `src/` must not name a port or an upstream library
-//! beyond the allowlist ledger `tests/no3-allowlist.json`, where each mention
-//! carries a reason and an owner (M8.7 empties it). The ledger is a ratchet: a
-//! file may not gain a mention, and one that loses a mention must lower its
-//! entry in the same change, so the ledger only ever shrinks.
+//! NO3: no library knowledge in compiler sources. C3 closed the transitional
+//! allowlist after auditing each rule's generic legality or choice and retaining
+//! historical measurements outside the compiler. The ledger must stay empty.
 //!
 //! Matching is lexical and deliberately plain: case-insensitive substrings for
 //! names that are not English words, and exact spellings for the few that are
@@ -166,78 +163,12 @@ fn no_library_names_in_compiler_source_beyond_the_ledger() {
         &std::fs::read_to_string(root().join(LEDGER)).expect("the NO3 allowlist ledger"),
     )
     .expect("the NO3 ledger is JSON");
-    let mut allowed: BTreeMap<(String, String), u64> = BTreeMap::new();
-    let mut problems = Vec::new();
-    for (index, entry) in ledger["entries"]
-        .as_array()
-        .expect("entries")
-        .iter()
-        .enumerate()
-    {
-        let field = |key: &str| entry[key].as_str().unwrap_or("").trim().to_string();
-        let (file, name, reason, owner) = (
-            field("file"),
-            field("name"),
-            field("reason"),
-            field("owner"),
-        );
-        let count = entry["count"].as_u64().unwrap_or(0);
-        if file.is_empty() || name.is_empty() || count == 0 {
-            problems.push(format!(
-                "ledger entry {}: needs file, name and a positive count",
-                index + 1
-            ));
-        }
-        if reason.is_empty() || owner.is_empty() {
-            problems.push(format!(
-                "ledger entry {} ({file}, {name}): needs a reason and an owner",
-                index + 1
-            ));
-        }
-        if !NEEDLES.iter().any(|&(known, _, _)| known == name) {
-            problems.push(format!(
-                "ledger entry {} names an unknown library `{name}`",
-                index + 1
-            ));
-        }
-        if allowed
-            .insert((file.clone(), name.clone()), count)
-            .is_some()
-        {
-            problems.push(format!(
-                "ledger entry {} repeats ({file}, {name})",
-                index + 1
-            ));
-        }
-    }
-    let found = mentions();
-    for ((file, name), lines) in &found {
-        let count = lines.len() as u64;
-        match allowed.get(&(file.clone(), name.clone())) {
-            None => problems.push(format!(
-                "{file}: {count} new mention(s) of `{name}` at line(s) {lines:?}; the compiler must not know a library (NO3): state the rule generically, or ledger it with a reason and an owner"
-            )),
-            Some(&limit) if count > limit => problems.push(format!(
-                "{file}: {count} mentions of `{name}` (lines {lines:?}) where the ledger allows {limit}"
-            )),
-            Some(&limit) if count < limit => problems.push(format!(
-                "{file}: {count} mentions of `{name}` where the ledger allows {limit}: lower the entry to {count} (the ledger only shrinks)"
-            )),
-            _ => {}
-        }
-    }
-    for (file, name) in allowed.keys() {
-        if !found.contains_key(&(file.clone(), name.clone())) {
-            problems.push(format!(
-                "{file}: the ledger allows `{name}` but the file no longer mentions it: remove the entry"
-            ));
-        }
-    }
     assert!(
-        problems.is_empty(),
-        "NO3 ({LEDGER}):\n{}",
-        problems.join("\n")
+        ledger["entries"].as_array().expect("entries").is_empty(),
+        "NO3's retired allowlist must remain empty; retain measurement history outside compiler policy"
     );
+    let found = mentions();
+    assert!(found.is_empty(), "NO3: compiler sources contain library names: {found:#?}");
 }
 
 #[test]

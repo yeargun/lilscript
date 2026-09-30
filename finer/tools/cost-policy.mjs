@@ -4,7 +4,8 @@
 // codec matrix including default/release routing, a definition of complete
 // delivery accounting, numeric compile-time/RSS/runtime envelopes, warm and
 // cold definitions, and sample/noise rules — with diagnostic profiles kept
-// separate and the strict-win threshold left open.
+// separate. C3 adds versioned exact-byte labels without rewriting historical
+// verdict thresholds.
 //
 // The matrix is derived from the frozen workload manifest rather than typed out,
 // so a library, configuration or objective that is added to the manifest cannot

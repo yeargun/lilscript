@@ -365,6 +365,14 @@ under a hard limit. Exact audit codec probes appear in the reported count.
 A negative audit delta is a potential missed win; artifact admission still
 has to pass before that candidate could replace the incumbent.
 
+An exact raw/gzip proxy can also reject a larger *starting point* whose later
+refinement would win. Audit scores alone cannot detect that path loss; compare
+final results with pruning off. The [calibration protocol](../benchmarks/calibration/README.md)
+keeps these measurements separate and freezes training/evaluation inputs before
+tuning. One saved byte remains an exact saving; its extra compilation cost and
+robustness determine whether the strategy belongs at 13, at 14/15, or behind
+an explicit permission. There is no universal byte threshold for that decision.
+
 `deferred_naming_starts` defaults to `"auto"`: enabled at effort 14–16,
 disabled at the default effort 13 and below. `"on"` opts in at 13;
 `"off"` vetoes it at every level. Older explicit booleans remain aliases
