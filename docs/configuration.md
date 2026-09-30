@@ -89,6 +89,7 @@ version = 2
 [policy.search]
 codec_schedule = "staged"     # staged | immediate
 proxy_pruning = "on"          # on | audit | off; terminal proxy rejection
+deferred_naming_starts = true # revisit pruned naming starts at effort 13+
 render_batch = 8
 diversity_interval = 4
 
@@ -238,6 +239,16 @@ and disabling pruning spend additional work and may reach fewer later moves
 under a hard limit. Exact audit codec probes appear in the reported count.
 A negative audit delta is a potential missed win; artifact admission still
 has to pass before that candidate could replace the incumbent.
+
+`deferred_naming_starts` (default `true`) permits a final pass over naming
+starts rejected by the ordinary proxy. At effort 13 and above, the compiler
+first completes the existing search and naming/property refinements. It then
+exactly measures each rejected naming start, refines it using ordinary move
+pruning and replaces the completed winner only on an exact improvement. This
+can find a smaller result through an initially larger spelling. Setting it to
+`false` vetoes the tail; lower effort levels and disabled naming tactics never
+run it. With `proxy_pruning = "off"`, no rejected starts remain to revisit.
+The extra work uses the same hard resource limits and appears in the receipts.
 
 `--proxy-pruning on|audit|off` overrides TOML. The deprecated
 `LILSCRIPT_WALK_AUDIT` adapter enables `audit` when present (including an empty

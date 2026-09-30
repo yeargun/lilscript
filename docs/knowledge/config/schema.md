@@ -152,6 +152,7 @@ Fixed deterministic scheduling choices.
 |---|---|---|---|
 | `codec_schedule` | `CodecSchedule` | `CodecSchedule::Staged` | See [configuration.md](../../configuration.md). |
 | `proxy_pruning` | `ProxyPruning` | `ProxyPruning::On` | Terminal proxy rejection: `on` (default), `audit` (also measure rejected moves) or `off` (judge every reached move exactly). |
+| `deferred_naming_starts` | `bool` | `true` | At default/higher effort, revisit pruned naming starts after protecting the completed search winner. |
 | `render_batch` | `usize` | `8` | See [configuration.md](../../configuration.md). |
 | `diversity_interval` | `usize` | `4` | Every Nth structural expansion serves an old pending cursor; every Nth staged scoring event serves an old artifact. |
 

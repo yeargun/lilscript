@@ -23,6 +23,8 @@
 use super::*;
 #[path = "search_proxy_tests.rs"]
 mod proxy_modes;
+#[path = "search_deferred_naming_tests.rs"]
+mod deferred_naming;
 use crate::compilation_policy::{
     BaselineFirstPlan, BudgetLedger, CompilationRequest, ResolvedPolicy, ResourceLimits, WorkDomain,
 };
@@ -224,7 +226,14 @@ fn local_read_order_polish_protects_the_completed_search_under_each_objective() 
             assert_eq!(replay(stage), stage.after);
             let trials = stage.joint_trials.iter().filter(|trial| trial.name == "naming:local-read-order").collect::<Vec<_>>();
             assert_eq!(trials.len(), 1);
-            assert!(trials[0].pass > original.report.objectives[0].passes);
+            // The deferred tail now follows local polish. Compare against
+            // the completed prefix in the run without that polish, not its
+            // later deferred passes.
+            let original_stage = &original.report.objectives[0];
+            let prefix_passes = original_stage.starts.iter()
+                .find(|start| start.name.starts_with("deferred-naming"))
+                .map_or(original_stage.passes, |start| start.pass - 1);
+            assert!(trials[0].pass > prefix_passes);
             if source == geometry {
                 let javascript = &polished.winners[index].as_ref().unwrap().1;
                 let output = std::process::Command::new("node").args(["-e", &format!(

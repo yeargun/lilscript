@@ -69,20 +69,19 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             .iter()
             .map(|stage| stage["surveys"].as_u64().unwrap())
             .sum();
-        // Each start the portfolio holds (the search's winner, the level-0
-        // artifact) is walked in formations of its own, from one head, and
-        // forms the head with the other int32 hints if a challenger asks.
+        // Portfolio starts form separately; deferred seeds share one more
+        // formation group. Each group can form the four combinations of
+        // integer hints and private-property names when challengers ask.
         let heads: u64 = stages
             .iter()
             .map(|stage| {
-                let starts = stage["starts"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .filter(|start| matches!(start["name"].as_str(), Some("search" | "level-0")))
-                    .count() as u64;
+                let starts = stage["starts"].as_array().unwrap();
+                let groups = starts.iter()
+                    .filter(|start| matches!(start["name"].as_str(), Some("search" | "level-0" | "local-naming")))
+                    .count() as u64
+                    + u64::from(starts.iter().any(|start| start["name"].as_str().unwrap().starts_with("deferred-naming")));
                 let heads = stage["heads"].as_u64().unwrap();
-                assert!((starts..=2 * starts).contains(&heads), "{stage}");
+                assert!((groups..=4 * groups).contains(&heads), "{stage}");
                 heads
             })
             .sum();

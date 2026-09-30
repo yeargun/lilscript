@@ -36,7 +36,8 @@ pub const POLICY_ALGORITHM_VERSION: u32 = 7;
 // structural search stops at its share, so a program with many optional
 // alternatives cannot starve the walk (AM2).
 // Version27 makes terminal proxy pruning/auditing explicit and fingerprinted.
-pub const SEARCH_SCHEDULE_VERSION: u32 = 27;
+// Version28 admits deferred naming starts after protecting the completed walk.
+pub const SEARCH_SCHEDULE_VERSION: u32 = 28;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilationRequest {
@@ -491,6 +492,8 @@ pub struct SearchSchedule {
     pub codec_schedule: CodecSchedule,
     /// Terminal proxy rejection: `on` (default), `audit` (also measure rejected moves) or `off` (judge every reached move exactly).
     pub proxy_pruning: ProxyPruning,
+    /// At default/higher effort, revisit pruned naming starts after protecting the completed search winner. `false` vetoes this tail.
+    pub deferred_naming_starts: bool,
     pub render_batch: usize,
     /// Every Nth structural expansion serves an old pending cursor; every Nth
     /// staged scoring event serves an old artifact. These are distinct clocks.
@@ -501,6 +504,7 @@ impl Default for SearchSchedule {
         Self {
             codec_schedule: CodecSchedule::Staged,
             proxy_pruning: ProxyPruning::On,
+            deferred_naming_starts: true,
             render_batch: 8,
             diversity_interval: 4,
         }
@@ -631,8 +635,8 @@ pub struct OptimizationObjective {
 /// The version of the effort schedule `WalkSchedule::at` and
 /// `StructuralSchedule::at` state. Receipts carry it; a changed value is a
 /// changed schedule.
-// Version 6 judges private-field names after the protected local naming trial.
-pub const WALK_SCHEDULE_VERSION: u32 = 6;
+// Version 7 revisits proxy-rejected naming seeds after all protected refinements.
+pub const WALK_SCHEDULE_VERSION: u32 = 7;
 
 /// The walk's budget at one effort level (architecture §9.6, §13.3–§13.4;
 /// plan M3.5): budgets are counts (AM1), never the clock.
@@ -1078,7 +1082,7 @@ impl ResolvedPolicy {
                     "request_bytes":delivery.request_bytes, "depth_bytes":delivery.depth_bytes},
             }),
         };
-        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"proxy_pruning":o.search.proxy_pruning,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
+        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"proxy_pruning":o.search.proxy_pruning,"deferred_naming_starts":o.search.deferred_naming_starts,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
         json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| {
             let spec = id.spec();
             let available = !spec.producers.is_empty() && (!spec.javascript_only || self.javascript_contract().is_some());
@@ -1522,6 +1526,7 @@ mod tests {
         let default = SearchSchedule {
             codec_schedule: CodecSchedule::Staged,
             proxy_pruning: ProxyPruning::On,
+            deferred_naming_starts: true,
             render_batch: 8,
             diversity_interval: 4,
         };
@@ -1543,6 +1548,7 @@ mod tests {
                 "version": SEARCH_SCHEDULE_VERSION,
                 "codec_schedule": "immediate",
                 "proxy_pruning": "on",
+                "deferred_naming_starts": true,
                 "render_batch": 8,
                 "diversity_interval": 4,
             })
@@ -1556,6 +1562,7 @@ mod tests {
                 search: SearchSchedule {
                     codec_schedule,
                     proxy_pruning: ProxyPruning::Audit,
+                    deferred_naming_starts: false,
                     render_batch: 3,
                     diversity_interval: 7,
                 },
@@ -1606,6 +1613,7 @@ mod tests {
             "remaining_budget_resizes_batch=true",
             "proxy_pruning=true",
             "proxy_pruning='sometimes'",
+            "deferred_naming_starts='off'",
         ] {
             assert!(
                 toml::from_str::<ProjectConfig>(&format!("[policy.search]\n{invalid}")).is_err()
@@ -1626,6 +1634,7 @@ mod tests {
             "codec_schedule='immediate'",
             "proxy_pruning='audit'",
             "proxy_pruning='off'",
+            "deferred_naming_starts=false",
             "render_batch=9",
             "diversity_interval=5",
         ] {
@@ -1652,7 +1661,7 @@ mod tests {
                 SEARCH_SCHEDULE_VERSION
             );
         }
-        assert_eq!(fingerprints.len(), 6);
+        assert_eq!(fingerprints.len(), 7);
     }
 
     #[test]

@@ -245,8 +245,9 @@ struct Replay {
 
 /// One start of an objective's walks: `search` (the structural search's
 /// winner), `level-0`, `naming:<seed>` (the level-0 artifact under another
-/// naming seed) or `beam` (the beam's winner). Its walk runs in passes from
-/// `pass` on.
+/// naming seed), `local-naming` (the selected result's final refinements),
+/// or `deferred-naming:<seed>` (a pruned seed revisited after those refinements).
+/// Its walk runs in passes from `pass` on.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct StartTrial {
     pub name: String,
@@ -440,6 +441,7 @@ impl Judge<'_> {
         plan: &Plan,
         literals: crate::js::LiteralOutput,
         reference: &Incumbent,
+        allow_pruning: bool,
     ) -> Result<
         (
             Result<(ArtifactId, usize, QualifiedArtifact), Judgement>,
@@ -457,8 +459,8 @@ impl Judge<'_> {
             baseline,
             proxy_pruning,
         } = *self;
-        let pruning = proxy_pruning != crate::compilation_policy::ProxyPruning::Off;
-        let audit = proxy_pruning == crate::compilation_policy::ProxyPruning::Audit;
+        let pruning = allow_pruning && proxy_pruning != crate::compilation_policy::ProxyPruning::Off;
+        let audit = allow_pruning && proxy_pruning == crate::compilation_policy::ProxyPruning::Audit;
         let tactics = OutputTactics {
             families: spelling.families,
             choices: choices.clone(),
@@ -605,7 +607,7 @@ impl Judge<'_> {
         incumbent: &Incumbent,
     ) -> Result<(Judgement, Option<Proxy>, bool), SearchError> {
         let (measured, proxy, probed) =
-            self.measure(formations, spelling, choices, plan, literals, incumbent)?;
+            self.measure(formations, spelling, choices, plan, literals, incumbent, true)?;
         let (challenged, size, qualified) = match measured {
             Ok(measured) => measured,
             Err(judgement) => return Ok((judgement, proxy, probed)),
@@ -1435,7 +1437,7 @@ impl Walker<'_, '_, '_> {
         &mut self,
         name: &str,
         start: Incumbent,
-        phase: WalkPhase,
+        local_naming: bool,
     ) -> Result<(), SearchError> {
         let slot = self.report.starts.len();
         self.report.starts.push(StartTrial {
@@ -1449,17 +1451,16 @@ impl Walker<'_, '_, '_> {
             audit: None,
         });
         let mut result = start;
-        let refine = match phase {
-            WalkPhase::Search { .. } => true,
-            WalkPhase::LocalNaming => {
-                self.report.passes += 1;
-                self.joint_moves(&mut result, self.report.passes, JointPhase::LocalBindings)?
-            }
+        let refine = if local_naming {
+            self.report.passes += 1;
+            self.joint_moves(&mut result, self.report.passes, JointPhase::LocalBindings)?
+        } else {
+            true
         };
         if refine {
             self.passes(&mut result)?;
         }
-        if matches!(phase, WalkPhase::LocalNaming) {
+        if local_naming {
             #[cfg(test)]
             let properties = !SKIP_PROPERTY_POLISH.with(std::cell::Cell::get);
             #[cfg(not(test))]
@@ -1481,10 +1482,21 @@ impl Walker<'_, '_, '_> {
     /// of its own and settled like any start. Its start is judged by the
     /// proxy against `origin` and then measured exactly. A pass-by-pass walk
     /// cannot reach an assignment whose naming loses alone and wins with the
-    /// families it enables.
-    fn restart(&mut self, origin: &Incumbent, style: Style) -> Result<(), SearchError> {
+    /// families it enables. Deferred starts bypass only this initial proxy
+    /// rejection, after the earlier search has completed. Returns whether
+    /// the initial proxy rejected the start, so it can be deferred once.
+    fn restart(
+        &mut self,
+        origin: &Incumbent,
+        style: Style,
+        deferred: bool,
+    ) -> Result<bool, SearchError> {
         let mut record = StartTrial {
-            name: format!("naming:{style:?}"),
+            name: if deferred {
+                format!("deferred-naming:{style:?}")
+            } else {
+                format!("naming:{style:?}")
+            },
             pass: self.report.passes + 1,
             outcome: ChallengerOutcome::Budget,
             start: None,
@@ -1496,11 +1508,11 @@ impl Walker<'_, '_, '_> {
         if self.stopped {
             record.outcome = ChallengerOutcome::Stopped;
             self.report.starts.push(record);
-            return Ok(());
+            return Ok(false);
         }
         if !self.open() {
             self.report.starts.push(record);
-            return Ok(());
+            return Ok(false);
         }
         self.report.examined += 1;
         self.report.restarts_tried += 1;
@@ -1519,6 +1531,7 @@ impl Walker<'_, '_, '_> {
             &plan,
             origin.literals,
             origin,
+            !deferred,
         )?;
         self.report.codec_probes += usize::from(probed);
         record.proxy = proxy.map(|proxy| proxy.delta);
@@ -1540,7 +1553,7 @@ impl Walker<'_, '_, '_> {
                     _ => ChallengerOutcome::Refused,
                 };
                 self.report.starts.push(record);
-                return Ok(());
+                return Ok(matches!(judgement, Judgement::Pruned));
             }
         };
         // The start's exact measurement is the restart's judgement.
@@ -1556,7 +1569,8 @@ impl Walker<'_, '_, '_> {
             ..origin.clone()
         };
         self.passes(&mut result)?;
-        self.settle(slot, result)
+        self.settle(slot, result)?;
+        Ok(false)
     }
 }
 
@@ -1575,6 +1589,38 @@ enum WalkPhase {
     /// Extend the selected result after the earlier walks have converged.
     /// A losing trial cannot redirect their useful trajectories.
     LocalNaming,
+    /// Revisit only starts actually pruned by the protected prefix.
+    DeferredNaming(NamingStarts),
+}
+
+/// Fixed storage: no allocation or dependency on diagnostic start names.
+#[derive(Clone, Copy, Default)]
+struct NamingStarts {
+    global: bool,
+    scoped: bool,
+    source: bool,
+}
+
+impl NamingStarts {
+    fn insert(&mut self, style: Style) {
+        match style {
+            Style::Global => self.global = true,
+            Style::Scoped => self.scoped = true,
+            Style::Source => self.source = true,
+        }
+    }
+
+    fn contains(self, style: Style) -> bool {
+        match style {
+            Style::Global => self.global,
+            Style::Scoped => self.scoped,
+            Style::Source => self.source,
+        }
+    }
+
+    fn is_empty(self) -> bool {
+        !self.global && !self.scoped && !self.source
+    }
 }
 
 #[cfg(test)]
@@ -1766,7 +1812,7 @@ impl JavaScriptSearch<'_, '_> {
                 &mut report,
             )?;
         }
-        self.walk_from(
+        let deferred = self.walk_from(
             policy,
             objective,
             codec,
@@ -1796,6 +1842,17 @@ impl JavaScriptSearch<'_, '_> {
                 &mut report,
             )?;
         }
+        if objective.search.deferred_naming_starts && walk.starts && !deferred.is_empty() {
+            self.walk_from(
+                policy,
+                objective,
+                codec,
+                "deferred-naming",
+                level0,
+                WalkPhase::DeferredNaming(deferred),
+                &mut report,
+            )?;
+        }
         let delivered =
             self.portfolio.selected[index(codec)].expect("an objective keeps its winner");
         report.after = size(self, delivered)?;
@@ -1815,7 +1872,7 @@ impl JavaScriptSearch<'_, '_> {
     /// Walk from the portfolio entry at `position` in its candidate's
     /// formations, settle the result against the objective's winner, and
     /// then, with `restarts`, restart from the same entry under each other
-    /// naming seed.
+    /// naming seed. Returns initial naming starts rejected by the proxy.
     fn walk_from(
         &mut self,
         policy: &ResolvedPolicy,
@@ -1825,7 +1882,7 @@ impl JavaScriptSearch<'_, '_> {
         position: usize,
         phase: WalkPhase,
         report: &mut TerminalObjective,
-    ) -> Result<(), SearchError> {
+    ) -> Result<NamingStarts, SearchError> {
         if matches!(phase, WalkPhase::LocalNaming) {
             let outcome = if report.examined >= objective.walk.prefix
                 || report.judged >= objective.walk.exact
@@ -1850,7 +1907,7 @@ impl JavaScriptSearch<'_, '_> {
                     proxy: None,
                     audit: None,
                 });
-                return Ok(());
+                return Ok(NamingStarts::default());
             }
         }
         let (artifact, state) = {
@@ -1932,7 +1989,7 @@ impl JavaScriptSearch<'_, '_> {
             output.rules,
             output.families.head(),
             WorkDomain::Optional,
-            |formations| -> Result<(), SearchError> {
+            |formations| -> Result<NamingStarts, SearchError> {
                 let mut walker = Walker {
                     formations,
                     portfolio,
@@ -1948,18 +2005,35 @@ impl JavaScriptSearch<'_, '_> {
                     memo: Vec::new(),
                     replay,
                 };
-                let walked = walker
-                    .walk_start(name, origin.clone(), phase)
-                    .and_then(|()| {
-                        if let WalkPhase::Search { restarts: true } = phase {
+                let walked = (|| {
+                    let mut pruned = NamingStarts::default();
+                    match phase {
+                        WalkPhase::DeferredNaming(pending) => {
                             for &style in &naming {
-                                if style != origin.plan.style {
-                                    walker.restart(&origin, style)?;
+                                if pending.contains(style) {
+                                    walker.restart(&origin, style, true)?;
                                 }
                             }
                         }
-                        Ok(())
-                    });
+                        _ => {
+                            walker.walk_start(
+                                name,
+                                origin.clone(),
+                                matches!(phase, WalkPhase::LocalNaming),
+                            )?;
+                            if let WalkPhase::Search { restarts: true } = phase {
+                                for &style in &naming {
+                                    if style != origin.plan.style
+                                        && walker.restart(&origin, style, false)?
+                                    {
+                                        pruned.insert(style);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Ok(pruned)
+                })();
                 walker.report.heads += 1 + walker.formations.other_heads_formed();
                 walked
             },
@@ -1978,7 +2052,7 @@ impl JavaScriptSearch<'_, '_> {
                     proxy: None,
                     audit: None,
                 });
-                Ok(())
+                Ok(NamingStarts::default())
             }
             Err(error) => Err(error.into()),
         }
