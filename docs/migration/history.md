@@ -1646,3 +1646,24 @@ all algorithms 56–61 against 55; files and selected totals remain identical
 Newly counted work is reported, with no CPU improvement claim or full library/
 fleet rerun. Q2 remains active for its other dependency, formation, elaboration
 and final qualification requirements.
+
+## 2026-10-01: Q2 incremental print formation
+
+Algorithm 62 reuses single-file target structure across assignments that change
+only print proofs. The existing two slots retain complete structural keys;
+permissions and author pins remain fresh, and multi-file placement is rebuilt.
+Both physical modes admit the same cold stage plus print-metadata overlap.
+Small schedule/proof scratch vectors are replaced with stack storage.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-print-formation/README.md):
+12 distinct focused checks and 36 release controls pass. Initial hit assertions
+needed an explicitly eligible fixture; timing checks exposed and corrected stale
+indices and a reuse count attributed to bytes. Every affected file, independent
+codec score and Node observation matches algorithm 61. On/off logical resources
+and search match. Control totals stay 899 raw / 878 gzip / 672 Brotli.
+
+One markedlil raw/13 pair retains 31,882 bytes and 354 judgments. Full formations
+fall 1,451 → 1,254, with 175 print variants and 22 complete-tree hits. CPU samples
+are 54.59 cold and 48.48 seconds enabled; one pair is not a stable timing claim.
+No full library or fleet rerun. The global scheduler audit is next within Q2;
+changed-source-unit formation and per-module elaboration remain open.

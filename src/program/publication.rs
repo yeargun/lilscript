@@ -779,6 +779,13 @@ impl CachedTail {
         // this Formations owner; these are its complete variable dependencies.
         self.choices.families == choices.families && self.choices.choices == choices.choices
     }
+    fn matches_structure(&self, choices: &OutputTactics) -> bool {
+        self.module.delivery.is_none()
+            && self.module.print_forms.is_some()
+            && self.choices.families == choices.families
+            && self.choices.choices.same_structure(&choices.choices)
+            && !self.module.conflicts_with_authors(&choices.choices)
+    }
     fn discard(self, store: RevisionId, ledger: &mut BudgetLedger) -> Result<(), CandidateError> {
         let Self {
             module,
@@ -1184,8 +1191,24 @@ impl Formations<'_, '_> {
             .tails
             .iter()
             .position(|tail| tail.as_ref().is_some_and(|tail| tail.matches(&choices)));
-        let slot = hit.unwrap_or(self.next_tail);
-        if hit.is_none() {
+        // Placement may use rendered sizes and can introduce setters. Only a
+        // single-file target has a structure independent of these print sites.
+        let reprint = hit.is_none()
+            && self.semantic.program.entries().len() <= 1
+            && self
+                .policy
+                .delivery()
+                .is_none_or(|contract| contract.mode == crate::config::DeliveryMode::Single);
+        let structure = reprint
+            .then(|| {
+                self.tails.iter().position(|tail| {
+                    tail.as_ref()
+                        .is_some_and(|tail| tail.matches_structure(&choices))
+                })
+            })
+            .flatten();
+        let slot = hit.or(structure).unwrap_or(self.next_tail);
+        if hit.is_none() && structure.is_none() {
             if let Some(tail) = self.tails[slot].take() {
                 tail.discard(self.store, self.ledger)?;
             }
@@ -1218,12 +1241,35 @@ impl Formations<'_, '_> {
                     Ok(module)
                 })
             };
-        if hit.is_some() {
+        if hit.is_some() || structure.is_some() {
             let cached = self.tails[slot].as_ref().unwrap();
             let reuse = self.policy.cache().formation_reuse;
-            let module = budget.replay(&cached.admission, || {
-                if reuse {
-                    let _timing = crate::timing::JS_FORMATION_REUSE.scope(1);
+            let admission = if structure.is_some() {
+                budget.work(WorkKind::Analysis, cached.module.choice_sites.len() as u64)?;
+                cached
+                    .admission
+                    .with_extra_peak(cached.module.print_site_overlap()?)
+                    .ok_or(AllocationError::Capacity)?
+            } else {
+                cached.admission
+            };
+            let module = budget.replay(&admission, || {
+                if reuse && structure.is_some() {
+                    let _timing = crate::timing::JS_FORMATION_REPRINT.scope(0);
+                    #[cfg(test)]
+                    super::search_target_reuse_tests::record_reprint();
+                    let mut physical = AllocationBudget::new(None);
+                    let mut module = cached.module.clone_without_print_forms(&mut physical)?;
+                    module.reprint_choices(
+                        choices.families,
+                        choices.rules,
+                        &choices.choices,
+                        self.language.ecmascript.year(),
+                        &mut physical,
+                    )?;
+                    Ok(TargetModule::Owned(module))
+                } else if reuse {
+                    let _timing = crate::timing::JS_FORMATION_REUSE.scope(0);
                     Ok(TargetModule::Borrowed(&cached.module))
                 } else {
                     build(&mut AllocationBudget::new(None)).map(TargetModule::Owned)
@@ -1237,7 +1283,8 @@ impl Formations<'_, '_> {
                 admission: None,
                 prepared: true,
                 #[cfg(test)]
-                _test_lifetime: (!reuse).then(super::search_target_reuse_tests::TargetLifetime::new),
+                _test_lifetime: (!reuse || structure.is_some())
+                    .then(super::search_target_reuse_tests::TargetLifetime::new),
                 semantic: self.semantic,
                 implementations: self.implementations,
                 identity: &mut *self.identity,
@@ -1405,7 +1452,9 @@ pub struct Compilation<'src> {
 }
 
 impl<'src> Compilation<'src> {
-    pub(crate) fn measurement_stats(&self) -> super::artifacts::compression_cache::MeasurementStats {
+    pub(crate) fn measurement_stats(
+        &self,
+    ) -> super::artifacts::compression_cache::MeasurementStats {
         self.artifacts.measurement_stats()
     }
 
@@ -2335,8 +2384,12 @@ impl<'src> Compilation<'src> {
             _ => return Err(NativeError::WrongTarget),
         }
         let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
-        if checkpoint.semantic.program.authored_unrolling && !policy.tactic(TacticId::LoopUnrolling).enabled {
-            return Err(NativeError::Admission(crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling)));
+        if checkpoint.semantic.program.authored_unrolling
+            && !policy.tactic(TacticId::LoopUnrolling).enabled
+        {
+            return Err(NativeError::Admission(
+                crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling),
+            ));
         }
         work(
             &mut self.ledger,
@@ -2394,8 +2447,12 @@ impl<'src> Compilation<'src> {
             _ => return Err(NativeError::WrongTarget),
         }
         let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
-        if checkpoint.semantic.program.authored_unrolling && !policy.tactic(TacticId::LoopUnrolling).enabled {
-            return Err(NativeError::Admission(crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling)));
+        if checkpoint.semantic.program.authored_unrolling
+            && !policy.tactic(TacticId::LoopUnrolling).enabled
+        {
+            return Err(NativeError::Admission(
+                crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling),
+            ));
         }
         work(
             &mut self.ledger,
@@ -2732,7 +2789,8 @@ impl<'src> Compilation<'src> {
             policy,
             domain,
         };
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drive(&mut formations)));
+        let result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drive(&mut formations)));
         let released = formations.release_other_heads();
         drop(formations);
         drop(head);
@@ -3307,11 +3365,17 @@ fn check_semantic_policy(
     if semantic.program.authored_unrolling && !policy.tactic(TacticId::LoopUnrolling).enabled {
         return Err(CandidateError::ForbiddenTactic(TacticId::LoopUnrolling));
     }
-    if semantic.program.authored_pooling && policy.javascript_contract().is_some()
-        && !policy.tactic(TacticId::StringPooling).enabled {
+    if semantic.program.authored_pooling
+        && policy.javascript_contract().is_some()
+        && !policy.tactic(TacticId::StringPooling).enabled
+    {
         return Err(CandidateError::ForbiddenTactic(TacticId::StringPooling));
     }
-    semantic.program.authored_choices.check(policy).map_err(candidate_permission)?;
+    semantic
+        .program
+        .authored_choices
+        .check(policy)
+        .map_err(candidate_permission)?;
     semantic
         .lineage
         .check_policy(policy)
@@ -3786,8 +3850,14 @@ fn table_bytes(
                     capacity(&module.pooled_strings)?,
                 ])?;
                 workspace.work(module.pooled_strings.len())?;
-                if module.pooled_strings.iter().any(|id| id.index() >= program.strings.len()) {
-                    return Err(PublicationError::InvalidNominalContract("authored pool names no string"));
+                if module
+                    .pooled_strings
+                    .iter()
+                    .any(|id| id.index() >= program.strings.len())
+                {
+                    return Err(PublicationError::InvalidNominalContract(
+                        "authored pool names no string",
+                    ));
                 }
                 for import in &module.imports {
                     super::verify::validate_interface_target(program, import.target)

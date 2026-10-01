@@ -1,0 +1,20 @@
+{
+  "algorithm": 62,
+  "tests": [
+    "admission_replay::tests::q2_complete_stage_admits_the_same_limits_before_cold_or_reused_execution",
+    "admission_replay::tests::q2_nested_stages_preserve_parent_peak_work_and_refusal",
+    "admission_replay::tests::q2_recovered_refusals_cannot_certify_a_formation_and_unwind_clears_ownership",
+    "js::cloning::tests::q2_copied_unicode_and_proof_rows_keep_runtime_and_release_replaced_payloads",
+    "js::cloning::tests::q2_target_copies_admit_each_nested_owner_and_rollback_refusals",
+    "js::rules::contract_tests::q2_dirty_target_schedule_matches_disabled_reuse_after_later_region_edits",
+    "js::tests::g3_optional_member_preserves_value_calls_and_outer_delete_references",
+    "program::javascript::reprint_tests::q2_print_reuse_keys_keep_every_structural_assignment_and_joint_permission",
+    "program::javascript::reprint_tests::q2_print_variants_match_full_formation_and_fit_the_admitted_stage",
+    "program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes",
+    "program::publication::search::terminal::tests::q2_normalization_reuse_preserves_logical_search_and_objective_bytes",
+    "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal"
+  ],
+  "count": 12,
+  "exit_code": 101,
+  "scope": "Focused debug-library checks; no full library or fleet run."
+}

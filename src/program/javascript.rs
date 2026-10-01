@@ -8,6 +8,10 @@
 //! effects without inventing a first-class JavaScript reference or a `.call`
 //! lookup. Unsupported language/delivery contracts fail before printing.
 
+#[cfg(test)]
+#[path = "javascript_reprint_tests.rs"]
+mod reprint_tests;
+
 #[path = "javascript_shapes.rs"]
 mod shapes;
 #[path = "javascript_enums.rs"]
@@ -1146,8 +1150,7 @@ fn form_tail(
         .run_tail_rules(&js::rules::tail(&families, prunes), &context, budget)
         .and_then(|_| {
             if families.string_pooling || families.string_array_packing {
-                let rules: Vec<_> = js::rules::pooling(&families).collect();
-                module.run_rules(&rules, &context, budget)
+                module.run_rules(&js::rules::pooling(&families), &context, budget)
             } else {
                 Ok(0)
             }

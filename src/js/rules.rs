@@ -299,8 +299,27 @@ pub(crate) const HEAD: &[Rule] = &[
 /// The rules of an artifact's output families, in the order the tail ran
 /// them: block inlining, flat blocks and the statement rules, then the late
 /// passes that follow them.
-pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
-    let mut rules = Vec::with_capacity(24);
+pub(crate) struct RuleSet {
+    rules: [Rule; 24],
+    len: usize,
+}
+impl RuleSet {
+    fn new() -> Self { Self { rules: [Rule::PoolStrings; 24], len: 0 } }
+    fn push(&mut self, rule: Rule) {
+        self.rules[self.len] = rule;
+        self.len += 1;
+    }
+    fn extend(&mut self, rules: impl IntoIterator<Item = Rule>) {
+        for rule in rules { self.push(rule); }
+    }
+}
+impl std::ops::Deref for RuleSet {
+    type Target = [Rule];
+    fn deref(&self) -> &Self::Target { &self.rules[..self.len] }
+}
+
+pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> RuleSet {
+    let mut rules = RuleSet::new();
     // String root constants read as their literals, when the artifact's
     // family says so (M7.4's longer values: a choice).
     // Discover every permitted site, even when its family default retains
@@ -359,13 +378,11 @@ pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
 
 /// Repeated strings last, once no other rule reads a literal: packed arrays,
 /// then root constants.
-pub(crate) fn pooling(families: &OutputFamilies) -> impl Iterator<Item = Rule> {
-    [
-        (families.string_array_packing, Rule::PackStringArrays),
-        (families.string_pooling, Rule::PoolStrings),
-    ]
-    .into_iter()
-    .filter_map(|(selected, rule)| selected.then_some(rule))
+pub(crate) fn pooling(families: &OutputFamilies) -> RuleSet {
+    let mut rules = RuleSet::new();
+    if families.string_array_packing { rules.push(Rule::PackStringArrays); }
+    if families.string_pooling { rules.push(Rule::PoolStrings); }
+    rules
 }
 
 /// Why a rule set stopped without its fixed point.

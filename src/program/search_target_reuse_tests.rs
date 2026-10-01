@@ -14,7 +14,11 @@ use std::process::Command;
 thread_local! {
     static TARGET_ACTIVITY: Cell<(usize, usize)> = const { Cell::new((0, 0)) };
     static PREPARED_OUTPUT_ACTIVITY: Cell<(usize, usize)> = const { Cell::new((0, 0)) };
+    static REPRINT_ACTIVITY: Cell<usize> = const { Cell::new(0) };
 }
+
+pub(super) fn record_reprint() { REPRINT_ACTIVITY.with(|count| count.set(count.get() + 1)); }
+pub(super) fn reprints_for_test() -> usize { REPRINT_ACTIVITY.with(Cell::get) }
 
 pub(super) struct AdmittedOutputOwner<T>(Option<T>);
 

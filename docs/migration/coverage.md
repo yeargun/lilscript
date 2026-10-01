@@ -36,8 +36,8 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M5.2 | [S4](plan.md#s4), complete | Shared physical binding/operation facts, regenerated after edits; duplicate target derivations removed |
 | M5.3a | [Q2](plan.md#q2) | Local source revisions, SCC effect invalidation/dirty propagation and three target stable-proof consumers implemented; remaining global rule dependencies stay open |
 | M5.3b | [S4](plan.md#s4), complete | Replaced proofs removed; retained generated-storage normalization classified in the [owner audit](s4-target-facts.md) |
-| M5.6 | [Q2](plan.md#q2) | Resource accounting (counts); complete retained target copies and proof payload lifetimes admitted, delivery planning and source arena edits now admitted; rendered bundle metadata admitted; global analysis/planning owners remain |
-| M5.7 | [Q2](plan.md#q2) | Repeated complete family tails shared; changed-unit formation remains |
+| M5.6 | [Q2](plan.md#q2) | Resource accounting (counts); complete retained target copies and proof payload lifetimes admitted, delivery planning and source arena edits now admitted; rendered bundle metadata admitted; source global analyses and rewrite planners now admitted; final Q2 scope audit remains |
+| M5.7 | [Q2](plan.md#q2) | Shared candidate demand/heads, repeated complete tails and changed print-site structure implemented; changed-source-unit formation remains |
 | M6.1 | [S4](plan.md#s4), complete | Common target call/use and operation owners; local substitution obligations retained |
 | M6.2 | [S4](plan.md#s4), complete | Duplicate operation-effect proofs removed; source stamps and conservative physical transfer shared |
 | M6.3 | [S1](plan.md#s1), implementation complete | The `pure` contract. Computed, not consumed |
@@ -126,7 +126,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M3.5 | [Q3](plan.md#q3) | monotone selection between two search levels; |
 | M3.5 | [Q3](plan.md#q3) | the data estimator is raw bytes under every objective. |
 | M3.9 | [Q2](plan.md#q2) | Unchanged-file codec receipts and complete builds have bounded persistent reuse; fingerprinted choices replay through current proof/admission owners. Per-module elaboration remains. |
-| M5.6 | [Q2](plan.md#q2), resolved | Entry graph and cycle checking use admitted shared graph routines; delivery placement/simulation/setters now admitted; source arena edits admitted; rendered bundle admission complete; global analysis/planning admission stays Q2 |
+| M5.6 | [Q2](plan.md#q2), resolved | Entry graph and cycle checking use admitted shared graph routines; delivery placement/simulation/setters now admitted; source arena edits admitted; rendered bundle admission complete; source global analysis/planning admission is implemented; final scope audit stays Q2 |
 | M8.5 / M3.3 | [Q4](plan.md#q4) | table decoders sit at the first module's root. |
 | M8.7 | [C3](plan.md#c3), resolved | NO3's second half is empty; every retired threshold has a generic owner and historical provenance outside compiler sources. |
 | M9.1 / M9.5 | [G1](plan.md#g1), complete | Equal exact objective costs compare complete raw bytes before identities; memo/replay retain the full naming choice |

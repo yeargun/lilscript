@@ -234,16 +234,25 @@ fn q2_normalization_reuse_preserves_logical_search_and_objective_bytes() {
 
 #[test]
 fn q2_formation_reuse_preserves_each_objectives_admission_and_bytes() {
+    let text = r#"export string quoted(string value){return "a \"quote\""+value+" b \"quote\"";}"#;
     for codec in ["raw", "gzip", "brotli"] {
-        let enabled = policy(codec, 13);
+        let config: crate::config::ProjectConfig = toml::from_str(&format!(
+            "objective.codecs='{codec}'\neffort.level=13\n[policy.tactics]\ntarget-compaction='on'\nstatement-spellings='on'"
+        )).unwrap();
+        let enabled = config.resolve_policy(CompilationRequest::JavaScript {
+            preserve_root_exports: true,
+        }).unwrap();
         let disabled = enabled.clone().with_cache(crate::config::CacheConfig {
             formation_reuse: false, ..Default::default()
         });
         let objective = Objectives::One(enabled.objective().unwrap().codec);
         let before = crate::program::search_target_reuse_tests::formed_for_test();
-        let on = search(&enabled, objective, true);
+        let reprints = crate::program::search_target_reuse_tests::reprints_for_test();
+        let on = search_source(text, &enabled, objective, true);
+        assert!(crate::program::search_target_reuse_tests::reprints_for_test() > reprints,
+            "fixture must incrementally form print variants: {codec}");
         let middle = crate::program::search_target_reuse_tests::formed_for_test();
-        let off = search(&disabled, objective, true);
+        let off = search_source(text, &disabled, objective, true);
         let after = crate::program::search_target_reuse_tests::formed_for_test();
         assert_eq!(on.logical_work, off.logical_work, "{codec}");
         assert_eq!(on.scored, off.scored, "{codec}");

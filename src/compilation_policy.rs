@@ -41,8 +41,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version51 admits delivery placement, trials, simulation and setter payloads.
 // Version55 admits shared source analyses and deterministic effect-summary stages.
 // Version56 admits primitive/aggregate/default facts and forwarding/liveness plans.
-// Version61 propagates primitive classes through explicit dirty dependencies.
-pub const POLICY_ALGORITHM_VERSION: u32 = 61;
+// Version62 reuses single-file target structure across print-site assignments.
+pub const POLICY_ALGORITHM_VERSION: u32 = 62;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.

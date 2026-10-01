@@ -90,8 +90,13 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             .map(|stage| stage["codec_probes"].as_u64().unwrap())
             .sum();
         let renders = compiled.report()["search"]["renders"].as_u64().unwrap() + tried;
-        assert_eq!(phases[5]["calls"], renders);
-        assert_eq!(phases[6]["calls"], renders);
+        let calls = |name: &str| {
+            phases.iter().find(|phase| phase["name"] == name).unwrap()["calls"]
+                .as_u64()
+                .unwrap()
+        };
+        assert_eq!(calls("target_names"), renders);
+        assert_eq!(calls("target_print"), renders);
         // The level-0 artifact is measured once under each requested codec.
         let baseline_encodes = objectives
             .iter()
@@ -102,11 +107,6 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             .unwrap()
             + baseline_encodes
             + terminal_encodes;
-        let calls = |name: &str| {
-            phases.iter().find(|phase| phase["name"] == name).unwrap()["calls"]
-                .as_u64()
-                .unwrap()
-        };
         let physical = calls("canonical_gzip") + calls("canonical_brotli");
         let reuse = calls("codec_reuse");
         // Search counts logical judgments. Physical reuse includes proxy
@@ -135,10 +135,9 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
                 tried,
             ];
             assert_eq!(
-                phases[..7]
-                    .iter()
-                    .map(|row| row["calls"].as_u64().unwrap())
-                    .collect::<Vec<_>>(),
+                [calls("js_demand"), calls("js_formation") + calls("js_formation_reuse")
+                    + calls("js_formation_reprint"), calls("target_verify"), calls("target_edition"),
+                    calls("target_basis"), calls("target_names"), calls("target_print")].to_vec(),
                 expected
                     .iter()
                     .zip(terminal)
@@ -146,7 +145,7 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
                     .collect::<Vec<_>>()
             );
         } else {
-            assert!(phases[0]["calls"].as_u64().unwrap() > 1);
+            assert!(calls("js_demand") > 1);
             assert!(
                 compiled.report()["search"]["proof_queries"]
                     .as_u64()
@@ -251,11 +250,10 @@ fn check_refusal_and_native() {
         native.report()["resources"]["retained_bytes_after_handoff"],
         0
     );
-    assert_eq!(
-        phase_counts(),
-        after,
-        "native does not enter JS target phases"
-    );
+    for (index, bucket) in PHASE_BUCKETS.iter().enumerate() {
+        if bucket.name.starts_with("source_") { continue; }
+        assert_eq!(phase_counts()[index], after[index], "native phase {}", bucket.name);
+    }
     let raw = compile_source(
         ANSWER,
         &configuration(0, false),
@@ -266,11 +264,11 @@ fn check_refusal_and_native() {
     )
     .unwrap();
     assert_eq!(raw.report()["search"]["codec_probes"], 0);
-    assert_eq!(
-        &phase_counts()[7..9],
-        &after[7..9],
-        "raw has no encoder attempt"
-    );
+    for (index, bucket) in PHASE_BUCKETS.iter().enumerate() {
+        if matches!(bucket.name, "canonical_gzip" | "canonical_brotli" | "proxy_brotli") {
+            assert_eq!(phase_counts()[index], after[index], "raw has no encoder attempt");
+        }
+    }
 }
 
 #[test]

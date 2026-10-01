@@ -78,6 +78,7 @@ impl Drop for Scope {
 pub static JS_DEMAND: Bucket = Bucket::new("js_demand");
 pub static JS_FORMATION: Bucket = Bucket::new("js_formation");
 pub static JS_FORMATION_REUSE: Bucket = Bucket::new("js_formation_reuse");
+pub static JS_FORMATION_REPRINT: Bucket = Bucket::new("js_formation_reprint");
 pub static FORMATION_ADMISSION_REFUSED: Bucket = Bucket::new("formation_admission_refused");
 /// Actual target-rule applications, excluding rules proved unchanged.
 /// Nested in formation; durations must not be added to that enclosing phase.
@@ -104,10 +105,11 @@ pub static CODEC_REUSE: Bucket = Bucket::new("codec_reuse");
 pub static ADMISSION_STRUCTURE: Bucket = Bucket::new("admission_structure");
 pub static ADMISSION_PARSE: Bucket = Bucket::new("admission_parse");
 
-const PHASE_BUCKETS: [&Bucket; 19] = [
+const PHASE_BUCKETS: [&Bucket; 20] = [
     &JS_DEMAND,
     &JS_FORMATION,
     &JS_FORMATION_REUSE,
+    &JS_FORMATION_REPRINT,
     &FORMATION_ADMISSION_REFUSED,
     &TARGET_VERIFY,
     &TARGET_EDITION,

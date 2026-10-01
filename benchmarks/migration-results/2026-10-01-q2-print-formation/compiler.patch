@@ -1,0 +1,586 @@
+diff --git a/src/admission_replay.rs b/src/admission_replay.rs
+index d45c4e92..0862f621 100644
+--- a/src/admission_replay.rs
++++ b/src/admission_replay.rs
+@@ -105,6 +105,13 @@ pub(crate) struct Receipt {
+     live: u64,
+ }
+ impl Receipt {
++    /// A derived builder can keep metadata that the original builder created
++    /// after its scratch peak. Reserve that overlap in both physical modes.
++    pub(crate) fn with_extra_peak(mut self, bytes: u64) -> Option<Self> {
++        self.peak = self.peak.checked_add(bytes)?;
++        Some(self)
++    }
++
+     pub(crate) fn without_retained(mut self, bytes: u64) -> Option<Self> {
+         self.live = self.live.checked_sub(bytes)?;
+         Some(self)
+diff --git a/src/compilation_policy.rs b/src/compilation_policy.rs
+index cdfe96e1..553f253d 100644
+--- a/src/compilation_policy.rs
++++ b/src/compilation_policy.rs
+@@ -41,8 +41,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
+ // Version51 admits delivery placement, trials, simulation and setter payloads.
+ // Version55 admits shared source analyses and deterministic effect-summary stages.
+ // Version56 admits primitive/aggregate/default facts and forwarding/liveness plans.
+-// Version61 propagates primitive classes through explicit dirty dependencies.
+-pub const POLICY_ALGORITHM_VERSION: u32 = 61;
++// Version62 reuses single-file target structure across print-site assignments.
++pub const POLICY_ALGORITHM_VERSION: u32 = 62;
+ // Version22 admits state reclamation visits, including physical artifact slots,
+ // instead of reserving a worst-case Cartesian scan before any inspection.
+ // Version18 admits and releases Analyzer scope and callable-context backing.
+diff --git a/src/js/cloning.rs b/src/js/cloning.rs
+index 82732a49..f4df9d8a 100644
+--- a/src/js/cloning.rs
++++ b/src/js/cloning.rs
+@@ -260,6 +260,23 @@ impl Module {
+     pub(crate) fn clone_in(
+         &self,
+         budget: &mut AllocationBudget<'_>,
++    ) -> Result<Self, AllocationError> {
++        self.clone_with_print_forms(true, budget)
++    }
++
++    /// A print-site change keeps structure but must rebuild all print proofs.
++    /// Do not overlap stale proof arrays with their replacement.
++    pub(crate) fn clone_without_print_forms(
++        &self,
++        budget: &mut AllocationBudget<'_>,
++    ) -> Result<Self, AllocationError> {
++        self.clone_with_print_forms(false, budget)
++    }
++
++    fn clone_with_print_forms(
++        &self,
++        print_forms: bool,
++        budget: &mut AllocationBudget<'_>,
+     ) -> Result<Self, AllocationError> {
+         let mut phase = budget.scope();
+         let budget = &mut phase;
+@@ -369,6 +386,7 @@ impl Module {
+             print_forms: self
+                 .print_forms
+                 .as_ref()
++                .filter(|_| print_forms)
+                 .map(|forms| forms.clone_in(budget))
+                 .transpose()?,
+         };
+diff --git a/src/js/rules.rs b/src/js/rules.rs
+index 9850021e..a194cb23 100644
+--- a/src/js/rules.rs
++++ b/src/js/rules.rs
+@@ -299,8 +299,27 @@ pub(crate) const HEAD: &[Rule] = &[
+ /// The rules of an artifact's output families, in the order the tail ran
+ /// them: block inlining, flat blocks and the statement rules, then the late
+ /// passes that follow them.
+-pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
+-    let mut rules = Vec::with_capacity(24);
++pub(crate) struct RuleSet {
++    rules: [Rule; 24],
++    len: usize,
++}
++impl RuleSet {
++    fn new() -> Self { Self { rules: [Rule::PoolStrings; 24], len: 0 } }
++    fn push(&mut self, rule: Rule) {
++        self.rules[self.len] = rule;
++        self.len += 1;
++    }
++    fn extend(&mut self, rules: impl IntoIterator<Item = Rule>) {
++        for rule in rules { self.push(rule); }
++    }
++}
++impl std::ops::Deref for RuleSet {
++    type Target = [Rule];
++    fn deref(&self) -> &Self::Target { &self.rules[..self.len] }
++}
++
++pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> RuleSet {
++    let mut rules = RuleSet::new();
+     // String root constants read as their literals, when the artifact's
+     // family says so (M7.4's longer values: a choice).
+     // Discover every permitted site, even when its family default retains
+@@ -359,13 +378,11 @@ pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
+ 
+ /// Repeated strings last, once no other rule reads a literal: packed arrays,
+ /// then root constants.
+-pub(crate) fn pooling(families: &OutputFamilies) -> impl Iterator<Item = Rule> {
+-    [
+-        (families.string_array_packing, Rule::PackStringArrays),
+-        (families.string_pooling, Rule::PoolStrings),
+-    ]
+-    .into_iter()
+-    .filter_map(|(selected, rule)| selected.then_some(rule))
++pub(crate) fn pooling(families: &OutputFamilies) -> RuleSet {
++    let mut rules = RuleSet::new();
++    if families.string_array_packing { rules.push(Rule::PackStringArrays); }
++    if families.string_pooling { rules.push(Rule::PoolStrings); }
++    rules
+ }
+ 
+ /// Why a rule set stopped without its fixed point.
+diff --git a/src/js/spellings.rs b/src/js/spellings.rs
+index 72b1088c..ea9de674 100644
+--- a/src/js/spellings.rs
++++ b/src/js/spellings.rs
+@@ -100,8 +100,14 @@ impl PrintForms {
+                     body,
+                 }] = region.statements.as_slice()
+                 {
+-                    let roots: Vec<_> = condition.iter().chain(update.iter()).copied().collect();
+-                    if !module.mentions(&[*body], &roots, *binding, true)
++                    let roots = [condition, update];
++                    let mut expressions = [ExprId::new(0); 2];
++                    let mut count = 0;
++                    for root in roots.into_iter().flatten() {
++                        expressions[count] = *root;
++                        count += 1;
++                    }
++                    if !module.mentions(&[*body], &expressions[..count], *binding, true)
+                         && !contains_in(module, *value, budget)?
+                     {
+                         result.loops[index] = Some(LoopHead {
+@@ -276,6 +282,36 @@ fn compound(module: &Module, target: ExprId, value: ExprId) -> Option<(Binary, E
+ }
+ 
+ impl Module {
++    /// Metadata that already exists during a reprint but may have been created
++    /// after the cold builder's print-proof scratch peak.
++    pub(crate) fn print_site_overlap(&self) -> Result<u64, AllocationError> {
++        self.choice_sites.iter().try_fold(0u64, |bytes, site| {
++            if !site.key.family.print_only() { return Ok(bytes); }
++            bytes.checked_add(std::mem::size_of::<ChoiceSite>() as u64)
++                .and_then(|bytes| bytes.checked_add(site.name.capacity() as u64))
++                .and_then(|bytes| bytes.checked_add((site.alternatives.capacity()
++                    * std::mem::size_of::<crate::representation::ChoiceAlternative>()) as u64))
++                .ok_or(AllocationError::Capacity)
++        })
++    }
++
++    pub(crate) fn reprint_choices(
++        &mut self,
++        families: OutputFamilies,
++        rules: TargetRules,
++        choices: &ChoiceMap,
++        year: u16,
++        budget: &mut AllocationBudget<'_>,
++    ) -> Result<(), AllocationError> {
++        debug_assert!(self.delivery.is_none() && self.print_forms.is_none());
++        for site in &mut self.choice_sites {
++            if site.key.family.print_only() && !site.pinned {
++                site.applied = choices.get(site.key).unwrap_or(site.seed);
++            }
++        }
++        self.refresh_print_choices(families, rules, choices, year, budget)
++    }
++
+     pub(crate) fn identify_spelling_sites(
+         &mut self,
+         head: u8,
+diff --git a/src/program/javascript.rs b/src/program/javascript.rs
+index aa5bef31..01ba874c 100644
+--- a/src/program/javascript.rs
++++ b/src/program/javascript.rs
+@@ -8,6 +8,10 @@
+ //! effects without inventing a first-class JavaScript reference or a `.call`
+ //! lookup. Unsupported language/delivery contracts fail before printing.
+ 
++#[cfg(test)]
++#[path = "javascript_reprint_tests.rs"]
++mod reprint_tests;
++
+ #[path = "javascript_shapes.rs"]
+ mod shapes;
+ #[path = "javascript_enums.rs"]
+@@ -1146,8 +1150,7 @@ fn form_tail(
+         .run_tail_rules(&js::rules::tail(&families, prunes), &context, budget)
+         .and_then(|_| {
+             if families.string_pooling || families.string_array_packing {
+-                let rules: Vec<_> = js::rules::pooling(&families).collect();
+-                module.run_rules(&rules, &context, budget)
++                module.run_rules(&js::rules::pooling(&families), &context, budget)
+             } else {
+                 Ok(0)
+             }
+diff --git a/src/program/publication.rs b/src/program/publication.rs
+index 2d265720..d632fd8f 100644
+--- a/src/program/publication.rs
++++ b/src/program/publication.rs
+@@ -779,6 +779,13 @@ impl CachedTail {
+         // this Formations owner; these are its complete variable dependencies.
+         self.choices.families == choices.families && self.choices.choices == choices.choices
+     }
++    fn matches_structure(&self, choices: &OutputTactics) -> bool {
++        self.module.delivery.is_none()
++            && self.module.print_forms.is_some()
++            && self.choices.families == choices.families
++            && self.choices.choices.same_structure(&choices.choices)
++            && !self.module.conflicts_with_authors(&choices.choices)
++    }
+     fn discard(self, store: RevisionId, ledger: &mut BudgetLedger) -> Result<(), CandidateError> {
+         let Self {
+             module,
+@@ -1184,8 +1191,24 @@ impl Formations<'_, '_> {
+             .tails
+             .iter()
+             .position(|tail| tail.as_ref().is_some_and(|tail| tail.matches(&choices)));
+-        let slot = hit.unwrap_or(self.next_tail);
+-        if hit.is_none() {
++        // Placement may use rendered sizes and can introduce setters. Only a
++        // single-file target has a structure independent of these print sites.
++        let reprint = hit.is_none()
++            && self.semantic.program.entries().len() <= 1
++            && self
++                .policy
++                .delivery()
++                .is_none_or(|contract| contract.mode == crate::config::DeliveryMode::Single);
++        let structure = reprint
++            .then(|| {
++                self.tails.iter().position(|tail| {
++                    tail.as_ref()
++                        .is_some_and(|tail| tail.matches_structure(&choices))
++                })
++            })
++            .flatten();
++        let slot = hit.or(structure).unwrap_or(self.next_tail);
++        if hit.is_none() && structure.is_none() {
+             if let Some(tail) = self.tails[slot].take() {
+                 tail.discard(self.store, self.ledger)?;
+             }
+@@ -1218,12 +1241,35 @@ impl Formations<'_, '_> {
+                     Ok(module)
+                 })
+             };
+-        if hit.is_some() {
++        if hit.is_some() || structure.is_some() {
+             let cached = self.tails[slot].as_ref().unwrap();
+             let reuse = self.policy.cache().formation_reuse;
+-            let module = budget.replay(&cached.admission, || {
+-                if reuse {
+-                    let _timing = crate::timing::JS_FORMATION_REUSE.scope(1);
++            let admission = if structure.is_some() {
++                budget.work(WorkKind::Analysis, cached.module.choice_sites.len() as u64)?;
++                cached
++                    .admission
++                    .with_extra_peak(cached.module.print_site_overlap()?)
++                    .ok_or(AllocationError::Capacity)?
++            } else {
++                cached.admission
++            };
++            let module = budget.replay(&admission, || {
++                if reuse && structure.is_some() {
++                    let _timing = crate::timing::JS_FORMATION_REPRINT.scope(0);
++                    #[cfg(test)]
++                    super::search_target_reuse_tests::record_reprint();
++                    let mut physical = AllocationBudget::new(None);
++                    let mut module = cached.module.clone_without_print_forms(&mut physical)?;
++                    module.reprint_choices(
++                        choices.families,
++                        choices.rules,
++                        &choices.choices,
++                        self.language.ecmascript.year(),
++                        &mut physical,
++                    )?;
++                    Ok(TargetModule::Owned(module))
++                } else if reuse {
++                    let _timing = crate::timing::JS_FORMATION_REUSE.scope(0);
+                     Ok(TargetModule::Borrowed(&cached.module))
+                 } else {
+                     build(&mut AllocationBudget::new(None)).map(TargetModule::Owned)
+@@ -1237,7 +1283,8 @@ impl Formations<'_, '_> {
+                 admission: None,
+                 prepared: true,
+                 #[cfg(test)]
+-                _test_lifetime: (!reuse).then(super::search_target_reuse_tests::TargetLifetime::new),
++                _test_lifetime: (!reuse || structure.is_some())
++                    .then(super::search_target_reuse_tests::TargetLifetime::new),
+                 semantic: self.semantic,
+                 implementations: self.implementations,
+                 identity: &mut *self.identity,
+@@ -1405,7 +1452,9 @@ pub struct Compilation<'src> {
+ }
+ 
+ impl<'src> Compilation<'src> {
+-    pub(crate) fn measurement_stats(&self) -> super::artifacts::compression_cache::MeasurementStats {
++    pub(crate) fn measurement_stats(
++        &self,
++    ) -> super::artifacts::compression_cache::MeasurementStats {
+         self.artifacts.measurement_stats()
+     }
+ 
+@@ -2335,8 +2384,12 @@ impl<'src> Compilation<'src> {
+             _ => return Err(NativeError::WrongTarget),
+         }
+         let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
+-        if checkpoint.semantic.program.authored_unrolling && !policy.tactic(TacticId::LoopUnrolling).enabled {
+-            return Err(NativeError::Admission(crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling)));
++        if checkpoint.semantic.program.authored_unrolling
++            && !policy.tactic(TacticId::LoopUnrolling).enabled
++        {
++            return Err(NativeError::Admission(
++                crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling),
++            ));
+         }
+         work(
+             &mut self.ledger,
+@@ -2394,8 +2447,12 @@ impl<'src> Compilation<'src> {
+             _ => return Err(NativeError::WrongTarget),
+         }
+         let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
+-        if checkpoint.semantic.program.authored_unrolling && !policy.tactic(TacticId::LoopUnrolling).enabled {
+-            return Err(NativeError::Admission(crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling)));
++        if checkpoint.semantic.program.authored_unrolling
++            && !policy.tactic(TacticId::LoopUnrolling).enabled
++        {
++            return Err(NativeError::Admission(
++                crate::compilation_policy::AdmissionError::ForbiddenTactic(TacticId::LoopUnrolling),
++            ));
+         }
+         work(
+             &mut self.ledger,
+@@ -2732,7 +2789,8 @@ impl<'src> Compilation<'src> {
+             policy,
+             domain,
+         };
+-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drive(&mut formations)));
++        let result =
++            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drive(&mut formations)));
+         let released = formations.release_other_heads();
+         drop(formations);
+         drop(head);
+@@ -3307,11 +3365,17 @@ fn check_semantic_policy(
+     if semantic.program.authored_unrolling && !policy.tactic(TacticId::LoopUnrolling).enabled {
+         return Err(CandidateError::ForbiddenTactic(TacticId::LoopUnrolling));
+     }
+-    if semantic.program.authored_pooling && policy.javascript_contract().is_some()
+-        && !policy.tactic(TacticId::StringPooling).enabled {
++    if semantic.program.authored_pooling
++        && policy.javascript_contract().is_some()
++        && !policy.tactic(TacticId::StringPooling).enabled
++    {
+         return Err(CandidateError::ForbiddenTactic(TacticId::StringPooling));
+     }
+-    semantic.program.authored_choices.check(policy).map_err(candidate_permission)?;
++    semantic
++        .program
++        .authored_choices
++        .check(policy)
++        .map_err(candidate_permission)?;
+     semantic
+         .lineage
+         .check_policy(policy)
+@@ -3786,8 +3850,14 @@ fn table_bytes(
+                     capacity(&module.pooled_strings)?,
+                 ])?;
+                 workspace.work(module.pooled_strings.len())?;
+-                if module.pooled_strings.iter().any(|id| id.index() >= program.strings.len()) {
+-                    return Err(PublicationError::InvalidNominalContract("authored pool names no string"));
++                if module
++                    .pooled_strings
++                    .iter()
++                    .any(|id| id.index() >= program.strings.len())
++                {
++                    return Err(PublicationError::InvalidNominalContract(
++                        "authored pool names no string",
++                    ));
+                 }
+                 for import in &module.imports {
+                     super::verify::validate_interface_target(program, import.target)
+diff --git a/src/program/search_target_reuse_tests.rs b/src/program/search_target_reuse_tests.rs
+index eaa2a573..7f729909 100644
+--- a/src/program/search_target_reuse_tests.rs
++++ b/src/program/search_target_reuse_tests.rs
+@@ -14,8 +14,12 @@ use std::process::Command;
+ thread_local! {
+     static TARGET_ACTIVITY: Cell<(usize, usize)> = const { Cell::new((0, 0)) };
+     static PREPARED_OUTPUT_ACTIVITY: Cell<(usize, usize)> = const { Cell::new((0, 0)) };
++    static REPRINT_ACTIVITY: Cell<usize> = const { Cell::new(0) };
+ }
+ 
++pub(super) fn record_reprint() { REPRINT_ACTIVITY.with(|count| count.set(count.get() + 1)); }
++pub(super) fn reprints_for_test() -> usize { REPRINT_ACTIVITY.with(Cell::get) }
++
+ pub(super) struct AdmittedOutputOwner<T>(Option<T>);
+ 
+ impl<T> AdmittedOutputOwner<T> {
+diff --git a/src/program/search_terminal_tests.rs b/src/program/search_terminal_tests.rs
+index 2d81b4b9..c7b34ded 100644
+--- a/src/program/search_terminal_tests.rs
++++ b/src/program/search_terminal_tests.rs
+@@ -234,16 +234,25 @@ fn q2_normalization_reuse_preserves_logical_search_and_objective_bytes() {
+ 
+ #[test]
+ fn q2_formation_reuse_preserves_each_objectives_admission_and_bytes() {
++    let text = r#"export string quoted(string value){return "a \"quote\""+value+" b \"quote\"";}"#;
+     for codec in ["raw", "gzip", "brotli"] {
+-        let enabled = policy(codec, 13);
++        let config: crate::config::ProjectConfig = toml::from_str(&format!(
++            "objective.codecs='{codec}'\neffort.level=13\n[policy.tactics]\ntarget-compaction='on'\nstatement-spellings='on'"
++        )).unwrap();
++        let enabled = config.resolve_policy(CompilationRequest::JavaScript {
++            preserve_root_exports: true,
++        }).unwrap();
+         let disabled = enabled.clone().with_cache(crate::config::CacheConfig {
+             formation_reuse: false, ..Default::default()
+         });
+         let objective = Objectives::One(enabled.objective().unwrap().codec);
+         let before = crate::program::search_target_reuse_tests::formed_for_test();
+-        let on = search(&enabled, objective, true);
++        let reprints = crate::program::search_target_reuse_tests::reprints_for_test();
++        let on = search_source(text, &enabled, objective, true);
++        assert!(crate::program::search_target_reuse_tests::reprints_for_test() > reprints,
++            "fixture must incrementally form print variants: {codec}");
+         let middle = crate::program::search_target_reuse_tests::formed_for_test();
+-        let off = search(&disabled, objective, true);
++        let off = search_source(text, &disabled, objective, true);
+         let after = crate::program::search_target_reuse_tests::formed_for_test();
+         assert_eq!(on.logical_work, off.logical_work, "{codec}");
+         assert_eq!(on.scored, off.scored, "{codec}");
+diff --git a/src/representation.rs b/src/representation.rs
+index ddecd7c4..dc8e5907 100644
+--- a/src/representation.rs
++++ b/src/representation.rs
+@@ -46,6 +46,14 @@ pub enum ChoiceFamily {
+     LogicalAssignment,
+ }
+ 
++impl ChoiceFamily {
++    pub(crate) fn print_only(self) -> bool {
++        matches!(self, Self::LoopHeads | Self::LogicalStatements
++            | Self::CompoundAssignments | Self::QuoteDelimiter
++            | Self::OptionalChain | Self::LogicalAssignment)
++    }
++}
++
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ pub enum Stage {
+     SourceRecipe,
+@@ -232,6 +240,14 @@ pub struct ChoiceMap {
+ }
+ 
+ impl ChoiceMap {
++    /// Only these assignments affect print proofs without changing target
++    /// structure. Authored pins are immutable inputs, checked separately.
++    pub(crate) fn same_structure(&self, other: &Self) -> bool {
++        self.joint == other.joint
++            && self.iter().filter(|(key, _)| !key.family.print_only())
++                .eq(other.iter().filter(|(key, _)| !key.family.print_only()))
++    }
++
+     /// Every site at its seed.
+     pub const SEEDS: Self = Self {
+         entries: None,
+diff --git a/src/timing.rs b/src/timing.rs
+index ded8df28..b888e8ba 100644
+--- a/src/timing.rs
++++ b/src/timing.rs
+@@ -78,6 +78,7 @@ impl Drop for Scope {
+ pub static JS_DEMAND: Bucket = Bucket::new("js_demand");
+ pub static JS_FORMATION: Bucket = Bucket::new("js_formation");
+ pub static JS_FORMATION_REUSE: Bucket = Bucket::new("js_formation_reuse");
++pub static JS_FORMATION_REPRINT: Bucket = Bucket::new("js_formation_reprint");
+ pub static FORMATION_ADMISSION_REFUSED: Bucket = Bucket::new("formation_admission_refused");
+ /// Actual target-rule applications, excluding rules proved unchanged.
+ /// Nested in formation; durations must not be added to that enclosing phase.
+@@ -104,10 +105,11 @@ pub static CODEC_REUSE: Bucket = Bucket::new("codec_reuse");
+ pub static ADMISSION_STRUCTURE: Bucket = Bucket::new("admission_structure");
+ pub static ADMISSION_PARSE: Bucket = Bucket::new("admission_parse");
+ 
+-const PHASE_BUCKETS: [&Bucket; 19] = [
++const PHASE_BUCKETS: [&Bucket; 20] = [
+     &JS_DEMAND,
+     &JS_FORMATION,
+     &JS_FORMATION_REUSE,
++    &JS_FORMATION_REPRINT,
+     &FORMATION_ADMISSION_REFUSED,
+     &TARGET_VERIFY,
+     &TARGET_EDITION,
+diff --git a/src/timing_tests.rs b/src/timing_tests.rs
+index 4cde24ca..50ebcc6d 100644
+--- a/src/timing_tests.rs
++++ b/src/timing_tests.rs
+@@ -90,8 +90,13 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) ->
+             .map(|stage| stage["codec_probes"].as_u64().unwrap())
+             .sum();
+         let renders = compiled.report()["search"]["renders"].as_u64().unwrap() + tried;
+-        assert_eq!(phases[5]["calls"], renders);
+-        assert_eq!(phases[6]["calls"], renders);
++        let calls = |name: &str| {
++            phases.iter().find(|phase| phase["name"] == name).unwrap()["calls"]
++                .as_u64()
++                .unwrap()
++        };
++        assert_eq!(calls("target_names"), renders);
++        assert_eq!(calls("target_print"), renders);
+         // The level-0 artifact is measured once under each requested codec.
+         let baseline_encodes = objectives
+             .iter()
+@@ -102,11 +107,6 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) ->
+             .unwrap()
+             + baseline_encodes
+             + terminal_encodes;
+-        let calls = |name: &str| {
+-            phases.iter().find(|phase| phase["name"] == name).unwrap()["calls"]
+-                .as_u64()
+-                .unwrap()
+-        };
+         let physical = calls("canonical_gzip") + calls("canonical_brotli");
+         let reuse = calls("codec_reuse");
+         // Search counts logical judgments. Physical reuse includes proxy
+@@ -135,10 +135,9 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) ->
+                 tried,
+             ];
+             assert_eq!(
+-                phases[..7]
+-                    .iter()
+-                    .map(|row| row["calls"].as_u64().unwrap())
+-                    .collect::<Vec<_>>(),
++                [calls("js_demand"), calls("js_formation") + calls("js_formation_reuse")
++                    + calls("js_formation_reprint"), calls("target_verify"), calls("target_edition"),
++                    calls("target_basis"), calls("target_names"), calls("target_print")].to_vec(),
+                 expected
+                     .iter()
+                     .zip(terminal)
+@@ -146,7 +145,7 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) ->
+                     .collect::<Vec<_>>()
+             );
+         } else {
+-            assert!(phases[0]["calls"].as_u64().unwrap() > 1);
++            assert!(calls("js_demand") > 1);
+             assert!(
+                 compiled.report()["search"]["proof_queries"]
+                     .as_u64()
+@@ -251,11 +250,10 @@ fn check_refusal_and_native() {
+         native.report()["resources"]["retained_bytes_after_handoff"],
+         0
+     );
+-    assert_eq!(
+-        phase_counts(),
+-        after,
+-        "native does not enter JS target phases"
+-    );
++    for (index, bucket) in PHASE_BUCKETS.iter().enumerate() {
++        if bucket.name.starts_with("source_") { continue; }
++        assert_eq!(phase_counts()[index], after[index], "native phase {}", bucket.name);
++    }
+     let raw = compile_source(
+         ANSWER,
+         &configuration(0, false),
+@@ -266,11 +264,11 @@ fn check_refusal_and_native() {
+     )
+     .unwrap();
+     assert_eq!(raw.report()["search"]["codec_probes"], 0);
+-    assert_eq!(
+-        &phase_counts()[7..9],
+-        &after[7..9],
+-        "raw has no encoder attempt"
+-    );
++    for (index, bucket) in PHASE_BUCKETS.iter().enumerate() {
++        if matches!(bucket.name, "canonical_gzip" | "canonical_brotli" | "proxy_brotli") {
++            assert_eq!(phase_counts()[index], after[index], "raw has no encoder attempt");
++        }
++    }
+ }
+ 
+ #[test]

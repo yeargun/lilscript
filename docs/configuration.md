@@ -1167,8 +1167,12 @@ Set `build_reuse=false` to audit compilation while keeping codec reuse.
 `cache.formation_reuse` defaults to `true`. During one candidate's terminal
 search, two bounded slots keep completed target family assignments, including
 their delivery plans. Naming and literal trials can borrow an unchanged tree;
-surveys and subsequent renders share its normalization. Different site/family
-assignments miss, and changing candidate, contract or host inputs ends the cache.
+surveys and subsequent renders share its normalization. For single-file delivery,
+assignments differing only in loop-head, logical-statement, compound-assignment,
+quote-delimiter, optional-chain or logical-assignment sites reuse target structure
+and rebuild print proofs. Structural choices and whole-family changes miss;
+multi-file placement is rebuilt because spelling can affect its costs. Changing
+candidate, contract or host inputs ends the cache.
 The output still checks current permissions, verification, naming and artifact
 admission. This cache has no disk files and grants no extra search work.
 
@@ -1188,7 +1192,11 @@ the same deterministic slots and complete admission stages, so this physical
 switch cannot change logical admission or buy more candidates. Both modes
 reject an insufficient repeated stage before physical execution; its refusal
 prefix is intentionally different from the older compiler's incremental cold
-execution. Policy algorithm 54 versions this accounting change.
+execution. Policy algorithm 54 versions the complete-stage accounting change.
+Algorithm 62 extends it to print variants, reserving the overlap of preexisting
+print-site metadata with fresh proof scratch in both modes. The two-slot capacity
+is unchanged. `js_formation_reprint_calls` in `LILSCRIPT_TIMING` reports structural
+reuse for changed print assignments separately from complete-tree reuse.
 
 ## Saved search decisions
 

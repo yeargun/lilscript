@@ -261,6 +261,23 @@ impl Module {
         &self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, AllocationError> {
+        self.clone_with_print_forms(true, budget)
+    }
+
+    /// A print-site change keeps structure but must rebuild all print proofs.
+    /// Do not overlap stale proof arrays with their replacement.
+    pub(crate) fn clone_without_print_forms(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        self.clone_with_print_forms(false, budget)
+    }
+
+    fn clone_with_print_forms(
+        &self,
+        print_forms: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
         let mut phase = budget.scope();
         let budget = &mut phase;
         let result = Self {
@@ -369,6 +386,7 @@ impl Module {
             print_forms: self
                 .print_forms
                 .as_ref()
+                .filter(|_| print_forms)
                 .map(|forms| forms.clone_in(budget))
                 .transpose()?,
         };

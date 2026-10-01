@@ -1,0 +1,19 @@
+
+running 2 tests
+test program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes ... FAILED
+test timing::tests::semantic_phase_timing_is_observational_and_covers_refusal ... ok
+
+failures:
+
+---- program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes stdout ----
+
+thread 'program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes' (1121246) panicked at src/program/search_terminal_tests.rs:246:9:
+fixture must incrementally form print variants: raw
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 2056 filtered out; finished in 5.03s
+

@@ -100,8 +100,14 @@ impl PrintForms {
                     body,
                 }] = region.statements.as_slice()
                 {
-                    let roots: Vec<_> = condition.iter().chain(update.iter()).copied().collect();
-                    if !module.mentions(&[*body], &roots, *binding, true)
+                    let roots = [condition, update];
+                    let mut expressions = [ExprId::new(0); 2];
+                    let mut count = 0;
+                    for root in roots.into_iter().flatten() {
+                        expressions[count] = *root;
+                        count += 1;
+                    }
+                    if !module.mentions(&[*body], &expressions[..count], *binding, true)
                         && !contains_in(module, *value, budget)?
                     {
                         result.loops[index] = Some(LoopHead {
@@ -276,6 +282,36 @@ fn compound(module: &Module, target: ExprId, value: ExprId) -> Option<(Binary, E
 }
 
 impl Module {
+    /// Metadata that already exists during a reprint but may have been created
+    /// after the cold builder's print-proof scratch peak.
+    pub(crate) fn print_site_overlap(&self) -> Result<u64, AllocationError> {
+        self.choice_sites.iter().try_fold(0u64, |bytes, site| {
+            if !site.key.family.print_only() { return Ok(bytes); }
+            bytes.checked_add(std::mem::size_of::<ChoiceSite>() as u64)
+                .and_then(|bytes| bytes.checked_add(site.name.capacity() as u64))
+                .and_then(|bytes| bytes.checked_add((site.alternatives.capacity()
+                    * std::mem::size_of::<crate::representation::ChoiceAlternative>()) as u64))
+                .ok_or(AllocationError::Capacity)
+        })
+    }
+
+    pub(crate) fn reprint_choices(
+        &mut self,
+        families: OutputFamilies,
+        rules: TargetRules,
+        choices: &ChoiceMap,
+        year: u16,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        debug_assert!(self.delivery.is_none() && self.print_forms.is_none());
+        for site in &mut self.choice_sites {
+            if site.key.family.print_only() && !site.pinned {
+                site.applied = choices.get(site.key).unwrap_or(site.seed);
+            }
+        }
+        self.refresh_print_choices(families, rules, choices, year, budget)
+    }
+
     pub(crate) fn identify_spelling_sites(
         &mut self,
         head: u8,

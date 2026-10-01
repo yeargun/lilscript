@@ -105,6 +105,13 @@ pub(crate) struct Receipt {
     live: u64,
 }
 impl Receipt {
+    /// A derived builder can keep metadata that the original builder created
+    /// after its scratch peak. Reserve that overlap in both physical modes.
+    pub(crate) fn with_extra_peak(mut self, bytes: u64) -> Option<Self> {
+        self.peak = self.peak.checked_add(bytes)?;
+        Some(self)
+    }
+
     pub(crate) fn without_retained(mut self, bytes: u64) -> Option<Self> {
         self.live = self.live.checked_sub(bytes)?;
         Some(self)

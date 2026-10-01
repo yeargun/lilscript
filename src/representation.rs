@@ -46,6 +46,14 @@ pub enum ChoiceFamily {
     LogicalAssignment,
 }
 
+impl ChoiceFamily {
+    pub(crate) fn print_only(self) -> bool {
+        matches!(self, Self::LoopHeads | Self::LogicalStatements
+            | Self::CompoundAssignments | Self::QuoteDelimiter
+            | Self::OptionalChain | Self::LogicalAssignment)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
     SourceRecipe,
@@ -232,6 +240,14 @@ pub struct ChoiceMap {
 }
 
 impl ChoiceMap {
+    /// Only these assignments affect print proofs without changing target
+    /// structure. Authored pins are immutable inputs, checked separately.
+    pub(crate) fn same_structure(&self, other: &Self) -> bool {
+        self.joint == other.joint
+            && self.iter().filter(|(key, _)| !key.family.print_only())
+                .eq(other.iter().filter(|(key, _)| !key.family.print_only()))
+    }
+
     /// Every site at its seed.
     pub const SEEDS: Self = Self {
         entries: None,

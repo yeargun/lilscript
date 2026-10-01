@@ -1,0 +1,12 @@
+{
+  "base_commit": "173b9ec3c2fac1b334d6fdd35fa572a0a5f3455a",
+  "patch": "compiler.patch",
+  "patch_sha256": "d63aa8ee7d0d0a2bfe844ceba9ff91073ae2c82014ee80271ad5106a8a09b6e5",
+  "algorithm": 62,
+  "search": 32,
+  "binary": "/home/azureuser/lilscript-work/bin/q2-print-1/lilscript",
+  "binary_sha256": "2bdfa7c6ef61627dcef4ffb83d9d7d5730af322ea63422c02e378813b86b18b1",
+  "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+  "build": "CARGO_BUILD_JOBS=1 cargo build --release --bin lilscript",
+  "scope": "Release source diff; new test-only javascript_reprint_tests.rs is recorded in the resulting commit."
+}

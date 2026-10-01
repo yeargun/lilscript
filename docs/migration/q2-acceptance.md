@@ -288,3 +288,43 @@ comparisons pass. The release comparison covers algorithms 56–61 together;
 all selected files and independent-objective scores match algorithm 55, and
 physical reuse preserves logical admission. Remaining dependency scheduling,
 incremental formation and module elaboration stay open.
+
+Next incremental formation batch:
+
+1. Reuse a completed single-file target when only nonstructural print-site
+   assignments change. Rebuild print proofs and choice receipts from the new
+   assignment; require exact structural families, head, candidate and contract.
+   Multi-file placement remains dependent on a fresh formation.
+2. Keep the existing two retained slots and hard formation-reuse veto. Both
+   modes admit the same complete cold stage, with an explicit conservative
+   overlap allowance for preexisting print-site metadata. A disabled cache
+   executes the full builder; fresh permissions and author pins still apply.
+3. Remove small unadmitted print-proof/schedule scratch allocations encountered
+   in this path. Qualify actual tree equality, cold-stage bills, refusal cleanup,
+   invalidation and objective search parity in one connected check batch.
+
+Prediction: unchanged funded bytes and fewer structural tail executions during
+print-site refinement, with no additional retained target slot. The overlap
+allowance may raise a near-hit memory peak. No fleet speed claim is presumed.
+This is changed-site formation; changed-source-unit lowering remains separate.
+
+Next scheduler completion batch:
+
+1. Give the source edit owner one complete revision that advances on every
+   touched body/table commit. Empty global normalization passes may reuse only
+   that exact revision; local return/reachability proofs keep their narrower keys.
+2. Classify every target rule: retain the three proved narrower dependency masks,
+   and conservatively include every target domain for the others. Reuse only
+   fully funded empty passes with zero surviving allocation. Replace manual
+   three-rule cold-work emulation with the shared complete-stage receipt.
+3. Both physical modes retain the same stage and admission. A veto executes the
+   cold pass. Add physical pass counters, cover mutation/refusal invalidation,
+   and qualify connected source/native and target behavior together after the
+   implementation batch. Prediction: fewer unchanged final-round scans, the
+   same funded fixed point, and a versioned whole-stage refusal prefix.
+
+The [incremental print batch](../../benchmarks/migration-results/2026-10-01-q2-print-formation/README.md)
+is qualified with 12 focused checks and 36 all-objective release controls.
+Markedlil's full formations fall from 1,451 to 1,254 with identical output,
+judgments and logical resources. A single CPU pair is reported without a stable
+speed claim. The scheduler completion batch preregistered above remains next.

@@ -23,7 +23,8 @@ are revalidated after creating setters. Source arena edits and shared copies are
 admitted before allocation, with exact publication checks. Rendered bundles and
 artifact metadata have complete reservations and refusal cleanup. Repeated
 family tails now share immutable targets under deterministic admission stages;
-changed-unit formation and per-module elaboration remain open. Graph, effect and range
+single-file print-site changes reuse structure and rebuild their proofs.
+Changed-source-unit formation and per-module elaboration remain open. Graph, effect and range
 analyses are admitted through source normalization, pure-contract checks and JavaScript
 demand. Primitive classes, aggregate origins, activation/default transport and
 forwarding/dead-code, folding, signature, inline and aggregate rewrite plans are admitted.

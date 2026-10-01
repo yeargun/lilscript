@@ -1,0 +1,52 @@
+
+running 12 tests
+test admission_replay::tests::q2_complete_stage_admits_the_same_limits_before_cold_or_reused_execution ... ok
+test admission_replay::tests::q2_nested_stages_preserve_parent_peak_work_and_refusal ... ok
+test admission_replay::tests::q2_recovered_refusals_cannot_certify_a_formation_and_unwind_clears_ownership ... ok
+test js::cloning::tests::q2_copied_unicode_and_proof_rows_keep_runtime_and_release_replaced_payloads ... ok
+test js::cloning::tests::q2_target_copies_admit_each_nested_owner_and_rollback_refusals ... ok
+test js::rules::contract_tests::q2_dirty_target_schedule_matches_disabled_reuse_after_later_region_edits ... ok
+test js::tests::g3_optional_member_preserves_value_calls_and_outer_delete_references ... ok
+test program::javascript::reprint_tests::q2_print_reuse_keys_keep_every_structural_assignment_and_joint_permission ... ok
+test program::javascript::reprint_tests::q2_print_variants_match_full_formation_and_fit_the_admitted_stage ... ok
+test program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes ... FAILED
+test program::publication::search::terminal::tests::q2_normalization_reuse_preserves_logical_search_and_objective_bytes ... ok
+test timing::tests::semantic_phase_timing_is_observational_and_covers_refusal ... FAILED
+
+failures:
+
+---- program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes stdout ----
+
+thread 'program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes' (1119576) panicked at src/program/search_terminal_tests.rs:246:9:
+fixture must incrementally form print variants: raw
+
+---- timing::tests::semantic_phase_timing_is_observational_and_covers_refusal stdout ----
+
+thread 'timing::tests::semantic_phase_timing_is_observational_and_covers_refusal' (1119819) panicked at src/timing_tests.rs:289:13:
+
+running 1 test
+test timing::tests::semantic_phase_timing_is_observational_and_covers_refusal ... FAILED
+
+failures:
+
+failures:
+    timing::tests::semantic_phase_timing_is_observational_and_covers_refusal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2057 filtered out; finished in 0.08s
+
+
+
+thread 'timing::tests::semantic_phase_timing_is_observational_and_covers_refusal' (1119825) panicked at src/timing_tests.rs:47:13:
+assertion `left == right` failed: phase counters do not claim byte measurements
+  left: 19
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+
+failures:
+    program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes
+    timing::tests::semantic_phase_timing_is_observational_and_covers_refusal
+
+test result: FAILED. 10 passed; 2 failed; 0 ignored; 0 measured; 2046 filtered out; finished in 23.92s
+
