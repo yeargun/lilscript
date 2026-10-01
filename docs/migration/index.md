@@ -34,6 +34,8 @@ Declared shapes, checked spread/intersections/tags and concrete public product
 storage are implemented in the [shape batch](../../benchmarks/migration-results/2026-10-01-s4-shapes/README.md).
 Unified absence, pinned crossings, default arguments and public optional keys are
 implemented in the [absence batch](../../benchmarks/migration-results/2026-10-01-s4-absence/README.md).
+The opt-in number/NaN `charCodeAt` contract is implemented on both targets in
+the [character-code batch](../../benchmarks/migration-results/2026-10-01-s4-char-code/README.md).
 The [handoff](handoff.md) records the current scope and compiler pins.
 
 The owner requests substantial implementation batches followed by focused
@@ -51,7 +53,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [S1](plan.md#s1) Folding | Implementation complete; final library/CLI and complete paired cost verification deferred by owner |
 | [x] | [S2](plan.md#s2) Objects | Bounded aggregate facts, fields, flattening, scalar banks and physical copy elision complete; focused evidence retained |
 | [x] | [S3](plan.md#s3) Calls | Cross-module/nested-closure inlining, terminal returns, frequency and judged specialization/sharing complete |
-| [~] | [S4](plan.md#s4) Contracts | Variants/enums, `charCodeAt`, catalog/generic crossings and fact-consumer audit; staged language-default adoption belongs to V2 |
+| [~] | [S4](plan.md#s4) Contracts | Variants/enums, catalog/generic crossings and fact-consumer audit; staged language-default adoption belongs to V2 |
 | [x] | [G1](plan.md#g1) Lexical names | Live printed-order/frequency allocation, full continuations, final-byte ties and replay controls complete; optional compaction is automatic at 14 |
 | [x] | [G2](plan.md#g2) Property names | Private generic/observed eligibility, inherited/sibling slot reuse, reflected boundaries and adapter-name fixtures complete |
 | [x] | [G3](plan.md#g3) JS generation | Stable per-site forms, guarded aliases, safe locality choices and structural printing complete |

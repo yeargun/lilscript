@@ -1140,9 +1140,12 @@ implement a string as UTF-16 code units: JavaScript natively, and native C as a
 length plus a `uint16_t` array. Indexing, `length`, comparison and lone
 surrogates therefore agree across targets. `print` writes UTF-8 and replaces a
 lone surrogate with U+FFFD, as Node does.
-`charCodeAt` returns `0` for an out-of-range index. `charAt` returns an empty
-string out of range, otherwise a one-code-unit string. Plan task M10.9 may change
-the out-of-range result of `charCodeAt` by owner ruling (architecture L7).
+Under the compatibility default `[language] char_code_at = "legacy"`,
+`charCodeAt` returns `0` for an out-of-range index. Selecting `"number"` gives
+its number/NaN result on JavaScript and native; `| 0` explicitly retains the old
+integer result. `codeUnitAt` retains its in-range precondition. `charAt` returns
+an empty string out of range, otherwise a one-code-unit string. Qualified port
+adoption precedes changing the compatibility default.
 `Regex` provides `test`, `exec`, readable flag/source metadata, and mutable
 `lastIndex`. Calls are statically checked
 and are intrinsic operations; they are not untyped JavaScript

@@ -6635,7 +6635,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     ) -> Result<Type<'src>, AdmittedCheckError> {
         // The checked receiver owns resolution. Re-analysis replaces the fact;
         // later consumers do not recover it from a property spelling.
-        let intrinsic = crate::primitive::resolve_member(&object_type, property.name);
+        let intrinsic = crate::primitive::resolve_member(&object_type, property.name).map(|operation| {
+            use crate::primitive::{Intrinsic, ResolvedIntrinsic};
+            if operation == ResolvedIntrinsic::Method(Intrinsic::StringCharCodeAt)
+                && self.declarations.source_contract.char_code_at == crate::config::CharCodeAtContract::Number {
+                ResolvedIntrinsic::Method(Intrinsic::StringCharCodeAtNumber)
+            } else { operation }
+        });
         self.facts.source_info[id.index()].resolution =
             intrinsic.map_or(ExpressionResolution::None, ExpressionResolution::Primitive);
         if let Some(contract) = intrinsic.and_then(crate::primitive::intrinsic_call_contract) {

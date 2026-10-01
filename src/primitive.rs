@@ -207,6 +207,8 @@ pub enum Intrinsic {
     FloatToInt,
     StringLength,
     StringCharCodeAt,
+    /// R11: ECMAScript's number result, including NaN outside the string.
+    StringCharCodeAtNumber,
     /// `s.codeUnitAt(i)` (R11): the UTF-16 code unit at `i`, an `int`; the
     /// index is in range by precondition, so no NaN needs normalizing.
     StringCodeUnitAt,
@@ -471,6 +473,7 @@ pub(crate) fn intrinsic_call_contract(
     };
     let (parameters, defaults, result) = match operation {
         Intrinsic::StringCharCodeAt => (&INDEX_PARAMETERS[..], &REQUIRED_SINGLE[..], &Type::Int),
+        Intrinsic::StringCharCodeAtNumber => (&INDEX_PARAMETERS[..], &REQUIRED_SINGLE[..], &Type::Float),
         Intrinsic::StringCodeUnitAt => (&INDEX_PARAMETERS[..], &REQUIRED_SINGLE[..], &Type::Int),
         Intrinsic::StringCharAt => (&INDEX_PARAMETERS[..], &REQUIRED_SINGLE[..], &Type::String),
         Intrinsic::StringIndexOf => (&SEARCH_PARAMETERS[..], &SEARCH_DEFAULTS[..], &Type::Int),

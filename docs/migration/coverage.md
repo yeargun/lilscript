@@ -73,7 +73,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M9.10 | [Q3](plan.md#q3) | Calibration |
 | M9.11 | [G3](plan.md#g3), complete | Effect-free declaration/closure/literal groups, module/anchor barriers and gzip-window evidence |
 | M9.12 | [G3](plan.md#g3), complete | Optional forms and receiver aliases compete through the common exact artifact path |
-| M10.9 | [S4](plan.md#s4), transition [V2](plan.md#v2) | R2 unified absence/pins/defaults/optional keys and checked `a.get(i)` implemented; `charCodeAt` number contract remains S4, qualified default adoption V2 |
+| M10.9 | [S4](plan.md#s4), transition [V2](plan.md#v2) | R2 unified absence/pins/defaults/optional keys, checked `a.get(i)` and R11 `charCodeAt` number/NaN implemented on both targets; qualified default adoption remains V2 |
 | M10.11 | [S4](plan.md#s4) | termination (Y4), pins |
 | M10.13 | [S4](plan.md#s4), transition [V2](plan.md#v2) | Explicit field contract and shared checker/lint proof implemented; qualified port adoption and default transition remain V2 (M12.4) |
 | M10.14 | [S4](plan.md#s4) | constructibility (Y3) |

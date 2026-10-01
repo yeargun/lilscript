@@ -114,10 +114,28 @@ spelling is required. It is a language choice, not a claim that every artifact
 gets smaller. The receipt and policy fingerprint retain the choice. Unknown
 keys and values fail configuration loading; no compression level overrides it.
 
+## Character codes during migration
+
+`[language] char_code_at = "legacy" | "number"` selects the `charCodeAt` source
+contract on both targets. The migration default `legacy` returns an int32 and
+zero outside the string. `number` returns the UTF-16 code unit or NaN, matching
+ECMAScript; assignments to `int` then require an explicit conversion. Run the
+`migration/char-code` fix on legacy source first to retain its results, or use
+`codeUnitAt` where the index is known to be in range. The lint does not rewrite
+programs already using the number contract.
+
+The number contract can remove `| 0` from number-valued reads. Explicit integer
+conversion may restore it, so this setting does not guarantee smaller output.
+Native uses a number/NaN helper instead of the legacy integer helper. Selection
+adds no search candidates, and target, checks, effort or tactic permissions
+cannot override it. Receipts and cache identities include the setting; unknown
+values are errors. Qualified port/default adoption belongs to D3/V2.
+
 ## The schema
 
 ```toml
 [language]
+char_code_at = "legacy"       # legacy | number; UTF-16 read result and out-of-range behavior
 field_initialization = "legacy" # legacy | explicit; source contract, independent of effort
 absence = "legacy"            # legacy | unified; internal absence and boundary contracts
 

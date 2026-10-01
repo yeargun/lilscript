@@ -956,3 +956,20 @@ boundary oracles pass all three objectives; scored and delivered bytes agree.
 No full-library/fleet rerun, timing or Closure claim. S4 remains active; R11,
 R8, R17/R18 and shared-consumer completion follow. D3/V2 own qualified default
 adoption, and N2 owns unsupported native absence transport.
+
+## 2026-10-01: S4 character-code number contract
+
+The [character-code batch](../../benchmarks/migration-results/2026-10-01-s4-char-code/README.md)
+adds `[language] char_code_at = "number"`, with the legacy contract still the
+migration default. One checked primitive identity carries number/NaN semantics
+through shared constant evaluation and both targets. Explicit integer conversion
+retains legacy results; the migration lint leaves new-contract programs alone.
+
+Pin `s4-char-code-1`, SHA-256
+`a4dcf50c09d0c80a747d37091f4e3e00fd4c042541a7d317e182187f4c7fe4f1`;
+algorithm 29 / search 31 / walk 10 / local facts 12. Five focused checks and
+CLI/lint/LSP release builds pass. The unchanged-contract control remains
+145 raw / 126 gzip / 107 Brotli; an opt-in bounded read with identical behavior
+improves 2 raw / 2 gzip / 1 Brotli byte. Every oracle and delivered/score comparison
+passes. No full-library/fleet rerun or timing claim. S4 continues with R8,
+R17/R18 and shared-consumer completion; D3/V2 own qualified default adoption.

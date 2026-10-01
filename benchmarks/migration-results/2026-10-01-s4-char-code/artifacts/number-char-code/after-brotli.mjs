@@ -1,0 +1,1 @@
+let read=function(e,r){return e.charCodeAt(r)},integer=function(e,r){return e.charCodeAt(r)|0},folded=function(){return"".charCodeAt(0)};export{read,integer,folded};

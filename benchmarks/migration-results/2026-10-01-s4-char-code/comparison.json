@@ -1,0 +1,320 @@
+{
+  "scope": "one unchanged-contract control, one bounded read with identical behavior under the opt-in contract, and one number/NaN capability; no fleet or timing claim",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/s4-char-code-1/lilscript",
+    "sha256": "a4dcf50c09d0c80a747d37091f4e3e00fd4c042541a7d317e182187f4c7fe4f1"
+  },
+  "baseline": {
+    "path": "/home/azureuser/lilscript-work/bin/s4-absence-1/lilscript",
+    "sha256": "945e677ab8d07f24a7362dd8518e0d60ee693153b2d147b953876d537e5faa3e"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "totals": {
+    "unchanged_contract": {
+      "raw": {
+        "before": 145,
+        "after": 145,
+        "delta": 0
+      },
+      "gzip": {
+        "before": 126,
+        "after": 126,
+        "delta": 0
+      },
+      "brotli": {
+        "before": 107,
+        "after": 107,
+        "delta": 0
+      }
+    },
+    "opt_in_migration": {
+      "raw": {
+        "before": 74,
+        "after": 72,
+        "delta": -2
+      },
+      "gzip": {
+        "before": 92,
+        "after": 90,
+        "delta": -2
+      },
+      "brotli": {
+        "before": 65,
+        "after": 64,
+        "delta": -1
+      }
+    }
+  },
+  "rows": [
+    {
+      "id": "private-product",
+      "matched": true,
+      "migration": false,
+      "source_sha256": "e475678623a300a7174a8a9f55d2345b9ad3bc04300e449e07f0c38bbab7548b",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "dc9de7f924615a24b427e31dfb269457c90722b7e7f4961cd8acac69f7b7de9b",
+            "raw": 145,
+            "gzip9": 130,
+            "brotli11": 110,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 172,
+              "judged": 11
+            }
+          },
+          "after": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "dc9de7f924615a24b427e31dfb269457c90722b7e7f4961cd8acac69f7b7de9b",
+            "raw": 145,
+            "gzip9": 130,
+            "brotli11": 110,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 172,
+              "judged": 11
+            }
+          }
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "034ba2ecc321c646204c61f325f00a4201b2e812ad6799664cf49cfc1f7caef3",
+            "raw": 145,
+            "gzip9": 126,
+            "brotli11": 107,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 60,
+              "judged": 3
+            }
+          },
+          "after": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "034ba2ecc321c646204c61f325f00a4201b2e812ad6799664cf49cfc1f7caef3",
+            "raw": 145,
+            "gzip9": 126,
+            "brotli11": 107,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 60,
+              "judged": 3
+            }
+          }
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "034ba2ecc321c646204c61f325f00a4201b2e812ad6799664cf49cfc1f7caef3",
+            "raw": 145,
+            "gzip9": 126,
+            "brotli11": 107,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 172,
+              "judged": 27
+            }
+          },
+          "after": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "034ba2ecc321c646204c61f325f00a4201b2e812ad6799664cf49cfc1f7caef3",
+            "raw": 145,
+            "gzip9": 126,
+            "brotli11": 107,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 172,
+              "judged": 27
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bounded-char-code",
+      "matched": true,
+      "migration": true,
+      "source_sha256": "47d8f475c7b7d68c8817a8eed1f966604482e8cb544d8c0f5fb4e05182ce513b",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "6945d3dbd5d946ba4c335a559c677f1aff8582fdfc846502547274baac2c0e07",
+            "raw": 74,
+            "gzip9": 92,
+            "brotli11": 65,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 228,
+              "judged": 11
+            }
+          },
+          "after": {
+            "config_sha256": "9fcbcb35fbab7c1bb3d89c021c71fadd029a3c5ede74d45624cd53cbd5741024",
+            "sha256": "e29a2f80beca282e4f2f3efcbeb87efc7718d44efbc0671de917a054c170f7e1",
+            "raw": 72,
+            "gzip9": 90,
+            "brotli11": 64,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 236,
+              "judged": 11
+            }
+          }
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "6945d3dbd5d946ba4c335a559c677f1aff8582fdfc846502547274baac2c0e07",
+            "raw": 74,
+            "gzip9": 92,
+            "brotli11": 65,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 88,
+              "judged": 6
+            }
+          },
+          "after": {
+            "config_sha256": "30c882beb4972ce5d8da032abc726ec8e5f42ebbb545874dedc8897de62e6463",
+            "sha256": "e29a2f80beca282e4f2f3efcbeb87efc7718d44efbc0671de917a054c170f7e1",
+            "raw": 72,
+            "gzip9": 90,
+            "brotli11": 64,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 178,
+              "judged": 8
+            }
+          }
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "6945d3dbd5d946ba4c335a559c677f1aff8582fdfc846502547274baac2c0e07",
+            "raw": 74,
+            "gzip9": 92,
+            "brotli11": 65,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 15
+            }
+          },
+          "after": {
+            "config_sha256": "4e08a88f32a6c57846dd93b91791080d20ca6443f49f78a9cbfe0baba04210b0",
+            "sha256": "e29a2f80beca282e4f2f3efcbeb87efc7718d44efbc0671de917a054c170f7e1",
+            "raw": 72,
+            "gzip9": 90,
+            "brotli11": 64,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 178,
+              "judged": 23
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "number-char-code",
+      "matched": false,
+      "migration": false,
+      "source_sha256": "15fdc1e4f77771c0d80f89f5b9fc452102f59bbc50415051f7eb32066a27e9a6",
+      "lanes": {
+        "raw": {
+          "after": {
+            "config_sha256": "9fcbcb35fbab7c1bb3d89c021c71fadd029a3c5ede74d45624cd53cbd5741024",
+            "sha256": "4057dccd8f725535605e256435bb564447a8005e42839db9c8ac3799087e3eb4",
+            "raw": 165,
+            "gzip9": 119,
+            "brotli11": 97,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 228,
+              "judged": 14
+            }
+          }
+        },
+        "gzip": {
+          "after": {
+            "config_sha256": "30c882beb4972ce5d8da032abc726ec8e5f42ebbb545874dedc8897de62e6463",
+            "sha256": "d0381906fd89a7096ff6069f980342a4767b1cbae828c585aaf2f92ae65ab92e",
+            "raw": 165,
+            "gzip9": 113,
+            "brotli11": 91,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 60,
+              "judged": 4
+            }
+          }
+        },
+        "brotli": {
+          "after": {
+            "config_sha256": "4e08a88f32a6c57846dd93b91791080d20ca6443f49f78a9cbfe0baba04210b0",
+            "sha256": "e2fd7a50718ab4b450b9f7ac19ef152d32b86b65ea999f9aac76766723c4ddd7",
+            "raw": 165,
+            "gzip9": 113,
+            "brotli11": 90,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 172,
+              "judged": 20
+            }
+          }
+        }
+      }
+    }
+  ]
+}

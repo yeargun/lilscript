@@ -52,6 +52,7 @@ fn intrinsic_refusal(operation: ResolvedIntrinsic) -> Option<Refusal> {
         | I::FloatToInt
         | I::StringLength
         | I::StringCharCodeAt
+        | I::StringCharCodeAtNumber
         | I::StringCodeUnitAt
         | I::StringCharAt
         | I::StringIncludes
@@ -274,7 +275,7 @@ fn intrinsic(
             }
             Some(Exact::Integer(count as i32))
         }
-        I::StringCharCodeAt | I::StringCodeUnitAt | I::StringCharAt => {
+        I::StringCharCodeAt | I::StringCharCodeAtNumber | I::StringCodeUnitAt | I::StringCharAt => {
             let position = integer(args.first()?)?;
             let unit = usize::try_from(position)
                 .ok()
@@ -282,6 +283,7 @@ fn intrinsic(
                 .copied();
             Some(match method {
                 I::StringCharAt => computed(unit.into_iter().collect()),
+                I::StringCharCodeAtNumber => Exact::Number(unit.map_or(f64::NAN, f64::from).to_bits()),
                 I::StringCodeUnitAt => Exact::Integer(i32::from(unit?)),
                 _ => Exact::Integer(unit.map_or(0, i32::from)),
             })
@@ -901,6 +903,24 @@ mod tests {
                 I::StringCharCodeAt,
                 text("😀"),
                 vec![Exact::Integer(9)],
+                "charCodeAt",
+            ),
+            (
+                I::StringCharCodeAtNumber,
+                text("😀"),
+                vec![Exact::Integer(1)],
+                "charCodeAt",
+            ),
+            (
+                I::StringCharCodeAtNumber,
+                text("😀"),
+                vec![Exact::Integer(-1)],
+                "charCodeAt",
+            ),
+            (
+                I::StringCharCodeAtNumber,
+                text(""),
+                vec![Exact::Integer(0)],
                 "charCodeAt",
             ),
             (

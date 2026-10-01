@@ -1592,6 +1592,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.write(format_args!("ls_char_code_at(ls_v{}", receiver.index()))?;
                 true
             }
+            PreparedTarget::CharCodeAtNumber { receiver } => {
+                self.write(format_args!("ls_char_code_at_number(ls_v{}", receiver.index()))?;
+                true
+            }
             PreparedTarget::CharAt { receiver } => {
                 self.write(format_args!("ls_char_at(ls_v{}", receiver.index()))?;
                 true

@@ -2039,6 +2039,17 @@ print(new Holder(true).kept);
             .any(|diagnostic| diagnostic.rule == "migration/char-code"));
     }
 
+    #[test]
+    fn s4_char_code_number_contract_does_not_offer_a_legacy_rewrite() {
+        let scratch = Scratch::new("char-code-number");
+        let source = "export number read(string text,int i){return text.charCodeAt(i);}";
+        let path = scratch.file("main.lil", source);
+        let mut settings = ProjectConfig::default();
+        settings.language.char_code_at = crate::config::CharCodeAtContract::Number;
+        let diagnostics = lint_path_with_source(&path, source, &settings).unwrap();
+        assert!(!diagnostics.iter().any(|diagnostic| diagnostic.rule == "migration/char-code"));
+    }
+
     /// `migration/absence`: operations that tell the spellings of absence
     /// apart get today's meaning written out where it has one spelling, and
     /// a report where it has none.

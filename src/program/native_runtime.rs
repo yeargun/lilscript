@@ -112,6 +112,7 @@ pub(super) enum Helper {
     UnsignedShiftRight,
     StringLength,
     CharCodeAt,
+    CharCodeAtNumber,
     CodeUnitAt,
     StringIndex,
     CharAt,
@@ -124,7 +125,7 @@ pub(super) enum Helper {
 }
 
 impl Helper {
-    pub(super) const ALL: [Self; 22] = [
+    pub(super) const ALL: [Self; 23] = [
         Self::FromU32,
         Self::ToInt32,
         Self::RoundBinary64,
@@ -138,6 +139,7 @@ impl Helper {
         Self::UnsignedShiftRight,
         Self::StringLength,
         Self::CharCodeAt,
+        Self::CharCodeAtNumber,
         Self::CodeUnitAt,
         Self::StringIndex,
         Self::CharAt,
@@ -164,6 +166,7 @@ impl Helper {
             Self::UnsignedShiftRight => "ls_ushr",
             Self::StringLength => "ls_string_length",
             Self::CharCodeAt => "ls_char_code_at",
+            Self::CharCodeAtNumber => "ls_char_code_at_number",
             Self::CodeUnitAt => "ls_code_unit_at",
             Self::StringIndex => "ls_string_index",
             Self::CharAt => "ls_char_at",
@@ -307,6 +310,12 @@ impl Helper {
             Self::CharCodeAt => {
                 r#"static inline int32_t ls_char_code_at(ls_string value, int32_t index) {
     return index < 0 || (size_t)index >= value.length ? 0 : (int32_t)value.data[(size_t)index];
+}
+"#
+            }
+            Self::CharCodeAtNumber => {
+                r#"static inline double ls_char_code_at_number(ls_string value, int32_t index) {
+    return index < 0 || (size_t)index >= value.length ? NAN : (double)value.data[(size_t)index];
 }
 "#
             }

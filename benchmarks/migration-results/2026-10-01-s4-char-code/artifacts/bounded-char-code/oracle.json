@@ -1,0 +1,8 @@
+{
+  "exercise": "console.log(JSON.stringify([m.read(''),m.read('a'),m.read('😀')]));",
+  "expected": [
+    -1,
+    97,
+    55357
+  ]
+}

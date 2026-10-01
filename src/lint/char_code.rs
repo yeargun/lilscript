@@ -38,6 +38,9 @@ pub(super) fn lint<'src>(
     view: &CheckedView<'_, '_, 'src>,
     pending: &mut Vec<PendingDiagnostic>,
 ) {
+    if view.source_contract().char_code_at == crate::config::CharCodeAtContract::Number {
+        return;
+    }
     let mut walk = Walk {
         module,
         view,

@@ -209,6 +209,9 @@ pub(super) enum PreparedTarget {
     CharCodeAt {
         receiver: ValueId,
     },
+    CharCodeAtNumber {
+        receiver: ValueId,
+    },
     CodeUnitAt {
         receiver: ValueId,
     },
@@ -1562,6 +1565,10 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             Intrinsic::StringCharCodeAt => {
                                 plan.helpers.require(Helper::CharCodeAt);
                                 PreparedTarget::CharCodeAt { receiver }
+                            }
+                            Intrinsic::StringCharCodeAtNumber => {
+                                plan.helpers.require(Helper::CharCodeAtNumber);
+                                PreparedTarget::CharCodeAtNumber { receiver }
                             }
                             Intrinsic::StringCharAt => {
                                 plan.helpers.require(Helper::CharAt);
@@ -2992,14 +2999,14 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         )
                     }
                     PreparedTarget::CharCodeAt { .. }
+                    | PreparedTarget::CharCodeAtNumber { .. }
                     | PreparedTarget::CodeUnitAt { .. }
                     | PreparedTarget::CharAt { .. } => {
-                        let expected =
-                            if matches!(plan.calls[call.index()], PreparedTarget::CharAt { .. }) {
-                                Text
-                            } else {
-                                I32
-                            };
+                        let expected = match plan.calls[call.index()] {
+                            PreparedTarget::CharAt { .. } => Text,
+                            PreparedTarget::CharCodeAtNumber { .. } => F64,
+                            _ => I32,
+                        };
                         expect(
                             site.contract.defaults == DefaultConvention::PreserveOmission
                                 && arguments.len() == 1

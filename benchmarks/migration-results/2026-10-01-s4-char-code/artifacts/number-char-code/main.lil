@@ -1,0 +1,1 @@
+export number read(string s,int i){return s.charCodeAt(i);}export int integer(string s,int i){return s.charCodeAt(i)|0;}export number folded(){return "".charCodeAt(0);}

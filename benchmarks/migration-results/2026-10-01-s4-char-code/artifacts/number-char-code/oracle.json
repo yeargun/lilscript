@@ -1,0 +1,10 @@
+{
+  "exercise": "console.log(JSON.stringify([m.read('😀',1),Number.isNaN(m.read('',0)),Number.isNaN(m.read('a',-1)),Number.isNaN(m.folded()),m.integer('a',9)]));",
+  "expected": [
+    56832,
+    true,
+    true,
+    true,
+    0
+  ]
+}

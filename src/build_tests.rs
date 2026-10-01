@@ -3699,3 +3699,51 @@ fn s4_absence_default_constructors_super_and_generics_share_the_call_contract() 
         assert!(error.message.contains("N2"), "{error:?}");
     }
 }
+
+#[test]
+fn s4_char_code_number_keeps_nan_utf16_and_explicit_integer_conversion() {
+    let source = r#"
+        export number read(string value,int index){return value.charCodeAt(index);}
+        export int integer(string value,int index){return value.charCodeAt(index)|0;}
+        export number folded(){return "".charCodeAt(0);}
+        export int unit(string value,int index){return value.codeUnitAt(index);}
+    "#;
+    for checks in ["production", "development"] {
+        let settings = config(&format!("checks='{checks}'\n[language]\nchar_code_at='number'"));
+        let result = compile_source(source, &settings, ServiceOptions {
+            objectives: Some(Objectives::All), ..ServiceOptions::default()
+        }).unwrap();
+        for objective in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+            assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(), "", r#"
+                console.log(JSON.stringify([library.read('😀',0),library.read('😀',1),library.read('\ud800',0),Number.isNaN(library.read('a',-1)),Number.isNaN(library.read('a',1)),Number.isNaN(library.folded()),library.integer('a',9),library.unit('😀',1)]));
+            "#), "[55357,56832,55296,true,true,true,0,56832]\n");
+        }
+    }
+    let settings = config("[language]\nchar_code_at='number'");
+    let error = compile_source("int code(string s){return s.charCodeAt(0);}", &settings, ServiceOptions::default()).unwrap_err();
+    assert_eq!(error.phase, "check");
+    assert!(toml::from_str::<ProjectConfig>("[language]\nchar_code_at='fast'").is_err());
+}
+
+#[test]
+fn s4_char_code_native_uses_the_same_number_contract_before_and_after_folding() {
+    let source = r#"
+        number read(string value,int index){return value.charCodeAt(index);}
+        number missing=read("a",3);
+        print(missing!=missing);print(read("😀",1));print(read("\ud800",0));
+        print(read("",0)|0);print("😀".codeUnitAt(0));
+    "#;
+    for (effort, folding) in [(0, false), (13, false), (13, true)] {
+        let mut settings = config("[language]\nchar_code_at='number'");
+        settings.effort.level = effort;
+        if !folding {
+            settings.policy.get_or_insert_with(PolicyConfig::default)
+                .tactics.insert(TacticId::ConstantFolding, TacticPermission::Off);
+        }
+        let result = compile_source(source, &settings, ServiceOptions {
+            target: ServiceTarget::Native, ..ServiceOptions::default()
+        }).unwrap();
+        if !folding { assert!(result.native_c().unwrap().contains("ls_char_code_at_number")); }
+        assert_eq!(execute_native(result.native_c().unwrap()), "true\n56832\n55296\n0\n55357\n");
+    }
+}

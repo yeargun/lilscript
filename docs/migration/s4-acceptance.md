@@ -24,7 +24,8 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    checked indexing, and R7 receiver/rest lowering. R2's unified source contract,
    explicit boundary pins, public optional keys and mutable absence storage are
    implemented; qualified default adoption belongs to D3/V2 and wider erased
-   transport remains R18. Checker-owned constructor
+   transport remains R18. R11's opt-in `charCodeAt` number/NaN contract shares
+   checked identity, folding and both target implementations. Checker-owned constructor
    flow now powers explicit checking and the legacy-default lint/fix. The
    `[language] field_initialization` source contract is independent of target
    and effort; D3/V2 own qualified port adoption/default transition. Native

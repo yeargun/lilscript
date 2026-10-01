@@ -11,20 +11,23 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 absence batch](../../benchmarks/migration-results/2026-10-01-s4-absence/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-absence-1/lilscript`, SHA-256
-`945e677ab8d07f24a7362dd8518e0d60ee693153b2d147b953876d537e5faa3e`.
-Algorithm 28 / search 31 / walk 10 / local facts 11. R2's opt-in unified absence
-contract, explicit boundary pins, default arguments, optional public keys and
-mutable absence storage are implemented. Ten distinct focused checks and
-CLI/lint/LSP release builds pass. The two unchanged-contract controls remain
-388 raw / 299 gzip / 246 Brotli. The separate opt-in read-normalization case
-improves 16 raw / 8 gzip / 7 Brotli bytes with the same behavior oracle.
+The latest [S4 character-code batch](../../benchmarks/migration-results/2026-10-01-s4-char-code/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-char-code-1/lilscript`, SHA-256
+`a4dcf50c09d0c80a747d37091f4e3e00fd4c042541a7d317e182187f4c7fe4f1`.
+Algorithm 29 / search 31 / walk 10 / local facts 12. The opt-in number/NaN
+`charCodeAt` contract is implemented through checking, shared folding and both
+targets. Five focused checks and CLI/lint/LSP release builds pass. The unchanged
+control remains 145 raw / 126 gzip / 107 Brotli; the bounded read saves 2 raw /
+2 gzip / 1 Brotli byte under the same behavior oracle.
 
-1. Continue S4 with R11's `charCodeAt` number/NaN source contract; keep the
-   compatibility default until qualified port adoption.
-2. Complete R8 ABI enums/flags, payload variants/sealed virtuals, R17 host
-   declarations/catalog and R18 wider erased generic/product/union/callable
+The preceding [absence batch](../../benchmarks/migration-results/2026-10-01-s4-absence/README.md)
+implements unified absence, explicit pins, defaults, optional public keys and
+mutable absence storage. Both source contracts retain compatibility defaults
+until D3/V2's qualified transition.
+
+1. Continue S4 with R8 ABI enums/flags and payload variants/sealed virtuals.
+2. Complete R17 host declarations/catalog and R18 wider erased
+   generic/product/union/callable
    transport. Erased public generic shape presence currently has a source
    diagnostic. Native shapes and absent-to-default argument transport remain N2.
 3. Complete the shared-consumer audit: replace `raw_domains.rs`, `quiet.rs`,

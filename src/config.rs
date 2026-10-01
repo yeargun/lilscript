@@ -623,6 +623,10 @@ pub fn parse_project_config(source: &str) -> Result<ParsedConfig, String> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LanguageConfig {
+    /// `legacy` returns an int32, using zero outside the UTF-16 string.
+    /// `number` keeps ECMAScript's number/NaN result. Apply the char-code
+    /// migration lint before opting in; this never depends on optimization.
+    pub char_code_at: CharCodeAtContract,
     /// `legacy` preserves the migration-era null-normalized internal values.
     /// `unified` permits either absent spelling internally and refuses operations
     /// that distinguish them without narrowing. Public types pin null/undefined
@@ -644,6 +648,14 @@ pub enum AbsenceContract {
     #[default]
     Legacy,
     Unified,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CharCodeAtContract {
+    #[default]
+    Legacy,
+    Number,
 }
 
 impl LanguageConfig {

@@ -1,0 +1,1 @@
+export number read(string s){if(s.length>0){return s.charCodeAt(0);}return -1;}

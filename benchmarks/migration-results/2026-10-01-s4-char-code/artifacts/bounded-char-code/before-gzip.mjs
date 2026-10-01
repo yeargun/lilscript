@@ -1,0 +1,1 @@
+let read=function(a){return a.length>0?a.charCodeAt(0)|0:-1};export{read};
