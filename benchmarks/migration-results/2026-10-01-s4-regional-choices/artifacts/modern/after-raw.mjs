@@ -1,0 +1,1 @@
+let read=function(a){return a?.item},ensure=function(b){b||=next();return b};export{read,ensure};

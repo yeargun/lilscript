@@ -465,8 +465,12 @@ fn form(
         uses,
         contract,
         &demand,
-        false,
-        js::TargetRules::NONE,
+        !program.authored_choices.is_empty(),
+        js::TargetRules {
+            statement_spellings: !program.authored_choices.is_empty(),
+            receiver_aliases: program.authored_choices.uses(crate::compilation_policy::TacticId::ReceiverAliases),
+            ..js::TargetRules::NONE
+        },
         &[],
         js::OutputFamilies::NONE,
         &js::ChoiceMap::SEEDS,
@@ -620,6 +624,13 @@ fn form_head(
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<FormedHead, FormationError> {
+    use crate::compilation_policy::TacticId;
+    let pins = program.authored_choices;
+    if pins.uses(TacticId::TargetCompaction) && !compact
+        || pins.uses(TacticId::StatementSpellings) && !rules.statement_spellings
+        || pins.uses(TacticId::ReceiverAliases) && !rules.receiver_aliases {
+        return Err(Unsupported { span: Span::default(), feature: "selected target rules conflict with source @choose" }.into());
+    }
     let mut phase = budget.scope();
     let struct_plan = structs::plan(program, contract, &mut phase)?;
     let reference_plan = references::Plan::new();
@@ -1037,6 +1048,7 @@ fn form_head(
             })
         });
     let mut module = module;
+    module.forming_choices = crate::representation::RegionalChoices::NONE;
     module.identify_spelling_sites(
         u8::from(head.int32_hints) | (u8::from(head.property_mangling) << 1),
         &mut phase,
@@ -1063,6 +1075,9 @@ fn form_tail(
     let FormedHead {
         mut module, tail, ..
     } = head;
+    if module.conflicts_with_authors(choices) {
+        return Err(Unsupported { span: Span::default(), feature: "target choice conflicts with source @choose" }.into());
+    }
     let Some(TailContext {
         rules,
         frames_hidden,
@@ -1749,6 +1764,18 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         self.expression(js::Expr::Literal(literal))
     }
 
+    fn authored_literal(&mut self, literal: js::Literal, choices: crate::representation::RegionalChoices) -> Result<js::ExprId, FormationError> {
+        let prior = self.module.forming_choices;
+        self.module.forming_choices = choices;
+        let result = self.literal(literal);
+        self.module.forming_choices = prior;
+        result
+    }
+    fn family_literal(&mut self, family: usize) -> Result<js::ExprId, FormationError> {
+        let value = self.string(self.demand.strings()[family].payload(self.program))?;
+        self.authored_literal(js::Literal::String(value), self.demand.strings()[family].authored())
+    }
+
     fn class_field_key(&mut self, field: FieldRef) -> Result<js::ExprId, FormationError> {
         let (key, _) = self
             .program
@@ -1933,6 +1960,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let strict_frame = self.validate_struct_context(context)?;
         self.validate_reference_context(context)?;
         let data = self.program.units[unit.index()].data();
+        if !inline { self.module.set_region_choices(body, data.regions[data.entry.index()].authored, self.budget)?; }
+
         let mut cells = self.budget.filled(
             AllocationClass::Scratch,
             self.demand.owned_cells(unit).len(),
@@ -2019,6 +2048,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             self.budget,
                         )?
                     };
+                    if !expression_regions[child.index()] {
+                        self.module.set_region_choices(regions[child.index()], data.regions[child.index()].authored, self.budget)?;
+                    }
                     let layers = match kind {
                         // Captured owner + lazy operator + optional arm Sequence.
                         OperationKind::Select { .. } => 3,
@@ -2303,10 +2335,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 None
             } else {
                 Some({
-                    let literal = js::Literal::String(
-                        self.string(self.demand.strings()[family].payload(self.program))?,
-                    );
-                    self.literal(literal)
+                    self.family_literal(family)
                 }?)
             };
             self.statement(body, js::Statement::Let { binding, value })?;
@@ -2459,7 +2488,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             }
             OperationKind::Constant(Constant::String(id)) => {
                 let text = self.string(&self.program.strings[id.index()])?;
-                let expression = self.literal(js::Literal::String(text))?;
+                let expression = self.authored_literal(js::Literal::String(text), operation.authored)?;
                 if self.compact {
                     let observation = self.demand.observation(unit, value, |n| {
                         self.budget.work(WorkKind::Render, n as u64)
@@ -2512,7 +2541,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 };
             }
         };
-        Ok(self.literal(literal)?)
+        Ok(self.authored_literal(literal, operation.authored)?)
     }
 
     fn ambient(
@@ -3458,10 +3487,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             let (family, binding) = self.plan(context).shared_strings[index];
             let target = self.reference(binding)?;
             let value = {
-                let literal = js::Literal::String(
-                    self.string(self.demand.strings()[family].payload(self.program))?,
-                );
-                self.literal(literal)
+                self.family_literal(family)
             }?;
             {
                 let appended = self.expression(js::Expr::Assign { target, value })?;
@@ -4304,6 +4330,18 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         operations: &[OpId],
         cursor: &mut usize,
     ) -> Result<Option<js::ExprId>, FormationError> {
+        let prior = self.module.forming_choices;
+        self.module.forming_choices = self.data(unit).operations[operations[*cursor].index()].authored;
+        let result = self.scheduled_expression_inner(unit, operations, cursor);
+        self.module.forming_choices = prior;
+        result
+    }
+    fn scheduled_expression_inner(
+        &mut self,
+        unit: ContextId,
+        operations: &[OpId],
+        cursor: &mut usize,
+    ) -> Result<Option<js::ExprId>, FormationError> {
         self.work(1)?;
         let operation_id = operations[*cursor];
         let operation = &self.data(unit).operations[operation_id.index()];
@@ -4393,10 +4431,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 && !matches!(operation.kind, OperationKind::Constant(_))
             {
                 let literal = {
-                    let literal = js::Literal::String(
-                        self.string(self.demand.strings()[family].payload(self.program))?,
-                    );
-                    self.literal(literal)
+                    self.family_literal(family)
                 }?;
                 {
                     if let Some(appended) = self.save_result(unit, &operation, literal)? {
@@ -4421,7 +4456,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             operation_id,
             std::ptr::from_ref(operation),
         ));
+        let prior_choices = self.module.forming_choices;
+        self.module.forming_choices = operation.authored;
         let formed = self.ordinary_expression_of(unit, operation_id, operation);
+        self.module.forming_choices = prior_choices;
         self.forming = previous;
         formed
     }
@@ -5684,6 +5722,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         region: RegionId,
         operations: &'program [OpId],
     ) -> Result<(), FormationError> {
+        let prior = self.module.forming_choices;
+        let result = self.statement_operations_inner(unit, region, operations);
+        self.module.forming_choices = prior;
+        result
+    }
+    fn statement_operations_inner(
+        &mut self,
+        unit: ContextId,
+        region: RegionId,
+        operations: &'program [OpId],
+    ) -> Result<(), FormationError> {
         let target_region = self.plan(unit).regions[region.index()];
         // A root statement is formed from the operations since the previous
         // one: its anchor is theirs (plan M3.3, design §6). One operation
@@ -5711,6 +5760,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 };
             }
             let operation_id = operations[cursor];
+            self.module.forming_choices = self.data(unit).operations[operation_id.index()].authored;
             if classify {
                 self.point = self.root_point(unit, operation_id);
             }

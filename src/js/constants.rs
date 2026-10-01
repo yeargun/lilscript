@@ -74,6 +74,7 @@ impl Module {
             for &(read, value) in &rewrites {
                 let node = module.expressions[value.index()].clone();
                 module.set_expression(read, node);
+                module.copy_author_choices(value, read);
             }
             Ok(rewrites.len())
         })?

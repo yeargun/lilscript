@@ -4,6 +4,21 @@
 use super::*;
 
 impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
+    pub(super) fn enter_choices(
+        &mut self,
+        unit: UnitId,
+        choices: crate::representation::RegionalChoices,
+        span: Span,
+    ) -> Result<crate::representation::RegionalChoices, ConversionError> {
+        if !choices.allowed_by(self.choices_allowed) {
+            return self.unsupported(span, "@choose conflicts with resolved tactic permissions; enable its documented tactic and target-compaction in TOML");
+        }
+        self.program.authored_choices = self.program.authored_choices.requests(choices);
+        let data = &mut self.units[unit.index()];
+        data.regions[data.entry.index()].authored = choices;
+        Ok(std::mem::replace(&mut self.authored, choices))
+    }
+
     pub(super) fn enter_pool(
         &mut self,
         pool: bool,

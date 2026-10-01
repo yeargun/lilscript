@@ -1556,3 +1556,32 @@ fn s4_pool_pins_apply_without_compaction_and_retain_artifact_permissions() {
         assert_eq!(compiler.finish().retained_bytes(),0);
     });
 }
+
+#[test]
+fn s4_choose_sites_stay_fixed_and_replayed_artifacts_keep_permissions() {
+    checked(r#"@choose(quote_delimiter=1) string label(string x){return "small"+x;}print(label("x"));"#, |program| {
+        let module=program.to_javascript().unwrap();
+        let pins=module.choice_sites.iter().filter(|site|site.pinned).collect::<Vec<_>>();
+        assert!(!pins.is_empty());
+        for site in &pins {assert_eq!(site.applied,crate::js::AltId(1));}
+        assert!(crate::representation::schedule(&module.choice_sites,true).iter().flatten().all(|(index,_)|!module.choice_sites[*index].pinned));
+        let key=pins[0].key;
+        assert!(module.conflicts_with_authors(&crate::js::ChoiceMap::SEEDS.with(key,crate::js::AltId(0))));
+        let mut compiler=compilation();
+        let source=compiler.adopt_checked(program,WorkDomain::Baseline).unwrap();
+        let on=policy("[objective]\ncodecs=['raw']");
+        let candidate=compiler.direct_javascript(source,&on,WorkDomain::Baseline).unwrap();
+        let artifact=compiler.with_javascript_output(candidate,&on,|output| {
+            let artifact=output.render(&crate::js::selection::Plan::new(crate::js::selection::Style::Scoped))?;
+            output.retain_artifact(artifact)
+        }).unwrap().unwrap();
+        for flag in ["statement-spellings","target-compaction"] {
+            let off=policy(&format!("[objective]\ncodecs=['raw']\n[policy.tactics]\n{flag}='off'"));
+            assert!(compiler.with_javascript_output(candidate,&off,|_|()).is_err());
+        }
+        let off=policy("[objective]\ncodecs=['raw']\n[policy.tactics]\nstatement-spellings='off'");
+        let result=compiler.qualify_artifact(artifact,&off,crate::config::CompressionCostModel::Raw,ArtifactRuntimeEvidence::default(),None,WorkDomain::Baseline);
+        assert!(matches!(result,Err(CandidateError::ForbiddenTactic(crate::compilation_policy::TacticId::StatementSpellings))),"{result:?}");
+        assert_eq!(compiler.finish().retained_bytes(),0);
+    });
+}

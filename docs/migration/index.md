@@ -13,9 +13,9 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Next
 
 Complete **S4** under its [acceptance contract](s4-acceptance.md): wider public erased
-product/union/callable crossings and R15 `@choose` controls. Authored string
-pooling and shared
-`inline for` expansion, including their TOML/replay contracts, are implemented. The
+product/union/callable crossings. R15 regional `@choose` controls, authored
+string pooling and shared `inline for` expansion, including their TOML/replay
+contracts, are implemented. The
 [shared fact-consumer/removal audit](s4-target-facts.md) is complete.
 Identities, defaults, indexing, fields, shapes, absence, enums, payloads, generic
 sealed calls, closed private generic product transport, platform catalogs and configurable host bindings are implemented;
@@ -37,7 +37,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [S1](plan.md#s1) Folding | Implementation complete; final library/CLI and complete paired cost verification deferred by owner |
 | [x] | [S2](plan.md#s2) Objects | Bounded aggregate facts, fields, flattening, scalar banks and physical copy elision complete; focused evidence retained |
 | [x] | [S3](plan.md#s3) Calls | Cross-module/nested-closure inlining, terminal returns, frequency and judged specialization/sharing complete |
-| [~] | [S4](plan.md#s4) Contracts | Wider generic crossings and R15 author controls; staged language-default adoption belongs to V2 |
+| [~] | [S4](plan.md#s4) Contracts | Wider generic crossings; author controls complete; staged language-default adoption belongs to V2 |
 | [x] | [G1](plan.md#g1) Lexical names | Live printed-order/frequency allocation, full continuations, final-byte ties and replay controls complete; optional compaction is automatic at 14 |
 | [x] | [G2](plan.md#g2) Property names | Private generic/observed eligibility, inherited/sibling slot reuse, reflected boundaries and adapter-name fixtures complete |
 | [x] | [G3](plan.md#g3) JS generation | Stable per-site forms, guarded aliases, safe locality choices and structural printing complete |

@@ -224,7 +224,7 @@ impl Module {
         self.with_reach_tree(budget, |module, reach, budget| {
             // Each literal's uses, in the order the arena holds them.
             let mut uses: Vec<(Pooled, Vec<ExprId>)> = Vec::new();
-            let mut index: std::collections::HashMap<Pooled, usize> =
+            let mut index: std::collections::HashMap<(Pooled, Option<AltId>), usize> =
                 std::collections::HashMap::new();
             for &(id, _) in &reach.expressions {
                 budget.work(Analysis, 1)?;
@@ -236,10 +236,15 @@ impl Module {
                 if module.observed(id) {
                     continue;
                 }
-                match index.get(&pooled) {
+                // One pooled initializer cannot satisfy opposite quote pins.
+                // Keep those representation classes separate; ordinary literals
+                // still share exactly as before.
+                let quote = module.expression_choices(id).get(ChoiceFamily::QuoteDelimiter);
+                let key = (pooled.clone(), quote);
+                match index.get(&key) {
                     Some(&at) => uses[at].1.push(id),
                     None => {
-                        index.insert(pooled.clone(), uses.len());
+                        index.insert(key, uses.len());
                         uses.push((pooled, vec![id]));
                     }
                 }
@@ -297,6 +302,7 @@ impl Module {
                     module.set_expression(site, Expr::Binding(binding));
                 }
                 let literal = module.expression_in(Expr::Literal(value.literal()), None, budget)?;
+                module.copy_author_choices(sites[0], literal);
                 statements.push(Statement::Let {
                     binding,
                     value: Some(literal),

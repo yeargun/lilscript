@@ -53,7 +53,7 @@ fn default_transport_metadata_obeys_the_current_formation_permission() {
         let (program, receipt) = super::rules::optimize(
             program,
             super::rules::RuleRequest {
-                unroll: true, pool: true,
+                unroll: true, pool: true, choices: crate::representation::RegionalChoices::ALL,
                 fold: true,
                 dead_code: true,
                 inline: false,

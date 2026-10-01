@@ -364,10 +364,30 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     }
                     region.pool_strings = true;
                 }
+                "choose" => {
+                    use crate::representation::{AltId, RegionalChoices};
+                    self.expect(|kind| matches!(kind, TokenKind::LParen), "expected `(` after `@choose`")?;
+                    let family = self.expect_ident("expected a regional choice family")?;
+                    let Some(choice) = RegionalChoices::named(family.name) else {
+                        return Err(AdmittedParseError::new(family.span,
+                            "unknown or nonregional choice family; use a documented @choose spelling family, or TOML for whole-program behavior"));
+                    };
+                    self.expect(|kind| matches!(kind, TokenKind::Eq), "expected `=` after choice family")?;
+                    let token = self.advance().ok_or_else(|| self.error_here("expected alternative 0 or 1"))?;
+                    let alternative = match token.kind {
+                        TokenKind::IntLiteral(0) => AltId(0),
+                        TokenKind::IntLiteral(1) => AltId(1),
+                        _ => return Err(AdmittedParseError::new(token.span, "regional choice alternative must be 0 (canonical) or 1 (alternative)")),
+                    };
+                    if !region.choices.insert(choice, alternative) {
+                        return Err(AdmittedParseError::new(family.span, "duplicate regional choice family"));
+                    }
+                    self.expect(|kind| matches!(kind, TokenKind::RParen), "expected `)` after regional choice")?;
+                }
                 other => {
                     return Err(AdmittedParseError::new(
                         name.span,
-                        format!("unknown region attribute `@{other}`; known attributes: `@pool`"),
+                        format!("unknown region attribute `@{other}`; known attributes: `@pool`, `@choose`"),
                     ));
                 }
             }

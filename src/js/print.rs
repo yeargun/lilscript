@@ -681,6 +681,9 @@ impl<'a> Printer<'a, '_, '_> {
             Some(text) if compact && text.matches('"').count() > text.matches('\'').count() => '\'',
             _ => '"',
         };
+        self.string_delimited(value, quote);
+    }
+    fn string_delimited(&mut self, value: &StringValue, quote: char) {
         let mut delimiter = [0; 4];
         let delimiter = quote.encode_utf8(&mut delimiter);
         self.text(delimiter);
@@ -948,10 +951,8 @@ impl<'a> Printer<'a, '_, '_> {
                     if let Some(truthy) = self.observed_literal(id) {
                         self.text(if truthy { "1" } else { "0" });
                     } else {
-                        self.string_chosen(
-                            value,
-                            self.forms.quotes.get(id.index()).copied().unwrap_or(false),
-                        );
+                        self.string_delimited(value,
+                            if self.forms.quotes.get(id.index()).copied().unwrap_or(false) { '\'' } else { '"' });
                     }
                 }
                 // `!0` and `!1` are the booleans, three and four bytes shorter.

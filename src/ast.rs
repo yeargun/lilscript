@@ -271,29 +271,23 @@ pub struct FieldDecl<'ast, 'src> {
 /// the artifact's cost — a parser's inner loop inside a size-first library, a
 /// literal table the author wrote *to be* pooled under an objective whose
 /// admission model refuses it (finer/hypotheses/011). A region policy is how
-/// that intent survives the objective, and it only ever pins behaviour on:
-/// the default for every field is "let the objective decide".
+/// that intent survives the objective. Pooling admits a value; a regional
+/// choice can pin either its canonical or alternative form. No attribute means
+/// "let the objective decide".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RegionPolicy {
     /// `@pool` — string constants authored in this region are admitted to the
     /// string pool whatever the objective's savings threshold would say.
     pub pool_strings: bool,
+    pub choices: crate::representation::RegionalChoices,
 }
 
 impl RegionPolicy {
     pub const fn is_default(self) -> bool {
-        !self.pool_strings
+        !self.pool_strings && self.choices.is_empty()
     }
 
-    /// Policy for a function synthesized from two others. Pinned behaviour is
-    /// kept if either source asked for it: a transform that fuses or outlines
-    /// code must not be the reason an author's `@pool` silently stops applying
-    /// to the literals it moved.
-    pub const fn union(self, other: Self) -> Self {
-        Self {
-            pool_strings: self.pool_strings || other.pool_strings,
-        }
-    }
+
 }
 
 #[derive(Debug, Clone, PartialEq)]

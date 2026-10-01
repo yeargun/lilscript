@@ -11,6 +11,7 @@ struct SharedIdentity {
     lineage: RewriteLineage,
     authored_unrolling: bool,
     authored_pooling: bool,
+    authored_choices: crate::representation::RegionalChoices,
     identity: ImplementationIdentity,
     fingerprint: u64,
     header_charge: RetainedCharge<RevisionId>,
@@ -29,6 +30,7 @@ impl SharedImplementationIdentity {
         lineage: &RewriteLineage,
         authored_unrolling: bool,
         authored_pooling: bool,
+        authored_choices: crate::representation::RegionalChoices,
         owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
@@ -41,6 +43,7 @@ impl SharedImplementationIdentity {
                 lineage,
                 authored_unrolling,
                 authored_pooling,
+                authored_choices,
                 owner,
                 budget,
             )?);
@@ -55,6 +58,7 @@ impl SharedImplementationIdentity {
         lineage: &RewriteLineage,
         authored_unrolling: bool,
         authored_pooling: bool,
+        authored_choices: crate::representation::RegionalChoices,
         owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, AllocationError> {
@@ -92,6 +96,7 @@ impl SharedImplementationIdentity {
             lineage,
             authored_unrolling,
             authored_pooling,
+            authored_choices,
             identity,
             fingerprint,
             header_charge,
@@ -130,6 +135,7 @@ impl SharedImplementationIdentity {
             .iter()
             .chain(self.0.authored_unrolling.then_some(&UNROLL))
             .chain(self.0.authored_pooling.then_some(&POOL))
+            .chain(self.0.authored_choices.tactic_uses())
     }
 
     pub(in crate::program) fn owner(&self) -> RevisionId {
@@ -243,6 +249,7 @@ mod tests {
             &RewriteLineage::default(),
             false,
             false,
+            crate::representation::RegionalChoices::NONE,
             owner,
             &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional))),
         )
@@ -280,6 +287,7 @@ mod tests {
                 &RewriteLineage::default(),
                 false,
                 false,
+                crate::representation::RegionalChoices::NONE,
                 owner,
                 &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional))),
             )
@@ -326,6 +334,7 @@ mod tests {
                 &RewriteLineage::default(),
                 false,
                 false,
+                crate::representation::RegionalChoices::NONE,
                 RevisionId::fresh(),
                 &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)))
             ),

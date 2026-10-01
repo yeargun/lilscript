@@ -1,0 +1,11 @@
+{
+  "exercise": "let reads=0;const obj={get item(){return ++reads}};console.log(JSON.stringify([m.read(null)===undefined,m.read(undefined)===undefined,m.read(obj),reads,m.ensure(true),m.ensure(false)]));",
+  "expected": [
+    true,
+    true,
+    1,
+    1,
+    true,
+    true
+  ]
+}

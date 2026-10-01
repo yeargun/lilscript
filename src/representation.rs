@@ -3,6 +3,10 @@
 //! A family owns stable sites, offered alternatives and permission provenance.
 //! Typed proof producers still establish legality. Estimates schedule work;
 //! the single artifact admission/codec path decides which complete bytes win.
+#[path = "representation_authors.rs"]
+mod authors;
+pub use authors::RegionalChoices;
+
 use crate::compilation_policy::{
     AdmissionError, ResolvedPolicy, RuntimeRisk, TacticId, TacticInvalidation, TacticProducer,
     TacticUse,
@@ -357,6 +361,8 @@ pub struct ChoiceSite {
     pub seed: AltId,
     /// The alternative formation applied.
     pub applied: AltId,
+    /// Authored sites are fixed under every search move.
+    pub pinned: bool,
 }
 
 impl ChoiceSite {
@@ -404,7 +410,7 @@ pub fn seed(alternatives: &[ChoiceAlternative]) -> AltId {
 /// moves have a fixed bound and require the representation-joints permission.
 pub fn schedule(sites: &[ChoiceSite], extra_joints: bool) -> Vec<Vec<(usize, AltId)>> {
     let canonical = AltId(0);
-    let mut order: Vec<usize> = (0..sites.len()).collect();
+    let mut order: Vec<usize> = (0..sites.len()).filter(|&i| !sites[i].pinned).collect();
     order.sort_by(|&a, &b| {
         sites[b]
             .stake()
@@ -502,6 +508,7 @@ mod tests {
     #[test]
     fn q1_schedule_keeps_negative_estimates_and_bounded_cross_family_moves() {
         let site = |index, family| ChoiceSite {
+            pinned: false,
             key: ChoiceKey {
                 family,
                 site: SiteId::Symbol(index),

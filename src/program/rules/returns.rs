@@ -37,6 +37,9 @@ pub(super) fn apply(
             let Some((branch, yes, no, left, right)) = found else {
                 continue;
             };
+            if data.operations[branch.index()].authored.get(crate::representation::ChoiceFamily::ConditionalReturns) == Some(crate::representation::AltId(0)) {
+                continue;
+            }
             if data.values[left.index()].ty != data.values[right.index()].ty {
                 continue;
             }
@@ -65,6 +68,7 @@ pub(super) fn apply(
                 }
             }
             data.regions.push(Region {
+                authored: data.regions[region.index()].authored,
                 parent: Some(region),
                 operations,
                 result: None,

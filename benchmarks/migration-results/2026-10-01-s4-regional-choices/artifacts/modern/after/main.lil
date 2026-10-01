@@ -1,0 +1,1 @@
+@choose(optional_chain=1) @choose(conditional_returns=1) JsValue read(JsValue obj){if(JS.strictEqual(obj,null)||JS.isUndefined(obj)){return JS.undefined();}return obj["item"];}@choose(logical_assignment=1) bool ensure(bool flag){if(!flag){flag=next();}return flag;}extern bool next();export {read,ensure};

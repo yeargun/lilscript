@@ -15,7 +15,7 @@ use crate::compilation_policy::{
 use std::mem::size_of;
 
 pub(super) const STRING_FAMILY_PLAN: u32 = 4;
-pub(super) const STRING_FAMILY_VERSION: u32 = 1;
+pub(super) const STRING_FAMILY_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ValueRef {
@@ -62,11 +62,13 @@ pub(super) struct StringFamily {
     definitions: Vec<ValueRef>,
     operations: Vec<OpId>,
     choice: StringChoice,
+    authored: crate::representation::RegionalChoices,
     payload: Payload,
     dependencies: FamilyDependencies,
     charge: (WorkDomain, u64),
 }
 impl StringFamily {
+    pub(super) fn authored(&self) -> crate::representation::RegionalChoices { self.authored }
     pub(super) fn unit(&self) -> UnitId {
         self.unit
     }
@@ -119,6 +121,7 @@ pub enum UnknownReason {
     DuplicateDefinitions,
     UnsupportedActivation,
     UnsupportedProducer,
+    ConflictingAuthorChoices,
     UnqualifiedFacts,
     UnknownValue,
     NotString,
@@ -300,6 +303,13 @@ impl PreparedString {
                 .operations
                 .get(value.definition.index())
                 .ok_or(FamilyError::InvalidProgram("string value producer"))?;
+            let family = crate::representation::ChoiceFamily::QuoteDelimiter;
+            let pin = operation.authored.get(family);
+            if index == 0 {
+                if let Some(pin) = pin { self.family.authored.insert(family, pin); }
+            } else if self.family.authored.get(family) != pin {
+                return Err(Stop::Unknown(UnknownReason::ConflictingAuthorChoices));
+            }
             if operation.result != Some(definition.value) {
                 return Err(FamilyError::InvalidProgram("string producer identity").into());
             }
@@ -534,6 +544,7 @@ pub(super) fn prepare(
             definitions: Vec::new(),
             operations: Vec::new(),
             choice,
+            authored: crate::representation::RegionalChoices::NONE,
             payload: Payload::Pending,
             dependencies: FamilyDependencies {
                 local: facts::Dependencies {

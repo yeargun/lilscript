@@ -20,7 +20,8 @@ use crate::literal::StringValue;
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::primitive::{IntBinary, Intrinsic};
 
-pub(crate) mod admission;
+pub(crate) mod authors;
+mod admission;
 mod calls;
 pub use crate::representation as choices;
 pub use choices::{AltId, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite, SiteId};
@@ -1034,6 +1035,10 @@ pub struct Module {
     /// Source-authored string values admitted to shared storage regardless of seed.
     pub(crate) authored_pool: Vec<StringValue>,
     pub(crate) authored_pool_formed: bool,
+    pub(crate) forming_choices: crate::representation::RegionalChoices,
+    pub(crate) authored_expressions: Vec<crate::representation::RegionalChoices>,
+    pub(crate) authored_regions: Vec<crate::representation::RegionalChoices>,
+    pub(crate) authored_sites: Vec<crate::representation::RegionalChoices>,
     /// String literals the source only observes for truthiness or
     /// nullishness (an annotation of M5.2), sorted by expression: an
     /// artifact may spell them another way (`LiteralOutput::Observed`). The
@@ -1958,6 +1963,7 @@ impl Module {
                     self.expressions.pop();
                     self.origins.pop();
                     self.spelling_nodes.pop();
+                    self.authored_expressions.pop();
                     index += 1;
                     continue;
                 }
@@ -3194,6 +3200,7 @@ impl Module {
                 Retained,
                 &mut self.choice_sites,
                 ChoiceSite {
+            pinned: false,
                     key,
                     name,
                     alternatives,
@@ -3217,6 +3224,10 @@ impl Module {
             origins: vec![],
             authored_pool: Vec::new(),
             authored_pool_formed: false,
+            forming_choices: crate::representation::RegionalChoices::NONE,
+            authored_expressions: Vec::new(),
+            authored_regions: Vec::new(),
+            authored_sites: Vec::new(),
             functions: vec![],
             bindings: vec![],
             imports: vec![],
@@ -3331,6 +3342,7 @@ impl Module {
         to: ExprId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
+        self.copy_author_choices(from, to);
         match self.behaviour(from) {
             Some(behaviour) => self.record_behaviour_in(to, behaviour, budget),
             None => {
@@ -3389,6 +3401,9 @@ impl Module {
             bytes(&self.expressions)?,
             bytes(&self.origins)?,
             bytes(&self.authored_pool)?,
+            bytes(&self.authored_expressions)?,
+            bytes(&self.authored_regions)?,
+            bytes(&self.authored_sites)?,
             bytes(&self.observed_literals)?,
             bytes(&self.behaviours)?,
             bytes(&self.settled)?,
@@ -3494,6 +3509,12 @@ impl Module {
         budget.reserve_vec(AllocationClass::Retained, &mut self.origins, 1)?;
         if !self.spelling_nodes.is_empty() {
             budget.push(AllocationClass::Retained, &mut self.spelling_nodes, None)?;
+        }
+        if !self.forming_choices.is_empty() || !self.authored_expressions.is_empty() {
+            let missing = id.index().saturating_sub(self.authored_expressions.len());
+            budget.reserve_vec(AllocationClass::Retained, &mut self.authored_expressions, missing + 1)?;
+            self.authored_expressions.resize(id.index(), crate::representation::RegionalChoices::NONE);
+            self.authored_expressions.push(self.forming_choices);
         }
         self.expressions.push(expression);
         self.origins.push(origin);

@@ -421,6 +421,7 @@ fn convert_source<'ast, 'src>(
     )?;
     lower.unroll = rules.is_none_or(|r| r.unroll);
     lower.pool_allowed = rules.is_none_or(|r| r.pool);
+    lower.choices_allowed = rules.map_or(crate::representation::RegionalChoices::ALL, |r| r.choices);
     lower.add_cells(|_| Some(0))?;
     lower.register_source(source)?;
     lower.emit_source(root, source)?;
@@ -518,6 +519,7 @@ fn convert_modules<'ast, 'src>(
         })?;
     lower.unroll = rules.is_none_or(|r| r.unroll);
     lower.pool_allowed = rules.is_none_or(|r| r.pool);
+    lower.choices_allowed = rules.map_or(crate::representation::RegionalChoices::ALL, |r| r.choices);
     for module in 1..sources.len() {
         let view = semantics.view(module).unwrap();
         lower
@@ -782,6 +784,8 @@ struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     statement_origin: Option<(ModuleId, SourceNodeId)>,
     unroll: bool,
     pool_allowed: bool,
+    choices_allowed: crate::representation::RegionalChoices,
+    authored: crate::representation::RegionalChoices,
     pool_region: Option<(ModuleId, Span)>,
     /// Current physical binding for each checked source symbol during expansion.
     cell_aliases: Vec<CellId>,
@@ -890,6 +894,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 source_contract: semantics.source_contract(),
                 authored_unrolling: false,
                 authored_pooling: false,
+            authored_choices: crate::representation::RegionalChoices::NONE,
                 absence_abi: semantics.absence_abi(),
                 units: Vec::new(),
                 cells: table(Vec::new(), budget)?,
@@ -913,6 +918,8 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             statement_origin: None,
             unroll: true,
             pool_allowed: true,
+            choices_allowed: crate::representation::RegionalChoices::ALL,
+            authored: crate::representation::RegionalChoices::NONE,
             pool_region: None,
             cell_aliases: Vec::new(),
             class_values: None,
@@ -1125,10 +1132,12 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 } else {
                     Suspension::None
                 };
+                let outer_choices = self.enter_choices(unit, function.region.choices, function.span)?;
                 let outer_pool = self.enter_pool(function.region.pool_strings, function.span)?;
                 self.parameters(unit, function.params)?;
                 self.statements(unit, region, function.body)?;
                 self.pool_region = outer_pool;
+                self.authored = outer_choices;
                 let ty = self.program.cells[cell.index()].ty;
                 let value = self.value(
                     root,
@@ -2679,7 +2688,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let class = self.declared_class(declaration.name)?;
         for member in declaration.members {
             self.work(1)?;
-            let (name, this, params, body, span, pool) = match member {
+            let (name, this, params, body, span, pool, choices) = match member {
                 ast::ClassMember::Field(_) => continue,
                 ast::ClassMember::Method(function) => (
                     Some(function.name.name),
@@ -2688,6 +2697,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     function.body,
                     function.span,
                     function.region.pool_strings,
+                    function.region.choices,
                 ),
                 ast::ClassMember::Constructor(constructor) => (
                     None,
@@ -2696,6 +2706,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     constructor.body,
                     constructor.span,
                     false,
+                    crate::representation::RegionalChoices::NONE,
                 ),
             };
             let member = match name {
@@ -2715,6 +2726,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span,
                 feature: "unregistered class body",
             })?;
+            let outer_choices = self.enter_choices(method.unit, choices, span)?;
             let outer_pool = self.enter_pool(pool, span)?;
             let this_cell = self.cell(this)?;
             let outer = self.current_class.replace((class, this_cell));
@@ -2732,6 +2744,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             self.statements(method.unit, entry, body)?;
             self.current_class = outer;
             self.pool_region = outer_pool;
+            self.authored = outer_choices;
             let ty = self.program.cells[method.cell.index()].ty;
             let value = self.value(
                 root,
@@ -3316,6 +3329,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let id = UnitId::from_index(self.units.len()).ok_or(AllocationError::Capacity)?;
         let mut data = empty_unit(kind, self.budget)?;
         data.module = self.current_module;
+        data.regions[data.entry.index()].authored = self.authored;
         self.budget.push(Scratch, &mut self.units, data)?;
         self.budget.push(Scratch, &mut self.allocations, 0)?;
         Ok(id)
@@ -3365,6 +3379,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             Retained,
             &mut data.regions,
             Region {
+                authored: self.authored,
                 parent: Some(parent),
                 operations: Vec::new(),
                 result: None,
@@ -3412,6 +3427,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             Retained,
             &mut data.operations,
             Operation {
+                authored: self.authored,
                 kind,
                 operands: range,
                 result,

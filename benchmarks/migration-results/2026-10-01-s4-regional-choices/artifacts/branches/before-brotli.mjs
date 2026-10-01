@@ -1,0 +1,1 @@
+let first=function(b,a){return b?a+1|0:a+2|0},second=function(b,a){return b?a+3|0:a+4|0};export{first,second};

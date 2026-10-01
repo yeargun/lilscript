@@ -143,6 +143,7 @@ fn checked_nonvoid_body_without_structured_return_cannot_emit_c_fallthrough() {
         let parent = data.operations[returned].region;
         let child = RegionId::from_index(data.regions.len()).unwrap();
         data.regions.push(Region {
+            authored: crate::representation::RegionalChoices::NONE,
             parent: Some(parent),
             operations: Vec::new(),
             result: None,

@@ -468,6 +468,7 @@ impl Module {
                 let Expr::Call { arguments, .. } = &self.expressions[call.index()] else {
                     unreachable!()
                 };
+                if self.expression_choices(arguments[position]).get(ChoiceFamily::QuoteDelimiter).is_some() { uniform = false; break; }
                 let Expr::Literal(value) = &self.expressions[arguments[position].index()] else {
                     uniform = false;
                     break;
@@ -552,7 +553,8 @@ impl Module {
     ) -> Result<Option<Vec<(ExprId, ExprId)>>, AllocationError> {
         let left = &self.functions[a.function.index()];
         let right = &self.functions[b.function.index()];
-        if left.parameters.len() != right.parameters.len()
+        if self.region_choices(left.body) != self.region_choices(right.body)
+            || left.parameters.len() != right.parameters.len()
             || left.strict != right.strict
             || left
                 .parameters
@@ -567,6 +569,7 @@ impl Module {
         pending.push((a.expression, b.expression));
         while let Some((aid, bid)) = pending.pop() {
             budget.work(Analysis, 1)?;
+            if self.expression_choices(aid) != self.expression_choices(bid) { return Ok(None); }
             let a = &self.expressions[aid.index()];
             let b = &self.expressions[bid.index()];
             match (a, b) {
@@ -656,10 +659,11 @@ impl Module {
             )?;
             budget.reserve_vec(Retained, &mut self.function_mut(a.function).parameters, 1)?;
             self.function_mut(a.function).parameters.push(parameter);
-            for (candidate, literal) in [(a, &left_value), (b, &right_value)] {
+            for (candidate, literal, original) in [(a, &left_value, left), (b, &right_value, right)] {
                 for &call in &candidate.calls {
                     let value = copy_literal(literal, budget)?;
                     let argument = self.expression_in(Expr::Literal(value), None, budget)?;
+                    self.copy_author_choices(original, argument);
                     let Expr::Call { arguments, .. } = self.expression_mut(call) else {
                         unreachable!()
                     };

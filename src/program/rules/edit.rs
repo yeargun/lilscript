@@ -651,6 +651,7 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
             operands.push(remaps.value(*value)?);
         }
         operations.push(Operation {
+            authored: op.authored,
             kind: remaps.kind(&op.kind)?,
             operands: OperandRange {
                 start: u32::try_from(start).map_err(|_| "operand capacity")?,
@@ -681,6 +682,7 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
         .filter(|(index, _)| region_keep[*index])
         .map(|(_, region)| {
             Ok(Region {
+                authored: region.authored,
                 parent: region
                     .parent
                     .map(|parent| remaps.region(parent))
@@ -911,6 +913,7 @@ pub(super) fn graft(
             target.operands.push(remaps.value(*value)?);
         }
         target.operations.push(Operation {
+            authored: operation.authored,
             kind: remaps.kind(&operation.kind)?,
             operands: OperandRange {
                 start: u32::try_from(start).map_err(|_| "operand capacity")?,
@@ -946,6 +949,7 @@ pub(super) fn graft(
             continue;
         }
         target.regions.push(Region {
+            authored: region.authored,
             parent: region
                 .parent
                 .map(|parent| remaps.region(parent))
@@ -1026,6 +1030,7 @@ pub(super) fn push_operation(
         None => None,
     };
     data.operations.push(Operation {
+        authored: data.regions[region.index()].authored,
         kind,
         operands: OperandRange {
             start,

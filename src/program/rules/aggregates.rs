@@ -532,6 +532,7 @@ fn scalarize(
         let start = data.operands.len() as u32;
         data.operands.push(field.initial);
         data.operations.push(Operation {
+            authored: original.authored,
             kind: OperationKind::Initialize(cell),
             operands: OperandRange { start, len: 1 },
             result: None,

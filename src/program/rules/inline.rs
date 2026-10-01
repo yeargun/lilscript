@@ -804,6 +804,7 @@ fn inline(
             return Err("a scoped copy's region moved");
         }
         data.regions.push(Region {
+            authored: source.regions[source.entry.index()].authored,
             parent: Some(region),
             operations: Vec::new(),
             result: None,

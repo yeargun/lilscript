@@ -662,6 +662,7 @@ fn deep_scalar_formation_segments_expressions_without_losing_useful_compaction()
             definition: operation,
         });
         data.operations.push(Operation {
+            authored: crate::representation::RegionalChoices::NONE,
             kind: prototype.kind.clone(),
             operands,
             result: Some(value),

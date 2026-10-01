@@ -138,7 +138,7 @@ fn s2_native_shared_banks_preserve_captures_and_class_aliases() {
     let (program, receipt) = super::rules::optimize(
         program,
         super::rules::RuleRequest {
-            unroll: true, pool: true,
+            unroll: true, pool: true, choices: crate::representation::RegionalChoices::ALL,
             fold: false,
             dead_code: true,
             inline: false,

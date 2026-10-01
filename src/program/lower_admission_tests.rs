@@ -123,7 +123,7 @@ fn admitted_lower_matches_structure_and_runs_conversion_and_verification_once() 
 
 #[test]
 fn lowering_memory_and_work_refusals_restore_the_original_parent_charge() {
-    for source in [SOURCE, "(func()->int)[] callbacks=[];inline for(int n of [1,2,3]){int value=n;callbacks.push(()=>++value);}print(callbacks[1]());", "@pool string label(){return \"pooled text\";}print(label());"] {
+    for source in ["@choose(quote_delimiter=1) string label(string x){return x+\"hello\";}print(label(\"x\"));", SOURCE, "(func()->int)[] callbacks=[];inline for(int n of [1,2,3]){int value=n;callbacks.push(()=>++value);}print(callbacks[1]());", "@pool string label(){return \"pooled text\";}print(label());"] {
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, source).unwrap();
     let semantics = crate::analyze(&syntax).unwrap();

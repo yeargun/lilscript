@@ -4549,3 +4549,96 @@ fn s4_pool_diagnoses_source_conflicts_and_misplaced_attributes() {
         assert!(crate::parse_source(&arena,source).is_err(),"{source}");
     }
 }
+
+#[test]
+fn s4_choose_keeps_neighboring_quote_pins_through_inlining_and_each_objective() {
+    let source=r#"
+        @choose(quote_delimiter=0) string first(string value){return "q\"a"+value;}
+        @choose(quote_delimiter=1) string second(string value){return "plain"+value;}
+        string both(string value){return first(value)+second(value);}
+        print(both("x"));
+    "#;
+    for effort in [0,13] {
+        let mut settings=config("[policy.tactics]\nconstant-folding='off'");settings.effort.level=effort;
+        let built=compile_source(source,&settings,ServiceOptions {
+            target:if effort==0 {ServiceTarget::All} else {ServiceTarget::JavaScript},
+            preserve_root_exports:false,objectives:Some(Objectives::All),..ServiceOptions::default()
+        }).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            let code=built.javascript(codec).unwrap().javascript();
+            assert_eq!(execute_javascript(code,"",""),"q\"axplainx\n");
+            assert!(code.contains(r#""q\"a""#),"{effort}/{codec:?}: {code}");
+            assert!(code.contains("'plain'"),"{effort}/{codec:?}: {code}");
+        }
+        if let Some(native)=built.native_c() {assert_eq!(execute_native(native),"q\"axplainx\n");}
+        check_scores(&built);
+    }
+}
+
+#[test]
+fn s4_choose_diagnoses_unknown_misplaced_duplicate_and_forbidden_choices() {
+    for source in [
+        "@choose(quote_delimiter=2) string f(){return \"x\";}",
+        "@choose(quote_delimiter=0) @choose(quote_delimiter=1) string f(){return \"x\";}",
+        "@choose(name_allocation=1) string f(){return \"x\";}",
+        "@choose(unknown=1) string f(){return \"x\";}",
+        "@choose(quote_delimiter=1) class C{}",
+        "class C{@choose(quote_delimiter=1) string field;}",
+    ] {
+        let arena=bumpalo::Bump::new();assert!(crate::parse_source(&arena,source).is_err(),"{source}");
+    }
+    for flag in ["statement-spellings", "target-compaction"] {
+        let settings=config(&format!("[policy.tactics]\n{flag}='off'"));
+        let error=compile_source("@choose(quote_delimiter=1) string label(){return \"x\";}print(label());",&settings,ServiceOptions::default()).unwrap_err();
+        assert!(error.to_string().contains("@choose conflicts"),"{error}");
+        compile_source("@choose(quote_delimiter=0) string label(){return \"x\";}print(label());",&settings,ServiceOptions::default()).unwrap();
+    }
+}
+
+#[test]
+fn s4_choose_canonical_return_survives_shared_normalization() {
+    let source=r#"
+        @choose(conditional_returns=0) int first(bool flag,int n){if(flag){return n+1;}return n+2;}
+        @choose(conditional_returns=1) int second(bool flag,int n){if(flag){return n+3;}return n+4;}
+        export {first,second};
+    "#;
+    let built=compile_source(source,&config(""),ServiceOptions {objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        let code=built.javascript(codec).unwrap().javascript();
+        assert!(code.contains("if(") && code.contains('?'),"{code}");
+        assert_eq!(execute_javascript(code,"","console.log(library.first(true,5),library.first(false,5),library.second(true,5),library.second(false,5));"),"6 7 8 9\n");
+    }
+    check_scores(&built);
+}
+
+#[test]
+fn s4_choose_and_pool_keep_distinct_conflicting_quote_classes() {
+    let source=r#"
+        @pool @choose(quote_delimiter=0) string first(string value){return "shared\"text"+value;}
+        @pool @choose(quote_delimiter=1) string second(string value){return "shared\"text"+value;}
+        export {first,second};
+    "#;
+    let built=compile_source(source,&config(""),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        let code=built.javascript(codec).unwrap().javascript();
+        assert!(code.contains(r#""shared\"text""#) && code.contains("'shared\"text'"),"{code}");
+        assert_eq!(execute_javascript(code,"","console.log(library.first('a'),library.second('b'));"),"shared\"texta shared\"textb\n");
+    }
+    check_scores(&built);
+}
+
+#[test]
+fn s4_choose_prevents_sharing_helpers_with_incompatible_pins() {
+    let source=r#"
+        @choose(quote_delimiter=0) string first(string x){return "same\"text"+x;}
+        @choose(quote_delimiter=1) string second(string x){return "same\"text"+x;}
+        export string both(string x){return first(x)+second(x)+first(x+x)+second(x+x);}
+    "#;
+    let built=compile_source(source,&config("[policy.tactics]\ninlining='off'\nhelper-sharing='on'"),ServiceOptions {objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        let code=built.javascript(codec).unwrap().javascript();
+        assert!(code.contains(r#""same\"text""#) && code.contains("'same\"text'"),"{code}");
+        assert_eq!(execute_javascript(code,"","console.log(library.both('z'));"),"same\"textzsame\"textzsame\"textzzsame\"textzz\n");
+    }
+    check_scores(&built);
+}

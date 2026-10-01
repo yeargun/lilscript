@@ -1,0 +1,1 @@
+let read=function(obj){return obj?.item},ensure=function(flag){flag||=next();return flag};export{read,ensure};

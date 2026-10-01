@@ -112,6 +112,7 @@ fn check_recursive(source: &str, expected: bool) {
         unit.operands.push(original);
         let region = unit.operations[init].region;
         unit.operations.push(Operation {
+            authored: crate::representation::RegionalChoices::NONE,
             kind: OperationKind::CopyValue,
             operands: range,
             result: Some(value),

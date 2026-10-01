@@ -205,7 +205,7 @@ declare_tactics! {
         producers: &[P::OutputFamilies], prerequisites: &[TacticId::TargetCompaction], risks: &[R::Neutral],
         invalidates: &[I::TargetTail, I::Names, I::RenderedFiles],
         purpose: "Choose statement, loop, assignment and quote spellings independently at legal sites.",
-        tradeoffs: "Exact raw/gzip/Brotli judgments select complete files; more sites cost formation and scoring. Adds no runtime effects. Off keeps canonical spellings and vetoes explicit and cached assignments."
+        tradeoffs: "Exact raw/gzip/Brotli judgments select complete files; more sites cost formation and scoring. Adds no runtime effects. Off keeps canonical spellings and vetoes explicit and cached assignments, including positive regional @choose pins; canonical pins remain permitted."
     },
     DeclarationOrder {
         name: "declaration-order", javascript_only: true, minimum_effort: 14, startup_at_level_16: false,
@@ -221,7 +221,7 @@ declare_tactics! {
         producers: &[P::OutputFamilies], prerequisites: &[TacticId::TargetCompaction], risks: &[R::Neutral],
         invalidates: &[I::TargetTail, I::Names, I::RenderedFiles],
         purpose: "Try a private local alias for repeated reads of an initialized function receiver.",
-        tradeoffs: "Adds a local binding/read and formation/judging work; the direct receiver remains eligible. Never moves a receiver read ahead of super or across lexical-this ownership. Off vetoes explicit and retained choices."
+        tradeoffs: "Adds a local binding/read and formation/judging work; the direct receiver remains eligible. Never moves a receiver read ahead of super or across lexical-this ownership. Off vetoes explicit and retained choices, including positive regional @choose(receiver_alias=1) pins."
     },
     IdentifierMangling {
         name: "identifier-mangling", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,

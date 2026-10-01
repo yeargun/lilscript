@@ -402,6 +402,7 @@ impl Frontend {
         let permitted_inlining = permitted(TacticId::Inlining);
         Some(RuleRequest {
             unroll: permitted(TacticId::LoopUnrolling),
+            choices: crate::representation::RegionalChoices::permitted(&policies),
             pool: policies.iter().filter(|policy| policy.javascript_contract().is_some())
                 .all(|policy| policy.tactic(TacticId::StringPooling).enabled),
             fold: permitted(TacticId::ConstantFolding),

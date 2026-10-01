@@ -1168,3 +1168,27 @@ string pins can cost bytes; this is not an automatic heuristic improvement.
 The record retains the fixed repeated-pass/template defects and a corrected
 data-encoding fixture. No full-library/fleet or timing claim. S4 stays active
 for `@choose` and wider public erased ABI support.
+
+## 2026-10-01: S4 regional representation pins
+
+The [regional-choice batch](../../benchmarks/migration-results/2026-10-01-s4-regional-choices/README.md)
+implements twelve documented `@choose` spelling families through shared edits,
+inlining, constants/string families, target sites, pooling, search and replay.
+Pins retain their own source regions and resolved TOML permissions. Conflicting
+helper/quote classes cannot merge, and quote printing obeys the selected
+delimiter on ties. Whole-program naming, storage and helper choices retain their
+existing controls; unsupported regional families produce a source diagnostic.
+
+Fifty-two affected checks pass, including one native check rerun with the
+existing Clang path. The final release CLI, schema check, 24 Node artifact
+oracles and exact score/delivery checks pass. The record retains the discovered
+inspection-route and quote-printer defects and their fixes. Matched totals
+change by **+6 raw / +12 gzip / +11 Brotli**, with the unannotated control's
+bytes and judgments unchanged. Explicit pins may cost bytes; no automatic
+heuristic or timing improvement is claimed.
+
+Pin `s4-choices-2`, SHA-256
+`c6b3a26f3bdfbdaf8e735b4e5665b3b0cb7e4aa6c9ba00ba29502424e2b0fe11`;
+algorithm 40 / search 32 / walk 10 / local facts 14, string family 2. R15 author
+controls are complete; wider public erased ABI keeps S4 active. No full-library,
+fleet, baseline or port-artifact change.

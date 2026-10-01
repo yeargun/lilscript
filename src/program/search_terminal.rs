@@ -121,6 +121,7 @@ pub struct ChoiceTrial {
 /// A choice site of the delivered artifact and the alternative it took.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ChoiceOutcome {
+    pub pinned: bool,
     pub family: crate::js::ChoiceFamily,
     pub site: String,
     pub seed: &'static str,
@@ -1058,6 +1059,7 @@ impl Walker<'_, '_, '_> {
             .map(|site| ChoiceOutcome {
                 family: site.key.family,
                 site: site.name.clone(),
+                pinned: site.pinned,
                 seed: site.name_of(site.seed),
                 delivered: site.name_of(site.applied),
                 offered: site

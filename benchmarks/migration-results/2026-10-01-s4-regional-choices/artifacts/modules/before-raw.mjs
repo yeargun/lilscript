@@ -1,0 +1,1 @@
+let d="prefix:",probe=function(c){return d+c+(d+(c+c))};export{probe};

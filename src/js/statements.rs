@@ -1428,6 +1428,11 @@ impl Module {
                     [Statement::Return(Some(value))] => Some(value),
                     _ => None,
                 };
+                if self.region_choices(yes).get(ChoiceFamily::ConditionalReturns) == Some(AltId(0))
+                    || self.region_choices(yes).get(ChoiceFamily::LogicalBranches) == Some(AltId(0)) {
+                    index += 1;
+                    continue;
+                }
                 let taken = returned(self, yes);
                 let other = match no {
                     Some(no) => returned(self, no).map(|value| (value, false)),

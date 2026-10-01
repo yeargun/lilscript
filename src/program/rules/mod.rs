@@ -51,6 +51,7 @@ pub(crate) struct RuleRequest {
     pub(crate) unroll: bool,
     /// JavaScript permission for authored sharing; native constants already share backing.
     pub(crate) pool: bool,
+    pub(crate) choices: crate::representation::RegionalChoices,
     /// Literal and branch folding on exact values (M7.8a).
     pub(crate) fold: bool,
     /// Dead operations, dead stores and dead named functions (M5.1).

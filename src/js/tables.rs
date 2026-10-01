@@ -1466,6 +1466,7 @@ impl Module {
                 })
                 .unwrap_or(seed);
             self.choice_sites.push(ChoiceSite {
+            pinned: false,
                 key,
                 name: self.bindings[binding.index()].spelling.clone(),
                 alternatives,

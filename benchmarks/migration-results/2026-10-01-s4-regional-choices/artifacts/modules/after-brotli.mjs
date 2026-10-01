@@ -1,0 +1,1 @@
+let probe=function(a){return'prefix:'+a+('prefix:'+(a+a))};export{probe};

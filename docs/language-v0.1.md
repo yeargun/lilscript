@@ -1097,7 +1097,56 @@ require optional target compaction. `policy.tactics.string-pooling = "off"`
 diagnoses a source conflict and rejects replayed pooled artifacts. Sharing adds
 bindings and reads; neither raw nor compressed savings are guaranteed. Native
 constant strings already use shared immutable payloads, so the same pin requires
-no additional native transformation. `@choose` remains unimplemented.
+no additional native transformation.
+
+`@choose(family = 0)` keeps a surviving legal site's canonical JavaScript
+spelling; `@choose(family = 1)` selects its proved alternative, independently of
+raw/gzip/Brotli savings. Attributes precede a function or method and include its
+nested closures. Source inlining and target renumbering retain the originating
+pin; neighboring functions can choose differently. Dead or constant-folded-away
+sites need no representation. A pin never supplies a legality proof, enables a
+new ECMAScript feature in an older edition, or makes an unavailable alternative
+legal. `--explain json` marks delivered pinned sites, and search does not vary
+them. Explicit conflicting target assignments are rejected.
+
+The supported regional family names are:
+
+| Family | Alternative 1 |
+|---|---|
+| `conditional_values` | Assignment branches as a conditional value |
+| `exit_points` | Legal early-exit statement spelling |
+| `loop_fusion` | Move the proved loop tail into its update |
+| `conditional_returns` | Conditional return expression |
+| `logical_branches` | Logical expression/branch spelling |
+| `loop_heads` | Declaration in a loop head |
+| `logical_statements` | Guarded expression as a logical statement |
+| `compound_assignments` | Compound assignment where the place is evaluated once |
+| `quote_delimiter` | Single quotes for a string literal, even if longer |
+| `receiver_alias` | Local alias for repeated reads of an initialized receiver |
+| `optional_chain` | Proved optional-chain spelling, when the edition permits |
+| `logical_assignment` | Proved logical assignment, when the edition permits |
+
+All require resolved `statement-spellings` permission except `receiver_alias`,
+which requires `receiver-aliases` (automatic from effort 13; explicit `on` allows
+earlier use). Positive pins also require `target-compaction`. A conflicting
+permission is a source diagnostic; use explicit TOML `on` to enable an otherwise
+gated tactic. Canonical pins work with the tactic off. Duplicate family pins,
+invalid alternatives and attributes on other declaration kinds are errors.
+Native ignores these JavaScript syntax preferences.
+
+Regional pins can increase file size and retain less compact forms; they are a
+local author tradeoff, not a compression-level setting. Whole-program naming,
+property allocation, declaration ordering and cross-region storage/helper
+families use their existing TOML controls and are not regional family names.
+
+```lil
+@choose(conditional_returns = 0)
+@choose(quote_delimiter = 1)
+string label(bool enabled) {
+    if (enabled) { return "yes"; }
+    return "no";
+}
+```
 
 ```lilscript
 @pool

@@ -1,0 +1,1 @@
+string inner(string x){return "prefix:"+x;}export string label(string x){return inner(x);}

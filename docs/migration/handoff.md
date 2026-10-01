@@ -11,14 +11,19 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 pooling batch](../../benchmarks/migration-results/2026-10-01-s4-pooling/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-pool-2/lilscript`, SHA-256
-`78d13f51ca5a82b1df771107160ae9afc2272bb99f09ffb7671eca9fdb152ea6`.
-Algorithm 39 / search 32 / walk 10 / local facts 14. `@pool` now reaches
-formation/replay, preserves pinned strings across templates/data encodings,
-and honors TOML vetoes. Fifteen focused checks plus three affected reruns pass.
-Four matched programs change totals by +30 raw / +27 gzip / +12 Brotli; the
-unpinned control is byte-identical. This is an explicit author tradeoff.
+The latest [S4 regional-choice batch](../../benchmarks/migration-results/2026-10-01-s4-regional-choices/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-choices-2/lilscript`, SHA-256
+`c6b3a26f3bdfbdaf8e735b4e5665b3b0cb7e4aa6c9ba00ba29502424e2b0fe11`.
+Algorithm 40 / search 32 / walk 10 / local facts 14; string family 2.
+All twelve documented `@choose` families survive shared edits, pooling,
+specialization, formation, search and replay with hard TOML permissions.
+Fifty-two affected checks, schema/release checks and 24 CLI artifact oracles
+pass. Matched totals change by +6 raw / +12 gzip / +11 Brotli; the unannotated
+control is unchanged. Quote ties obey the pin. This is an author tradeoff.
+
+The preceding pooling batch implements `@pool` through formation/replay,
+templates and data encodings. Its fifteen checks plus three affected reruns
+and +30 raw / +27 gzip / +12 Brotli matched results remain in history.
 
 The preceding inline-for batch expands authored loops with fresh local/capture
 banks, resource admission and independent hard TOML/replay/native permission.
@@ -67,10 +72,10 @@ selectors retain compatibility defaults until D3/V2's qualified transition.
    transport remain N2. Native `preserve_root_exports=false` still skips frontend
    export checking without retiring the shared program's root export table; N1
    must resolve that capability/formation mismatch.
-3. Complete R15 `@choose`. `@pool` and `inline for` are implemented and
-   qualified. Carry regional choices through checked units and stable target
-   sites, enforce hard TOML vetoes and replay, and document supported families.
-   The shared-consumer/removal audit is complete; Q2/Q4 own later producers.
+3. R15 `inline for`, `@pool` and regional `@choose` are complete, including
+   source, TOML and replay contracts. Whole-program naming/storage/helper
+   families retain existing controls. The shared-consumer/removal audit is
+   complete; Q2/Q4 own later producers.
 4. Preserve `ref`, public constructibility and `pure` termination: Y2/Y3/Y4 have
    no approved semantic amendment. D3/V2 own qualified language-default changes.
 5. After S4 closes, continue **Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.

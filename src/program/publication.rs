@@ -878,6 +878,7 @@ impl JavaScriptTarget<'_, '_> {
                     &semantic.lineage,
                     semantic.program.authored_unrolling,
                     semantic.program.authored_pooling,
+                    semantic.program.authored_choices,
                     *store,
                     budget,
                 )
@@ -2665,6 +2666,7 @@ impl<'src> Compilation<'src> {
             &checkpoint.semantic.lineage,
             checkpoint.semantic.program.authored_unrolling,
             checkpoint.semantic.program.authored_pooling,
+            checkpoint.semantic.program.authored_choices,
             self.store,
             &mut AllocationBudget::new(Some((&mut self.ledger, domain))),
         )?;
@@ -3099,6 +3101,7 @@ fn check_semantic_policy(
         && !policy.tactic(TacticId::StringPooling).enabled {
         return Err(CandidateError::ForbiddenTactic(TacticId::StringPooling));
     }
+    semantic.program.authored_choices.check(policy).map_err(candidate_permission)?;
     semantic
         .lineage
         .check_policy(policy)
@@ -3250,6 +3253,7 @@ fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
         source_contract: program.source_contract,
         authored_unrolling: program.authored_unrolling,
         authored_pooling: program.authored_pooling,
+        authored_choices: program.authored_choices,
         absence_abi: program.absence_abi,
         units: program.units.clone(),
         cells: program.cells.clone(),

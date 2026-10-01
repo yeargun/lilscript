@@ -269,8 +269,13 @@ impl Module {
                     budget,
                 )?;
                 module.set_expression(site, root);
-                // The site now evaluates the template's root.
-                module.copy_behaviour_in(found.body, site, budget)?;
+                // A parameter root evaluates the actual argument, not the
+                // template's parameter read. Its representation pin travels too.
+                let source = match module.expressions[found.body.index()] {
+                    Expr::Binding(binding) => found.parameters.iter().position(|&p| p == binding).map_or(found.body, |index| arguments[index]),
+                    _ => found.body,
+                };
+                module.copy_behaviour_in(source, site, budget)?;
             }
             if sites.is_empty() {
                 return Ok((0, None));
@@ -628,7 +633,9 @@ impl Module {
                 Some(index) if !std::mem::replace(&mut placed[index], true) => arguments[index],
                 Some(index) => {
                     let copy = self.expressions[arguments[index].index()].clone();
-                    self.expression_in(copy, origin, budget)?
+                    let id = self.expression_in(copy, origin, budget)?;
+                    self.copy_author_choices(arguments[index], id);
+                    id
                 }
                 None => {
                     let copy =
@@ -657,6 +664,10 @@ impl Module {
         let old = std::mem::take(&mut self.expressions);
         let old_origins = std::mem::take(&mut self.origins);
         let old_spelling_nodes = std::mem::take(&mut self.spelling_nodes);
+        let old_authored = std::mem::take(&mut self.authored_expressions);
+        if !old_authored.is_empty() {
+            self.authored_expressions = budget.vector(AllocationClass::Retained, old.len())?;
+        }
         let mut map: Vec<Option<ExprId>> = vec![None; old.len()];
         let mut reached = vec![false; self.regions.len()];
         let mut regions = vec![self.root];
@@ -702,6 +713,7 @@ impl Module {
                         ExprId::try_new(self.expressions.len()).ok_or(AllocationError::Capacity)?;
                     self.expressions.push(expression);
                     self.origins.push(old_origins[id.index()]);
+                    if !old_authored.is_empty() { self.authored_expressions.push(old_authored[id.index()]); }
                     if !old_spelling_nodes.is_empty() {
                         self.spelling_nodes
                             .push(old_spelling_nodes.get(id.index()).copied().flatten());
@@ -746,6 +758,11 @@ impl Module {
         self.behaviours.sort_unstable_by_key(|row| row.expression);
         // And the journal's nodes (M5.2).
         self.journal.renumber(&map);
+        if !old_authored.is_empty() {
+            let bytes = (old_authored.capacity() * std::mem::size_of::<crate::representation::RegionalChoices>()) as u64;
+            drop(old_authored);
+            budget.release(AllocationClass::Retained, bytes)?;
+        }
         Ok(map)
     }
 }
@@ -928,6 +945,7 @@ impl Module {
                 for root in roots {
                     let copy = module.substitute(root, &parameters, &arguments, origin, budget)?;
                     let id = module.expression_in(copy, origin, budget)?;
+                    module.copy_author_choices(root, id);
                     statements.push(Statement::Evaluate(id));
                 }
                 // The inlined body runs where the call did: its row.
@@ -1038,7 +1056,13 @@ impl Module {
         let mut replaced = Vec::with_capacity(children.len());
         for child in children {
             let copy = self.substitute(child, parameters, arguments, origin, budget)?;
-            replaced.push(self.expression_in(copy, origin, budget)?);
+            let id = self.expression_in(copy, origin, budget)?;
+            let source = match self.expressions[child.index()] {
+                Expr::Binding(binding) => parameters.iter().position(|&p| p == binding).map_or(child, |index| arguments[index]),
+                _ => child,
+            };
+            self.copy_author_choices(source, id);
+            replaced.push(id);
         }
         let mut next = replaced.into_iter();
         node.remap_children(|_| next.next().expect("one replacement per child"));
@@ -1454,6 +1478,7 @@ impl Module {
                 match replacement {
                     Some(replacement) => {
                         module.set_expression(member, replacement);
+                        module.copy_author_choices(item, member);
                         replaced += 1;
                     }
                     None => every = false,

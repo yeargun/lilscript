@@ -1,0 +1,1 @@
+import {label} from "./label.lil";export string probe(string x){return label(x)+label(x+x);}

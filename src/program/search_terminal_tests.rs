@@ -505,6 +505,7 @@ fn the_choice_schedule_resets_every_site_at_once_then_orders_by_stake() {
     use crate::js::choices::ChoiceAlternative;
     use crate::js::{AltId, ChoiceFamily, ChoiceKey, ChoiceSite, SiteId};
     let site = |site: u32, savings: &[(u8, i64)], applied: u8| ChoiceSite {
+            pinned: false,
         key: ChoiceKey {
             family: ChoiceFamily::DataEncoding,
             site: SiteId::Symbol(site),

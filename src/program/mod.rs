@@ -299,6 +299,7 @@ impl UnitData {
             operands: Vec::new(),
             values: Vec::new(),
             regions: vec![Region {
+                authored: crate::representation::RegionalChoices::NONE,
                 parent: None,
                 operations: Vec::new(),
                 result: None,
@@ -359,6 +360,7 @@ pub struct Program<'src> {
     /// Authored expansion is retained as permission evidence through replay.
     authored_unrolling: bool,
     authored_pooling: bool,
+    authored_choices: crate::representation::RegionalChoices,
     absence_abi: bool,
     units: Vec<FrozenUnit>,
     // Published tables are immutable. Retaining a candidate shares their
@@ -739,6 +741,7 @@ pub struct Value {
 
 #[derive(Debug, Clone)]
 pub struct Region {
+    pub authored: crate::representation::RegionalChoices,
     pub parent: Option<RegionId>,
     pub operations: Vec<OpId>,
     /// An expression region yields this value on normal completion only.
@@ -748,6 +751,7 @@ pub struct Region {
 
 #[derive(Debug, Clone)]
 pub struct Operation {
+    pub authored: crate::representation::RegionalChoices,
     pub kind: OperationKind,
     pub operands: OperandRange,
     pub result: Option<ValueId>,

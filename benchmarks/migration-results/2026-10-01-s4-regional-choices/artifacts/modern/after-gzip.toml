@@ -1,0 +1,6 @@
+[javascript]
+ecmascript='es2021'
+[objective]
+codecs='gzip'
+[effort]
+level=13

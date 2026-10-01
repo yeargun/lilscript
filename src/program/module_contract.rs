@@ -317,6 +317,7 @@ mod tests {
                 data.places.push(Place::Cell(private));
                 data.captures.push(private);
                 data.operations.push(Operation {
+                    authored: crate::representation::RegionalChoices::NONE,
                     kind: OperationKind::Load(PlaceId::from_index(0).unwrap()),
                     operands: OperandRange { start: 0, len: 0 },
                     result: Some(ValueId::from_index(1).unwrap()),

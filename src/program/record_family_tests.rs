@@ -366,6 +366,7 @@ fn previously_uninvolved_capturing_unit_invalidates_absence_proof_and_rechecks_t
                     definition: operation,
                 });
                 unit.operations.push(Operation {
+                    authored: crate::representation::RegionalChoices::NONE,
                     kind: OperationKind::Load(place),
                     operands: OperandRange {
                         start: unit.operands.len() as u32,

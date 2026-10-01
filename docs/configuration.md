@@ -753,6 +753,20 @@ assignments and reused artifact evidence are checked against the same
 permissions. Enabling one of these tactics does not override another tactic's
 veto or force the search to choose that representation.
 
+`@choose(family = 0|1)` is a regional source constraint for the documented
+JavaScript spelling families ([language reference](language-v0.1.md)). Zero pins
+canonical syntax; one pins an already proved alternative. Search cannot replace
+either pin with a smaller result. Positive pins require `statement-spellings`
+(or `receiver-aliases` for receiver aliases) and `target-compaction`; explicit
+TOML `on` can enable a tactic below its automatic effort gate. An off/gated tactic
+produces a source conflict, including when another requested objective allows
+it. Canonical pins remain valid with the tactic off. Replay retains the same
+permissions. Native ignores JavaScript spellings. Pins can cost bytes and may
+reduce search work; unannotated code keeps the ordinary objective policy.
+Whole-program naming, properties and cross-region layout/sharing use TOML,
+where those choices have a coherent scope.
+
+
 Constant-table decoder representations require `startup-reconstruction`.
 Select `[policy] version = 3` for effort-independent runtime permissions:
 `auto` keeps both decoders and string-array packing off at every level, `on`

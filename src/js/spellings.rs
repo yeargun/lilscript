@@ -266,6 +266,7 @@ impl Module {
         head: u8,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
+        self.authored_sites = budget.copy_slice(Retained, &self.authored_expressions)?;
         self.spelling_head = head;
         self.spelling_regions = self.regions.len();
         self.spelling_functions = self.functions.len();
@@ -313,7 +314,8 @@ impl Module {
         use crate::representation::ChoiceAlternative;
         let key = ChoiceKey { family, site };
         let seed = AltId(u8::from(seed));
-        let applied = choices.get(key).filter(|alt| alt.0 < 2).unwrap_or(seed);
+        let pin = self.authored_site(site).get(family);
+        let applied = pin.or_else(|| choices.get(key).filter(|alt| alt.0 < 2)).unwrap_or(seed);
         budget.work(Analysis, self.choice_sites.len() as u64 + 1)?;
         if !self.choice_sites.iter().any(|s| s.key == key) {
             let name = budget.string(Retained, name)?;
@@ -341,6 +343,7 @@ impl Module {
                     alternatives,
                     seed,
                     applied,
+                    pinned: pin.is_some(),
                 },
             )?;
         }
@@ -408,6 +411,10 @@ impl Module {
                     )?
                 {
                     forms.compound[index] = None;
+                }
+                if self.authored_site(site.unwrap_or(SiteId::Formed(u32::MAX))).get(ChoiceFamily::QuoteDelimiter) == Some(AltId(1))
+                    && matches!(self.expressions[index], Expr::Literal(Literal::String(_))) {
+                    forms.quotes[index] = true;
                 }
                 if forms.quotes[index]
                     && !self.site_choice(
@@ -870,6 +877,7 @@ impl Module {
                 .and_then(|id| u32::try_from(id).ok())
                 .ok_or(AllocationError::Capacity)?;
             self.spelling_nodes[value.index()] = Some(ordinal);
+            if !self.authored_expressions.is_empty() { self.authored_expressions[value.index()] = self.region_choices(region); }
         }
         Ok(())
     }

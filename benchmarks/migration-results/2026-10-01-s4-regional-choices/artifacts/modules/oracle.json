@@ -1,0 +1,4 @@
+{
+  "exercise": "console.log(JSON.stringify(m.probe(\"x\")));",
+  "expected": "prefix:xprefix:xx"
+}

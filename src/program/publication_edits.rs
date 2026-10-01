@@ -846,6 +846,7 @@ fn copy_unit(unit: &UnitData) -> Result<UnitData, PublicationError> {
     let mut operations = VectorLayout::new(unit.operations.len())?.allocate()?;
     for operation in &unit.operations {
         operations.push(Operation {
+            authored: operation.authored,
             kind: copy_kind(&operation.kind)?,
             operands: operation.operands,
             result: operation.result,
@@ -857,6 +858,7 @@ fn copy_unit(unit: &UnitData) -> Result<UnitData, PublicationError> {
     let mut regions = VectorLayout::new(unit.regions.len())?.allocate()?;
     for region in &unit.regions {
         regions.push(Region {
+            authored: region.authored,
             parent: region.parent,
             operations: copy_vector(&region.operations)?,
             result: region.result,
@@ -901,6 +903,7 @@ fn share_program_without_units<'src>(program: &Program<'src>) -> Program<'src> {
         source_contract: program.source_contract,
         authored_unrolling: program.authored_unrolling,
         authored_pooling: program.authored_pooling,
+        authored_choices: program.authored_choices,
         absence_abi: program.absence_abi,
         units: Vec::new(),
         cells: program.cells.clone(),

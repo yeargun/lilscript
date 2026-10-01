@@ -29,6 +29,7 @@ enum PrimitiveOperation {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Key {
+    authored: crate::representation::RegionalChoices,
     operation: PrimitiveOperation,
     operands: Vec<Operand>,
     ty: TypeId,
@@ -37,7 +38,7 @@ struct Key {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum Operand {
     Value(ValueId),
-    Literal(Constant, TypeId),
+    Literal(Constant, TypeId, crate::representation::RegionalChoices),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -354,6 +355,7 @@ fn plan(program: &Program<'_>, effects: &ProgramEffects, unit: UnitId) -> Vec<Re
                 continue;
             }
             let key = Key {
+                authored: operation.authored,
                 operation: kind,
                 operands: data
                     .operands(operation.operands)
@@ -363,7 +365,7 @@ fn plan(program: &Program<'_>, effects: &ProgramEffects, unit: UnitId) -> Vec<Re
                         let entry = &data.values[value.index()];
                         match &data.operations[entry.definition.index()].kind {
                             OperationKind::Constant(constant) => {
-                                Operand::Literal(constant.clone(), entry.ty)
+                                Operand::Literal(constant.clone(), entry.ty, data.operations[entry.definition.index()].authored)
                             }
                             _ => Operand::Value(value),
                         }

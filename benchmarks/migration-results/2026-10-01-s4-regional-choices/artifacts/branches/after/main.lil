@@ -1,0 +1,1 @@
+@choose(conditional_returns=0) int first(bool c,int n){if(c){return n+1;}return n+2;}@choose(conditional_returns=1) int second(bool c,int n){if(c){return n+3;}return n+4;}export {first,second};

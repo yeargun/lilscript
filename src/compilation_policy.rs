@@ -37,8 +37,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version34 qualifies closed erased product transport across private bodies.
 // Version35 adapts concrete public callbacks with closed invocation uses.
 // Version38 honors authored loop expansion with an independent policy permission.
-// Version39 preserves authored string-pool constraints through target search.
-pub const POLICY_ALGORITHM_VERSION: u32 = 39;
+// Version 40 carries regional representation pins through source/target edits.
+pub const POLICY_ALGORITHM_VERSION: u32 = 40;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.

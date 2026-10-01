@@ -300,6 +300,10 @@ fn change(
             else {
                 return None;
             };
+            if unit.operations[unit.values[value.index()].definition.index()].authored.get(crate::representation::ChoiceFamily::QuoteDelimiter).is_some() {
+                agreed = false;
+                break;
+            }
             match values.exact(caller, value) {
                 Some(exact) if known.as_ref().is_none_or(|first| first == exact) => {
                     known = Some(exact.clone());
