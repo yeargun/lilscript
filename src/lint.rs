@@ -1867,6 +1867,24 @@ mod tests {
         );
     }
 
+    #[test]
+    fn s4_implicit_default_fix_uses_completion_and_receiver_facts() {
+        let scratch=Scratch::new("field-flow");
+        let path=scratch.file("main.lil","");
+        let source="class C{int x;int y;init(bool early){if(early){return;}this.x=1;print(this.x);this.y=2;}}print(new C(true).x);";
+        let diagnostics=lint_path_with_source(&path,source,&ProjectConfig::default()).unwrap();
+        let fields=diagnostics.iter().filter(|d|d.rule=="migration/implicit-default").collect::<Vec<_>>();
+        assert_eq!(fields.iter().map(|d|&source[d.span.start..d.span.end]).collect::<Vec<_>>(),["x","y"]);
+        let mut fixed=source.to_string();
+        for edit in fields.iter().rev().flat_map(|d|d.fix.as_ref().unwrap().edits.iter().rev()) {
+            fixed.replace_range(edit.span.start..edit.span.end,&edit.replacement);
+        }
+        let strict:ProjectConfig=toml::from_str("[language]\nfield_initialization='explicit'").unwrap();
+        crate::build::check_source(&fixed,&strict).unwrap();
+        assert!(lint_path_with_source(&path,&fixed,&strict).unwrap().iter()
+            .all(|d|d.rule!="migration/implicit-default"));
+    }
+
     /// `migration/implicit-default`: a field that `init` does not assign on
     /// every path gets its implicit default written as its initializer; a
     /// field whose default is not a value of its type is reported without a

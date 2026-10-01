@@ -814,3 +814,98 @@ fn s4_native_callee_default_expressions_and_parameter_captures() {
         let c=emit_native(compilation,source);compile_and_execute(&c,"1\n9\n1\n12\n13\n3\n","s4-native-default-expressions");
     });
 }
+
+#[test]
+fn s4_checked_binary_reads_share_nullable_and_evaluation_contracts() {
+    fixture("checked-binary-reads", r#"
+        Int8Array a=new Int8Array(1);a[0]=255;
+        Uint8Array b=new Uint8Array(1);b[0]=255;
+        Uint8ClampedArray c=new Uint8ClampedArray(1);c[0]=999;
+        Int16Array d=new Int16Array(1);d[0]=65535;
+        Uint16Array e=new Uint16Array(1);e[0]=65535;
+        Int32Array f=new Int32Array(1);f[0]=-7;
+        Uint32Array g=new Uint32Array(1);g[0]=7;
+        Float32Array h=new Float32Array(1);h[0]=1.5;
+        Float64Array j=new Float64Array(1);j[0]=2.25;
+        print(a.get(0)??0);print(b.get(0)??0);print(c.get(0)??0);
+        print(d.get(0)??0);print(e.get(0)??0);print(f.get(0)??0);
+        print(g.get(0)??0);print(h.get(0)??0.0);print(j.get(0)??0.0);
+        print(a.get(-1)==null);print(b.get(1)==null);print(h.get(-1)==null);
+        print(j.get(1)==null);
+        int order=0;
+        Uint8Array receiver(){order=order*10+1;return b;}
+        int index(){order=order*10+2;return 0;}
+        print(receiver().get(index())??0);print(order);
+        print("𐐀".codeUnitAt(0));print("𐐀".codeUnitAt(1));
+        print("".charCodeAt(-1));print("x".charCodeAt(1));
+    "#, "-1\n255\n255\n-1\n65535\n-7\n7\n1.5\n2.25\ntrue\ntrue\ntrue\ntrue\n255\n12\n55297\n56320\n0\n0\n");
+}
+
+#[test]
+fn s4_native_code_unit_and_every_binary_kind_trap_invalid_reads() {
+    let directory = ScratchDirectory::new("index-traps");
+    let compiler = std::env::var_os("LILSCRIPT_NATIVE_CC").unwrap_or_else(|| "cc".into());
+    let cases = crate::typed_array::TypedArrayKind::ALL.into_iter().map(|kind| {
+        (kind.name().to_string(), format!("{0} a=new {0}(1);print(a[selected()]);",kind.name()))
+    }).chain(std::iter::once(("code-unit".into(), "print(\"x\".codeUnitAt(selected()));".into())));
+    for (name, body) in cases {
+        let source = format!("extern int selected();{body}");
+        let c = checked(&source, WORK, |compilation, source| {
+            let cell=compilation.with_semantic(source, |program,_,_| CellId::from_index(
+                program.cells().iter().position(|cell|cell.name=="selected" && cell.binding==CellBinding::Foreign).unwrap()
+            ).unwrap()).unwrap();
+            let bindings=[NativeHostBinding{cell,link_name:"host_selected"}];
+            let hosts=NativeHostBindings{callback_abi_version:1,bindings:&bindings};
+            compilation.with_native_c_and_hosts(source,&native_policy(),WorkDomain::Baseline,&hosts,|output|output.take_c()).unwrap()
+        });
+        let input = directory.0.join(format!("{name}.c"));
+        let executable = directory.0.join(&name);
+        // A runtime index keeps these executions independent of constant
+        // evaluation. The exact generated program is followed by its host ABI.
+        std::fs::write(&input, format!("{c}\nint32_t host_selected(void){{return atoi(getenv(\"INDEX\"));}}\n")).unwrap();
+        let built = execute(Command::new(&compiler).args(["-std=c11","-O2","-fno-fast-math","-ffp-contract=off"])
+            .arg(&input).arg("-lm").arg("-o").arg(&executable));
+        assert!(built.status.success(), "{name}: {}",String::from_utf8_lossy(&built.stderr));
+        for index in ["-1","1","2147483647"] {
+            let ran = execute(Command::new(&executable).env("INDEX",index));
+            assert!(!ran.status.success(), "{name}/{index} did not trap");
+            assert!(String::from_utf8_lossy(&ran.stderr).contains("index out of range"), "{name}/{index}: {ran:?}");
+        }
+        let valid = execute(Command::new(&executable).env("INDEX","0"));
+        assert!(valid.status.success(), "{name}: {valid:?}");
+    }
+}
+
+
+#[test]
+fn s4_native_public_build_preserves_dead_result_bounds_traps() {
+    let directory=ScratchDirectory::new("optimized-index-traps");
+    let compiler=std::env::var_os("LILSCRIPT_NATIVE_CC").unwrap_or_else(||"cc".into());
+    for (name,source) in [
+        ("array","void read(int i){int[] a=[1];a[i];}read(9);"),
+        ("binary","void read(int i){Uint8Array a=new Uint8Array(1);a[i];}read(9);"),
+        ("unit","void read(int i){\"x\".codeUnitAt(i);}read(9);"),
+        ("string-index","void read(int i){\"x\"[i];}read(9);"),
+    ] {
+        let result=crate::build::compile_source(source,&crate::config::ProjectConfig::default(),crate::build::ServiceOptions {
+            target:crate::build::ServiceTarget::Native,preserve_root_exports:false,..Default::default()
+        }).unwrap();
+        let input=directory.0.join(format!("{name}.c"));let executable=directory.0.join(name);
+        std::fs::write(&input,result.native_c().unwrap()).unwrap();
+        let built=execute(Command::new(&compiler).args(["-std=c11","-O2","-fno-fast-math","-ffp-contract=off"])
+            .arg(&input).arg("-lm").arg("-o").arg(&executable));
+        assert!(built.status.success(),"{name}: {}",String::from_utf8_lossy(&built.stderr));
+        let ran=execute(&mut Command::new(executable));
+        assert!(!ran.status.success(),"{name} failed to trap");
+    }
+}
+
+
+#[test]
+fn s4_native_string_indexing_keeps_utf16_views_and_char_at_compatibility() {
+    fixture("string-indexing",r#"
+        string text="A𐐀B";
+        print(text[0]);print(text[1].codeUnitAt(0));print(text[2].codeUnitAt(0));print(text[3]);
+        print(text.charAt(-1));print(text.charAt(4));
+    "#,"A\n55297\n56320\nB\n\n\n");
+}

@@ -350,6 +350,10 @@ pub struct Program<'src> {
     /// Revision of the checked interface/type/string tables. Unit-only edits
     /// retain this stamp; any changed table meaning must issue a fresh one.
     tables_revision: RevisionId,
+    /// Native bounds traps or JavaScript development checks are observable
+    /// before optimization. Immutable under the table revision and preserved
+    /// by every candidate; a dead result cannot erase a required bounds check.
+    trap_index_reads: bool,
     units: Vec<FrozenUnit>,
     // Published tables are immutable. Retaining a candidate shares their
     // buffers and nested payloads; a unit-only edit does not copy every cell,

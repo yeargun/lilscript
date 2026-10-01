@@ -1,0 +1,18 @@
+
+running 1 test
+test program::native_tests::s4_native_code_unit_and_every_binary_kind_trap_invalid_reads ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1899 filtered out; finished in 35.00s
+
+
+running 1 test
+test build::tests::s4_development_bounds_survive_unused_results_and_inlined_calls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1899 filtered out; finished in 3.30s
+
+
+running 1 test
+test program::native_tests::s4_native_public_build_preserves_dead_result_bounds_traps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1899 filtered out; finished in 3.59s
+

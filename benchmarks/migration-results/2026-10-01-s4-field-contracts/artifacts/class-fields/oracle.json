@@ -1,0 +1,17 @@
+{
+  "exercise": "const b=new m.Box(4);console.log(JSON.stringify([b.next(),b.entries,b.constructor===m.Box,b instanceof m.Box,m.read(5),Object.keys(b)]));",
+  "expected": [
+    5,
+    [
+      4,
+      5
+    ],
+    true,
+    true,
+    12,
+    [
+      "value",
+      "entries"
+    ]
+  ]
+}

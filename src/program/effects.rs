@@ -696,6 +696,12 @@ fn object_effects(
         effects.writes = written;
         effects.exhausts_resources = true;
     }
+    if ctx.program.trap_index_reads && access == Access::Read && key.is_some()
+        && (matches!(ctx.ty(receiver), Type::Array(_) | Type::String)
+            || crate::typed_array::is_typed_array_type(ctx.ty(receiver)))
+    {
+        effects.may_throw = true;
+    }
     // A typed key is its type's (R1); a dynamic key's property-key
     // conversion may run user code.
     if let Some(key) = key {
@@ -816,6 +822,11 @@ fn intrinsic_effects(
     arguments: impl Iterator<Item = CallArgument>,
 ) -> Effects {
     let mut effects = classified_intrinsic_effects(ctx, values, operation, receiver, arguments);
+    if ctx.program.trap_index_reads
+        && operation == ResolvedIntrinsic::Method(Intrinsic::StringCodeUnitAt)
+    {
+        effects.may_throw = true;
+    }
     if crate::catalog::host_replaceable(operation) {
         effects.assumes_host = true;
     }

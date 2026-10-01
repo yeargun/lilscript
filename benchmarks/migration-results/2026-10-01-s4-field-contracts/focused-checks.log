@@ -1,0 +1,52 @@
+
+running 1 test
+test check::field_initialization::tests::s4_field_flow_handles_early_completion_and_observation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1897 filtered out; finished in 0.00s
+
+
+running 1 test
+test build::tests::s4_explicit_field_contract_is_target_and_effort_independent ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1897 filtered out; finished in 0.58s
+
+
+running 1 test
+test build::tests::s4_explicit_field_contract_reaches_imported_modules_and_check_api ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1897 filtered out; finished in 0.01s
+
+
+running 1 test
+test build::tests::s4_field_contract_is_strictly_parsed_and_fingerprinted ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1897 filtered out; finished in 0.01s
+
+
+running 1 test
+test lint::tests::s4_implicit_default_fix_uses_completion_and_receiver_facts ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1897 filtered out; finished in 0.01s
+
+
+running 1 test
+test lint::tests::implicit_default_fixes_write_each_default ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1897 filtered out; finished in 0.01s
+
+
+running 1 test
+test program::native_tests::s4_native_code_unit_and_every_binary_kind_trap_invalid_reads ... 
+thread 'program::native_tests::s4_native_code_unit_and_every_binary_kind_trap_invalid_reads' (234267) panicked at src/program/native_tests.rs:859:126:
+called `Result::unwrap()` on an `Err` value: Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: "native callback provider symbol namespace" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+native failure inputs retained at /tmp/lilscript-native-test-234266-0-index-traps
+FAILED
+
+failures:
+
+failures:
+    program::native_tests::s4_native_code_unit_and_every_binary_kind_trap_invalid_reads
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1897 filtered out; finished in 0.00s
+

@@ -21,7 +21,12 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    rule only with explicit generic legality, owned facts and a convergence rule.
    Source optimizations and target alternatives keep their hard TOML vetoes.
 6. [~] Complete supported R2/R3/R11 crossings, definite-assignment migration and
-   checked indexing, and R7 receiver/rest lowering. Preserve existing `ref`,
+   checked indexing, and R7 receiver/rest lowering. Checker-owned constructor
+   flow now powers explicit checking and the legacy-default lint/fix. The
+   `[language] field_initialization` source contract is independent of target
+   and effort; D3/V2 own qualified port adoption/default transition. Native
+   UTF-16 and all binary-array reads trap out of range; nullable `.get` works
+   for both array categories. Required traps survive dead-result removal. Preserve existing `ref`,
    exported constructibility and `pure` termination semantics: Y2/Y3/Y4 have no
    approved semantic amendment. A compatible adapter remains when the public
    contract requires it; no optimization silently narrows that contract.

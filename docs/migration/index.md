@@ -22,6 +22,10 @@ implemented in the [boundaries batch](../../benchmarks/migration-results/2026-10
 Host callable defaults/rest/receivers, generic/nullable `JS.assume` and zero-use
 `object` singleton retirement are implemented in the
 [host batch](../../benchmarks/migration-results/2026-10-01-s4-host-boundaries/README.md).
+Checker-owned definite assignment and the explicit TOML field contract are
+implemented in the [field batch](../../benchmarks/migration-results/2026-10-01-s4-field-contracts/README.md).
+Native UTF-16 indexing, binary nullable reads and preservation of required bounds
+traps are implemented in the [index batch](../../benchmarks/migration-results/2026-10-01-s4-index-contracts/README.md).
 The [handoff](handoff.md) records the current scope and compiler pins.
 
 The owner requests substantial implementation batches followed by focused
@@ -39,7 +43,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [S1](plan.md#s1) Folding | Implementation complete; final library/CLI and complete paired cost verification deferred by owner |
 | [x] | [S2](plan.md#s2) Objects | Bounded aggregate facts, fields, flattening, scalar banks and physical copy elision complete; focused evidence retained |
 | [x] | [S3](plan.md#s3) Calls | Cross-module/nested-closure inlining, terminal returns, frequency and judged specialization/sharing complete |
-| [~] | [S4](plan.md#s4) Contracts | Shapes/variants/enums, crossings, definite assignment, generic/host coverage and remaining fact-consumer audit |
+| [~] | [S4](plan.md#s4) Contracts | Shapes/variants/enums, remaining crossings/catalog/generic coverage and fact-consumer audit; staged field default adoption belongs to V2 |
 | [x] | [G1](plan.md#g1) Lexical names | Live printed-order/frequency allocation, full continuations, final-byte ties and replay controls complete; optional compaction is automatic at 14 |
 | [x] | [G2](plan.md#g2) Property names | Private generic/observed eligibility, inherited/sibling slot reuse, reflected boundaries and adapter-name fixtures complete |
 | [x] | [G3](plan.md#g3) JS generation | Stable per-site forms, guarded aliases, safe locality choices and structural printing complete |

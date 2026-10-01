@@ -207,6 +207,9 @@ pub(super) enum PreparedTarget {
     CharCodeAt {
         receiver: ValueId,
     },
+    CodeUnitAt {
+        receiver: ValueId,
+    },
     CharAt {
         receiver: ValueId,
     },
@@ -267,6 +270,8 @@ pub(super) enum PlaceRecipe {
         array: usize,
         kind: crate::typed_array::TypedArrayKind,
     },
+    /// A checked, immutable UTF-16 code-unit view of a string.
+    StringElement { receiver: ValueId, index: ValueId },
     /// `receiver[index]` of a typed array: read and written by value.
     TypedElement {
         receiver: ValueId,
@@ -604,6 +609,7 @@ fn plan_places(
     arrays: &[NativeType],
     cells: &[CellPlan],
     values: &[ValueStorage],
+    helpers: &mut Helpers,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<PlacePlan>, NativeError> {
     let mut places: Vec<PlacePlan> = budget.vector(Scratch, unit.places.len())?;
@@ -670,6 +676,18 @@ fn plan_places(
                     storage: ValueStorage::Value(element.unwrap_or(item)),
                     root_cell: None,
                     writable: index.is_some(),
+                }
+            }
+            Place::Index { receiver, key }
+                if values[receiver.index()] == ValueStorage::Value(NativeType::String)
+                    && values[key.index()] == ValueStorage::Value(NativeType::I32) =>
+            {
+                helpers.require(Helper::StringIndex);
+                PlacePlan {
+                    recipe: PlaceRecipe::StringElement { receiver, index: key },
+                    storage: ValueStorage::Value(NativeType::String),
+                    root_cell: None,
+                    writable: false,
                 }
             }
             Place::Index { receiver, key }
@@ -1383,6 +1401,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 &plan.arrays,
                 &plan.cells,
                 &values,
+                &mut plan.helpers,
                 budget,
             )?;
             let mut calls = budget
@@ -1524,7 +1543,11 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         receiver: Some(receiver),
                     } if values[receiver.index()] == ValueStorage::Value(NativeType::String) => {
                         match intrinsic {
-                            Intrinsic::StringCharCodeAt | Intrinsic::StringCodeUnitAt => {
+                            Intrinsic::StringCodeUnitAt => {
+                                plan.helpers.require(Helper::CodeUnitAt);
+                                PreparedTarget::CodeUnitAt { receiver }
+                            }
+                            Intrinsic::StringCharCodeAt => {
                                 plan.helpers.require(Helper::CharCodeAt);
                                 PreparedTarget::CharCodeAt { receiver }
                             }
@@ -2923,7 +2946,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             "native array method operands",
                         )
                     }
-                    PreparedTarget::CharCodeAt { .. } | PreparedTarget::CharAt { .. } => {
+                    PreparedTarget::CharCodeAt { .. }
+                    | PreparedTarget::CodeUnitAt { .. }
+                    | PreparedTarget::CharAt { .. } => {
                         let expected =
                             if matches!(plan.calls[call.index()], PreparedTarget::CharAt { .. }) {
                                 Text

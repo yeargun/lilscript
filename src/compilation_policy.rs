@@ -32,7 +32,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version17 includes class constructors/methods in live naming ownership.
 // Version18 names private generic/kept layouts and reuses sibling property slots.
 // Version19 forms stable per-site spellings, declaration order and receiver aliases.
-pub const POLICY_ALGORITHM_VERSION: u32 = 22;
+pub const POLICY_ALGORITHM_VERSION: u32 = 24;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -603,6 +603,7 @@ pub fn serialize_bound<S: serde::Serializer>(
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedPolicy {
+    source_contract: crate::config::LanguageConfig,
     contract: CompilationContract,
     objective: Option<OptimizationObjective>,
     effort: u8,
@@ -617,6 +618,7 @@ pub struct ResolvedPolicy {
 
 impl ResolvedPolicy {
     pub(crate) fn new(
+        source_contract: crate::config::LanguageConfig,
         contract: CompilationContract,
         objective: Option<OptimizationObjective>,
         effort: u8,
@@ -628,6 +630,7 @@ impl ResolvedPolicy {
         diagnostics: Vec<String>,
     ) -> Self {
         let mut policy = Self {
+            source_contract,
             contract,
             objective,
             effort,
@@ -641,6 +644,9 @@ impl ResolvedPolicy {
         };
         policy.fingerprint = Sha256::digest(policy.receipt().to_string().as_bytes()).into();
         policy
+    }
+    pub fn source_contract(&self) -> crate::config::LanguageConfig {
+        self.source_contract
     }
     pub fn contract(&self) -> &CompilationContract {
         &self.contract
@@ -981,7 +987,7 @@ impl ResolvedPolicy {
             }),
         };
         let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"proxy_pruning":o.search.proxy_pruning,"deferred_naming_starts":o.search.deferred_naming_starts,"deferred_naming_starts_enabled":self.deferred_naming_starts_enabled(),"deferred_naming_polish":o.search.deferred_naming_polish,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
-        json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "configuration_version":self.configuration_version, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| {
+        json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "configuration_version":self.configuration_version, "source_contract":self.source_contract, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| {
             let spec = id.spec();
             let available = !spec.producers.is_empty() && (!spec.javascript_only || self.javascript_contract().is_some());
             json!({"id":id, "state":self.tactic(id), "available":available, "definition":spec})

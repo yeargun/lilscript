@@ -2900,6 +2900,23 @@ fn s4_assumed_generic_and_nullable_structs_snapshot_public_fields_once() {
 }
 
 #[test]
+fn s4_checked_binary_reads_and_development_traps_reach_public_routes() {
+    let source = r#"
+        export number get(int i){Float64Array a=new Float64Array(1);a[0]=2.5;return a.get(i)??-3.0;}
+        export int read(int i){Uint8Array a=new Uint8Array(1);a[0]=255;return a[i];}
+        export int unit(int i){return "𐐀".codeUnitAt(i);}
+    "#;
+    let result=compile_source(source,&config("checks='development'"),ServiceOptions {
+        objectives:Some(Objectives::All),..ServiceOptions::default()
+    }).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",
+            "const outcomes=[library.get(-1),library.get(0),library.get(1),library.read(0),library.unit(0),library.unit(1)];for(const fn of [library.read,library.unit])for(const i of [-1,9]){try{fn(i);outcomes.push('missed');}catch(e){outcomes.push(e instanceof RangeError);}}console.log(JSON.stringify(outcomes));"),
+            "[-3,2.5,-3,255,55297,56320,true,true,true,true]\n");
+    }
+}
+
+#[test]
 fn s4_host_callbacks_keep_struct_defaults_rest_and_primitive_receivers() {
     let source = r#"
         struct Point{int x;}
@@ -3072,5 +3089,78 @@ fn s4_receiver_and_class_rest_exports_preserve_public_calling_conventions() {
     for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
         assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",
             "const a=new library.Box(),b=new library.Box(1,2,3);console.log(library.Box.length,a.value,b.value,a.sum.length,a.sum(),a.sum(1,2,3),library.add.length,library.add.call(7),library.add.call(7,1,2,3));"),"0 7 6 0 9 13 0 9 13\n");
+    }
+}
+
+#[test]
+fn s4_explicit_field_contract_is_target_and_effort_independent() {
+    let source="class C{int x;init(bool early){if(early){return;}this.x=3;}}print(new C(true).x);";
+    for target in [ServiceTarget::JavaScript,ServiceTarget::Native,ServiceTarget::All] {
+        for effort in [0,13] {
+            let mut settings=ProjectConfig::default();
+            settings.language.field_initialization=crate::config::FieldInitialization::Explicit;
+            settings.effort.level=effort;
+            let error=compile_source(source,&settings,ServiceOptions{target,preserve_root_exports:false,..ServiceOptions::default()}).unwrap_err();
+            assert_eq!(error.phase,"check","{error:?}");
+            assert!(error.message.contains("field `x`") && error.message.contains("R3"),"{error:?}");
+            let diagnostic=error.diagnostic.unwrap();
+            assert!(source[diagnostic.span.start..diagnostic.span.end].contains('x'));
+        }
+    }
+    let valid="class C{int x;init(bool early){try{if(early){return;}}finally{this.x=3;}}}print(new C(true).x);";
+    let mut settings=ProjectConfig::default();
+    settings.language.field_initialization=crate::config::FieldInitialization::Explicit;
+    let result=compile_source(valid,&settings,ServiceOptions{preserve_root_exports:false,..ServiceOptions::default()}).unwrap();
+    assert_eq!(execute_javascript(result.javascript(Objective::Brotli).unwrap().javascript(),"",""),"3\n");
+    let legacy=compile_source(source,&ProjectConfig::default(),ServiceOptions{preserve_root_exports:false,..ServiceOptions::default()}).unwrap();
+    assert_eq!(execute_javascript(legacy.javascript(Objective::Brotli).unwrap().javascript(),"",""),"0\n");
+}
+
+#[test]
+fn s4_explicit_field_contract_reaches_imported_modules_and_check_api() {
+    let scratch=Scratch::new();
+    std::fs::write(scratch.0.join("entry.lil"),"import {C} from \"./child\";print(new C().x);").unwrap();
+    std::fs::write(scratch.0.join("child.lil"),"export class C{int x;}").unwrap();
+    let settings:ProjectConfig=toml::from_str("[language]\nfield_initialization='explicit'").unwrap();
+    let error=compile_path(&scratch.0.join("entry.lil"),&settings,ServiceOptions::default()).unwrap_err();
+    assert_eq!(error.phase,"check");
+    assert!(error.diagnostic.unwrap().path.ends_with("child.lil"));
+    let error=check_path(&scratch.0.join("entry.lil"),None,&settings).unwrap_err();
+    assert_eq!(error.phase,"check");
+    assert!(error.message.contains("field `x`"));
+}
+
+#[test]
+fn s4_field_contract_is_strictly_parsed_and_fingerprinted() {
+    use crate::compilation_policy::CompilationRequest;
+    let legacy=ProjectConfig::default();
+    let explicit:ProjectConfig=toml::from_str("[language]\nfield_initialization='explicit'").unwrap();
+    for request in [CompilationRequest::Native,CompilationRequest::JavaScript{preserve_root_exports:true}] {
+        let before=legacy.resolve_policy(request.clone()).unwrap();
+        let after=explicit.resolve_policy(request).unwrap();
+        assert_ne!(before.fingerprint(),after.fingerprint());
+        assert_eq!(after.receipt()["source_contract"]["field_initialization"],"explicit");
+    }
+    for bad in ["[language]\nfield_initialization='auto'","[language]\nfield_initializations='explicit'"]{
+        assert!(toml::from_str::<ProjectConfig>(bad).is_err());
+    }
+}
+
+
+#[test]
+fn s4_development_bounds_survive_unused_results_and_inlined_calls() {
+    let source=r#"
+        void local(int i){int[] a=[1];a[i];}
+        void binary(int i){Uint8Array a=new Uint8Array(1);a[i];}
+        void unit(int i){"x".codeUnitAt(i);}
+        export void run(int kind,int index){if(kind==0){local(index);}else if(kind==1){binary(index);}else{unit(index);}}
+    "#;
+    let result=compile_source(source,&config("checks='development'"),ServiceOptions {
+        objectives:Some(Objectives::All),..ServiceOptions::default()
+    }).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",
+            "const r=[];for(let kind=0;kind<3;kind++)for(const i of [0,-1,1]){try{library.run(kind,i);r.push('ok');}catch(e){r.push(e instanceof RangeError);}}console.log(JSON.stringify(r));"),
+            "[\"ok\",true,true,\"ok\",true,true,\"ok\",true,true]\n");
     }
 }

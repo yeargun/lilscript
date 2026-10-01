@@ -3229,6 +3229,7 @@ fn unique_input(program: &Program<'_>) -> bool {
 fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
     Program {
         tables_revision: program.tables_revision,
+        trap_index_reads: program.trap_index_reads,
         units: program.units.clone(),
         cells: program.cells.clone(),
         types: program.types.clone(),

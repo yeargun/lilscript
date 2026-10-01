@@ -75,7 +75,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M9.12 | [G3](plan.md#g3), complete | Optional forms and receiver aliases compete through the common exact artifact path |
 | M10.9 | [S4](plan.md#s4) | R2's second batch (normalize at crossings, the refusals), `a.get(i)` |
 | M10.11 | [S4](plan.md#s4) | termination (Y4), pins |
-| M10.13 | [S4](plan.md#s4) | the refusal, with each port's release (M12.4) |
+| M10.13 | [S4](plan.md#s4), transition [V2](plan.md#v2) | Explicit field contract and shared checker/lint proof implemented; qualified port adoption and default transition remain V2 (M12.4) |
 | M10.14 | [S4](plan.md#s4) | constructibility (Y3) |
 | M10.3 | [Q4](plan.md#q4) | Const data (R9) |
 | M10.19 | [Q4](plan.md#q4) | Specialization over const data |

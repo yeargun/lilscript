@@ -1,0 +1,1 @@
+export void unit(int i){"x".codeUnitAt(i);}export void read(int i){Uint8Array a=new Uint8Array(1);a[i];}

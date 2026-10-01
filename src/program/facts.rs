@@ -39,7 +39,7 @@ pub const LOCAL_FACTS_PLAN: u32 = 1;
 // Version 3 transfers existing exact primitive knowledge through CopyValue.
 // Version 2 introduced shared transfer and separate resource-exhaustion effects.
 // Older receipts cannot qualify this version's answers.
-pub const LOCAL_FACTS_VERSION: u32 = 9;
+pub const LOCAL_FACTS_VERSION: u32 = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Dependencies {

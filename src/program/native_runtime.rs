@@ -29,6 +29,7 @@ pub(super) const PROLOGUE: &str = r#"/* LilScript native: build as C11 or later 
 #include <fenv.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
 #error "LilScript native requires C11"
@@ -111,6 +112,8 @@ pub(super) enum Helper {
     UnsignedShiftRight,
     StringLength,
     CharCodeAt,
+    CodeUnitAt,
+    StringIndex,
     CharAt,
     StringEqual,
     Strings,
@@ -121,7 +124,7 @@ pub(super) enum Helper {
 }
 
 impl Helper {
-    pub(super) const ALL: [Self; 20] = [
+    pub(super) const ALL: [Self; 22] = [
         Self::FromU32,
         Self::ToInt32,
         Self::RoundBinary64,
@@ -135,6 +138,8 @@ impl Helper {
         Self::UnsignedShiftRight,
         Self::StringLength,
         Self::CharCodeAt,
+        Self::CodeUnitAt,
+        Self::StringIndex,
         Self::CharAt,
         Self::StringEqual,
         Self::Strings,
@@ -159,6 +164,8 @@ impl Helper {
             Self::UnsignedShiftRight => "ls_ushr",
             Self::StringLength => "ls_string_length",
             Self::CharCodeAt => "ls_char_code_at",
+            Self::CodeUnitAt => "ls_code_unit_at",
+            Self::StringIndex => "ls_string_index",
             Self::CharAt => "ls_char_at",
             Self::StringEqual => "ls_string_equal",
             Self::Strings => "ls_string_concat",
@@ -177,6 +184,7 @@ impl Helper {
             | Self::UnsignedShiftRight
             | Self::StringLength => &[Self::FromU32],
             Self::Multiply => &[Self::ToInt32, Self::FromU32],
+            Self::StringIndex => &[Self::CodeUnitAt],
             Self::Strings => &[Self::StringEqual],
             Self::Dynamic => &[Self::Strings, Self::ClosureRuntime],
             Self::Collections => &[Self::Dynamic],
@@ -299,6 +307,23 @@ impl Helper {
             Self::CharCodeAt => {
                 r#"static inline int32_t ls_char_code_at(ls_string value, int32_t index) {
     return index < 0 || (size_t)index >= value.length ? 0 : (int32_t)value.data[(size_t)index];
+}
+"#
+            }
+            Self::CodeUnitAt => {
+                r#"static inline int32_t ls_code_unit_at(ls_string value, int32_t index) {
+    if (index < 0 || (size_t)index >= value.length) {
+        fputs("LilScript native string index out of range\n", stderr);
+        abort();
+    }
+    return (int32_t)value.data[(size_t)index];
+}
+"#
+            }
+            Self::StringIndex => {
+                r#"static inline ls_string ls_string_index(ls_string value, int32_t index) {
+    (void)ls_code_unit_at(value, index);
+    return (ls_string){value.data + (size_t)index, 1};
 }
 "#
             }

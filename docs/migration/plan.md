@@ -229,6 +229,13 @@ Complete milestones in this dependency order:
 
 Only one milestone is active. Record its finite acceptance checklist before changing implementation. A prerequisite discovered within a milestone belongs to that milestone's completion work; do not use it to begin several more packages. Newly implemented families must register their controls as part of their own milestone; this does not keep C1 permanently open. Future language or product proposals without an approved contract are not silent completion requirements: resolve them explicitly in the plan under the existing semantics.
 
+The R3 staged migration has an explicit dependency split: S4 implements the
+field contract, checker facts, warning/fix-it and opt-in strict checking;
+D3 carries port patches and V2 qualifies their releases before a default change.
+Requiring those releases before S4 could finish would make S4 depend on its own
+V2 successor. The compatibility selector preserves accepted source semantics;
+it does not waive the port evidence or turn an effort level into a language flag.
+
 Prefer a measured missing capability over another layer of orchestration. Change scope or order only when the existing requirement conflicts with the product objective or a real dependency requires it, and record the reason. Do not delete a requirement merely because implementation is difficult.
 
 ## 9. Verification and acceptance

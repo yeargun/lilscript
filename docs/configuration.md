@@ -60,9 +60,35 @@ rejection, proxy pruning, veto, budget exhaustion and selection. Selected
 artifact provenance names permitted formation assignments; it does not claim
 that every selected pass changed the source or that static risk proves speed.
 
+## Field initialization during migration
+
+`[language] field_initialization` accepts `"legacy"` (the current default) or
+`"explicit"`. Select `explicit` to adopt R3: every class field needs a declared
+initializer or assignment on every normal constructor path, before any read or
+capture of `this`. The checker follows early returns, branches, loops and
+`finally`; exception paths are conservative, so an explicit initializer can be
+needed when assignment cannot be proved. The diagnostic keeps the field's source
+span. Native, JavaScript, build and check APIs enforce the same contract.
+
+Use `lilscript-lint --fix` with `migration/implicit-default` under `legacy` before
+opting in. It uses the same checked field facts and writes the existing default
+where a type-safe spelling exists. A non-nullable reference with no valid default
+needs a source edit. `legacy` preserves existing source behavior during the port
+transition; its eventual default change requires qualified port releases (V2).
+
+This controls accepted source, not search effort or runtime risk. Level 0 and
+level 13 apply identical checks, and disabling an optimization cannot bypass
+one. The bounded flow analysis adds checking work; the setting does not launch
+codec trials or promise smaller output. The resolved receipt and cache
+fingerprint include it. Normal configuration discovery and explicit `--config`
+precedence apply; unknown keys or values fail.
+
 ## The schema
 
 ```toml
+[language]
+field_initialization = "legacy" # legacy | explicit; source contract, independent of effort
+
 [objective]
 codecs = ["brotli"]           # any nonempty subset of raw | gzip | brotli; separate results
 [objective.brotli]

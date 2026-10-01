@@ -349,6 +349,14 @@ thread_local! {
 }
 
 impl Frontend {
+    fn trap_index_reads(&self) -> bool {
+        self.native.is_some() || self.javascript.as_ref().and_then(ResolvedPolicy::javascript_contract)
+            .is_some_and(|contract| contract.checks == crate::compilation_contract::PreconditionChecks::Development)
+    }
+    fn source_contract(&self) -> crate::config::LanguageConfig {
+        self.javascript.as_ref().or(self.native.as_ref())
+            .expect("a checked frontend has a target policy").source_contract()
+    }
     /// The program rules this build's contracts permit (`program/rules/`):
     /// each where every requested target permits its tactic, with root
     /// storage sealed as the JavaScript execution seals it (a native program
@@ -1321,6 +1329,8 @@ fn check_source_frontend<'src>(
     source: &'src str,
 ) -> Result<PreparedProgram<'src>, ServiceError> {
     let rules = frontend.rules();
+    let source_contract = frontend.source_contract();
+    let trap_index_reads = frontend.trap_index_reads();
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
     let syntax = arena.parse(source).map_err(|error| match error {
@@ -1343,6 +1353,8 @@ fn check_source_frontend<'src>(
                 &syntax,
                 &mut AllocationBudget::new(Some((ledger, domain))),
                 |semantics, budget| -> Result<_, ServiceError> {
+                    crate::check::capabilities::language(semantics.view(),Some(0),source_contract,budget)
+                        .map_err(|error|native_check_error("<source>",source,error))?;
                     if frontend.native.is_some() {
                         crate::check::capabilities::native(
                             &syntax,
@@ -1359,7 +1371,7 @@ fn check_source_frontend<'src>(
                         .map_err(|error| ServiceError::resources("frontend resources", error))?;
                     let phase = Instant::now();
                     let (program, rules) = from_checked_source_with_rules(
-                        &syntax, semantics, rules, budget,
+                        &syntax, semantics, rules, trap_index_reads, budget,
                     )
                     .map_err(|error| match error {
                         ConversionError::Unsupported(error) => ServiceError::module(
@@ -1431,6 +1443,8 @@ fn check_path_frontend<'src, T>(
     inspect: impl for<'a, 'ast> FnOnce(&CheckedProgram<'a, 'ast, 'src>) -> T,
 ) -> Result<(PreparedProgram<'src>, Value, T), ServiceError> {
     let rules = if build { frontend.rules() } else { None };
+    let source_contract = frontend.source_contract();
+    let trap_index_reads = frontend.trap_index_reads();
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
     let (modules, syntax) =
@@ -1493,6 +1507,11 @@ fn check_path_frontend<'src, T>(
                 &modules,
                 &mut AllocationBudget::new(Some((ledger, domain))),
                 |semantics, budget| -> Result<_, ServiceError> {
+                    for (module,input) in modules.modules.iter().enumerate() {
+                        crate::check::capabilities::language(semantics.view(module).expect("checked source"),
+                            Some(module),source_contract,budget)
+                            .map_err(|error|native_check_error(&input.path,input.source,error))?;
+                    }
                     if frontend.native.is_some() {
                         for (module, source) in syntax.iter().enumerate() {
                             let input = &modules.modules[module];
@@ -1515,7 +1534,7 @@ fn check_path_frontend<'src, T>(
                         .map_err(|error| ServiceError::resources("frontend resources", error))?;
                     let phase = Instant::now();
                     let (program, rules) =
-                        from_checked_modules_with_rules(&syntax, semantics, rules, budget)
+                        from_checked_modules_with_rules(&syntax, semantics, rules, trap_index_reads, budget)
                             .map_err(|error| match error.error {
                                 ConversionError::Unsupported(unsupported) => {
                                     let module = &modules.modules[error.module];

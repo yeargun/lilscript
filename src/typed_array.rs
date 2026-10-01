@@ -220,6 +220,7 @@ impl TypedArrayKind {
 
     pub fn method_intrinsic(self, method: &str) -> Option<Intrinsic> {
         Some(match method {
+            "get" => Intrinsic::ArrayGet,
             "slice" => self.slice_intrinsic(),
             "subarray" => self.subarray_intrinsic(),
             _ => return None,

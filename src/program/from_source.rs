@@ -175,7 +175,7 @@ pub(crate) fn from_checked_source_admitted<'ast, 'src>(
     semantics: &CheckedModule<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ConversionError> {
-    from_checked_source_with_rules(source, semantics, None, budget).map(|(program, _)| program)
+    from_checked_source_with_rules(source, semantics, None, false, budget).map(|(program, _)| program)
 }
 
 /// Conversion, then the program rules a build permits (`rules/`), before the
@@ -184,10 +184,12 @@ pub(crate) fn from_checked_source_with_rules<'ast, 'src>(
     source: &ast::Program<'ast, 'src>,
     semantics: &CheckedModule<'ast, 'src>,
     rules: Option<RuleRequest>,
+    trap_index_reads: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ConversionError> {
     let mut scope = budget.scope();
-    let program = convert_source(source, semantics, &mut scope)?;
+    let mut program = convert_source(source, semantics, &mut scope)?;
+    program.trap_index_reads = trap_index_reads;
     verify_conversion(&program, source.span, &mut scope)?;
     check_contracts(&program).map_err(|(_, violation)| ConversionError::Contract(violation))?;
     let (program, receipt) = with_rules(program, rules, source.span, &mut scope)?;
@@ -201,7 +203,7 @@ pub(crate) fn from_checked_modules_admitted<'ast, 'src>(
     semantics: &CheckedModules<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ModuleConversionError> {
-    from_checked_modules_with_rules(sources, semantics, None, budget).map(|(program, _)| program)
+    from_checked_modules_with_rules(sources, semantics, None, false, budget).map(|(program, _)| program)
 }
 
 /// `from_checked_source_with_rules` for a module graph.
@@ -209,10 +211,12 @@ pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
     sources: &[ast::Program<'ast, 'src>],
     semantics: &CheckedModules<'ast, 'src>,
     rules: Option<RuleRequest>,
+    trap_index_reads: bool,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ModuleConversionError> {
     let mut scope = budget.scope();
-    let program = convert_modules(sources, semantics, &mut scope)?;
+    let mut program = convert_modules(sources, semantics, &mut scope)?;
+    program.trap_index_reads = trap_index_reads;
     verify_module_conversion(
         &program,
         semantics.root(),
@@ -845,6 +849,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             current_module: ModuleId::from_index(0).unwrap(),
             program: Program {
                 tables_revision: RevisionId::fresh(),
+                trap_index_reads: false,
                 units: Vec::new(),
                 cells: table(Vec::new(), budget)?,
                 types: table(Vec::new(), budget)?,
@@ -5663,12 +5668,20 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             None,
             span,
         )?;
+        let receiver_type = self.semantics.expression_type(array.id).expect("checked array");
+        let (element, length_operation) = match receiver_type {
+            Type::Array(element) => (element.as_ref().clone(), crate::primitive::Intrinsic::ArrayLength),
+            ty => {
+                let kind = crate::typed_array::TypedArrayKind::from_type(ty)
+                    .ok_or(Unsupported { span, feature: "checked indexing requires an array" })?;
+                (kind.index_value_type(), kind.length_intrinsic())
+            }
+        };
+        let element = self.ty(&element)?;
         let length = self.value(
             unit,
             region,
-            OperationKind::Intrinsic(ResolvedIntrinsic::Property(
-                crate::primitive::Intrinsic::ArrayLength,
-            )),
+            OperationKind::Intrinsic(ResolvedIntrinsic::Property(length_operation)),
             &[receiver],
             integer,
             None,
@@ -5708,14 +5721,6 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         )?;
         let yes = self.region(unit, region, span)?;
         let place = self.push_place(unit, Place::Index { receiver, key })?;
-        let Type::Array(element) = self
-            .semantics
-            .expression_type(array.id)
-            .expect("checked array")
-        else {
-            return self.unsupported(span, "checked indexing requires an array");
-        };
-        let element = self.ty(element)?;
         let found = self.value(
             unit,
             yes,

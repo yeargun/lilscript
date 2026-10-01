@@ -1,0 +1,10 @@
+[optimization]
+preset='maximum'
+[objective]
+codecs='gzip'
+[effort]
+level=13
+[language]
+field_initialization='explicit'
+[javascript]
+checks='development'

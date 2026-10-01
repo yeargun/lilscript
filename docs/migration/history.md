@@ -867,3 +867,28 @@ follow-up. The CLI/LSP release builds pass. The existing callback comparison is
 +18 raw / −1 gzip / −3 Brotli; new callback script/module host oracles pass all
 objectives and scored bytes equal served bytes. The raw regression is retained.
 No full suite, fleet, timing, Closure or native-complete claim. S4 stays active.
+
+
+## 2026-10-01: S4 field contracts and indexed reads
+
+The [field batch](../../benchmarks/migration-results/2026-10-01-s4-field-contracts/README.md)
+replaces lint's syntactic assignment guess with one checker-owned constructor
+flow. Explicit TOML checking covers early completions, branches, exceptional and
+finally paths, and receiver observations; legacy mode retains the staged port
+transition. Config, policy identity, public check/compile routes and fix-its
+consume this owner. S4 implementation and D3/V2 adoption are separated to remove
+a dependency cycle without dropping the release requirement.
+
+The [index batch](../../benchmarks/migration-results/2026-10-01-s4-index-contracts/README.md)
+adds native UTF-16 indexing and traps for `codeUnitAt` and all binary array
+kinds, plus shared nullable binary `.get`. The shared effects owner now preserves
+required development/native traps through unused results and inlining. A
+negative prior-pin probe demonstrates the eliminated development-check loss.
+
+Twelve distinct focused checks pass across the batch; CLI/lint/LSP release
+builds pass. One class-boundary comparison is unchanged at 243 raw / 173 gzip /
+139 Brotli; new indexing oracles pass all objectives and final scores match
+served bytes. Pin `s4-field-contracts-1` has SHA-256
+`27534025c90d306509f8a9491e85a9ab47980552d2ec2f41d1a159773d6e7302`, algorithm 24,
+search 31, walk 10 and local facts 10. No full-suite, fleet, timing, Closure or
+native-complete claim. S4 remains the only active milestone.

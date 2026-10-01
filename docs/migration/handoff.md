@@ -9,7 +9,23 @@ Checkout `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
 C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3 are implemented. **S4 remains the sole active
 milestone**, under its [acceptance contract](s4-acceptance.md).
 
-The latest [S4 host batch](../../benchmarks/migration-results/2026-10-01-s4-host-boundaries/README.md)
+The latest [S4 field batch](../../benchmarks/migration-results/2026-10-01-s4-field-contracts/README.md)
+and [index batch](../../benchmarks/migration-results/2026-10-01-s4-index-contracts/README.md)
+pin `/home/azureuser/lilscript-work/bin/s4-field-contracts-1/lilscript`, SHA-256
+`27534025c90d306509f8a9491e85a9ab47980552d2ec2f41d1a159773d6e7302`.
+Algorithm 24 / search 31 / walk 10 / local facts 10. One checker-owned constructor
+flow replaces the lint heuristic and supports `[language] field_initialization`
+`explicit`/`legacy` on every public frontend, independently of effort. Legacy
+remains the migration default; D3/V2 own the qualified port/default transition.
+Native string/code-unit/all binary reads trap; binary `.get` returns nullable;
+required development/native traps survive unused results and helper inlining.
+Twelve distinct focused checks pass across the batch, including seven native
+compiler/sanitizer profiles for positive indexing. CLI/lint/LSP release builds
+pass. One matched class boundary is unchanged at 243 raw / 173 gzip / 139 Brotli;
+new bounds oracles pass all objectives and scored bytes match delivered bytes.
+Next: remaining S4 module boundaries, language/catalog and shared-consumer work.
+
+The preceding [S4 host batch](../../benchmarks/migration-results/2026-10-01-s4-host-boundaries/README.md)
 pins `/home/azureuser/lilscript-work/bin/s4-host-boundaries-1/lilscript`, SHA-256
 `0167a9299329bd439f1a32e39074bf05dd065a8de7b506eee635ffbbad8cc073`.
 Algorithm 22 / search 31 / walk 10; shared local facts version 9.

@@ -87,7 +87,11 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 - **Replaces.** v0.1:552-553 ("Every runtime variable declaration requires an initializer"), implicit field defaults.
 - **JS.** `let x;` merged into its first assignment; construction initializes each slot once in the nominal's fixed order (future-architecture §10.2). **Native.** No zero-fill for scalars.
 - **Migration.** Two batches (§14): a warning with a fix-it that writes today's implicit defaults explicitly, applied to every reference port as patches; then the refusal. Ports then delete dead placeholders.
-- **Status.** Target (M10.13), in the core.
+- **Status.** Local definite assignment is in force. The class-field contract is
+  implemented under `[language] field_initialization = "explicit"`, with one
+  checker flow fact shared by the migration lint and all public checking/build
+  routes. `legacy` remains the compatibility default while ports migrate; V2 owns
+  qualified port adoption and the default transition. No effort level changes it.
 
 ---
 
@@ -153,7 +157,7 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 - **Clause.** `int` is wrapping int32 on every target (kept). `|0` appears only after an operation that can leave int32 without a range proof; loads never normalize. `length`, `size`, `indexOf` and `findIndex` are `int`: collections and strings hold at most 2^31 − 1 elements (a D3.10 resource bound). `a[i]` and `s.codeUnitAt(i) -> int` have an in-range precondition (native traps; `checks = "development"` throws; production does not check); `a.get(i) -> T?` is the checked read. `s.charCodeAt(i) -> number` keeps its JavaScript meaning (NaN out of range). Float `%` is added.
 - **Replaces.** v0.1:517-535 (keeps wrapping, drops load normalization), :1032-1034 (`charCodeAt` returns `int`, 0 out of range), the unspecified out-of-range behaviour (JavaScript defaults `""`/`0`/`null` while the interpreter errors).
 - **Migration.** `charCodeAt` changes type: the seven reference ports use it 47 times, many as `int c = s.charCodeAt(i)` (markedlil `src/str.lil:387`). The fix-it rewrites each to `s.charCodeAt(i) | 0`, which keeps today's meaning exactly, or to `s.codeUnitAt(i)` where the index is bounded by the string's length in the same loop head. Before index preconditions become production semantics, every port suite runs in the `checks = "development"` lane (§14).
-- **Status.** Float `%`, bitwise ToInt32, `codeUnitAt`, development index checks and the `migration/char-code` fix-it are implemented. Production JavaScript index reads use the in-range precondition (K12). S4 adds typed array `a.get(i)` with a nullable result and native array index traps. Remaining work includes the native string/typed-array audit and `charCodeAt` returning a number; the latter needs the port migration before changing accepted programs.
+- **Status.** Float `%`, bitwise ToInt32, `codeUnitAt`, development index checks and the `migration/char-code` fix-it are implemented. Production JavaScript index reads use the in-range precondition (K12). S4 adds typed array `a.get(i)` with a nullable result and native array index traps. Native direct UTF-16 string indexing, `codeUnitAt` and every binary typed-array element read now trap out of range; binary arrays also share the checked `.get(i)` lowering. Remaining work includes `charCodeAt` returning a number; the latter needs the port migration before changing accepted programs.
 
 ### R10 Typed intrinsics mean ECMAScript's originals
 

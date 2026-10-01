@@ -1,0 +1,4 @@
+[objective]
+codecs="raw"
+[javascript]
+checks="development"

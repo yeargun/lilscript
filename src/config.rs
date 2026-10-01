@@ -618,9 +618,33 @@ pub fn parse_project_config(source: &str) -> Result<ParsedConfig, String> {
     Ok(ParsedConfig { config, warnings })
 }
 
+/// Source contracts are independent of target, effort and optional tactics.
+/// Legacy defaults remain available until the qualified port release transition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct LanguageConfig {
+    /// `legacy` (default during port migration) supplies implicit class-field
+    /// defaults. `explicit` requires assignment on every normal constructor
+    /// path before reading/capturing `this`, or a declared field initializer.
+    /// Use the migration/implicit-default lint fix before opting in. Checked
+    /// on both targets at every effort; no optimization permission bypasses it.
+    /// The conservative flow proof can require explicit defaults around
+    /// exception paths. It adds bounded checking work, not codec judgments.
+    pub field_initialization: FieldInitialization,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FieldInitialization {
+    #[default]
+    Legacy,
+    Explicit,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ProjectConfig {
+    pub language: LanguageConfig,
     /// Versioned policy overlay; absent versions preserve legacy permission semantics.
     pub policy: Option<crate::compilation_policy::PolicyConfig>,
     pub package: Option<PackageMetadata>,
@@ -903,6 +927,7 @@ impl ProjectConfig {
             }
         };
         Ok(ResolvedPolicy::new(
+            self.language,
             contract,
             objective,
             effort,

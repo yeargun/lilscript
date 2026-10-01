@@ -1,0 +1,1 @@
+function c(b){if(!(typeof b=="number"&&(b|0)===b))throw new TypeError("a value crosses into the program as int and is not one");return b}function f(d,e){if(!(e>=0&&e<d.length))throw new RangeError("index out of range");return d[e]}let unit=function(a){c(a);f("x",a).charCodeAt(0)},read=function(g){c(g);new Uint8Array(1)};export{unit,read};

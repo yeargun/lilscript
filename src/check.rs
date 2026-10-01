@@ -21,6 +21,8 @@ pub(crate) mod binary_types;
 pub(crate) mod capabilities;
 mod modules;
 mod struct_cycles;
+mod field_initialization;
+pub use field_initialization::FieldInitializationFacts;
 pub(crate) mod type_admission;
 mod type_identity;
 mod type_pool;
@@ -884,6 +886,7 @@ pub struct ClassInfo<'src> {
     /// it is published, has a host (extern) ancestor, or shares an internal
     /// inheritance chain with such a class. Every other class may dissolve.
     pub observed: bool,
+    pub initialization: FieldInitializationFacts,
     pub span: Span,
 }
 
@@ -2664,6 +2667,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             external,
                             published: false,
                             observed: false,
+                            initialization: FieldInitializationFacts::default(),
                             span,
                         },
                     )?;
@@ -3419,6 +3423,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
             }
         }
+        let initialization = field_initialization::analyze(class, CheckedView {
+            declarations: self.declarations, facts: self.facts,
+        }, self.budget)?;
+        self.declarations.classes[identity.index()].initialization = initialization;
         self.pop_type_params();
         Ok(())
     }
@@ -6701,6 +6709,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 buffer_member(property, span, Type::SharedArrayBuffer).map_err(Into::into)
             }
             ty if crate::typed_array::is_typed_array_type(&ty) => match property.name {
+                "get" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(Type::Int)],
+                    return_type: Box::new(nullable_type(
+                        crate::typed_array::TypedArrayKind::from_type(&ty).unwrap().index_value_type(),
+                    )),
+                }))),
                 "slice" | "subarray" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: vec![
                         FunctionParameter::value(Type::Int),

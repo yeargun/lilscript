@@ -51,6 +51,16 @@ compiler does meanwhile.
   decimal or hexadecimal, must fit the signed 32-bit range.
 - Strings use double quotes. Template strings use backticks and `${expr}`.
 
+### Explicit field-initialization contract
+
+`[language] field_initialization = "explicit"` enables the checked R3 contract:
+class fields have declared initializers or are assigned on every normal
+constructor path before `this` is read or captured. The default `"legacy"` keeps
+implicit field defaults during migration. The migration lint and strict mode
+share one checker fact, including branches, early returns and `finally`.
+Exception and loop proofs are conservative. This setting applies equally to
+JavaScript and native and is independent of effort.
+
 ## Types
 
 | LilScript type      | Meaning                                                       | JavaScript representation                         | Native representation                       |

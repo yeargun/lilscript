@@ -1,9 +1,9 @@
 //! Binary memory: reference-counted buffers and typed array views of them.
 //! A view owns its buffer. Element writes convert as ECMA-262 does: integer
 //! kinds wrap modulo their width, `Uint8Clamped` clamps, `Float32` rounds to
-//! binary32. Writes past the end are ignored, as in JavaScript; an integer
-//! read past the end is 0 (`a[i]|0`) and a float read stops the program,
-//! since `undefined` is no native value. Elements use the host's byte order,
+//! binary32. Writes past the end are ignored, as in JavaScript. Every read
+//! requires an in-range index (R11) and traps if it is invalid. A guarded
+//! `.get(i)` checks before reading storage. Elements use the host's byte order,
 //! as JavaScript's typed arrays do.
 use super::*;
 use crate::primitive::Intrinsic;
@@ -81,11 +81,11 @@ static ls_native_object *ls_typed_slice(ls_native_object *owner, int32_t start, 
     if (length) memcpy(((ls_buffer *)((ls_typed *)result)->buffer)->bytes, ((ls_buffer *)view->buffer)->bytes + view->offset + from * size, length * size);
     return result;
 }
-static void ls_typed_undefined(void) { ls_binary_failure("LilScript native typed array element is undefined"); }
+static void ls_typed_undefined(void) { ls_binary_failure("LilScript native typed array index out of range"); }
 #define LS_TYPED_INT(name, type, read, write) \
 static int32_t ls_typed_get_##name(ls_native_object *owner, int32_t index) { \
     uint8_t *at = ls_typed_at(owner, index, sizeof(type)); \
-    if (!at) return 0; \
+    if (!at) ls_typed_undefined(); \
     type value; memcpy(&value, at, sizeof value); return read; \
 } \
 static void ls_typed_set_##name(ls_native_object *owner, int32_t index, int32_t input) { \

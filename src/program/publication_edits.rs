@@ -897,6 +897,7 @@ fn copy_unit(unit: &UnitData) -> Result<UnitData, PublicationError> {
 fn share_program_without_units<'src>(program: &Program<'src>) -> Program<'src> {
     Program {
         tables_revision: program.tables_revision,
+        trap_index_reads: program.trap_index_reads,
         units: Vec::new(),
         cells: program.cells.clone(),
         types: program.types.clone(),

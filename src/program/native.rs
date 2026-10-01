@@ -1211,6 +1211,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     }
                     break;
                 }
+                PlaceRecipe::StringElement { receiver, index } => {
+                    self.write(format_args!("ls_string_index(ls_v{},ls_v{})", receiver.index(),index.index()))?;
+                    break;
+                }
                 PlaceRecipe::TypedElement {
                     receiver,
                     index,
@@ -1561,6 +1565,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
             PreparedTarget::MathImul => {
                 self.text("ls_imul(")?;
                 false
+            }
+            PreparedTarget::CodeUnitAt { receiver } => {
+                self.write(format_args!("ls_code_unit_at(ls_v{}", receiver.index()))?;
+                true
             }
             PreparedTarget::CharCodeAt { receiver } => {
                 self.write(format_args!("ls_char_code_at(ls_v{}", receiver.index()))?;

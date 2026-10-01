@@ -1,0 +1,7 @@
+checked class-fields/raw
+checked class-fields/gzip
+checked class-fields/brotli
+checked checked-indexing/raw
+checked checked-indexing/gzip
+checked checked-indexing/brotli
+{"raw":{"before":243,"after":243,"delta":0},"gzip":{"before":173,"after":173,"delta":0},"brotli":{"before":139,"after":139,"delta":0}}

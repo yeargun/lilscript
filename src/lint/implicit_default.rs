@@ -3,7 +3,7 @@
 //! takes its type's implicit default. The fix writes that default as the
 //! field's initializer, which is what every construction evaluates today;
 //! the refusal of implicit defaults follows once the ports carry the fix.
-use crate::ast::{self, AssignmentOp, ClassMember, Expr, ExprKind, Item, Stmt};
+use crate::ast::{self, ClassMember, Item};
 use crate::check::{CheckedView, Type};
 use crate::module::ModuleId;
 use crate::span::Span;
@@ -29,16 +29,12 @@ pub(super) fn lint(
         else {
             continue;
         };
-        let init = class.members.iter().find_map(|member| match member {
-            ClassMember::Constructor(constructor) => Some(constructor),
-            _ => None,
-        });
         for member in class.members {
             let ClassMember::Field(field) = member else {
                 continue;
             };
             if field.initializer.is_some()
-                || init.is_some_and(|init| assigns(init.body, field.name.name))
+                || !info.initialization.implicit.contains(&info.fields[field.name.name].member)
             {
                 continue;
             }
@@ -75,43 +71,6 @@ pub(super) fn lint(
             });
         }
     }
-}
-
-/// Whether `init`'s body assigns `this.name` on every path: a statement at
-/// its top level, or both branches of an `if`.
-fn assigns(body: &[Stmt<'_, '_>], name: &str) -> bool {
-    body.iter()
-        .any(|statement| statement_assigns(statement, name))
-}
-
-fn statement_assigns(statement: &Stmt<'_, '_>, name: &str) -> bool {
-    match statement {
-        Stmt::Expr(expression, ..) => expression_assigns(expression, name),
-        Stmt::Block { body, .. } => assigns(body, name),
-        Stmt::If {
-            then_branch,
-            else_branch: Some(else_branch),
-            ..
-        } => statement_assigns(then_branch, name) && statement_assigns(else_branch, name),
-        _ => false,
-    }
-}
-
-fn expression_assigns(expression: &Expr<'_, '_>, name: &str) -> bool {
-    let ExprKind::Assignment {
-        op: AssignmentOp::Assign,
-        target,
-        ..
-    } = &expression.kind
-    else {
-        return false;
-    };
-    matches!(
-        &target.kind,
-        ExprKind::Member { object, property, .. }
-            if property.name == name
-                && matches!(&object.kind, ExprKind::Ident(this) if this.name == "this")
-    )
 }
 
 /// The implicit default a construction gives a field of `ty` (spelled
