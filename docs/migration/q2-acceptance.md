@@ -20,7 +20,7 @@ scheduler suffixes remain useful starting points; do not rebuild their owners.
    cached evidence grants neither a permission nor extra search work.
 4. [ ] Finish resource admission for graph/cycle/delivery and analysis/edit
    storage, including failure cleanup. Entry graph, cycle checking and the
-   target use index, edit journals, local dirty maps and renumbering plans are admitted; delivery placement and
+   target use index, edit journals, local dirty maps, renumbering plans and complete retained target copies are admitted; delivery placement and
    remaining analysis/edit owners still need completion. Count logical work independently from
    physical cache hits and retain scaling/work/byte telemetry.
 5. [ ] Wire/document cache and scheduling controls with hard TOML behavior,
@@ -59,3 +59,8 @@ implements local source revision reuse, three target stable-proof consumers and
 admitted in-place expression ordering. All-objective on/off logical/byte parity
 is qualified. SCC/global dependency invalidation and incremental formation stay
 open; measured target reuse is modest and no broad speed gain is claimed.
+
+The [complete target-copy batch](../../benchmarks/migration-results/2026-10-01-q2-target-copies/README.md)
+admits nested payloads and behavior-proof lifetimes. Affected artifacts remain
+byte-identical with higher, correctly counted copy work. This closes the retained
+copy owner, not initial placement or source analysis/edit admission.

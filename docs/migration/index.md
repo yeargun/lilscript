@@ -15,7 +15,7 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 Complete **Q2** under its [acceptance contract](q2-acceptance.md): dirty
 scheduling, shared formation, persistent transparent reuse and resource
 accounting. The rooted use-index consumer and admitted module graph are
-implemented. Edit journals and in-place renumbering have admitted storage;
+implemented. Edit journals, in-place renumbering and complete retained target copies have admitted storage;
 local normalization proofs and optional disk codec reuse are qualified. Delivery revalidates print proofs after creating
 setters. Keep logical admission, hard TOML
 permissions, source/target identities and selected output independent of cache

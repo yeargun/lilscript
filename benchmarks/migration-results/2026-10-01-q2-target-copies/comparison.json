@@ -1,0 +1,1291 @@
+{
+  "scope": "five affected controls, separate raw/gzip/Brotli objectives, prior pin and complete target-copy admission; independent runtime/scored-byte oracles, accounting deltas and single coarse timing pairs, no fleet or general speed claim",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/q2-target-copies-1/lilscript",
+    "sha256": "f32d84840ba334f8d9560ddb7d8d74b54be56017af9eae62b298fa15323b6a86"
+  },
+  "baseline": {
+    "path": "/home/azureuser/lilscript-work/bin/q2-normalization-1/lilscript",
+    "sha256": "c514eca8a6cb6392a54512d489a20d571f031e2d60dd764a4b1bfa2ee11b3e15"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "totals": {
+    "raw": {
+      "before": 966,
+      "after": 966,
+      "delta": 0
+    },
+    "gzip": {
+      "before": 784,
+      "after": 784,
+      "delta": 0
+    },
+    "brotli": {
+      "before": 655,
+      "after": 655,
+      "delta": 0
+    }
+  },
+  "rows": [
+    {
+      "id": "spellings",
+      "source_sha256": "a44337af87de53fe10f881732ca238d6afb0bc15fe809764fe9708293d35d89f",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "0b8cac3bb5742e491c37bf1ecb44a3b4115d72f7b2235ab680126d67f0e14e60",
+            "policy_fingerprint": "990209d744cc931979949e46d5f70afc9ac72373c1f7e0d5c759488b5596f283",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d",
+                "raw": 493,
+                "gzip9": 324,
+                "brotli11": 291
+              }
+            ],
+            "raw": 493,
+            "gzip9": 324,
+            "brotli11": 291,
+            "logical": {
+              "baseline": 157437,
+              "optional": 6111769,
+              "codec": 204
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 4426,
+              "target_reused": 1
+            },
+            "peak_retained_bytes": 18576130,
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 0,
+              "examined": 247,
+              "judged": 11
+            }
+          },
+          "after": {
+            "config_sha256": "0b8cac3bb5742e491c37bf1ecb44a3b4115d72f7b2235ab680126d67f0e14e60",
+            "policy_fingerprint": "14b260272d0d3d9e264766cf41a16508e5fb2a92b9e3ee96bbaf097b68253ede",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d",
+                "raw": 493,
+                "gzip9": 324,
+                "brotli11": 291
+              }
+            ],
+            "raw": 493,
+            "gzip9": 324,
+            "brotli11": 291,
+            "logical": {
+              "baseline": 157437,
+              "optional": 6230107,
+              "codec": 204
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 4426,
+              "target_reused": 1
+            },
+            "peak_retained_bytes": 18576130,
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 0,
+              "examined": 247,
+              "judged": 11
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "8b7feccd37b505a70c47cc25765946400b6f36b5d6bf545e12381adea217d857",
+            "policy_fingerprint": "3b4ac28a45380210783b22ac11133818a73df9a836fce9e9a900de0ee209a355",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2cfb02b4ca4637d369c5ebe74a4a50057e314defec93254f0d22f8ca7be4efed",
+                "raw": 495,
+                "gzip9": 306,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 306,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 408963,
+              "optional": 26543921,
+              "codec": 20691104
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 4310,
+              "target_reused": 1
+            },
+            "peak_retained_bytes": 18610114,
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 165,
+              "judged": 12
+            }
+          },
+          "after": {
+            "config_sha256": "8b7feccd37b505a70c47cc25765946400b6f36b5d6bf545e12381adea217d857",
+            "policy_fingerprint": "25ebb6921bf3be127941646d037eea21be4a4312dbfb986aeb81e83215ee5ce5",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2cfb02b4ca4637d369c5ebe74a4a50057e314defec93254f0d22f8ca7be4efed",
+                "raw": 495,
+                "gzip9": 306,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 306,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 408963,
+              "optional": 26665529,
+              "codec": 20691104
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 4310,
+              "target_reused": 1
+            },
+            "peak_retained_bytes": 18610114,
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 165,
+              "judged": 12
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "435c27b85c565ef69674bb256403e6463e3443701109966b3b5d904c9ce8fea6",
+            "policy_fingerprint": "4e5efd0dde47a883ad1998b27070bad48240fa3db2483bb56d132855fb1a0b43",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6",
+                "raw": 495,
+                "gzip9": 311,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 311,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 140851,
+              "optional": 5714183,
+              "codec": 84024
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 3786,
+              "target_reused": 1
+            },
+            "peak_retained_bytes": 18610114,
+            "cpu_seconds": 0.13,
+            "wall_seconds": 0.13,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 241,
+              "judged": 65
+            }
+          },
+          "after": {
+            "config_sha256": "435c27b85c565ef69674bb256403e6463e3443701109966b3b5d904c9ce8fea6",
+            "policy_fingerprint": "9bcd51787d5030c8d469db24d907d0bd89aeec9e7ac9028b169c29afad89763a",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6",
+                "raw": 495,
+                "gzip9": 311,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 311,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 140851,
+              "optional": 5832527,
+              "codec": 84024
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 3786,
+              "target_reused": 1
+            },
+            "peak_retained_bytes": 18610114,
+            "cpu_seconds": 0.13,
+            "wall_seconds": 0.13,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 241,
+              "judged": 65
+            }
+          },
+          "same_files": true
+        }
+      }
+    },
+    {
+      "id": "unicode",
+      "source_sha256": "20ec07f4da9ab9fb1abbe50f8609ca6b952c6979954c1c03ffd1b5545402c934",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "0b8cac3bb5742e491c37bf1ecb44a3b4115d72f7b2235ab680126d67f0e14e60",
+            "policy_fingerprint": "990209d744cc931979949e46d5f70afc9ac72373c1f7e0d5c759488b5596f283",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "5edca21c6ef4cfd9b338ddbe5b072383870ac9a787ae27475501f226ec9dd129",
+                "raw": 78,
+                "gzip9": 93,
+                "brotli11": 82
+              }
+            ],
+            "raw": 78,
+            "gzip9": 93,
+            "brotli11": 82,
+            "logical": {
+              "baseline": 9831,
+              "optional": 247070,
+              "codec": 63
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 1910,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 18020816,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 172,
+              "judged": 8
+            }
+          },
+          "after": {
+            "config_sha256": "0b8cac3bb5742e491c37bf1ecb44a3b4115d72f7b2235ab680126d67f0e14e60",
+            "policy_fingerprint": "14b260272d0d3d9e264766cf41a16508e5fb2a92b9e3ee96bbaf097b68253ede",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "5edca21c6ef4cfd9b338ddbe5b072383870ac9a787ae27475501f226ec9dd129",
+                "raw": 78,
+                "gzip9": 93,
+                "brotli11": 82
+              }
+            ],
+            "raw": 78,
+            "gzip9": 93,
+            "brotli11": 82,
+            "logical": {
+              "baseline": 9831,
+              "optional": 257061,
+              "codec": 63
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 1910,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 18020816,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 172,
+              "judged": 8
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "8b7feccd37b505a70c47cc25765946400b6f36b5d6bf545e12381adea217d857",
+            "policy_fingerprint": "3b4ac28a45380210783b22ac11133818a73df9a836fce9e9a900de0ee209a355",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "5edca21c6ef4cfd9b338ddbe5b072383870ac9a787ae27475501f226ec9dd129",
+                "raw": 78,
+                "gzip9": 93,
+                "brotli11": 82
+              }
+            ],
+            "raw": 78,
+            "gzip9": 93,
+            "brotli11": 82,
+            "logical": {
+              "baseline": 278046,
+              "optional": 3065300,
+              "codec": 3219296
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 812,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 18043408,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 60,
+              "judged": 3
+            }
+          },
+          "after": {
+            "config_sha256": "8b7feccd37b505a70c47cc25765946400b6f36b5d6bf545e12381adea217d857",
+            "policy_fingerprint": "25ebb6921bf3be127941646d037eea21be4a4312dbfb986aeb81e83215ee5ce5",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "5edca21c6ef4cfd9b338ddbe5b072383870ac9a787ae27475501f226ec9dd129",
+                "raw": 78,
+                "gzip9": 93,
+                "brotli11": 82
+              }
+            ],
+            "raw": 78,
+            "gzip9": 93,
+            "brotli11": 82,
+            "logical": {
+              "baseline": 278046,
+              "optional": 3070247,
+              "codec": 3219296
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 812,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 18043408,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 60,
+              "judged": 3
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "435c27b85c565ef69674bb256403e6463e3443701109966b3b5d904c9ce8fea6",
+            "policy_fingerprint": "4e5efd0dde47a883ad1998b27070bad48240fa3db2483bb56d132855fb1a0b43",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "271fc4ed3b5d2863466adbe2524003ea00490e83a93a5bc7467c324e954fb8cf",
+                "raw": 98,
+                "gzip9": 103,
+                "brotli11": 81
+              }
+            ],
+            "raw": 98,
+            "gzip9": 103,
+            "brotli11": 81,
+            "logical": {
+              "baseline": 9919,
+              "optional": 174058,
+              "codec": 3873
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 1142,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 18043408,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 12
+            }
+          },
+          "after": {
+            "config_sha256": "435c27b85c565ef69674bb256403e6463e3443701109966b3b5d904c9ce8fea6",
+            "policy_fingerprint": "9bcd51787d5030c8d469db24d907d0bd89aeec9e7ac9028b169c29afad89763a",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "271fc4ed3b5d2863466adbe2524003ea00490e83a93a5bc7467c324e954fb8cf",
+                "raw": 98,
+                "gzip9": 103,
+                "brotli11": 81
+              }
+            ],
+            "raw": 98,
+            "gzip9": 103,
+            "brotli11": 81,
+            "logical": {
+              "baseline": 9919,
+              "optional": 181236,
+              "codec": 3873
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 1142,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 18043408,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 12
+            }
+          },
+          "same_files": true
+        }
+      }
+    },
+    {
+      "id": "local-returns",
+      "source_sha256": "ba0ee3d2975ca0bfc75ed71016d15c2e606ded93a5d27d9c54c76c267f21a89b",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "0b8cac3bb5742e491c37bf1ecb44a3b4115d72f7b2235ab680126d67f0e14e60",
+            "policy_fingerprint": "990209d744cc931979949e46d5f70afc9ac72373c1f7e0d5c759488b5596f283",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "7c84df3deb8067a5d9968b8fb33bc2ca1172b9227a7fb223fe4808a479f208ef",
+                "raw": 100,
+                "gzip9": 94,
+                "brotli11": 72
+              }
+            ],
+            "raw": 100,
+            "gzip9": 94,
+            "brotli11": 72,
+            "logical": {
+              "baseline": 12989,
+              "optional": 492892,
+              "codec": 85
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 2476,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 16036603,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 228,
+              "judged": 14
+            }
+          },
+          "after": {
+            "config_sha256": "0b8cac3bb5742e491c37bf1ecb44a3b4115d72f7b2235ab680126d67f0e14e60",
+            "policy_fingerprint": "14b260272d0d3d9e264766cf41a16508e5fb2a92b9e3ee96bbaf097b68253ede",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "7c84df3deb8067a5d9968b8fb33bc2ca1172b9227a7fb223fe4808a479f208ef",
+                "raw": 100,
+                "gzip9": 94,
+                "brotli11": 72
+              }
+            ],
+            "raw": 100,
+            "gzip9": 94,
+            "brotli11": 72,
+            "logical": {
+              "baseline": 12989,
+              "optional": 510577,
+              "codec": 85
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 2476,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 16036726,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 228,
+              "judged": 14
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "8b7feccd37b505a70c47cc25765946400b6f36b5d6bf545e12381adea217d857",
+            "policy_fingerprint": "3b4ac28a45380210783b22ac11133818a73df9a836fce9e9a900de0ee209a355",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "0be778ee9cbbf861b143ec6549f862aaa73f5d28250407bba0db774bf4b119ed",
+                "raw": 100,
+                "gzip9": 91,
+                "brotli11": 69
+              }
+            ],
+            "raw": 100,
+            "gzip9": 91,
+            "brotli11": 69,
+            "logical": {
+              "baseline": 281058,
+              "optional": 3387059,
+              "codec": 3487797
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 781,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 16337167,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 60,
+              "judged": 4
+            }
+          },
+          "after": {
+            "config_sha256": "8b7feccd37b505a70c47cc25765946400b6f36b5d6bf545e12381adea217d857",
+            "policy_fingerprint": "25ebb6921bf3be127941646d037eea21be4a4312dbfb986aeb81e83215ee5ce5",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "0be778ee9cbbf861b143ec6549f862aaa73f5d28250407bba0db774bf4b119ed",
+                "raw": 100,
+                "gzip9": 91,
+                "brotli11": 69
+              }
+            ],
+            "raw": 100,
+            "gzip9": 91,
+            "brotli11": 69,
+            "logical": {
+              "baseline": 281058,
+              "optional": 3393609,
+              "codec": 3487797
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 781,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 16337167,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 60,
+              "judged": 4
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "435c27b85c565ef69674bb256403e6463e3443701109966b3b5d904c9ce8fea6",
+            "policy_fingerprint": "4e5efd0dde47a883ad1998b27070bad48240fa3db2483bb56d132855fb1a0b43",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "0be778ee9cbbf861b143ec6549f862aaa73f5d28250407bba0db774bf4b119ed",
+                "raw": 100,
+                "gzip9": 91,
+                "brotli11": 69
+              }
+            ],
+            "raw": 100,
+            "gzip9": 91,
+            "brotli11": 69,
+            "logical": {
+              "baseline": 12930,
+              "optional": 244311,
+              "codec": 4602
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 1111,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 17187428,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 144,
+              "judged": 13
+            }
+          },
+          "after": {
+            "config_sha256": "435c27b85c565ef69674bb256403e6463e3443701109966b3b5d904c9ce8fea6",
+            "policy_fingerprint": "9bcd51787d5030c8d469db24d907d0bd89aeec9e7ac9028b169c29afad89763a",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "0be778ee9cbbf861b143ec6549f862aaa73f5d28250407bba0db774bf4b119ed",
+                "raw": 100,
+                "gzip9": 91,
+                "brotli11": 69
+              }
+            ],
+            "raw": 100,
+            "gzip9": 91,
+            "brotli11": 69,
+            "logical": {
+              "baseline": 12930,
+              "optional": 253874,
+              "codec": 4602
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 1111,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 17187428,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 144,
+              "judged": 13
+            }
+          },
+          "same_files": true
+        }
+      }
+    },
+    {
+      "id": "captured-activations",
+      "source_sha256": "a1f3dca12caaacec7a9aaf06148ed9d6f0a1df23e0e4be8ddb38f980d17b3114",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "0b8cac3bb5742e491c37bf1ecb44a3b4115d72f7b2235ab680126d67f0e14e60",
+            "policy_fingerprint": "990209d744cc931979949e46d5f70afc9ac72373c1f7e0d5c759488b5596f283",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2274cfb84d32c90282ee64abd54d1e41274a571307dc6a3e9e5acf6aab1875d3",
+                "raw": 141,
+                "gzip9": 120,
+                "brotli11": 103
+              }
+            ],
+            "raw": 141,
+            "gzip9": 120,
+            "brotli11": 103,
+            "logical": {
+              "baseline": 49129,
+              "optional": 1157930,
+              "codec": 57
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 2914,
+              "target_reused": 6
+            },
+            "peak_retained_bytes": 16072722,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 68,
+              "judged": 4
+            }
+          },
+          "after": {
+            "config_sha256": "0b8cac3bb5742e491c37bf1ecb44a3b4115d72f7b2235ab680126d67f0e14e60",
+            "policy_fingerprint": "14b260272d0d3d9e264766cf41a16508e5fb2a92b9e3ee96bbaf097b68253ede",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2274cfb84d32c90282ee64abd54d1e41274a571307dc6a3e9e5acf6aab1875d3",
+                "raw": 141,
+                "gzip9": 120,
+                "brotli11": 103
+              }
+            ],
+            "raw": 141,
+            "gzip9": 120,
+            "brotli11": 103,
+            "logical": {
+              "baseline": 49129,
+              "optional": 1174863,
+              "codec": 57
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 2914,
+              "target_reused": 6
+            },
+            "peak_retained_bytes": 16073198,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 68,
+              "judged": 4
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "8b7feccd37b505a70c47cc25765946400b6f36b5d6bf545e12381adea217d857",
+            "policy_fingerprint": "3b4ac28a45380210783b22ac11133818a73df9a836fce9e9a900de0ee209a355",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "ebb917280fe5954a46ed3928a9044056f0f76b67542d5660d2e0308aa4288b19",
+                "raw": 141,
+                "gzip9": 117,
+                "brotli11": 95
+              }
+            ],
+            "raw": 141,
+            "gzip9": 117,
+            "brotli11": 95,
+            "logical": {
+              "baseline": 306339,
+              "optional": 24578375,
+              "codec": 20662097
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 10071,
+              "target_reused": 10
+            },
+            "peak_retained_bytes": 16356554,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 289,
+              "judged": 19
+            }
+          },
+          "after": {
+            "config_sha256": "8b7feccd37b505a70c47cc25765946400b6f36b5d6bf545e12381adea217d857",
+            "policy_fingerprint": "25ebb6921bf3be127941646d037eea21be4a4312dbfb986aeb81e83215ee5ce5",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "ebb917280fe5954a46ed3928a9044056f0f76b67542d5660d2e0308aa4288b19",
+                "raw": 141,
+                "gzip9": 117,
+                "brotli11": 95
+              }
+            ],
+            "raw": 141,
+            "gzip9": 117,
+            "brotli11": 95,
+            "logical": {
+              "baseline": 306339,
+              "optional": 24647255,
+              "codec": 20662097
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 10071,
+              "target_reused": 10
+            },
+            "peak_retained_bytes": 16356554,
+            "cpu_seconds": 0.04,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 289,
+              "judged": 19
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "435c27b85c565ef69674bb256403e6463e3443701109966b3b5d904c9ce8fea6",
+            "policy_fingerprint": "4e5efd0dde47a883ad1998b27070bad48240fa3db2483bb56d132855fb1a0b43",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "08f9a824adb40412ce6a60d2bed74f958dca4056b7875619d4254c68fc015737",
+                "raw": 141,
+                "gzip9": 118,
+                "brotli11": 94
+              }
+            ],
+            "raw": 141,
+            "gzip9": 118,
+            "brotli11": 94,
+            "logical": {
+              "baseline": 38211,
+              "optional": 2575322,
+              "codec": 21670
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 5820,
+              "target_reused": 58
+            },
+            "peak_retained_bytes": 17207937,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 289,
+              "judged": 52
+            }
+          },
+          "after": {
+            "config_sha256": "435c27b85c565ef69674bb256403e6463e3443701109966b3b5d904c9ce8fea6",
+            "policy_fingerprint": "9bcd51787d5030c8d469db24d907d0bd89aeec9e7ac9028b169c29afad89763a",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "08f9a824adb40412ce6a60d2bed74f958dca4056b7875619d4254c68fc015737",
+                "raw": 141,
+                "gzip9": 118,
+                "brotli11": 94
+              }
+            ],
+            "raw": 141,
+            "gzip9": 118,
+            "brotli11": 94,
+            "logical": {
+              "baseline": 38211,
+              "optional": 2621816,
+              "codec": 21670
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 5820,
+              "target_reused": 58
+            },
+            "peak_retained_bytes": 17207937,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 289,
+              "judged": 52
+            }
+          },
+          "same_files": true
+        }
+      }
+    },
+    {
+      "id": "delivered-setter",
+      "source_sha256": "e6c65ca742c305d789fde2c6babc7f5430afe1093965ef856046e835c2cd74a8",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "1cd3501fad2b4d8d67adb4d2149320e49882f80f05a1ac409ebced62b68085e7",
+            "policy_fingerprint": "8b34d02024b162d59d74368b1188f97067fbed98a14116a1827446b4d68ddb64",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              },
+              {
+                "name": "main.js",
+                "sha256": "ab680d58780dedfc6e0f607f0d71945a497770ea37657d44e04d836b7959e682",
+                "raw": 69,
+                "gzip9": 82,
+                "brotli11": 64
+              }
+            ],
+            "raw": 154,
+            "gzip9": 178,
+            "brotli11": 142,
+            "logical": {
+              "baseline": 29422,
+              "optional": 580552,
+              "codec": 92
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 1448,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 16061831,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 91,
+              "judged": 10
+            }
+          },
+          "after": {
+            "config_sha256": "1cd3501fad2b4d8d67adb4d2149320e49882f80f05a1ac409ebced62b68085e7",
+            "policy_fingerprint": "4d7d8ac68aedcb1738d93f40361a90cc49b83bd0f4aebee14ad1857c1e623d84",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              },
+              {
+                "name": "main.js",
+                "sha256": "ab680d58780dedfc6e0f607f0d71945a497770ea37657d44e04d836b7959e682",
+                "raw": 69,
+                "gzip9": 82,
+                "brotli11": 64
+              }
+            ],
+            "raw": 154,
+            "gzip9": 178,
+            "brotli11": 142,
+            "logical": {
+              "baseline": 29422,
+              "optional": 595182,
+              "codec": 92
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 1448,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 16062079,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 91,
+              "judged": 10
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "03cd1889163b28c40d70af5f0a72b01f7f97e27f2906f55ce30522dcc5355d13",
+            "policy_fingerprint": "437147a47126049060390cf10015758a04e5327081f66cdf1f7f2296f3e78efa",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "419807405f85e0a7ee008e9f1dd7d37bf4feec1b67f0ba225a9a818bdce4e052",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 82
+              },
+              {
+                "name": "main.js",
+                "sha256": "bfd09c8bc236d77c0ca72f8c17a80908b8b46c85356a27cdb8fdd795617fa6f9",
+                "raw": 69,
+                "gzip9": 81,
+                "brotli11": 64
+              }
+            ],
+            "raw": 154,
+            "gzip9": 177,
+            "brotli11": 146,
+            "logical": {
+              "baseline": 565480,
+              "optional": 6102117,
+              "codec": 6438526
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 465,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 16354071,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 33,
+              "judged": 3
+            }
+          },
+          "after": {
+            "config_sha256": "03cd1889163b28c40d70af5f0a72b01f7f97e27f2906f55ce30522dcc5355d13",
+            "policy_fingerprint": "bb1b12c0017a43ee9b5ffbc6e157865e74aabf65f82cbfb03ef75062b5b1d60e",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "419807405f85e0a7ee008e9f1dd7d37bf4feec1b67f0ba225a9a818bdce4e052",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 82
+              },
+              {
+                "name": "main.js",
+                "sha256": "bfd09c8bc236d77c0ca72f8c17a80908b8b46c85356a27cdb8fdd795617fa6f9",
+                "raw": 69,
+                "gzip9": 81,
+                "brotli11": 64
+              }
+            ],
+            "raw": 154,
+            "gzip9": 177,
+            "brotli11": 146,
+            "logical": {
+              "baseline": 565480,
+              "optional": 6107437,
+              "codec": 6438526
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 465,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 16354071,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 33,
+              "judged": 3
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "15eda1eb93f92dbf248bb6691e142aa3170428ccc2053f283cf5beb2284dece2",
+            "policy_fingerprint": "b9179a11f591a4f8fc9920dd8286160235fb01483c5e95a08d589e9c53db700b",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "a9c3a737f94aced0d7b6a13e12d25c065e8dd5d8c2b64f7f0afbaa041fcd10f4",
+                "raw": 85,
+                "gzip9": 93,
+                "brotli11": 72
+              },
+              {
+                "name": "main.js",
+                "sha256": "dad14dc017ab22a4e3ebcd44f49eb1940b7963cb769311ad12ebe8e02d99e407",
+                "raw": 69,
+                "gzip9": 81,
+                "brotli11": 65
+              }
+            ],
+            "raw": 154,
+            "gzip9": 174,
+            "brotli11": 137,
+            "logical": {
+              "baseline": 29226,
+              "optional": 1469374,
+              "codec": 15398
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 3322,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 16819945,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 323,
+              "judged": 50
+            }
+          },
+          "after": {
+            "config_sha256": "15eda1eb93f92dbf248bb6691e142aa3170428ccc2053f283cf5beb2284dece2",
+            "policy_fingerprint": "b4e59c47a5bb70745debe5c5e43fe5531c19713c0c950f45cb2ac150199eae35",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "a9c3a737f94aced0d7b6a13e12d25c065e8dd5d8c2b64f7f0afbaa041fcd10f4",
+                "raw": 85,
+                "gzip9": 93,
+                "brotli11": 72
+              },
+              {
+                "name": "main.js",
+                "sha256": "dad14dc017ab22a4e3ebcd44f49eb1940b7963cb769311ad12ebe8e02d99e407",
+                "raw": 69,
+                "gzip9": 81,
+                "brotli11": 65
+              }
+            ],
+            "raw": 154,
+            "gzip9": 174,
+            "brotli11": 137,
+            "logical": {
+              "baseline": 29226,
+              "optional": 1511364,
+              "codec": 15398
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 3322,
+              "target_reused": 0
+            },
+            "peak_retained_bytes": 16819945,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 323,
+              "judged": 50
+            }
+          },
+          "same_files": true
+        }
+      }
+    }
+  ]
+}

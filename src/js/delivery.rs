@@ -55,6 +55,10 @@ const NONE: usize = usize::MAX;
 pub struct EntrySet(Vec<u64>);
 
 impl EntrySet {
+    pub(super) fn clone_in(&self, budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {
+        Ok(Self(budget.copy_slice(AllocationClass::Retained, &self.0)?))
+    }
+
     pub fn single(bit: usize) -> Self {
         let mut set = Self::default();
         set.insert(bit);

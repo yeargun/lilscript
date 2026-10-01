@@ -1,0 +1,5 @@
+{
+  "setup": "",
+  "exercise": "console.log(JSON.stringify([m.choose(true).charCodeAt(0),m.choose(true).length,m.choose(false)]));",
+  "expected": "[55296,2,\"é\"]"
+}

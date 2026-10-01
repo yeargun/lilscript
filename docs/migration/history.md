@@ -1332,3 +1332,21 @@ Pin `q2-normalization-1`, SHA-256
 algorithm 46 / search 32 / walk 10 / local facts 15. Q2 remains active for
 SCC/global invalidation, shared formation, build/elaboration caches, decision
 replay and remaining admission owners. No full suite, fleet or baseline update.
+
+## 2026-10-01: Q2 complete retained target-copy admission
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-target-copies/README.md).
+Typed nested copies replace shallow admission followed by an ordinary deep
+clone. Strings preserve UTF-16; all node/proof/print/delivery payloads admit
+before allocation. Refusal rolls back partial copies, and proof replacement,
+removal and renumbering release their nested storage. 23 focused tests and
+30 release artifact/runtime oracles pass. No full suite rerun.
+
+Five controls remain byte-identical under every objective, totaling 966 raw /
+784 gzip / 655 Brotli. Logical optional work rises; three raw controls expose
+additional peak backing. Candidate judgments are unchanged. Coarse timing
+supports no general speed claim; this is correct accounting, not a size win.
+Pin `q2-target-copies-1`, SHA-256
+`f32d84840ba334f8d9560ddb7d8d74b54be56017af9eae62b298fa15323b6a86`,
+algorithm 47. Q2 remains active for SCC/global scheduling, incremental formation,
+build/elaboration caches, decision replay and remaining admission owners.

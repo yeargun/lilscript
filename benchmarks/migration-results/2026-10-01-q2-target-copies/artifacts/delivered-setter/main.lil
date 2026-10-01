@@ -1,0 +1,1 @@
+import {counter,bump,twice} from "./lib";bump();counter=counter+twice(3);print(counter);

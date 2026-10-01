@@ -1,0 +1,5 @@
+{
+  "setup": "globalThis.read=()=>1;",
+  "exercise": "",
+  "expected": "7"
+}

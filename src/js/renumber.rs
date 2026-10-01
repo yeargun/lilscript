@@ -103,8 +103,8 @@ impl Plan {
         module: &mut Module,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
-        // This is the last fallible step. Refusal preserves the tree and its
-        // journal. All storage/work for the remaining moves is already admitted.
+        // This is the last allocation/work admission. Refusal preserves the tree
+        // and journal; the remaining moves only release existing reservations.
         module.journal.renumber(&self.map, budget)?;
         for (index, expression) in module.expressions.iter_mut().enumerate() {
             if self.map[index].is_some() {
@@ -145,8 +145,10 @@ impl Plan {
         module
             .observed_literals
             .sort_unstable_by_key(|alternative| alternative.expression());
+        let mut released = 0u64;
         module.behaviours.retain_mut(|row| {
             let Some(expression) = self.map[row.expression.index()] else {
+                released += row.node.payload_bytes().expect("admitted behavior payload");
                 return false;
             };
             let mut whole = true;
@@ -159,9 +161,11 @@ impl Plan {
                     }
                 });
             row.expression = expression;
+            if !whole { released += row.node.payload_bytes().expect("admitted behavior payload"); }
             whole
         });
         module.behaviours.sort_unstable_by_key(|row| row.expression);
+        budget.release(Retained, released)?;
         Ok(())
     }
 }

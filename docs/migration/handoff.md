@@ -37,7 +37,7 @@ logical bills match. Physical encodes fall, but tiny gzip IO can cost more.
 The final release checks cover lazy disk setup and per-output configuration
 added after unit checks. Build/elaboration caches and decision locks remain.
 
-The latest [normalization batch](../../benchmarks/migration-results/2026-10-01-q2-normalization/README.md)
+The [normalization batch](../../benchmarks/migration-results/2026-10-01-q2-normalization/README.md)
 pins `q2-normalization-1`, SHA-256
 `c514eca8a6cb6392a54512d489a20d571f031e2d60dd764a4b1bfa2ee11b3e15`;
 algorithm 46 / search 32 / walk 10 / local facts 15. 35 focused tests and
@@ -47,6 +47,14 @@ normalization reuse on/off has identical logical work/search. Local source
 revision proofs and three target stable-pass consumers reduce visits but show
 no clear timing gain. Renumbering uses admitted plans and in-place swaps; the
 old clone path and escaping remap results are deleted.
+
+The latest [target-copy batch](../../benchmarks/migration-results/2026-10-01-q2-target-copies/README.md)
+pins `q2-target-copies-1`, SHA-256
+`f32d84840ba334f8d9560ddb7d8d74b54be56017af9eae62b298fa15323b6a86`,
+algorithm 47. Typed copies admit every nested payload; behavior proof replacement
+and removal release their backing. 23 focused tests and 30 release oracles pass;
+all files/judgment counts match algorithm 46, with increased logical copy work.
+Initial placement and remaining source/target producers still need admission.
 
 S4 is complete under its [acceptance record](s4-acceptance.md) and
 [explicit ABI scope decision](s4-public-abi.md). Unrestricted public erased

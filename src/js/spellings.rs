@@ -36,6 +36,21 @@ pub(crate) struct PrintForms {
     pub logical_assignments: Vec<Option<Logical>>,
 }
 impl PrintForms {
+    pub(super) fn clone_in(&self, budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {
+        Ok(Self {
+            loops: budget.copy_slice(Retained, &self.loops)?,
+            logical: budget.copy_slice(Retained, &self.logical)?,
+            compound: budget.copy_slice(Retained, &self.compound)?,
+            increment: budget.copy_slice(Retained, &self.increment)?,
+            quotes: budget.copy_slice(Retained, &self.quotes)?,
+            defaults: super::cloning::map(&self.defaults, budget, |defaults, budget| Ok(Defaults {
+                values: budget.copy_slice(Retained, &defaults.values)?, absorbed: defaults.absorbed,
+            }))?,
+            optional: budget.copy_slice(Retained, &self.optional)?,
+            logical_assignments: budget.copy_slice(Retained, &self.logical_assignments)?,
+        })
+    }
+
     pub(crate) fn bytes(&self) -> u64 {
         (self.loops.len() * std::mem::size_of::<Option<LoopHead>>()
             + self.logical.len() * std::mem::size_of::<Option<Logical>>()

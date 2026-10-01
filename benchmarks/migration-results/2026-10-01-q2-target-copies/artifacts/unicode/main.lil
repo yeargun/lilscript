@@ -1,0 +1,1 @@
+export string choose(bool first){string value="\ud800é";if(first){return value;}return value.slice(1);}

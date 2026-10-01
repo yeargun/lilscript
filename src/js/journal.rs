@@ -92,6 +92,17 @@ pub(crate) struct Journal {
 }
 
 impl Journal {
+    pub(super) fn clone_in(&self, budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {
+        let copy = |slots: &RecordedSlots, budget: &mut AllocationBudget<'_>| -> Result<RecordedSlots, AllocationError> {
+            Ok(RecordedSlots { words: budget.copy_slice(AllocationClass::Retained, &slots.words)?, limit: slots.limit })
+        };
+        Ok(Self {
+            open: self.open, edits: self.edits, tables: self.tables, renumbered: self.renumbered,
+            regions: copy(&self.regions, budget)?, expressions: copy(&self.expressions, budget)?,
+            bindings: copy(&self.bindings, budget)?, functions: copy(&self.functions, budget)?,
+        })
+    }
+
     pub(super) fn changed_domains(&self) -> u8 {
         if self.renumbered { return 31; }
         u8::from(self.expressions.iter().next().is_some())

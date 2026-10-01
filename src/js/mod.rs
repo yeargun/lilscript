@@ -23,6 +23,7 @@ use crate::primitive::{IntBinary, Intrinsic};
 pub(crate) mod authors;
 mod admission;
 mod calls;
+mod cloning;
 pub use crate::representation as choices;
 pub use choices::{AltId, ChoiceFamily, ChoiceKey, ChoiceMap, ChoiceSite, SiteId};
 mod declarations;
@@ -627,7 +628,7 @@ pub(crate) fn intrinsic_host_function(
     })
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Statement {
     Let {
         binding: BindingId,
@@ -682,7 +683,7 @@ pub enum Statement {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Catch {
     pub binding: Option<BindingId>,
     pub body: RegionId,
@@ -3239,26 +3240,31 @@ impl Module {
         behaviour: Behaviour,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
-        let node = self.expressions[id.index()].clone();
-        // A call's arguments are the one storage a copied node owns.
-        if let Expr::Call { arguments, .. } | Expr::Construct { arguments, .. } = &node {
-            budget.retain(
-                AllocationClass::Retained,
-                (arguments.capacity() * std::mem::size_of::<ExprId>()) as u64,
-            )?;
-        }
+        let mut phase = budget.scope();
+        let node = self.expressions[id.index()].clone_in(&mut phase)?;
+        let bytes = node.payload_bytes()?;
         let row = BehaviourRow {
             expression: id,
             node,
             behaviour,
         };
+        phase.finish_retained()?;
         match self
             .behaviours
             .binary_search_by_key(&id, |row| row.expression)
         {
-            Ok(index) => self.behaviours[index] = row,
+            Ok(index) => {
+                let old = std::mem::replace(&mut self.behaviours[index], row);
+                let bytes = old.node.payload_bytes()?;
+                drop(old);
+                budget.release(AllocationClass::Retained, bytes)?;
+            }
             Err(index) => {
-                budget.reserve_vec(AllocationClass::Retained, &mut self.behaviours, 1)?;
+                if let Err(error) = budget.reserve_vec(AllocationClass::Retained, &mut self.behaviours, 1) {
+                    drop(row);
+                    budget.release(AllocationClass::Retained, bytes)?;
+                    return Err(error);
+                }
                 self.behaviours.insert(index, row);
             }
         }
@@ -3281,7 +3287,10 @@ impl Module {
                     .behaviours
                     .binary_search_by_key(&to, |row| row.expression)
                 {
-                    self.behaviours.remove(index);
+                    let row = self.behaviours.remove(index);
+                    let bytes = row.node.payload_bytes()?;
+                    drop(row);
+                    budget.release(AllocationClass::Retained, bytes)?;
                 }
                 Ok(())
             }
@@ -3312,62 +3321,6 @@ impl Module {
             &mut self.observed_literals,
             alternative,
         )
-    }
-
-    /// An admitted copy of the whole tree. The copy's arenas are charged at
-    /// their exact lengths, as retained output, the way formation charges the
-    /// arenas it grows; nested storage follows the same partial accounting.
-    pub(crate) fn clone_in(
-        &self,
-        budget: &mut AllocationBudget<'_>,
-    ) -> Result<Self, AllocationError> {
-        fn bytes<T>(items: &[T]) -> Result<u64, AllocationError> {
-            items
-                .len()
-                .checked_mul(std::mem::size_of::<T>())
-                .and_then(|bytes| u64::try_from(bytes).ok())
-                .ok_or(AllocationError::Capacity)
-        }
-        let arenas = [
-            bytes(&self.expressions)?,
-            bytes(&self.origins)?,
-            bytes(&self.authored_pool)?,
-            bytes(&self.authored_expressions)?,
-            bytes(&self.authored_regions)?,
-            bytes(&self.authored_sites)?,
-            bytes(&self.observed_literals)?,
-            bytes(&self.behaviours)?,
-            bytes(&self.settled)?,
-            bytes(&self.first_runs)?,
-            bytes(&self.regions)?,
-            bytes(&self.functions)?,
-            bytes(&self.scopes)?,
-            bytes(&self.bindings)?,
-            bytes(&self.imports)?,
-            bytes(&self.exports)?,
-            bytes(&self.root_rows)?,
-            bytes(&self.entries)?,
-            bytes(&self.reserved)?,
-            bytes(&self.carried)?,
-            bytes(&self.choice_sites)?,
-            bytes(&self.spelling_nodes)?,
-            self.print_forms.as_ref().map_or(0, |forms| forms.bytes()),
-        ];
-        let mut total = 0u64;
-        for arena in arenas {
-            total = total.checked_add(arena).ok_or(AllocationError::Capacity)?;
-        }
-        for value in &self.authored_pool {
-            let bytes = value.storage_bytes() as u64;
-            budget.work(crate::compilation_policy::WorkKind::Render, bytes + 1)?;
-            total = total.checked_add(bytes).ok_or(AllocationError::Capacity)?;
-        }
-        budget.work(
-            crate::compilation_policy::WorkKind::Render,
-            (self.expressions.len() + self.regions.len()) as u64,
-        )?;
-        budget.retain(AllocationClass::Retained, total)?;
-        Ok(self.clone())
     }
 
     pub fn binding(&mut self, binding: Binding) -> BindingId {
