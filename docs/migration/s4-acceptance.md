@@ -49,8 +49,10 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    constructor/default/rest contracts, fixed struct callable crossings and native
    nominal identity/casts are implemented. Wider opaque generic/union transport
    remains open. ABI enums/flags now carry checked values/ordinals, canonical
-   storage, domain validation and shared/native operations; payload variants and
-   sealed calls remain. Declared data/accessor shapes, intersections, spread, literal
+   storage, domain validation and shared/native operations. Disjoint class/tagged
+   payload matches and sealed calls now preserve lexical scopes, defaults/rest,
+   argument order and class initialization; directly suspending arms and erased
+   generic dispatch remain. Declared data/accessor shapes, intersections, spread, literal
    tags and recursive development checks are implemented; concrete public
    shape/class product fields use storage codecs. Erased public generic optional
    presence remains R18, and native shapes remain N2. The detached primitive-method audit passes with the existing

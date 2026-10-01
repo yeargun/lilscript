@@ -260,7 +260,8 @@ fn transfer(
         } => Class::NUMBER,
         OperationKind::Unary { op: U::Not, .. }
         | OperationKind::IsUndefined { .. }
-        | OperationKind::TypeTest(_) => Class::BOOLEAN,
+        | OperationKind::TypeTest(_)
+        | OperationKind::ClosedClassTest(_) => Class::BOOLEAN,
         OperationKind::Unary { .. } if all() => Class::NUMBER,
         OperationKind::Binary(
             B::Eq | B::NotEq | B::Less | B::LessEq | B::Greater | B::GreaterEq,

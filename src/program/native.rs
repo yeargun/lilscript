@@ -1027,6 +1027,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 self.cell_place(id, instance)?;
                 self.constructor_call_arguments(id, constructor, args)?;
             }
+            OperationKind::ClosedClassTest(identity) => {
+                let class = self.plan.program.class_index(*identity).expect("checked closed class identity");
+                self.class_type_test(id, result.unwrap(), args[0], class)?;
+            }
             OperationKind::TypeTest(target) => {
                 if let crate::check::Type::Class(declaration) =
                     &self.plan.program.types[target.index()]

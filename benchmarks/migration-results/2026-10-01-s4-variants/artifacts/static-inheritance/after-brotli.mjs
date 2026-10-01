@@ -1,0 +1,1 @@
+let run=function(e){return(({n:e}).n|0)+2|0};export{run};

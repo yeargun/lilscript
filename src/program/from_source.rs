@@ -760,6 +760,9 @@ fn interface_target(target: crate::check::InterfaceTarget) -> Option<InterfaceTa
     })
 }
 
+#[path = "from_source_variants.rs"]
+mod variants;
+
 struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     statement_origin: Option<(ModuleId, SourceNodeId)>,
     checked_types: Vec<Option<TypeId>>,
@@ -797,7 +800,8 @@ enum CallReceiver {
 
 /// A class method or `init` (`name: None`), converted to a function unit that
 /// takes the instance as its first parameter and reached through a synthetic
-/// function cell. Dispatch is static: overriding is rejected by the checker.
+/// function cell. Virtual calls select a checked implementation before argument
+/// evaluation; ordinary methods retain static dispatch.
 #[derive(Clone, Copy)]
 struct ClassMethod<'src> {
     class: NominalId,
@@ -3885,10 +3889,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         self.work(1)?;
         let region = self.region(unit, parent, span)?;
         let result = if let [last] = arms {
+            self.bind_match_payload(unit, region, scrutinee, last.pattern)?;
             self.expression(unit, region, &last.value)?
         } else {
             let condition = self.match_test(unit, region, scrutinee, arms[0].pattern)?;
-            let yes = self.expression_region(unit, region, &arms[0].value)?;
+            let yes = self.region(unit, region, arms[0].span)?;
+            self.bind_match_payload(unit, yes, scrutinee, arms[0].pattern)?;
+            let matched = self.expression(unit, yes, &arms[0].value)?;
+            self.units[unit.index()].regions[yes.index()].result = Some(matched);
             let no = self.match_region(unit, region, scrutinee, &arms[1..], ty, span)?;
             self.value(
                 unit,
@@ -3913,6 +3921,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
     ) -> Result<ValueId, ConversionError> {
         let span = pattern.span();
         let constant = match pattern {
+            ast::MatchPattern::Payload { variant, .. } => {
+                let checked = self.semantics.binding_type(variant.id).ok_or(Unsupported {
+                    span, feature: "payload pattern lost its checked type",
+                })?;
+                let target = self.ty(checked)?;
+                return self.identity_test_value(unit, region, scrutinee, target, span);
+            }
             ast::MatchPattern::EnumVariant { variant, span, .. } => {
                 let value = self
                     .semantics
@@ -4735,6 +4750,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             ExprKind::Match { value, arms, .. } => {
                 let scrutinee = self.expression(unit, region, value)?;
                 if let [only] = arms {
+                    self.bind_match_payload(unit, region, scrutinee, only.pattern)?;
                     let arm = self.expression(unit, region, &only.value)?;
                     if self.units[unit.index()].values[arm.index()].ty != ty {
                         return self.unsupported(span, "single-arm match with a widened result");
@@ -4745,7 +4761,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     )
                 } else {
                     let condition = self.match_test(unit, region, scrutinee, arms[0].pattern)?;
-                    let yes = self.expression_region(unit, region, &arms[0].value)?;
+                    let yes = self.region(unit, region, arms[0].span)?;
+                    self.bind_match_payload(unit, yes, scrutinee, arms[0].pattern)?;
+                    let result = self.expression(unit, yes, &arms[0].value)?;
+                    self.units[unit.index()].regions[yes.index()].result = Some(result);
                     let no = self.match_region(unit, region, scrutinee, &arms[1..], ty, span)?;
                     (
                         OperationKind::Select { yes, no },
@@ -4968,8 +4987,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     {
                         let _ = name;
                         if let Some(found) = self.class_method(method.owner, Some(method.member))? {
-                            // Static dispatch: the checker rejects overriding.
                             let receiver = self.expression(unit, region, object)?;
+                            if method.dispatch != ast::MethodDispatch::Static {
+                                return self.virtual_call(unit, region, receiver, name, found, args, span);
+                            }
                             let semantics = self.semantics;
                             let method_arguments = semantics
                                 .call_instantiation(expr.id)

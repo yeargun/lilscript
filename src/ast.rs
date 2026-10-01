@@ -200,6 +200,7 @@ pub struct StructDecl<'ast, 'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDecl<'ast, 'src> {
     pub shape: bool,
+    pub sealed: bool,
     pub name: Ident<'src>,
     pub type_params: &'ast [Ident<'src>],
     pub base: Option<TypeRef<'ast, 'src>>,
@@ -297,6 +298,7 @@ impl RegionPolicy {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl<'ast, 'src> {
+    pub dispatch: MethodDispatch,
     pub region: RegionPolicy,
     pub declared_pure: bool,
     /// `debug void f(...)` (R15): its calls are strippable logging or
@@ -313,6 +315,14 @@ pub struct FunctionDecl<'ast, 'src> {
     /// A method's implicit receiver binding, `this`, with its own source
     /// node; a function's is unused.
     pub this: Ident<'src>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MethodDispatch {
+    #[default]
+    Static,
+    Virtual,
+    Override,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1029,6 +1039,11 @@ pub struct MatchArm<'ast, 'src> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MatchPattern<'src> {
+    Payload {
+        variant: Ident<'src>,
+        binding: Ident<'src>,
+        span: Span,
+    },
     EnumVariant {
         enum_name: Ident<'src>,
         variant: Ident<'src>,
@@ -1044,6 +1059,7 @@ impl MatchPattern<'_> {
     pub const fn span(self) -> Span {
         match self {
             Self::EnumVariant { span, .. }
+            | Self::Payload { span, .. }
             | Self::Int(_, span)
             | Self::String(_, span)
             | Self::Bool(_, span)

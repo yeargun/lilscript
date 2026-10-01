@@ -38,6 +38,8 @@ The opt-in number/NaN `charCodeAt` contract is implemented on both targets in
 the [character-code batch](../../benchmarks/migration-results/2026-10-01-s4-char-code/README.md).
 ABI enums/flags, declared storage, conversions and shared/native evaluation are
 implemented in the [enum batch](../../benchmarks/migration-results/2026-10-01-s4-enums/README.md).
+Payload bindings and sealed dispatch, including captured scopes and initialization
+order, are implemented in the [variant batch](../../benchmarks/migration-results/2026-10-01-s4-variants/README.md).
 The [handoff](handoff.md) records the current scope and compiler pins.
 
 The owner requests substantial implementation batches followed by focused

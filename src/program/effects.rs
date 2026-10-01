@@ -386,6 +386,9 @@ pub(super) fn operation_effects(
         }
         Op::Constant(_) | Op::IsUndefined { .. } | Op::Enum { .. } => Effects::NONE,
         // `typeof` never throws; `Array.isArray` throws on a revoked proxy.
+        // Identity witnesses change during initialization. A published class
+        // can also expose instanceof hooks; neither property is a constant.
+        Op::ClosedClassTest(_) => Effects::UNKNOWN,
         Op::TypeTest(target) => {
             if super::schema::is_shape(ctx.program, &ctx.program.types[target.index()]) {
                 // A tag test on a dynamic host object is one property read;
@@ -1540,7 +1543,7 @@ fn value_transfer(
     );
     match &operation.kind {
         Op::Constant(Constant::Integer(_)) => integer,
-        Op::Constant(_) | Op::IsUndefined { .. } | Op::TypeTest(_) | Op::Template => primitive,
+        Op::Constant(_) | Op::IsUndefined { .. } | Op::TypeTest(_) | Op::ClosedClassTest(_) | Op::Template => primitive,
         Op::IntBinary(_) | Op::Unary { integer: true, .. } => integer,
         Op::Unary { .. } => primitive,
         Op::Binary(BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish) => {

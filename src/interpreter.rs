@@ -17,6 +17,7 @@ use crate::typed_array::TypedArrayKind;
 
 mod aggregates;
 mod strings;
+mod variants;
 use aggregates::copy_for_store;
 use strings::{decode_source_units, string_units, string_value};
 
@@ -569,6 +570,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     }
 
     fn evaluate(&mut self, expression: &Expr<'ast, 'src>) -> Result<Value, InterpretError> {
+        if let Some(value) = self.evaluate_enum(expression)? { return Ok(value); }
         self.step(expression.span())?;
         match expression {
             Expr {
@@ -852,7 +854,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 ..
             } => {
                 if let Some(value) = self.semantics.enum_variant_value(property.id) {
-                    return Ok(Value::Int(value as i32));
+                    let Some(Type::Enum(declaration)) = self.semantics.expression_type(expression.id) else {
+                        return Err(InterpretError::new(*span, "enum literal has no checked domain"));
+                    };
+                    return self.enum_value(declaration.identity, value as usize, *span);
                 }
                 let object = self.evaluate(object)?;
                 self.evaluate_member(object, property.name, *span)
@@ -942,10 +947,13 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 for arm in *arms {
                     let selected = match arm.pattern {
                         MatchPattern::Wildcard(_) => true,
+                        MatchPattern::Payload { variant, .. } => self.payload_matches(&scrutinee, variant.name)?,
                         MatchPattern::EnumVariant { variant, .. } => {
-                            matches!(&scrutinee, Value::Int(discriminant)
-                                if self.semantics.enum_variant_value(variant.id)
-                                    .is_some_and(|value| value == i64::from(*discriminant)))
+                            let Some(Type::Enum(declaration)) = self.semantics.expression_type(value.id) else {
+                                return Err(InterpretError::new(*span, "enum match lost its domain"));
+                            };
+                            let ordinal = self.semantics.enum_variant_value(variant.id).unwrap() as usize;
+                            values_equal(&scrutinee, &self.enum_value(declaration.identity, ordinal, *span)?)
                         }
                         MatchPattern::Int(value, _) => {
                             matches!(&scrutinee, Value::Int(actual) if i64::from(*actual) == value)
@@ -958,6 +966,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                         }
                     };
                     if selected {
+                        if let MatchPattern::Payload { binding, .. } = arm.pattern {
+                            self.declare(self.symbol(&binding)?, scrutinee.clone());
+                        }
                         return self.evaluate(&arm.value);
                     }
                 }

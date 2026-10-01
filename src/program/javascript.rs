@@ -12,6 +12,8 @@
 mod shapes;
 #[path = "javascript_enums.rs"]
 mod enums;
+#[path = "javascript_variants.rs"]
+mod variants;
 
 use super::demand::{
     ContextId, ContextKind, DemandError, DemandMode, DemandPlan, HelperOperation, RecordOperation,
@@ -692,6 +694,7 @@ fn form_head(
         index_check: None,
         crossing_checks: Vec::new(),
         shape_helpers: Vec::new(),
+        class_witnesses: Vec::new(),
         int32_hints: head.int32_hints,
         property_mangling: head.property_mangling,
         preserved_properties,
@@ -718,6 +721,7 @@ fn form_head(
         budget: &mut phase,
     };
     let result = (|| {
+        formation.prepare_class_witnesses()?;
         // One artifact lexical environment owns all module cells. Establish
         // every physical root's bindings before forming any callable body,
         // since its captures may refer to a later module in an import cycle.
@@ -1185,6 +1189,7 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     /// The hoisted crossing checks, one per shape and absence.
     crossing_checks: Vec<((checks::Crossing, bool), js::BindingId)>,
     shape_helpers: Vec<(shapes::Helper<'src>, js::BindingId)>,
+    class_witnesses: Vec<(NominalId, js::BindingId)>,
     /// The `int32_hints` output family: the `|0` the compiler printed before
     /// R1 and R11 after an `int` field, member or element read and an `int`
     /// host call's result.
@@ -1974,7 +1979,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 for child in kind.child_regions() {
                     self.work(1)?;
-                    regions[child.index()] = if expression_regions[child.index()] {
+                    let owns_bindings = data.regions[child.index()].operations.iter().any(|id|
+                        matches!(data.operations[id.index()].kind, OperationKind::Initialize(cell) | OperationKind::Declare(cell)
+                            if self.program.cells[cell.index()].source_symbol.is_some()));
+                    regions[child.index()] = if expression_regions[child.index()] && !owns_bindings {
                         regions[parent.index()]
                     } else {
                         self.module.region_in(
@@ -1982,7 +1990,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             self.budget,
                         )?
                     };
-                    let layers = match kind {
+                    let layers = if expression_regions[child.index()] && owns_bindings { 4 } else { match kind {
                         // Captured owner + lazy operator + optional arm Sequence.
                         OperationKind::Select { .. } => 3,
                         OperationKind::ShortCircuit {
@@ -2000,7 +2008,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         }
                         // Statement child or loop condition/update Sequence.
                         _ => 1,
-                    };
+                    } };
                     self.budget.push(
                         AllocationClass::Scratch,
                         &mut pending,
@@ -3089,6 +3097,29 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         region: RegionId,
     ) -> Result<Option<js::ExprId>, FormationError> {
         let operations = &self.data(unit).regions[region.index()].operations;
+        // A source binding in a value region owns a fresh lexical scope at
+        // every evaluation (payload arms can create escaping closures).
+        if self.data(unit).regions[region.index()].parent.is_some()
+            && operations.iter().any(|id| matches!(self.data(unit).operations[id.index()].kind,
+                OperationKind::Initialize(cell) | OperationKind::Declare(cell)
+                    if self.program.cells[cell.index()].source_symbol.is_some())) {
+            self.statement_region(unit, region)?;
+            let body = self.plan(unit).regions[region.index()];
+            if self.demand.needs_region_result(unit, region) {
+                if let Some(value) = self.data(unit).regions[region.index()].result {
+                    let value = self.value(unit, value)?;
+                    self.statement(body, js::Statement::Return(Some(value)))?;
+                }
+            }
+            let function = js::FunctionId::try_new(self.module.functions.len()).ok_or(AllocationError::Capacity)?;
+            self.budget.push(AllocationClass::Retained, &mut self.module.functions, js::Function {
+                rest: false, parameters: Vec::new(), body, arrow: true,
+                name: js::FunctionName::Unobserved, strict: true, length: None,
+                suspension: js::Suspension::None,
+            })?;
+            let callee = self.expression(js::Expr::Function(function))?;
+            return Ok(Some(self.expression(js::Expr::Call { callee, arguments: Vec::new(), invocation: Invocation::Value })?));
+        }
         let mut cursor = 0;
         let mut expressions = Vec::new();
         while cursor < operations.len() {
@@ -4566,10 +4597,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 if let Some(saved) = self.save(unit, operation, result)? { self.append(&mut sequence, saved)?; }
                 return self.sequence(sequence);
             }
-            OperationKind::Initialize(cell)
-                if matches!(self.demand.context(unit).kind, ContextKind::Inline { .. }) =>
-            {
+            OperationKind::Initialize(cell) => {
                 let binding = self.cell_binding(unit, cell)?;
+                if !self.demand.context(unit).kind.is_inline() {
+                    let region = self.plan(unit).regions[operation.region.index()];
+                    self.statement(region, js::Statement::Let { binding, value: None })?;
+                }
                 let target = self.reference(binding)?;
                 let value = self.value(unit, operands[0])?;
                 let value = self.carrier_value(unit, cell, value)?;
@@ -4638,6 +4671,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                 }
                 js::Expr::Construct { callee, arguments }
+            }
+            OperationKind::ClosedClassTest(class) => {
+                let value = self.value(unit, operands[0])?;
+                self.closed_class_test(class, value)?
             }
             OperationKind::TypeTest(target) if super::schema::is_shape(self.program, &self.program.types[target.index()]) => {
                 let value = self.value(unit, operands[0])?;
@@ -5447,12 +5484,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             && self.module.regions[formed.body.index()]
                 .statements
                 .is_empty();
-        Ok(js::Expr::Class {
+        let expression = js::Expr::Class {
             name: definition.name.clone(),
             base,
             constructor: (!implicit).then_some(constructor),
             methods,
-        })
+        };
+        self.class_witness_registration(class, expression)
     }
 
     /// A published class's prototype method, `name(p…){return m(this,p…)}`:

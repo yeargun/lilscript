@@ -81,7 +81,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M10.19 | [Q4](plan.md#q4) | Specialization over const data |
 | M10.1 | [S4](plan.md#s4) | Implemented: declared data/accessor shapes, contextual generic literals, tags, development checks and concrete product storage; erased public presence remains R18, native storage N2 |
 | M10.8 | [S4](plan.md#s4) | Implemented: declared-key shape spread, shared-key intersection checks, optional defaults and CreateDataProperty behavior; existing dictionary spread retained |
-| M10.5 | [S4](plan.md#s4) | Sealed virtuals and sum types (R8) |
+| M10.5 | [S4](plan.md#s4) | Implemented: disjoint class/tagged-shape payload matches and sealed virtual/override calls, scopes, defaults/rest and initialization order; erased generic dispatch and directly suspending payload arms remain |
 | M10.6 | [S4](plan.md#s4) | Implemented: ABI enums/flags, canonical storage, domain checks and shared/native evaluation (R8); private alternatives Q4, qualified source-default transition D3/V2 |
 | M10.18 | [S4](plan.md#s4) | Value structs (R4); `ref` removal after Y2 |
 | M10.10 | [S4](plan.md#s4) | Implemented: internal constructor visibility, root ABI publication, canonical first-class/dynamic observations and zero-use singleton retirement (R16); delivery production remains D1–D3 |

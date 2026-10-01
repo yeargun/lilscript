@@ -989,6 +989,9 @@ pub enum OperationKind {
     /// `value is T` on a union or nullable: the target's runtime test
     /// (`typeof` for primitives and functions, `Array.isArray` for arrays).
     TypeTest(TypeId),
+    /// Closed dispatch tests a class identity without observing or reading a
+    /// possibly uninitialized source constructor binding.
+    ClosedClassTest(NominalId),
     /// A template literal: the string conversion of each operand, left to
     /// right. Conversion uses the template rule (string hint; a Symbol
     /// throws), not binary `+`. Operands are strings or stringable values.

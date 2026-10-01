@@ -170,6 +170,15 @@ ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return r
         let from = self
             .plan
             .value_type(self.plan.units[unit.index()].values[value.index()]);
+        if from != to && self.plan.callable_view(from, to) {
+            self.write(format_args!("({to}){{("))?;
+            self.value(unit, value)?;
+            self.text(").code,(")?;
+            self.value(unit, value)?;
+            self.text(").environment,(")?;
+            self.value(unit, value)?;
+            return self.text(").identity}");
+        }
         let (prefix, suffix) = Self::conversion(from, to);
         self.text(&prefix)?;
         self.value(unit, value)?;

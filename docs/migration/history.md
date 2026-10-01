@@ -995,3 +995,16 @@ Pin `s4-enums-1`, SHA-256
 algorithm 30 / search 31 / walk 10 / local facts 13. S4 remains active. Next:
 payload matching/sealed calls, R17/R18 and the fact-consumer removals, then the
 single milestone order from Q2 onward. No port artifact or baseline changed.
+
+## 2026-10-01: S4 payload matches and sealed dispatch
+
+[Evidence and artifacts](../../benchmarks/migration-results/2026-10-01-s4-variants/README.md).
+Payload arms retain independent lexical bindings; closed calls select an
+implementation before their one argument schedule and run that body's defaults.
+A private class witness handles calls before later subclass initialization;
+public constructor/prototype identity and cross-module exports remain intact.
+Shared/native lowering uses checked views and nominal identities. Seven focused
+checks pass; no full-library rerun. The unchanged control is identical for each
+objective (53 raw / 72 gzip / 56 Brotli). New capability sizes are reported
+without a baseline-win claim. S4 remains active for directly suspending arms,
+erased generic dispatch and the wider contract/consumer audit.

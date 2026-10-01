@@ -11,26 +11,31 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 enum batch](../../benchmarks/migration-results/2026-10-01-s4-enums/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-enums-1/lilscript`, SHA-256
-`e4e7546ef440edd0ee3dc84d044d56a4b557b41a060892d8d7b91f328f12f3de`.
-Algorithm 30 / search 31 / walk 10 / local facts 13. ABI enums/flags now have
-checked domains, canonical storage, conversions and shared/native evaluation.
-Three focused tests and CLI/lint/LSP release builds pass. The legacy control
-stays 91 raw / 88 gzip / 78 Brotli; a new protocol oracle passes all objectives.
+The latest [S4 variant batch](../../benchmarks/migration-results/2026-10-01-s4-variants/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-variants-1/lilscript`, SHA-256
+`f248fc320df0af85d647aa749cca66bf429f0b4f60bb92dd22a6ff462683e7fe`.
+Algorithm 31 / search 31 / walk 10 / local facts 14. Payload matches and sealed
+virtual/override calls now preserve lexical scopes, default/rest contracts,
+argument order and class initialization. Seven focused tests pass (six as one
+group, the corrected public module fixture separately); the CLI release build
+passes. The static-inheritance control remains 53 raw / 72 gzip / 56 Brotli;
+the new payload/dispatch capability passes an independent oracle for all codecs.
 
 The preceding absence and character-code batches implement unified absence,
 explicit pins/defaults/optional keys and number/NaN character reads. Source
 selectors retain compatibility defaults until D3/V2's qualified transition.
 
-1. Continue S4 with R8 payload variants and sealed virtuals.
+1. Finish R8 directly suspending payload arms and erased generic dispatch.
+   Non-suspending disjoint class/tagged-shape payloads and non-generic sealed
+   calls are implemented on JavaScript and the supported native application ABI.
 2. Complete R17 host declarations/catalog and R18 wider erased
    generic/product/union/callable
    transport. Erased public generic shape presence currently has a source
    diagnostic. Native shapes and absent-to-default argument transport remain N2.
-3. Complete the shared-consumer audit: replace `raw_domains.rs`, `quiet.rs`,
-   root-constant private proofs and transitional passes only after their shared
-   fact owners and target transfers serve the consumers.
+3. Complete the shared-consumer audit. The contracts batch already deleted
+   `raw_domains.rs` and `quiet.rs` and routed root constants through the common
+   target binding facts; verify remaining consumers/transitional passes against
+   their current owners rather than treating those deleted files as open work.
 4. Preserve `ref`, public constructibility and `pure` termination: Y2/Y3/Y4 have
    no approved semantic amendment. D3/V2 own qualified language-default changes.
 5. After S4 closes, continue **Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.

@@ -143,8 +143,12 @@ Typed forms should remove avoidable representation and runtime costs, and declar
   ABI values are currently canonical storage, preserving mutable aliases;
   Q4 owns private representation alternatives with observation conversions.
   `[language] enum_abi = "explicit"` enforces the no-ABI observation refusal;
-  `legacy` remains the migration default. Payload variants and sealed virtuals
-  remain S4 work; qualified default adoption belongs to D3/V2.
+  `legacy` remains the migration default. Payload matches over disjoint class
+  identities or declared shape tags and sealed virtual/override calls are
+  implemented. Arm bindings have fresh lexical scopes; dispatch evaluates its
+  receiver and arguments once and uses the selected body's defaults. Erased
+  generic dispatch and directly suspending payload arms remain S4 work, with
+  source diagnostics. Qualified default adoption belongs to D3/V2.
 
 ---
 

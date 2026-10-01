@@ -168,6 +168,14 @@ string matches require a final `_` arm; booleans are exhaustive when both
 Negative integer patterns are written directly (`-1 => value`). Scrutinee and
 arm evaluation retain the same exact-once and lazy semantics as enum matches.
 
+Payload patterns name a member of a closed nominal union and bind that value:
+`match(value) { Text(item) => item.text.length, Count(item) => item.count }`.
+Each arm has its own binding, including when a returned closure captures it.
+Class identities must be disjoint; tagged shapes must use distinct values of
+the same tag field. Cover every member or use a final `_` arm. Generic runtime
+distinctions and direct `await` inside payload arms currently receive source
+diagnostics; an arm may return an async function's task.
+
 `Record<T>` is an open structural record whose values all have the same static
 type. A record literal uses `record { key: value, "quoted-key": value }` and
 lowers directly to a null-prototype JavaScript object; it is distinct from a nominal,
@@ -885,7 +893,7 @@ class Vector {
 Vector vector = new Vector(3.0, 4.0);
 ```
 
-Classes also support sound, non-virtual single inheritance:
+Classes support single inheritance with static dispatch by default:
 
 ```lilscript
 class Priced {
@@ -917,9 +925,13 @@ statically known function. Generic base applications such as
 values may upcast through the full base chain, and internal/extern inheritance
 chains remain separate. A derived `init` must put `super(...)` first and call it
 exactly once when the base declares a constructor. Inherited member shadowing
-and method overriding are rejected: silently static-dispatching an override
-would be unsound, while per-instance vtables would add the size and memory cost
-this representation is designed to avoid. The native target compiles internal
+is rejected. A `sealed class` may introduce `virtual` methods, and a descendant
+implements them with `override`. Overrides preserve parameter/result types,
+default/rest/ref positions and purity; their default expressions may differ.
+Dispatch evaluates the receiver and arguments once, then executes the selected
+implementation and its defaults. Later subclass declarations need not have run
+before a base instance is used. Published constructor and prototype identities
+remain intact. Erased generic dispatch is currently source-diagnosed. The native target compiles internal
 inheritance, including calls through a base-typed reference.
 
 Structs and classes that do not escape are eligible for scalar replacement.

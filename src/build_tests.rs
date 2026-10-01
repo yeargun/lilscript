@@ -3834,3 +3834,169 @@ fn s4_enums_reject_invalid_domains_and_unpinned_observations() {
     let result = compile_source("enum Kind:string{A=\"a\"}class Converter{int from(int n){return n;}}export int shadow(){Converter Kind=new Converter();return Kind.from(7);}", &config("[language]\nenum_abi='explicit'"), ServiceOptions::default()).unwrap();
     assert_eq!(execute_javascript(result.javascript(Objective::Brotli).unwrap().javascript(), "", "console.log(library.shadow());"), "7\n");
 }
+
+const S4_PAYLOAD_CLASSES: &str = r#"
+    class Text{string text;init(string text){this.text=text;}}
+    class Count{int count;init(int count){this.count=count;}}
+    int calls=0;
+    Text|Count choose(bool text){calls++;if(text){return new Text("hello");}return new Count(9);}
+    export int run(bool text){return match(choose(text)){Text(item)=>item.text.length,Count(item)=>item.count};}
+    export int captured(bool text){auto fn=match(choose(text)){Text(item)=>(()=>item.text.length),Count(item)=>(()=>item.count)};return fn();}
+    export int count(){return calls;}
+    int identity(int value){return value;}
+    export int single(){return identity(match(new Count(6)){Count(item)=>item.count});}
+    export int loop(){auto callbacks=[()=>0];for(int i=0;i<3;i++){Text|Count value=new Count(i);auto callback=match(value){Text(item)=>(()=>item.text.length),Count(item)=>(()=>item.count)};callbacks.push(callback);}return callbacks[1]()*100+callbacks[2]()*10+callbacks[3]();}
+"#;
+
+const S4_VIRTUAL_CLASSES: &str = r#"
+    int trace=0;
+    int mark(int digit){trace=trace*10+digit;return digit;}
+    sealed class Base{
+        virtual int value(int n,int delta=mark(3)){return n+delta;}
+        virtual int apply(func(int)->int f,int delta=2){return f(10)+delta;}
+        virtual int sum(int first=1,int... rest){int n=first;for(int v of rest){n+=v;}return n;}
+    }
+    class Derived extends Base{
+        override int value(int n,int delta=mark(4)){return n*10+delta;}
+        override int apply(func(int)->int f,int delta=3){return f(20)+delta;}
+        override int sum(int first=2,int... rest){int n=first*10;for(int v of rest){n+=v;}return n;}
+    }
+    class Deep extends Derived{
+        override int value(int n,int delta=mark(5)){return n*100+delta;}
+        override int apply(func(int)->int f,int delta=4){return f(30)+delta;}
+    }
+    Base choose(int kind){mark(1);if(kind==1){return new Derived();}if(kind==2){return new Deep();}return new Base();}
+    export int order(int kind){trace=0;int result=choose(kind).value(mark(2));return result*1000+trace;}
+    export int captured(int kind){int n=5;int result=choose(kind).apply((int x)=>{n++;return x+n;});return result+n*100;}
+    export int rest(int kind){Base value=choose(kind);return value.sum()+value.sum(3,4,5);}
+"#;
+
+#[test]
+fn s4_variants_payload_scopes_closures_and_native_identity() {
+    let source=format!("{S4_PAYLOAD_CLASSES}print(run(true));print(run(false));print(captured(true));print(captured(false));print(count());print(loop());print(single());");
+    let expected="5\n9\n5\n9\n4\n12\n6\n";
+    let arena=bumpalo::Bump::new();let parsed=crate::parser::parse_source(&arena,&source).unwrap();let checked=crate::check::analyze(&parsed).unwrap();
+    assert_eq!(crate::interpreter::interpret_program(&parsed,&checked).unwrap(),expected);
+    let result=compile_source(&source,&config(""),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",""),expected);
+    }
+    for effort in [0,13] {
+        let mut settings=config("");settings.effort.level=effort;
+        let native=compile_source(&source.replace("export ",""),&settings,ServiceOptions{target:ServiceTarget::Native,preserve_root_exports:false,..ServiceOptions::default()}).unwrap();
+        assert_eq!(execute_native(native.native_c().unwrap()),expected);
+    }
+}
+
+#[test]
+fn s4_variants_virtual_defaults_closures_rest_and_native_dispatch() {
+    let source=format!("{S4_VIRTUAL_CLASSES}print(order(0));print(order(1));print(order(2));print(captured(0));print(captured(1));print(captured(2));print(rest(0));print(rest(1));print(rest(2));");
+    let expected="5123\n24124\n205125\n618\n629\n640\n13\n59\n59\n";
+    let arena=bumpalo::Bump::new();let parsed=crate::parser::parse_source(&arena,&source).unwrap();let checked=crate::check::analyze(&parsed).unwrap();
+    assert_eq!(crate::interpreter::interpret_program(&parsed,&checked).unwrap(),expected);
+    for checks in ["production","development"] {
+        let result=compile_source(&source,&config(&format!("checks='{checks}'")),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",""),expected);
+        }
+    }
+    for effort in [0,13] {
+        let mut settings=config("");settings.effort.level=effort;
+        let native=compile_source(&source.replace("export ",""),&settings,ServiceOptions{target:ServiceTarget::Native,preserve_root_exports:false,..ServiceOptions::default()}).unwrap();
+        assert_eq!(execute_native(native.native_c().unwrap()),expected);
+    }
+}
+
+#[test]
+fn s4_variants_tagged_payloads_validate_and_mutate_the_original() {
+    let source=r#"
+        shape Text{tag string kind="text";data string value;}
+        shape Count{tag string kind="count";data int value;}
+        int advance(Count count){count.value++;return count.value;}
+        export int read(Text|Count value){return match(value){Text(item)=>item.value.length,Count(item)=>advance(item)};}
+        export int fallback(Text|Count value){return match(value){Text(item)=>item.value.length,_=>-1};}
+    "#;
+    for checks in ["production","development"] {
+        let result=compile_source(source,&config(&format!("checks='{checks}'")),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",r#"
+                const a={kind:'text',value:'hello'},b={kind:'count',value:8};
+                console.log(JSON.stringify([library.read(a),library.read(b),b.value,library.fallback(a),library.fallback(b)]));
+            "#),"[5,9,9,5,-1]\n");
+        }
+    }
+}
+
+#[test]
+fn s4_variants_ref_arguments_keep_their_preparation_order() {
+    let source=r#"
+        int change(ref int n,int value){n+=value;return n;}
+        sealed class Base{virtual int score(int n){return n+1;}}
+        class Derived extends Base{override int score(int n){return n+2;}}
+        Base choose(bool b){if(b){return new Derived();}return new Base();}
+        export int run(bool b){Base value=choose(b);int n=1;int result=value.score(change(ref n,n+=2));return result*10+n;}
+    "#;
+    let result=compile_source(source,&config(""),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"","console.log(library.run(false));console.log(library.run(true));"),"76\n86\n");
+    }
+    let native=compile_source(&format!("{}print(run(false));print(run(true));",source.replace("export ","")),&config(""),ServiceOptions{target:ServiceTarget::Native,preserve_root_exports:false,..ServiceOptions::default()}).unwrap();
+    assert_eq!(execute_native(native.native_c().unwrap()),"76\n86\n");
+}
+
+#[test]
+fn s4_variants_refuse_ambiguous_incomplete_or_incompatible_contracts() {
+    for source in [
+        "class A{}class B{}int f(A|B value){return match(value){A(a)=>1};}",
+        "class A{}class B{}int f(A|B value){return match(value){A(a)=>1,A(b)=>2,B(b)=>3};}",
+        "class A{}class B{}int f(A|B value){return match(value){A(a)=>1,B(b)=>a.x};}",
+        "shape A{tag int kind=1;}shape B{tag int kind=1;}int f(A|B value){return match(value){A(a)=>1,B(b)=>2};}",
+        "shape A{tag int a=1;}shape B{tag int b=2;}int f(A|B value){return match(value){A(a)=>1,B(b)=>2};}",
+        "class A{virtual int f(){return 1;}}",
+        "class A{int f(){return 1;}}class B extends A{override int f(){return 2;}}",
+        "sealed class A{virtual int f(){return 1;}}class B extends A{int f(){return 2;}}",
+        "sealed class A{virtual int f(int n=1){return n;}}class B extends A{override int f(int n){return n;}}",
+        "sealed class A{virtual pure int f(){return 1;}}class B extends A{override int f(){print(1);return 2;}}",
+        "class B{override int f(){return 2;}}",
+        "sealed class A{virtual int f(){return 1;}}A a=new A();auto callback=a.f;",
+    ] {
+        let error=compile_source(source,&config(""),ServiceOptions::default()).unwrap_err();
+        assert!(matches!(error.phase,"check"|"parse"),"{source}: {error:?}");
+    }
+}
+
+#[test]
+fn s4_variants_reference_enum_model_uses_abi_values() {
+    let source=r#"enum Kind:string{Text="text",Break="break"}flags enum Bits:int{A=1,B=4}print(Kind.Text);print(Kind.Break.ordinal);print(Kind.from("text")!=null);print(Kind.from("bad")==null);print((Bits.A|Bits.B).abi);print((Bits.A|Bits.B).has(Bits.B));"#;
+    let arena=bumpalo::Bump::new();let parsed=crate::parser::parse_source(&arena,source).unwrap();let checked=crate::check::analyze(&parsed).unwrap();
+    assert_eq!(crate::interpreter::interpret_program(&parsed,&checked).unwrap(),"text\n1\ntrue\ntrue\n5\ntrue\n");
+}
+
+#[test]
+fn s4_variants_dispatch_before_subclass_initialization_and_public_prototypes() {
+    let source=r#"
+        export sealed class Base{virtual int read(int n=1){return n;}}
+        export int read(Base value){return value.read();}
+        print(read(new Base()));
+        export class Derived extends Base{init(){super();}override int read(int n=2){return n*10;}}
+        export constructor Base;export constructor Derived;
+        print(read(new Derived()));
+    "#;
+    let scratch=Scratch::new();
+    std::fs::write(scratch.0.join("types.lil"),source).unwrap();
+    std::fs::write(scratch.0.join("entry.lil"),"import {Base,Derived,read} from \"./types.lil\";export {Base,Derived,read};export constructor Base;export constructor Derived;").unwrap();
+    for graph in [false,true] {
+        let options=ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()};
+        let compiled=if graph {compile_path(&scratch.0.join("entry.lil"),&config(""),options)}else{compile_source(source,&config(""),options)}.unwrap();
+        for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(compiled.javascript(objective).unwrap().javascript(),"",r#"
+                const a=new library.Base(),b=new library.Derived();
+                console.log(JSON.stringify([library.read(a),library.read(b),a.read(7),b.read(7),b instanceof library.Base]));
+            "#),"1\n20\n[1,20,7,70,true]\n");
+        }
+        check_scores(&compiled);
+    }
+    let native_source=source.replace("export constructor Base;export constructor Derived;","").replace("export ","");
+    let native=compile_source(&native_source,&config(""),ServiceOptions{target:ServiceTarget::Native,preserve_root_exports:false,..ServiceOptions::default()}).unwrap();
+    assert_eq!(execute_native(native.native_c().unwrap()),"1\n20\n");
+}

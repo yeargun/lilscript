@@ -1989,6 +1989,20 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 _ => false,
             }
     }
+
+    /// A checked callable view may narrow a class receiver without changing
+    /// the C calling convention. Object slots all use ls_native_object*; every
+    /// other slot, ref/default/rest convention and return remains identical.
+    pub(super) fn callable_view(&self, from: NativeType, to: NativeType) -> bool {
+        let (NativeType::Callable(from), NativeType::Callable(to)) = (from, to) else { return false; };
+        let (from, to) = (&self.signatures[from], &self.signatures[to]);
+        let same_slot = |a, b| a == b || matches!((a, b), (NativeType::Object(_), NativeType::Object(_)));
+        from.parameters.len() == to.parameters.len()
+            && same_slot(from.result, to.result)
+            && from.parameters.iter().zip(&to.parameters).all(|(&a, &b)| same_slot(a, b))
+            && from.source.params.iter().zip(&to.source.params).all(|(a, b)|
+                a.passing == b.passing && a.optional == b.optional && a.rest == b.rest && a.receiver == b.receiver)
+    }
     pub(super) fn reference_parameter(&self, cell: CellId) -> bool {
         reference_parameter(self.program, cell)
     }
@@ -2224,6 +2238,12 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 matches!(result, Some(Stored(NativeType::Dynamic(_)))),
                 "native null representation",
             ),
+            OperationKind::ClosedClassTest(identity) => {
+                let class = self.program.class_index(*identity).ok_or_else(|| error("native closed class identity"))?;
+                self.class_tests[class] = true;
+                expect(operands.len() == 1 && result == Some(Stored(Bool)) && matches!(operand(0),
+                    Stored(NativeType::Object(_) | NativeType::Dynamic(_))), "native closed class test")
+            }
             OperationKind::TypeTest(target) => {
                 if let Type::Class(declaration) = &self.program.types[target.index()] {
                     let class = self
@@ -2642,6 +2662,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         arguments.len() == 1 && match (result, argument(0)) {
                             (Some(Stored(expected)), Some(actual)) => {
                                 self.compatible(Stored(expected), actual)
+                                    || self.callable_view(self.value_type(actual), expected)
                                     || matches!((expected, actual),
                                         (NativeType::Object(_), Stored(NativeType::Object(_))))
                             }

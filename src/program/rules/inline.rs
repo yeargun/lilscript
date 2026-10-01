@@ -501,6 +501,7 @@ fn reads_in_order(
             | OperationKind::Unary { .. }
             | OperationKind::CopyValue
             | OperationKind::TypeTest(_)
+            | OperationKind::ClosedClassTest(_)
             | OperationKind::Template => {
                 arithmetic
                     && (!behaviors[op.index()].requires_evaluation()

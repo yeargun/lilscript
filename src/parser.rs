@@ -476,11 +476,16 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             return self.parse_enum_after_keyword(flags).map(Item::Enum);
         }
 
+        let sealed = matches!(self.peek_kind(), Some(TokenKind::Ident("sealed")))
+            && matches!(self.lookahead_kind(self.cursor + 1)?, Some(TokenKind::Class));
+        if sealed { self.advance(); }
         if self.match_kind(|kind| matches!(kind, TokenKind::Class)) {
             if declared_pure || is_async || is_generator {
                 return Err(self.error_here("modifiers can only apply to functions"));
             }
-            return self.parse_class_after_keyword().map(Item::Class);
+            let mut declaration = self.parse_class_after_keyword()?;
+            declaration.sealed = sealed;
+            return Ok(Item::Class(declaration));
         }
         if self.match_kind(|kind| matches!(kind, TokenKind::Ident("shape"))) {
             if declared_pure || is_async || is_generator {
@@ -1100,7 +1105,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             members.push(ClassMember::Field(field))?;
         }
         let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
-        Ok(ClassDecl { shape: true, name, type_params, base: None,
+        Ok(ClassDecl { shape: true, sealed: false, name, type_params, base: None,
             members: members.into_bump_slice(), span: start.merge(close.span) })
     }
 
@@ -1144,6 +1149,11 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             }
 
             let region = self.parse_region_policy()?;
+            let dispatch = match self.peek_kind() {
+                Some(TokenKind::Ident("virtual")) if self.looks_like_typed_binding_at(self.cursor + 1)? || self.check_next(|kind| matches!(kind, TokenKind::Pure | TokenKind::Async | TokenKind::Generator)) => { self.advance(); crate::ast::MethodDispatch::Virtual }
+                Some(TokenKind::Ident("override")) if self.looks_like_typed_binding_at(self.cursor + 1)? || self.check_next(|kind| matches!(kind, TokenKind::Pure | TokenKind::Async | TokenKind::Generator)) => { self.advance(); crate::ast::MethodDispatch::Override }
+                _ => crate::ast::MethodDispatch::Static,
+            };
             let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
             let is_async = self.match_kind(|kind| matches!(kind, TokenKind::Async));
             let is_generator = self.match_kind(|kind| matches!(kind, TokenKind::Generator));
@@ -1159,7 +1169,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             let member_name = self.expect_property_ident("expected class member name")?;
             let type_params = self.parse_type_params()?;
             if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
-                let method = self.parse_function_after_signature(
+                let mut method = self.parse_function_after_signature(
                     ty,
                     member_name,
                     type_params,
@@ -1168,6 +1178,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     is_async,
                     is_generator,
                 )?;
+                method.dispatch = dispatch;
                 members.push(ClassMember::Method(method))?;
             } else {
                 if !type_params.is_empty() {
@@ -1176,7 +1187,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                         "type parameters require a method declaration",
                     ));
                 }
-                if declared_pure || is_async || is_generator {
+                if declared_pure || is_async || is_generator || dispatch != crate::ast::MethodDispatch::Static {
                     return Err(AdmittedParseError::new(
                         member_name.span,
                         "modifiers can only apply to methods",
@@ -1190,6 +1201,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
         Ok(ClassDecl {
             shape: false,
+            sealed: false,
             name,
             type_params,
             base,
@@ -1242,6 +1254,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         )?;
         let (body, body_span) = self.parse_block_after_open()?;
         Ok(FunctionDecl {
+            dispatch: crate::ast::MethodDispatch::Static,
             region,
             declared_pure,
             declared_debug: false,
@@ -2224,6 +2237,11 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 TokenKind::Ident("_") => MatchPattern::Wildcard(pattern_token.span),
                 TokenKind::Ident(name) => {
                     let enum_name = self.source.ident(name, pattern_token.span);
+                    if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
+                        let binding = self.expect_ident("expected payload binding")?;
+                        let close = self.expect(|kind| matches!(kind, TokenKind::RParen), "expected `)` after payload binding")?;
+                        MatchPattern::Payload { variant: enum_name, binding, span: enum_name.span.merge(close.span) }
+                    } else {
                     self.expect(
                         |kind| matches!(kind, TokenKind::Dot),
                         "expected `.` in enum pattern",
@@ -2233,6 +2251,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                         enum_name,
                         variant,
                         span: enum_name.span.merge(variant.span),
+                    }
                     }
                 }
                 TokenKind::IntLiteral(value) => MatchPattern::Int(value, pattern_token.span),

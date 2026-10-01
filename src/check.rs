@@ -23,6 +23,7 @@ pub(crate) mod capabilities;
 mod field_initialization;
 mod shapes;
 mod enums;
+mod variants;
 pub use shapes::ShapeTag;
 mod modules;
 mod struct_cycles;
@@ -958,6 +959,7 @@ pub struct StructInfo<'src> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassInfo<'src> {
+    pub sealed: bool,
     pub discriminant: Option<(usize, ShapeTag<'src>)>,
     /// Plain reference data with no constructor/prototype identity.
     pub shape: bool,
@@ -989,6 +991,7 @@ pub struct ClassInfo<'src> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MethodInfo<'src> {
+    pub dispatch: crate::ast::MethodDispatch,
     pub member: NominalMemberId,
     /// The class that declares the method (a base, for an inherited one).
     pub owner: NominalId,
@@ -2839,6 +2842,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         AllocationClass::Scratch,
                         &mut self.declarations.classes,
                         ClassInfo {
+                            sealed: matches!(item, Item::Class(decl) if decl.sealed),
                             discriminant: None,
                             shape: matches!(item, Item::Class(decl) if decl.shape),
                             declaration,
@@ -2980,6 +2984,16 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         );
                     }
                     ClassMember::Method(method) => {
+                        use crate::ast::MethodDispatch;
+                        if method.dispatch == MethodDispatch::Virtual && !decl.sealed {
+                            return Err(AdmittedCheckError::new(method.span, "a virtual method must be introduced by a sealed class"));
+                        }
+                        if method.dispatch == MethodDispatch::Override && decl.base.is_none() {
+                            return Err(AdmittedCheckError::new(method.span, "an override needs an inherited virtual method"));
+                        }
+                        if method.dispatch != MethodDispatch::Static && (!decl.type_params.is_empty() || !method.type_params.is_empty()) {
+                            return Err(AdmittedCheckError::new(method.span, "virtual dispatch with erased type parameters requires the generic dispatch contract (R18)"));
+                        }
                         if fields.contains_key(method.name.name)
                             || methods.contains_key(method.name.name)
                         {
@@ -2995,6 +3009,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         methods.insert(
                             method.name.name,
                             MethodInfo {
+                                dispatch: method.dispatch,
                                 member: self.declarations.declare_member(
                                     owner,
                                     MemberSlot::method(methods.len()),
@@ -3197,6 +3212,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         methods.insert(
                             method.name.name,
                             MethodInfo {
+                                dispatch: crate::ast::MethodDispatch::Static,
                                 member: self.declarations.declare_member(
                                     owner,
                                     MemberSlot::method(methods.len()),
@@ -3307,6 +3323,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             methods.insert(
                 *method_name,
                 MethodInfo {
+                    dispatch: method.dispatch,
                     member: method.member,
                     owner: method.owner,
                     type_params: method.type_params.clone(),
@@ -3330,10 +3347,28 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             self.declarations.nominal_members[field.member.index()].slot =
                 MemberSlot::field(fields.len() + offset);
         }
-        for (offset, (method_name, method)) in info.methods.iter().enumerate() {
+        let mut next_method = methods.len();
+        for (method_name, method) in &info.methods {
+            use crate::ast::MethodDispatch;
+            if let Some(inherited) = methods.get(method_name) {
+                if inherited.dispatch == MethodDispatch::Static || method.dispatch != MethodDispatch::Override {
+                    return Err(AdmittedCheckError::new(span,
+                        format!("class `{name}` cannot override inherited member `{method_name}` without an explicit override of a virtual method")));
+                }
+                if method.signature != inherited.signature
+                    || !method.type_params.is_empty()
+                    || inherited.declared_pure && !method.declared_pure {
+                    return Err(AdmittedCheckError::new(span, "a virtual override must preserve its parameter, result, ref/default/rest and purity contract"));
+                }
+                self.declarations.nominal_members[method.member.index()].slot =
+                    self.declarations.nominal_members[inherited.member.index()].slot;
+                continue;
+            }
+            if method.dispatch == MethodDispatch::Override {
+                return Err(AdmittedCheckError::new(span, "an override needs an inherited virtual method"));
+            }
             if fields.contains_key(method_name)
                 || info.fields.contains_key(method_name)
-                || methods.contains_key(method_name)
             {
                 return Err(AdmittedCheckError::new(
                     span,
@@ -3341,7 +3376,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ));
             }
             self.declarations.nominal_members[method.member.index()].slot =
-                MemberSlot::method(methods.len() + offset);
+                MemberSlot::method(next_method);
+            next_method += 1;
         }
         let resolved = &mut self.declarations.classes[class.index()];
         for (_, mut field) in std::mem::take(&mut resolved.fields) {
@@ -6220,6 +6256,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     /// requires. Nominal callable fields and explicit dynamic host reads keep
     /// their separate value semantics.
     fn check_member_value(&self, id: SourceNodeId, span: Span) -> Result<(), AdmittedCheckError> {
+        if matches!(self.view().resolved_member(id), Some(NominalMember::Method { method, .. })
+            if method.dispatch != crate::ast::MethodDispatch::Static) {
+            return Err(AdmittedCheckError::new(span, "a virtual method must be called through its receiver; use a closure to pass it as a value"));
+        }
         if matches!(
             self.facts.source_info[id.index()].resolution,
             ExpressionResolution::Primitive(crate::primitive::ResolvedIntrinsic::Method(_))
@@ -6453,6 +6493,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         span: Span,
     ) -> Result<Type<'src>, AdmittedCheckError> {
         let value_type = self.analyze_expr(value, None)?;
+        if arms.iter().any(|arm| matches!(arm.pattern, MatchPattern::Payload { .. })) {
+            return self.analyze_payload_match(&value_type, arms, expected, span);
+        }
         if !matches!(
             value_type,
             Type::Enum(_) | Type::Int | Type::String | Type::Bool
@@ -6581,6 +6624,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     }
                     wildcard = true;
                 }
+                MatchPattern::Payload { .. } => unreachable!("payload matches have one checked owner"),
             }
             let arm_type = self.analyze_expr(&arm.value, expected)?;
             result = Some(match result {
@@ -6719,6 +6763,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     return Ok(field.ty.clone());
                 }
                 if let Some(method) = class.methods.get(property.name) {
+                    if method.dispatch != crate::ast::MethodDispatch::Static {
+                        self.declarations.tested_classes.insert(declaration.identity);
+                    }
                     self.facts.source_info[id.index()].resolution =
                         ExpressionResolution::NominalMember(method.member);
                     return Ok(method_callable_type(method, &AHashMap::default()));
@@ -6738,6 +6785,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     return Ok(substitute_type(&field.ty, &substitutions));
                 }
                 if let Some(method) = class.methods.get(property.name) {
+                    if method.dispatch != crate::ast::MethodDispatch::Static {
+                        return Err(AdmittedCheckError::new(property.span, "virtual dispatch with erased type parameters requires the generic dispatch contract (R18)"));
+                    }
                     self.facts.source_info[id.index()].resolution =
                         ExpressionResolution::NominalMember(method.member);
                     return Ok(method_callable_type(method, &substitutions));

@@ -248,6 +248,7 @@ fn value_kind(kind: &OperationKind) -> bool {
             | OperationKind::Allocate { .. }
             | OperationKind::IsUndefined { .. }
             | OperationKind::TypeTest(_)
+            | OperationKind::ClosedClassTest(_)
             | OperationKind::Template
             | OperationKind::Call(_)
     )

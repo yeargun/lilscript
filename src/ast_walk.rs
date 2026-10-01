@@ -674,6 +674,10 @@ fn expression_identifiers<'src>(
                     visitor(&enum_name);
                     visitor(&variant);
                 }
+                if let crate::ast::MatchPattern::Payload { variant, binding, .. } = arm.pattern {
+                    visitor(&variant);
+                    visitor(&binding);
+                }
                 expression_identifiers(&arm.value, visitor);
             }
         }

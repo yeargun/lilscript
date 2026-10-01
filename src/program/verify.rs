@@ -1021,6 +1021,12 @@ fn verify_units(
                             };
                             (Some(if internal { 2 } else { 1 }), true)
                         }
+                        OperationKind::ClosedClassTest(class) => {
+                            if !program.class(*class).is_some_and(|class| class.observed && !class.external && !class.shape) {
+                                return fail("closed dispatch requires an internal class identity");
+                            }
+                            (Some(1), true)
+                        }
                         OperationKind::Template => {
                             if operands.is_empty() {
                                 return fail("template without operands");
@@ -1934,6 +1940,7 @@ fn verify_types(
                     || matches!(program.types[target.index()], Type::Class(declaration)
                         if program.class(declaration.identity).is_some_and(|class| !class.shape || class.discriminant.is_some()))),
         ),
+        OperationKind::ClosedClassTest(_) => expect(matches!(result, Some(Type::Bool)) && !operand(0).is_void()),
         OperationKind::Template => {
             if !matches!(result, Some(Type::String)) {
                 return Err(error());
