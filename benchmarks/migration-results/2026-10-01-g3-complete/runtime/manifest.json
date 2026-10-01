@@ -1,0 +1,18 @@
+{
+  "schema": 2,
+  "workloads": [{
+    "id": "receiver-alias",
+    "contract": {"exports": ["Box"], "target": "ESM", "semantics": "public constructor and mutable numeric field; twelve reads per call", "scope": "affected development workload; no port parity claim"},
+    "workload": "workload.mjs",
+    "iterations": 16777216,
+    "warmup_runs": 4,
+    "expected": 102978551808,
+    "counters": {"calls":16777216,"receiver_reads":201326592},
+    "runtime_limits":{"steady_cpu_us":0.1},
+    "inputs": [],
+    "implementations": {
+      "reference":{"entry":"reference.mjs","inputs":[]},
+      "candidate":{"entry":"../artifacts/receiver/g3-raw.mjs","inputs":["../artifacts/receiver/main.lil","../artifacts/receiver/raw.toml"]}
+    }
+  }]
+}

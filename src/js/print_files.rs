@@ -45,12 +45,16 @@ pub(in crate::js) fn render_planned_file_admitted(
         })
         .collect::<Vec<_>>();
     let mut phase = budget.scope();
+    let forms = match module.print_forms.as_ref() {
+        Some(forms) => std::borrow::Cow::Borrowed(forms),
+        None => std::borrow::Cow::Owned(crate::js::spellings::PrintForms::new(module, false, AllocationClass::Scratch, &mut phase).map_err(PrintError::Admission)?),
+    };
     let mut printer = Printer {
         module,
         names,
         literal_alternatives,
         literals,
-        numeric: numeric_bindings(module),
+        forms: &forms,
         output: Buffer {
             text: String::new(),
             budget: &mut phase,

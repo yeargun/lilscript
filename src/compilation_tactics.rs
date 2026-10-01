@@ -191,6 +191,30 @@ declare_tactics! {
         purpose: "Permit optional target-tree cleanup, statement spellings and output families.",
         tradeoffs: "Adds formation and search work; spelling wins depend on the objective. Semantic subfamilies also need their own permissions. Off keeps mandatory lowering and independently permitted structural search."
     },
+    StatementSpellings {
+        name: "statement-spellings", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,
+        analysis: A::Values, default: D::On,
+        producers: &[P::OutputFamilies], prerequisites: &[TacticId::TargetCompaction], risks: &[R::Neutral],
+        invalidates: &[I::TargetTail, I::Names, I::RenderedFiles],
+        purpose: "Choose statement, loop, assignment and quote spellings independently at legal sites.",
+        tradeoffs: "Exact raw/gzip/Brotli judgments select complete files; more sites cost formation and scoring. Adds no runtime effects. Off keeps canonical spellings and vetoes explicit and cached assignments."
+    },
+    DeclarationOrder {
+        name: "declaration-order", javascript_only: true, minimum_effort: 14, startup_at_level_16: false,
+        analysis: A::NamesAndBoundary, default: D::On,
+        producers: &[P::OutputFamilies], prerequisites: &[TacticId::TargetCompaction], risks: &[R::Neutral],
+        invalidates: &[I::TargetTail, I::Names, I::RenderedFiles],
+        purpose: "Try grouping legally movable declarations by shape and literal content for codec locality.",
+        tradeoffs: "Automatic from effort 14; explicit on permits earlier trials. Preserves effects, initialization and module boundaries. Extra discovery and judgments may earn only small codec wins; source order remains eligible."
+    },
+    ReceiverAliases {
+        name: "receiver-aliases", javascript_only: true, minimum_effort: 13, startup_at_level_16: false,
+        analysis: A::NamesAndBoundary, default: D::On,
+        producers: &[P::OutputFamilies], prerequisites: &[TacticId::TargetCompaction], risks: &[R::Neutral],
+        invalidates: &[I::TargetTail, I::Names, I::RenderedFiles],
+        purpose: "Try a private local alias for repeated reads of an initialized function receiver.",
+        tradeoffs: "Adds a local binding/read and formation/judging work; the direct receiver remains eligible. Never moves a receiver read ahead of super or across lexical-this ownership. Off vetoes explicit and retained choices."
+    },
     IdentifierMangling {
         name: "identifier-mangling", javascript_only: true, minimum_effort: 0, startup_at_level_16: false,
         analysis: A::NamesAndBoundary, default: D::On,

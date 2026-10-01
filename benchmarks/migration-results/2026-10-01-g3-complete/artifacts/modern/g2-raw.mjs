@@ -1,0 +1,1 @@
+let read=function(a){if(!(a===null||a===void 0))return a.item},call=function(b){let c=b===null||b===void 0?void 0:b.method;return c()},ensure=function(d){!d&&(d=next());return d};export{read,call,ensure};

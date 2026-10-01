@@ -153,6 +153,10 @@ impl Walk<'_> {
                 Canon::Return(value.map(|value| Box::new(self.expression(value))))
             }
             Statement::Throw(value) => Canon::Throw(Box::new(self.expression(*value))),
+            Statement::If {condition,yes,no:None} if self.module.print_forms.as_ref().is_some_and(|forms|forms.logical_assignments[yes.index()].is_some_and(|form|form.condition==*condition)) => {
+                let form=self.module.print_forms.as_ref().unwrap().logical_assignments[yes.index()].unwrap();
+                Canon::statement(Canon::LogicalAssign(binary(form.op),Box::new(self.expression(form.left)),Box::new(self.expression(form.right))))
+            }
             Statement::If { condition, yes, no } => Canon::if_statement(
                 self.expression(*condition),
                 self.list(*yes),
@@ -256,6 +260,11 @@ impl Walk<'_> {
     }
 
     fn expression(&self, id: ExprId) -> Canon {
+        if let Some(member)=self.module.print_forms.as_ref().and_then(|forms|forms.optional[id.index()]) {
+            let Expr::Member{object,property}=&self.module.expressions[member.index()] else{unreachable!("proved optional member")};
+            let key=match property {Property::Named(_)=>None,Property::Computed(key)=>Canon::key(self.expression(*key)).map(Box::new)};
+            return Canon::OptionalMember(Box::new(self.expression(*object)),key);
+        }
         match &self.module.expressions[id.index()] {
             Expr::Literal(Literal::Number(value)) if !value.is_finite() => {
                 // Printed as Rust spells it: `NaN`, `inf` or `-inf`.

@@ -1,0 +1,1 @@
+{"exercise":"let next=0,reads=0;globalThis.next=()=>{next++;return true;};const obj={get item(){return ++reads;},method(){return this===undefined;}};console.log(JSON.stringify([m.read(null)===undefined,m.read(undefined)===undefined,m.read(obj),reads,m.call(obj),m.ensure(true),m.ensure(false),next]));","expected":[true,true,1,1,true,true,true,1]}

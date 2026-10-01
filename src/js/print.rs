@@ -53,7 +53,7 @@ impl Binary {
     }
 }
 
-fn precedence(expression: &Expr) -> u8 {
+pub(super) fn precedence(expression: &Expr) -> u8 {
     match expression {
         Expr::Sequence(_) => 1,
         Expr::Assign { .. } => 2,
@@ -141,12 +141,16 @@ pub(super) fn render_with_literals_admitted(
 ) -> Result<String, PrintError> {
     let _timing = crate::timing::TARGET_PRINT.scope(0);
     let mut phase = budget.scope();
+    let forms = match module.print_forms.as_ref() {
+        Some(forms) => std::borrow::Cow::Borrowed(forms),
+        None => std::borrow::Cow::Owned(super::spellings::PrintForms::new(module, false, AllocationClass::Scratch, &mut phase).map_err(PrintError::Admission)?),
+    };
     let mut printer = Printer {
         module,
         names,
         literal_alternatives,
         literals,
-        numeric: numeric_bindings(module),
+        forms: &forms,
         output: Buffer {
             text: String::new(),
             budget: &mut phase,
@@ -320,15 +324,6 @@ impl std::fmt::Write for Buffer<'_, '_> {
     }
 }
 
-/// Which bindings always hold a number.
-fn numeric_bindings(module: &Module) -> Vec<bool> {
-    module
-        .bindings
-        .iter()
-        .map(|binding| matches!(binding.class, Some(ValueClass::Int | ValueClass::Number)))
-        .collect()
-}
-
 struct Printer<'a, 'budget, 'ledger> {
     module: &'a Module,
     names: &'a Names,
@@ -340,8 +335,7 @@ struct Printer<'a, 'budget, 'ledger> {
     /// The specifier of each lazily delivered module's file (module,
     /// specifier), when this prints one file of several.
     lazy: &'a [(u32, String)],
-    /// Bindings that always hold a number (`Binding::class`).
-    numeric: Vec<bool>,
+    forms: &'a super::spellings::PrintForms,
 }
 
 /// The surrounding JavaScript syntax's named-evaluation behavior. A computed
@@ -450,64 +444,20 @@ impl<'a> Printer<'a, '_, '_> {
         }
     }
 
-    /// `{let i=v;for(;c;u)body}` as `for(let i=v;c;u)body`. A for head's
-    /// binding is fresh each iteration, so no closure in the loop may capture
-    /// it, and `in` cannot appear in the head's initializer.
+    /// Formation has already proved the scope and iteration-identity rules.
     fn loop_head(&mut self, region: RegionId, closing: bool) -> bool {
-        let [Statement::Let {
-            binding,
-            value: Some(value),
-        }, Statement::Loop {
-            condition,
-            update,
-            body,
-        }] = self.module.regions[region.index()].statements.as_slice()
-        else {
-            return false;
-        };
-        let roots: Vec<ExprId> = condition.iter().chain(update.iter()).copied().collect();
-        if !self.module.loop_head_declarations
-            || !self.output.work(1)
-            || self.module.mentions(&[*body], &roots, *binding, true)
-            || self.contains_in(*value)
-        {
-            return false;
-        }
+        let Some(form) = self.forms.loops.get(region.index()).copied().flatten() else {return false;};
         self.text("for(let ");
-        self.text(self.names.get(*binding));
+        self.text(self.names.get(form.binding));
         self.text("=");
-        self.expression(*value, 2);
+        self.expression(form.value, 2);
         self.text(";");
-        if let Some(condition) = condition {
-            self.expression(*condition, 0);
-        }
+        if let Some(condition)=form.condition {self.expression(condition,0);}
         self.text(";");
-        if let Some(update) = update {
-            self.expression(*update, 0);
-        }
+        if let Some(update)=form.update {self.expression(update,0);}
         self.text(")");
-        self.body(*body, false, closing);
+        self.body(form.body,false,closing);
         true
-    }
-
-    /// Whether an `in` operator appears outside any function or parentheses
-    /// the printer would add; conservatively, anywhere outside a function.
-    fn contains_in(&self, root: ExprId) -> bool {
-        let mut stack = vec![root];
-        while let Some(id) = stack.pop() {
-            let expression = &self.module.expressions[id.index()];
-            if matches!(expression, Expr::Binary { op: Binary::In, .. }) {
-                return true;
-            }
-            if expression.creates_function() {
-                continue;
-            }
-            let _ = expression.visit_children(|child| {
-                stack.push(child);
-                Ok::<_, ()>(())
-            });
-        }
-        false
     }
 
     /// `let{a:x,b}=<host modules>;` binding each carried import among
@@ -714,9 +664,13 @@ impl<'a> Printer<'a, '_, '_> {
     /// A string in `"`, or under the `quotes` family in the quote it escapes
     /// least (`'{"a":1}'`).
     fn string(&mut self, value: &StringValue) {
+        self.string_chosen(value, self.module.quotes);
+    }
+
+    fn string_chosen(&mut self, value: &StringValue, compact: bool) {
         let quote = match value.as_unicode() {
             Some(text)
-                if self.module.quotes && text.matches('"').count() > text.matches('\'').count() =>
+                if compact && text.matches('"').count() > text.matches('\'').count() =>
             {
                 '\''
             }
@@ -989,7 +943,7 @@ impl<'a> Printer<'a, '_, '_> {
                     if let Some(truthy) = self.observed_literal(id) {
                         self.text(if truthy { "1" } else { "0" });
                     } else {
-                        self.string(value);
+                        self.string_chosen(value, self.forms.quotes.get(id.index()).copied().unwrap_or(false));
                     }
                 }
                 // `!0` and `!1` are the booleans, three and four bytes shorter.
@@ -1104,12 +1058,12 @@ impl<'a> Printer<'a, '_, '_> {
             } => {
                 let callee_node = &self.module.expressions[callee.index()];
                 let unbind = *invocation == Invocation::Value
-                    && match callee_node {
+                    && (self.forms.optional[callee.index()].is_some() || match callee_node {
                         Expr::Member { .. } => true,
                         Expr::Host(host) => host.kind == crate::catalog::HostKind::Eval,
                         Expr::Binding(symbol) => self.names.get(*symbol) == "eval",
                         _ => false,
-                    };
+                    });
                 let function_literal = matches!(callee_node, Expr::Function(_));
                 if unbind {
                     self.text("(0,");
@@ -1146,6 +1100,15 @@ impl<'a> Printer<'a, '_, '_> {
                     self.arguments(arguments);
                 }
             }
+            Expr::Conditional { .. } if self.forms.optional[id.index()].is_some() => {
+                let member=self.forms.optional[id.index()].unwrap();
+                let Expr::Member{object,property}=&self.module.expressions[member.index()] else{unreachable!("proved optional member")};
+                self.expression(*object,18);self.text("?.");
+                match property {
+                    Property::Named(name)=>self.text(name),
+                    Property::Computed(key)=>{self.text("[");self.expression(*key,0);self.text("]");}
+                }
+            }
             Expr::Conditional { condition, yes, no } => {
                 self.expression(*condition, 4);
                 self.text("?");
@@ -1154,13 +1117,13 @@ impl<'a> Printer<'a, '_, '_> {
                 self.expression(*no, 2);
             }
             // `x=x+1` of a number is `++x` (its value is the new one too).
-            Expr::Assign { target, value } if self.increment(*target, *value).is_some() => {
-                let op = self.increment(*target, *value).unwrap();
+            Expr::Assign { target, .. } if self.forms.increment[id.index()].is_some() => {
+                let op = self.forms.increment[id.index()].unwrap();
                 self.text(op);
                 self.expression(*target, 18);
             }
-            Expr::Assign { target, value } if self.compound(*target, *value).is_some() => {
-                let (op, right) = self.compound(*target, *value).unwrap();
+            Expr::Assign { target, .. } if self.forms.compound[id.index()].is_some() => {
+                let (op, right) = self.forms.compound[id.index()].unwrap();
                 self.expression(*target, 18);
                 self.text(op.token());
                 self.text("=");
@@ -1411,7 +1374,8 @@ impl<'a> Printer<'a, '_, '_> {
         if !self.output.work(1) {
             return;
         }
-        let (defaults, absorbed) = self.native_defaults(id);
+        let defaults = &self.forms.defaults[id.index()].values;
+        let absorbed = self.forms.defaults[id.index()].absorbed;
         let function = &self.module.functions[id.index()];
         // `a=>`: one plain parameter needs no parentheses. `async a=>` would
         // need a separating space, so only a plain arrow drops them.
@@ -1480,44 +1444,6 @@ impl<'a> Printer<'a, '_, '_> {
         self.text("{");
         self.statements_from(function.body, true, absorbed);
         self.text("}");
-    }
-
-    /// The defaults a function's parameters from its `length` on can print
-    /// natively, `(a,b=null)`, and how many leading statements of its body
-    /// that absorbs: `if(b===void 0)b=null` for literal defaults, in
-    /// parameter order. A native default applies to exactly the `undefined`
-    /// the statement tests, before the body runs, and a literal reads
-    /// nothing. A strict directive forbids such a parameter list, and one
-    /// makes `arguments` unmapped, so neither kind of body is touched.
-    fn native_defaults(&mut self, id: FunctionId) -> (Vec<Option<ExprId>>, usize) {
-        let function = &self.module.functions[id.index()];
-        let Some(length) = function.length else {
-            return (Vec::new(), 0);
-        };
-        if function.strict || !self.module.arguments_free(id) {
-            return (Vec::new(), 0);
-        }
-        let mut defaults = vec![None; function.parameters.len()];
-        let mut absorbed = 0;
-        let mut last = None;
-        for statement in &self.module.regions[function.body.index()].statements {
-            if !self.output.work(1) {
-                break;
-            }
-            let Some((parameter, default)) = self.module.default_check(statement) else {
-                break;
-            };
-            let Some(index) = function.parameters.iter().position(|&p| p == parameter) else {
-                break;
-            };
-            if index < length || last.is_some_and(|last| index <= last) {
-                break;
-            }
-            defaults[index] = Some(default);
-            last = Some(index);
-            absorbed += 1;
-        }
-        (defaults, absorbed)
     }
 
     /// Whether printing `id` at `minimum` precedence would begin with an
@@ -1604,82 +1530,6 @@ impl<'a> Printer<'a, '_, '_> {
         }
     }
 
-    /// Under the `compound_assignments` family, `x=x+y` prints as `x+=y`
-    /// (and so for the other
-    /// arithmetic and bitwise operators) when evaluating the target twice is
-    /// the same as once: a binding, or a named property of a binding or
-    /// `this`. Returns the operator and its right operand.
-    /// `++`/`--` for `x=x+1`/`x=x-1` when `x` always holds a number: the
-    /// same value, stored and yielded. (`x+1|0`, a wrapping int add, is
-    /// another expression and keeps its spelling.)
-    fn increment(&self, target: ExprId, value: ExprId) -> Option<&'static str> {
-        let Expr::Binding(binding) = self.module.expressions[target.index()] else {
-            return None;
-        };
-        if !self.numeric.get(binding.index()).copied().unwrap_or(false) {
-            return None;
-        }
-        let Expr::Binary { op, left, right } = &self.module.expressions[value.index()] else {
-            return None;
-        };
-        let one = matches!(self.module.expressions[right.index()], Expr::Literal(Literal::Number(n)) if n == 1.0);
-        let same = matches!(self.module.expressions[left.index()], Expr::Binding(found) if found == binding);
-        match op {
-            Binary::Add if one && same => Some("++"),
-            Binary::Subtract if one && same => Some("--"),
-            _ => None,
-        }
-    }
-
-    fn compound(&self, target: ExprId, value: ExprId) -> Option<(Binary, ExprId)> {
-        if !self.module.compound_assignments {
-            return None;
-        }
-        let Expr::Binary { op, left, right } = &self.module.expressions[value.index()] else {
-            return None;
-        };
-        if !matches!(
-            op,
-            Binary::Add
-                | Binary::Subtract
-                | Binary::Multiply
-                | Binary::Divide
-                | Binary::Remainder
-                | Binary::ShiftLeft
-                | Binary::ShiftRight
-                | Binary::UnsignedShiftRight
-                | Binary::BitAnd
-                | Binary::BitOr
-                | Binary::BitXor
-        ) {
-            return None;
-        }
-        let place = |id: ExprId| match &self.module.expressions[id.index()] {
-            Expr::Binding(binding) => Some((Some(*binding), None)),
-            Expr::Member {
-                object,
-                property: Property::Named(name),
-            } => match &self.module.expressions[object.index()] {
-                Expr::Binding(binding) => Some((Some(*binding), Some(name.as_str()))),
-                Expr::This => Some((None, Some(name.as_str()))),
-                _ => None,
-            },
-            _ => None,
-        };
-        let (target_place, left_place) = (place(target)?, place(*left)?);
-        (target_place == left_place).then_some((*op, *right))
-    }
-
-    fn conditional_parts(&mut self, condition: ExprId, yes: ExprId, no: ExprId) {
-        // `c?a:b` groups a condition below `||`/`??` level and branches
-        // below assignment, as a printed Conditional would.
-        self.expression(condition, 4);
-        self.text("?");
-        self.expression(yes, 2);
-        self.text(":");
-        self.expression(no, 2);
-    }
-
     /// Selected root statements, in order: adjacent declarations still share
     /// one `let`, and every statement keeps its `;`.
     fn statement_list(&mut self, statements: &[Statement], order: &[usize]) {
@@ -1750,9 +1600,13 @@ impl<'a> Printer<'a, '_, '_> {
                 self.output.separate_word(at);
                 end(self);
             }
+            Statement::If { condition, yes, no: None }
+                if self.forms.logical_assignments[yes.index()].is_some_and(|form|form.condition==*condition) => {
+                let form=self.forms.logical_assignments[yes.index()].unwrap();
+                self.expression(form.left,18);self.text(form.op.token());self.text("=");self.expression(form.right,2);end(self);
+            }
             Statement::If { condition, yes, no }
                 if no.is_none()
-                    && self.module.logical_statements
                     && self.logical_statement(*condition, *yes) =>
             {
                 end(self);
@@ -1870,35 +1724,18 @@ impl<'a> Printer<'a, '_, '_> {
         }
     }
 
-    /// Statements that complete in one piece: none declares a binding or can
-    /// end in an `if` that would capture a following `else`.
-    /// `if(c)e;` as `c&&e;` and `if(!c)e;` as `c||e;`, only where neither
-    /// side needs grouping, so the statement is strictly shorter.
+    /// Render a selected logical form; legality and site selection are complete.
     fn logical_statement(&mut self, condition: ExprId, yes: RegionId) -> bool {
-        let [Statement::Evaluate(value)] = self.module.regions[yes.index()].statements.as_slice()
-        else {
-            return false;
-        };
-        let (op, left) = match self.module.expressions[condition.index()] {
-            Expr::Unary {
-                op: Unary::Not,
-                value,
-            } => (Binary::Or, value),
-            _ => (Binary::And, condition),
-        };
-        let level = op.precedence();
-        let value = self.discarded(*value);
-        let fits = self.precedence(left) >= level
-            && self.precedence(value) > level
-            && !self.statement_needs_group(left, 0);
-        if !fits {
-            self.discarded_root = None;
-            return false;
-        }
-        self.expression(left, level);
-        self.text(op.token());
-        self.expression(value, level + 1);
-        self.discarded_root = None;
+        let Some(form)=self.forms.logical.get(yes.index()).copied().flatten().filter(|form|form.condition==condition) else{return false;};
+        let level=form.op.precedence();
+        let group=self.statement_needs_group(form.left,level);
+        if group {self.text("(");}
+        self.binary_operand(form.left,form.op,level);
+        self.text(form.op.token());
+        let right=self.discarded(form.right);
+        self.binary_operand(right,form.op,level+1);
+        self.discarded_root=None;
+        if group {self.text(")");}
         true
     }
 

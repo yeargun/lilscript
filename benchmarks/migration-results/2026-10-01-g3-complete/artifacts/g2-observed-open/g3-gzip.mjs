@@ -1,0 +1,1 @@
+let e=class Box{constructor(e){this.hiddenAmount=0;this.hiddenOffset=7;this.hiddenAmount=e}},compute=function(n){let t=new e(n);if(t instanceof e){t.hiddenAmount=t.hiddenAmount+t.hiddenOffset|0;return t.hiddenAmount*3|0}return-1},expose=function(){return new e(23)};export{compute,expose};

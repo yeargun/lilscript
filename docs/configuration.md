@@ -542,6 +542,31 @@ between candidates separately for raw, gzip and Brotli.
 `mangle.preserve_properties` keeps requested keys and excludes those names from
 new assignments; other eligible private fields can still rename.
 
+`statement-spellings` controls optional conditional/exit/loop/logical statement,
+compound-assignment and quote choices. Exact null/undefined guards can also
+choose optional member access from ES2020, and binding-only conditional writes
+can choose logical assignment from ES2021; older editions keep ordinary forms. Whole-family defaults supply seeds;
+individual sites can override them, and every candidate is scored as a complete
+file for its selected codec. This can improve repetition even when a local form
+is longer. Discovery and extra judgments cost compilation work. It adds no
+runtime effects, requires `target-compaction`, and `off` vetoes direct, cached
+and replayed alternatives. Mandatory JavaScript syntax lowering remains.
+
+`receiver-aliases` (automatic from 13) tries a local binding for four or more
+receiver reads in one function. It preserves getter count/order and keeps direct
+`this` eligible. It requires hidden frames and excludes derived-constructor
+`super` timing, direct eval and nodes shared across receiver owners. It adds a
+local binding/read; compression benefit and runtime evidence decide whether
+that tradeoff is useful. `on` permits trials earlier; `off` vetoes retained choices.
+
+`declaration-order` (automatic from 14) tries grouping function declarations and
+primitive literal bindings by syntax/literal prefixes within legal initialization
+groups. Calls, effectful initializers, module boundaries and anchored root rows
+stop a group. It can improve gzip locality and alter naming, but more discovery
+and judgments may yield only small wins. Source order remains eligible. Explicit
+`on` permits the choice at 13; `off` vetoes direct and reused assignments. It adds
+no runtime operation and requires `target-compaction`.
+
 `target-compaction` permits the JavaScript target's optional rule schedule.
 Its folding, function inlining and object scalarization also require
 `constant-folding`, `inlining` and `scalar-replacement`, respectively.

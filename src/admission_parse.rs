@@ -85,6 +85,8 @@ pub(crate) enum Canon {
     New(Box<Canon>, Vec<Canon>),
     /// Object and computed key; `None` is a literal key (`.k`, `["k"]`, `[0]`).
     Member(Box<Canon>, Option<Box<Canon>>),
+    OptionalMember(Box<Canon>, Option<Box<Canon>>),
+    LogicalAssign(&'static str, Box<Canon>, Box<Canon>),
     Sequence(Vec<Canon>),
     Template(Vec<Canon>),
     Array(Vec<Canon>),
@@ -386,6 +388,12 @@ fn write(canon: &Canon, out: &mut Vec<u8>) {
             tag(out, 28);
             write(object, out);
             option(out, key.as_deref());
+        }
+        Canon::OptionalMember(object, key) => {
+            tag(out, 41);write(object,out);option(out,key.as_deref());
+        }
+        Canon::LogicalAssign(operator,target,value) => {
+            tag(out,42);text(out,operator);write(target,out);write(value,out);
         }
         Canon::Sequence(values) => {
             tag(out, 29);
@@ -869,6 +877,8 @@ fn oxc_expression(expression: &Expression<'_>) -> Canon {
             let operator = assignment.operator;
             if operator == oxc_ast::ast::AssignmentOperator::Assign {
                 Canon::Assign(Box::new(target), Box::new(value))
+            } else if let Some(logical)=operator.to_logical_operator() {
+                Canon::LogicalAssign(logical.as_str(),Box::new(target),Box::new(value))
             } else {
                 let binary = operator
                     .to_binary_operator()
@@ -924,7 +934,13 @@ fn oxc_expression(expression: &Expression<'_>) -> Canon {
             Box::new(oxc_expression(&new.callee)),
             oxc_arguments(&new.arguments),
         ),
-        Expression::ChainExpression(_) => Canon::Other("chain"),
+        Expression::ChainExpression(chain) => match &chain.expression {
+            oxc_ast::ast::ChainElement::StaticMemberExpression(member) if member.optional =>
+                Canon::OptionalMember(Box::new(oxc_expression(&member.object)),None),
+            oxc_ast::ast::ChainElement::ComputedMemberExpression(member) if member.optional =>
+                Canon::OptionalMember(Box::new(oxc_expression(&member.object)),Canon::key(oxc_expression(&member.expression)).map(Box::new)),
+            _=>Canon::Other("chain"),
+        },
         Expression::ClassExpression(class) => {
             let mut methods = Vec::new();
             for element in &class.body.body {

@@ -744,6 +744,7 @@ impl Module {
     ) -> Result<Vec<Option<ExprId>>, AllocationError> {
         let old = std::mem::take(&mut self.expressions);
         let old_origins = std::mem::take(&mut self.origins);
+        let old_spelling_nodes = std::mem::take(&mut self.spelling_nodes);
         let mut map: Vec<Option<ExprId>> = vec![None; old.len()];
         let mut reached = vec![false; self.regions.len()];
         let mut regions = vec![self.root];
@@ -789,6 +790,9 @@ impl Module {
                         ExprId::try_new(self.expressions.len()).ok_or(AllocationError::Capacity)?;
                     self.expressions.push(expression);
                     self.origins.push(old_origins[id.index()]);
+                    if !old_spelling_nodes.is_empty() {
+                        self.spelling_nodes.push(old_spelling_nodes.get(id.index()).copied().flatten());
+                    }
                     map[id.index()] = Some(new);
                 }
             }

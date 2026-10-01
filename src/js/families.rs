@@ -71,6 +71,9 @@ pub struct TargetRules {
     pub call_specialization: bool,
     pub helper_sharing: bool,
     pub parameterized_helpers: bool,
+    pub statement_spellings: bool,
+    pub declaration_order: bool,
+    pub receiver_aliases: bool,
 }
 
 impl TargetRules {
@@ -85,6 +88,9 @@ impl TargetRules {
         call_specialization: false,
         helper_sharing: false,
         parameterized_helpers: false,
+        statement_spellings: true,
+        declaration_order: false,
+        receiver_aliases: false,
     };
     pub const NONE: Self = Self {
         constant_folding: false,
@@ -95,6 +101,9 @@ impl TargetRules {
         call_specialization: false,
         helper_sharing: false,
         parameterized_helpers: false,
+        statement_spellings: false,
+        declaration_order: false,
+        receiver_aliases: false,
     };
 
     pub fn from_policy(policy: &ResolvedPolicy) -> Self {
@@ -111,17 +120,23 @@ impl TargetRules {
             array_packing: ArrayPacking::from_policy(policy),
             call_specialization: policy.tactic(TacticId::CallSpecialization).enabled,
             helper_sharing: policy.tactic(TacticId::HelperSharing).enabled,
+            statement_spellings: policy.tactic(TacticId::StatementSpellings).enabled,
+            declaration_order: policy.tactic(TacticId::DeclarationOrder).enabled,
+            receiver_aliases: policy.tactic(TacticId::ReceiverAliases).enabled,
             parameterized_helpers: policy.check_tactic_permissions(&[TacticUse { tactic: TacticId::HelperSharing, risk: RuntimeRisk::Recurring }]).is_ok(),
         }
     }
 
-    pub fn tactics(self) -> [(bool, TacticId); 5] {
+    pub fn tactics(self) -> [(bool, TacticId); 8] {
         [
             (self.constant_folding, TacticId::ConstantFolding),
             (self.inlining, TacticId::Inlining),
             (self.scalar_replacement, TacticId::ScalarReplacement),
             (self.call_specialization, TacticId::CallSpecialization),
             (self.helper_sharing, TacticId::HelperSharing),
+            (self.statement_spellings, TacticId::StatementSpellings),
+            (self.declaration_order, TacticId::DeclarationOrder),
+            (self.receiver_aliases, TacticId::ReceiverAliases),
         ]
     }
 
@@ -268,6 +283,15 @@ impl OutputFamilies {
     pub fn site_seed(self, family: crate::representation::ChoiceFamily) -> Option<bool> {
         use crate::representation::ChoiceFamily as F;
         Some(match family {
+            F::ConditionalValues => self.statements.conditional_values,
+            F::ExitPoints => self.statements.exit_points,
+            F::LoopFusion => self.statements.loop_fusion,
+            F::ConditionalReturns => self.statements.conditional_returns,
+            F::LogicalBranches => self.statements.logical_branches,
+            F::LoopHeads => self.loop_heads,
+            F::LogicalStatements => self.logical_statements,
+            F::CompoundAssignments => self.compound_assignments,
+            F::QuoteDelimiter => self.quotes,
             F::ExpressionInlining => self.expression_inlining,
             F::ConstantArguments => self.call_specialization,
             F::HelperSharing => self.helper_sharing,
@@ -331,8 +355,9 @@ impl OutputFamilies {
 
     /// Semantic permissions required by this assignment. Keep generation,
     /// admission and retained provenance on the same registry.
-    pub fn tactics(self) -> [(bool, TacticId); 9] {
+    pub fn tactics(self) -> [(bool, TacticId); 10] {
         [
+            (self.statements != StatementSpellings::NONE || self.loop_heads || self.logical_statements || self.compound_assignments || self.quotes, TacticId::StatementSpellings),
             (self.expression_inlining, TacticId::Inlining),
             (self.call_specialization, TacticId::CallSpecialization),
             (self.helper_sharing, TacticId::HelperSharing),
@@ -350,6 +375,13 @@ impl OutputFamilies {
     pub fn permitted(mut self, policy: &ResolvedPolicy) -> Self {
         if !policy.tactic(TacticId::TargetCompaction).enabled {
             return Self::NONE;
+        }
+        if !policy.tactic(TacticId::StatementSpellings).enabled {
+            self.statements = StatementSpellings::NONE;
+            self.loop_heads = false;
+            self.logical_statements = false;
+            self.compound_assignments = false;
+            self.quotes = false;
         }
         self.block_inlining &= policy.tactic(TacticId::Inlining).enabled;
         self.expression_inlining &= policy.tactic(TacticId::Inlining).enabled;

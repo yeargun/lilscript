@@ -1,0 +1,1 @@
+(()=>{let c=(d,e)=>{d.a=e},a=f=>{let h={a:null};c(h,f);h.a=h.a+7|0;return h.a*3|0};for(let b=0;b<4;++b)console.log(a(input()));})();

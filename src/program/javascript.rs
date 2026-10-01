@@ -986,6 +986,8 @@ fn form_head(
                         || crate::catalog::original_int32_intrinsic(*operation))
             })
         });
+    let mut module = module;
+    module.identify_spelling_sites(u8::from(head.int32_hints) | (u8::from(head.property_mangling) << 1), &mut phase)?;
     phase.finish_retained()?;
     Ok(FormedHead {
         module,
@@ -1057,7 +1059,10 @@ fn form_tail(
             }
         });
     match result {
-        Ok(_) => Ok(module),
+        Ok(_) => {
+            module.form_spelling_choices(families, rules, choices, frames_hidden, year, budget)?;
+            Ok(module)
+        },
         Err(error) => {
             drop(module);
             Err(error.into())

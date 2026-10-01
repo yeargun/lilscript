@@ -2009,3 +2009,85 @@ fn a_builtin_read_through_the_global_object_is_the_builtin() {
         Expr::Member { .. }
     ));
 }
+
+
+#[test]
+fn g3_logical_normalization_keeps_stores_observed_by_indirect_callbacks() {
+    let mut module=Module::default();
+    let root=module.root;
+    let state=binding(&mut module,root,0,"state");
+    let observe=binding(&mut module,root,1,"observe");
+    let initial=number(&mut module,9.0);
+    let body=module.region(ScopeId::new(0));
+    let read=expr(&mut module,Expr::Binding(state));
+    module.regions[body.index()].statements.push(Statement::Return(Some(read)));
+    module.functions.push(Function{name:FunctionName::Unobserved,strict:false,length:None,suspension:Suspension::None,arrow:true,parameters:vec![],body});
+    let fun=expr(&mut module,Expr::Function(FunctionId::new(0)));
+    let zero=number(&mut module,0.0);
+    let target=expr(&mut module,Expr::Binding(state));
+    let store=expr(&mut module,Expr::Assign{target,value:zero});
+    let test=expr(&mut module,Expr::Binding(state));
+    let condition=expr(&mut module,Expr::Unary{op:Unary::Not,value:test});
+    let yes=module.region(ScopeId::new(0));
+    let callee=host(&mut module,"fire");
+    let callback=expr(&mut module,Expr::Binding(observe));
+    let fallback=call(&mut module,callee,vec![callback],Invocation::Value);
+    let target=expr(&mut module,Expr::Binding(state));
+    let assign=expr(&mut module,Expr::Assign{target,value:fallback});
+    module.regions[yes.index()].statements.push(Statement::Evaluate(assign));
+    module.regions[0].statements=vec![Statement::Let{binding:state,value:Some(initial)},Statement::Let{binding:observe,value:Some(fun)},Statement::Evaluate(store),Statement::If{condition,yes,no:None}];
+    let read=expr(&mut module,Expr::Binding(state));capture(&mut module,read);
+    assert_eq!(module.fold_logical_assignments(true,&mut AllocationBudget::new(None)).unwrap(),0);
+    assert_eq!(execute(&module,"globalThis.fire=f=>{capture(f());return 4;};",PrintPolicy::default()),"[0,4]");
+}
+
+#[test]
+fn g3_expression_site_identity_survives_arena_renumbering() {
+    let mut module=Module::default();
+    let dead=number(&mut module,99.0);
+    let literal=expr(&mut module,Expr::Literal(Literal::String("a \"quoted\" value".into())));
+    capture(&mut module,literal);
+    let mut budget=AllocationBudget::new(None);
+    module.identify_spelling_sites(2,&mut budget).unwrap();
+    let key=module.expression_site(literal).unwrap();
+    let map=module.renumber(&mut budget).unwrap();
+    assert!(map[dead.index()].is_none());
+    assert_eq!(module.expression_site(map[literal.index()].unwrap()),Some(key));
+}
+
+#[test]
+fn g3_optional_member_preserves_value_calls_and_outer_delete_references() {
+    fn optional(module:&mut Module,object:BindingId)->ExprId {
+        let null=expr(module,Expr::Literal(Literal::Null));
+        let undefined=expr(module,Expr::Literal(Literal::Undefined));
+        let left=expr(module,Expr::Binding(object));
+        let is_null=expr(module,Expr::Binary{op:Binary::StrictEqual,left,right:null});
+        let left=expr(module,Expr::Binding(object));
+        let is_undefined=expr(module,Expr::Binary{op:Binary::StrictEqual,left,right:undefined});
+        let condition=expr(module,Expr::Binary{op:Binary::Or,left:is_null,right:is_undefined});
+        let object_read=expr(module,Expr::Binding(object));
+        let member=expr(module,Expr::Member{object:object_read,property:Property::Named("method".into())});
+        let undefined=expr(module,Expr::Literal(Literal::Undefined));
+        expr(module,Expr::Conditional{condition,yes:undefined,no:member})
+    }
+    let mut module=Module::default();let root=module.root;
+    let object=binding(&mut module,root,0,"object");
+    let source=host(&mut module,"input");
+    module.regions[0].statements.push(Statement::Let{binding:object,value:Some(source)});
+    let selected=optional(&mut module,object);
+    let invocation=call(&mut module,selected,vec![],Invocation::Value);capture(&mut module,invocation);
+    let second=optional(&mut module,object);
+    let outer=expr(&mut module,Expr::Member{object:second,property:Property::Named("leaf".into())});
+    let deleted=expr(&mut module,Expr::Unary{op:Unary::Delete,value:outer});capture(&mut module,deleted);
+    let check=host(&mut module,"present");let check=call(&mut module,check,vec![],Invocation::Value);capture(&mut module,check);
+    let mut budget=AllocationBudget::new(None);module.identify_spelling_sites(0,&mut budget).unwrap();
+    let choices=ChoiceMap::SEEDS.with_all([selected,second].map(|id|(ChoiceKey{family:ChoiceFamily::OptionalChain,site:module.expression_site(id).unwrap()},AltId(1))));
+    module.form_spelling_choices(OutputFamilies::NONE,TargetRules::SEMANTIC,&choices,true,2020,&mut budget).unwrap();
+    let text=module.render(PrintPolicy::default()).unwrap();assert!(text.contains("?."),"{text}");
+    assert_eq!(execute(&module,"globalThis.input={method:function(){return this===undefined;}};input.method.leaf=7;globalThis.present=()=>Object.hasOwn(input,'method')&&!Object.hasOwn(input.method,'leaf');",PrintPolicy::default()),"[true,true,true]");
+    let digest=super::admission::digest(&module,None,crate::config::JavaScriptFormat::Bare);
+    let (parsed,_)=crate::admission_parse::parse_canonical(&text,true).unwrap();
+    assert_eq!(crate::admission_parse::digest(&parsed),digest);
+    let structure=super::verify::verify(&module).unwrap();
+    assert!(super::verify::verify_edition(&module,&structure,crate::js_syntax_target::EcmaScriptEdition::Es2019).is_err());
+}

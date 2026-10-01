@@ -994,3 +994,166 @@ fn constant_table_decoders_require_startup_permission_in_direct_output() {
         });
     }
 }
+
+#[test]
+fn g3_mixed_spelling_sites_are_independent_stable_and_obey_vetoes() {
+    use crate::representation::{AltId,ChoiceFamily,ChoiceMap};
+    let source=r#"
+        extern void observe(int value);
+        export int first(bool flag,int n){if(flag){return n+1;}else{return n+2;}}
+        export int second(bool flag,int n){if(flag){return n+3;}else{return n+4;}}
+        export void run(bool flag){if(flag){observe(7);}if(!flag){observe(9);}}
+    "#;
+    let resolved=policy("[policy.tactics]\ninlining='off'\nconstant-folding='off'\nstatement-spellings='on'");
+    with_candidate(source,&resolved,|compiler,candidate|{
+        let mut output=OutputTactics::from_policy(&resolved);
+        output.families=crate::js::OutputFamilies::NONE;
+        compiler.with_javascript_formations_in(candidate,&resolved,output.dead_code_elimination,output.target_compaction,output.rules,output.families.head(),WorkDomain::Optional,|formations|{
+            let sites=formations.survey(&output).unwrap();
+            let returns:Vec<_>=sites.iter().filter(|site|site.key.family==ChoiceFamily::ConditionalReturns).collect();
+            assert_eq!(returns.len(),2,"{sites:?}");
+            output.choices=ChoiceMap::SEEDS.with(returns[0].key,AltId(1)).with(returns[1].key,AltId(0));
+            let survey=formations.survey(&output).unwrap();
+            for site in &returns {
+                assert!(survey.iter().any(|other|other.key==site.key),"site identity changed");
+            }
+            let javascript=formations.form(output.clone(),|target|{
+                let artifact=target.render(&Plan::new(Style::Global))?;target.take_artifact(artifact)
+            }).unwrap().unwrap();
+            assert!(javascript.contains('?') && javascript.contains("if("),"{javascript}");
+            assert_eq!(execute(&javascript,"globalThis.observe=x=>events.push(x);","events.push(library.first(true,5),library.first(false,5),library.second(true,5),library.second(false,5));library.run(true);library.run(false);"),serde_json::json!([6,7,8,9,7,9]));
+            let disabled=policy("[policy.tactics]\nstatement-spellings='off'");
+            assert!(output.choices.check_target_policy(&disabled).is_err());
+        }).unwrap();
+    });
+}
+
+#[test]
+fn g3_receiver_aliases_preserve_method_getters_and_derived_initialization() {
+    use crate::representation::{AltId,ChoiceFamily,ChoiceMap};
+    let source=r#"
+        class Base{int amount;init(int n){this.amount=n;}int total(){return this.amount+this.amount+this.amount+this.amount;}}
+        class Child extends Base{int extra;init(int n){super(n);this.extra=this.amount+this.amount+this.amount+this.amount;}int sum(){return this.amount+this.amount+this.extra+this.extra;}}
+        export constructor Base;
+        export constructor Child;
+    "#;
+    let resolved=policy("[policy.tactics]\nreceiver-aliases='on'\ninlining='off'\nconstant-folding='off'");
+    with_candidate(source,&resolved,|compiler,candidate|{
+        let mut output=OutputTactics::from_policy(&resolved);
+        compiler.with_javascript_formations_in(candidate,&resolved,output.dead_code_elimination,output.target_compaction,output.rules,output.families.head(),WorkDomain::Optional,|formations|{
+            let sites=formations.survey(&output).unwrap();
+            let aliases:Vec<_>=sites.iter().filter(|site|site.key.family==ChoiceFamily::ReceiverAlias).collect();
+            assert!(aliases.len()>=2,"{sites:?}");
+            output.choices=ChoiceMap::SEEDS.with_all(aliases.iter().map(|site|(site.key,AltId(1))));
+            let javascript=formations.form(output.clone(),|target|{let artifact=target.render(&Plan::new(Style::Global))?;target.take_artifact(artifact)}).unwrap().unwrap();
+            assert!(javascript.contains("=this"),"{javascript}");
+            assert_eq!(execute(&javascript,"","let reads=0;const b=new library.Base(3),c=new library.Child(2);Object.defineProperty(b,'amount',{get(){return ++reads;}});events.push(b.total(),reads,c.sum(),c.extra,b.total(),reads);"),serde_json::json!([10,4,20,8,26,8]));
+            let disabled=policy("[policy.tactics]\nreceiver-aliases='off'");
+            assert!(output.choices.check_target_policy(&disabled).is_err());
+        }).unwrap();
+    });
+}
+
+#[test]
+fn g3_literal_locality_preserves_effect_barriers_and_explicit_permissions() {
+    use crate::representation::{AltId,ChoiceFamily,ChoiceMap};
+    let source=r#"
+        extern void observe(string value);
+        export void run(){
+            string z="z-last";string a="a-first";string m="m-middle";
+            observe(z);observe(a);observe(m);
+            string y="y-later";string b="b-later";observe(y);observe(b);
+        }
+    "#;
+    let resolved=policy("[policy.tactics]\ndeclaration-order='on'\nconstant-folding='off'\ninlining='off'\nstring-pooling='off'");
+    with_candidate(source,&resolved,|compiler,candidate|{
+        let mut output=OutputTactics::from_policy(&resolved);
+        output.families=crate::js::OutputFamilies::NONE;
+        compiler.with_javascript_formations_in(candidate,&resolved,output.dead_code_elimination,output.target_compaction,output.rules,output.families.head(),WorkDomain::Optional,|formations|{
+            let sites=formations.survey(&output).unwrap();
+            let order:Vec<_>=sites.iter().filter(|site|site.key.family==ChoiceFamily::DeclarationOrder).collect();
+            assert!(!order.is_empty(),"{sites:?}");
+            output.choices=ChoiceMap::SEEDS.with_all(order.iter().map(|site|(site.key,AltId(1))));
+            let javascript=formations.form(output.clone(),|target|{let artifact=target.render(&Plan::new(Style::Global))?;target.take_artifact(artifact)}).unwrap().unwrap();
+            assert!(javascript.find("a-first").unwrap()<javascript.find("z-last").unwrap(),"{javascript}");
+            assert_eq!(execute(&javascript,"globalThis.observe=x=>events.push(x);","library.run();"),serde_json::json!(["z-last","a-first","m-middle","y-later","b-later"]));
+            let disabled=policy("[policy.tactics]\ndeclaration-order='off'");
+            assert!(output.choices.check_target_policy(&disabled).is_err());
+        }).unwrap();
+    });
+}
+
+#[test]
+fn g3_modern_spellings_respect_editions_value_calls_and_lazy_writes() {
+    use crate::representation::{AltId,ChoiceFamily,ChoiceMap};
+    let source=r#"
+        extern bool next();
+        export JsValue read(JsValue obj){if(JS.strictEqual(obj,null)||JS.isUndefined(obj)){return JS.undefined();}return obj["item"];}
+        export JsValue call(JsValue obj){JsValue callback;if(JS.strictEqual(obj,null)||JS.isUndefined(obj)){callback=JS.undefined();}else{callback=obj["method"];}return callback();}
+        export bool ensure(bool flag){if(!flag){flag=next();}return flag;}
+    "#;
+    for edition in ["es2019","es2020","es2021"] {
+        let resolved=policy(&format!("ecmascript='{edition}'\n[policy.tactics]\nstatement-spellings='on'\ninlining='off'\nconstant-folding='off'"));
+        with_candidate(source,&resolved,|compiler,candidate|{
+            let mut output=OutputTactics::from_policy(&resolved);
+            output.families=crate::js::OutputFamilies::NONE;
+            output.families.statements.conditional_returns=true;
+            output.families.statements.conditional_values=true;
+            compiler.with_javascript_formations_in(candidate,&resolved,output.dead_code_elimination,output.target_compaction,output.rules,output.families.head(),WorkDomain::Optional,|formations|{
+                let sites=formations.survey(&output).unwrap();
+                let optional:Vec<_>=sites.iter().filter(|site|site.key.family==ChoiceFamily::OptionalChain).collect();
+                let assignments:Vec<_>=sites.iter().filter(|site|site.key.family==ChoiceFamily::LogicalAssignment).collect();
+                assert_eq!(!optional.is_empty(),edition!="es2019","{edition}: {sites:?}");
+                if edition!="es2019" { assert!(optional.len()>=2,"both returned and assigned conditionals need stable sites: {sites:?}"); }
+                assert_eq!(!assignments.is_empty(),edition=="es2021","{edition}: {sites:?}");
+                output.choices=ChoiceMap::SEEDS.with_all(optional.iter().chain(assignments.iter()).map(|site|(site.key,AltId(1))));
+                let javascript=formations.form(output.clone(),|target|{let artifact=target.render(&Plan::new(Style::Global))?;target.take_artifact(artifact)}).unwrap().unwrap();
+                assert_eq!(javascript.contains("?."),edition!="es2019","{javascript}");
+                assert_eq!(javascript.contains("||="),edition=="es2021","{javascript}");
+                assert_eq!(execute(&javascript,"globalThis.next=()=>{events.push('next');return true;};",
+                    "let reads=0;const obj={get item(){return ++reads;},method:function(){return this===undefined;}};events.push(library.read(null)===undefined,library.read(undefined)===undefined,library.read(obj),reads,library.call(obj),library.ensure(true),library.ensure(false));"),
+                    serde_json::json!(["next",true,true,1,1,true,true,true]));
+            }).unwrap();
+        });
+    }
+}
+
+#[test]
+fn g3_function_locality_keeps_captures_and_self_recursion() {
+    use crate::representation::{AltId, ChoiceFamily, ChoiceMap};
+    let source=r#"
+        extern void observe(string value);
+        export void run(){
+            string suffix="!";
+            func(int)->string zebra=(int n)=>{if(n==0){return "zebra"+suffix;}return zebra(n-1);};
+            func(int)->string alpha=(int n)=>{if(n==0){return "alpha"+suffix;}return alpha(n-1);};
+            observe(zebra(0));observe(alpha(0));observe(zebra(1));observe(alpha(1));
+        }
+    "#;
+    let resolved=policy("[policy.tactics]\ndeclaration-order='on'\nconstant-folding='off'\ninlining='off'\nstring-pooling='off'");
+    with_candidate(source,&resolved,|compiler,candidate|{
+        let mut output=OutputTactics::from_policy(&resolved);
+        output.families=crate::js::OutputFamilies::NONE;
+        compiler.with_javascript_formations_in(candidate,&resolved,output.dead_code_elimination,output.target_compaction,output.rules,output.families.head(),WorkDomain::Optional,|formations|{
+            let sites=formations.survey(&output).unwrap();
+            let order:Vec<_>=sites.iter().filter(|site|site.key.family==ChoiceFamily::DeclarationOrder).collect();
+            assert!(!order.is_empty(),"{sites:?}");
+            output.choices=ChoiceMap::SEEDS.with_all(order.iter().map(|site|(site.key,AltId(1))));
+            let javascript=formations.form(output.clone(),|target|{let artifact=target.render(&Plan::new(Style::Global))?;target.take_artifact(artifact)}).unwrap().unwrap();
+            assert!(javascript.find("alpha").unwrap()<javascript.find("zebra").unwrap(),"{javascript}");
+            assert_eq!(execute(&javascript,"globalThis.observe=x=>events.push(x);","library.run();"),serde_json::json!(["zebra!","alpha!","zebra!","alpha!"]));
+        }).unwrap();
+    });
+}
+
+#[test]
+fn g3_loose_host_null_guards_do_not_become_optional_members() {
+    let resolved=policy("ecmascript='es2021'\n[policy.tactics]\nstatement-spellings='on'\ninlining='off'");
+    with_candidate("export JsValue loose(JsValue obj){if(obj==null){return JS.undefined();}return obj[\"item\"];}",&resolved,|compiler,candidate|{
+        let output=OutputTactics::from_policy(&resolved);
+        compiler.with_javascript_formations_in(candidate,&resolved,output.dead_code_elimination,output.target_compaction,output.rules,output.families.head(),WorkDomain::Optional,|formations|{
+            let sites=formations.survey(&output).unwrap();
+            assert!(!sites.iter().any(|site|site.key.family==crate::representation::ChoiceFamily::OptionalChain),"loose null includes HTMLDDA: {sites:?}");
+        }).unwrap();
+    });
+}

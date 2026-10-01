@@ -1,0 +1,1 @@
+let read=function(e){return e===null||e===void 0?void 0:e.item},call=function(e){let a=e===null||e===void 0?void 0:e.method;return a()},ensure=function(e){e||=next();return e};export{read,call,ensure};

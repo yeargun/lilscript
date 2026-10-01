@@ -105,6 +105,11 @@ impl OutputTactics {
                     F::HelperSharing => self.rules.helper_sharing,
                     F::ParameterizedHelpers => self.rules.parameterized_helpers,
                     F::DataEncoding => self.rules.data_encoding,
+                    F::ConditionalValues | F::ExitPoints | F::LoopFusion | F::ConditionalReturns
+                    | F::LogicalBranches | F::LoopHeads | F::LogicalStatements
+                    | F::CompoundAssignments | F::QuoteDelimiter | F::OptionalChain | F::LogicalAssignment => self.rules.statement_spellings,
+                    F::DeclarationOrder => self.rules.declaration_order,
+                    F::ReceiverAlias => self.rules.receiver_aliases,
                     _ => false,
                 };
                 if !enabled {

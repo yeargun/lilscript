@@ -56,23 +56,23 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M7.8 | [S1](plan.md#s1) and [S2](plan.md#s2), implementation complete | Primitive folding plus bounded fresh array/object/record store collection with the correct prototype contract |
 | M7.9 | [S2](plan.md#s2), complete; formation dependencies below | Shared scalar banks/record aliases, owned JavaScript product updates and native final-use transfers |
 | M7.10 | [S3](plan.md#s3), complete | Identity-safe primitive body sharing; general runtime-prelude ownership remains Q4 (M8.5) |
-| M8.2 | [G3](plan.md#g3) | `fold_logical_*` as formation; the rest lands with each replacement |
-| M8.3 | [G3](plan.md#g3) | loop heads and logical statements as per-site spellings (with M9.3); the second half |
+| M8.2 | [G3](plan.md#g3), complete | Logical normalization remains a classified, decreasing target rule with capture/HTMLDDA guards; printer recognizers moved to proved formation |
+| M8.3 | [G3](plan.md#g3), complete | Loop, statement, compound, quote and edition-gated modern forms have stable sites and prepared printer forms |
 | M8.4 | [D2](plan.md#d2) | Host modules |
 | M8.5 | [Q4](plan.md#q4) | Runtime helpers as prelude code |
 | M8.6 | [D2](plan.md#d2) | Source maps |
 | M8.7 | [C3](plan.md#c3), complete | Source allowlist is empty and enforced; generic policy/provenance replaces library citations |
 | M9.1 | [Q1](plan.md#q1), complete | Shared family/site/alternative contract, per-helper choices, bounded coupled moves and replay admission |
 | M9.2 | [Q3](plan.md#q3) | gzip's own prior row |
-| M9.3 | [G3](plan.md#g3) | per-site spellings |
+| M9.3 | [G3](plan.md#g3), complete | Common family/site assignments, permission vetoes and admitted final-byte choices |
 | M9.5 | [G1](plan.md#g1), complete | Live printed-order allocation, independent local/root frequency, hygienic reuse, full continuations and controlled joint alphabets |
 | M9.6 | [G2](plan.md#g2) | Complete in G2: private generic/observed eligibility, inherited/sibling slot reuse and reflected boundaries |
 | M9.7 | [Q1](plan.md#q1), complete | Record/product/call layouts use the common family contract with typed proof payloads and compatible recipe combinations |
 | M9.8 | [Q4](plan.md#q4) | the rest, after M10.3 |
 | M9.9 | [S3](plan.md#s3), complete | Constant signatures, alpha-equivalent bodies and opt-in parameterized helpers compete on final bytes |
 | M9.10 | [Q3](plan.md#q3) | Calibration |
-| M9.11 | [G3](plan.md#g3) | Order and locality |
-| M9.12 | [G3](plan.md#g3) | The diagnosis's codec-judged items |
+| M9.11 | [G3](plan.md#g3), complete | Effect-free declaration/closure/literal groups, module/anchor barriers and gzip-window evidence |
+| M9.12 | [G3](plan.md#g3), complete | Optional forms and receiver aliases compete through the common exact artifact path |
 | M10.9 | [S4](plan.md#s4) | R2's second batch (normalize at crossings, the refusals), `a.get(i)` |
 | M10.11 | [S4](plan.md#s4) | termination (Y4), pins |
 | M10.13 | [S4](plan.md#s4) | the refusal, with each port's release (M12.4) |
@@ -135,7 +135,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M7.5 | [S3](plan.md#s3), resolved | tail-return bodies; |
 | M7.5 | [S3](plan.md#s3), resolved | closures created inside a body; |
 | M7.5 | [S3](plan.md#s3), resolved | bodies across modules. |
-| M9.3 / M10.4 | [G3](plan.md#g3) | Receiver alias spelling for repeated `this` reads (the historical mobxlil law-P1 cost). |
+| M9.3 / M10.4 | [G3](plan.md#g3), complete | Guarded receiver aliases for repeated `this` reads; derived constructors, direct eval and shared owners excluded. Affected runtime evidence retained, broad parity remains V1. |
 | M9.3 / M10.4 | [S4](plan.md#s4) | Non-private callbacks retain the shared adapter until the R7 language contract supplies a replacement. |
 | M9.3 / M10.4 | [S4](plan.md#s4) | R7 owns replacing adapter rest-list `arguments` with actual rest semantics, including `.length` and variable indices. |
 | M4 / M10 | [S4](plan.md#s4) | `??=` on a place: implemented and qualified in `8ebb686d`; four carried tests enabled |

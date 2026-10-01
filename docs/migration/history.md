@@ -768,3 +768,36 @@ Closed totals save 154 raw / 96 gzip / 57 Brotli bytes, with open totals unchang
 and no growing cell. Exact terminal judgments rise 243 → 276; no CPU claim.
 G3 is next. Full fleet/native/held-out qualification and S4's record refusal
 remain with their owners; no broad rerun or ratchet update was made.
+
+
+## 2026-10-01: G3 JavaScript formation and spelling complete
+
+The [G3 contract](g3-acceptance.md) is implemented and the
+[affected qualification](../../benchmarks/migration-results/2026-10-01-g3-complete/README.md)
+pins `g3-complete-2`, SHA-256
+`8550769ffd9b5d4eb4b45b77e6a64309d1bb8c4c52bba49b19577f200b608f35`
+(algorithm 19 / search 31 / walk 10).
+
+Thirteen additional common families cover per-site statements, loops, logical
+forms, compounds, quotes, declaration ordering, receiver aliases and modern
+optional-member/logical-assignment syntax. Stable node/region/function identities
+survive arena renumbering and isolate target heads. Formation now prepares loop,
+logical, compound, increment, default and quote forms; printing emits them.
+Logical normalization retains capture-observable stores and exact nullish
+semantics. Receiver aliases exclude derived constructors and ambiguous owners.
+Legal declaration groups retain effect, module and initialization barriers.
+
+Twenty-five distinct focused checks passed through the implementation batch;
+failure-driven follow-ups verified assigned-conditional and ordering identities.
+The release's 30 objective cells and independent numeric, shape and effect oracles
+pass. The three small new workloads save **48 raw / 7 gzip / 7 Brotli** bytes;
+the synthetic effort-14 locality case saves another **28,371 gzip** bytes.
+Six G2 boundaries are unchanged. No cell grows. This is affected development
+evidence, not fleet/held-out/Closure or native qualification.
+
+Search cost is retained explicitly: the small spelling Brotli case judges
+48 → 292 candidates for six bytes, for Q2/Q3 to address through reuse and
+calibration. Five runtime pairs with three identity controls pass their oracle;
+steady CPU's interval is [0.9967, 1.0348], but control variation exceeds the
+predeclared 10% limit, so timing remains **inconclusive**. No full suite was rerun.
+S4 owns the pre-existing `records-128` type refusal and remaining shared contracts.

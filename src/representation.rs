@@ -27,6 +27,19 @@ pub enum ChoiceFamily {
     DataEncoding,
     NameAllocation,
     PropertyNames,
+    ConditionalValues,
+    ExitPoints,
+    LoopFusion,
+    ConditionalReturns,
+    LogicalBranches,
+    LoopHeads,
+    LogicalStatements,
+    CompoundAssignments,
+    QuoteDelimiter,
+    DeclarationOrder,
+    ReceiverAlias,
+    OptionalChain,
+    LogicalAssignment,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,7 +91,7 @@ impl FamilySpec {
     }
 }
 impl ChoiceFamily {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 26] = [
         Self::RecordLayout,
         Self::ProductLayout,
         Self::InlineBody,
@@ -92,6 +105,19 @@ impl ChoiceFamily {
         Self::DataEncoding,
         Self::NameAllocation,
         Self::PropertyNames,
+        Self::ConditionalValues,
+        Self::ExitPoints,
+        Self::LoopFusion,
+        Self::ConditionalReturns,
+        Self::LogicalBranches,
+        Self::LoopHeads,
+        Self::LogicalStatements,
+        Self::CompoundAssignments,
+        Self::QuoteDelimiter,
+        Self::DeclarationOrder,
+        Self::ReceiverAlias,
+        Self::OptionalChain,
+        Self::LogicalAssignment,
     ];
     pub const fn spec(self) -> FamilySpec {
         use ChoiceFamily as F;
@@ -136,6 +162,12 @@ impl ChoiceFamily {
                 RuntimeRisk::Recurring,
                 2,
             ),
+            F::ConditionalValues | F::ExitPoints | F::LoopFusion | F::ConditionalReturns
+            | F::LogicalBranches | F::LoopHeads | F::LogicalStatements
+            | F::CompoundAssignments | F::QuoteDelimiter | F::OptionalChain | F::LogicalAssignment =>
+                (Stage::TargetSite, T::StatementSpellings, RuntimeRisk::Neutral, 2),
+            F::DeclarationOrder => (Stage::TargetSite, T::DeclarationOrder, RuntimeRisk::Neutral, 2),
+            F::ReceiverAlias => (Stage::TargetSite, T::ReceiverAliases, RuntimeRisk::Neutral, 2),
             F::PropertyNames => (Stage::TargetHead, T::PropertyMangling, RuntimeRisk::Neutral, 2),
             F::NameAllocation => (Stage::Naming, T::NamingCompaction, RuntimeRisk::Neutral, 2),
             F::DataEncoding => (
@@ -175,6 +207,9 @@ pub enum SiteId {
     Cell(u32),
     Unit(u32),
     Value { unit: u32, value: u32 },
+    /// Target identity scoped to a formed head. Expressions carry this id
+    /// through arena renumbering; regions/functions retain their arena ids.
+    Target { head: u8, kind: u8, ordinal: u32 },
 }
 
 /// One alternative of a site, named by its family. `AltId(0)` is the
@@ -268,7 +303,7 @@ impl ChoiceMap {
         for (key, alternative) in self.iter() {
             let spec = key.family.spec();
             if spec.stage != Stage::TargetSite
-                || !matches!(key.site, SiteId::Symbol(_) | SiteId::Formed(_))
+                || !matches!(key.site, SiteId::Symbol(_) | SiteId::Formed(_) | SiteId::Target { .. })
                 || alternative.0 >= spec.alternatives
             {
                 return Err(AdmissionError::Constraint(

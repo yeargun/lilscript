@@ -1,0 +1,1 @@
+{"exercise":"const {createHash}=await import('node:crypto');console.log(JSON.stringify(createHash('sha256').update(m.run(7)).digest('hex')));","expected":"bc1e5624194f8b3e8fbebf9b1bc68d9fc0f350ca7eeb0d087920b0d67812b01f"}

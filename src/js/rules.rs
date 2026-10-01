@@ -13,9 +13,10 @@
 //! Most rules here are **transitional** (L20): one of today's passes, hosted
 //! in its relative order until the task named by `Rule::transitional` lands
 //! its replacement and deletes it. A classified rule is legal by the tree's
-//! own syntax or its annotations, and strictly decreases the measure
-//! (reachable functions, then reachable nodes), which test and debug builds
-//! assert after each of its applications.
+//! own syntax or its annotations. Normalization strictly decreases reachable
+//! functions/nodes. Registered spelling choices instead use one-way forms:
+//! their input patterns disappear after the selected rewrite; they cannot
+//! reverse another spelling choice during this fixed point.
 //!
 //! Test and debug builds check every rule's journal against the actual
 //! difference (`journal.rs`) and verify the tree after every round.
@@ -104,7 +105,9 @@ impl Rule {
             | Self::ForwardSingleUses
             | Self::SimplifyOperators => context.rules.constant_folding,
             Self::DropUnreferencedFunctions | Self::DropUnreachable => context.prunes,
-            Self::PrivateCallRepresentations => context.rules.call_specialization || context.rules.helper_sharing,
+            Self::PrivateCallRepresentations => {
+                context.rules.call_specialization || context.rules.helper_sharing
+            }
             Self::EncodeTables => context.rules.data_encoding,
             Self::PackStringArrays => context.rules.array_packing != ArrayPacking::Disabled,
             Self::SelfMethodCalls
@@ -135,7 +138,11 @@ impl Rule {
             Self::ElideUndefined
             | Self::DropUnreachable
             | Self::DropBareBlocks
-            | Self::DropDoubleNegations => return None,
+            | Self::DropDoubleNegations
+            | Self::FoldLogicalAssignments
+            | Self::FoldLogicalReturns
+            | Self::FlattenBlocks
+            | Self::CompressStatements => return None,
             Self::SelfMethodCalls => "M10.4/M10.7 (receivers)",
             Self::ArrayReceiverCalls => "M6.4b (array class)",
             Self::InlineExpressionFunctions
@@ -143,7 +150,9 @@ impl Rule {
             | Self::InlineStatementFunctions
             | Self::InlineSingleCalls
             | Self::PlaceSingleCalls => "M7.5a (removing case), M9.1 (duplicating case)",
-            Self::EliminateAliases | Self::ForwardRootConstants => "S4 after Q1 (representation-created storage)",
+            Self::EliminateAliases | Self::ForwardRootConstants => {
+                "S4 after Q1 (representation-created storage)"
+            }
             // The family's choice goes to the choice system (M9.1).
             Self::ForwardRootStrings => "M7.4 and M9.1",
             Self::FlattenConstantObjects | Self::UnobserveCalledNames => "M7.6",
@@ -161,9 +170,9 @@ impl Rule {
             | Self::SimplifyOperators
             | Self::TruthyNullTests
             | Self::FoldLiteralOperations => "M5.2 (annotations)",
-            Self::FoldLogicalAssignments | Self::FoldLogicalReturns => "M8.2 A2",
-            Self::CompressStatements | Self::FlattenBlocks => "M8.3 (per-site spellings)",
-            Self::PrivateCallRepresentations => "Q1 (proved representation alternatives; can increase nodes)",
+            Self::PrivateCallRepresentations => {
+                "Q1 (proved representation alternatives; can increase nodes)"
+            }
             Self::EncodeTables | Self::PackStringArrays | Self::PoolStrings => "M9.8",
             Self::GroupPrototypeStores => "M8.7",
         })
@@ -239,8 +248,11 @@ pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
     // Discover every permitted site, even when its family default retains
     // calls. Explicit site assignments and whole-family joint moves use the
     // same producers, cleanup and artifact admission.
-    rules.extend([Rule::PrivateCallRepresentations, Rule::DuplicateExpressionFunctions,
-        Rule::FoldLiteralOperations]);
+    rules.extend([
+        Rule::PrivateCallRepresentations,
+        Rule::DuplicateExpressionFunctions,
+        Rule::FoldLiteralOperations,
+    ]);
     if families.string_constants {
         rules.push(Rule::ForwardRootStrings);
     }
@@ -403,8 +415,13 @@ impl Module {
             let (before, measure) = before;
             self.check_journal(&before, &journal)
                 .map_err(|error| RuleError::Bug(format!("{rule:?}: {error}")))?;
-            // A classified rule's edits strictly decrease the measure.
-            if rule.transitional().is_none() && journal.edits() > 0 && self.measure() >= measure {
+            // Normalization removes nodes. Spelling choices are bounded,
+            // one-way rewrites under the explicit per-site assignment.
+            if rule.transitional().is_none()
+                && rule != Rule::CompressStatements
+                && journal.edits() > 0
+                && self.measure() >= measure
+            {
                 return Err(RuleError::Bug(format!(
                     "{rule:?} edited without decreasing the measure: {measure:?} to {:?}",
                     self.measure()
@@ -479,24 +496,38 @@ impl Module {
                 let _ = self.simplify_operators(numeric_lengths, year, budget)?;
             }
             Rule::InlineExpressionFunctions => {
-                let _ =
-                    self.inline_expression_functions(0, frames_hidden, strict, budget)?;
+                let _ = self.inline_expression_functions(0, frames_hidden, strict, budget)?;
             }
             Rule::DuplicateExpressionFunctions => {
                 if let Some(choices) = choices {
-                    let _ = self.inline_expression_functions_chosen(256, frames_hidden, strict,
-                        Some((choices, families.expression_inlining)), budget)?;
+                    let _ = self.inline_expression_functions_chosen(
+                        256,
+                        frames_hidden,
+                        strict,
+                        Some((choices, families.expression_inlining)),
+                        budget,
+                    )?;
                 }
             }
             Rule::PrivateCallRepresentations => {
                 if let Some(choices) = choices {
                     use super::private_calls::Mode;
                     for (mode, permitted, seed) in [
-                        (Mode::Specialize, rules.call_specialization, families.call_specialization),
+                        (
+                            Mode::Specialize,
+                            rules.call_specialization,
+                            families.call_specialization,
+                        ),
                         (Mode::Share, rules.helper_sharing, families.helper_sharing),
-                        (Mode::Parameterize, rules.parameterized_helpers, families.parameterized_helpers),
+                        (
+                            Mode::Parameterize,
+                            rules.parameterized_helpers,
+                            families.parameterized_helpers,
+                        ),
                     ] {
-                        if permitted { self.private_calls(mode, frames_hidden, choices, seed, budget)?; }
+                        if permitted {
+                            self.private_calls(mode, frames_hidden, choices, seed, budget)?;
+                        }
                     }
                 }
             }
@@ -510,10 +541,20 @@ impl Module {
                 let _ = self.forward_root_constants(ConstantKind::Scalar, budget)?;
             }
             Rule::FoldLiteralOperations => {
-                let call_choice = choices.is_some_and(|choices| choices.iter().any(|(key, alt)|
-                    alt != AltId(0) && matches!(key.family,
-                        ChoiceFamily::ExpressionInlining | ChoiceFamily::ConstantArguments)));
-                if choices.is_none() || families.expression_inlining || families.call_specialization || call_choice {
+                let call_choice = choices.is_some_and(|choices| {
+                    choices.iter().any(|(key, alt)| {
+                        alt != AltId(0)
+                            && matches!(
+                                key.family,
+                                ChoiceFamily::ExpressionInlining | ChoiceFamily::ConstantArguments
+                            )
+                    })
+                });
+                if choices.is_none()
+                    || families.expression_inlining
+                    || families.call_specialization
+                    || call_choice
+                {
                     let _ = self.fold_literal_operations(budget)?;
                 }
             }
@@ -559,7 +600,11 @@ impl Module {
                 let _ = self.flatten_blocks(budget)?;
             }
             Rule::CompressStatements => {
-                let _ = self.compress_statements(statements, budget)?;
+                let _ = self.compress_statements_chosen(
+                    statements,
+                    choices.filter(|_| rules.statement_spellings),
+                    budget,
+                )?;
             }
             Rule::PlaceSingleCalls => {
                 let _ = self.place_single_calls(frames_hidden, strict, budget)?;

@@ -31,7 +31,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version16 admits live printed-order allocation and delivered-raw tie breaks.
 // Version17 includes class constructors/methods in live naming ownership.
 // Version18 names private generic/kept layouts and reuses sibling property slots.
-pub const POLICY_ALGORITHM_VERSION: u32 = 18;
+// Version19 forms stable per-site spellings, declaration order and receiver aliases.
+pub const POLICY_ALGORITHM_VERSION: u32 = 19;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.

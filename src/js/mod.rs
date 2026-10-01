@@ -66,6 +66,7 @@ mod quiet;
 pub(crate) mod rules;
 mod simplify;
 mod statements;
+pub(crate) mod spellings;
 pub(crate) use simplify::literal_array_projection;
 #[cfg(test)]
 mod tests;
@@ -1113,6 +1114,13 @@ pub struct Module {
     /// offers, seeds and applied under the artifact's `ChoiceMap`. The
     /// terminal stage reads them to offer the other alternatives.
     pub choice_sites: Vec<ChoiceSite>,
+    pub(crate) spelling_head: u8,
+    pub(crate) spelling_regions: usize,
+    pub(crate) spelling_functions: usize,
+    pub(crate) spelling_node_count: usize,
+    /// Persistent head-node identities; new tail nodes have no inherited site.
+    pub(crate) spelling_nodes: Vec<Option<u32>>,
+    pub(crate) print_forms: Option<spellings::PrintForms>,
 }
 
 /// Make `index` a slot of an id-indexed column, charged as retained output.
@@ -1949,6 +1957,7 @@ impl Module {
                 if region_depth + 1 + self.subtree_depth(id) > verify::MAX_NESTING {
                     self.expressions.pop();
                     self.origins.pop();
+                    self.spelling_nodes.pop();
                     index += 1;
                     continue;
                 }
@@ -3202,6 +3211,12 @@ impl Module {
             quotes: false,
             int32_hints: false,
             choice_sites: Vec::new(),
+            spelling_head: 0,
+            spelling_regions: 0,
+            spelling_functions: 0,
+            spelling_node_count: 0,
+            spelling_nodes: Vec::new(),
+            print_forms: None,
             observed_literals: Vec::new(),
             behaviours: Vec::new(),
             journal: Journal::default(),
@@ -3361,6 +3376,8 @@ impl Module {
             bytes(&self.reserved)?,
             bytes(&self.carried)?,
             bytes(&self.choice_sites)?,
+            bytes(&self.spelling_nodes)?,
+            self.print_forms.as_ref().map_or(0, |forms| forms.bytes()),
         ];
         let mut total = 0u64;
         for arena in arenas {
@@ -3442,6 +3459,9 @@ impl Module {
         let id = ExprId::try_new(self.expressions.len()).ok_or(AllocationError::Capacity)?;
         budget.reserve_vec(AllocationClass::Retained, &mut self.expressions, 1)?;
         budget.reserve_vec(AllocationClass::Retained, &mut self.origins, 1)?;
+        if !self.spelling_nodes.is_empty() {
+            budget.push(AllocationClass::Retained, &mut self.spelling_nodes, None)?;
+        }
         self.expressions.push(expression);
         self.origins.push(origin);
         Ok(id)

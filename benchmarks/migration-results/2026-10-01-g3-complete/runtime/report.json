@@ -1,0 +1,2541 @@
+{
+  "schema": 2,
+  "complete": true,
+  "manifest": {
+    "schema": 2,
+    "workloads": [
+      {
+        "id": "receiver-alias",
+        "contract": {
+          "exports": [
+            "Box"
+          ],
+          "target": "ESM",
+          "semantics": "public constructor and mutable numeric field; twelve reads per call",
+          "scope": "affected development workload; no port parity claim"
+        },
+        "workload": "workload.mjs",
+        "iterations": 16777216,
+        "warmup_runs": 4,
+        "expected": 102978551808,
+        "counters": {
+          "calls": 16777216,
+          "receiver_reads": 201326592
+        },
+        "runtime_limits": {
+          "steady_cpu_us": 0.1
+        },
+        "inputs": [],
+        "implementations": {
+          "reference": {
+            "entry": "reference.mjs",
+            "inputs": []
+          },
+          "candidate": {
+            "entry": "../artifacts/receiver/g3-raw.mjs",
+            "inputs": [
+              "../artifacts/receiver/main.lil",
+              "../artifacts/receiver/raw.toml"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "inputs": {
+    "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node": "34bc6627675906f8431892630b5e91fc4cc9f1e03ce15e9716025aa551e5c823",
+    "/home/azureuser/lilscript/scripts/runtime-worker.mjs": "33c78d5278beef77bb12ba65ffc2dc055393ba9db9f2d270f001eb2297e3eac6",
+    "/home/azureuser/lilscript/scripts/runtime-cost.py": "05a01c899ce6aa1eb2e387ccff5d14455936329d0e608fe17772018bbd2349b2",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-g3-complete/runtime/manifest.json": "ac80e39b3205f798ecc8fb4d5850e56c8b66f38be1d99c8fe434d5b90ad136ef",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-g3-complete/runtime/workload.mjs": "ee8beac24860155eecc676efa6a09c67106f8e54cf775cf9793fd20c94124134",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-g3-complete/runtime/reference.mjs": "70b2dda6bc7aaf3739c96961379bf14d8fe52689eefc9bd0d2960e8c3746f374",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-g3-complete/artifacts/receiver/g3-raw.mjs": "fc86e4dfcc36abad6234059e237c8d5fad7d185d1275dad86e7e50c47997103b",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-g3-complete/artifacts/receiver/main.lil": "ee0bea0224551215b4e0e59e0464bac32ee68190094e97e6f6f048b3c049d16a",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-g3-complete/artifacts/receiver/raw.toml": "2f3d8926f7af89cdf9ff2eb38d09959866dae5f7a8a72622671fbc51b2fb8df4"
+  },
+  "rounds": 5,
+  "controls": {
+    "count": 3,
+    "kind": "same reference bytes, distinct import URL query; fresh process per sample"
+  },
+  "machine": {
+    "platform": "Linux-7.0.0-1014-azure-x86_64-with-glibc2.39",
+    "cpu_count": 8
+  },
+  "environment": {
+    "PATH": "/bin:/usr/bin",
+    "TZ": "UTC",
+    "LANG": "C",
+    "LC_ALL": "C"
+  },
+  "engine": {
+    "path": "/home/azureuser/.nvm/versions/node/v20.19.0/bin/node",
+    "sha256": "34bc6627675906f8431892630b5e91fc4cc9f1e03ce15e9716025aa551e5c823"
+  },
+  "workloads": [
+    {
+      "id": "receiver-alias",
+      "contract": {
+        "exports": [
+          "Box"
+        ],
+        "target": "ESM",
+        "semantics": "public constructor and mutable numeric field; twelve reads per call",
+        "scope": "affected development workload; no port parity claim"
+      },
+      "samples": [
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29822435,
+              "cpu_us": 32978
+            },
+            {
+              "wall_ns": 26313200,
+              "cpu_us": 27576
+            },
+            {
+              "wall_ns": 26317418,
+              "cpu_us": 26324
+            },
+            {
+              "wall_ns": 26576914,
+              "cpu_us": 26576
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 468137,
+            "startup_cpu_us": 530,
+            "steady_wall_ns": 27880647,
+            "steady_cpu_us": 30101,
+            "rss_bytes": 49971200,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20163,
+            "process_wall_seconds": 0.18790122101199813
+          },
+          "implementation": "reference",
+          "round": 1,
+          "load_before": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ],
+          "load_after": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29861869,
+              "cpu_us": 33218
+            },
+            {
+              "wall_ns": 26498548,
+              "cpu_us": 27742
+            },
+            {
+              "wall_ns": 26357192,
+              "cpu_us": 26365
+            },
+            {
+              "wall_ns": 26444948,
+              "cpu_us": 26446
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 517760,
+            "startup_cpu_us": 573,
+            "steady_wall_ns": 27955577,
+            "steady_cpu_us": 30236,
+            "rss_bytes": 49868800,
+            "retained_heap_bytes": -4576,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.201904,
+            "process_wall_seconds": 0.18738484400091693
+          },
+          "implementation": "candidate",
+          "round": 1,
+          "load_before": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ],
+          "load_after": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 30173096,
+              "cpu_us": 33690
+            },
+            {
+              "wall_ns": 26319292,
+              "cpu_us": 27470
+            },
+            {
+              "wall_ns": 26238691,
+              "cpu_us": 26247
+            },
+            {
+              "wall_ns": 26954673,
+              "cpu_us": 26966
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 923180,
+            "startup_cpu_us": 992,
+            "steady_wall_ns": 28096442,
+            "steady_cpu_us": 30432,
+            "rss_bytes": 49852416,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.2039399999999999,
+            "process_wall_seconds": 0.1894635520002339
+          },
+          "implementation": "control-0",
+          "round": 1,
+          "load_before": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ],
+          "load_after": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29853092,
+              "cpu_us": 33018
+            },
+            {
+              "wall_ns": 26443345,
+              "cpu_us": 27601
+            },
+            {
+              "wall_ns": 26166735,
+              "cpu_us": 26171
+            },
+            {
+              "wall_ns": 26250433,
+              "cpu_us": 26248
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 872946,
+            "startup_cpu_us": 945,
+            "steady_wall_ns": 27703205,
+            "steady_cpu_us": 29888,
+            "rss_bytes": 49602560,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20168100000000005,
+            "process_wall_seconds": 0.1876472959993407
+          },
+          "implementation": "control-1",
+          "round": 1,
+          "load_before": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ],
+          "load_after": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29654661,
+              "cpu_us": 32808
+            },
+            {
+              "wall_ns": 26405232,
+              "cpu_us": 27594
+            },
+            {
+              "wall_ns": 26272725,
+              "cpu_us": 26280
+            },
+            {
+              "wall_ns": 27370221,
+              "cpu_us": 27388
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 850895,
+            "startup_cpu_us": 923,
+            "steady_wall_ns": 30529300,
+            "steady_cpu_us": 32949,
+            "rss_bytes": 49848320,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20803499999999997,
+            "process_wall_seconds": 0.19479328498709947
+          },
+          "implementation": "control-2",
+          "round": 1,
+          "load_before": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ],
+          "load_after": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 32278847,
+              "cpu_us": 36287
+            },
+            {
+              "wall_ns": 26355760,
+              "cpu_us": 27594
+            },
+            {
+              "wall_ns": 26314142,
+              "cpu_us": 26321
+            },
+            {
+              "wall_ns": 26836742,
+              "cpu_us": 26861
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 937396,
+            "startup_cpu_us": 1046,
+            "steady_wall_ns": 31789120,
+            "steady_cpu_us": 34108,
+            "rss_bytes": 50003968,
+            "retained_heap_bytes": -5184,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.21456800000000015,
+            "process_wall_seconds": 0.19810805498855188
+          },
+          "implementation": "control-1",
+          "round": 2,
+          "load_before": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ],
+          "load_after": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29502225,
+              "cpu_us": 32745
+            },
+            {
+              "wall_ns": 26429278,
+              "cpu_us": 27754
+            },
+            {
+              "wall_ns": 26448464,
+              "cpu_us": 26456
+            },
+            {
+              "wall_ns": 26434638,
+              "cpu_us": 26460
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 884858,
+            "startup_cpu_us": 958,
+            "steady_wall_ns": 27877762,
+            "steady_cpu_us": 30057,
+            "rss_bytes": 49971200,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20313199999999992,
+            "process_wall_seconds": 0.1884080509917112
+          },
+          "implementation": "control-0",
+          "round": 2,
+          "load_before": [
+            3.40771484375,
+            2.15966796875,
+            1.27587890625
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29849236,
+              "cpu_us": 33155
+            },
+            {
+              "wall_ns": 27733481,
+              "cpu_us": 29159
+            },
+            {
+              "wall_ns": 26573518,
+              "cpu_us": 26581
+            },
+            {
+              "wall_ns": 26251374,
+              "cpu_us": 26264
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 543939,
+            "startup_cpu_us": 609,
+            "steady_wall_ns": 28746079,
+            "steady_cpu_us": 31140,
+            "rss_bytes": 49983488,
+            "retained_heap_bytes": -4576,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.207008,
+            "process_wall_seconds": 0.19183494200115092
+          },
+          "implementation": "candidate",
+          "round": 2,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 30027479,
+              "cpu_us": 33483
+            },
+            {
+              "wall_ns": 26450217,
+              "cpu_us": 27834
+            },
+            {
+              "wall_ns": 26377601,
+              "cpu_us": 26383
+            },
+            {
+              "wall_ns": 26418047,
+              "cpu_us": 26429
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 496040,
+            "startup_cpu_us": 557,
+            "steady_wall_ns": 27853156,
+            "steady_cpu_us": 30093,
+            "rss_bytes": 50069504,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.202867,
+            "process_wall_seconds": 0.18832953400851693
+          },
+          "implementation": "reference",
+          "round": 2,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 30007102,
+              "cpu_us": 33121
+            },
+            {
+              "wall_ns": 26650312,
+              "cpu_us": 27971
+            },
+            {
+              "wall_ns": 27020235,
+              "cpu_us": 27027
+            },
+            {
+              "wall_ns": 26696207,
+              "cpu_us": 26709
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 915115,
+            "startup_cpu_us": 984,
+            "steady_wall_ns": 27961038,
+            "steady_cpu_us": 30238,
+            "rss_bytes": 49709056,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20447100000000007,
+            "process_wall_seconds": 0.1900320529966848
+          },
+          "implementation": "control-2",
+          "round": 2,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29813559,
+              "cpu_us": 33038
+            },
+            {
+              "wall_ns": 26368814,
+              "cpu_us": 27699
+            },
+            {
+              "wall_ns": 26766309,
+              "cpu_us": 26774
+            },
+            {
+              "wall_ns": 26394333,
+              "cpu_us": 26405
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 861845,
+            "startup_cpu_us": 928,
+            "steady_wall_ns": 27870268,
+            "steady_cpu_us": 30134,
+            "rss_bytes": 49987584,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20290600000000011,
+            "process_wall_seconds": 0.18855214001087006
+          },
+          "implementation": "control-0",
+          "round": 3,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29659400,
+              "cpu_us": 32931
+            },
+            {
+              "wall_ns": 26338829,
+              "cpu_us": 27598
+            },
+            {
+              "wall_ns": 26446110,
+              "cpu_us": 26452
+            },
+            {
+              "wall_ns": 26356823,
+              "cpu_us": 26358
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 815819,
+            "startup_cpu_us": 883,
+            "steady_wall_ns": 27918207,
+            "steady_cpu_us": 30223,
+            "rss_bytes": 49360896,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20107299999999992,
+            "process_wall_seconds": 0.1868902970018098
+          },
+          "implementation": "control-1",
+          "round": 3,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29505181,
+              "cpu_us": 32683
+            },
+            {
+              "wall_ns": 26805112,
+              "cpu_us": 28111
+            },
+            {
+              "wall_ns": 26361591,
+              "cpu_us": 26369
+            },
+            {
+              "wall_ns": 29558941,
+              "cpu_us": 29567
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 869580,
+            "startup_cpu_us": 938,
+            "steady_wall_ns": 28384702,
+            "steady_cpu_us": 30781,
+            "rss_bytes": 50003968,
+            "retained_heap_bytes": -4368,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20756100000000013,
+            "process_wall_seconds": 0.1927342429989949
+          },
+          "implementation": "control-2",
+          "round": 3,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 31356860,
+              "cpu_us": 35530
+            },
+            {
+              "wall_ns": 26632198,
+              "cpu_us": 27807
+            },
+            {
+              "wall_ns": 26244932,
+              "cpu_us": 26246
+            },
+            {
+              "wall_ns": 26329130,
+              "cpu_us": 26330
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 519273,
+            "startup_cpu_us": 587,
+            "steady_wall_ns": 27893231,
+            "steady_cpu_us": 30150,
+            "rss_bytes": 49979392,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20602500000000007,
+            "process_wall_seconds": 0.19110908500442747
+          },
+          "implementation": "reference",
+          "round": 3,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29741383,
+              "cpu_us": 32874
+            },
+            {
+              "wall_ns": 26488759,
+              "cpu_us": 27655
+            },
+            {
+              "wall_ns": 26552809,
+              "cpu_us": 26560
+            },
+            {
+              "wall_ns": 26340832,
+              "cpu_us": 26352
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 533390,
+            "startup_cpu_us": 591,
+            "steady_wall_ns": 28129894,
+            "steady_cpu_us": 30524,
+            "rss_bytes": 49983488,
+            "retained_heap_bytes": -4576,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20076899999999978,
+            "process_wall_seconds": 0.18724931598990224
+          },
+          "implementation": "candidate",
+          "round": 3,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29684507,
+              "cpu_us": 32864
+            },
+            {
+              "wall_ns": 26767130,
+              "cpu_us": 28114
+            },
+            {
+              "wall_ns": 26519457,
+              "cpu_us": 26526
+            },
+            {
+              "wall_ns": 26243973,
+              "cpu_us": 26247
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 466765,
+            "startup_cpu_us": 529,
+            "steady_wall_ns": 28044574,
+            "steady_cpu_us": 30527,
+            "rss_bytes": 50270208,
+            "retained_heap_bytes": -4576,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.202478,
+            "process_wall_seconds": 0.18785868099075742
+          },
+          "implementation": "candidate",
+          "round": 4,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29830530,
+              "cpu_us": 33165
+            },
+            {
+              "wall_ns": 26666582,
+              "cpu_us": 28005
+            },
+            {
+              "wall_ns": 26455948,
+              "cpu_us": 26464
+            },
+            {
+              "wall_ns": 26368724,
+              "cpu_us": 26379
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 511659,
+            "startup_cpu_us": 575,
+            "steady_wall_ns": 28488326,
+            "steady_cpu_us": 30627,
+            "rss_bytes": 49967104,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20254800000000037,
+            "process_wall_seconds": 0.1881840510031907
+          },
+          "implementation": "reference",
+          "round": 4,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29638010,
+              "cpu_us": 32780
+            },
+            {
+              "wall_ns": 26375757,
+              "cpu_us": 27518
+            },
+            {
+              "wall_ns": 26333218,
+              "cpu_us": 26339
+            },
+            {
+              "wall_ns": 26348226,
+              "cpu_us": 26360
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 852547,
+            "startup_cpu_us": 922,
+            "steady_wall_ns": 28353242,
+            "steady_cpu_us": 30564,
+            "rss_bytes": 49881088,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.2027589999999999,
+            "process_wall_seconds": 0.18827213600161485
+          },
+          "implementation": "control-2",
+          "round": 4,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29933804,
+              "cpu_us": 33443
+            },
+            {
+              "wall_ns": 27076440,
+              "cpu_us": 28302
+            },
+            {
+              "wall_ns": 26241826,
+              "cpu_us": 26248
+            },
+            {
+              "wall_ns": 26406525,
+              "cpu_us": 26419
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 854631,
+            "startup_cpu_us": 929,
+            "steady_wall_ns": 33057677,
+            "steady_cpu_us": 35295,
+            "rss_bytes": 49963008,
+            "retained_heap_bytes": -3720,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.212357,
+            "process_wall_seconds": 0.19837304099928588
+          },
+          "implementation": "control-1",
+          "round": 4,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29668728,
+              "cpu_us": 32897
+            },
+            {
+              "wall_ns": 26273917,
+              "cpu_us": 27484
+            },
+            {
+              "wall_ns": 26242187,
+              "cpu_us": 26248
+            },
+            {
+              "wall_ns": 26661584,
+              "cpu_us": 26673
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 892582,
+            "startup_cpu_us": 1019,
+            "steady_wall_ns": 27826595,
+            "steady_cpu_us": 30117,
+            "rss_bytes": 49987584,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.2143159999999998,
+            "process_wall_seconds": 0.2003159010055242
+          },
+          "implementation": "control-0",
+          "round": 4,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29868491,
+              "cpu_us": 33054
+            },
+            {
+              "wall_ns": 26374225,
+              "cpu_us": 27632
+            },
+            {
+              "wall_ns": 26591903,
+              "cpu_us": 26602
+            },
+            {
+              "wall_ns": 26539434,
+              "cpu_us": 26552
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 882493,
+            "startup_cpu_us": 953,
+            "steady_wall_ns": 27961228,
+            "steady_cpu_us": 30366,
+            "rss_bytes": 50241536,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20317099999999996,
+            "process_wall_seconds": 0.18892080200021155
+          },
+          "implementation": "control-2",
+          "round": 5,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29948381,
+              "cpu_us": 33437
+            },
+            {
+              "wall_ns": 26332617,
+              "cpu_us": 27662
+            },
+            {
+              "wall_ns": 26516291,
+              "cpu_us": 26523
+            },
+            {
+              "wall_ns": 26415672,
+              "cpu_us": 26416
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 462326,
+            "startup_cpu_us": 547,
+            "steady_wall_ns": 27751575,
+            "steady_cpu_us": 29957,
+            "rss_bytes": 50003968,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20107099999999978,
+            "process_wall_seconds": 0.18706365198886488
+          },
+          "implementation": "reference",
+          "round": 5,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 30034473,
+              "cpu_us": 33253
+            },
+            {
+              "wall_ns": 26517142,
+              "cpu_us": 27670
+            },
+            {
+              "wall_ns": 26247066,
+              "cpu_us": 26254
+            },
+            {
+              "wall_ns": 26260311,
+              "cpu_us": 26270
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 647212,
+            "startup_cpu_us": 725,
+            "steady_wall_ns": 28284134,
+            "steady_cpu_us": 30649,
+            "rss_bytes": 50020352,
+            "retained_heap_bytes": -4080,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20239300000000077,
+            "process_wall_seconds": 0.18823794199852273
+          },
+          "implementation": "candidate",
+          "round": 5,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29720985,
+              "cpu_us": 33073
+            },
+            {
+              "wall_ns": 26559000,
+              "cpu_us": 27803
+            },
+            {
+              "wall_ns": 26642227,
+              "cpu_us": 26650
+            },
+            {
+              "wall_ns": 26416294,
+              "cpu_us": 26439
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 919122,
+            "startup_cpu_us": 995,
+            "steady_wall_ns": 28006984,
+            "steady_cpu_us": 30540,
+            "rss_bytes": 50118656,
+            "retained_heap_bytes": -4584,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20493500000000026,
+            "process_wall_seconds": 0.1895755379955517
+          },
+          "implementation": "control-0",
+          "round": 5,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        },
+        {
+          "schema": 1,
+          "engine": {
+            "version": "v20.19.0",
+            "versions": {
+              "node": "20.19.0",
+              "acorn": "8.14.0",
+              "ada": "2.9.2",
+              "ares": "1.34.4",
+              "brotli": "1.1.0",
+              "cjs_module_lexer": "1.4.1",
+              "cldr": "46.0",
+              "icu": "76.1",
+              "llhttp": "8.1.2",
+              "modules": "115",
+              "napi": "9",
+              "nghttp2": "1.61.0",
+              "nghttp3": "0.7.0",
+              "ngtcp2": "1.1.0",
+              "openssl": "3.0.15+quic",
+              "simdutf": "6.0.3",
+              "tz": "2025a",
+              "undici": "6.21.1",
+              "unicode": "16.0",
+              "uv": "1.46.0",
+              "uvwasi": "0.0.21",
+              "v8": "11.3.244.8-node.26",
+              "zlib": "1.3.0.1-motley-82a5fec"
+            },
+            "execArgv": [
+              "--expose-gc"
+            ]
+          },
+          "oracle": 102978551808,
+          "counters": {
+            "calls": 16777216,
+            "receiver_reads": 201326592
+          },
+          "warmup": [
+            {
+              "wall_ns": 29861218,
+              "cpu_us": 33291
+            },
+            {
+              "wall_ns": 26394813,
+              "cpu_us": 27513
+            },
+            {
+              "wall_ns": 26258648,
+              "cpu_us": 26265
+            },
+            {
+              "wall_ns": 26295788,
+              "cpu_us": 26305
+            }
+          ],
+          "metrics": {
+            "startup_wall_ns": 860182,
+            "startup_cpu_us": 931,
+            "steady_wall_ns": 28006603,
+            "steady_cpu_us": 30378,
+            "rss_bytes": 50106368,
+            "retained_heap_bytes": -5184,
+            "retained_array_buffer_bytes": 0,
+            "process_cpu_seconds": 0.20189999999999964,
+            "process_wall_seconds": 0.18764537500101142
+          },
+          "implementation": "control-1",
+          "round": 5,
+          "load_before": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ],
+          "load_after": [
+            3.21484375,
+            2.14013671875,
+            1.27392578125
+          ]
+        }
+      ],
+      "implementations": {
+        "reference": {
+          "entry": "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-g3-complete/runtime/reference.mjs",
+          "inputs": [],
+          "static_inventory": null
+        },
+        "candidate": {
+          "entry": "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-g3-complete/artifacts/receiver/g3-raw.mjs",
+          "inputs": [
+            "../artifacts/receiver/main.lil",
+            "../artifacts/receiver/raw.toml"
+          ],
+          "static_inventory": null
+        }
+      },
+      "workload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-g3-complete/runtime/workload.mjs",
+      "summary": {
+        "reference": {
+          "startup_wall_ns": {
+            "median": 496040,
+            "min": 462326,
+            "max": 519273,
+            "stdev": 25471.98269668068
+          },
+          "startup_cpu_us": {
+            "median": 557,
+            "min": 530,
+            "max": 587,
+            "stdev": 22.521101216414795
+          },
+          "steady_wall_ns": {
+            "median": 27880647,
+            "min": 27751575,
+            "max": 28488326,
+            "stdev": 293191.03088344977
+          },
+          "steady_cpu_us": {
+            "median": 30101,
+            "min": 29957,
+            "max": 30627,
+            "stdev": 256.9490221814436
+          },
+          "rss_bytes": {
+            "median": 49979392,
+            "min": 49967104,
+            "max": 50069504,
+            "stdev": 42329.737405280466
+          },
+          "retained_heap_bytes": {
+            "median": -4584,
+            "min": -4584,
+            "max": -4584,
+            "stdev": 0.0
+          },
+          "retained_array_buffer_bytes": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "stdev": 0.0
+          },
+          "process_cpu_seconds": {
+            "median": 0.20254800000000037,
+            "min": 0.20107099999999978,
+            "max": 0.20602500000000007,
+            "stdev": 0.0019250313503941313
+          },
+          "process_wall_seconds": {
+            "median": 0.1881840510031907,
+            "min": 0.18706365198886488,
+            "max": 0.19110908500442747,
+            "stdev": 0.0015294039780879307
+          }
+        },
+        "candidate": {
+          "startup_wall_ns": {
+            "median": 533390,
+            "min": 466765,
+            "max": 647212,
+            "stdev": 65945.36586978649
+          },
+          "startup_cpu_us": {
+            "median": 591,
+            "min": 529,
+            "max": 725,
+            "stdev": 73.1628320938986
+          },
+          "steady_wall_ns": {
+            "median": 28129894,
+            "min": 27955577,
+            "max": 28746079,
+            "stdev": 311832.8777266759
+          },
+          "steady_cpu_us": {
+            "median": 30527,
+            "min": 30236,
+            "max": 31140,
+            "stdev": 330.3206018400911
+          },
+          "rss_bytes": {
+            "median": 49983488,
+            "min": 49868800,
+            "max": 50270208,
+            "stdev": 148318.19045282342
+          },
+          "retained_heap_bytes": {
+            "median": -4576,
+            "min": -4576,
+            "max": -4080,
+            "stdev": 221.81794336797913
+          },
+          "retained_array_buffer_bytes": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "stdev": 0.0
+          },
+          "process_cpu_seconds": {
+            "median": 0.20239300000000077,
+            "min": 0.20076899999999978,
+            "max": 0.207008,
+            "stdev": 0.0023897402160067594
+          },
+          "process_wall_seconds": {
+            "median": 0.18785868099075742,
+            "min": 0.18724931598990224,
+            "max": 0.19183494200115092,
+            "stdev": 0.0018979411252438626
+          }
+        },
+        "control-0": {
+          "startup_wall_ns": {
+            "median": 892582,
+            "min": 861845,
+            "max": 923180,
+            "stdev": 25373.541747261064
+          },
+          "startup_cpu_us": {
+            "median": 992,
+            "min": 928,
+            "max": 1019,
+            "stdev": 35.585109245300906
+          },
+          "steady_wall_ns": {
+            "median": 27877762,
+            "min": 27826595,
+            "max": 28096442,
+            "stdev": 112318.09559550055
+          },
+          "steady_cpu_us": {
+            "median": 30134,
+            "min": 30057,
+            "max": 30540,
+            "stdev": 215.31256349781356
+          },
+          "rss_bytes": {
+            "median": 49987584,
+            "min": 49852416,
+            "max": 50118656,
+            "stdev": 94385.91894980946
+          },
+          "retained_heap_bytes": {
+            "median": -4584,
+            "min": -4584,
+            "max": -4584,
+            "stdev": 0.0
+          },
+          "retained_array_buffer_bytes": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "stdev": 0.0
+          },
+          "process_cpu_seconds": {
+            "median": 0.2039399999999999,
+            "min": 0.20290600000000011,
+            "max": 0.2143159999999998,
+            "stdev": 0.004801381384559981
+          },
+          "process_wall_seconds": {
+            "median": 0.1894635520002339,
+            "min": 0.1884080509917112,
+            "max": 0.2003159010055242,
+            "stdev": 0.005087731651976885
+          }
+        },
+        "control-1": {
+          "startup_wall_ns": {
+            "median": 860182,
+            "min": 815819,
+            "max": 937396,
+            "stdev": 44166.6900582328
+          },
+          "startup_cpu_us": {
+            "median": 931,
+            "min": 883,
+            "max": 1046,
+            "stdev": 60.16809785924764
+          },
+          "steady_wall_ns": {
+            "median": 28006603,
+            "min": 27703205,
+            "max": 33057677,
+            "stdev": 2533172.9259045464
+          },
+          "steady_cpu_us": {
+            "median": 30378,
+            "min": 29888,
+            "max": 35295,
+            "stdev": 2527.227393805314
+          },
+          "rss_bytes": {
+            "median": 49963008,
+            "min": 49360896,
+            "max": 50106368,
+            "stdev": 313671.7762757752
+          },
+          "retained_heap_bytes": {
+            "median": -4584,
+            "min": -5184,
+            "max": -3720,
+            "stdev": 600.8154458733563
+          },
+          "retained_array_buffer_bytes": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "stdev": 0.0
+          },
+          "process_cpu_seconds": {
+            "median": 0.20189999999999964,
+            "min": 0.20107299999999992,
+            "max": 0.21456800000000015,
+            "stdev": 0.006577661339716531
+          },
+          "process_wall_seconds": {
+            "median": 0.1876472959993407,
+            "min": 0.1868902970018098,
+            "max": 0.19837304099928588,
+            "stdev": 0.00594947262465495
+          }
+        },
+        "control-2": {
+          "startup_wall_ns": {
+            "median": 869580,
+            "min": 850895,
+            "max": 915115,
+            "stdev": 26344.370973701385
+          },
+          "startup_cpu_us": {
+            "median": 938,
+            "min": 922,
+            "max": 984,
+            "stdev": 25.700194551792794
+          },
+          "steady_wall_ns": {
+            "median": 28353242,
+            "min": 27961038,
+            "max": 30529300,
+            "stdev": 1076865.8838007636
+          },
+          "steady_cpu_us": {
+            "median": 30564,
+            "min": 30238,
+            "max": 32949,
+            "stdev": 1119.9528115059134
+          },
+          "rss_bytes": {
+            "median": 49881088,
+            "min": 49709056,
+            "max": 50241536,
+            "stdev": 200109.61783182737
+          },
+          "retained_heap_bytes": {
+            "median": -4584,
+            "min": -4584,
+            "max": -4368,
+            "stdev": 96.59813662799091
+          },
+          "retained_array_buffer_bytes": {
+            "median": 0,
+            "min": 0,
+            "max": 0,
+            "stdev": 0.0
+          },
+          "process_cpu_seconds": {
+            "median": 0.20447100000000007,
+            "min": 0.2027589999999999,
+            "max": 0.20803499999999997,
+            "stdev": 0.002460604966263426
+          },
+          "process_wall_seconds": {
+            "median": 0.1900320529966848,
+            "min": 0.18827213600161485,
+            "max": 0.19479328498709947,
+            "stdev": 0.0027425165505224314
+          }
+        }
+      },
+      "ratios": {
+        "startup_wall_ns": {
+          "ratio_of_medians": 1.0752963470687849,
+          "paired": [
+            1.1060010210686189,
+            1.0965627771953874,
+            1.0271860851613699,
+            0.9122579686861757,
+            1.3999039638696504
+          ],
+          "interval": {
+            "median": 1.0965627771953874,
+            "low": 0.9122579686861757,
+            "high": 1.3999039638696504,
+            "confidence": 0.95,
+            "pairs": 5,
+            "bootstrap_draws": 2000,
+            "seed": 0
+          }
+        },
+        "startup_cpu_us": {
+          "ratio_of_medians": 1.0610412926391382,
+          "paired": [
+            1.0811320754716982,
+            1.0933572710951527,
+            1.0068143100511073,
+            0.92,
+            1.3254113345521024
+          ],
+          "interval": {
+            "median": 1.0811320754716982,
+            "low": 0.92,
+            "high": 1.3254113345521024,
+            "confidence": 0.95,
+            "pairs": 5,
+            "bootstrap_draws": 2000,
+            "seed": 0
+          }
+        },
+        "steady_wall_ns": {
+          "ratio_of_medians": 1.0089397853643784,
+          "paired": [
+            1.002687527301644,
+            1.0320582342625733,
+            1.0084846033075192,
+            0.9844233739813284,
+            1.019190226140318
+          ],
+          "interval": {
+            "median": 1.0084846033075192,
+            "low": 0.9844233739813284,
+            "high": 1.0320582342625733,
+            "confidence": 0.95,
+            "pairs": 5,
+            "bootstrap_draws": 2000,
+            "seed": 0
+          }
+        },
+        "steady_cpu_us": {
+          "ratio_of_medians": 1.0141523537424006,
+          "paired": [
+            1.0044849008338594,
+            1.0347921443525072,
+            1.0124046434494196,
+            0.9967349071081072,
+            1.023099776346096
+          ],
+          "interval": {
+            "median": 1.0124046434494196,
+            "low": 0.9967349071081072,
+            "high": 1.0347921443525072,
+            "confidence": 0.95,
+            "pairs": 5,
+            "bootstrap_draws": 2000,
+            "seed": 0
+          }
+        },
+        "rss_bytes": {
+          "ratio_of_medians": 1.0000819537780692,
+          "paired": [
+            0.9979508196721312,
+            0.9982820680628273,
+            1.0000819537780692,
+            1.0060660709894254,
+            1.0003276539973787
+          ],
+          "interval": {
+            "median": 1.0000819537780692,
+            "low": 0.9979508196721312,
+            "high": 1.0060660709894254,
+            "confidence": 0.95,
+            "pairs": 5,
+            "bootstrap_draws": 2000,
+            "seed": 0
+          }
+        },
+        "retained_heap_bytes": null,
+        "retained_array_buffer_bytes": null,
+        "process_cpu_seconds": {
+          "ratio_of_medians": 0.9992347492939965,
+          "paired": [
+            1.00135892476318,
+            1.0204123884121123,
+            0.9744885329450296,
+            0.9996544029069634,
+            1.0065747919889043
+          ],
+          "interval": {
+            "median": 1.00135892476318,
+            "low": 0.9744885329450296,
+            "high": 1.0204123884121123,
+            "confidence": 0.95,
+            "pairs": 5,
+            "bootstrap_draws": 2000,
+            "seed": 0
+          }
+        },
+        "process_wall_seconds": {
+          "ratio_of_medians": 0.9982710011252348,
+          "paired": [
+            0.9972518698478908,
+            1.018613161292458,
+            0.9798033201067557,
+            0.9982710011252348,
+            1.0062774889572228
+          ],
+          "interval": {
+            "median": 0.9982710011252348,
+            "low": 0.9798033201067557,
+            "high": 1.018613161292458,
+            "confidence": 0.95,
+            "pairs": 5,
+            "bootstrap_draws": 2000,
+            "seed": 0
+          }
+        }
+      },
+      "judgments": {
+        "steady_cpu_us": {
+          "interval": {
+            "median": 1.0124046434494196,
+            "low": 0.9967349071081072,
+            "high": 1.0347921443525072,
+            "confidence": 0.95,
+            "pairs": 5,
+            "bootstrap_draws": 2000,
+            "seed": 0
+          },
+          "control_spread": 0.15241453619355472,
+          "tolerance": 0.1,
+          "verdict": "inconclusive"
+        }
+      }
+    }
+  ]
+}

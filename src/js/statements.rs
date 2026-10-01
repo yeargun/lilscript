@@ -55,6 +55,15 @@ impl Module {
         spellings: StatementSpellings,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
+        self.compress_statements_chosen(spellings, None, budget)
+    }
+
+    pub(crate) fn compress_statements_chosen(
+        &mut self,
+        spellings: StatementSpellings,
+        choices: Option<&ChoiceMap>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
         let mut total = 0;
         // Inner regions first: a branch that became one expression lets its
         // `if` become one too. A few rounds reach the fixed point.
@@ -71,18 +80,19 @@ impl Module {
                         continue;
                     }
                     changed += module.minimize_exits(region, &frames, budget)?;
-                    if spellings != StatementSpellings::NONE {
+                    if spellings != StatementSpellings::NONE || choices.is_some() {
                         changed += module.compress_region(
                             region,
                             spellings,
                             &frames,
                             &reach.captured,
+                            choices,
                             budget,
                         )?;
                     }
                 }
-                if spellings.logical_branches {
-                    changed += module.compress_conditionals(reach, budget)?;
+                if spellings.logical_branches || choices.is_some() {
+                    changed += module.compress_conditionals(reach, spellings.logical_branches, choices, budget)?;
                 }
                 Ok::<_, AllocationError>(changed)
             })??;
@@ -100,6 +110,7 @@ impl Module {
         spellings: StatementSpellings,
         frames: &Frames,
         captured: &[bool],
+        choices: Option<&ChoiceMap>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let mut changed = 0;
@@ -107,6 +118,7 @@ impl Module {
         while index < self.regions[region.index()].statements.len() {
             budget.work(Analysis, 1)?;
             let statement = self.regions[region.index()].statements[index].clone();
+            let spellings = self.statement_site_spellings(region, index, &statement, spellings, choices, budget)?;
             // `while(c){…;u}` is `for(;c;u){…}` when nothing continues the
             // loop: the update runs where the body's last statement did.
             if let Statement::Loop {
@@ -208,75 +220,38 @@ impl Module {
                     continue;
                 }
             }
-            // Both branches return: one return of a conditional.
-            if let (true, Some([Statement::Return(Some(a))]), Some([Statement::Return(Some(b))])) = (
-                spellings.conditional_returns,
-                self.only(yes, 1),
-                no.and_then(|no| self.only(no, 1)),
-            ) {
-                let (a, b) = (*a, *b);
-                self.adopt(yes, region, budget)?;
-                if let Some(no) = no {
-                    self.adopt(no, region, budget)?;
-                }
-                let value = self.expression_in(
-                    Expr::Conditional {
-                        condition,
-                        yes: a,
-                        no: b,
-                    },
-                    None,
-                    budget,
-                )?;
-                self.statements_mut(region.index())[index] = Statement::Return(Some(value));
-                changed += 1;
-                index += 1;
-                continue;
-            }
-            // `if(c)return a;e…;return b`.
-            if let (true, Some([Statement::Return(Some(a))]), None) =
-                (spellings.conditional_returns, self.only(yes, 1), no)
-            {
-                let a = *a;
-                let statements = &self.regions[region.index()].statements;
-                let mut end = index + 1;
-                while matches!(statements.get(end), Some(Statement::Evaluate(_))) {
-                    end += 1;
-                }
-                if let Some(&Statement::Return(Some(b))) = statements.get(end) {
-                    let mut rest: Vec<ExprId> = statements[index + 1..end]
-                        .iter()
-                        .map(|statement| match statement {
-                            Statement::Evaluate(value) => *value,
-                            _ => unreachable!("only expression statements were counted"),
-                        })
-                        .collect();
-                    rest.push(b);
-                    self.adopt(yes, region, budget)?;
-                    let otherwise = self.sequence(rest, budget)?;
-                    let value = self.expression_in(
-                        Expr::Conditional {
-                            condition,
-                            yes: a,
-                            no: otherwise,
-                        },
-                        None,
-                        budget,
-                    )?;
-                    // One statement now holds all of theirs.
-                    self.splice_statements(
-                        region.index(),
-                        index..end + 1,
-                        vec![Statement::Return(Some(value))],
-                        |rows| {
-                            vec![rows[1..]
-                                .iter()
-                                .fold(rows[0], |row, other| row.fuse(*other))]
-                        },
-                    );
-                    changed += 1;
-                    index += 1;
-                    continue;
+            // A void return is the explicit undefined arm of a conditional.
+            // Both forms preserve the same lazy evaluations and completion.
+            let returned = |module: &Self, arm: RegionId| match module.regions[arm.index()].statements.as_slice() {
+                [Statement::Return(value)] => Some(*value),
+                _ => None,
+            };
+            if spellings.conditional_returns {
+                if let Some(a) = returned(self, yes) {
+                    let mut end=index+1;
+                    let other = if let Some(no)=no {
+                        returned(self,no).map(|value|(value,false))
+                    } else {
+                        while matches!(self.regions[region.index()].statements.get(end),Some(Statement::Evaluate(_))){end+=1;}
+                        match self.regions[region.index()].statements.get(end){
+                            Some(Statement::Return(value))=>Some((*value,true)),_=>None,
+                        }
+                    };
+                    if let Some((b,following))=other {
+                        let a=match a {Some(value)=>value,None=>self.expression_in(Expr::Literal(Literal::Undefined),None,budget)?};
+                        let b=match b {Some(value)=>value,None=>self.expression_in(Expr::Literal(Literal::Undefined),None,budget)?};
+                        self.adopt(yes,region,budget)?;
+                        let otherwise=if following {
+                            let mut values:Vec<_>=self.regions[region.index()].statements[index+1..end].iter().map(|statement|match statement{Statement::Evaluate(value)=>*value,_=>unreachable!()}).collect();
+                            values.push(b);self.sequence(values,budget)?
+                        } else {self.adopt(no.unwrap(),region,budget)?;b};
+                        let value=self.expression_in(Expr::Conditional{condition,yes:a,no:otherwise},None,budget)?;
+                        self.inherit_region_spelling(value,yes)?;
+                        if following {
+                            self.splice_statements(region.index(),index..end+1,vec![Statement::Return(Some(value))],|rows|vec![rows[1..].iter().fold(rows[0],|row,other|row.fuse(*other))]);
+                        } else {self.statements_mut(region.index())[index]=Statement::Return(Some(value));}
+                        changed+=1;index+=1;continue;
+                    }
                 }
             }
             // Branches of expression statements: one expression.
@@ -356,6 +331,7 @@ impl Module {
                                 None,
                                 budget,
                             )?;
+                            self.inherit_region_spelling(value, yes)?;
                             Some(Expr::Assign { target, value })
                         }
                         None if logical => {
@@ -377,6 +353,7 @@ impl Module {
                     self.adopt(no, region, budget)?;
                 }
                 let value = self.expression_in(replacement, None, budget)?;
+                self.inherit_region_spelling(value, yes)?;
                 self.statements_mut(region.index())[index] = Statement::Evaluate(value);
                 changed += 1;
             }
@@ -864,6 +841,8 @@ impl Module {
     fn compress_conditionals(
         &mut self,
         reach: &super::reach::Reach,
+        seed: bool,
+        choices: Option<&ChoiceMap>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let mut changed = 0;
@@ -903,8 +882,10 @@ impl Module {
                     _ => continue,
                 }
             };
-            self.set_expression(id, Expr::Binary { op, left, right });
-            changed += 1;
+            if self.site_choice(self.expression_site(id), ChoiceFamily::LogicalBranches, seed, "logical-expression", 2, choices, budget)? {
+                self.set_expression(id, Expr::Binary { op, left, right });
+                changed += 1;
+            }
         }
         Ok(changed)
     }
@@ -1293,6 +1274,17 @@ impl Module {
         nullish: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
+        self.with_reach(budget, |module, reach, budget| {
+            module.fold_private_logical_assignments(nullish, &reach.captured, budget)
+        })?
+    }
+
+    fn fold_private_logical_assignments(
+        &mut self,
+        nullish: bool,
+        captured: &[bool],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
         let mut folded = 0;
         for region in 0..self.regions.len() {
             let root = region == self.root.index();
@@ -1324,6 +1316,13 @@ impl Module {
                     index += 1;
                     continue;
                 };
+                // Delaying the first store until after the fallback must not
+                // change what an indirect callback or public reader observes.
+                if captured[binding.index()] || self.bindings[binding.index()].pinned
+                    || self.exports.iter().any(|export| export.binding == binding) {
+                    index += 1;
+                    continue;
+                }
                 let Statement::If {
                     condition,
                     yes,
@@ -1528,7 +1527,7 @@ impl Module {
                 Expr::Literal(Literal::Null | Literal::Undefined)
             )
         };
-        (nullish
+        (nullish && self.bindings[binding.index()].class.is_some()
             && ((is_binding(*left) && nothing(*right)) || (nothing(*left) && is_binding(*right))))
         .then_some((false, positive == loose))
     }
@@ -1558,7 +1557,7 @@ impl Module {
                 op: Binary::Equal,
                 left,
                 right,
-            } if nullish => {
+            } if nullish && self.bindings[binding.index()].class.is_some() => {
                 let nothing = |id: ExprId| {
                     matches!(
                         self.expressions[id.index()],
