@@ -1,0 +1,1 @@
+int left(int x){return right(x);}int right(int x){return left(x);}export int alive(int x){return x+1;}

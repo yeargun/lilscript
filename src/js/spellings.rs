@@ -365,6 +365,20 @@ impl Module {
         if rules.declaration_order {
             self.form_declaration_order(choices, budget)?;
         }
+        self.refresh_print_choices(families, rules, choices, year, budget)
+    }
+
+    /// Delivery may append setters and replace writes with calls. Re-prove the
+    /// print forms under the same assignments after those edits, without
+    /// moving declarations or creating receiver aliases a second time.
+    pub(crate) fn refresh_print_choices(
+        &mut self,
+        families: OutputFamilies,
+        rules: TargetRules,
+        choices: &ChoiceMap,
+        year: u16,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
         let mut forms = PrintForms::new(self, rules.statement_spellings, Retained, budget)?;
         if rules.statement_spellings {
             for index in 0..forms.loops.len() {
@@ -434,7 +448,11 @@ impl Module {
         if rules.statement_spellings {
             self.form_modern_spellings(&mut forms, year, choices, budget)?;
         }
-        self.print_forms = Some(forms);
+        if let Some(previous) = self.print_forms.replace(forms) {
+            let bytes = previous.bytes();
+            drop(previous);
+            budget.release(Retained, bytes)?;
+        }
         Ok(())
     }
 }

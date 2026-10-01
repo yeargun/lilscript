@@ -1,0 +1,1 @@
+let alive=function(a){return a+1|0};export{alive};

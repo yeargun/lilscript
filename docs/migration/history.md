@@ -1240,3 +1240,30 @@ unimplemented future ABI proposals. Existing concrete crossings and mandatory
 diagnostics are implemented; no runtime witness, proxy or changed public
 calling convention is silently introduced. S4 is complete under this explicit
 contract and its [acceptance record](s4-acceptance.md). Q2 follows.
+
+
+## 2026-10-01: Q2 rooted use index and admitted module graphs
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-use-index/README.md).
+The private four-pass function-pruning walk is replaced by one admitted rooted
+use graph, including dead recursive groups, captures, pinned/exported bindings
+and parallel delivery rows. Checking/delivery share admitted iterative graph
+routines; static orders are reused for lazy discovery, and cycle conflicts no
+longer compare every entry pair. Projection lifetimes preserve target charges.
+
+The focused batch uncovered a pre-existing stale-print-proof bug after delivery
+creates setters. Revalidation preserves the same choice permissions, releases
+old forms and does not repeat structural alias/declaration changes. The pinned
+previous release reproduces its panic in every objective; a separate oracle
+covers stale logical assignment bypassing a setter.
+
+43 distinct focused tests and 21 release artifact oracles pass. Three matched
+controls remain byte-identical: 291 raw / 307 gzip / 240 Brotli. The repaired
+setter case is recorded separately (154 / 177 / 137), never counted as a size
+win over a failed compiler. No full-library/fleet or CPU-speed claim.
+Pin `q2-use-index-1`, SHA-256
+`563df22dfa771db23006916ada15442460f9a6ed93a219a0babdc9a780a66bad`;
+algorithm 43 / search 32 / walk 10 / local facts 15. Source and binary identities
+are in the evidence record. Q2 remains the sole active milestone under its
+[acceptance contract](q2-acceptance.md); dirty scheduling, remaining resource
+owners, shared formation, persistent caches and decision replay remain open.

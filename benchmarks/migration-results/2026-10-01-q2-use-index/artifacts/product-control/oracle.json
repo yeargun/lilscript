@@ -1,0 +1,14 @@
+{
+  "setup": "",
+  "exercise": "const p={x:3,y:4};console.log(JSON.stringify([m.increment(p),p]));",
+  "expected": [
+    {
+      "x": 4,
+      "y": 4
+    },
+    {
+      "x": 3,
+      "y": 4
+    }
+  ]
+}

@@ -12,8 +12,10 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 
 ## Next
 
-Complete **Q2**: dirty scheduling, shared formation, persistent transparent
-reuse and resource-accounting completion. Keep logical admission, hard TOML
+Complete **Q2** under its [acceptance contract](q2-acceptance.md): dirty
+scheduling, shared formation, persistent transparent reuse and resource
+accounting. The rooted use-index consumer and admitted module graph are
+implemented; delivery now revalidates print proofs after creating setters. Keep logical admission, hard TOML
 permissions, source/target identities and selected output independent of cache
 occupancy. Then follow **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
 

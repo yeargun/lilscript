@@ -10,16 +10,16 @@ C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3/S4 are implemented. **Q2 is the sole active
 milestone.** [History](history.md) retains earlier pins, measurements and
 negative results; [coverage](coverage.md) keeps their remaining owners.
 
-The latest [S4 boundary-admission batch](../../benchmarks/migration-results/2026-10-01-s4-boundary-admission/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-boundary-admission-1/lilscript`, SHA-256
-`214159f151ebcc3cfee68beb8c77c714178aafd63635af710bde5e7ddcd20131`.
-Algorithm 42 / search 32 / walk 10 / local facts 15. Public interface checking
-runs before optional source rules/search and shares formation's proof. Original
-module/declaration spans survive re-export. Snapshot arrays additionally require
-shared-effect isolation; an exact checked view is inert, a real decoder is not.
-49 distinct focused checks and 18 release artifact oracles pass. Supported
-controls remain 553 raw / 409 gzip / 335 Brotli, byte-identical. The record
-retains the old reentrant-array result 11 versus expected 12 and the new refusal.
+The latest [Q2 use-index batch](../../benchmarks/migration-results/2026-10-01-q2-use-index/README.md)
+pins `/home/azureuser/lilscript-work/bin/q2-use-index-1/lilscript`, SHA-256
+`563df22dfa771db23006916ada15442460f9a6ed93a219a0babdc9a780a66bad`.
+Algorithm 43 / search 32 / walk 10 / local facts 15. The old four-pass function
+pruner is deleted; one admitted rooted use graph closes chains/recursive groups.
+Shared module graph routines admit entry projection and cycle bookkeeping,
+reuse static orders for lazy roots and release projection storage after placement.
+Delivery re-proves print forms after inserting setters; the previous release's
+panic is retained separately from matched size evidence. 43 distinct focused
+checks and 21 release artifact oracles pass. Matched controls remain byte-identical.
 
 S4 is complete under its [acceptance record](s4-acceptance.md) and
 [explicit ABI scope decision](s4-public-abi.md). Unrestricted public erased
@@ -31,13 +31,14 @@ it does not claim universal language or native support. `inline for`, `@pool`
 and all twelve documented regional `@choose` families are complete, including
 hard TOML/replay permissions. The shared fact/removal audit is complete.
 
-1. Write and implement Q2's finite acceptance contract: dirty scheduling,
-   shared/incremental formation, transparent bounded reuse and resource
-   accounting. Existing source-effect caches, fixed-point suffix reuse,
-   retained target heads and exact codec memoization are starting points.
-   Remove the remaining private `drop_unreferenced_functions` traversal only
-   with an integrated use-index consumer. `entry_graph` and cycle diagnostics
-   have carried allocations outside `AllocationBudget`.
+1. Finish [Q2's acceptance contract](q2-acceptance.md): dirty scheduling,
+   shared/incremental formation, transparent bounded persistent reuse and the
+   remaining resource owners. Existing source-effect caches, fixed-point suffix
+   reuse, retained target heads and exact codec memoization are starting points.
+   The use-index consumer and module graph are complete. Placement storage,
+   target journals, source analysis/edit owners, cross-candidate formation,
+   disk caches/build-elaboration reuse and explicit decision-lock replay remain.
+
 2. Finish Q2 before **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
    Q3 owns markedlil candidate growth and G3's 48 → 292 spelling judgments for
    six Brotli bytes; records-128's 588 judgments are retained cost evidence.

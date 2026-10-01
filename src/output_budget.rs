@@ -537,7 +537,7 @@ impl<Owner: Eq> RetainedCharge<Owner> {
 fn count(value: usize) -> Result<u64, AllocationError> {
     u64::try_from(value).map_err(|_| AllocationError::Capacity)
 }
-fn vector_bytes<T>(value: &Vec<T>) -> Result<u64, AllocationError> {
+pub(crate) fn vector_bytes<T>(value: &Vec<T>) -> Result<u64, AllocationError> {
     count(
         value
             .capacity()

@@ -16,6 +16,9 @@ mod strict_inline;
 #[path = "reach_tests.rs"]
 mod reach_analysis;
 
+#[path = "use_index_tests.rs"]
+mod use_index;
+
 #[path = "scalar_initialization_tests.rs"]
 mod scalar_initialization;
 
@@ -1969,7 +1972,7 @@ fn an_unreferenced_regular_expression_goes() {
         value: Some(pattern),
     });
     module
-        .drop_unreferenced_functions(&mut AllocationBudget::new(None))
+        .prune_declarations(&mut AllocationBudget::new(None))
         .unwrap();
     assert!(module.regions[0].statements.is_empty());
 }

@@ -62,7 +62,7 @@ declare_rules! {
     PlaceSingleCalls,
     DropRedundantInitStores,
     ScalarizeMemberObjects,
-    DropUnreferencedFunctions,
+    PruneDeclarations,
     DropUnreachable,
     GroupPrototypeStores,
     JoinEmptyDeclarations,
@@ -102,7 +102,7 @@ impl Rule {
             | Self::ForwardRootStrings
             | Self::ForwardSingleUses
             | Self::SimplifyOperators => context.rules.constant_folding,
-            Self::DropUnreferencedFunctions | Self::DropUnreachable => context.prunes,
+            Self::PruneDeclarations | Self::DropUnreachable => context.prunes,
             Self::PrivateCallRepresentations => {
                 context.rules.call_specialization || context.rules.helper_sharing
             }
@@ -162,9 +162,8 @@ impl Rule {
             // may increase nodes; exact final bytes decide admission afterward.
             Self::DuplicateExpressionFunctions | Self::PrivateCallRepresentations
             | Self::CompressStatements => Progress::SelectedRepresentation,
-            // Q2 replaces the remaining private liveness traversal; Q4 owns
-            // data/prelude producers. Their deletion is not a prerequisite of S4.
-            Self::DropUnreferencedFunctions => Progress::Nodes,
+            // One rooted use closure removes entire dead recursive groups.
+            Self::PruneDeclarations => Progress::Nodes,
             Self::EncodeTables | Self::PackStringArrays | Self::PoolStrings => Progress::SelectedRepresentation,
         }
     }
@@ -294,7 +293,7 @@ pub(crate) fn tail(families: &OutputFamilies, prunes: bool) -> Vec<Rule> {
         Rule::ScalarizeMemberObjects,
     ]);
     if prunes {
-        rules.push(Rule::DropUnreferencedFunctions);
+        rules.push(Rule::PruneDeclarations);
     }
     rules.extend([
         Rule::DropUnreachable,
@@ -651,8 +650,8 @@ impl Module {
             Rule::ScalarizeMemberObjects => {
                 let _ = self.scalarize_member_objects(budget)?;
             }
-            Rule::DropUnreferencedFunctions => {
-                let _ = self.drop_unreferenced_functions(budget)?;
+            Rule::PruneDeclarations => {
+                let _ = self.prune_declarations(budget)?;
             }
             Rule::DropUnreachable => {
                 let _ = self.drop_unreachable(budget)?;

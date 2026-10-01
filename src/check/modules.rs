@@ -879,66 +879,63 @@ fn validate_graph<S>(
     // refusal, lifted by M3.3d). A module one entry loads with `import()`
     // and does not reach statically is an entry of its own here.
     if modules.roots.len() > 1 {
-        let graph = modules
-            .modules
-            .iter()
-            .map(|module| module.dependencies.clone())
-            .collect::<Vec<_>>();
-        let dynamic = modules
-            .modules
-            .iter()
-            .map(|module| module.dynamic_dependencies.clone())
-            .collect::<Vec<_>>();
-        budget
-            .work(
-                WorkKind::Analysis,
-                graph.len() as u64 * modules.roots.len() as u64,
-            )
-            .map_err(|error| resource(root, error))?;
-        let cycles = crate::module::static_cycles(&graph);
-        let mut roots = modules.roots.clone();
-        let mut names = modules
-            .root_names
-            .iter()
-            .map(|name| format!("entries `{name}`"))
-            .collect::<Vec<_>>();
-        for module in crate::module::lazy_roots(&modules.roots, &graph, &dynamic) {
-            roots.push(module);
-            names.push(format!(
-                "`import(\"{}\")`",
-                modules.modules[module].path.display()
-            ));
+        let mut phase = budget.scope();
+        let mut graph = phase.vector(AllocationClass::Scratch, modules.modules.len())
+            .map_err(|failure| resource(root, failure))?;
+        let mut dynamic = phase.vector(AllocationClass::Scratch, modules.modules.len())
+            .map_err(|failure| resource(root, failure))?;
+        for module in &modules.modules {
+            graph.push(phase.copy_slice(AllocationClass::Scratch, &module.dependencies)
+                .map_err(|failure| resource(root, failure))?);
+            dynamic.push(phase.copy_slice(AllocationClass::Scratch, &module.dynamic_dependencies)
+                .map_err(|failure| resource(root, failure))?);
         }
-        let entered = crate::module::cycle_entries(&roots, &graph, &cycles);
-        for (first, first_entries) in entered.iter().enumerate() {
-            for (second, second_entries) in entered.iter().enumerate().skip(first + 1) {
-                for &(cycle, at) in first_entries {
-                    let Some(&(_, other)) =
-                        second_entries.iter().find(|&&(known, _)| known == cycle)
-                    else {
-                        continue;
-                    };
-                    if other == at {
-                        continue;
-                    }
-                    let members = (0..graph.len())
-                        .filter(|&module| cycles[module] == Some(cycle))
-                        .map(|module| modules.modules[module].path.display().to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    let (first_name, second_name) = (
-                        names[first].trim_start_matches("entries "),
-                        names[second].trim_start_matches("entries "),
-                    );
-                    return Err(error(
-                        roots[second],
-                        programs[roots[second]].span,
-                        format!(
-                            "entries {first_name} and {second_name} enter the import cycle of {members} at different modules, so they evaluate it in different orders; one entry must import the cycle through the same module as the other"
-                        ),
-                    )
-                    .into());
+        let cycles = crate::module::static_cycles_admitted(&graph, &mut phase)
+            .map_err(|failure| resource(root, failure))?;
+        phase.work(WorkKind::Analysis, cycles.len() as u64)
+            .map_err(|failure| resource(root, failure))?;
+        if cycles.iter().any(Option::is_some) {
+            let mut roots = phase.copy_slice(AllocationClass::Scratch, &modules.roots)
+                .map_err(|failure| resource(root, failure))?;
+            let lazy = crate::module::lazy_roots_admitted(&roots, &graph, &dynamic, &mut phase)
+                .map_err(|failure| resource(root, failure))?;
+            phase.extend_copy(AllocationClass::Scratch, &mut roots, &lazy)
+                .map_err(|failure| resource(root, failure))?;
+            let entered = crate::module::cycle_entries_admitted(&roots, &graph, &cycles, &mut phase)
+                .map_err(|failure| resource(root, failure))?;
+            let mut first = phase.filled(AllocationClass::Scratch, graph.len(), None)
+                .map_err(|failure| resource(root, failure))?;
+            let mut conflict = None;
+            // A cycle needs only its first entry. Keep the old diagnostic's
+            // first-root/second-root/first-cycle ordering without R² scans.
+            for (entry, entries) in entered.iter().enumerate() {
+                for (position, &(cycle, at)) in entries.iter().enumerate() {
+                    phase.work(WorkKind::Analysis, 1).map_err(|failure| resource(root, failure))?;
+                    if let Some((previous, other, first_position)) = first[cycle as usize] {
+                        if at != other {
+                            let candidate = (previous, entry, first_position, cycle);
+                            if conflict.is_none_or(|old| candidate < old) { conflict = Some(candidate); }
+                        }
+                    } else { first[cycle as usize] = Some((entry, at, position)); }
                 }
+            }
+            if let Some((first, second, _, cycle)) = conflict {
+                let members = (0..graph.len())
+                    .filter(|&module| cycles[module] == Some(cycle))
+                    .map(|module| modules.modules[module].path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let name = |entry: usize| match modules.root_names.get(entry) {
+                    Some(name) => format!("`{name}`"),
+                    None => format!("`import(\"{}\")`", modules.modules[roots[entry]].path.display()),
+                };
+                return Err(error(
+                    roots[second], programs[roots[second]].span,
+                    format!(
+                        "entries {} and {} enter the import cycle of {members} at different modules, so they evaluate it in different orders; one entry must import the cycle through the same module as the other",
+                        name(first), name(second),
+                    ),
+                ).into());
             }
         }
     }

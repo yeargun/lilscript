@@ -1,0 +1,1 @@
+let a=read();export{a};

@@ -1,125 +1,180 @@
-//! The program's entries as delivery reads them (plan M3.3, design §5-§6).
-//!
-//! A program has one module graph and several roots: its entries, in name
-//! order. The canonical schedule is the post-order over the roots in that
-//! order; each entry also has its own fresh order, what ES modules evaluate
-//! when it is loaded first. Placement reads this projection, never the
-//! Program (L2).
+//! One admitted projection of the checked module graph for delivery. Static
+//! orders are computed once and reused to discover lazy roots. The projection
+//! is immutable and released after placement; target edits keep their owner.
 use super::*;
+use crate::compilation_policy::WorkKind::Analysis;
 use crate::js::delivery::{EntryGraph, EntrySet};
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
 
-/// The entry graph of `program` for its delivery. `carried` names the host
-/// modules the output carries: their code runs for the entries that reach
-/// a module importing one.
-pub(super) fn entry_graph(
+pub(super) fn with_entry_graph<R, E: From<AllocationError>>(
     program: &Program<'_>,
     carried: &[String],
     paths: &[String],
-) -> EntryGraph {
+    budget: &mut AllocationBudget<'_>,
+    inspect: impl FnOnce(&EntryGraph, &mut AllocationBudget<'_>) -> Result<R, E>,
+) -> Result<R, E> {
+    use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
+    let before = budget.retained_bytes(Retained);
+    let graph = entry_graph(program, carried, paths, budget)?;
+    let bytes = budget.retained_bytes(Retained) - before;
+    let outcome = catch_unwind(AssertUnwindSafe(|| inspect(&graph, budget)));
+    drop(graph);
+    budget.release(Retained, bytes)?;
+    match outcome {
+        Ok(result) => result,
+        Err(payload) => resume_unwind(payload),
+    }
+}
+
+fn entry_graph(
+    program: &Program<'_>,
+    carried: &[String],
+    paths: &[String],
+    budget: &mut AllocationBudget<'_>,
+) -> Result<EntryGraph, AllocationError> {
+    let mut phase = budget.scope();
     let modules = program.modules();
     let count = modules.len();
-    let imports = modules
-        .iter()
-        .map(|module| {
-            module
-                .dependencies
-                .iter()
-                .map(|id| id.index() as u32)
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-    let graph = imports
-        .iter()
-        .map(|targets| targets.iter().map(|&t| t as usize).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-    // Canonical positions, from the initialization schedule.
-    let mut position = vec![u32::MAX; count];
+    let mut imports = phase.vector(Retained, count)?;
+    let mut graph = phase.vector(Scratch, count)?;
+    let mut dynamic_graph = phase.vector(Scratch, count)?;
+    for module in modules {
+        phase.work(
+            Analysis,
+            (module.dependencies.len() + module.dynamic_dependencies.len()) as u64,
+        )?;
+        let mut targets = phase.vector(Retained, module.dependencies.len())?;
+        let mut edges = phase.vector(Scratch, module.dependencies.len())?;
+        for id in &module.dependencies {
+            targets.push(id.index() as u32);
+            edges.push(id.index());
+        }
+        imports.push(targets);
+        graph.push(edges);
+        let mut dynamic = phase.vector(Scratch, module.dynamic_dependencies.len())?;
+        dynamic.extend(module.dynamic_dependencies.iter().map(|id| id.index()));
+        dynamic_graph.push(dynamic);
+    }
+    let mut position = phase.filled(Retained, count, u32::MAX)?;
+    phase.work(Analysis, program.initialization().len() as u64)?;
     for (index, &initializer) in program.initialization().iter().enumerate() {
         if let Some(data) = program.unit(initializer) {
             position[data.module.index()] = index as u32;
         }
     }
-    let entries = program
-        .entries()
-        .iter()
-        .map(|entry| (entry.name.clone(), entry.module.index() as u32))
-        .collect::<Vec<_>>();
-    let roots = entries
-        .iter()
-        .map(|&(_, module)| module as usize)
-        .collect::<Vec<_>>();
-    let mut orders = crate::module::fresh_orders(&roots, &graph);
-    // A module an entry can load with `import()` without reaching it
-    // statically is a dynamic entry (design §5.2): loading it evaluates what
-    // that entry has not, so it gets its own file. With one entry this is
-    // every module only `import()` reaches; with several, a module another
-    // entry imports statically can still be lazy for this one.
-    let dynamic_graph = modules
-        .iter()
-        .map(|module| {
-            module
-                .dynamic_dependencies
-                .iter()
-                .map(|id| id.index())
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-    let mut lazy = vec![false; count];
-    for module in crate::module::lazy_roots(&roots, &graph, &dynamic_graph) {
+    let mut entries = phase.vector(Retained, program.entries().len())?;
+    let mut roots = phase.vector(Scratch, program.entries().len())?;
+    for entry in program.entries() {
+        entries.push((
+            phase.string(Retained, &entry.name)?,
+            entry.module.index() as u32,
+        ));
+        roots.push(entry.module.index());
+    }
+    let mut orders = crate::module::fresh_orders_admitted(&roots, &graph, &mut phase)?;
+    let mut lazy = phase.filled(Scratch, count, false)?;
+    for module in crate::module::lazy_roots_from_orders_admitted(
+        &roots,
+        &orders,
+        &graph,
+        &dynamic_graph,
+        &mut phase,
+    )? {
         lazy[module] = true;
     }
-    // By first load in the schedule.
-    let mut by_position = (0..count).collect::<Vec<_>>();
+    let mut by_position = phase.vector(Scratch, count)?;
+    by_position.extend(0..count);
+    phase.work(
+        Analysis,
+        (count as u64).saturating_mul(u64::from(usize::BITS - count.leading_zeros()) + 1),
+    )?;
     by_position.sort_unstable_by_key(|&module| position[module]);
-    let mut dynamic: Vec<u32> = Vec::new();
+    let mut dynamic = phase.vector(Retained, count)?;
+    let mut dynamic_roots = phase.vector(Scratch, count)?;
     for &module in &by_position {
         for &target in &dynamic_graph[module] {
-            if lazy[target] && !dynamic.contains(&(target as u32)) {
+            phase.work(Analysis, 1)?;
+            if std::mem::replace(&mut lazy[target], false) {
                 dynamic.push(target as u32);
+                dynamic_roots.push(target);
             }
         }
     }
-    let dynamic_roots = dynamic
-        .iter()
-        .map(|&module| module as usize)
-        .collect::<Vec<_>>();
-    orders.extend(crate::module::fresh_orders(&dynamic_roots, &graph));
-    let mut reach = vec![EntrySet::default(); count];
+    let dynamic_orders = crate::module::fresh_orders_admitted(&dynamic_roots, &graph, &mut phase)?;
+    phase.reserve_vec(Scratch, &mut orders, dynamic_orders.len())?;
+    orders.extend(dynamic_orders);
+    let mut reach = phase.vector(Retained, count)?;
+    reach.resize_with(count, EntrySet::default);
+    let mut output_orders = phase.vector(Retained, orders.len())?;
     for (bit, order) in orders.iter().enumerate() {
+        let mut output = phase.vector(Retained, order.len())?;
         for &module in order {
-            reach[module].insert(bit);
+            phase.work(Analysis, 1)?;
+            reach[module].insert_admitted(bit, Retained, &mut phase)?;
+            output.push(module as u32);
+        }
+        output_orders.push(output);
+    }
+    let mut host_importers = phase.vector(Retained, count)?;
+    for (index, module) in modules.iter().enumerate() {
+        let mut carried_here = false;
+        for import in &module.foreign_imports {
+            for name in carried {
+                phase.work(Analysis, name.len().min(import.source.len()) as u64 + 1)?;
+                if *name == import.source {
+                    carried_here = true;
+                    break;
+                }
+            }
+            if carried_here {
+                break;
+            }
+        }
+        if carried_here {
+            host_importers.push(index as u32);
         }
     }
-    let host_importers = modules
-        .iter()
-        .enumerate()
-        .filter(|(_, module)| {
-            module
-                .foreign_imports
-                .iter()
-                .any(|import| carried.iter().any(|carried| *carried == import.source))
-        })
-        .map(|(index, _)| index as u32)
-        .collect();
-    EntryGraph {
+    let cycles = crate::module::static_cycles_admitted(&graph, &mut phase)?;
+    phase.promote(crate::output_budget::vector_bytes(&cycles)?)?;
+    let mut output_paths = phase.vector(Retained, count)?;
+    for module in 0..count {
+        let path = match paths.get(module) {
+            Some(path) => phase.string(Retained, path)?,
+            None => {
+                // A usize needs at most 20 decimal digits. Admit before format.
+                let mut path = phase.vector(Retained, 21)?;
+                use std::io::Write;
+                write!(&mut path, "m{module}").expect("preallocated vector writer");
+                String::from_utf8(path).expect("ASCII module name")
+            }
+        };
+        output_paths.push(path);
+    }
+    let result = EntryGraph {
         entries,
         dynamic,
         imports,
         position,
-        orders: orders
-            .into_iter()
-            .map(|order| order.into_iter().map(|module| module as u32).collect())
-            .collect(),
+        orders: output_orders,
         reach,
-        cycles: crate::module::static_cycles(&graph),
+        cycles,
         host_importers,
-        paths: (0..count)
-            .map(|module| {
-                paths
-                    .get(module)
-                    .cloned()
-                    .unwrap_or_else(|| format!("m{module}"))
-            })
-            .collect(),
-    }
+        paths: output_paths,
+    };
+    // Do not let scratch buffers outlive their reservations.
+    drop((
+        graph,
+        dynamic_graph,
+        roots,
+        orders,
+        lazy,
+        by_position,
+        dynamic_roots,
+    ));
+    phase.finish_retained()?;
+    Ok(result)
 }

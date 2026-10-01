@@ -67,6 +67,19 @@ impl EntrySet {
         }
         self.0[word] |= 1 << (bit % 64);
     }
+    pub(crate) fn insert_admitted(
+        &mut self, bit: usize, class: AllocationClass, budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        budget.work(WorkKind::Analysis, 1)?;
+        let word = bit / 64;
+        if self.0.len() <= word {
+            let additional = word + 1 - self.0.len();
+            budget.reserve_vec(class, &mut self.0, additional)?;
+            self.0.resize(word + 1, 0);
+        }
+        self.0[word] |= 1 << (bit % 64);
+        Ok(())
+    }
     pub fn remove(&mut self, bit: usize) {
         if let Some(word) = self.0.get_mut(bit / 64) {
             *word &= !(1 << (bit % 64));

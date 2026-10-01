@@ -51,6 +51,7 @@ mod inline;
 mod journal;
 mod private_calls;
 mod reach;
+mod uses;
 pub(crate) use journal::Journal;
 #[cfg(test)]
 mod literal_output_tests;
@@ -1782,72 +1783,6 @@ impl Module {
             }
         }
         Ok(edits)
-    }
-
-    /// A declaration that no code references goes when evaluating it has no
-    /// effect: no value, or a value that only creates literals and functions
-    /// (a function no code references is never called). A call spelled as the
-    /// builtin it forwards to leaves such functions, and folds leave such
-    /// declarations. Returns the number of dropped statements.
-    pub(crate) fn drop_unreferenced_functions(
-        &mut self,
-        budget: &mut AllocationBudget<'_>,
-    ) -> Result<usize, AllocationError> {
-        let mut dropped = 0;
-        // Dropping one function can leave another unreferenced.
-        for _ in 0..4 {
-            let before = dropped;
-            self.drop_unreferenced_functions_once(budget, &mut dropped)?;
-            if dropped == before {
-                break;
-            }
-        }
-        Ok(dropped)
-    }
-
-    fn drop_unreferenced_functions_once(
-        &mut self,
-        budget: &mut AllocationBudget<'_>,
-        dropped: &mut usize,
-    ) -> Result<(), AllocationError> {
-        use crate::compilation_policy::WorkKind::Analysis;
-        // Only code that can run counts: edits leave unreachable nodes.
-        let mut referenced = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
-        self.walk(&mut vec![self.root], &mut Vec::new(), budget, |binding| {
-            referenced[binding.index()] = true;
-        })?;
-        budget.work(Analysis, self.exports.len() as u64)?;
-        for export in &self.exports {
-            referenced[export.binding.index()] = true;
-        }
-        for region in 0..self.regions.len() {
-            let mut index = 0;
-            while index < self.regions[region].statements.len() {
-                budget.work(Analysis, 1)?;
-                let unused = |binding: BindingId| {
-                    !referenced[binding.index()] && !self.bindings[binding.index()].pinned
-                };
-                let drop = match &self.regions[region].statements[index] {
-                    Statement::Let {
-                        binding,
-                        value: Some(value),
-                    } => unused(*binding) && self.inert_value(*value, budget)?,
-                    Statement::Let {
-                        binding,
-                        value: None,
-                    } => unused(*binding),
-                    Statement::Function { binding, .. } => unused(*binding),
-                    _ => false,
-                };
-                if drop {
-                    self.remove_statement(region, index);
-                    *dropped += 1;
-                } else {
-                    index += 1;
-                }
-            }
-        }
-        Ok(())
     }
 
     /// `let o={…};o.k=v;o[1]=w` becomes `let o={…,k:v,1:w}`: the stores run

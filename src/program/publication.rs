@@ -838,8 +838,6 @@ impl JavaScriptTarget<'_, '_> {
             if module.delivery.is_none()
                 && (entries > 1 || contract.mode != crate::config::DeliveryMode::Single)
             {
-                let graph =
-                    super::entries::entry_graph(&semantic.program, &delivered_hosts, module_names);
                 let dynamic_import = policy.javascript_contract().is_some_and(|language| {
                     language
                         .ecmascript
@@ -850,14 +848,21 @@ impl JavaScriptTarget<'_, '_> {
                     crate::config::JavaScriptFormat::Esm => *chunk_extension,
                     format => format.extension(),
                 };
-                module.delivery = crate::js::delivery::plan(
-                    module,
-                    &graph,
-                    contract,
-                    dynamic_import,
-                    ext,
-                    budget,
+                module.delivery = super::entries::with_entry_graph(
+                    &semantic.program, &delivered_hosts, module_names, budget,
+                    |graph, budget| crate::js::delivery::plan(
+                        module, graph, contract, dynamic_import, ext, budget,
+                    ),
                 )?;
+                if module.print_forms.is_some()
+                    && module.delivery.as_ref().is_some_and(|plan| !plan.setters.is_empty())
+                {
+                    module.refresh_print_choices(
+                        choices.families, choices.rules, &choices.choices,
+                        policy.javascript_contract().expect("JavaScript target").ecmascript.year(),
+                        budget,
+                    )?;
+                }
             }
         }
         budget.with_ledger(|ledger| {

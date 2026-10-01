@@ -23,10 +23,8 @@ pub(super) fn initialization_order_admitted(
 ) -> Result<Vec<UnitId>, StaticOrderError> {
     let mut initializers = budget.vector(Scratch, modules.len())?;
     let mut scope = budget.scope();
-    let roots = entries
-        .iter()
-        .map(|entry| entry.index())
-        .collect::<Vec<_>>();
+    let mut roots = scope.vector(Scratch, entries.len())?;
+    roots.extend(entries.iter().map(|entry| entry.index()));
     let order = crate::module::initialization_order_admitted(
         &roots,
         modules.len(),
