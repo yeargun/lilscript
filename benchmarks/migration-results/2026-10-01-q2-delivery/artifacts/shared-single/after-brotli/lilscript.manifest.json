@@ -1,0 +1,75 @@
+{
+  "version": 3,
+  "codec": "brotli",
+  "outputs": [
+    {
+      "mode": "single",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "a",
+          "file": "a.js",
+          "dynamic": false,
+          "closure": [
+            "a.js"
+          ],
+          "row": 106,
+          "raw_row": 156
+        },
+        {
+          "name": "b",
+          "file": "b.js",
+          "dynamic": false,
+          "closure": [
+            "b.js"
+          ],
+          "row": 93,
+          "raw_row": 156
+        }
+      ],
+      "files": [
+        {
+          "file": "a.js",
+          "role": "entry",
+          "label": [
+            "a"
+          ],
+          "modules": [
+            "a.lil",
+            "core.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 156,
+          "codec_bytes": 106,
+          "sha256": "3eaa294006e7328d700477354d2d4f888365891d26d5c89fad08433dde72d11f"
+        },
+        {
+          "file": "b.js",
+          "role": "entry",
+          "label": [
+            "b"
+          ],
+          "modules": [
+            "core.lil",
+            "b.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 156,
+          "codec_bytes": 93,
+          "sha256": "159bd385c2a9431b9c1c9cc41e40ad5fef23c8acfad89fd4c738917893db6c66"
+        }
+      ],
+      "side_effects": [
+        "a.js",
+        "b.js"
+      ],
+      "codec_total": 199,
+      "rows_total": 199,
+      "setters": 0
+    }
+  ]
+}

@@ -1429,3 +1429,25 @@ integration fixture's parse refusal is carried to V1; a focused five-family
 control supplies reconstruction and runtime evidence. No full library/fleet
 rerun, ratchet baseline or port artifact change. Q2 remains the sole active
 milestone for its remaining reuse, formation and resource owners.
+
+## 2026-10-01: Q2 delivery planner admission
+
+Implemented the preregistered delivery owner: facts/walks, atoms/labels,
+placement and admitted trial copies, links, static/lazy simulation, setters and
+final plan metadata. Contexts borrow shared inputs; rejected trials release
+copies, accepted trials release old layouts, and work/memory refusals propagate
+rather than being mistaken for illegal merges. Temporary inputs release on
+success, refusal and unwind without claiming the module's existing storage.
+Name-template inspection no longer allocates parser parts.
+
+Pin `q2-delivery-1`, SHA-256
+`7c8417b5a59c74c747943b4989e86dcd0c728beb9be2afeedc828926765640ac`,
+algorithm 51. [Evidence](../../benchmarks/migration-results/2026-10-01-q2-delivery/README.md):
+16 focused checks and 36 release artifact/runtime/independent-codec checks pass.
+All emitted files and exact judgment counts match algorithm 50; entry-row totals
+are 1,624 raw / 1,526 gzip / 1,131 Brotli on both pins. Logical bills rise because
+the planner now admits its work and storage. CPU samples are too small for a
+speed conclusion, with three .01-second increases retained. No full suite,
+fleet, ratchet baseline update or port artifact change. Q2 remains active for
+source analysis/edit and artifact/render owners, remaining global dependencies,
+shared/incremental formation and per-module elaboration reuse.

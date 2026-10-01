@@ -1,0 +1,1 @@
+console.log("core loaded");console.log("b loaded");let bump=function(){o=o+1|0},read=function(){return o},o=0,onlyB=function(){return 7};export{onlyB,read};

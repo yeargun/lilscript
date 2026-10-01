@@ -385,31 +385,7 @@ impl delivery::DeliveryPlan {
         use delivery::*;
         Ok(Self {
             mode: self.mode,
-            files: map(&self.files, budget, |file, budget| {
-                Ok(PlannedFile {
-                    role: file.role,
-                    label: file.label.clone_in(budget)?,
-                    modules: budget.copy_slice(Retained, &file.modules)?,
-                    statements: budget.copy_slice(Retained, &file.statements)?,
-                    anchored: file.anchored,
-                    links: FileLinks {
-                        imports: map(&file.links.imports, budget, |(file, bindings), budget| {
-                            Ok((*file, budget.copy_slice(Retained, bindings)?))
-                        })?,
-                        exports: budget.copy_slice(Retained, &file.links.exports)?,
-                        public: map(
-                            &file.links.public,
-                            budget,
-                            |(name, binding, file), budget| {
-                                Ok((text(name, budget)?, *binding, *file))
-                            },
-                        )?,
-                        foreign: budget.copy_slice(Retained, &file.links.foreign)?,
-                        hosted: budget.copy_slice(Retained, &file.links.hosted)?,
-                        dynamic: budget.copy_slice(Retained, &file.links.dynamic)?,
-                    },
-                })
-            })?,
+            files: map(&self.files, budget, |file, budget| file.clone_in(budget))?,
             entries: map(&self.entries, budget, |entry, budget| {
                 Ok(EntryDelivery {
                     name: text(&entry.name, budget)?,

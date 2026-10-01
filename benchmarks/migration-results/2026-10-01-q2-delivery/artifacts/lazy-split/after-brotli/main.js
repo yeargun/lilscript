@@ -1,0 +1,1 @@
+import("./0.js").catch(e=>Promise.reject({specifier:"./feature",message:String(e)})).then(e=>void console.log(e.answer(40))).catch(e=>void console.log(e.message));

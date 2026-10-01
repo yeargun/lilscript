@@ -1,0 +1,8 @@
+[delivery]
+mode='preserve-modules'
+[optimization]
+preset='maximum'
+[objective]
+codecs='brotli'
+[effort]
+level=13

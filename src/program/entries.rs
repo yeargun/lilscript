@@ -17,17 +17,10 @@ pub(super) fn with_entry_graph<R, E: From<AllocationError>>(
     budget: &mut AllocationBudget<'_>,
     inspect: impl FnOnce(&EntryGraph, &mut AllocationBudget<'_>) -> Result<R, E>,
 ) -> Result<R, E> {
-    use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
-    let before = budget.retained_bytes(Retained);
-    let graph = entry_graph(program, carried, paths, budget)?;
-    let bytes = budget.retained_bytes(Retained) - before;
-    let outcome = catch_unwind(AssertUnwindSafe(|| inspect(&graph, budget)));
-    drop(graph);
-    budget.release(Retained, bytes)?;
-    match outcome {
-        Ok(result) => result,
-        Err(payload) => resume_unwind(payload),
-    }
+    budget.with_temporary(
+        |budget| entry_graph(program, carried, paths, budget).map_err(E::from),
+        |graph, budget| inspect(graph, budget),
+    )
 }
 
 fn entry_graph(

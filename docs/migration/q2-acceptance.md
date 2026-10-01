@@ -20,8 +20,8 @@ scheduler suffixes remain useful starting points; do not rebuild their owners.
    cached evidence grants neither a permission nor extra search work.
 4. [ ] Finish resource admission for graph/cycle/delivery and analysis/edit
    storage, including failure cleanup. Entry graph, cycle checking and the
-   target use index, edit journals, local dirty maps, renumbering plans and complete retained target copies are admitted; delivery placement and
-   remaining analysis/edit owners still need completion. Count logical work independently from
+   target use index, edit journals, local dirty maps, renumbering plans and complete retained target copies are admitted; delivery placement, simulation and setter payloads are now
+   admitted. Remaining analysis/edit and artifact/render owners still need completion. Count logical work independently from
    physical cache hits and retain scaling/work/byte telemetry.
 5. [ ] Wire/document cache and scheduling controls with hard TOML behavior,
    lifetime/capacity, invalidation, defaults and tradeoffs. Transparent controls
@@ -103,3 +103,22 @@ proofs and exact artifact admission protect each independent objective; ten
 focused checks and 36 release oracles pass. Bytes are unchanged on the controls,
 and search cost varies in both directions. This completes the lock portion of
 tasks 3 and 5, not per-module elaboration or incremental formation.
+
+Next batch: complete the delivery planner's allocation owner. Admit reference
+walks/facts, atom/label propagation, placement and trial copies, link tables,
+simulation, setter payloads and final plan metadata before allocating. Reuse
+the existing budget; temporary storage must release on success, refusal and
+unwind without borrowing the target's retained storage. Remove redundant
+context clones and keep deterministic placement/merge order. Prediction:
+unchanged sufficiently funded artifacts, higher correctly counted work/bytes,
+and earlier safe refusal at genuinely insufficient limits. Qualify the complete
+owner with focused single/split/preserved, lazy/cycle/setter controls and refusal
+cleanup after the implementation batch; no full library/fleet rerun.
+
+The [delivery batch](../../benchmarks/migration-results/2026-10-01-q2-delivery/README.md)
+completes that planner owner. Sixteen focused checks and 36 release checks pass,
+with identical files, scores and judgment counts across independent objectives.
+Previously uncounted work/storage is now charged; no speed or size gain is
+claimed. Temporary input and rejected trial lifetimes are qualified, including
+refusal and unwind. Source analysis/edit and later artifact/render allocation
+owners remain open, alongside shared/incremental formation and elaboration.

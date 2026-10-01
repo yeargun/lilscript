@@ -1,0 +1,1 @@
+import{bump,read}from"./0.js";let twice=function(){bump();bump();return read()};export{twice,bump,read};

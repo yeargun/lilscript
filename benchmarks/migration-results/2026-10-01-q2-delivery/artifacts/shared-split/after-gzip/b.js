@@ -1,0 +1,1 @@
+export{read}from"./0.js";let onlyB=function(){return 7};console.log("b loaded");export{onlyB};

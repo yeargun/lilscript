@@ -1,0 +1,96 @@
+{
+  "version": 3,
+  "codec": "raw",
+  "outputs": [
+    {
+      "mode": "split",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "a",
+          "file": "a.js",
+          "dynamic": false,
+          "closure": [
+            "0.js",
+            "a.js"
+          ],
+          "row": 208,
+          "raw_row": 208
+        },
+        {
+          "name": "b",
+          "file": "b.js",
+          "dynamic": false,
+          "closure": [
+            "0.js",
+            "b.js"
+          ],
+          "row": 198,
+          "raw_row": 198
+        }
+      ],
+      "files": [
+        {
+          "file": "a.js",
+          "role": "entry",
+          "label": [
+            "a"
+          ],
+          "modules": [
+            "a.lil"
+          ],
+          "anchored": false,
+          "imports": [
+            "0.js"
+          ],
+          "dynamic_imports": [],
+          "bytes": 104,
+          "codec_bytes": 104,
+          "sha256": "1e9f1e20351ac6666e8558fb255f95f8db31f80544ca8cf25e2eb069a5ff2a14"
+        },
+        {
+          "file": "b.js",
+          "role": "entry",
+          "label": [
+            "b"
+          ],
+          "modules": [
+            "b.lil"
+          ],
+          "anchored": true,
+          "imports": [
+            "0.js"
+          ],
+          "dynamic_imports": [],
+          "bytes": 94,
+          "codec_bytes": 94,
+          "sha256": "1948b15d490256cb093b44a5eeb06d8f819b3dec10c7bc237eea9427ebd89a40"
+        },
+        {
+          "file": "0.js",
+          "role": "shared",
+          "label": [
+            "a",
+            "b"
+          ],
+          "modules": [
+            "core.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 104,
+          "codec_bytes": 104,
+          "sha256": "e28325f9c141dbae8f51589744046d338e76bb4439a02ddc1ce278a2cab653ae"
+        }
+      ],
+      "side_effects": [
+        "b.js",
+        "0.js"
+      ],
+      "codec_total": 302,
+      "rows_total": 406,
+      "setters": 0
+    }
+  ]
+}

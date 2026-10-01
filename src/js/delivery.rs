@@ -44,7 +44,8 @@ use super::extract::OutputError;
 use super::*;
 use crate::compilation_policy::{DeliveryContract, WorkKind};
 use crate::config::DeliveryMode;
-use crate::output_budget::AllocationBudget;
+use crate::output_budget::AllocationClass::{Retained, Scratch};
+use crate::output_budget::{vector_bytes, AllocationBudget};
 
 const NONE: usize = usize::MAX;
 
@@ -55,10 +56,43 @@ const NONE: usize = usize::MAX;
 pub struct EntrySet(Vec<u64>);
 
 impl EntrySet {
-    pub(super) fn clone_in(&self, budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {
-        Ok(Self(budget.copy_slice(AllocationClass::Retained, &self.0)?))
+    pub(super) fn clone_in(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        self.copy_in(Retained, budget)
     }
 
+    fn copy_in(
+        &self,
+        class: AllocationClass,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        Ok(Self(budget.copy_slice(class, &self.0)?))
+    }
+    fn single_in(
+        bit: usize,
+        class: AllocationClass,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        let mut value = Self::default();
+        value.insert_admitted(bit, class, budget)?;
+        Ok(value)
+    }
+    fn union_in(
+        &mut self,
+        other: &Self,
+        class: AllocationClass,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        budget.work(WorkKind::Analysis, other.0.len() as u64)?;
+        if self.0.len() < other.0.len() {
+            let additional = other.0.len() - self.0.len();
+            budget.reserve_vec(class, &mut self.0, additional)?;
+            self.0.resize(other.0.len(), 0);
+        }
+        Ok(self.union_with(other))
+    }
     pub fn single(bit: usize) -> Self {
         let mut set = Self::default();
         set.insert(bit);
@@ -72,7 +106,10 @@ impl EntrySet {
         self.0[word] |= 1 << (bit % 64);
     }
     pub(crate) fn insert_admitted(
-        &mut self, bit: usize, class: AllocationClass, budget: &mut AllocationBudget<'_>,
+        &mut self,
+        bit: usize,
+        class: AllocationClass,
+        budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
         budget.work(WorkKind::Analysis, 1)?;
         let word = bit / 64;
@@ -195,14 +232,18 @@ impl EntryGraph {
             .map(|index| self.entries.len() + index)
     }
     /// The label host code carries.
-    fn host_label(&self) -> EntrySet {
+    fn host_label(
+        &self,
+        class: AllocationClass,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<EntrySet, AllocationError> {
         let mut label = EntrySet::default();
         for &module in &self.host_importers {
             if let Some(reach) = self.reach.get(module as usize) {
-                label.union_with(reach);
+                label.union_in(reach, class, budget)?;
             }
         }
-        label
+        Ok(label)
     }
 }
 
@@ -505,6 +546,54 @@ impl DeliveredLayout {
     }
 }
 
+fn defaults_in<T: Default>(
+    length: usize,
+    class: AllocationClass,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<T>, AllocationError> {
+    budget.work(WorkKind::Analysis, length as u64)?;
+    let mut values = budget.vector(class, length)?;
+    values.resize_with(length, T::default);
+    Ok(values)
+}
+
+fn collect_in<T>(
+    values: impl IntoIterator<Item = T>,
+    class: AllocationClass,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<T>, AllocationError> {
+    let values = values.into_iter();
+    let (minimum, maximum) = values.size_hint();
+    let capacity = if maximum == Some(minimum) { minimum } else { 0 };
+    let mut output = budget.vector(class, capacity)?;
+    for value in values {
+        budget.push(class, &mut output, value)?;
+    }
+    Ok(output)
+}
+
+fn extend_in<T>(
+    target: &mut Vec<T>,
+    values: impl IntoIterator<Item = T>,
+    class: AllocationClass,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
+    for value in values {
+        budget.push(class, target, value)?;
+    }
+    Ok(())
+}
+
+fn release_vec<T>(
+    value: Vec<T>,
+    class: AllocationClass,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
+    let bytes = vector_bytes(&value)?;
+    drop(value);
+    budget.release(class, bytes)
+}
+
 // ---------------------------------------------------------------- facts
 
 /// What placement reads of each root statement: the structural reference
@@ -538,108 +627,172 @@ enum Reference {
     Load(u32, bool),
 }
 
-/// Every binding a root statement's subtree reads or writes (and whether
-/// the write is outside the functions it creates), and every module it
-/// loads. A lazily delivered module's namespace members are read in its
-/// own file, not here.
-fn visit_references(
+/// A single statement's references. The walk and its result have one
+/// child owner, so a failed traversal cannot leave uncharged partial vectors.
+#[derive(Default)]
+struct StatementReferences {
+    own: Vec<(BindingId, usize, bool)>,
+    foreign: Vec<usize>,
+    loads: Vec<u32>,
+    every: Vec<u32>,
+    writes_root: bool,
+    loads_here: bool,
+}
+
+impl StatementReferences {
+    fn add(
+        &mut self,
+        reference: Reference,
+        owners: &[usize],
+        foreign: &[usize],
+        index: usize,
+        lazy: &dyn Fn(u32) -> bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        match reference {
+            Reference::Read(binding) => {
+                let owner = owners[binding.index()];
+                if owner != NONE && owner != index {
+                    budget.push(Retained, &mut self.own, (binding, owner, false))?;
+                }
+                if foreign[binding.index()] != NONE {
+                    budget.push(Retained, &mut self.foreign, foreign[binding.index()])?;
+                }
+            }
+            Reference::Write(binding, nested) => {
+                let owner = owners[binding.index()];
+                if owner != NONE && owner != index {
+                    budget.push(Retained, &mut self.own, (binding, owner, true))?;
+                    self.writes_root |= !nested;
+                }
+            }
+            Reference::Load(target, nested) => {
+                self.loads_here |= !nested;
+                if lazy(target) {
+                    budget.push(Retained, &mut self.loads, target)?;
+                }
+                budget.push(Retained, &mut self.every, target)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+fn statement_references(
     module: &Module,
     statement: &Statement,
+    owners: &[usize],
+    foreign: &[usize],
+    index: usize,
     lazy: &dyn Fn(u32) -> bool,
     budget: &mut AllocationBudget<'_>,
-    mut visit: impl FnMut(Reference),
-) -> Result<(), OutputError> {
-    let mut statements: Vec<(&Statement, bool)> = vec![(statement, false)];
-    let mut expressions: Vec<(ExprId, bool)> = Vec::new();
-    loop {
-        if let Some((expression, nested)) = expressions.pop() {
+) -> Result<StatementReferences, OutputError> {
+    let mut phase = budget.scope();
+    let result = {
+        let budget = &mut phase;
+        let mut result = StatementReferences::default();
+        let mut statements = budget.copy_slice(Scratch, &[(statement, false)])?;
+        let mut expressions: Vec<(ExprId, bool)> = Vec::new();
+        loop {
+            if let Some((expression, nested)) = expressions.pop() {
+                budget.work(WorkKind::Analysis, 1)?;
+                let node = &module.expressions[expression.index()];
+                let mut add =
+                    |reference| result.add(reference, owners, foreign, index, lazy, budget);
+                match node {
+                    Expr::Binding(binding) => add(Reference::Read(*binding))?,
+                    Expr::Assign { target, .. } => {
+                        if let Expr::Binding(binding) = module.expressions[target.index()] {
+                            add(Reference::Write(binding, nested))?;
+                        }
+                    }
+                    Expr::LoadModule {
+                        module: loaded,
+                        promise,
+                        string,
+                        ..
+                    } => {
+                        add(Reference::Load(*loaded, nested))?;
+                        if lazy(*loaded) {
+                            budget.push(Scratch, &mut expressions, (*promise, nested))?;
+                            budget.push(Scratch, &mut expressions, (*string, nested))?;
+                            continue;
+                        }
+                    }
+                    _ => {}
+                }
+                for function in node.created_functions() {
+                    extend_in(
+                        &mut statements,
+                        module.regions[module.functions[function.index()].body.index()]
+                            .statements
+                            .iter()
+                            .map(|s| (s, true)),
+                        Scratch,
+                        budget,
+                    )?;
+                }
+                node.visit_children(|child| {
+                    budget.push(Scratch, &mut expressions, (child, nested))
+                })?;
+                continue;
+            }
+            let Some((current, nested)) = statements.pop() else {
+                break;
+            };
             budget.work(WorkKind::Analysis, 1)?;
-            let node = &module.expressions[expression.index()];
-            match node {
-                Expr::Binding(binding) => visit(Reference::Read(*binding)),
-                Expr::Assign { target, .. } => {
-                    if let Expr::Binding(binding) = module.expressions[target.index()] {
-                        visit(Reference::Write(binding, nested));
+            let mut status = Ok(());
+            current.visit_expressions(|root| {
+                if status.is_ok() {
+                    status = budget.push(Scratch, &mut expressions, (root, nested));
+                }
+            });
+            status?;
+            let mut region = |id: RegionId, nested: bool| {
+                extend_in(
+                    &mut statements,
+                    module.regions[id.index()]
+                        .statements
+                        .iter()
+                        .map(|s| (s, nested)),
+                    Scratch,
+                    budget,
+                )
+            };
+            match current {
+                Statement::If { yes, no, .. } => {
+                    region(*yes, nested)?;
+                    if let Some(no) = no {
+                        region(*no, nested)?;
                     }
                 }
-                Expr::LoadModule {
-                    module: loaded,
-                    promise,
-                    string,
-                    ..
+                Statement::Loop { body, .. }
+                | Statement::ForIn { body, .. }
+                | Statement::ForOf { body, .. }
+                | Statement::Block(body) => region(*body, nested)?,
+                Statement::Try {
+                    body,
+                    catch,
+                    finally,
                 } => {
-                    visit(Reference::Load(*loaded, nested));
-                    if lazy(*loaded) {
-                        expressions.push((*promise, nested));
-                        expressions.push((*string, nested));
-                        continue;
+                    region(*body, nested)?;
+                    if let Some(catch) = catch {
+                        region(catch.body, nested)?;
                     }
+                    if let Some(finally) = finally {
+                        region(*finally, nested)?;
+                    }
+                }
+                Statement::Function { function, .. } => {
+                    region(module.functions[function.index()].body, true)?
                 }
                 _ => {}
             }
-            for function in node.created_functions() {
-                statements.extend(
-                    module.regions[module.functions[function.index()].body.index()]
-                        .statements
-                        .iter()
-                        .map(|statement| (statement, true)),
-                );
-            }
-            node.visit_children(|child| {
-                expressions.push((child, nested));
-                Ok::<_, ()>(())
-            })
-            .unwrap();
-            continue;
         }
-        let Some((current, nested)) = statements.pop() else {
-            return Ok(());
-        };
-        budget.work(WorkKind::Analysis, 1)?;
-        current.visit_expressions(|root| expressions.push((root, nested)));
-        let mut region = |id: RegionId| {
-            statements.extend(
-                module.regions[id.index()]
-                    .statements
-                    .iter()
-                    .map(|statement| (statement, nested)),
-            );
-        };
-        match current {
-            Statement::If { yes, no, .. } => {
-                region(*yes);
-                if let Some(no) = no {
-                    region(*no);
-                }
-            }
-            Statement::Loop { body, .. }
-            | Statement::ForIn { body, .. }
-            | Statement::ForOf { body, .. }
-            | Statement::Block(body) => region(*body),
-            Statement::Try {
-                body,
-                catch,
-                finally,
-            } => {
-                region(*body);
-                if let Some(catch) = catch {
-                    region(catch.body);
-                }
-                if let Some(finally) = finally {
-                    region(*finally);
-                }
-            }
-            Statement::Function { function, .. } => {
-                statements.extend(
-                    module.regions[module.functions[function.index()].body.index()]
-                        .statements
-                        .iter()
-                        .map(|statement| (statement, true)),
-                );
-            }
-            _ => {}
-        }
-    }
+        result
+    };
+    phase.finish_retained()?;
+    Ok(result)
 }
 
 impl Facts {
@@ -648,11 +801,13 @@ impl Facts {
         lazy: &dyn Fn(u32) -> bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, OutputError> {
+        let mut phase = budget.scope();
+        let budget = &mut phase;
         let root = &module.regions[module.root.index()].statements;
         if module.root_rows.len() != root.len() {
             return Err("root statements and their rows disagree".into());
         }
-        let mut owners = vec![NONE; module.bindings.len()];
+        let mut owners = budget.filled(Retained, module.bindings.len(), NONE)?;
         for (index, statement) in root.iter().enumerate() {
             budget.work(WorkKind::Analysis, 1)?;
             if let Statement::Let { binding, .. } | Statement::Function { binding, .. } = statement
@@ -660,57 +815,24 @@ impl Facts {
                 owners[binding.index()] = index;
             }
         }
-        let mut foreign = vec![NONE; module.bindings.len()];
+        let mut foreign = budget.filled(Retained, module.bindings.len(), NONE)?;
         for (index, import) in module.imports.iter().enumerate() {
             foreign[import.binding.index()] = index;
         }
-        let mut references = Vec::with_capacity(root.len());
-        let mut imports = Vec::with_capacity(root.len());
-        let mut loads = Vec::with_capacity(root.len());
-        let mut every_load = Vec::with_capacity(root.len());
-        let mut anchored = Vec::with_capacity(root.len());
+        let mut references = budget.vector(Retained, root.len())?;
+        let mut imports = budget.vector(Retained, root.len())?;
+        let mut loads = budget.vector(Retained, root.len())?;
+        let mut every_load = budget.vector(Retained, root.len())?;
+        let mut anchored = budget.vector(Retained, root.len())?;
         for (index, statement) in root.iter().enumerate() {
-            let mut own: Vec<(BindingId, usize, bool)> = Vec::new();
-            let mut foreign_used = Vec::new();
-            let mut loaded = Vec::new();
-            let mut every = Vec::new();
-            let mut writes_root = false;
-            let mut loads_here = false;
-            visit_references(
-                module,
-                statement,
-                lazy,
-                budget,
-                |reference| match reference {
-                    Reference::Read(binding) => {
-                        let owner = owners[binding.index()];
-                        if owner != NONE && owner != index {
-                            own.push((binding, owner, false));
-                        }
-                        if foreign[binding.index()] != NONE {
-                            foreign_used.push(foreign[binding.index()]);
-                        }
-                    }
-                    Reference::Write(binding, nested) => {
-                        let owner = owners[binding.index()];
-                        if owner != NONE && owner != index {
-                            own.push((binding, owner, true));
-                            if !nested {
-                                writes_root = true;
-                            }
-                        }
-                    }
-                    Reference::Load(target, nested) => {
-                        if !nested {
-                            loads_here = true;
-                        }
-                        if lazy(target) {
-                            loaded.push(target);
-                        }
-                        every.push(target);
-                    }
-                },
-            )?;
+            let StatementReferences {
+                mut own,
+                foreign: mut foreign_used,
+                loads: mut loaded,
+                mut every,
+                writes_root,
+                loads_here,
+            } = statement_references(module, statement, &owners, &foreign, index, lazy, budget)?;
             own.sort_unstable();
             own.dedup();
             foreign_used.sort_unstable();
@@ -739,7 +861,7 @@ impl Facts {
             every_load.push(every);
             anchored.push(!definition);
         }
-        Ok(Self {
+        let result = Self {
             count: root.len(),
             owners,
             foreign,
@@ -748,8 +870,10 @@ impl Facts {
             loads,
             every_load,
             anchored,
-            rows: module.root_rows.clone(),
-        })
+            rows: budget.copy_slice(Retained, &module.root_rows)?,
+        };
+        phase.finish_retained()?;
+        Ok(result)
     }
 
     /// The module whose evaluation an anchored statement belongs to; host
@@ -791,9 +915,16 @@ impl Atoms {
     /// that would put two modules' anchored statements in one atom. Any
     /// other writer is a cross-file write, which becomes a setter call.
     /// `preserve` keeps every statement alone: files are modules there.
-    fn build(facts: &Facts, graph: &EntryGraph, preserve: bool) -> Self {
+    fn build(
+        facts: &Facts,
+        graph: &EntryGraph,
+        preserve: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, OutputError> {
+        let mut phase = budget.scope();
+        let budget = &mut phase;
         let count = facts.count;
-        let mut parents = (0..count).collect::<Vec<_>>();
+        let mut parents = collect_in(0..count, Scratch, budget)?;
         let group_of = |statement: usize| -> Option<u32> {
             facts.anchored[statement].then(|| match facts.module_of(statement) {
                 None => HOST_GROUP,
@@ -805,7 +936,7 @@ impl Atoms {
                     .map_or(module, |cycle| u32::MAX - 1 - cycle),
             })
         };
-        let mut groups: Vec<Option<u32>> = (0..count).map(group_of).collect();
+        let mut groups: Vec<Option<u32>> = collect_in((0..count).map(group_of), Scratch, budget)?;
         if !preserve {
             for writer in 0..count {
                 for &(_, owner, write) in &facts.references[writer] {
@@ -836,23 +967,27 @@ impl Atoms {
                 }
             }
         }
-        let mut of = vec![0; count];
-        let mut members = vec![Vec::new(); count];
-        let mut anchored = vec![false; count];
-        let mut group = vec![None; count];
+        let mut of = budget.filled(Retained, count, 0)?;
+        let mut members = defaults_in(count, Retained, budget)?;
+        let mut anchored = budget.filled(Retained, count, false)?;
+        let mut group = budget.filled(Retained, count, None)?;
         for statement in 0..count {
             let atom = find(&mut parents, statement);
             of[statement] = atom;
-            members[atom].push(statement);
+            budget.push(Retained, &mut members[atom], statement)?;
             anchored[atom] |= facts.anchored[statement];
             group[atom] = groups[atom];
         }
-        Self {
+        let result = Self {
             of,
             members,
             anchored,
             group,
-        }
+        };
+        drop(parents);
+        drop(groups);
+        phase.finish_retained()?;
+        Ok(result)
     }
 }
 
@@ -864,158 +999,165 @@ fn labels(
     graph: &EntryGraph,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<EntrySet>, OutputError> {
-    let count = facts.count;
-    let mut labels = vec![EntrySet::default(); count];
-    let host = graph.host_label();
-    let reach = |statement: usize| -> EntrySet {
-        match facts.module_of(statement) {
-            None => host.clone(),
-            Some(module) => graph
-                .reach
-                .get(module as usize)
-                .cloned()
-                .unwrap_or_default(),
-        }
-    };
-    for statement in 0..count {
-        budget.work(WorkKind::Analysis, 1)?;
-        if facts.anchored[statement] {
-            let atom = atoms.of[statement];
-            let own = reach(statement);
-            labels[atom].union_with(&own);
-        }
-    }
-    // Seeds: each entry's public cells; each lazily loaded module's
-    // namespace members.
-    let owner_atom = |binding: BindingId| -> Option<usize> {
-        let owner = facts.owners[binding.index()];
-        (owner != NONE).then(|| atoms.of[owner])
-    };
-    let statics = graph.statics();
-    if module.entries.is_empty() {
-        for export in &module.exports {
-            if let Some(atom) = owner_atom(export.binding) {
-                if !atoms.anchored[atom] {
-                    labels[atom].insert(0);
-                }
+    budget.retained_phase(|budget| {
+        let count = facts.count;
+        let mut labels: Vec<EntrySet> = defaults_in(count, Scratch, budget)?;
+        let host = graph.host_label(Scratch, budget)?;
+        let empty = EntrySet::default();
+        let reach = |statement: usize| -> &EntrySet {
+            match facts.module_of(statement) {
+                None => &host,
+                Some(module) => graph.reach.get(module as usize).unwrap_or(&empty),
+            }
+        };
+        for statement in 0..count {
+            budget.work(WorkKind::Analysis, 1)?;
+            if facts.anchored[statement] {
+                let atom = atoms.of[statement];
+                let own = reach(statement);
+                labels[atom].union_in(own, Scratch, budget)?;
             }
         }
-    } else {
-        for (entry, public) in module.entries.iter().enumerate() {
-            for &position in &public.exports {
-                let binding = module.exports[position as usize].binding;
-                if let Some(atom) = owner_atom(binding) {
+        // Seeds: each entry's public cells; each lazily loaded module's
+        // namespace members.
+        let owner_atom = |binding: BindingId| -> Option<usize> {
+            let owner = facts.owners[binding.index()];
+            (owner != NONE).then(|| atoms.of[owner])
+        };
+        let statics = graph.statics();
+        if module.entries.is_empty() {
+            for export in &module.exports {
+                if let Some(atom) = owner_atom(export.binding) {
                     if !atoms.anchored[atom] {
-                        labels[atom].insert(entry);
+                        labels[atom].insert_admitted(0, Scratch, budget)?;
+                    }
+                }
+            }
+        } else {
+            for (entry, public) in module.entries.iter().enumerate() {
+                for &position in &public.exports {
+                    let binding = module.exports[position as usize].binding;
+                    if let Some(atom) = owner_atom(binding) {
+                        if !atoms.anchored[atom] {
+                            labels[atom].insert_admitted(entry, Scratch, budget)?;
+                        }
                     }
                 }
             }
         }
-    }
-    for expression in &module.expressions {
-        let Expr::LoadModule {
-            module: loaded,
-            members,
-            ..
-        } = expression
-        else {
-            continue;
-        };
-        let Some(bit) = graph.dynamic_bit(*loaded) else {
-            continue;
-        };
-        for (_, value) in members {
-            if let Expr::Binding(binding) = module.expressions[value.index()] {
-                if let Some(atom) = owner_atom(binding) {
-                    if !atoms.anchored[atom] {
-                        labels[atom].insert(bit);
+        for expression in &module.expressions {
+            let Expr::LoadModule {
+                module: loaded,
+                members,
+                ..
+            } = expression
+            else {
+                continue;
+            };
+            let Some(bit) = graph.dynamic_bit(*loaded) else {
+                continue;
+            };
+            for (_, value) in members {
+                if let Expr::Binding(binding) = module.expressions[value.index()] {
+                    if let Some(atom) = owner_atom(binding) {
+                        if !atoms.anchored[atom] {
+                            labels[atom].insert_admitted(bit, Scratch, budget)?;
+                        }
                     }
                 }
             }
         }
-    }
-    // Definitions: the union of their referencers' labels (least fixpoint).
-    let mut referenced: Vec<Vec<usize>> = vec![Vec::new(); count];
-    for statement in 0..count {
-        let from = atoms.of[statement];
-        for &(_, owner, _) in &facts.references[statement] {
-            let to = atoms.of[owner];
-            if to != from && !atoms.anchored[to] {
-                referenced[from].push(to);
-            }
-        }
-    }
-    for list in &mut referenced {
-        list.sort_unstable();
-        list.dedup();
-    }
-    let mut pending = (0..count)
-        .filter(|&atom| atoms.of[atom] == atom)
-        .collect::<Vec<_>>();
-    while let Some(atom) = pending.pop() {
-        budget.work(WorkKind::Analysis, 1 + referenced[atom].len() as u64)?;
-        let label = labels[atom].clone();
-        if label.is_empty() {
-            continue;
-        }
-        for &target in &referenced[atom] {
-            if labels[target].union_with(&label) {
-                pending.push(target);
-            }
-        }
-    }
-    // A definition nothing reaches (dead code the tree kept) goes where its
-    // module's code goes.
-    for statement in 0..count {
-        let atom = atoms.of[statement];
-        if labels[atom].is_empty() {
-            let own = reach(statement);
-            labels[atom].union_with(&own);
-        }
-        if labels[atom].is_empty() && statics > 0 {
-            labels[atom].insert(0);
-        }
-    }
-    // Already loaded (Rolldown `dynamic_already_loaded`): content whose
-    // label holds a lazily loaded module and every entry that loads it is
-    // loaded before that module is.
-    let mut importers = vec![EntrySet::default(); graph.dynamic.len()];
-    for _ in 0..4 {
-        for (index, importers) in importers.iter_mut().enumerate() {
-            *importers = EntrySet::default();
-            let target = graph.dynamic[index];
-            for statement in 0..count {
-                if facts.loads[statement].contains(&target) {
-                    importers.union_with(&labels[atoms.of[statement]]);
+        // Definitions: the union of their referencers' labels (least fixpoint).
+        let mut referenced = defaults_in(count, Scratch, budget)?;
+        for statement in 0..count {
+            let from = atoms.of[statement];
+            for &(_, owner, _) in &facts.references[statement] {
+                let to = atoms.of[owner];
+                if to != from && !atoms.anchored[to] {
+                    budget.push(Scratch, &mut referenced[from], to)?;
                 }
             }
-            importers.remove(statics + index);
         }
-        let mut changed = false;
-        for atom in 0..count {
-            if atoms.of[atom] != atom {
+        for list in &mut referenced {
+            list.sort_unstable();
+            list.dedup();
+        }
+        let mut pending = collect_in(
+            (0..count).filter(|&atom| atoms.of[atom] == atom),
+            Scratch,
+            budget,
+        )?;
+        while let Some(atom) = pending.pop() {
+            budget.work(WorkKind::Analysis, 1 + referenced[atom].len() as u64)?;
+            if labels[atom].is_empty() {
                 continue;
             }
-            for (index, importers) in importers.iter().enumerate() {
-                let bit = statics + index;
-                if labels[atom].contains(bit)
-                    && !importers.is_empty()
-                    && labels[atom].is_superset(importers)
-                {
-                    labels[atom].remove(bit);
-                    changed = true;
+            for &target in &referenced[atom] {
+                let (source, destination) = if atom < target {
+                    let (before, after) = labels.split_at_mut(target);
+                    (&before[atom], &mut after[0])
+                } else {
+                    let (before, after) = labels.split_at_mut(atom);
+                    (&after[0], &mut before[target])
+                };
+                if destination.union_in(source, Scratch, budget)? {
+                    budget.push(Scratch, &mut pending, target)?;
                 }
             }
         }
-        if !changed {
-            break;
+        // A definition nothing reaches (dead code the tree kept) goes where its
+        // module's code goes.
+        for statement in 0..count {
+            let atom = atoms.of[statement];
+            if labels[atom].is_empty() {
+                let own = reach(statement);
+                labels[atom].union_in(own, Scratch, budget)?;
+            }
+            if labels[atom].is_empty() && statics > 0 {
+                labels[atom].insert_admitted(0, Scratch, budget)?;
+            }
         }
-    }
-    let mut per_statement = Vec::with_capacity(count);
-    for statement in 0..count {
-        per_statement.push(labels[atoms.of[statement]].clone());
-    }
-    Ok(per_statement)
+        // Already loaded (Rolldown `dynamic_already_loaded`): content whose
+        // label holds a lazily loaded module and every entry that loads it is
+        // loaded before that module is.
+        let mut importers: Vec<EntrySet> = defaults_in(graph.dynamic.len(), Scratch, budget)?;
+        for _ in 0..4 {
+            for (index, importers) in importers.iter_mut().enumerate() {
+                importers.0.clear();
+                let target = graph.dynamic[index];
+                for statement in 0..count {
+                    if facts.loads[statement].contains(&target) {
+                        importers.union_in(&labels[atoms.of[statement]], Scratch, budget)?;
+                    }
+                }
+                importers.remove(statics + index);
+            }
+            let mut changed = false;
+            for atom in 0..count {
+                if atoms.of[atom] != atom {
+                    continue;
+                }
+                for (index, importers) in importers.iter().enumerate() {
+                    let bit = statics + index;
+                    if labels[atom].contains(bit)
+                        && !importers.is_empty()
+                        && labels[atom].is_superset(importers)
+                    {
+                        labels[atom].remove(bit);
+                        changed = true;
+                    }
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        let mut per_statement = budget.vector(Retained, count)?;
+        for statement in 0..count {
+            per_statement.push(labels[atoms.of[statement]].clone_in(budget)?);
+        }
+        Ok(per_statement)
+    })
 }
 
 // ---------------------------------------------------------------- links
@@ -1029,6 +1171,102 @@ struct Layout {
     file_of: Vec<usize>,
 }
 
+impl FileLinks {
+    fn heap_bytes(&self) -> Result<u64, AllocationError> {
+        let mut bytes = vector_bytes(&self.imports)?
+            + vector_bytes(&self.exports)?
+            + vector_bytes(&self.public)?
+            + vector_bytes(&self.foreign)?
+            + vector_bytes(&self.hosted)?
+            + vector_bytes(&self.dynamic)?;
+        for (_, bindings) in &self.imports {
+            bytes = bytes
+                .checked_add(vector_bytes(bindings)?)
+                .ok_or(AllocationError::Capacity)?;
+        }
+        for (name, ..) in &self.public {
+            bytes = bytes
+                .checked_add(name.capacity() as u64)
+                .ok_or(AllocationError::Capacity)?;
+        }
+        Ok(bytes)
+    }
+    pub(super) fn clone_in(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        let mut imports = budget.vector(Retained, self.imports.len())?;
+        for (file, bindings) in &self.imports {
+            imports.push((*file, budget.copy_slice(Retained, bindings)?));
+        }
+        let mut public = budget.vector(Retained, self.public.len())?;
+        for (name, binding, file) in &self.public {
+            public.push((budget.string(Retained, name)?, *binding, *file));
+        }
+        Ok(Self {
+            imports,
+            public,
+            exports: budget.copy_slice(Retained, &self.exports)?,
+            foreign: budget.copy_slice(Retained, &self.foreign)?,
+            hosted: budget.copy_slice(Retained, &self.hosted)?,
+            dynamic: budget.copy_slice(Retained, &self.dynamic)?,
+        })
+    }
+    fn replace_in(
+        &mut self,
+        next: Self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        let bytes = self.heap_bytes()?;
+        drop(std::mem::replace(self, next));
+        budget.release(Retained, bytes)
+    }
+}
+impl PlannedFile {
+    fn heap_bytes(&self) -> Result<u64, AllocationError> {
+        Ok(vector_bytes(&self.label.0)?
+            + vector_bytes(&self.modules)?
+            + vector_bytes(&self.statements)?
+            + self.links.heap_bytes()?)
+    }
+    pub(super) fn clone_in(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        Ok(Self {
+            role: self.role,
+            label: self.label.clone_in(budget)?,
+            modules: budget.copy_slice(Retained, &self.modules)?,
+            statements: budget.copy_slice(Retained, &self.statements)?,
+            anchored: self.anchored,
+            links: self.links.clone_in(budget)?,
+        })
+    }
+}
+impl Layout {
+    fn heap_bytes(&self) -> Result<u64, AllocationError> {
+        let mut bytes = vector_bytes(&self.files)? + vector_bytes(&self.file_of)?;
+        for file in &self.files {
+            bytes = bytes
+                .checked_add(file.heap_bytes()?)
+                .ok_or(AllocationError::Capacity)?;
+        }
+        Ok(bytes)
+    }
+    fn clone_in(&self, budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {
+        budget.retained_phase(|budget| {
+            let mut files = budget.vector(Retained, self.files.len())?;
+            for file in &self.files {
+                files.push(file.clone_in(budget)?);
+            }
+            Ok(Self {
+                files,
+                file_of: budget.copy_slice(Retained, &self.file_of)?,
+            })
+        })
+    }
+}
+
 /// Everything `link` reads besides the layout.
 struct Context<'a> {
     module: &'a Module,
@@ -1037,13 +1275,11 @@ struct Context<'a> {
     /// `Module::imports` rows of carried host modules printed as host text
     /// (not lowered into the tree): the host file declares them.
     hosted: &'a [bool],
-    /// Per binding: its setter, once placement created it.
-    setters: &'a [Option<BindingId>],
     /// Per entry bit (static entries, then dynamic ones): each module's
     /// position in that entry's own order.
-    positions: Vec<Vec<usize>>,
+    positions: &'a [Vec<usize>],
     /// Each lazily loaded module's namespace: (name, binding) per member.
-    namespaces: Vec<(u32, Vec<(String, BindingId)>)>,
+    namespaces: &'a [(u32, Vec<(String, BindingId)>)],
     preserve: bool,
 }
 
@@ -1082,273 +1318,346 @@ impl Context<'_> {
 
 /// Every file's imports, exports, foreign imports, loads and public names,
 /// from what its statements reference (design §7.10).
-fn link(context: &Context<'_>, layout: &mut Layout) -> Result<(), OutputError> {
-    let module = context.module;
-    let facts = context.facts;
-    let host_file = layout
-        .files
-        .iter()
-        .position(|file| file.role == FileRole::Host);
-    let count = layout.files.len();
-    // Per file: (source file, binding) it needs.
-    let mut needs: Vec<Vec<(usize, BindingId)>> = vec![Vec::new(); count];
-    let mut foreign: Vec<Vec<usize>> = vec![Vec::new(); count];
-    let mut dynamic: Vec<Vec<u32>> = vec![Vec::new(); count];
-    for (index, file) in layout.files.iter().enumerate() {
-        for &statement in &file.statements {
-            let statement = statement as usize;
-            for &(binding, owner, write) in &facts.references[statement] {
-                let source = layout.file_of[owner];
-                if source == index {
-                    continue;
-                }
-                if write {
-                    match context.setters[binding.index()] {
-                        Some(setter) => needs[index].push((source, setter)),
-                        // Before setters exist, a write still needs its file.
-                        None => needs[index].push((source, binding)),
-                    }
-                } else {
-                    needs[index].push((source, binding));
-                }
-            }
-            for &import in &facts.imports[statement] {
-                match host_file.filter(|_| context.hosted[import]) {
-                    Some(host) if host != index => {
-                        needs[index].push((host, module.imports[import].binding))
-                    }
-                    Some(_) => {}
-                    None => foreign[index].push(import),
-                }
-            }
-            for &loaded in &facts.loads[statement] {
-                if let Some(target) = dynamic_file(layout, loaded) {
-                    dynamic[index].push(target as u32);
-                }
-            }
-        }
-    }
-    // Public names: each entry's exports, and each lazily loaded module's
-    // namespace, from the file declaring each binding.
-    let mut public: Vec<Vec<(String, BindingId, u32)>> = vec![Vec::new(); count];
-    // Per file: (source file, binding) it re-exports with `export{…}from`.
-    let mut reexports: Vec<Vec<(usize, BindingId)>> = vec![Vec::new(); count];
-    let declaring = |binding: BindingId, layout: &Layout| -> Option<usize> {
-        let owner = facts.owners[binding.index()];
-        if owner != NONE {
-            return Some(layout.file_of[owner]);
-        }
-        let import = facts.foreign[binding.index()];
-        if import != NONE && context.hosted[import] {
-            return host_file;
-        }
-        None
-    };
-    for (index, file) in layout.files.iter().enumerate() {
-        match file.role {
-            FileRole::Entry(entry) => {
-                let exports: Vec<usize> = if module.entries.is_empty() {
-                    (0..module.exports.len()).collect()
-                } else {
-                    module.entries[entry as usize]
-                        .exports
-                        .iter()
-                        .map(|&position| position as usize)
-                        .collect()
-                };
-                for position in exports {
-                    let export = &module.exports[position];
-                    let binding = export.binding;
-                    match declaring(binding, layout) {
-                        Some(source) => {
-                            public[index].push((export.name.clone(), binding, source as u32));
-                            if source != index {
-                                reexports[index].push((source, binding));
-                            }
-                        }
-                        None => {
-                            // A foreign value re-exported as it is imported.
-                            let import = facts.foreign[binding.index()];
-                            if import == NONE {
-                                return Err("an export names no delivered binding".into());
-                            }
-                            foreign[index].push(import);
-                            public[index].push((export.name.clone(), binding, index as u32));
-                        }
-                    }
-                }
-            }
-            FileRole::Lazy(loaded) => {
-                let Some((_, members)) = context
-                    .namespaces
-                    .iter()
-                    .find(|(target, _)| *target == loaded)
-                else {
-                    return Err("a lazily loaded file has no namespace".into());
-                };
-                for (name, binding) in members {
-                    let binding = *binding;
-                    let source = declaring(binding, layout)
-                        .ok_or("a namespace member has no declaration")?;
-                    if !public[index].iter().any(|(known, ..)| known == name) {
-                        public[index].push((name.clone(), binding, source as u32));
-                        if source != index {
-                            reexports[index].push((source, binding));
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    // Imports in evaluation order.
-    let mut links: Vec<FileLinks> = Vec::with_capacity(count);
-    for index in 0..count {
-        let mut needed = std::mem::take(&mut needs[index]);
-        needed.sort_unstable();
-        needed.dedup();
-        // A file it only re-exports from is still a module it requests.
-        let mut sources: Vec<usize> = needed
+fn export_positions(module: &Module, entry: usize) -> impl Iterator<Item = usize> + '_ {
+    let exports = module
+        .entries
+        .get(entry)
+        .map(|entry| entry.exports.as_slice());
+    (0..exports.map_or(module.exports.len(), <[u32]>::len))
+        .map(move |index| exports.map_or(index, |exports| exports[index] as usize))
+}
+
+fn link(
+    context: &Context<'_>,
+    layout: &mut Layout,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), OutputError> {
+    let links = budget.retained_phase(|budget| {
+        let module = context.module;
+        let facts = context.facts;
+        let host_file = layout
+            .files
             .iter()
-            .chain(&reexports[index])
-            .map(|&(source, _)| source)
-            .collect();
-        sources.sort_unstable();
-        sources.dedup();
-        let file = &layout.files[index];
-        let mut order: Vec<usize> = Vec::new();
-        // A facade: an entry's file, or (design §7.5, §7.8) a lazily loaded
-        // module's file, whose load evaluates what its module reaches.
-        let facade = match file.role {
-            FileRole::Entry(entry) if !context.preserve || file.statements.is_empty() => {
-                Some(entry as usize)
+            .position(|file| file.role == FileRole::Host);
+        let count = layout.files.len();
+        // Per file: (source file, binding) it needs.
+        let mut needs: Vec<Vec<(usize, BindingId)>> = defaults_in(count, Scratch, budget)?;
+        let mut foreign: Vec<Vec<usize>> = defaults_in(count, Scratch, budget)?;
+        let mut dynamic: Vec<Vec<u32>> = defaults_in(count, Scratch, budget)?;
+        for (index, file) in layout.files.iter().enumerate() {
+            for &statement in &file.statements {
+                let statement = statement as usize;
+                for &(binding, owner, _) in &facts.references[statement] {
+                    let source = layout.file_of[owner];
+                    if source == index {
+                        continue;
+                    }
+                    budget.push(Scratch, &mut needs[index], (source, binding))?;
+                }
+                for &import in &facts.imports[statement] {
+                    match host_file.filter(|_| context.hosted[import]) {
+                        Some(host) if host != index => budget.push(
+                            Scratch,
+                            &mut needs[index],
+                            (host, module.imports[import].binding),
+                        )?,
+                        Some(_) => {}
+                        None => budget.push(Retained, &mut foreign[index], import)?,
+                    }
+                }
+                for &loaded in &facts.loads[statement] {
+                    if let Some(target) = dynamic_file(layout, loaded) {
+                        budget.push(Retained, &mut dynamic[index], target as u32)?;
+                    }
+                }
             }
-            FileRole::Lazy(module) if !context.preserve => context.graph.dynamic_bit(module),
-            _ => None,
+        }
+        // Public names: each entry's exports, and each lazily loaded module's
+        // namespace, from the file declaring each binding.
+        let mut public: Vec<Vec<(String, BindingId, u32)>> = defaults_in(count, Scratch, budget)?;
+        // Per file: (source file, binding) it re-exports with `export{…}from`.
+        let mut reexports: Vec<Vec<(usize, BindingId)>> = defaults_in(count, Scratch, budget)?;
+        let declaring = |binding: BindingId, layout: &Layout| -> Option<usize> {
+            let owner = facts.owners[binding.index()];
+            if owner != NONE {
+                return Some(layout.file_of[owner]);
+            }
+            let import = facts.foreign[binding.index()];
+            if import != NONE && context.hosted[import] {
+                return host_file;
+            }
+            None
         };
-        match file.role {
-            _ if facade.is_some() => {
-                // Every anchored file carrying its bit, in its own module
-                // order, then the files holding its public bindings.
-                let entry = facade.unwrap_or_default();
-                let mut anchored = (0..count)
-                    .filter(|&other| {
-                        other != index
-                            && layout.files[other].anchored
-                            && layout.files[other].label.contains(entry)
-                    })
-                    .map(|other| {
-                        (
-                            context.entry_position(entry, &layout.files[other]),
-                            context.first_point(&layout.files[other]),
-                            other,
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                anchored.sort_unstable();
-                order.extend(anchored.into_iter().map(|(.., other)| other));
-                let mut rest = sources
-                    .iter()
-                    .copied()
-                    .filter(|source| !order.contains(source))
-                    .map(|source| (context.first_point(&layout.files[source]), source))
-                    .collect::<Vec<_>>();
-                rest.sort_unstable();
-                order.extend(rest.into_iter().map(|(_, source)| source));
-            }
-            FileRole::Lazy(own)
-                if context.preserve
-                    && file.statements.is_empty()
-                    && layout
-                        .files
+        for (index, file) in layout.files.iter().enumerate() {
+            match file.role {
+                FileRole::Entry(entry) => {
+                    for position in export_positions(module, entry as usize) {
+                        let export = &module.exports[position];
+                        let binding = export.binding;
+                        match declaring(binding, layout) {
+                            Some(source) => {
+                                let name = budget.string(Retained, &export.name)?;
+                                budget.push(
+                                    Retained,
+                                    &mut public[index],
+                                    (name, binding, source as u32),
+                                )?;
+                                if source != index {
+                                    budget.push(
+                                        Scratch,
+                                        &mut reexports[index],
+                                        (source, binding),
+                                    )?;
+                                }
+                            }
+                            None => {
+                                // A foreign value re-exported as it is imported.
+                                let import = facts.foreign[binding.index()];
+                                if import == NONE {
+                                    return Err("an export names no delivered binding".into());
+                                }
+                                budget.push(Retained, &mut foreign[index], import)?;
+                                let name = budget.string(Retained, &export.name)?;
+                                budget.push(
+                                    Retained,
+                                    &mut public[index],
+                                    (name, binding, index as u32),
+                                )?;
+                            }
+                        }
+                    }
+                }
+                FileRole::Lazy(loaded) => {
+                    let Some((_, members)) = context
+                        .namespaces
                         .iter()
-                        .any(|other| other.role == FileRole::Module(own)) =>
-            {
-                // A facade over a module file: loading it evaluates that
-                // file, then re-exports what the namespace names.
-                let module_file = layout
-                    .files
-                    .iter()
-                    .position(|other| other.role == FileRole::Module(own))
-                    .unwrap_or(index);
-                order.push(module_file);
-                let mut rest = sources
-                    .iter()
-                    .copied()
-                    .filter(|&source| source != module_file)
-                    .map(|source| (context.first_point(&layout.files[source]), source))
-                    .collect::<Vec<_>>();
-                rest.sort_unstable();
-                order.extend(rest.into_iter().map(|(_, source)| source));
-            }
-            FileRole::Module(own) | FileRole::Lazy(own) if context.preserve => {
-                order = preserve_imports(context, layout, index, own, &sources);
-            }
-            FileRole::Entry(entry) => {
-                let own = context.graph.entries[entry as usize].1;
-                order = preserve_imports(context, layout, index, own, &sources);
-            }
-            _ => {
-                // Definitions-only files first, then anchored files by their
-                // first point (Rolldown's `exec_order`).
-                let mut sorted = sources
-                    .iter()
-                    .map(|&source| {
-                        let other = &layout.files[source];
-                        (other.anchored, context.first_point(other), source)
-                    })
-                    .collect::<Vec<_>>();
-                sorted.sort_unstable();
-                order.extend(sorted.into_iter().map(|(.., source)| source));
+                        .find(|(target, _)| *target == loaded)
+                    else {
+                        return Err("a lazily loaded file has no namespace".into());
+                    };
+                    for (name, binding) in members {
+                        let binding = *binding;
+                        let source = declaring(binding, layout)
+                            .ok_or("a namespace member has no declaration")?;
+                        if !public[index].iter().any(|(known, ..)| known == name) {
+                            let name = budget.string(Retained, name)?;
+                            budget.push(
+                                Retained,
+                                &mut public[index],
+                                (name, binding, source as u32),
+                            )?;
+                            if source != index {
+                                budget.push(Scratch, &mut reexports[index], (source, binding))?;
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
-        let mut imports = Vec::with_capacity(order.len());
-        for source in order {
-            let bindings = needed
-                .iter()
-                .filter(|&&(from, _)| from == source)
-                .map(|&(_, binding)| binding)
-                .collect::<Vec<_>>();
-            imports.push((source as u32, bindings));
+        // Imports in evaluation order.
+        let mut links = budget.vector(Retained, count)?;
+        for index in 0..count {
+            let next = budget.retained_phase(|budget| {
+                let needed = &mut needs[index];
+                needed.sort_unstable();
+                needed.dedup();
+                // A file it only re-exports from is still a module it requests.
+                let mut sources = collect_in(
+                    needed
+                        .iter()
+                        .chain(&reexports[index])
+                        .map(|&(source, _)| source),
+                    Scratch,
+                    budget,
+                )?;
+                sources.sort_unstable();
+                sources.dedup();
+                let file = &layout.files[index];
+                let mut order: Vec<usize> = Vec::new();
+                // A facade: an entry's file, or (design §7.5, §7.8) a lazily loaded
+                // module's file, whose load evaluates what its module reaches.
+                let facade = match file.role {
+                    FileRole::Entry(entry) if !context.preserve || file.statements.is_empty() => {
+                        Some(entry as usize)
+                    }
+                    FileRole::Lazy(module) if !context.preserve => {
+                        context.graph.dynamic_bit(module)
+                    }
+                    _ => None,
+                };
+                match file.role {
+                    _ if facade.is_some() => {
+                        // Every anchored file carrying its bit, in its own module
+                        // order, then the files holding its public bindings.
+                        let entry = facade.unwrap_or_default();
+                        let mut anchored = collect_in(
+                            (0..count)
+                                .filter(|&other| {
+                                    other != index
+                                        && layout.files[other].anchored
+                                        && layout.files[other].label.contains(entry)
+                                })
+                                .map(|other| {
+                                    (
+                                        context.entry_position(entry, &layout.files[other]),
+                                        context.first_point(&layout.files[other]),
+                                        other,
+                                    )
+                                }),
+                            Scratch,
+                            budget,
+                        )?;
+                        anchored.sort_unstable();
+                        extend_in(
+                            &mut order,
+                            anchored.iter().map(|&(.., other)| other),
+                            Scratch,
+                            budget,
+                        )?;
+                        let mut rest = collect_in(
+                            sources
+                                .iter()
+                                .copied()
+                                .filter(|source| !order.contains(source))
+                                .map(|source| (context.first_point(&layout.files[source]), source)),
+                            Scratch,
+                            budget,
+                        )?;
+                        rest.sort_unstable();
+                        extend_in(
+                            &mut order,
+                            rest.iter().map(|&(_, source)| source),
+                            Scratch,
+                            budget,
+                        )?;
+                    }
+                    FileRole::Lazy(own)
+                        if context.preserve
+                            && file.statements.is_empty()
+                            && layout
+                                .files
+                                .iter()
+                                .any(|other| other.role == FileRole::Module(own)) =>
+                    {
+                        // A facade over a module file: loading it evaluates that
+                        // file, then re-exports what the namespace names.
+                        let module_file = layout
+                            .files
+                            .iter()
+                            .position(|other| other.role == FileRole::Module(own))
+                            .unwrap_or(index);
+                        budget.push(Scratch, &mut order, module_file)?;
+                        let mut rest = collect_in(
+                            sources
+                                .iter()
+                                .copied()
+                                .filter(|&source| source != module_file)
+                                .map(|source| (context.first_point(&layout.files[source]), source)),
+                            Scratch,
+                            budget,
+                        )?;
+                        rest.sort_unstable();
+                        extend_in(
+                            &mut order,
+                            rest.iter().map(|&(_, source)| source),
+                            Scratch,
+                            budget,
+                        )?;
+                    }
+                    FileRole::Module(own) | FileRole::Lazy(own) if context.preserve => {
+                        preserve_imports(
+                            context, layout, index, own, &sources, &mut order, budget,
+                        )?;
+                    }
+                    FileRole::Entry(entry) => {
+                        let own = context.graph.entries[entry as usize].1;
+                        preserve_imports(
+                            context, layout, index, own, &sources, &mut order, budget,
+                        )?;
+                    }
+                    _ => {
+                        // Definitions-only files first, then anchored files by their
+                        // first point (Rolldown's `exec_order`).
+                        let mut sorted = collect_in(
+                            sources.iter().map(|&source| {
+                                let other = &layout.files[source];
+                                (other.anchored, context.first_point(other), source)
+                            }),
+                            Scratch,
+                            budget,
+                        )?;
+                        sorted.sort_unstable();
+                        extend_in(
+                            &mut order,
+                            sorted.iter().map(|&(.., source)| source),
+                            Scratch,
+                            budget,
+                        )?;
+                    }
+                }
+                let mut imports = budget.vector(Retained, order.len())?;
+                for source in order {
+                    let bindings = collect_in(
+                        needed
+                            .iter()
+                            .filter(|&&(from, _)| from == source)
+                            .map(|&(_, binding)| binding),
+                        Retained,
+                        budget,
+                    )?;
+                    imports.push((source as u32, bindings));
+                }
+                let mut foreign_imports = std::mem::take(&mut foreign[index]);
+                foreign_imports.sort_unstable();
+                foreign_imports.dedup();
+                let mut loads = std::mem::take(&mut dynamic[index]);
+                loads.sort_unstable();
+                loads.dedup();
+                Ok::<_, OutputError>(FileLinks {
+                    imports,
+                    exports: Vec::new(),
+                    public: std::mem::take(&mut public[index]),
+                    foreign: foreign_imports,
+                    hosted: Vec::new(),
+                    dynamic: loads,
+                })
+            })?;
+            links.push(next);
         }
-        let mut foreign_imports = std::mem::take(&mut foreign[index]);
-        foreign_imports.sort_unstable();
-        foreign_imports.dedup();
-        let mut loads = std::mem::take(&mut dynamic[index]);
-        loads.sort_unstable();
-        loads.dedup();
-        links.push(FileLinks {
-            imports,
-            exports: Vec::new(),
-            public: std::mem::take(&mut public[index]),
-            foreign: foreign_imports,
-            hosted: Vec::new(),
-            dynamic: loads,
-        });
-    }
-    // Exports: what importers name or re-export.
-    for index in 0..count {
-        for (source, bindings) in links[index].imports.clone() {
-            links[source as usize].exports.extend(bindings);
+        // Exports: what importers name or re-export.
+        for index in 0..count {
+            for import in 0..links[index].imports.len() {
+                let source = links[index].imports[import].0 as usize;
+                for slot in 0..links[index].imports[import].1.len() {
+                    let binding = links[index].imports[import].1[slot];
+                    budget.push(Retained, &mut links[source].exports, binding)?;
+                }
+            }
+            for &(source, binding) in &reexports[index] {
+                budget.push(Retained, &mut links[source].exports, binding)?;
+            }
         }
-        for &(source, binding) in &reexports[index] {
-            links[source].exports.push(binding);
+        for link in &mut links {
+            link.exports.sort_unstable();
+            link.exports.dedup();
         }
-    }
-    for link in &mut links {
-        link.exports.sort_unstable();
-        link.exports.dedup();
-    }
-    if let Some(host) = host_file {
-        let mut hosted = (0..module.imports.len())
-            .filter(|&import| context.hosted[import])
-            .collect::<Vec<_>>();
-        hosted.sort_unstable();
-        links[host].hosted = hosted;
-    }
+        if let Some(host) = host_file {
+            let mut hosted = collect_in(
+                (0..module.imports.len()).filter(|&import| context.hosted[import]),
+                Retained,
+                budget,
+            )?;
+            hosted.sort_unstable();
+            links[host].hosted = hosted;
+        }
+        Ok::<_, OutputError>(links)
+    })?;
+    let outer_bytes = vector_bytes(&links)?;
     for (file, link) in layout.files.iter_mut().zip(links) {
-        file.links = link;
+        file.links.replace_in(link, budget)?;
     }
+    budget.release(Retained, outer_bytes)?;
     Ok(())
 }
 
@@ -1362,8 +1671,9 @@ fn preserve_imports(
     index: usize,
     own: u32,
     sources: &[usize],
-) -> Vec<usize> {
-    let mut order = Vec::new();
+    order: &mut Vec<usize>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), OutputError> {
     // Host code evaluates before the modules that import it.
     if context.graph.host_importers.contains(&own) {
         if let Some(host) = layout
@@ -1372,7 +1682,7 @@ fn preserve_imports(
             .position(|file| file.role == FileRole::Host)
         {
             if host != index {
-                order.push(host);
+                budget.push(Scratch, order, host)?;
             }
         }
     }
@@ -1382,12 +1692,12 @@ fn preserve_imports(
                 || matches!(file.role, FileRole::Entry(e) if context.graph.entries[e as usize].1 == module && !file.statements.is_empty())
         })
     };
-    let mut pending: Vec<u32> = context.graph.imports[own as usize]
-        .iter()
-        .rev()
-        .copied()
-        .collect();
-    let mut seen = vec![false; context.graph.imports.len()];
+    let mut pending = collect_in(
+        context.graph.imports[own as usize].iter().rev().copied(),
+        Scratch,
+        budget,
+    )?;
+    let mut seen = budget.filled(Scratch, context.graph.imports.len(), false)?;
     while let Some(target) = pending.pop() {
         if std::mem::replace(&mut seen[target as usize], true) {
             continue;
@@ -1395,24 +1705,31 @@ fn preserve_imports(
         match file_of_module(target) {
             Some(file) if file != index => {
                 if !order.contains(&file)
-                    && (sources.contains(&file) || closure_anchored(layout, file))
+                    && (sources.contains(&file) || closure_anchored(layout, file, budget)?)
                 {
-                    order.push(file);
+                    budget.push(Scratch, order, file)?;
                 }
             }
             Some(_) => {}
             None => {
                 // An empty module: its own imports take its place.
-                pending.extend(context.graph.imports[target as usize].iter().rev());
+                extend_in(
+                    &mut pending,
+                    context.graph.imports[target as usize].iter().rev().copied(),
+                    Scratch,
+                    budget,
+                )?;
             }
         }
     }
     for &source in sources {
         if !order.contains(&source) {
-            order.push(source);
+            budget.push(Scratch, order, source)?;
         }
     }
-    order
+    release_vec(pending, Scratch, budget)?;
+    release_vec(seen, Scratch, budget)?;
+    Ok(())
 }
 
 /// The file `import()` of a dynamic entry loads: its lazy file, or in
@@ -1433,55 +1750,73 @@ fn dynamic_file(layout: &Layout, module: u32) -> Option<usize> {
 
 /// Whether loading a file runs anything: it or a file it imports holds an
 /// anchored statement.
-fn closure_anchored(layout: &Layout, file: usize) -> bool {
-    let mut seen = vec![false; layout.files.len()];
-    let mut pending = vec![file];
+fn closure_anchored(
+    layout: &Layout,
+    file: usize,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<bool, AllocationError> {
+    let mut phase = budget.scope();
+    let budget = &mut phase;
+    let mut seen = budget.filled(Scratch, layout.files.len(), false)?;
+    let mut pending = budget.copy_slice(Scratch, &[file])?;
     while let Some(current) = pending.pop() {
+        budget.work(WorkKind::Analysis, 1)?;
         if std::mem::replace(&mut seen[current], true) {
             continue;
         }
         if layout.files[current].anchored {
-            return true;
+            return Ok(true);
         }
-        pending.extend(
+        extend_in(
+            &mut pending,
             layout.files[current]
                 .links
                 .imports
                 .iter()
                 .map(|&(source, _)| source as usize),
-        );
+            Scratch,
+            budget,
+        )?;
     }
-    false
+    Ok(false)
 }
 
 // ---------------------------------------------------------------- the simulator
 
-/// The files an entry's facade loads, in ES module evaluation order: a
-/// post-order walk of static imports in listed order.
-fn evaluation(layout: &Layout, start: usize, loaded: &[bool]) -> Vec<usize> {
-    let mut order = Vec::new();
-    let mut state = vec![0u8; layout.files.len()];
-    let mut stack = vec![(start, 0usize)];
-    if loaded.get(start).copied().unwrap_or(false) {
-        return order;
-    }
-    state[start] = 1;
-    while let Some((file, next)) = stack.last_mut() {
-        let file = *file;
-        if let Some(&(source, _)) = layout.files[file].links.imports.get(*next) {
-            *next += 1;
-            let source = source as usize;
-            if state[source] == 0 && !loaded.get(source).copied().unwrap_or(false) {
-                state[source] = 1;
-                stack.push((source, 0));
-            }
-        } else {
-            stack.pop();
-            state[file] = 2;
-            order.push(file);
+/// Static imports in ECMAScript evaluation order. The returned order is
+/// retained; the traversal stack and visitation state die in this phase.
+fn evaluation(
+    layout: &Layout,
+    start: usize,
+    loaded: &[bool],
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<usize>, AllocationError> {
+    budget.retained_phase(|budget| {
+        let mut order = Vec::new();
+        if loaded.get(start).copied().unwrap_or(false) {
+            return Ok(order);
         }
-    }
-    order
+        let mut state = budget.filled(Scratch, layout.files.len(), 0u8)?;
+        let mut stack = budget.copy_slice(Scratch, &[(start, 0usize)])?;
+        state[start] = 1;
+        while let Some((file, next)) = stack.last_mut() {
+            budget.work(WorkKind::Analysis, 1)?;
+            let file = *file;
+            if let Some(&(source, _)) = layout.files[file].links.imports.get(*next) {
+                *next += 1;
+                let source = source as usize;
+                if state[source] == 0 && !loaded.get(source).copied().unwrap_or(false) {
+                    state[source] = 1;
+                    budget.push(Scratch, &mut stack, (source, 0))?;
+                }
+            } else {
+                stack.pop();
+                state[file] = 2;
+                budget.push(Retained, &mut order, file)?;
+            }
+        }
+        Ok(order)
+    })
 }
 
 /// Why a plan is refused (the verifier's assertions, design §7.11).
@@ -1526,35 +1861,68 @@ impl PlanFailure {
     }
 }
 
-/// Each static entry's anchored statements in its own evaluation order
-/// (ρ): those of the modules it reaches, by its module order, then tree
-/// order; host code first.
-fn reference_orders(context: &Context<'_>) -> Vec<Vec<usize>> {
-    let facts = context.facts;
-    let host = context.graph.host_label();
-    (0..context.graph.statics())
-        .map(|entry| {
-            let mut statements = (0..facts.count)
-                .filter(|&statement| facts.anchored[statement])
-                .filter_map(|statement| {
-                    let position = match facts.module_of(statement) {
-                        None => host.contains(entry).then_some(0),
-                        Some(module) => context.positions[entry]
-                            .get(module as usize)
-                            .copied()
-                            .filter(|&position| position != NONE)
-                            .map(|position| position + 1),
-                    };
-                    position.map(|position| (position, statement))
-                })
-                .collect::<Vec<_>>();
-            statements.sort_unstable();
-            statements
-                .into_iter()
-                .map(|(_, statement)| statement)
-                .collect()
-        })
-        .collect()
+#[derive(Debug)]
+enum VerificationError {
+    Plan(PlanFailure),
+    Admission(AllocationError),
+}
+impl From<PlanFailure> for VerificationError {
+    fn from(error: PlanFailure) -> Self {
+        Self::Plan(error)
+    }
+}
+impl From<AllocationError> for VerificationError {
+    fn from(error: AllocationError) -> Self {
+        Self::Admission(error)
+    }
+}
+impl From<VerificationError> for OutputError {
+    fn from(error: VerificationError) -> Self {
+        match error {
+            VerificationError::Plan(failure) => Self::Invalid(failure.describe()),
+            VerificationError::Admission(error) => Self::Admission(error),
+        }
+    }
+}
+
+/// Each static entry's anchored statements in its own evaluation order.
+fn reference_orders(
+    context: &Context<'_>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<Vec<usize>>, AllocationError> {
+    budget.retained_phase(|budget| {
+        let facts = context.facts;
+        let host = context.graph.host_label(Scratch, budget)?;
+        let mut orders = budget.vector(Retained, context.graph.statics())?;
+        for entry in 0..context.graph.statics() {
+            orders.push(budget.retained_phase(|budget| {
+                let mut statements = collect_in(
+                    (0..facts.count)
+                        .filter(|&statement| facts.anchored[statement])
+                        .filter_map(|statement| {
+                            let position = match facts.module_of(statement) {
+                                None => host.contains(entry).then_some(0),
+                                Some(module) => context.positions[entry]
+                                    .get(module as usize)
+                                    .copied()
+                                    .filter(|&position| position != NONE)
+                                    .map(|position| position + 1),
+                            };
+                            position.map(|position| (position, statement))
+                        }),
+                    Scratch,
+                    budget,
+                )?;
+                statements.sort_unstable();
+                collect_in(
+                    statements.iter().map(|&(_, statement)| statement),
+                    Retained,
+                    budget,
+                )
+            })?);
+        }
+        Ok(orders)
+    })
 }
 
 /// Whether the file graph is acyclic, no file imports a facade, and every
@@ -1563,15 +1931,20 @@ fn simulate(
     context: &Context<'_>,
     layout: &Layout,
     reference: &[Vec<usize>],
-) -> Result<(), PlanFailure> {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), VerificationError> {
+    let mut phase = budget.scope();
+    let budget = &mut phase;
     // P6: acyclic static imports.
     let count = layout.files.len();
-    let mut state = vec![0u8; count];
+    let mut state = budget.filled(Scratch, count, 0u8)?;
+    let mut stack = Vec::new();
     for start in 0..count {
         if state[start] != 0 {
             continue;
         }
-        let mut stack = vec![(start, 0usize)];
+        stack.clear();
+        budget.push(Scratch, &mut stack, (start, 0usize))?;
         state[start] = 1;
         while let Some((file, next)) = stack.last_mut() {
             let file = *file;
@@ -1581,9 +1954,9 @@ fn simulate(
                 match state[source] {
                     0 => {
                         state[source] = 1;
-                        stack.push((source, 0));
+                        budget.push(Scratch, &mut stack, (source, 0))?;
                     }
-                    1 => return Err(PlanFailure::P6Cycle),
+                    1 => return Err(PlanFailure::P6Cycle.into()),
                     _ => {}
                 }
             } else {
@@ -1599,7 +1972,7 @@ fn simulate(
                 layout.files[source as usize].role,
                 FileRole::Entry(_) | FileRole::Lazy(_)
             ) {
-                return Err(PlanFailure::P7Facade);
+                return Err(PlanFailure::P7Facade.into());
             }
         }
     }
@@ -1610,36 +1983,46 @@ fn simulate(
             .iter()
             .position(|file| file.role == FileRole::Entry(entry as u32))
         else {
-            return Err(PlanFailure::P8Surface);
+            return Err(PlanFailure::P8Surface.into());
         };
-        let mut actual = Vec::with_capacity(expected.len());
-        for file in evaluation(layout, facade, &[]) {
-            actual.extend(
+        let mut run_phase = budget.scope();
+        let budget = &mut run_phase;
+        let mut actual = budget.vector(Scratch, expected.len())?;
+        for file in evaluation(layout, facade, &[], budget)? {
+            extend_in(
+                &mut actual,
                 layout.files[file]
                     .statements
                     .iter()
                     .map(|&statement| statement as usize)
                     .filter(|&statement| context.facts.anchored[statement]),
-            );
+                Scratch,
+                budget,
+            )?;
         }
         if actual != *expected {
-            return Err(order_failure(&actual, expected));
+            return Err(order_failure(&actual, expected, budget)?.into());
         }
     }
-    simulate_dynamic(context, layout)
+    simulate_dynamic(context, layout, budget)
 }
 
 /// P4 when two runs hold the same statements in another order, else P5.
-fn order_failure(actual: &[usize], expected: &[usize]) -> PlanFailure {
-    let mut sorted_actual = actual.to_vec();
+fn order_failure(
+    actual: &[usize],
+    expected: &[usize],
+    budget: &mut AllocationBudget<'_>,
+) -> Result<PlanFailure, AllocationError> {
+    let mut phase = budget.scope();
+    let mut sorted_actual = phase.copy_slice(Scratch, actual)?;
     sorted_actual.sort_unstable();
-    let mut sorted_expected = expected.to_vec();
+    let mut sorted_expected = phase.copy_slice(Scratch, expected)?;
     sorted_expected.sort_unstable();
-    if sorted_actual == sorted_expected {
+    Ok(if sorted_actual == sorted_expected {
         PlanFailure::P4Order
     } else {
         PlanFailure::P5Closure
-    }
+    })
 }
 
 /// P4 and P5 for lazily loaded entries (design §7.6, "given loaded(d)"):
@@ -1649,14 +2032,20 @@ fn order_failure(actual: &[usize], expected: &[usize]) -> PlanFailure {
 /// target's own module order. A later load that finds some of those
 /// modules evaluated skips whole files (a file's anchored statements share
 /// one label), so the restriction of an accepted order stays in order.
-fn simulate_dynamic(context: &Context<'_>, layout: &Layout) -> Result<(), PlanFailure> {
+fn simulate_dynamic(
+    context: &Context<'_>,
+    layout: &Layout,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), VerificationError> {
+    let mut phase = budget.scope();
+    let budget = &mut phase;
     let graph = context.graph;
     if graph.dynamic.is_empty() {
         return Ok(());
     }
     let facts = context.facts;
     let statics = graph.statics();
-    let host = graph.host_label();
+    let host = graph.host_label(Scratch, budget)?;
     let bit_of = |file: usize| -> Option<usize> {
         match layout.files[file].role {
             FileRole::Lazy(module) | FileRole::Module(module) => graph.dynamic_bit(module),
@@ -1669,78 +2058,102 @@ fn simulate_dynamic(context: &Context<'_>, layout: &Layout) -> Result<(), PlanFa
             .iter()
             .position(|file| file.role == FileRole::Entry(entry as u32))
         else {
-            return Err(PlanFailure::P8Surface);
+            return Err(PlanFailure::P8Surface.into());
         };
-        let mut loaded_files = vec![false; layout.files.len()];
+        let mut entry_phase = budget.scope();
+        let budget = &mut entry_phase;
+        let mut loaded_files = budget.filled(Scratch, layout.files.len(), false)?;
         let mut pending: Vec<(usize, EntrySet, Vec<bool>)> = Vec::new();
-        for file in evaluation(layout, facade, &[]) {
+        for file in evaluation(layout, facade, &[], budget)? {
             loaded_files[file] = true;
         }
-        let loaded_bits = EntrySet::single(entry);
+        let loaded_bits = EntrySet::single_in(entry, Scratch, budget)?;
         for file in 0..layout.files.len() {
             if loaded_files[file] {
                 for &target in &layout.files[file].links.dynamic {
-                    pending.push((target as usize, loaded_bits.clone(), loaded_files.clone()));
+                    let bits = loaded_bits.copy_in(Scratch, budget)?;
+                    let files = budget.copy_slice(Scratch, &loaded_files)?;
+                    budget.push(Scratch, &mut pending, (target as usize, bits, files))?;
                 }
             }
         }
         // Each lazy file once per static entry, first by the shortest chain
         // of loads that reaches it (the least that is loaded before it).
-        let mut visited = vec![false; layout.files.len()];
+        let mut visited = budget.filled(Scratch, layout.files.len(), false)?;
         let mut cursor = 0;
         while cursor < pending.len() {
-            let (target, bits, files) = pending[cursor].clone();
+            let (target, mut bits, mut files) = std::mem::take(&mut pending[cursor]);
             cursor += 1;
             if std::mem::replace(&mut visited[target], true) {
+                release_vec(bits.0, Scratch, budget)?;
+                release_vec(files, Scratch, budget)?;
                 continue;
             }
             let Some(bit) = bit_of(target) else {
+                release_vec(bits.0, Scratch, budget)?;
+                release_vec(files, Scratch, budget)?;
                 continue;
             };
-            let run = evaluation(layout, target, &files);
-            let actual = run
-                .iter()
-                .flat_map(|&file| layout.files[file].statements.iter())
-                .map(|&statement| statement as usize)
-                .filter(|&statement| facts.anchored[statement])
-                .collect::<Vec<_>>();
+            let run = evaluation(layout, target, &files, budget)?;
+            let actual = collect_in(
+                run.iter()
+                    .flat_map(|&file| layout.files[file].statements.iter())
+                    .map(|&statement| statement as usize)
+                    .filter(|&statement| facts.anchored[statement]),
+                Scratch,
+                budget,
+            )?;
             let evaluated = |reach: &EntrySet| reach.bits().any(|known| bits.contains(known));
-            let mut expected = (0..facts.count)
-                .filter(|&statement| facts.anchored[statement])
-                .filter_map(|statement| {
-                    let position = match facts.module_of(statement) {
-                        None => (host.contains(bit) && !evaluated(&host)).then_some(0),
-                        Some(module) => {
-                            let reach = graph.reach.get(module as usize)?;
-                            (reach.contains(bit) && !evaluated(reach))
-                                .then(|| context.positions[bit].get(module as usize).copied())
-                                .flatten()
-                                .filter(|&position| position != NONE)
-                                .map(|position| position + 1)
-                        }
-                    };
-                    position.map(|position| (position, statement))
-                })
-                .collect::<Vec<_>>();
+            let mut expected = collect_in(
+                (0..facts.count)
+                    .filter(|&statement| facts.anchored[statement])
+                    .filter_map(|statement| {
+                        let position = match facts.module_of(statement) {
+                            None => (host.contains(bit) && !evaluated(&host)).then_some(0),
+                            Some(module) => {
+                                let reach = graph.reach.get(module as usize)?;
+                                (reach.contains(bit) && !evaluated(reach))
+                                    .then(|| context.positions[bit].get(module as usize).copied())
+                                    .flatten()
+                                    .filter(|&position| position != NONE)
+                                    .map(|position| position + 1)
+                            }
+                        };
+                        position.map(|position| (position, statement))
+                    }),
+                Scratch,
+                budget,
+            )?;
             expected.sort_unstable();
-            let expected = expected
-                .into_iter()
-                .map(|(_, statement)| statement)
-                .collect::<Vec<_>>();
-            if actual != expected {
-                return Err(order_failure(&actual, &expected));
+            let expected_order = collect_in(
+                expected.iter().map(|&(_, statement)| statement),
+                Scratch,
+                budget,
+            )?;
+            if actual != expected_order {
+                return Err(order_failure(&actual, &expected_order, budget)?.into());
             }
-            let mut after_files = files;
+            release_vec(actual, Scratch, budget)?;
+            release_vec(expected, Scratch, budget)?;
+            release_vec(expected_order, Scratch, budget)?;
             for &file in &run {
-                after_files[file] = true;
+                files[file] = true;
             }
-            let mut after_bits = bits;
-            after_bits.insert(bit);
+            bits.insert_admitted(bit, Scratch, budget)?;
             for &file in &run {
                 for &next in &layout.files[file].links.dynamic {
-                    pending.push((next as usize, after_bits.clone(), after_files.clone()));
+                    let next_bits = bits.copy_in(Scratch, budget)?;
+                    let next_files = budget.copy_slice(Scratch, &files)?;
+                    budget.push(
+                        Scratch,
+                        &mut pending,
+                        (next as usize, next_bits, next_files),
+                    )?;
                 }
             }
+            release_vec(run, Retained, budget)?;
+            release_vec(bits.0, Scratch, budget)?;
+            release_vec(files, Scratch, budget)?;
         }
     }
     Ok(())
@@ -1761,44 +2174,60 @@ fn file(role: FileRole, label: EntrySet) -> PlannedFile {
 
 /// Give each file its statements, in tree order, and derive its modules
 /// and whether it is anchored.
-fn settle(facts: &Facts, layout: &mut Layout) {
+fn settle(
+    facts: &Facts,
+    layout: &mut Layout,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
     for file in &mut layout.files {
         file.statements.clear();
+        file.modules.clear();
     }
     for (statement, &index) in layout.file_of.iter().enumerate() {
         if index != NONE {
-            layout.files[index].statements.push(statement as u32);
+            budget.push(
+                Retained,
+                &mut layout.files[index].statements,
+                statement as u32,
+            )?;
         }
     }
     for file in &mut layout.files {
-        file.anchored = file
-            .statements
-            .iter()
-            .any(|&statement| facts.anchored[statement as usize]);
-        let mut modules = file
-            .statements
-            .iter()
-            .filter(|&&statement| facts.rows[statement as usize].origin == RowOrigin::Source)
-            .map(|&statement| facts.rows[statement as usize].module)
-            .collect::<Vec<_>>();
-        modules.sort_unstable();
-        modules.dedup();
-        file.modules = modules;
+        file.anchored = file.statements.iter().any(|&s| facts.anchored[s as usize]);
+        extend_in(
+            &mut file.modules,
+            file.statements
+                .iter()
+                .filter(|&&s| facts.rows[s as usize].origin == RowOrigin::Source)
+                .map(|&s| facts.rows[s as usize].module),
+            Retained,
+            budget,
+        )?;
+        file.modules.sort_unstable();
+        file.modules.dedup();
     }
+    Ok(())
 }
 
 /// The facades: one per static entry, then one per lazily loaded module.
-fn facades(graph: &EntryGraph) -> Vec<PlannedFile> {
-    let mut files = (0..graph.statics())
-        .map(|entry| file(FileRole::Entry(entry as u32), EntrySet::single(entry)))
-        .collect::<Vec<_>>();
+fn facades(
+    graph: &EntryGraph,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<PlannedFile>, AllocationError> {
+    let mut files = budget.vector(Retained, graph.statics() + graph.dynamic.len())?;
+    for entry in 0..graph.statics() {
+        files.push(file(
+            FileRole::Entry(entry as u32),
+            EntrySet::single_in(entry, Retained, budget)?,
+        ));
+    }
     for (index, &module) in graph.dynamic.iter().enumerate() {
         files.push(file(
             FileRole::Lazy(module),
-            EntrySet::single(graph.statics() + index),
+            EntrySet::single_in(graph.statics() + index, Retained, budget)?,
         ));
     }
-    files
+    Ok(files)
 }
 
 /// `split`'s fallback plan, legal by construction (design §7.5): a file per
@@ -1812,185 +2241,198 @@ fn fallback(
     graph: &EntryGraph,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Layout, OutputError> {
-    let count = facts.count;
-    let mut files = facades(graph);
-    let mut file_of = vec![NONE; count];
-    // Groups in canonical order: by their module's place in the canonical
-    // schedule (a cycle's earliest member; host code first), then by their
-    // first statement. File positions then follow the schedule.
-    let rank = |group: u32| -> u32 {
-        if group == HOST_GROUP {
-            return 0;
-        }
-        match cycle_of_group(group) {
-            Some(cycle) => (0..graph.cycles.len())
-                .filter(|&module| graph.cycles[module] == Some(cycle))
-                .map(|module| graph.position[module].saturating_add(1))
-                .min()
-                .unwrap_or(u32::MAX),
-            None => graph
-                .position
-                .get(group as usize)
-                .map_or(u32::MAX, |position| position.saturating_add(1)),
-        }
-    };
-    let mut keys: Vec<(u32, usize, EntrySet, u32)> = Vec::new();
-    for statement in 0..count {
-        budget.work(WorkKind::Analysis, 1)?;
-        let atom = atoms.of[statement];
-        let Some(group) = atoms.group[atom].filter(|_| atoms.anchored[atom]) else {
-            continue;
-        };
-        let label = labels[statement].clone();
-        if !keys
-            .iter()
-            .any(|(_, _, known, other)| *known == label && *other == group)
-        {
-            keys.push((rank(group), statement, label, group));
-        }
-    }
-    keys.sort_by(|left, right| (left.0, left.1).cmp(&(right.0, right.1)));
-    let mut group_file: Vec<((EntrySet, u32), usize)> = Vec::with_capacity(keys.len());
-    for (_, _, label, group) in keys {
-        let role = if group == HOST_GROUP {
-            FileRole::Host
-        } else {
-            FileRole::Shared
-        };
-        files.push(file(role, label.clone()));
-        group_file.push(((label, group), files.len() - 1));
-    }
-    let group_module: Vec<Option<u32>> = {
-        let mut modules = vec![None; files.len()];
-        for ((_, group), index) in &group_file {
-            modules[*index] = Some(*group);
-        }
-        modules
-    };
-    for statement in 0..count {
-        let atom = atoms.of[statement];
-        let Some(group) = atoms.group[atom].filter(|_| atoms.anchored[atom]) else {
-            continue;
-        };
-        let key = (labels[statement].clone(), group);
-        let index = group_file
-            .iter()
-            .find(|(known, _)| *known == key)
-            .map(|&(_, index)| index)
-            .ok_or("a group has no file")?;
-        for &member in &atoms.members[atom] {
-            file_of[member] = index;
-        }
-    }
-    // Which group modules each group's module statically reaches.
-    let reaches = reachability(graph);
-    let group_reaches = |from: usize, to: usize| -> bool {
-        match (group_module[from], group_module[to]) {
-            (_, Some(HOST_GROUP)) => true,
-            (Some(from), Some(to)) => {
-                let members = |group: u32| -> Vec<usize> {
-                    match cycle_of_group(group) {
-                        Some(cycle) => (0..graph.cycles.len())
-                            .filter(|&module| graph.cycles[module] == Some(cycle))
-                            .collect(),
-                        None if group == HOST_GROUP => Vec::new(),
-                        None => vec![group as usize],
-                    }
-                };
-                let targets = members(to);
-                members(from)
-                    .iter()
-                    .any(|&module| targets.iter().all(|&target| reaches[module][target]))
+    budget.retained_phase(|budget| {
+        let count = facts.count;
+        let mut files = facades(graph, budget)?;
+        let mut file_of = budget.filled(Retained, count, NONE)?;
+        // Groups in canonical order: by their module's place in the canonical
+        // schedule (a cycle's earliest member; host code first), then by their
+        // first statement. File positions then follow the schedule.
+        let rank = |group: u32| -> u32 {
+            if group == HOST_GROUP {
+                return 0;
             }
-            _ => false,
-        }
-    };
-    // Definitions (design §7.5): every anchored group each depends on,
-    // directly or through other definitions, and the latest of its own
-    // label.
-    let mut needs: Vec<Vec<usize>> = vec![Vec::new(); count];
-    for statement in 0..count {
-        let atom = atoms.of[statement];
-        if atoms.anchored[atom] {
-            continue;
-        }
-        for &(_, owner, _) in &facts.references[statement] {
-            if atoms.anchored[atoms.of[owner]] && !needs[atom].contains(&file_of[owner]) {
-                needs[atom].push(file_of[owner]);
+            match cycle_of_group(group) {
+                Some(cycle) => (0..graph.cycles.len())
+                    .filter(|&module| graph.cycles[module] == Some(cycle))
+                    .map(|module| graph.position[module].saturating_add(1))
+                    .min()
+                    .unwrap_or(u32::MAX),
+                None => graph
+                    .position
+                    .get(group as usize)
+                    .map_or(u32::MAX, |position| position.saturating_add(1)),
+            }
+        };
+        let mut keys: Vec<(u32, usize, &EntrySet, u32)> = Vec::new();
+        for statement in 0..count {
+            budget.work(WorkKind::Analysis, 1)?;
+            let atom = atoms.of[statement];
+            let Some(group) = atoms.group[atom].filter(|_| atoms.anchored[atom]) else {
+                continue;
+            };
+            let label = &labels[statement];
+            if !keys
+                .iter()
+                .any(|(_, _, known, other)| *known == label && *other == group)
+            {
+                budget.push(Scratch, &mut keys, (rank(group), statement, label, group))?;
             }
         }
-    }
-    loop {
-        let mut changed = false;
+        keys.sort_unstable_by(|left, right| (left.0, left.1).cmp(&(right.0, right.1)));
+        let mut group_file: Vec<((&EntrySet, u32), usize)> = budget.vector(Scratch, keys.len())?;
+        for (_, _, label, group) in keys {
+            let role = if group == HOST_GROUP {
+                FileRole::Host
+            } else {
+                FileRole::Shared
+            };
+            let label_copy = label.clone_in(budget)?;
+            budget.push(Retained, &mut files, file(role, label_copy))?;
+            group_file.push(((label, group), files.len() - 1));
+        }
+        let group_module: Vec<Option<u32>> = {
+            let mut modules = budget.filled(Scratch, files.len(), None)?;
+            for ((_, group), index) in &group_file {
+                modules[*index] = Some(*group);
+            }
+            modules
+        };
+        for statement in 0..count {
+            let atom = atoms.of[statement];
+            let Some(group) = atoms.group[atom].filter(|_| atoms.anchored[atom]) else {
+                continue;
+            };
+            let key = (&labels[statement], group);
+            let index = group_file
+                .iter()
+                .find(|(known, _)| *known == key)
+                .map(|&(_, index)| index)
+                .ok_or("a group has no file")?;
+            for &member in &atoms.members[atom] {
+                file_of[member] = index;
+            }
+        }
+        // Which group modules each group's module statically reaches.
+        let reaches = reachability(graph, budget)?;
+        let group_reaches = |from: usize, to: usize| -> bool {
+            match (group_module[from], group_module[to]) {
+                (_, Some(HOST_GROUP)) => true,
+                (Some(from), Some(to)) => {
+                    let members = |group: u32| {
+                        let cycle = cycle_of_group(group);
+                        (0..if cycle.is_some() {
+                            graph.cycles.len()
+                        } else {
+                            0
+                        })
+                            .filter(move |&module| graph.cycles[module] == cycle)
+                            .chain(
+                                (cycle.is_none() && group != HOST_GROUP).then_some(group as usize),
+                            )
+                    };
+                    members(from).any(|module| members(to).all(|target| reaches[module][target]))
+                }
+                _ => false,
+            }
+        };
+        // Definitions (design §7.5): every anchored group each depends on,
+        // directly or through other definitions, and the latest of its own
+        // label.
+        let mut needs: Vec<Vec<usize>> = defaults_in(count, Scratch, budget)?;
         for statement in 0..count {
             let atom = atoms.of[statement];
             if atoms.anchored[atom] {
                 continue;
             }
             for &(_, owner, _) in &facts.references[statement] {
-                let target = atoms.of[owner];
-                if atoms.anchored[target] || target == atom {
-                    continue;
-                }
-                for index in 0..needs[target].len() {
-                    let group = needs[target][index];
-                    if !needs[atom].contains(&group) {
-                        needs[atom].push(group);
-                        changed = true;
-                    }
+                if atoms.anchored[atoms.of[owner]] && !needs[atom].contains(&file_of[owner]) {
+                    budget.push(Scratch, &mut needs[atom], file_of[owner])?;
                 }
             }
         }
-        budget.work(WorkKind::Analysis, count as u64)?;
-        if !changed {
-            break;
-        }
-    }
-    // Definitions-only files, one per label and set of anchored groups its
-    // definitions need: a group a definition needs never imports that
-    // definition's file (references follow source import paths), so these
-    // files close no cycle.
-    let mut definitions: Vec<((EntrySet, Vec<usize>), usize)> = Vec::new();
-    for statement in 0..count {
-        let atom = atoms.of[statement];
-        if atoms.anchored[atom] || file_of[statement] != NONE {
-            continue;
-        }
-        needs[atom].sort_unstable();
-        let label = &labels[statement];
-        // The latest group of its own label, when that group's module
-        // reaches every group the definition depends on: joining it then
-        // adds no evaluation order the source lacks.
-        let latest = needs[atom]
-            .iter()
-            .copied()
-            .filter(|&group| files[group].label == *label)
-            .max();
-        let index = match latest.filter(|&group| {
-            needs[atom]
-                .iter()
-                .all(|&other| other == group || group_reaches(group, other))
-        }) {
-            Some(group) => group,
-            None => match definitions
-                .iter()
-                .find(|((known, needed), _)| known == label && *needed == needs[atom])
-            {
-                Some(&(_, index)) => index,
-                None => {
-                    files.push(file(FileRole::Definitions, label.clone()));
-                    definitions.push(((label.clone(), needs[atom].clone()), files.len() - 1));
-                    files.len() - 1
+        loop {
+            let mut changed = false;
+            for statement in 0..count {
+                let atom = atoms.of[statement];
+                if atoms.anchored[atom] {
+                    continue;
                 }
-            },
-        };
-        for &member in &atoms.members[atom] {
-            file_of[member] = index;
+                for &(_, owner, _) in &facts.references[statement] {
+                    let target = atoms.of[owner];
+                    if atoms.anchored[target] || target == atom {
+                        continue;
+                    }
+                    for index in 0..needs[target].len() {
+                        let group = needs[target][index];
+                        if !needs[atom].contains(&group) {
+                            budget.push(Scratch, &mut needs[atom], group)?;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+            budget.work(WorkKind::Analysis, count as u64)?;
+            if !changed {
+                break;
+            }
         }
-    }
-    let mut layout = Layout { files, file_of };
-    settle(facts, &mut layout);
-    Ok(layout)
+        // Definitions-only files, one per label and set of anchored groups its
+        // definitions need: a group a definition needs never imports that
+        // definition's file (references follow source import paths), so these
+        // files close no cycle.
+        let mut definitions: Vec<((&EntrySet, usize), usize)> = Vec::new();
+        for statement in 0..count {
+            let atom = atoms.of[statement];
+            if atoms.anchored[atom] || file_of[statement] != NONE {
+                continue;
+            }
+            needs[atom].sort_unstable();
+            let label = &labels[statement];
+            // The latest group of its own label, when that group's module
+            // reaches every group the definition depends on: joining it then
+            // adds no evaluation order the source lacks.
+            let latest = needs[atom]
+                .iter()
+                .copied()
+                .filter(|&group| files[group].label == *label)
+                .max();
+            let index = match latest.filter(|&group| {
+                needs[atom]
+                    .iter()
+                    .all(|&other| other == group || group_reaches(group, other))
+            }) {
+                Some(group) => group,
+                None => match definitions
+                    .iter()
+                    .find(|((known, needed), _)| *known == label && needs[*needed] == needs[atom])
+                {
+                    Some(&(_, index)) => index,
+                    None => {
+                        let copied = label.clone_in(budget)?;
+                        budget.push(Retained, &mut files, file(FileRole::Definitions, copied))?;
+                        budget.push(Scratch, &mut definitions, ((label, atom), files.len() - 1))?;
+                        files.len() - 1
+                    }
+                },
+            };
+            for &member in &atoms.members[atom] {
+                file_of[member] = index;
+            }
+        }
+        let mut layout = Layout { files, file_of };
+        settle(facts, &mut layout, budget)?;
+        let reach_bytes = reaches
+            .iter()
+            .try_fold(vector_bytes(&reaches)?, |bytes, row| {
+                bytes
+                    .checked_add(vector_bytes(row)?)
+                    .ok_or(AllocationError::Capacity)
+            })?;
+        drop(reaches);
+        budget.release(Retained, reach_bytes)?;
+        Ok(layout)
+    })
 }
 
 /// The static import cycle a group stands for, if it is one.
@@ -1999,69 +2441,93 @@ fn cycle_of_group(group: u32) -> Option<u32> {
 }
 
 /// Per module, every module its static imports reach (itself included).
-fn reachability(graph: &EntryGraph) -> Vec<Vec<bool>> {
-    let count = graph.imports.len();
-    let mut reaches = vec![vec![false; count]; count];
-    for (start, row) in reaches.iter_mut().enumerate() {
-        let mut pending = vec![start];
-        while let Some(module) = pending.pop() {
-            if std::mem::replace(&mut row[module], true) {
-                continue;
+fn reachability(
+    graph: &EntryGraph,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<Vec<bool>>, AllocationError> {
+    budget.retained_phase(|budget| {
+        let count = graph.imports.len();
+        let mut reaches = budget.vector(Retained, count)?;
+        let mut pending = Vec::new();
+        for start in 0..count {
+            let mut row = budget.filled(Retained, count, false)?;
+            budget.push(Scratch, &mut pending, start)?;
+            while let Some(module) = pending.pop() {
+                budget.work(WorkKind::Analysis, 1)?;
+                if std::mem::replace(&mut row[module], true) {
+                    continue;
+                }
+                extend_in(
+                    &mut pending,
+                    graph.imports[module].iter().map(|&target| target as usize),
+                    Scratch,
+                    budget,
+                )?;
             }
-            pending.extend(graph.imports[module].iter().map(|&target| target as usize));
+            reaches.push(row);
         }
-    }
-    reaches
+        Ok(reaches)
+    })
 }
 
-/// Move every statement of file `from` into file `into`. A definitions
-/// file that receives anchored statements is shared code from then on.
-fn merge(facts: &Facts, layout: &mut Layout, from: usize, into: usize) {
-    for index in layout.file_of.iter_mut() {
+/// Move one file into another, preserving canonical statement order.
+fn merge(
+    facts: &Facts,
+    layout: &mut Layout,
+    from: usize,
+    into: usize,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
+    for index in &mut layout.file_of {
         if *index == from {
             *index = into;
         }
     }
-    settle(facts, layout);
+    settle(facts, layout, budget)?;
     if layout.files[into].role == FileRole::Definitions && layout.files[into].anchored {
         layout.files[into].role = FileRole::Shared;
     }
+    Ok(())
 }
 
-/// Drop files left without statements, except facades and the lazy files
-/// `import()` loads, renumbering the rest.
-fn compact(layout: &mut Layout) {
-    let keep = layout
-        .files
-        .iter()
-        .map(|file| {
-            !file.statements.is_empty()
+/// Remove empty non-facades in place. Their payload, but not the surviving
+/// vector's capacity, is released. Links are regenerated by the caller.
+fn compact(layout: &mut Layout, budget: &mut AllocationBudget<'_>) -> Result<(), AllocationError> {
+    let released = {
+        let mut phase = budget.scope();
+        let mut renumber = phase.filled(Scratch, layout.files.len(), NONE)?;
+        let mut next = 0;
+        let mut released = 0u64;
+        for (index, file) in layout.files.iter().enumerate() {
+            if !file.statements.is_empty()
                 || matches!(file.role, FileRole::Entry(_) | FileRole::Lazy(_))
-        })
-        .collect::<Vec<_>>();
-    let mut renumber = vec![NONE; layout.files.len()];
-    let mut next = 0;
-    for (index, &kept) in keep.iter().enumerate() {
-        if kept {
-            renumber[index] = next;
-            next += 1;
+            {
+                renumber[index] = next;
+                next += 1;
+            } else {
+                released = released
+                    .checked_add(file.heap_bytes()?)
+                    .ok_or(AllocationError::Capacity)?;
+            }
         }
-    }
-    let files = std::mem::take(&mut layout.files);
-    layout.files = files
-        .into_iter()
-        .zip(&keep)
-        .filter(|(_, &kept)| kept)
-        .map(|(file, _)| file)
-        .collect();
-    for index in layout.file_of.iter_mut() {
-        if *index != NONE {
-            *index = renumber[*index];
+        let mut index = 0;
+        layout.files.retain(|_| {
+            let keep = renumber[index] != NONE;
+            index += 1;
+            keep
+        });
+        for index in &mut layout.file_of {
+            if *index != NONE {
+                *index = renumber[*index];
+            }
         }
-    }
+        released
+    };
+    budget.release(Retained, released)
 }
 
-/// Try one merge: keep it when the plan still links and simulates.
+/// Keep a merge only after ordinary link and simulation admission. Resource
+/// refusal aborts the producer; it is never misreported as an illegal merge.
 fn try_merge(
     context: &Context<'_>,
     layout: &mut Layout,
@@ -2074,14 +2540,20 @@ fn try_merge(
         WorkKind::Analysis,
         (layout.file_of.len() + layout.files.len() * reference.len().max(1)) as u64,
     )?;
-    let mut trial = layout.clone();
-    merge(context.facts, &mut trial, from, into);
-    link(context, &mut trial)?;
-    if simulate(context, &trial, reference).is_ok() {
-        *layout = trial;
-        Ok(true)
-    } else {
-        Ok(false)
+    let mut phase = budget.scope();
+    let mut trial = layout.clone_in(&mut phase)?;
+    merge(context.facts, &mut trial, from, into, &mut phase)?;
+    link(context, &mut trial, &mut phase)?;
+    match simulate(context, &trial, reference, &mut phase) {
+        Ok(()) => {
+            phase.finish_retained()?;
+            let released = layout.heap_bytes()?;
+            drop(std::mem::replace(layout, trial));
+            budget.release(Retained, released)?;
+            Ok(true)
+        }
+        Err(VerificationError::Plan(_)) => Ok(false),
+        Err(error) => Err(error.into()),
     }
 }
 
@@ -2102,11 +2574,11 @@ fn coalesce(
         if layout.files[index].role == FileRole::Definitions
             && !layout.files[index].statements.is_empty()
         {
-            let label = layout.files[index].label.clone();
+            let label = &layout.files[index].label;
             let target = (0..layout.files.len())
                 .filter(|&other| {
                     other != index
-                        && layout.files[other].label == label
+                        && layout.files[other].label == *label
                         && matches!(layout.files[other].role, FileRole::Shared | FileRole::Host)
                         && layout.files[other]
                             .links
@@ -2122,30 +2594,35 @@ fn coalesce(
         index += 1;
     }
     // 2. Each label's files into the previous one of that label.
-    let mut order = (0..layout.files.len())
-        .filter(|&file| {
-            matches!(
-                layout.files[file].role,
-                FileRole::Shared | FileRole::Definitions
-            ) && !layout.files[file].statements.is_empty()
-        })
-        .map(|file| (context.first_point(&layout.files[file]), file))
-        .collect::<Vec<_>>();
+    let mut order = collect_in(
+        (0..layout.files.len())
+            .filter(|&file| {
+                matches!(
+                    layout.files[file].role,
+                    FileRole::Shared | FileRole::Definitions
+                ) && !layout.files[file].statements.is_empty()
+            })
+            .map(|file| (context.first_point(&layout.files[file]), file)),
+        Scratch,
+        budget,
+    )?;
     order.sort_unstable();
-    let mut previous: Vec<(EntrySet, usize)> = Vec::new();
-    for (_, file) in order {
+    let mut previous: Vec<usize> = Vec::new();
+    for &(_, file) in &order {
         if layout.files[file].statements.is_empty() {
             continue;
         }
-        let label = layout.files[file].label.clone();
-        match previous.iter_mut().find(|(known, _)| *known == label) {
-            Some((_, last)) => {
+        match previous
+            .iter_mut()
+            .find(|last| layout.files[**last].label == layout.files[file].label)
+        {
+            Some(last) => {
                 if try_merge(context, layout, reference, file, *last, budget)? {
                     continue;
                 }
                 *last = file;
             }
-            None => previous.push((label, file)),
+            None => budget.push(Scratch, &mut previous, file)?,
         }
     }
     // 3 and 4. Files one entry alone loads into its facade.
@@ -2158,21 +2635,24 @@ fn coalesce(
             },
             _ => continue,
         };
-        let only = EntrySet::single(bit);
-        let mut candidates = (0..layout.files.len())
-            .filter(|&file| {
-                file != facade
-                    && layout.files[file].label == only
-                    && !layout.files[file].statements.is_empty()
-                    && matches!(
-                        layout.files[file].role,
-                        FileRole::Shared | FileRole::Definitions | FileRole::Host
-                    )
-            })
-            .map(|file| (context.first_point(&layout.files[file]), file))
-            .collect::<Vec<_>>();
+
+        let mut candidates = collect_in(
+            (0..layout.files.len())
+                .filter(|&file| {
+                    file != facade
+                        && layout.files[file].label.bits().eq(std::iter::once(bit))
+                        && !layout.files[file].statements.is_empty()
+                        && matches!(
+                            layout.files[file].role,
+                            FileRole::Shared | FileRole::Definitions | FileRole::Host
+                        )
+                })
+                .map(|file| (context.first_point(&layout.files[file]), file)),
+            Scratch,
+            budget,
+        )?;
         candidates.sort_unstable();
-        for (_, file) in candidates {
+        for &(_, file) in &candidates {
             let imported_elsewhere = layout.files.iter().enumerate().any(|(other, planned)| {
                 other != facade
                     && planned
@@ -2185,7 +2665,10 @@ fn coalesce(
                 try_merge(context, layout, reference, file, facade, budget)?;
             }
         }
+        release_vec(candidates, Scratch, budget)?;
     }
+    release_vec(order, Scratch, budget)?;
+    release_vec(previous, Scratch, budget)?;
     Ok(())
 }
 
@@ -2198,168 +2681,203 @@ fn preserve_layout(
     facts: &Facts,
     labels: &[EntrySet],
     graph: &EntryGraph,
+    budget: &mut AllocationBudget<'_>,
 ) -> Result<Layout, OutputError> {
-    let count = facts.count;
-    let modules = graph.imports.len();
-    let mut files: Vec<PlannedFile> = Vec::new();
-    let mut module_file = vec![NONE; modules];
-    let mut file_of = vec![NONE; count];
-    let imported = {
-        let mut imported = vec![false; modules];
-        for imports in &graph.imports {
-            for &target in imports {
-                imported[target as usize] = true;
-            }
-        }
-        imported
-    };
-    // An entry module another file imports, statically or with `import()`,
-    // keeps its module file, and its entry file is a facade (P7).
-    let shared = |module: u32| imported[module as usize] || graph.dynamic.contains(&module);
-    // Entry files first, in entry order; then module files by position.
-    for (entry, (_, root)) in graph.entries.iter().enumerate() {
-        if !shared(*root) {
-            files.push(file(
-                FileRole::Entry(entry as u32),
-                graph.reach[*root as usize].clone(),
-            ));
-            module_file[*root as usize] = files.len() - 1;
-        }
-    }
-    for (entry, (_, root)) in graph.entries.iter().enumerate() {
-        if shared(*root) {
-            files.push(file(FileRole::Entry(entry as u32), EntrySet::single(entry)));
-        }
-    }
-    // A module only `import()` loads is its own lazy file. One other files
-    // also import statically, or an entry's module, is a module file, and
-    // `import()` loads a facade re-exporting its namespace (below): the
-    // module file's internal export names and the namespace's public names
-    // could meet in one export list.
-    let is_root = |module: u32| graph.entries.iter().any(|(_, root)| *root == module);
-    let role_of = |module: u32| {
-        if graph.dynamic.contains(&module) && !imported[module as usize] && !is_root(module) {
-            FileRole::Lazy(module)
-        } else {
-            FileRole::Module(module)
-        }
-    };
-    let mut by_position = (0..modules as u32).collect::<Vec<_>>();
-    by_position.sort_unstable_by_key(|&module| graph.position[module as usize]);
-    let mut host = NONE;
-    for statement in 0..count {
-        let row = facts.rows[statement];
-        let target = match row.origin {
-            RowOrigin::Source => {
-                let module = row.module as usize;
-                if module_file[module] == NONE {
-                    files.push(file(role_of(row.module), graph.reach[module].clone()));
-                    module_file[module] = files.len() - 1;
+    budget.retained_phase(|budget| {
+        let count = facts.count;
+        let modules = graph.imports.len();
+        let mut files: Vec<PlannedFile> = Vec::new();
+        let mut module_file = budget.filled(Scratch, modules, NONE)?;
+        let mut file_of = budget.filled(Retained, count, NONE)?;
+        let imported = {
+            let mut imported = budget.filled(Scratch, modules, false)?;
+            for imports in &graph.imports {
+                for &target in imports {
+                    imported[target as usize] = true;
                 }
-                module_file[module]
             }
-            RowOrigin::Host => {
-                if host == NONE {
-                    files.push(file(FileRole::Host, graph.host_label()));
-                    host = files.len() - 1;
-                }
-                host
-            }
-            RowOrigin::Synthetic => continue,
+            imported
         };
-        file_of[statement] = target;
-    }
-    // Every entry and lazily loaded module has its file, even when empty.
-    for &loaded in &graph.dynamic {
-        if module_file[loaded as usize] == NONE {
-            files.push(file(role_of(loaded), graph.reach[loaded as usize].clone()));
-            module_file[loaded as usize] = files.len() - 1;
-        }
-        if role_of(loaded) != FileRole::Lazy(loaded) {
-            let bit = graph
-                .dynamic_bit(loaded)
-                .ok_or("a lazily loaded module has no entry bit")?;
-            files.push(file(FileRole::Lazy(loaded), EntrySet::single(bit)));
-        }
-    }
-    // Rule-created definitions: their users' file when they have one.
-    let mut users: Vec<Vec<usize>> = vec![Vec::new(); count];
-    for statement in 0..count {
-        for &(_, owner, _) in &facts.references[statement] {
-            users[owner].push(statement);
-        }
-    }
-    let mut definitions = NONE;
-    let mut unresolved = (0..count)
-        .filter(|&statement| file_of[statement] == NONE)
-        .collect::<Vec<_>>();
-    for _ in 0..=count {
-        let mut next = Vec::new();
-        for &statement in &unresolved {
-            let mut targets = users[statement]
-                .iter()
-                .map(|&user| file_of[user])
-                .collect::<Vec<_>>();
-            if targets.contains(&NONE) {
-                next.push(statement);
-                continue;
+        // An entry module another file imports, statically or with `import()`,
+        // keeps its module file, and its entry file is a facade (P7).
+        let shared = |module: u32| imported[module as usize] || graph.dynamic.contains(&module);
+        // Entry files first, in entry order; then module files by position.
+        for (entry, (_, root)) in graph.entries.iter().enumerate() {
+            if !shared(*root) {
+                let label = graph.reach[*root as usize].clone_in(budget)?;
+                budget.push(
+                    Retained,
+                    &mut files,
+                    file(FileRole::Entry(entry as u32), label),
+                )?;
+                module_file[*root as usize] = files.len() - 1;
             }
-            targets.sort_unstable();
-            targets.dedup();
-            file_of[statement] = match targets.as_slice() {
-                [only] => *only,
-                _ => {
-                    // The latest module file it references, else one file
-                    // of such definitions.
-                    let latest = facts.references[statement]
-                        .iter()
-                        .filter(|&&(_, owner, _)| {
-                            file_of[owner] != NONE && facts.rows[owner].origin == RowOrigin::Source
-                        })
-                        .max_by_key(|&&(_, owner, _)| {
-                            graph.position[facts.rows[owner].module as usize]
-                        })
-                        .map(|&(_, owner, _)| file_of[owner]);
-                    match latest {
-                        Some(file) => file,
-                        None => {
-                            if definitions == NONE {
-                                files.push(file(FileRole::Definitions, labels[statement].clone()));
-                                definitions = files.len() - 1;
-                            } else {
-                                files[definitions].label.union_with(&labels[statement]);
+        }
+        for (entry, (_, root)) in graph.entries.iter().enumerate() {
+            if shared(*root) {
+                let label = EntrySet::single_in(entry, Retained, budget)?;
+                budget.push(
+                    Retained,
+                    &mut files,
+                    file(FileRole::Entry(entry as u32), label),
+                )?;
+            }
+        }
+        // A module only `import()` loads is its own lazy file. One other files
+        // also import statically, or an entry's module, is a module file, and
+        // `import()` loads a facade re-exporting its namespace (below): the
+        // module file's internal export names and the namespace's public names
+        // could meet in one export list.
+        let is_root = |module: u32| graph.entries.iter().any(|(_, root)| *root == module);
+        let role_of = |module: u32| {
+            if graph.dynamic.contains(&module) && !imported[module as usize] && !is_root(module) {
+                FileRole::Lazy(module)
+            } else {
+                FileRole::Module(module)
+            }
+        };
+        let mut host = NONE;
+        for statement in 0..count {
+            let row = facts.rows[statement];
+            let target = match row.origin {
+                RowOrigin::Source => {
+                    let module = row.module as usize;
+                    if module_file[module] == NONE {
+                        let label = graph.reach[module].clone_in(budget)?;
+                        budget.push(Retained, &mut files, file(role_of(row.module), label))?;
+                        module_file[module] = files.len() - 1;
+                    }
+                    module_file[module]
+                }
+                RowOrigin::Host => {
+                    if host == NONE {
+                        let label = graph.host_label(Retained, budget)?;
+                        budget.push(Retained, &mut files, file(FileRole::Host, label))?;
+                        host = files.len() - 1;
+                    }
+                    host
+                }
+                RowOrigin::Synthetic => continue,
+            };
+            file_of[statement] = target;
+        }
+        // Every entry and lazily loaded module has its file, even when empty.
+        for &loaded in &graph.dynamic {
+            if module_file[loaded as usize] == NONE {
+                let label = graph.reach[loaded as usize].clone_in(budget)?;
+                budget.push(Retained, &mut files, file(role_of(loaded), label))?;
+                module_file[loaded as usize] = files.len() - 1;
+            }
+            if role_of(loaded) != FileRole::Lazy(loaded) {
+                let bit = graph
+                    .dynamic_bit(loaded)
+                    .ok_or("a lazily loaded module has no entry bit")?;
+                let label = EntrySet::single_in(bit, Retained, budget)?;
+                budget.push(Retained, &mut files, file(FileRole::Lazy(loaded), label))?;
+            }
+        }
+        // Rule-created definitions: their users' file when they have one.
+        let mut users: Vec<Vec<usize>> = defaults_in(count, Scratch, budget)?;
+        for statement in 0..count {
+            for &(_, owner, _) in &facts.references[statement] {
+                budget.push(Scratch, &mut users[owner], statement)?;
+            }
+        }
+        let mut definitions = NONE;
+        let mut unresolved = collect_in(
+            (0..count).filter(|&statement| file_of[statement] == NONE),
+            Scratch,
+            budget,
+        )?;
+        let mut next = Vec::new();
+        let mut targets = Vec::new();
+        for _ in 0..=count {
+            next.clear();
+            for &statement in &unresolved {
+                targets.clear();
+                extend_in(
+                    &mut targets,
+                    users[statement].iter().map(|&user| file_of[user]),
+                    Scratch,
+                    budget,
+                )?;
+                if targets.contains(&NONE) {
+                    budget.push(Scratch, &mut next, statement)?;
+                    continue;
+                }
+                targets.sort_unstable();
+                targets.dedup();
+                file_of[statement] = match targets.as_slice() {
+                    [only] => *only,
+                    _ => {
+                        // The latest module file it references, else one file
+                        // of such definitions.
+                        let latest = facts.references[statement]
+                            .iter()
+                            .filter(|&&(_, owner, _)| {
+                                file_of[owner] != NONE
+                                    && facts.rows[owner].origin == RowOrigin::Source
+                            })
+                            .max_by_key(|&&(_, owner, _)| {
+                                graph.position[facts.rows[owner].module as usize]
+                            })
+                            .map(|&(_, owner, _)| file_of[owner]);
+                        match latest {
+                            Some(file) => file,
+                            None => {
+                                if definitions == NONE {
+                                    let label = labels[statement].clone_in(budget)?;
+                                    budget.push(
+                                        Retained,
+                                        &mut files,
+                                        file(FileRole::Definitions, label),
+                                    )?;
+                                    definitions = files.len() - 1;
+                                } else {
+                                    files[definitions].label.union_in(
+                                        &labels[statement],
+                                        Retained,
+                                        budget,
+                                    )?;
+                                }
+                                definitions
                             }
-                            definitions
                         }
                     }
-                }
-            };
-        }
-        if next.len() == unresolved.len() {
-            // Definitions only other such definitions use: one file.
-            for &statement in &next {
-                if definitions == NONE {
-                    files.push(file(FileRole::Definitions, labels[statement].clone()));
-                    definitions = files.len() - 1;
-                }
-                file_of[statement] = definitions;
+                };
             }
-            break;
+            if next.len() == unresolved.len() {
+                // Definitions only other such definitions use: one file.
+                for &statement in &next {
+                    if definitions == NONE {
+                        let label = labels[statement].clone_in(budget)?;
+                        budget.push(Retained, &mut files, file(FileRole::Definitions, label))?;
+                        definitions = files.len() - 1;
+                    }
+                    file_of[statement] = definitions;
+                }
+                break;
+            }
+            std::mem::swap(&mut unresolved, &mut next);
+            if unresolved.is_empty() {
+                break;
+            }
         }
-        unresolved = next;
-        if unresolved.is_empty() {
-            break;
-        }
-    }
-    let _ = module;
-    let mut layout = Layout { files, file_of };
-    settle(facts, &mut layout);
-    Ok(layout)
+        let _ = module;
+        let mut layout = Layout { files, file_of };
+        settle(facts, &mut layout, budget)?;
+        Ok(layout)
+    })
 }
 
 /// Fold each entry facade into its module's file when no other file
 /// imports that file; whether any facade folded.
-fn fold_unimported_entry_modules(facts: &Facts, layout: &mut Layout, graph: &EntryGraph) -> bool {
+fn fold_unimported_entry_modules(
+    facts: &Facts,
+    layout: &mut Layout,
+    graph: &EntryGraph,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<bool, AllocationError> {
     let mut folded = false;
     for (entry, (_, root)) in graph.entries.iter().enumerate() {
         // `import()` of an entry module loads its module file, never the
@@ -2392,14 +2910,15 @@ fn fold_unimported_entry_modules(facts: &Facts, layout: &mut Layout, graph: &Ent
         if imported {
             continue;
         }
-        let label = layout.files[own].label.clone();
+        let label = layout.files[own].label.clone_in(budget)?;
         layout.files[own].role = FileRole::Entry(entry as u32);
         layout.files[facade].role = FileRole::Definitions;
-        layout.files[facade].label = label;
-        merge(facts, layout, facade, own);
+        let old = std::mem::replace(&mut layout.files[facade].label, label);
+        release_vec(old.0, Retained, budget)?;
+        merge(facts, layout, facade, own, budget)?;
         folded = true;
     }
-    folded
+    Ok(folded)
 }
 
 /// `single` with several entries (design §7.7): each entry's file holds the
@@ -2410,33 +2929,48 @@ fn single(
     mut layout: Layout,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Layout, OutputError> {
-    link(context, &mut layout)?;
-    let mut files = Vec::with_capacity(context.graph.statics());
-    for entry in 0..context.graph.statics() {
-        budget.work(WorkKind::Analysis, layout.files.len() as u64)?;
-        let facade = layout
-            .files
-            .iter()
-            .position(|file| file.role == FileRole::Entry(entry as u32))
-            .ok_or("an entry has no facade")?;
-        let mut entry_file = file(FileRole::Entry(entry as u32), EntrySet::single(entry));
-        for index in evaluation(&layout, facade, &[]) {
-            entry_file
-                .statements
-                .extend(layout.files[index].statements.iter().copied());
-            entry_file.anchored |= layout.files[index].anchored;
-            entry_file
-                .modules
-                .extend(layout.files[index].modules.iter().copied());
+    link(context, &mut layout, budget)?;
+    let result = budget.retained_phase(|budget| {
+        let mut files = budget.vector(Retained, context.graph.statics())?;
+        for entry in 0..context.graph.statics() {
+            budget.work(WorkKind::Analysis, layout.files.len() as u64)?;
+            let facade = layout
+                .files
+                .iter()
+                .position(|file| file.role == FileRole::Entry(entry as u32))
+                .ok_or("an entry has no facade")?;
+            let mut entry_file = file(
+                FileRole::Entry(entry as u32),
+                EntrySet::single_in(entry, Retained, budget)?,
+            );
+            let order = evaluation(&layout, facade, &[], budget)?;
+            for &index in &order {
+                budget.extend_copy(
+                    Retained,
+                    &mut entry_file.statements,
+                    &layout.files[index].statements,
+                )?;
+                entry_file.anchored |= layout.files[index].anchored;
+                budget.extend_copy(
+                    Retained,
+                    &mut entry_file.modules,
+                    &layout.files[index].modules,
+                )?;
+            }
+            release_vec(order, Retained, budget)?;
+            entry_file.modules.sort_unstable();
+            entry_file.modules.dedup();
+            files.push(entry_file);
         }
-        entry_file.modules.sort_unstable();
-        entry_file.modules.dedup();
-        files.push(entry_file);
-    }
-    Ok(Layout {
-        files,
-        file_of: vec![NONE; layout.file_of.len()],
-    })
+        Ok::<_, OutputError>(Layout {
+            files,
+            file_of: budget.filled(Retained, layout.file_of.len(), NONE)?,
+        })
+    })?;
+    let released = layout.heap_bytes()?;
+    drop(layout);
+    budget.release(Retained, released)?;
+    Ok(result)
 }
 
 /// `import()` built in place (`single`, or an ECMAScript target without
@@ -2451,15 +2985,17 @@ fn check_in_place_loads(
     layout: &Layout,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), OutputError> {
+    let mut phase = budget.scope();
+    let budget = &mut phase;
     let modules = graph.imports.len();
-    let mut anchored_in = vec![false; modules];
-    let mut statements_of: Vec<Vec<usize>> = vec![Vec::new(); modules];
+    let mut anchored_in = budget.filled(Scratch, modules, false)?;
+    let mut statements_of = defaults_in(modules, Scratch, budget)?;
     for statement in 0..facts.count {
         let row = facts.rows[statement];
         if row.origin != RowOrigin::Source || row.module as usize >= modules {
             continue;
         }
-        statements_of[row.module as usize].push(statement);
+        budget.push(Scratch, &mut statements_of[row.module as usize], statement)?;
         anchored_in[row.module as usize] |= facts.anchored[statement];
     }
     for entry in 0..graph.statics() {
@@ -2471,15 +3007,18 @@ fn check_in_place_loads(
         else {
             continue;
         };
+        let mut entry_phase = budget.scope();
+        let budget = &mut entry_phase;
         let mut pending: Vec<u32> = Vec::new();
-        for file in evaluation(layout, facade, &[]) {
+        for file in evaluation(layout, facade, &[], budget)? {
             for &statement in &layout.files[file].statements {
-                pending.extend(facts.every_load[statement as usize].iter().copied());
+                budget.extend_copy(Scratch, &mut pending, &facts.every_load[statement as usize])?;
             }
         }
-        let mut seen = vec![false; modules];
+        let mut seen = budget.filled(Scratch, modules, false)?;
+        let mut stack = Vec::new();
         while let Some(target) = pending.pop() {
-            let mut stack = vec![target as usize];
+            budget.push(Scratch, &mut stack, target as usize)?;
             while let Some(module) = stack.pop() {
                 if module >= modules
                     || std::mem::replace(&mut seen[module], true)
@@ -2493,9 +3032,14 @@ fn check_in_place_loads(
                     ));
                 }
                 for &statement in &statements_of[module] {
-                    pending.extend(facts.every_load[statement].iter().copied());
+                    budget.extend_copy(Scratch, &mut pending, &facts.every_load[statement])?;
                 }
-                stack.extend(graph.imports[module].iter().map(|&target| target as usize));
+                extend_in(
+                    &mut stack,
+                    graph.imports[module].iter().map(|&target| target as usize),
+                    Scratch,
+                    budget,
+                )?;
             }
         }
     }
@@ -2505,58 +3049,57 @@ fn check_in_place_loads(
 /// `single`'s links: no file imports another; each prints the foreign
 /// imports and host bindings its statements use and publishes its entry's
 /// names.
-fn link_single(context: &Context<'_>, layout: &mut Layout) -> Result<(), OutputError> {
+fn link_single(
+    context: &Context<'_>,
+    layout: &mut Layout,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), OutputError> {
     let module = context.module;
     let facts = context.facts;
     for file in &mut layout.files {
         let FileRole::Entry(entry) = file.role else {
             return Err("a single-file entry plan holds a file that is no entry".into());
         };
-        let mut foreign = Vec::new();
-        let mut hosted = Vec::new();
-        for &statement in &file.statements {
-            for &import in &facts.imports[statement as usize] {
-                if context.hosted[import] {
-                    hosted.push(import);
-                } else {
-                    foreign.push(import);
+        let links = budget.retained_phase(|budget| {
+            let mut foreign = Vec::new();
+            let mut hosted = Vec::new();
+            for &statement in &file.statements {
+                for &import in &facts.imports[statement as usize] {
+                    if context.hosted[import] {
+                        budget.push(Retained, &mut hosted, import)?;
+                    } else {
+                        budget.push(Retained, &mut foreign, import)?;
+                    }
                 }
             }
-        }
-        let exports: Vec<usize> = if module.entries.is_empty() {
-            (0..module.exports.len()).collect()
-        } else {
-            module.entries[entry as usize]
-                .exports
-                .iter()
-                .map(|&position| position as usize)
-                .collect()
-        };
-        let mut public = Vec::with_capacity(exports.len());
-        for position in exports {
-            let export = &module.exports[position];
-            let import = facts.foreign[export.binding.index()];
-            if import != NONE {
-                if context.hosted[import] {
-                    hosted.push(import);
-                } else {
-                    foreign.push(import);
+            let mut public = Vec::new();
+            for position in export_positions(module, entry as usize) {
+                let export = &module.exports[position];
+                let import = facts.foreign[export.binding.index()];
+                if import != NONE {
+                    if context.hosted[import] {
+                        budget.push(Retained, &mut hosted, import)?;
+                    } else {
+                        budget.push(Retained, &mut foreign, import)?;
+                    }
                 }
+                let name = budget.string(Retained, &export.name)?;
+                budget.push(Retained, &mut public, (name, export.binding, 0))?;
             }
-            public.push((export.name.clone(), export.binding, 0));
-        }
-        foreign.sort_unstable();
-        foreign.dedup();
-        hosted.sort_unstable();
-        hosted.dedup();
-        file.links = FileLinks {
-            imports: Vec::new(),
-            exports: Vec::new(),
-            public,
-            foreign,
-            hosted,
-            dynamic: Vec::new(),
-        };
+            foreign.sort_unstable();
+            foreign.dedup();
+            hosted.sort_unstable();
+            hosted.dedup();
+            Ok::<_, OutputError>(FileLinks {
+                imports: Vec::new(),
+                exports: Vec::new(),
+                public,
+                foreign,
+                hosted,
+                dynamic: Vec::new(),
+            })
+        })?;
+        file.links.replace_in(links, budget)?;
     }
     for (index, file) in layout.files.iter_mut().enumerate() {
         for public in &mut file.links.public {
@@ -2573,65 +3116,82 @@ fn assignments(
     module: &Module,
     statement: &Statement,
     binding: BindingId,
-    found: &mut Vec<ExprId>,
-) {
-    let mut statements = vec![statement];
-    let mut expressions: Vec<ExprId> = Vec::new();
-    loop {
-        if let Some(expression) = expressions.pop() {
-            let node = &module.expressions[expression.index()];
-            if let Expr::Assign { target, .. } = node {
-                if module.expressions[target.index()] == Expr::Binding(binding) {
-                    found.push(expression);
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<ExprId>, AllocationError> {
+    budget.retained_phase(|budget| {
+        let mut found = Vec::new();
+        let mut statements = budget.copy_slice(Scratch, &[statement])?;
+        let mut expressions: Vec<ExprId> = Vec::new();
+        loop {
+            if let Some(expression) = expressions.pop() {
+                let node = &module.expressions[expression.index()];
+                if let Expr::Assign { target, .. } = node {
+                    if module.expressions[target.index()] == Expr::Binding(binding) {
+                        budget.push(Retained, &mut found, expression)?;
+                    }
                 }
+                for function in node.created_functions() {
+                    extend_in(
+                        &mut statements,
+                        module.regions[module.functions[function.index()].body.index()]
+                            .statements
+                            .iter(),
+                        Scratch,
+                        budget,
+                    )?;
+                }
+                node.visit_children(|child| budget.push(Scratch, &mut expressions, child))?;
+                continue;
             }
-            for function in node.created_functions() {
-                statements.extend(
-                    module.regions[module.functions[function.index()].body.index()]
-                        .statements
-                        .iter(),
-                );
-            }
-            let _ = node.visit_children(|child| {
-                expressions.push(child);
-                Ok::<_, ()>(())
+            let Some(current) = statements.pop() else {
+                return Ok(found);
+            };
+            let mut status = Ok(());
+            current.visit_expressions(|root| {
+                if status.is_ok() {
+                    status = budget.push(Scratch, &mut expressions, root);
+                }
             });
-            continue;
-        }
-        let Some(current) = statements.pop() else {
-            return;
-        };
-        current.visit_expressions(|root| expressions.push(root));
-        let mut region =
-            |id: RegionId| statements.extend(module.regions[id.index()].statements.iter());
-        match current {
-            Statement::If { yes, no, .. } => {
-                region(*yes);
-                if let Some(no) = no {
-                    region(*no);
+            status?;
+            let mut region = |id: RegionId| {
+                extend_in(
+                    &mut statements,
+                    module.regions[id.index()].statements.iter(),
+                    Scratch,
+                    budget,
+                )
+            };
+            match current {
+                Statement::If { yes, no, .. } => {
+                    region(*yes)?;
+                    if let Some(no) = no {
+                        region(*no)?;
+                    }
                 }
+                Statement::Loop { body, .. }
+                | Statement::ForIn { body, .. }
+                | Statement::ForOf { body, .. }
+                | Statement::Block(body) => region(*body)?,
+                Statement::Try {
+                    body,
+                    catch,
+                    finally,
+                } => {
+                    region(*body)?;
+                    if let Some(catch) = catch {
+                        region(catch.body)?;
+                    }
+                    if let Some(finally) = finally {
+                        region(*finally)?;
+                    }
+                }
+                Statement::Function { function, .. } => {
+                    region(module.functions[function.index()].body)?
+                }
+                _ => {}
             }
-            Statement::Loop { body, .. }
-            | Statement::ForIn { body, .. }
-            | Statement::ForOf { body, .. }
-            | Statement::Block(body) => region(*body),
-            Statement::Try {
-                body,
-                catch,
-                finally,
-            } => {
-                region(*body);
-                if let Some(catch) = catch {
-                    region(catch.body);
-                }
-                if let Some(finally) = finally {
-                    region(*finally);
-                }
-            }
-            Statement::Function { function, .. } => region(module.functions[function.index()].body),
-            _ => {}
         }
-    }
+    })
 }
 
 /// Each write to a binding another file declares becomes a call of a setter
@@ -2650,7 +3210,7 @@ fn create_setters(
         for &statement in &file.statements {
             for &(binding, owner, write) in &facts.references[statement as usize] {
                 if write && layout.file_of[owner] != index {
-                    writes.push((binding, owner, statement as usize));
+                    budget.push(Scratch, &mut writes, (binding, owner, statement as usize))?;
                 }
             }
         }
@@ -2670,7 +3230,7 @@ fn create_setters(
                     Binding {
                         source_symbol: None,
                         scope: body_scope,
-                        spelling: "v".to_string(),
+                        spelling: budget.string(Retained, "v")?,
                         pinned: false,
                         class: None,
                         defined: false,
@@ -2694,12 +3254,13 @@ fn create_setters(
                 )?;
                 let function =
                     FunctionId::try_new(module.functions.len()).ok_or("too many functions")?;
+                let parameters = budget.copy_slice(Retained, &[value])?;
                 budget.push(
                     crate::output_budget::AllocationClass::Retained,
                     &mut module.functions,
                     Function {
                         rest: false,
-                        parameters: vec![value],
+                        parameters: parameters,
                         body,
                         arrow: true,
                         name: FunctionName::Unobserved,
@@ -2709,7 +3270,10 @@ fn create_setters(
                     },
                 )?;
                 let created = module.expression_in(Expr::Function(function), None, budget)?;
-                let spelling = format!("set_{}", module.bindings[binding.index()].spelling);
+                let spelling = budget.format(
+                    Retained,
+                    format_args!("set_{}", module.bindings[binding.index()].spelling),
+                )?;
                 let setter = module.binding_in(
                     Binding {
                         source_symbol: None,
@@ -2733,38 +3297,45 @@ fn create_setters(
                 )?;
                 // Beside the declaration, in its file.
                 let home = layout.file_of[owner];
-                layout.file_of.push(home);
+                budget.push(Retained, &mut layout.file_of, home)?;
                 let position = layout.files[home]
                     .statements
                     .iter()
                     .position(|&placed| placed as usize == owner)
                     .map_or(layout.files[home].statements.len(), |at| at + 1);
+                budget.reserve_vec(Retained, &mut layout.files[home].statements, 1)?;
                 layout.files[home]
                     .statements
                     .insert(position, statement as u32);
-                setters.push((binding, setter));
+                budget.push(Retained, &mut setters, (binding, setter))?;
                 setter
             }
         };
         // Rewrite this writer's assignments.
-        let mut found = Vec::new();
-        let statement = module.regions[module.root.index()].statements[writer].clone();
-        assignments(module, &statement, binding, &mut found);
-        for assign in found {
+        let found = assignments(
+            module,
+            &module.regions[module.root.index()].statements[writer],
+            binding,
+            budget,
+        )?;
+        for &assign in &found {
             let Expr::Assign { target, value } = module.expressions[assign.index()] else {
                 continue;
             };
             module.set_expression(target, Expr::Binding(setter));
+            let arguments = budget.copy_slice(Retained, &[value])?;
             module.set_expression(
                 assign,
                 Expr::Call {
                     callee: target,
-                    arguments: vec![value],
+                    arguments,
                     invocation: crate::primitive::Invocation::Reference,
                 },
             );
         }
+        release_vec(found, Retained, budget)?;
     }
+    release_vec(writes, Scratch, budget)?;
     Ok(setters)
 }
 
@@ -2786,178 +3357,225 @@ pub(crate) fn plan(
         return Ok(None);
     }
     let lazy_files = contract.mode != DeliveryMode::Single && dynamic_import;
-    // Without lazy files, `import()` builds its namespace in place: no
-    // module is a dynamic entry.
-    let trimmed;
-    let graph = if lazy_files || graph.dynamic.is_empty() {
-        graph
-    } else {
-        let mut copy = graph.clone();
-        for reach in &mut copy.reach {
-            for index in 0..copy.dynamic.len() {
-                reach.remove(statics + index);
-            }
-        }
-        copy.orders.truncate(statics);
-        copy.dynamic.clear();
-        trimmed = copy;
-        &trimmed
-    };
-    let is_lazy = |target: u32| lazy_files && graph.dynamic.contains(&target);
-    let mut facts = Facts::collect(module, &is_lazy, budget)?;
-    let preserve = contract.mode == DeliveryMode::PreserveModules;
-    let atoms = Atoms::build(&facts, graph, preserve);
-    let labels = labels(module, &facts, &atoms, graph, budget)?;
-    let hosted = module
-        .imports
-        .iter()
-        .map(|import| {
-            import
-                .source
-                .as_unicode()
-                .is_some_and(|source| module.carried.iter().any(|carried| carried == source))
-        })
-        .collect::<Vec<_>>();
-    // Carried host code that stayed text (not lowered into the tree) is one
-    // blob with no file of its own yet (design §7.9; M8.4 makes it host
-    // units): only a file per entry can carry it.
-    if contract.mode != DeliveryMode::Single
-        && !facts.rows.iter().any(|row| row.origin == RowOrigin::Host)
-        && facts.imports.iter().flatten().any(|&import| hosted[import])
-    {
-        return Err(OutputError::Invalid(
-            "carried host modules that were not lowered into the program are delivered in one file per entry: use `delivery.mode = \"single\"` or `host_modules = \"external\"` (plan M8.4)",
-        ));
-    }
-    let positions = graph
-        .orders
-        .iter()
-        .map(|order| {
-            let mut positions = vec![NONE; graph.imports.len()];
-            for (position, &module) in order.iter().enumerate() {
-                positions[module as usize] = position;
-            }
-            positions
-        })
-        .collect::<Vec<_>>();
-    let namespaces = namespaces(module, graph)?;
-    let no_setters = vec![None; module.bindings.len()];
-    let context = Context {
-        module,
-        facts: &facts,
-        graph,
-        hosted: &hosted,
-        setters: &no_setters,
-        positions: positions.clone(),
-        namespaces: namespaces.clone(),
-        preserve,
-    };
-    let reference = reference_orders(&context);
-    let mut layout = match contract.mode {
-        DeliveryMode::Split => {
-            let mut layout = fallback(&facts, &atoms, &labels, graph, budget)?;
-            link(&context, &mut layout)?;
-            if let Err(failure) = simulate(&context, &layout, &reference) {
-                return Err(OutputError::Invalid(failure.describe()));
-            }
-            coalesce(&context, &mut layout, &reference, budget)?;
-            compact(&mut layout);
-            link(&context, &mut layout)?;
-            layout
-        }
-        DeliveryMode::PreserveModules => {
-            let mut layout = preserve_layout(module, &facts, &labels, graph)?;
-            compact(&mut layout);
-            link(&context, &mut layout)?;
-            // An entry module the source imports gets a facade; when no
-            // delivered file imports its module file after all, that file
-            // is the entry file itself.
-            if fold_unimported_entry_modules(&facts, &mut layout, graph) {
-                compact(&mut layout);
-                link(&context, &mut layout)?;
-            }
-            match simulate(&context, &layout, &reference) {
-                Ok(()) => {}
-                Err(PlanFailure::P6Cycle) => {
-                    return Err(OutputError::Invalid(
-                        "preserve-modules delivery of a static import cycle waits for its hoisting constraint on the tree (plan M3.3d)",
-                    ))
+    // Trimming is an admitted temporary projection. Its strings, adjacency
+    // rows and labels cannot escape with the delivered target.
+    if !lazy_files && !graph.dynamic.is_empty() {
+        return budget.with_temporary(
+            |budget| {
+                let mut entries = budget.vector(Retained, graph.entries.len())?;
+                for (name, module) in &graph.entries {
+                    entries.push((budget.string(Retained, name)?, *module));
                 }
-                Err(failure) => return Err(OutputError::Invalid(failure.describe())),
-            }
-            layout
-        }
-        DeliveryMode::Single => {
-            let layout = fallback(&facts, &atoms, &labels, graph, budget)?;
-            let mut layout = single(&context, layout, budget)?;
-            link_single(&context, &mut layout)?;
-            layout
-        }
-    };
-    if !lazy_files {
-        check_in_place_loads(&facts, graph, &layout, budget)?;
+                let mut imports = budget.vector(Retained, graph.imports.len())?;
+                for row in &graph.imports {
+                    imports.push(budget.copy_slice(Retained, row)?);
+                }
+                let mut orders = budget.vector(Retained, statics)?;
+                for row in &graph.orders[..statics] {
+                    orders.push(budget.copy_slice(Retained, row)?);
+                }
+                let mut reach = budget.vector(Retained, graph.reach.len())?;
+                for label in &graph.reach {
+                    let mut label = label.clone_in(budget)?;
+                    for index in 0..graph.dynamic.len() {
+                        label.remove(statics + index);
+                    }
+                    reach.push(label);
+                }
+                let mut paths = budget.vector(Retained, graph.paths.len())?;
+                for path in &graph.paths {
+                    paths.push(budget.string(Retained, path)?);
+                }
+                Ok::<_, OutputError>(EntryGraph {
+                    entries,
+                    dynamic: Vec::new(),
+                    imports,
+                    orders,
+                    reach,
+                    paths,
+                    position: budget.copy_slice(Retained, &graph.position)?,
+                    cycles: budget.copy_slice(Retained, &graph.cycles)?,
+                    host_importers: budget.copy_slice(Retained, &graph.host_importers)?,
+                })
+            },
+            |graph, budget| plan_graph(module, graph, contract, lazy_files, ext, budget),
+        );
     }
-    drop(context);
-    // Setters, then the facts of the edited tree.
-    let setters = if contract.mode == DeliveryMode::Single {
-        Vec::new()
-    } else {
-        create_setters(module, &facts, &mut layout, budget)?
-    };
-    if !setters.is_empty() {
-        facts = Facts::collect(module, &is_lazy, budget)?;
-        let no_setters = vec![None; module.bindings.len()];
-        let context = Context {
+    plan_graph(module, graph, contract, lazy_files, ext, budget)
+}
+
+struct PlanningInput {
+    facts: Facts,
+    atoms: Atoms,
+    labels: Vec<EntrySet>,
+    hosted: Vec<bool>,
+    positions: Vec<Vec<usize>>,
+    namespaces: Vec<(u32, Vec<(String, BindingId)>)>,
+    reference: Vec<Vec<usize>>,
+}
+impl PlanningInput {
+    fn context<'a>(
+        &'a self,
+        module: &'a Module,
+        facts: &'a Facts,
+        graph: &'a EntryGraph,
+        preserve: bool,
+    ) -> Context<'a> {
+        Context {
             module,
-            facts: &facts,
+            facts,
             graph,
-            hosted: &hosted,
-            setters: &no_setters,
-            positions: positions.clone(),
-            namespaces: namespaces.clone(),
+            hosted: &self.hosted,
+            positions: &self.positions,
+            namespaces: &self.namespaces,
             preserve,
+        }
+    }
+}
+fn plan_graph(
+    module: &mut Module,
+    graph: &EntryGraph,
+    contract: &DeliveryContract,
+    lazy_files: bool,
+    ext: &str,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Option<DeliveryPlan>, OutputError> {
+    let is_lazy = |target: u32| lazy_files && graph.dynamic.contains(&target);
+    let preserve = contract.mode == DeliveryMode::PreserveModules;
+    // Build before borrowing the mutable module in the consumer closure.
+    let input = |module: &Module, budget: &mut AllocationBudget<'_>| {
+        let facts = Facts::collect(module, &is_lazy, budget)?;
+        let atoms = Atoms::build(&facts, graph, preserve, budget)?;
+        let labels = labels(module, &facts, &atoms, graph, budget)?;
+        let hosted = collect_in(
+            module.imports.iter().map(|import| {
+                import
+                    .source
+                    .as_unicode()
+                    .is_some_and(|source| module.carried.iter().any(|carried| carried == source))
+            }),
+            Retained,
+            budget,
+        )?;
+        if contract.mode != DeliveryMode::Single
+            && !facts.rows.iter().any(|row| row.origin == RowOrigin::Host)
+            && facts.imports.iter().flatten().any(|&import| hosted[import])
+        {
+            return Err(OutputError::Invalid("carried host modules that were not lowered into the program are delivered in one file per entry: use `delivery.mode = \"single\"` or `host_modules = \"external\"` (plan M8.4)"));
+        }
+        let mut positions = budget.vector(Retained, graph.orders.len())?;
+        for order in &graph.orders {
+            let mut row = budget.filled(Retained, graph.imports.len(), NONE)?;
+            for (position, &module) in order.iter().enumerate() {
+                row[module as usize] = position;
+            }
+            positions.push(row);
+        }
+        let namespaces = namespaces(module, graph, budget)?;
+        let mut input = PlanningInput {
+            facts,
+            atoms,
+            labels,
+            hosted,
+            positions,
+            namespaces,
+            reference: Vec::new(),
         };
-        link(&context, &mut layout)?;
-    }
-    // Lazily loaded files' internal exports are never named `then`: a
-    // namespace with `then` is a thenable (Rolldown
-    // `compute_cross_chunk_links.rs:38-46`).
-    if layout
-        .files
-        .iter()
-        .any(|file| matches!(file.role, FileRole::Lazy(_)))
-        && !module.reserved.iter().any(|name| name == "then")
-    {
-        module.reserved.push("then".to_string());
-    }
-    let no_setters = vec![None; module.bindings.len()];
-    let context = Context {
-        module,
-        facts: &facts,
-        graph,
-        hosted: &hosted,
-        setters: &no_setters,
-        positions,
-        namespaces,
-        preserve,
+        input.reference = reference_orders(
+            &input.context(module, &input.facts, graph, preserve),
+            budget,
+        )?;
+        Ok::<_, OutputError>(input)
     };
-    verify(&context, &layout, &reference, contract.mode)
-        .map_err(|failure| OutputError::Invalid(failure.describe()))?;
-    let entries = closures(graph, &layout, contract.mode);
-    let naming = file_naming(&layout, graph, contract, ext)?;
-    Ok(Some(DeliveryPlan {
+    budget.with_temporary_context(module, input, |input, module, budget| {
+        let context = input.context(module, &input.facts, graph, preserve);
+        let mut layout = match contract.mode {
+            DeliveryMode::Split => {
+                let mut layout = fallback(&input.facts, &input.atoms, &input.labels, graph, budget)?;
+                link(&context, &mut layout, budget)?;
+                simulate(&context, &layout, &input.reference, budget)?;
+                coalesce(&context, &mut layout, &input.reference, budget)?;
+                compact(&mut layout, budget)?;
+                link(&context, &mut layout, budget)?;
+                layout
+            }
+            DeliveryMode::PreserveModules => {
+                let mut layout = preserve_layout(module, &input.facts, &input.labels, graph, budget)?;
+                compact(&mut layout, budget)?;
+                link(&context, &mut layout, budget)?;
+                if fold_unimported_entry_modules(&input.facts, &mut layout, graph, budget)? {
+                    compact(&mut layout, budget)?;
+                    link(&context, &mut layout, budget)?;
+                }
+                match simulate(&context, &layout, &input.reference, budget) {
+                    Ok(()) => {},
+                    Err(VerificationError::Plan(PlanFailure::P6Cycle)) => return Err(OutputError::Invalid("preserve-modules delivery of a static import cycle waits for its hoisting constraint on the tree (plan M3.3d)")),
+                    Err(error) => return Err(error.into()),
+                }
+                layout
+            }
+            DeliveryMode::Single => {
+                let layout = fallback(&input.facts, &input.atoms, &input.labels, graph, budget)?;
+                let mut layout = single(&context, layout, budget)?;
+                link_single(&context, &mut layout, budget)?;
+                layout
+            }
+        };
+        if !lazy_files { check_in_place_loads(&input.facts, graph, &layout, budget)?; }
+        let setters = if contract.mode == DeliveryMode::Single { Vec::new() }
+            else { create_setters(module, &input.facts, &mut layout, budget)? };
+        if layout.files.iter().any(|file| matches!(file.role, FileRole::Lazy(_))) && !module.reserved.iter().any(|name| name == "then") {
+            let name = budget.string(Retained, "then")?;
+            budget.push(Retained, &mut module.reserved, name)?;
+        }
+        if setters.is_empty() {
+            finish_plan(input, module, &input.facts, graph, contract, layout, setters, ext, budget).map(Some)
+        } else {
+            budget.with_temporary(|budget| Facts::collect(module, &is_lazy, budget), |facts, budget| {
+                link(&input.context(module, facts, graph, preserve), &mut layout, budget)?;
+                finish_plan(input, module, facts, graph, contract, layout, setters, ext, budget).map(Some)
+            })
+        }
+    })
+}
+fn finish_plan(
+    input: &PlanningInput,
+    module: &Module,
+    facts: &Facts,
+    graph: &EntryGraph,
+    contract: &DeliveryContract,
+    layout: Layout,
+    setters: Vec<(BindingId, BindingId)>,
+    ext: &str,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<DeliveryPlan, OutputError> {
+    let context = input.context(
+        module,
+        facts,
+        graph,
+        contract.mode == DeliveryMode::PreserveModules,
+    );
+    verify(&context, &layout, &input.reference, contract.mode, budget)?;
+    let entries = closures(graph, &layout, contract.mode, budget)?;
+    let naming = file_naming(&layout, graph, contract, ext, budget)?;
+    let mut entry_names = budget.vector(Retained, graph.entries.len())?;
+    for (name, _) in &graph.entries {
+        entry_names.push(budget.string(Retained, name)?);
+    }
+    release_vec(layout.file_of, Retained, budget)?;
+    Ok(DeliveryPlan {
         mode: contract.mode,
         files: layout.files,
         entries,
         setters,
-        statics,
-        entry_names: graph.entries.iter().map(|(name, _)| name.clone()).collect(),
+        statics: graph.statics(),
+        entry_names,
         naming,
         preload: contract.preload,
         format: contract.format,
         request_bytes: contract.request_bytes,
         depth_bytes: contract.depth_bytes,
-    }))
+    })
 }
 
 /// Each file's name template and fields (design §8): entries by
@@ -2970,15 +3588,15 @@ fn file_naming(
     graph: &EntryGraph,
     contract: &DeliveryContract,
     ext: &str,
+    budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<FileName>, OutputError> {
-    let path_of = |module: u32| -> String {
-        graph
-            .paths
-            .get(module as usize)
-            .cloned()
-            .unwrap_or_else(|| format!("m{module}"))
+    budget.retained_phase(|budget| {
+    let path_of = |module: u32, budget: &mut AllocationBudget<'_>| {
+        match graph.paths.get(module as usize) {
+            Some(path) => budget.string(Retained, path),
+            None => budget.format(Retained, format_args!("m{module}")),
+        }
     };
-    let stem = |path: &str| -> String { path.rsplit('/').next().unwrap_or(path).to_string() };
     // In `preserve-modules` a module's file is named by its path, except
     // two internal files: an entry module's own file behind its entry file,
     // and a facade `import()` loads over a module file. Both are chunks, so
@@ -2992,45 +3610,45 @@ fn file_naming(
         _ => false,
     };
     let mut chunks = 0;
-    let mut naming = Vec::with_capacity(layout.files.len());
+    let mut naming = budget.vector(Retained, layout.files.len())?;
     for (index, file) in layout.files.iter().enumerate() {
         let first = file.modules.first().copied();
         let named = match file.role {
             FileRole::Entry(entry) => {
                 let (name, root) = &graph.entries[entry as usize];
                 FileName {
-                    template: contract.entry_names().to_string(),
-                    name: name.clone(),
+                    template: budget.string(Retained, contract.entry_names())?,
+                    name: budget.string(Retained, name)?,
                     index: entry as usize,
-                    path: path_of(*root),
-                    ext: ext.to_string(),
+                    path: path_of(*root, budget)?,
+                    ext: budget.string(Retained, ext)?,
                 }
             }
             FileRole::Module(module) | FileRole::Lazy(module)
                 if contract.mode == DeliveryMode::PreserveModules && !internal(file.role) =>
             {
-                let path = path_of(module);
+                let path = path_of(module, budget)?;
                 FileName {
-                    template: contract.module_names().to_string(),
-                    name: stem(&path),
+                    template: budget.string(Retained, contract.module_names())?,
+                    name: budget.string(Retained, path.rsplit('/').next().unwrap_or(&path))?,
                     index,
                     path,
-                    ext: ext.to_string(),
+                    ext: budget.string(Retained, ext)?,
                 }
             }
             role => {
                 let path = match role {
-                    FileRole::Lazy(module) | FileRole::Module(module) => path_of(module),
-                    FileRole::Host => "host".to_string(),
-                    _ => first.map_or_else(|| "chunk".to_string(), path_of),
+                    FileRole::Lazy(module) | FileRole::Module(module) => path_of(module, budget)?,
+                    FileRole::Host => budget.string(Retained, "host")?,
+                    _ => match first { Some(module) => path_of(module, budget)?, None => budget.string(Retained, "chunk")? },
                 };
                 chunks += 1;
                 FileName {
-                    template: contract.chunk_names().to_string(),
-                    name: stem(&path),
+                    template: budget.string(Retained, contract.chunk_names())?,
+                    name: budget.string(Retained, path.rsplit('/').next().unwrap_or(&path))?,
                     index: chunks - 1,
                     path,
-                    ext: ext.to_string(),
+                    ext: budget.string(Retained, ext)?,
                 }
             }
         };
@@ -3040,21 +3658,12 @@ fn file_naming(
         .iter()
         .any(|name| super::names::needs_hash(&name.template))
     {
-        let mut names = naming
-            .iter()
-            .map(|name| {
-                super::names::expand(
-                    &name.template,
-                    &super::names::Fields {
-                        name: &name.name,
-                        index: name.index,
-                        path: &name.path,
-                        ext: &name.ext,
-                        hash: "",
-                    },
-                )
-            })
-            .collect::<Vec<_>>();
+        let mut names = budget.vector(Scratch, naming.len())?;
+        for name in &naming {
+            names.push(super::names::expand_in(&name.template, &super::names::Fields {
+                name: &name.name, index: name.index, path: &name.path, ext: &name.ext, hash: "",
+            }, Scratch, budget)?);
+        }
         names.sort_unstable();
         if names.windows(2).any(|pair| pair[0] == pair[1]) {
             return Err(OutputError::Invalid(
@@ -3063,12 +3672,14 @@ fn file_naming(
         }
     }
     Ok(naming)
+    })
 }
 
 /// Each lazily loaded module's namespace, from its first `import()`.
 fn namespaces(
     module: &Module,
     graph: &EntryGraph,
+    budget: &mut AllocationBudget<'_>,
 ) -> Result<Vec<(u32, Vec<(String, BindingId)>)>, OutputError> {
     let mut namespaces: Vec<(u32, Vec<(String, BindingId)>)> = Vec::new();
     for expression in &module.expressions {
@@ -3083,14 +3694,14 @@ fn namespaces(
         if !graph.dynamic.contains(target) || namespaces.iter().any(|(known, _)| known == target) {
             continue;
         }
-        let mut namespace = Vec::with_capacity(members.len());
+        let mut namespace = budget.vector(Retained, members.len())?;
         for (name, value) in members {
             let Expr::Binding(binding) = module.expressions[value.index()] else {
                 return Err("a namespace member is not a binding".into());
             };
-            namespace.push((name.clone(), binding));
+            namespace.push((budget.string(Retained, name)?, binding));
         }
-        namespaces.push((*target, namespace));
+        budget.push(Retained, &mut namespaces, (*target, namespace))?;
     }
     Ok(namespaces)
 }
@@ -3098,69 +3709,94 @@ fn namespaces(
 /// Each entry's files in evaluation order: a static entry's from its
 /// facade; a lazily loaded module's beyond what every entry loading it has
 /// already loaded.
-fn closures(graph: &EntryGraph, layout: &Layout, mode: DeliveryMode) -> Vec<EntryDelivery> {
-    let mut entries = Vec::new();
-    let mut loaded_by: Vec<Vec<bool>> = Vec::new();
-    for (entry, (name, _)) in graph.entries.iter().enumerate() {
-        let facade = layout
-            .files
-            .iter()
-            .position(|file| file.role == FileRole::Entry(entry as u32))
-            .unwrap_or(0);
-        let closure = if mode == DeliveryMode::Single {
-            vec![facade]
-        } else {
-            evaluation(layout, facade, &[])
-        };
-        let mut loaded = vec![false; layout.files.len()];
-        for &file in &closure {
-            loaded[file] = true;
-        }
-        loaded_by.push(loaded);
-        entries.push(EntryDelivery {
-            name: name.clone(),
-            file: facade as u32,
-            dynamic: false,
-            closure: closure.into_iter().map(|file| file as u32).collect(),
-        });
-    }
-    // Dynamic entries in bit order: a label's dynamic bits name them so.
-    for &module in &graph.dynamic {
-        let Some(index) = dynamic_file(layout, module) else {
-            continue;
-        };
-        // Loaded by every static entry that can load it.
-        let importers = (0..graph.statics())
-            .filter(|&entry| {
-                entries[entry].closure.iter().any(|&file| {
-                    layout.files[file as usize]
-                        .links
-                        .dynamic
-                        .contains(&(index as u32))
-                })
-            })
-            .collect::<Vec<_>>();
-        let mut loaded = vec![!importers.is_empty(); layout.files.len()];
-        for &entry in &importers {
-            for (slot, &was) in loaded.iter_mut().zip(&loaded_by[entry]) {
-                *slot &= was;
+fn closures(
+    graph: &EntryGraph,
+    layout: &Layout,
+    mode: DeliveryMode,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<EntryDelivery>, AllocationError> {
+    budget.retained_phase(|budget| {
+        let mut entries = Vec::new();
+        let mut loaded_by: Vec<Vec<bool>> = Vec::new();
+        for (entry, (name, _)) in graph.entries.iter().enumerate() {
+            let facade = layout
+                .files
+                .iter()
+                .position(|file| file.role == FileRole::Entry(entry as u32))
+                .unwrap_or(0);
+            let closure = if mode == DeliveryMode::Single {
+                budget.copy_slice(Retained, &[facade])?
+            } else {
+                evaluation(layout, facade, &[], budget)?
+            };
+            let mut loaded = budget.filled(Scratch, layout.files.len(), false)?;
+            for &file in &closure {
+                loaded[file] = true;
             }
+            budget.push(Scratch, &mut loaded_by, loaded)?;
+            let name = budget.string(Retained, name)?;
+            let entry_closure =
+                collect_in(closure.iter().map(|&file| file as u32), Retained, budget)?;
+            budget.push(
+                Retained,
+                &mut entries,
+                EntryDelivery {
+                    name,
+                    file: facade as u32,
+                    dynamic: false,
+                    closure: entry_closure,
+                },
+            )?;
+            release_vec(closure, Retained, budget)?;
         }
-        let closure = evaluation(layout, index, &loaded);
-        // A lazily loaded entry is named by its source module.
-        let name = graph
-            .paths
-            .get(module as usize)
-            .cloned()
-            .unwrap_or_else(|| format!("lazy-{module}"));
-        entries.push(EntryDelivery {
-            name,
-            file: index as u32,
-            dynamic: true,
-            closure: closure.into_iter().map(|file| file as u32).collect(),
-        });
-    }
-    entries
+        // Dynamic entries in bit order: a label's dynamic bits name them so.
+        for &module in &graph.dynamic {
+            let Some(index) = dynamic_file(layout, module) else {
+                continue;
+            };
+            // Loaded by every static entry that can load it.
+            let importers = collect_in(
+                (0..graph.statics()).filter(|&entry| {
+                    entries[entry].closure.iter().any(|&file| {
+                        layout.files[file as usize]
+                            .links
+                            .dynamic
+                            .contains(&(index as u32))
+                    })
+                }),
+                Scratch,
+                budget,
+            )?;
+            let mut loaded = budget.filled(Scratch, layout.files.len(), !importers.is_empty())?;
+            for &entry in &importers {
+                for (slot, &was) in loaded.iter_mut().zip(&loaded_by[entry]) {
+                    *slot &= was;
+                }
+            }
+            let closure = evaluation(layout, index, &loaded, budget)?;
+            // A lazily loaded entry is named by its source module.
+            let name = match graph.paths.get(module as usize) {
+                Some(path) => budget.string(Retained, path)?,
+                None => budget.format(Retained, format_args!("lazy-{module}"))?,
+            };
+            let entry_closure =
+                collect_in(closure.iter().map(|&file| file as u32), Retained, budget)?;
+            budget.push(
+                Retained,
+                &mut entries,
+                EntryDelivery {
+                    name,
+                    file: index as u32,
+                    dynamic: true,
+                    closure: entry_closure,
+                },
+            )?;
+            release_vec(closure, Retained, budget)?;
+            release_vec(importers, Scratch, budget)?;
+            release_vec(loaded, Scratch, budget)?;
+        }
+        Ok(entries)
+    })
 }
 
 /// The plan verifier (design §7.11): a failure is an internal error that
@@ -3170,27 +3806,31 @@ fn verify(
     layout: &Layout,
     reference: &[Vec<usize>],
     mode: DeliveryMode,
-) -> Result<(), PlanFailure> {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), VerificationError> {
+    let mut phase = budget.scope();
+    let budget = &mut phase;
     let facts = context.facts;
     let module = context.module;
     // P1: each statement once (split, preserve-modules), or once in each
     // single file whose entry runs it.
-    let mut seen = vec![0usize; facts.count];
+    let mut seen = budget.filled(Scratch, facts.count, 0usize)?;
+    let mut own = budget.filled(Scratch, facts.count, false)?;
     for file in &layout.files {
-        let mut own = vec![false; facts.count];
+        own.fill(false);
         for &statement in &file.statements {
             let statement = statement as usize;
             if statement >= facts.count || std::mem::replace(&mut own[statement], true) {
-                return Err(PlanFailure::P1Placement);
+                return Err(PlanFailure::P1Placement.into());
             }
             seen[statement] += 1;
         }
     }
     if mode != DeliveryMode::Single && seen.iter().any(|&times| times != 1) {
-        return Err(PlanFailure::P1Placement);
+        return Err(PlanFailure::P1Placement.into());
     }
     if mode == DeliveryMode::Single && seen.iter().any(|&times| times == 0) {
-        return Err(PlanFailure::P1Placement);
+        return Err(PlanFailure::P1Placement.into());
     }
     let file_of = |statement: usize| -> Option<usize> {
         layout
@@ -3205,7 +3845,7 @@ fn verify(
             .enumerate()
             .all(|(statement, &file)| file_of(statement) == Some(file));
         if !placed {
-            return Err(PlanFailure::P1Placement);
+            return Err(PlanFailure::P1Placement.into());
         }
         // P2 and P10: every reference is to the file's own binding or an
         // imported one; no file assigns another file's binding.
@@ -3217,13 +3857,13 @@ fn verify(
                         continue;
                     }
                     if write {
-                        return Err(PlanFailure::P2Write);
+                        return Err(PlanFailure::P2Write.into());
                     }
                     let imported = file.links.imports.iter().any(|(from, bindings)| {
                         *from as usize == source && bindings.contains(&binding)
                     });
                     if !imported {
-                        return Err(PlanFailure::P10Reference);
+                        return Err(PlanFailure::P10Reference.into());
                     }
                 }
             }
@@ -3231,41 +3871,28 @@ fn verify(
             for (source, bindings) in &file.links.imports {
                 let exports = &layout.files[*source as usize].links.exports;
                 if bindings.iter().any(|binding| !exports.contains(binding)) {
-                    return Err(PlanFailure::P3Link);
+                    return Err(PlanFailure::P3Link.into());
                 }
             }
         }
-        simulate(context, layout, reference)?;
+        simulate(context, layout, reference, budget)?;
     }
     // P8: each entry publishes exactly its names.
     for (index, file) in layout.files.iter().enumerate() {
         let FileRole::Entry(entry) = file.role else {
             continue;
         };
-        let expected: Vec<(&str, BindingId)> = if module.entries.is_empty() {
-            module
-                .exports
-                .iter()
-                .map(|export| (export.name.as_str(), export.binding))
-                .collect()
-        } else {
-            module.entries[entry as usize]
-                .exports
-                .iter()
-                .map(|&position| {
-                    let export = &module.exports[position as usize];
-                    (export.name.as_str(), export.binding)
-                })
-                .collect()
-        };
+        let expected = export_positions(module, entry as usize).map(|position| {
+            let export = &module.exports[position];
+            (export.name.as_str(), export.binding)
+        });
         let actual = file
             .links
             .public
             .iter()
-            .map(|(name, binding, _)| (name.as_str(), *binding))
-            .collect::<Vec<_>>();
-        if actual != expected {
-            return Err(PlanFailure::P8Surface);
+            .map(|(name, binding, _)| (name.as_str(), *binding));
+        if !actual.eq(expected) {
+            return Err(PlanFailure::P8Surface.into());
         }
         let _ = index;
     }
@@ -3283,9 +3910,13 @@ fn verify(
                 _ => false,
             };
             if !home {
-                return Err(PlanFailure::P9Modules);
+                return Err(PlanFailure::P9Modules.into());
             }
         }
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "delivery_admission_tests.rs"]
+mod admission_tests;

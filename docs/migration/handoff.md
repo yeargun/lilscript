@@ -95,6 +95,17 @@ for explicit lock IO. Do not reuse a local-site compression verdict across sourc
 changes; complete bytes/encoder identity are necessary. Per-module elaboration,
 formation, global dependencies and remaining resource owners stay open.
 
+The [delivery batch](../../benchmarks/migration-results/2026-10-01-q2-delivery/README.md)
+pins `q2-delivery-1`, SHA-256
+`7c8417b5a59c74c747943b4989e86dcd0c728beb9be2afeedc828926765640ac`,
+algorithm 51. Placement facts/labels, trials, links, simulation, setter payloads
+and final plan metadata are admitted before allocation. Temporary inputs share
+the original module owner safely; rejected trials release their copies and
+resource refusals propagate. Sixteen focused tests and 36 release checks pass;
+all files and judgment counts match algorithm 50. Objective totals are
+1,624 / 1,526 / 1,131 raw/gzip/Brotli entry-row bytes. Logical bills increase as
+previously uncounted work is admitted; no speed or size win is claimed.
+
 S4 is complete under its [acceptance record](s4-acceptance.md) and
 [explicit ABI scope decision](s4-public-abi.md). Unrestricted public erased
 schemas, ambiguous unions, observable wrappers, mutable aliased product
@@ -110,7 +121,7 @@ hard TOML/replay permissions. The shared fact/removal audit is complete.
    remaining resource owners. Existing source-effect caches, fixed-point suffix
    reuse, retained target heads and exact codec memoization are starting points.
    The use-index consumer, module graph, local dirty maps and renumbering plans
-   are complete. Remaining global rule dependencies, placement storage,
+   are complete. Remaining global rule dependencies, artifact/render storage,
    source analysis/edit owners, cross-candidate formation,
    per-module elaboration reuse remain. Explicit full-identity decision locks are now implemented.
 

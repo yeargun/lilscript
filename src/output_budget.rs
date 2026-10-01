@@ -112,6 +112,68 @@ impl<'a> AllocationBudget<'a> {
         }
     }
 
+    /// Build temporary retained backing in a child, then lend it beside the
+    /// original owner. The client may grow objects already owned by `self`;
+    /// a child scope must never release or resize those parents' allocations.
+    /// Only the temporary's own detached charge is released after its buffers
+    /// drop, including when the client refuses or unwinds. `build` must classify
+    /// all backing returned in T as Retained, and keep Scratch local to itself.
+    pub(crate) fn with_temporary<T, R, E: From<AllocationError>>(
+        &mut self,
+        build: impl FnOnce(&mut AllocationBudget<'_>) -> Result<T, E>,
+        inspect: impl FnOnce(&T, &mut AllocationBudget<'_>) -> Result<R, E>,
+    ) -> Result<R, E> {
+        self.with_temporary_context(
+            &mut (),
+            |_, budget| build(budget),
+            |value, _, budget| inspect(value, budget),
+        )
+    }
+
+    /// As `with_temporary`, with a target borrowed first immutably by the
+    /// builder and then mutably by the consumer. No runtime borrow container
+    /// or additional allocation owner is needed.
+    pub(crate) fn with_temporary_context<C, T, R, E: From<AllocationError>>(
+        &mut self,
+        context: &mut C,
+        build: impl FnOnce(&C, &mut AllocationBudget<'_>) -> Result<T, E>,
+        inspect: impl FnOnce(&T, &mut C, &mut AllocationBudget<'_>) -> Result<R, E>,
+    ) -> Result<R, E> {
+        use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
+        let mut phase = self.scope();
+        let value = build(context, &mut phase)?;
+        let charge = if phase.is_accounted() {
+            let bytes = phase.retained_bytes(AllocationClass::Retained);
+            Some(phase.detach_retained((), bytes)?)
+        } else {
+            None
+        };
+        drop(phase);
+        let result = catch_unwind(AssertUnwindSafe(|| inspect(&value, context, self)));
+        drop(value);
+        if let Some(charge) = charge {
+            self.with_ledger(|ledger| charge.discard(&(), ledger.unwrap().0))
+                .map_err(|(_, error)| E::from(error))?;
+        }
+        match result {
+            Ok(result) => result,
+            Err(payload) => resume_unwind(payload),
+        }
+    }
+
+    /// Construct fresh retained output, dropping the closure's local scratch
+    /// before transferring its retained backing to this owner. Existing parent
+    /// buffers must not be resized inside the child.
+    pub(crate) fn retained_phase<T, E: From<AllocationError>>(
+        &mut self,
+        build: impl FnOnce(&mut AllocationBudget<'_>) -> Result<T, E>,
+    ) -> Result<T, E> {
+        let mut phase = self.scope();
+        let result = build(&mut phase)?;
+        phase.finish_retained()?;
+        Ok(result)
+    }
+
     /// Consumes a successful phase, after the caller drops its scratch objects.
     /// A root with live retained storage cannot silently finish it unowned.
     pub(crate) fn finish_retained(mut self) -> Result<(), AllocationError> {
@@ -977,5 +1039,51 @@ mod tests {
             drop(target);
         }
         assert_eq!(ledger.retained_bytes(), 0);
+    }
+    #[test]
+    fn temporary_input_releases_its_owner_after_success_refusal_and_unwind() {
+        use AllocationClass::{Retained, Scratch};
+        for outcome in 0..3 {
+            let mut ledger = new_ledger(100_000, 100_000);
+            {
+                let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
+                let mut target = budget.copy_slice(Retained, &[1u64, 2]).unwrap();
+                let result = catch_unwind(AssertUnwindSafe(|| {
+                    budget.with_temporary_context(
+                        &mut target,
+                        |target, budget| {
+                            let scratch = budget.filled(Scratch, 20, 7u64)?;
+                            let value = budget.copy_slice(Retained, target)?;
+                            assert_eq!(scratch.len(), 20);
+                            Ok::<_, AllocationError>(value)
+                        },
+                        |input, target, budget| {
+                            assert_eq!(input, &[1, 2]);
+                            budget.extend_copy(Retained, target, input)?;
+                            match outcome {
+                                0 => Ok(()),
+                                1 => Err(AllocationError::Capacity),
+                                _ => panic!("injected consumer unwind"),
+                            }
+                        },
+                    )
+                }));
+                match outcome {
+                    0 => assert!(result.unwrap().is_ok()),
+                    1 => assert!(result.unwrap().is_err()),
+                    _ => assert!(result.is_err()),
+                }
+                assert_eq!(target, [1, 2, 1, 2]);
+                let bytes = vector_bytes(&target).unwrap();
+                assert_eq!(budget.retained_bytes(Retained), bytes);
+                assert_eq!(budget.retained_bytes(Scratch), 0);
+                assert_eq!(
+                    budget.with_ledger(|ledger| ledger.unwrap().0.retained_bytes()),
+                    bytes
+                );
+                drop(target);
+            }
+            assert_eq!(ledger.retained_bytes(), 0);
+        }
     }
 }

@@ -1,0 +1,74 @@
+{
+  "version": 3,
+  "codec": "raw",
+  "outputs": [
+    {
+      "mode": "split",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "main",
+          "file": "main.js",
+          "dynamic": false,
+          "closure": [
+            "main.js"
+          ],
+          "row": 163,
+          "raw_row": 163
+        },
+        {
+          "name": "feature",
+          "file": "0.js",
+          "dynamic": true,
+          "closure": [
+            "0.js"
+          ],
+          "row": 52,
+          "raw_row": 52
+        }
+      ],
+      "files": [
+        {
+          "file": "main.js",
+          "role": "entry",
+          "label": [
+            "main"
+          ],
+          "modules": [
+            "main.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [
+            "0.js"
+          ],
+          "bytes": 163,
+          "codec_bytes": 163,
+          "sha256": "f98624dda95808f20095c25a097d6df790d36465855399c4d49f7f48a2f5c979"
+        },
+        {
+          "file": "0.js",
+          "role": "lazy",
+          "label": [
+            "feature"
+          ],
+          "modules": [
+            "feature.lil"
+          ],
+          "anchored": false,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 52,
+          "codec_bytes": 52,
+          "sha256": "5e40eaf75d78a72ec267d1497faf05660f830d233789f55163fb4f8031b06a4a"
+        }
+      ],
+      "side_effects": [
+        "main.js"
+      ],
+      "codec_total": 215,
+      "rows_total": 215,
+      "setters": 0
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "setup": "",
+  "exercise": "const a=await load(\"a\"),b=await load(\"b\");console.log(a.twice(),b.read());",
+  "expected": "core loaded\ncore loaded\nb loaded\n2 0"
+}

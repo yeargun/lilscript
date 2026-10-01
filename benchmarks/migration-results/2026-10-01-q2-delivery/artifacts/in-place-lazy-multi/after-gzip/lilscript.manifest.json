@@ -1,0 +1,75 @@
+{
+  "version": 3,
+  "codec": "gzip",
+  "outputs": [
+    {
+      "mode": "single",
+      "format": "esm",
+      "entries": [
+        {
+          "name": "a",
+          "file": "a.js",
+          "dynamic": false,
+          "closure": [
+            "a.js"
+          ],
+          "row": 133,
+          "raw_row": 158
+        },
+        {
+          "name": "b",
+          "file": "b.js",
+          "dynamic": false,
+          "closure": [
+            "b.js"
+          ],
+          "row": 133,
+          "raw_row": 158
+        }
+      ],
+      "files": [
+        {
+          "file": "a.js",
+          "role": "entry",
+          "label": [
+            "a"
+          ],
+          "modules": [
+            "a.lil",
+            "feature.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 158,
+          "codec_bytes": 133,
+          "sha256": "1d69bd6ee30e04973c2c32d4f203c96c766af5e0e2f455d7f3adf849340cd2ef"
+        },
+        {
+          "file": "b.js",
+          "role": "entry",
+          "label": [
+            "b"
+          ],
+          "modules": [
+            "feature.lil",
+            "b.lil"
+          ],
+          "anchored": true,
+          "imports": [],
+          "dynamic_imports": [],
+          "bytes": 158,
+          "codec_bytes": 133,
+          "sha256": "1d69bd6ee30e04973c2c32d4f203c96c766af5e0e2f455d7f3adf849340cd2ef"
+        }
+      ],
+      "side_effects": [
+        "a.js",
+        "b.js"
+      ],
+      "codec_total": 266,
+      "rows_total": 266,
+      "setters": 0
+    }
+  ]
+}

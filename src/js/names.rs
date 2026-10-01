@@ -25,39 +25,50 @@ enum Part<'a> {
     Ext,
 }
 
-fn parts(template: &str) -> Result<Vec<Part<'_>>, String> {
-    let mut parts = Vec::new();
-    let mut rest = template;
-    while let Some(open) = rest.find('[') {
-        if open > 0 {
-            parts.push(Part::Text(&rest[..open]));
+enum TemplateError<'a> {
+    Unclosed,
+    Unknown(&'a str),
+}
+
+fn iter_parts(mut rest: &str) -> impl Iterator<Item = Result<Part<'_>, TemplateError<'_>>> {
+    std::iter::from_fn(move || {
+        if rest.is_empty() {
+            return None;
         }
-        let close = rest[open..]
-            .find(']')
-            .map(|close| open + close)
-            .ok_or_else(|| format!("unclosed `[` in file name template `{template}`"))?;
-        let token = &rest[open + 1..close];
-        parts.push(match token {
-            "name" => Part::Name,
-            "index" => Part::Index,
-            "path" => Part::Path,
-            "ext" => Part::Ext,
-            "hash" => Part::Hash(8),
+        if !rest.starts_with('[') {
+            let end = rest.find('[').unwrap_or(rest.len());
+            let text = &rest[..end];
+            rest = &rest[end..];
+            return Some(Ok(Part::Text(text)));
+        }
+        let Some(close) = rest.find(']') else {
+            rest = "";
+            return Some(Err(TemplateError::Unclosed));
+        };
+        let token = &rest[1..close];
+        rest = &rest[close + 1..];
+        Some(match token {
+            "name" => Ok(Part::Name),
+            "index" => Ok(Part::Index),
+            "path" => Ok(Part::Path),
+            "ext" => Ok(Part::Ext),
+            "hash" => Ok(Part::Hash(8)),
             _ => match token.strip_prefix("hash:").map(str::parse::<usize>) {
-                Some(Ok(length)) if (1..=64).contains(&length) => Part::Hash(length),
+                Some(Ok(length)) if (1..=64).contains(&length) => Ok(Part::Hash(length)),
                 _ => {
-                    return Err(format!(
-                        "unknown placeholder `[{token}]` in file name template `{template}`; use [name], [index], [hash:N], [path] or [ext]"
-                    ))
+                    rest = "";
+                    Err(TemplateError::Unknown(token))
                 }
             },
-        });
-        rest = &rest[close + 1..];
-    }
-    if !rest.is_empty() {
-        parts.push(Part::Text(rest));
-    }
-    Ok(parts)
+        })
+    })
+}
+
+fn parts(template: &str) -> Result<Vec<Part<'_>>, String> {
+    iter_parts(template).map(|part| part.map_err(|error| match error {
+        TemplateError::Unclosed => format!("unclosed `[` in file name template `{template}`"),
+        TemplateError::Unknown(token) => format!("unknown placeholder `[{token}]` in file name template `{template}`; use [name], [index], [hash:N], [path] or [ext]"),
+    })).collect()
 }
 
 /// Refuse a template that cannot name a file: unknown placeholders, an
@@ -99,7 +110,15 @@ pub fn check_template(key: &str, template: &str) -> Result<(), String> {
 
 /// Whether a template needs the file's content hash.
 pub fn needs_hash(template: &str) -> bool {
-    parts(template).is_ok_and(|parts| parts.iter().any(|part| matches!(part, Part::Hash(_))))
+    let mut hashed = false;
+    for part in iter_parts(template) {
+        match part {
+            Ok(Part::Hash(_)) => hashed = true,
+            Ok(_) => {}
+            Err(_) => return false,
+        }
+    }
+    hashed
 }
 
 /// What a template is expanded with.
@@ -114,18 +133,46 @@ pub struct Fields<'a> {
 
 /// Expand a checked template.
 pub fn expand(template: &str, fields: &Fields<'_>) -> String {
-    let mut out = String::new();
-    for part in parts(template).unwrap_or_default() {
-        match part {
-            Part::Text(text) => out.push_str(text),
-            Part::Name => out.push_str(fields.name),
-            Part::Index => out.push_str(&fields.index.to_string()),
-            Part::Hash(length) => out.push_str(&fields.hash[..length.min(fields.hash.len())]),
-            Part::Path => out.push_str(fields.path),
-            Part::Ext => out.push_str(fields.ext),
-        }
+    expand_in(
+        template,
+        fields,
+        crate::output_budget::AllocationClass::Retained,
+        &mut crate::output_budget::AllocationBudget::new(None),
+    )
+    .expect("file name allocation failed")
+}
+
+pub(crate) fn expand_in(
+    template: &str,
+    fields: &Fields<'_>,
+    class: crate::output_budget::AllocationClass,
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<String, crate::output_budget::AllocationError> {
+    // Invalid templates expand to nothing, matching the inspection API.
+    if iter_parts(template).any(|part| part.is_err()) {
+        return Ok(String::new());
     }
-    out
+    let mut out = String::new();
+    for part in iter_parts(template) {
+        let text = match part {
+            Ok(Part::Text(text)) => text,
+            Ok(Part::Name) => fields.name,
+            Ok(Part::Path) => fields.path,
+            Ok(Part::Ext) => fields.ext,
+            Ok(Part::Hash(length)) => &fields.hash[..length.min(fields.hash.len())],
+            Ok(Part::Index) => {
+                let index = budget.format(class, format_args!("{}", fields.index))?;
+                budget.push_str(class, &mut out, &index)?;
+                let bytes = index.capacity() as u64;
+                drop(index);
+                budget.release(class, bytes)?;
+                continue;
+            }
+            Err(_) => unreachable!("template already checked"),
+        };
+        budget.push_str(class, &mut out, text)?;
+    }
+    Ok(out)
 }
 
 /// The specifier one delivered file spells to import another: relative to

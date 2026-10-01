@@ -1,0 +1,82 @@
+[
+  {
+    "test": "output_budget::tests::temporary_input_releases_its_owner_after_success_refusal_and_unwind",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest output_budget::tests::temporary_input_releases_its_owner_after_success_refusal_and_unwind ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 0.00s\n\n"
+  },
+  {
+    "test": "js::names::tests::templates_expand_and_refuse",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest js::names::tests::templates_expand_and_refuse ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 0.00s\n\n"
+  },
+  {
+    "test": "build::delivery_tests::preserve_modules_keeps_each_module_in_its_file_and_writes_through_a_setter",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest build::delivery_tests::preserve_modules_keeps_each_module_in_its_file_and_writes_through_a_setter ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 1.38s\n\n"
+  },
+  {
+    "test": "build::delivery_tests::preserve_modules_refuses_a_static_cycle",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest build::delivery_tests::preserve_modules_refuses_a_static_cycle ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 0.98s\n\n"
+  },
+  {
+    "test": "build::delivery_tests::two_entries_share_one_instance_of_what_both_reach",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest build::delivery_tests::two_entries_share_one_instance_of_what_both_reach ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 0.73s\n\n"
+  },
+  {
+    "test": "build::delivery_tests::dynamic_import_loads_a_lazy_file_serving_only_the_members_read",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest build::delivery_tests::dynamic_import_loads_a_lazy_file_serving_only_the_members_read ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 1.59s\n\n"
+  },
+  {
+    "test": "build::delivery_tests::a_lazy_module_that_calls_the_entry_module_never_imports_the_facade",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest build::delivery_tests::a_lazy_module_that_calls_the_entry_module_never_imports_the_facade ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 0.69s\n\n"
+  },
+  {
+    "test": "build::delivery_tests::a_lazy_load_runs_what_its_importer_has_not_in_the_target_order",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest build::delivery_tests::a_lazy_load_runs_what_its_importer_has_not_in_the_target_order ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 1.68s\n\n"
+  },
+  {
+    "test": "build::delivery_tests::carried_host_code_runs_for_every_entry_reaching_it",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest build::delivery_tests::carried_host_code_runs_for_every_entry_reaching_it ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 1.10s\n\n"
+  },
+  {
+    "test": "build::delivery_tests::preserve_modules_names_an_imported_entry_module_as_a_chunk",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest build::delivery_tests::preserve_modules_names_an_imported_entry_module_as_a_chunk ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 1.58s\n\n"
+  },
+  {
+    "test": "build::delivery_tests::entries_run_their_modules_in_their_own_order_and_nothing_else",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest build::delivery_tests::entries_run_their_modules_in_their_own_order_and_nothing_else ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 1.93s\n\n"
+  },
+  {
+    "test": "build::delivery_tests::hashed_names_cover_every_file_a_file_can_load",
+    "exit_code": 0,
+    "output": "\nrunning 1 test\ntest build::delivery_tests::hashed_names_cover_every_file_a_file_can_load ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2033 filtered out; finished in 1.43s\n\n"
+  },
+  {
+    "test": "js::delivery::admission_tests::q2_delivery_failed_trial_preserves_the_parent_layout",
+    "exit_code": 0,
+    "result": "passed in the four-test q2_delivery_ group"
+  },
+  {
+    "test": "js::delivery::admission_tests::q2_delivery_owns_exact_surviving_plan_storage_in_each_mode",
+    "exit_code": 0,
+    "result": "passed in the four-test q2_delivery_ group"
+  },
+  {
+    "test": "js::delivery::admission_tests::q2_delivery_setters_grow_the_existing_module_owner_and_refusals_release",
+    "exit_code": 0,
+    "result": "passed in the four-test q2_delivery_ group"
+  },
+  {
+    "test": "js::tests::use_index::q2_delivery_edits_invalidate_selected_logical_assignment_proofs",
+    "exit_code": 0,
+    "result": "passed in the four-test q2_delivery_ group"
+  }
+]
