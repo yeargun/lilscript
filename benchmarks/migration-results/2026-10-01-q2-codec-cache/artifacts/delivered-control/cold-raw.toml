@@ -1,0 +1,12 @@
+[delivery]
+mode='preserve-modules'
+
+[cache]
+codec_reuse=true
+directory="/home/azureuser/lilscript-work/measurements/q2-codec-cache/delivered-control/raw"
+[optimization]
+preset='maximum'
+[objective]
+codecs='raw'
+[effort]
+level=13

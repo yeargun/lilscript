@@ -92,6 +92,15 @@ Source contracts are independent of target, effort and optional tactics.
 | `preserve_properties` | `Option<Vec<String>>` | `unset` | Property names this port's public API exchanges with its callers, which the compiler cannot see because they are read in code it never compiles: options a caller sets on an object it authors, fields a callback reads off a context the program hands it, members of a value the program returns. |
 | `pool_strings` | `Option<bool>` | `unset` | The `string-pooling` tactic, when set. |
 
+## `[cache]` — closed
+
+Physical reuse of complete compression measurements.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `codec_reuse` | `bool` | `true` | Reuse exact-byte codec receipts across artifacts (default true). |
+| `directory` | `Option<PathBuf>` | `None` | Optional persistent cache directory, relative to this config file. |
+
 ## `[target]` — closed
 
 `[target]`: the contract axes of schema v3 this compiler reads so far.

@@ -47,3 +47,9 @@ Q2 remains active for tasks 2–7; this is not a milestone completion claim.
 The [bounded journal batch](../../benchmarks/migration-results/2026-10-01-q2-journals/README.md)
 closes repeated edit-list growth and its success/refusal lifetimes. Remaining
 resource owners and dirty scheduling are still open.
+
+The [persistent codec batch](../../benchmarks/migration-results/2026-10-01-q2-codec-cache/README.md)
+adds bounded optional disk measurement reuse, strict TOML/CLI controls and
+cold/warm/disabled output and logical-admission parity. This completes only the
+codec portion of tasks 3 and 5; build/elaboration caches and decision locks
+remain open.

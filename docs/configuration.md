@@ -1134,3 +1134,47 @@ formatting; `--force` overrides it in the CLI.
 lilscript-fmt src
 lilscript-fmt src --check
 ```
+
+
+## Codec measurement reuse
+
+```toml
+[cache]
+codec_reuse = true
+# directory = ".lilscript/cache"
+```
+
+`cache.codec_reuse` defaults to `true`: identical complete JavaScript bytes can
+reuse their gzip/Brotli measurements across artifacts and independently served
+files. Set it to `false` to audit physical encoding for each newly scored
+artifact. Already qualified artifacts retain their size receipts. This switch
+changes physical cost, not permissions, candidate order or logical work; the
+small fixed memory-table admission remains the same in both modes. It does not
+add optimization effort or promise smaller files.
+
+`cache.directory` is optional. Omitted means within-build reuse and no disk
+writes. A relative directory starts beside the selected configuration file.
+When set and reuse is enabled, `codec-v1.bin` retains 4,096 direct-mapped
+measurement slots in at most 393,216 bytes; collisions evict a measurement and
+cause encoding. The file stores no source, output code, eligibility decision or
+winner. The key includes exact bytes, full codec settings/role, the running
+compiler executable, platform, encoder versions and resource-accounting version.
+It is safe to delete the file between builds. Unreadable, corrupt, interrupted
+or incompatible entries are misses; concurrent processes may share it.
+
+Persistent reuse saves encoder CPU on repeated builds and unchanged chunks.
+It adds executable fingerprinting and disk IO, so it is opt-in. Each hit checks
+the cold scratch requirement and pays the complete cold logical codec bill.
+The same work limit therefore cannot buy extra search because a cache is warm.
+Physical time and peak allocation can fall; a wall-clock deadline is inherently
+dependent on elapsed time. Report fields `codec_cache.memory_hits`,
+`codec_cache.disk_hits`, `codec_cache.encodes` and
+`codec_cache.disk_write_errors` distinguish reuse from logical codec judgments.
+
+`--cache DIR` enables persistent codec reuse at that directory; relative CLI
+paths start in the current working directory. `--cache off` disables codec reuse
+and disk access. Both override TOML. `--print-policy` reports the effective
+settings under execution/resolution, outside the semantic fingerprint. Unknown
+keys, non-boolean `codec_reuse` values and an empty directory are errors. These
+controls currently own codec measurements; build/elaboration caching and
+explicit decision-lock replay remain migration work.

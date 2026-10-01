@@ -11,6 +11,18 @@ use sha2::{Digest, Sha256};
 // evict measurements, never conflate them: the complete key is compared.
 const CAPACITY: usize = 256;
 
+#[path = "artifact_compression_disk.rs"]
+mod disk;
+
+#[derive(Debug, Clone, Copy, Default, serde::Serialize)]
+pub(crate) struct MeasurementStats {
+    pub memory_hits: u64,
+    pub disk_hits: u64,
+    pub encodes: u64,
+    pub disk_write_errors: u64,
+}
+
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct Key {
     digest: [u8; 32],
@@ -30,11 +42,22 @@ struct Entry {
 pub(super) struct Measurements {
     entries: Vec<Option<Entry>>,
     charge: Option<RetainedCharge<RevisionId>>,
+    config: crate::config::CacheConfig,
+    disk: Option<disk::Disk>,
+    pub(super) stats: MeasurementStats,
     #[cfg(test)]
     pub(super) hits: usize,
 }
 
 impl Measurements {
+    pub(super) fn configure(&mut self, config: &crate::config::CacheConfig) {
+        if self.config == *config { return; }
+        // Resolve the executable identity only when a compressed measurement
+        // actually misses memory; raw-only requests need no disk-cache work.
+        self.disk = None;
+        self.config = config.clone();
+    }
+
     fn prepare(
         &mut self,
         owner: RevisionId,
@@ -68,10 +91,10 @@ impl Measurements {
         if let Err(error) = self.prepare(owner, budget) {
             return match error {
                 CandidateError::Budget(BudgetError::MemoryExhausted(_))
-                | CandidateError::AllocationFailed => Ok(compression::measure_admitted_at(
-                    bytes, model, settings, role, budget,
-                )?
-                .size),
+                | CandidateError::AllocationFailed => {
+                    self.stats.encodes += 1;
+                    Ok(compression::measure_admitted_at(bytes, model, settings, role, budget)?.size)
+                },
                 error => Err(error),
             };
         }
@@ -105,18 +128,39 @@ impl Measurements {
                 self.entries[slot].filter(|entry| entry.key == key),
             )
         };
-        if let Some(entry) = previous.filter(|_| reuse_enabled()) {
+        if let Some(entry) = previous.filter(|_| self.config.codec_reuse && reuse_enabled()) {
             let _timing = crate::timing::CODEC_REUSE.scope(bytes.len());
             let size = entry.measurement.replay(budget)?;
+            self.stats.memory_hits += 1;
             #[cfg(test)]
             {
                 self.hits += 1;
             }
             return Ok(size);
         }
+        if self.config.codec_reuse && reuse_enabled() {
+            if self.disk.is_none() {
+                self.disk = self.config.directory.as_deref().and_then(disk::Disk::new);
+            }
+            if let Some(measurement) = self.disk.as_ref().and_then(|disk| disk.read(&key)) {
+                let _timing = crate::timing::CODEC_REUSE.scope(bytes.len());
+                let size = measurement.replay(budget)?;
+                self.entries[slot] = Some(Entry { key, measurement });
+                self.stats.disk_hits += 1;
+                #[cfg(test)] { self.hits += 1; }
+                return Ok(size);
+            }
+        }
+        self.stats.encodes += 1;
         let measurement = compression::measure_admitted_at(bytes, model, settings, role, budget)?;
-        // Settings and role are explicit. Backend identity is fixed by this
-        // binary: this cache never survives a compilation or process boundary.
+        if self.config.codec_reuse && reuse_enabled() {
+            if self.disk.as_ref().is_some_and(|disk| disk.write(&key, measurement).is_err()) {
+                self.stats.disk_write_errors += 1;
+            }
+        }
+
+        // The memory table belongs to this compilation; disk backing adds the
+        // compiler/backend identities and integrity checks of its own owner.
         self.entries[slot] = Some(Entry { key, measurement });
         Ok(measurement.size)
     }
@@ -267,5 +311,69 @@ mod tests {
             budget.with_ledger(|ledger| ledger.unwrap().0.retained_bytes()),
             0
         );
+    }
+}
+
+#[cfg(test)]
+mod persistent_tests {
+    use super::*;
+    use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+    use crate::config::CacheConfig;
+
+    fn measure(config: &CacheConfig, model: CompressionCostModel, work: u64, memory: u64)
+        -> (Result<usize, CandidateError>, MeasurementStats, u64)
+    {
+        let owner = RevisionId::fresh();
+        let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+            baseline_work: work, optional_work: 0, baseline_retained_bytes: 0, retained_bytes: memory,
+        }).unwrap();
+        let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+        let mut memo = Measurements::default();
+        memo.configure(config);
+        let result = memo.measure(owner, b"export function one(a){return a+1}export function two(a){return a+2}", model,
+            &CodecSettings::CANONICAL, Role::Exact, &mut budget);
+        let stats = memo.stats;
+        memo.clear(owner, &mut budget);
+        drop(budget);
+        assert_eq!(ledger.retained_bytes(), 0);
+        (result, stats, ledger.work_used(WorkDomain::Baseline))
+    }
+
+    #[test]
+    fn q2_disk_hits_replay_cold_work_and_refuse_cold_resource_limits() {
+        let directory = std::env::temp_dir().join(format!("lilscript-q2-codec-replay-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&directory);
+        let on = CacheConfig { codec_reuse: true, directory: Some(directory.clone()) };
+        let off = CacheConfig { codec_reuse: false, ..on.clone() };
+        for model in [CompressionCostModel::Gzip, CompressionCostModel::Brotli] {
+            let cold = measure(&on, model, 200_000_000, 100_000_000);
+            let warm = measure(&on, model, 200_000_000, 100_000_000);
+            let disabled = measure(&off, model, 200_000_000, 100_000_000);
+            assert_eq!(cold.0.as_ref().unwrap(), warm.0.as_ref().unwrap());
+            assert_eq!(cold.0.as_ref().unwrap(), disabled.0.as_ref().unwrap());
+            assert_eq!((cold.2, cold.2), (warm.2, disabled.2));
+            assert_eq!(cold.1.encodes, 1);
+            assert_eq!(warm.1.encodes, 0);
+            assert_eq!(warm.1.disk_hits, 1);
+            assert_eq!(disabled.1.encodes, 1);
+            assert_eq!(disabled.1.disk_hits, 0);
+            for config in [&on, &off] {
+                assert!(measure(config, model, cold.2 - 1, 100_000_000).0.is_err());
+                assert!(measure(config, model, 200_000_000, 128).0.is_err());
+            }
+        }
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn q2_unavailable_disk_storage_falls_back_to_encoding() {
+        let path = std::env::temp_dir().join(format!("lilscript-q2-codec-file-{}", std::process::id()));
+        std::fs::write(&path, b"not a directory").unwrap();
+        let config = CacheConfig { codec_reuse: true, directory: Some(path.clone()) };
+        let result = measure(&config, CompressionCostModel::Gzip, 200_000_000, 100_000_000);
+        assert!(result.0.is_ok());
+        assert_eq!(result.1.disk_write_errors, 1);
+        assert_eq!(result.1.encodes, 1);
+        std::fs::remove_file(path).unwrap();
     }
 }

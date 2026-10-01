@@ -1,0 +1,4 @@
+{
+  "setup": "globalThis.read=()=>1;",
+  "expected": "4"
+}

@@ -1,0 +1,4 @@
+{
+  "setup": "",
+  "expected": "poor\npoor\nfine!\nfine!\nfine!\nfine!\nfine!\nfine!\nfine!\nfine!\nfine!\nfine!\nfine!\nfine!\nfine!\nfine!\nexcellent!\nexcellent!\nexcellent!\nexcellent!\n1697\nmultiple of five: 5\nmultiple of four: 12\nmultiple of eleven: missing"
+}

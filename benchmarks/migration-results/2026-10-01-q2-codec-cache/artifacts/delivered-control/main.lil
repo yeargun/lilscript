@@ -1,0 +1,1 @@
+import {increment} from "./lib";print(increment(3));

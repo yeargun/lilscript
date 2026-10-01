@@ -1017,6 +1017,7 @@ impl<'src> CheckedSourceSession<'src> {
             ..
         } = self;
         let before = ledger_report(compilation.ledger());
+        let codec_cache = compilation.measurement_stats();
         let phase = Instant::now();
         let ledger = compilation.finish();
         #[cfg(test)]
@@ -1024,7 +1025,7 @@ impl<'src> CheckedSourceSession<'src> {
         let mut phases = phases;
         phases["finish_ns"] = json!(nanos(phase));
         let limits = javascript.as_ref().or(native.as_ref()).unwrap().resources();
-        let report = json!({
+        let mut report = json!({
             "schema":1, "source_sha256":source_identity,
             "request":{"target":format!("{:?}",options.target), "preserve_root_exports":options.preserve_root_exports,
                 "logical_work":options.logical_work, "retained_bytes":options.retained_bytes,
@@ -1076,6 +1077,7 @@ impl<'src> CheckedSourceSession<'src> {
                 "scope":"admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate"
             }
         });
+        report["codec_cache"] = json!(codec_cache);
         FinishedSourceSession { report, ledger }
     }
 }

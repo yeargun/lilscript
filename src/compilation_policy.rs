@@ -38,7 +38,7 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version35 adapts concrete public callbacks with closed invocation uses.
 // Version38 honors authored loop expansion with an independent policy permission.
 // Version 40 carries regional representation pins through source/target edits.
-pub const POLICY_ALGORITHM_VERSION: u32 = 44;
+pub const POLICY_ALGORITHM_VERSION: u32 = 45;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -609,6 +609,7 @@ pub fn serialize_bound<S: serde::Serializer>(
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedPolicy {
+    cache: crate::config::CacheConfig,
     source_contract: crate::config::LanguageConfig,
     hosts: crate::config::HostConfig,
     contract: CompilationContract,
@@ -637,6 +638,7 @@ impl ResolvedPolicy {
         diagnostics: Vec<String>,
     ) -> Self {
         let mut policy = Self {
+            cache: Default::default(),
             source_contract,
             hosts: Default::default(),
             contract,
@@ -653,6 +655,13 @@ impl ResolvedPolicy {
         policy.fingerprint = Sha256::digest(policy.receipt().to_string().as_bytes()).into();
         policy
     }
+    pub(crate) fn with_cache(mut self, cache: crate::config::CacheConfig) -> Self {
+        // Physical reuse cannot perturb semantic identity or search ordering.
+        self.cache = cache;
+        self
+    }
+    pub fn cache(&self) -> &crate::config::CacheConfig { &self.cache }
+
     pub fn source_contract(&self) -> crate::config::LanguageConfig {
         self.source_contract
     }
@@ -717,6 +726,7 @@ impl ResolvedPolicy {
     pub fn resolution(&self) -> serde_json::Value {
         use serde_json::json;
         json!({"configuration_version": self.configuration_version,
+        "cache": self.cache,
         "runtime_permissions": if self.configuration_version == LEGACY_POLICY_VERSION {
             "legacy-effort-16-startup"
         } else { "explicit" },

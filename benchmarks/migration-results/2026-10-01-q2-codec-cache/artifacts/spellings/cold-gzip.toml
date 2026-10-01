@@ -1,0 +1,10 @@
+
+[cache]
+codec_reuse=true
+directory="/home/azureuser/lilscript-work/measurements/q2-codec-cache/spellings/gzip"
+[optimization]
+preset='maximum'
+[objective]
+codecs='gzip'
+[effort]
+level=13

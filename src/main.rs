@@ -110,6 +110,11 @@ struct Args {
     #[arg(long)]
     config: Option<PathBuf>,
 
+    /// Persist codec measurements in DIR, or disable their reuse with off.
+    /// Overrides [cache]; relative paths start in the current directory.
+    #[arg(long, value_name = "DIR|off")]
+    cache: Option<String>,
+
     /// Compiler worker threads, the one parallelism flag. Accepted; the
     /// compiler does not run worker threads yet, so it has no effect. A
     /// thread count never changes the output.
@@ -216,6 +221,13 @@ fn run() -> Result<(), String> {
     );
     for warning in &loaded.warnings {
         eprintln!("warning: {config_label}: {warning}");
+    }
+    if let Some(cache) = &args.cache {
+        loaded.config.cache.codec_reuse = cache != "off";
+        loaded.config.cache.directory = if cache == "off" { None } else {
+            if cache.is_empty() { return Err("--cache requires a directory or off".into()); }
+            Some(std::env::current_dir().map_err(|error| error.to_string())?.join(cache))
+        };
     }
     let legacy_audit = std::env::var_os("LILSCRIPT_WALK_AUDIT").is_some();
     apply_proxy_override(&mut loaded.config, args.proxy_pruning, legacy_audit);
@@ -1166,6 +1178,7 @@ fn policy_report(
             // Removed (architecture §14.2): reported, with no effect, for
             // one release.
             "codec_workers": args.codec_jobs.map(NonZeroUsize::get),
+            "cache": loaded.config.cache,
             "mode": format!("{:?}", args.mode),
             "target": format!("{:?}", args.target),
         },
@@ -1176,12 +1189,14 @@ fn policy_report(
     let primary = options.resolve_policy(&loaded.config,
         options.javascript_request().or_else(|| options.native_request()).unwrap())?;
     receipt["resolution"] = primary.resolution();
+    receipt["execution"]["cache"] = serde_json::to_value(primary.cache()).unwrap();
     // Input origins explain CLI precedence without making path spelling or
     // equivalent environment/flag adapters change canonical policy identity.
     receipt["configuration_inputs"] = json!({
         "file": if args.config.is_some() { "explicit" }
             else if loaded.path.is_some() { "discovered" } else { "defaults" },
         "overrides": {
+            "cache": args.cache.as_ref().map(|_| "--cache"),
             "delivery": args.delivery.map(|_| "--delivery"),
             "format": args.format.map(|_| "--format"),
             "search_disabled": matches!(args.mode, BuildMode::Development),

@@ -700,6 +700,8 @@ pub struct ProjectConfig {
     pub objective: ObjectiveConfig,
     /// `[effort]`: the level, a work budget with a versioned schedule.
     pub effort: EffortConfig,
+    /// Physical codec measurement reuse; never an optimization permission.
+    pub cache: CacheConfig,
     pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
     pub target: TargetConfig,
@@ -708,6 +710,42 @@ pub struct ProjectConfig {
     pub format: FormatConfig,
     #[serde(skip)]
     pub config_dir: Option<PathBuf>,
+}
+
+/// Physical reuse of complete compression measurements. These controls do not
+/// change candidate permissions, search order or cold logical resource bills.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct CacheConfig {
+    /// Reuse exact-byte codec receipts across artifacts (default true). False
+    /// encodes each newly scored artifact for reproducibility audits; logical work and
+    /// cache-table admission stay the same, so it buys no extra search.
+    pub codec_reuse: bool,
+    /// Optional persistent cache directory, relative to this config file.
+    /// Omitted keeps all reuse within the build and writes nothing to disk.
+    /// A fixed 4096-slot receipt file uses at most 393216 bytes. Hits replay
+    /// cold work/scratch; IO errors or invalid entries fall back to encoding.
+    pub directory: Option<PathBuf>,
+}
+
+impl Default for CacheConfig {
+    fn default() -> Self {
+        Self {
+            codec_reuse: true,
+            directory: None,
+        }
+    }
+}
+
+impl CacheConfig {
+    fn resolved(&self, base: Option<&Path>) -> Result<Self, String> {
+        let mut result = self.clone();
+        if let Some(directory) = &self.directory {
+            if directory.as_os_str().is_empty() { return Err("`cache.directory` must not be empty".into()); }
+            result.directory = Some(base.unwrap_or_else(|| Path::new(".")).join(directory));
+        }
+        Ok(result)
+    }
 }
 
 impl ProjectConfig {
@@ -982,7 +1020,7 @@ impl ProjectConfig {
             policy.resources.restricted_by(ceilings),
             policy.constraints,
             diagnostics,
-        ).with_hosts(self.host.clone()))
+        ).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?))
     }
 
     /// The delivery part of the contract (plan M3.3). `library` is the
@@ -2584,3 +2622,8 @@ mod tests {
         }
     }
 }
+
+
+#[cfg(test)]
+#[path = "config_cache_tests.rs"]
+mod cache_tests;

@@ -1281,3 +1281,28 @@ Algorithm 44 records the tariff change. No new representation/default/flag,
 release rebuild, full suite or fleet run. The current release pin remains
 algorithm 43. Q2 remains active for dirty scheduling, remaining resource owners,
 shared formation and persistent reuse.
+
+
+## 2026-10-01: Q2 transparent persistent codec measurements
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-codec-cache/README.md).
+Strict `[cache]` controls and `--cache DIR|off` now govern the existing
+measurement owner. Optional disk reuse stores complete receipts in one bounded
+393,216-byte slot file. Exact bytes, compiler, platform and encoder identities
+key reuse; corruption, interrupted writes and IO failure become misses. Warm
+hits replay cold logical work and scratch admission. Physical counters are
+reported separately. Raw output avoids disk initialization.
+
+Eight focused tests and 18 release artifact/runtime oracles pass. Cold, warm
+and disabled modes retain identical files, logical decisions and semantic
+policy fingerprints for all objectives. Warm spelling Brotli encodes fall
+115 → 2; unchanged two-file output falls 6 → 0. A coarse single timing triplet
+shows no small-gzip benefit; no general speed claim. Selected objective totals
+remain 559 raw / 412 gzip / 348 Brotli across modes.
+
+Pin `q2-codec-cache-1`, SHA-256
+`549214afa580fd5c348e0680135b9faf61eecf59224306d9292da2c141bb9bb1`;
+algorithm 45 / search 32 / walk 10 / local facts 15. The final release comparison
+covers lazy disk setup and output configuration added after the unit batch.
+Build/elaboration caches, decision locks and the other Q2 acceptance items
+remain open. No ratchet baseline, port artifact or full-suite/fleet change.

@@ -215,6 +215,10 @@ pub(crate) struct Measurement {
     scratch_peak: u64,
 }
 impl Measurement {
+    pub(crate) fn cache_payload(self) -> [u64; 3] { [self.size as u64, self.work, self.scratch_peak] }
+    pub(crate) fn from_cache_payload(fields: [u64; 3]) -> Option<Self> {
+        Some(Self { size: usize::try_from(fields[0]).ok()?, work: fields[1], scratch_peak: fields[2] })
+    }
     pub(crate) fn replay(self, budget: &mut AllocationBudget<'_>) -> Result<usize, CodecError> {
         budget.check_scratch(self.scratch_peak)?;
         budget.work(WorkKind::Codec, self.work)?;

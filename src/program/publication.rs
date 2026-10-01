@@ -1215,6 +1215,10 @@ pub struct Compilation<'src> {
 }
 
 impl<'src> Compilation<'src> {
+    pub(crate) fn measurement_stats(&self) -> super::artifacts::compression_cache::MeasurementStats {
+        self.artifacts.measurement_stats()
+    }
+
     /// Name each source module, by index, for multi-file delivery.
     /// Delivered chunk file names end in `.extension`.
     pub fn set_chunk_extension(&mut self, extension: &'static str) {
@@ -2717,6 +2721,7 @@ impl<'src> Compilation<'src> {
         domain: WorkDomain,
     ) -> Result<Option<BoundJavaScript>, CandidateError> {
         let payload = admitted_contract_payload(policy.contract(), &mut self.ledger, domain)?;
+        self.artifacts.configure_measurements(policy.cache());
         // Every size the compilation measures is judged with the objective's
         // codec settings (law B2).
         if let Some(objective) = policy.objective() {

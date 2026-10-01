@@ -10,7 +10,7 @@ C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3/S4 are implemented. **Q2 is the sole active
 milestone.** [History](history.md) retains earlier pins, measurements and
 negative results; [coverage](coverage.md) keeps their remaining owners.
 
-The latest [Q2 use-index batch](../../benchmarks/migration-results/2026-10-01-q2-use-index/README.md)
+The [Q2 use-index batch](../../benchmarks/migration-results/2026-10-01-q2-use-index/README.md)
 pins `/home/azureuser/lilscript-work/bin/q2-use-index-1/lilscript`, SHA-256
 `563df22dfa771db23006916ada15442460f9a6ed93a219a0babdc9a780a66bad`.
 Algorithm 43 / search 32 / walk 10 / local facts 15. The old four-pass function
@@ -26,6 +26,16 @@ is algorithm 44 (not release-pinned). Admitted slot bitsets replace repeated edi
 lists, preserve exact counts/remapping and release on success/refusal. Its 26
 focused checks pass. The 10,000-edit control stays at 16 bytes. Dirty scheduling
 and other resource owners remain open; do not mistake journal completion for Q2.
+
+The latest [persistent codec batch](../../benchmarks/migration-results/2026-10-01-q2-codec-cache/README.md)
+pins `q2-codec-cache-1`, SHA-256
+`549214afa580fd5c348e0680135b9faf61eecf59224306d9292da2c141bb9bb1`;
+algorithm 45 / search 32 / walk 10 / local facts 15. Eight focused checks and
+18 release artifact/runtime oracles pass. Strict `[cache]` and `--cache DIR|off`
+control optional bounded disk codec receipts; cold/warm/disabled outputs and
+logical bills match. Physical encodes fall, but tiny gzip IO can cost more.
+The final release checks cover lazy disk setup and per-output configuration
+added after unit checks. Build/elaboration caches and decision locks remain.
 
 S4 is complete under its [acceptance record](s4-acceptance.md) and
 [explicit ABI scope decision](s4-public-abi.md). Unrestricted public erased
@@ -43,7 +53,7 @@ hard TOML/replay permissions. The shared fact/removal audit is complete.
    reuse, retained target heads and exact codec memoization are starting points.
    The use-index consumer and module graph are complete. Placement storage,
    source analysis/edit owners, cross-candidate formation,
-   disk caches/build-elaboration reuse and explicit decision-lock replay remain.
+   build/elaboration reuse and explicit decision-lock replay remain.
 
 2. Finish Q2 before **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
    Q3 owns markedlil candidate growth and G3's 48 → 292 spelling judgments for

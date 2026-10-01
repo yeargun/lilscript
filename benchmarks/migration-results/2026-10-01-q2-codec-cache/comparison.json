@@ -1,0 +1,826 @@
+{
+  "scope": "one cold/warm/disabled process triplet per generic case/objective; CLI precedence, exact artifact/logical parity, independent runtime and scored-byte oracles; coarse timing observations, no fleet or general speed claim",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/q2-codec-cache-1/lilscript",
+    "sha256": "549214afa580fd5c348e0680135b9faf61eecf59224306d9292da2c141bb9bb1"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "rows": [
+    {
+      "id": "spellings",
+      "source_sha256": "a44337af87de53fe10f881732ca238d6afb0bc15fe809764fe9708293d35d89f",
+      "lanes": {
+        "raw": {
+          "cache_bytes": 0,
+          "cold": {
+            "config_sha256": "d8a7a75cad21a75615396c103822762c93f9a3ab38024b1c3b7e36241f213553",
+            "policy_fingerprint": "9098e2661430922139cdaeb2490c077141a8aab7006ac75fea6d0ec87748cabc",
+            "flags": [],
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d",
+                "raw": 493,
+                "gzip9": 324,
+                "brotli11": 291
+              }
+            ],
+            "raw": 493,
+            "gzip9": 324,
+            "brotli11": 291,
+            "logical": {
+              "baseline": 157399,
+              "optional": 6111769,
+              "codec": 204
+            },
+            "physical": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "encodes": 0,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 0,
+              "examined": 247,
+              "judged": 11
+            }
+          },
+          "warm": {
+            "config_sha256": "1c89439a9bb6ca3be338b1487ebf13422a57812253462259216e451e13b9a42b",
+            "policy_fingerprint": "9098e2661430922139cdaeb2490c077141a8aab7006ac75fea6d0ec87748cabc",
+            "flags": [
+              "--cache",
+              "/home/azureuser/lilscript-work/measurements/q2-codec-cache/spellings/raw"
+            ],
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d",
+                "raw": 493,
+                "gzip9": 324,
+                "brotli11": 291
+              }
+            ],
+            "raw": 493,
+            "gzip9": 324,
+            "brotli11": 291,
+            "logical": {
+              "baseline": 157399,
+              "optional": 6111769,
+              "codec": 204
+            },
+            "physical": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "encodes": 0,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 0,
+              "examined": 247,
+              "judged": 11
+            }
+          },
+          "disabled": {
+            "config_sha256": "d8a7a75cad21a75615396c103822762c93f9a3ab38024b1c3b7e36241f213553",
+            "policy_fingerprint": "9098e2661430922139cdaeb2490c077141a8aab7006ac75fea6d0ec87748cabc",
+            "flags": [
+              "--cache",
+              "off"
+            ],
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d",
+                "raw": 493,
+                "gzip9": 324,
+                "brotli11": 291
+              }
+            ],
+            "raw": 493,
+            "gzip9": 324,
+            "brotli11": 291,
+            "logical": {
+              "baseline": 157399,
+              "optional": 6111769,
+              "codec": 204
+            },
+            "physical": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "encodes": 0,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.06,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 0,
+              "examined": 247,
+              "judged": 11
+            }
+          }
+        },
+        "gzip": {
+          "cache_bytes": 388896,
+          "cold": {
+            "config_sha256": "017feab66c4cc5a50d504f6782b36dd5ce5682e5742ea9b65a7cfccdeecd2ff1",
+            "policy_fingerprint": "cca2ece762a81713e49f2a5b4eff7d9cc969ec7959b32f8303147926cbc220f3",
+            "flags": [],
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2cfb02b4ca4637d369c5ebe74a4a50057e314defec93254f0d22f8ca7be4efed",
+                "raw": 495,
+                "gzip9": 306,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 306,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 408925,
+              "optional": 26543921,
+              "codec": 20691104
+            },
+            "physical": {
+              "memory_hits": 10,
+              "disk_hits": 2,
+              "encodes": 65,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.08,
+            "wall_seconds": 0.08,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 165,
+              "judged": 12
+            }
+          },
+          "warm": {
+            "config_sha256": "0ae906fa6f88c071f6cca758611456f17bd9cd518b2862b02c0714afd0f2d299",
+            "policy_fingerprint": "cca2ece762a81713e49f2a5b4eff7d9cc969ec7959b32f8303147926cbc220f3",
+            "flags": [
+              "--cache",
+              "/home/azureuser/lilscript-work/measurements/q2-codec-cache/spellings/gzip"
+            ],
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2cfb02b4ca4637d369c5ebe74a4a50057e314defec93254f0d22f8ca7be4efed",
+                "raw": 495,
+                "gzip9": 306,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 306,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 408925,
+              "optional": 26543921,
+              "codec": 20691104
+            },
+            "physical": {
+              "memory_hits": 10,
+              "disk_hits": 65,
+              "encodes": 2,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.07,
+            "wall_seconds": 0.08,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 165,
+              "judged": 12
+            }
+          },
+          "disabled": {
+            "config_sha256": "017feab66c4cc5a50d504f6782b36dd5ce5682e5742ea9b65a7cfccdeecd2ff1",
+            "policy_fingerprint": "cca2ece762a81713e49f2a5b4eff7d9cc969ec7959b32f8303147926cbc220f3",
+            "flags": [
+              "--cache",
+              "off"
+            ],
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2cfb02b4ca4637d369c5ebe74a4a50057e314defec93254f0d22f8ca7be4efed",
+                "raw": 495,
+                "gzip9": 306,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 306,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 408925,
+              "optional": 26543921,
+              "codec": 20691104
+            },
+            "physical": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "encodes": 77,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 165,
+              "judged": 12
+            }
+          }
+        },
+        "brotli": {
+          "cache_bytes": 392352,
+          "cold": {
+            "config_sha256": "7dd73e0645077a50b0e900e84fa8044df5e031cedabc6d061b2a9b30968354b7",
+            "policy_fingerprint": "41dc9f1f60ff3eeb9a627688bdb18745d7a9779c01126f28af84d00345107b84",
+            "flags": [],
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6",
+                "raw": 495,
+                "gzip9": 311,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 311,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 140813,
+              "optional": 5714183,
+              "codec": 84024
+            },
+            "physical": {
+              "memory_hits": 22,
+              "disk_hits": 0,
+              "encodes": 115,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.14,
+            "wall_seconds": 0.15,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 241,
+              "judged": 65
+            }
+          },
+          "warm": {
+            "config_sha256": "4be6c16dfffbc2ecc06cbf48738c00d1d546156bde8ce5299c2dc3c249fcf368",
+            "policy_fingerprint": "41dc9f1f60ff3eeb9a627688bdb18745d7a9779c01126f28af84d00345107b84",
+            "flags": [
+              "--cache",
+              "/home/azureuser/lilscript-work/measurements/q2-codec-cache/spellings/brotli"
+            ],
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6",
+                "raw": 495,
+                "gzip9": 311,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 311,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 140813,
+              "optional": 5714183,
+              "codec": 84024
+            },
+            "physical": {
+              "memory_hits": 22,
+              "disk_hits": 113,
+              "encodes": 2,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.07,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 241,
+              "judged": 65
+            }
+          },
+          "disabled": {
+            "config_sha256": "7dd73e0645077a50b0e900e84fa8044df5e031cedabc6d061b2a9b30968354b7",
+            "policy_fingerprint": "41dc9f1f60ff3eeb9a627688bdb18745d7a9779c01126f28af84d00345107b84",
+            "flags": [
+              "--cache",
+              "off"
+            ],
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6",
+                "raw": 495,
+                "gzip9": 311,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 311,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 140813,
+              "optional": 5714183,
+              "codec": 84024
+            },
+            "physical": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "encodes": 137,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.14,
+            "wall_seconds": 0.15,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 241,
+              "judged": 65
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "delivered-control",
+      "source_sha256": "7c919922ed72b6f848c24605841ff7911bbfb961c85c7224f9a8968c7833f2a3",
+      "lanes": {
+        "raw": {
+          "cache_bytes": 0,
+          "cold": {
+            "config_sha256": "bd9e40a43aa193982b1b189b138f5dd9dec76f8a3e8e07279f8117dcf03af954",
+            "policy_fingerprint": "9fa1522ca8c26d22abe0317d36dee3ef8f50d1ef7fd6a10c87f7559c79cca38e",
+            "flags": [],
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "44bd0c32a8250d5a7b5ffdd2292850a28902fc2a28a5167cd48712e7a6b5bd3e",
+                "raw": 23,
+                "gzip9": 43,
+                "brotli11": 27
+              },
+              {
+                "name": "main.js",
+                "sha256": "b178f13fe985f08e96847df1efc037a6c88bda55973b774c7e46d15f7c8b7d55",
+                "raw": 43,
+                "gzip9": 63,
+                "brotli11": 47
+              }
+            ],
+            "raw": 66,
+            "gzip9": 106,
+            "brotli11": 74,
+            "logical": {
+              "baseline": 10593,
+              "optional": 115297,
+              "codec": 23
+            },
+            "physical": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "encodes": 0,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 60,
+              "judged": 2
+            }
+          },
+          "warm": {
+            "config_sha256": "5611ef1be316c5c03f609ad52253db96207d45709468946f35f5f721387d2d2a",
+            "policy_fingerprint": "9fa1522ca8c26d22abe0317d36dee3ef8f50d1ef7fd6a10c87f7559c79cca38e",
+            "flags": [
+              "--cache",
+              "/home/azureuser/lilscript-work/measurements/q2-codec-cache/delivered-control/raw"
+            ],
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "44bd0c32a8250d5a7b5ffdd2292850a28902fc2a28a5167cd48712e7a6b5bd3e",
+                "raw": 23,
+                "gzip9": 43,
+                "brotli11": 27
+              },
+              {
+                "name": "main.js",
+                "sha256": "b178f13fe985f08e96847df1efc037a6c88bda55973b774c7e46d15f7c8b7d55",
+                "raw": 43,
+                "gzip9": 63,
+                "brotli11": 47
+              }
+            ],
+            "raw": 66,
+            "gzip9": 106,
+            "brotli11": 74,
+            "logical": {
+              "baseline": 10593,
+              "optional": 115297,
+              "codec": 23
+            },
+            "physical": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "encodes": 0,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 60,
+              "judged": 2
+            }
+          },
+          "disabled": {
+            "config_sha256": "bd9e40a43aa193982b1b189b138f5dd9dec76f8a3e8e07279f8117dcf03af954",
+            "policy_fingerprint": "9fa1522ca8c26d22abe0317d36dee3ef8f50d1ef7fd6a10c87f7559c79cca38e",
+            "flags": [
+              "--cache",
+              "off"
+            ],
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "44bd0c32a8250d5a7b5ffdd2292850a28902fc2a28a5167cd48712e7a6b5bd3e",
+                "raw": 23,
+                "gzip9": 43,
+                "brotli11": 27
+              },
+              {
+                "name": "main.js",
+                "sha256": "b178f13fe985f08e96847df1efc037a6c88bda55973b774c7e46d15f7c8b7d55",
+                "raw": 43,
+                "gzip9": 63,
+                "brotli11": 47
+              }
+            ],
+            "raw": 66,
+            "gzip9": 106,
+            "brotli11": 74,
+            "logical": {
+              "baseline": 10593,
+              "optional": 115297,
+              "codec": 23
+            },
+            "physical": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "encodes": 0,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 60,
+              "judged": 2
+            }
+          }
+        },
+        "gzip": {
+          "cache_bytes": 249504,
+          "cold": {
+            "config_sha256": "3b8374defdab569e89aa621ea06b3e6d6914e98d9f586daa2f210859ecd361e5",
+            "policy_fingerprint": "4dfddbad5e6b9f46eee7a50d29349eae6ef79f9c644fad4337a74ffdb0de2a3b",
+            "flags": [],
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "44bd0c32a8250d5a7b5ffdd2292850a28902fc2a28a5167cd48712e7a6b5bd3e",
+                "raw": 23,
+                "gzip9": 43,
+                "brotli11": 27
+              },
+              {
+                "name": "main.js",
+                "sha256": "b178f13fe985f08e96847df1efc037a6c88bda55973b774c7e46d15f7c8b7d55",
+                "raw": 43,
+                "gzip9": 63,
+                "brotli11": 47
+              }
+            ],
+            "raw": 66,
+            "gzip9": 106,
+            "brotli11": 74,
+            "logical": {
+              "baseline": 547139,
+              "optional": 3322137,
+              "codec": 3755169
+            },
+            "physical": {
+              "memory_hits": 8,
+              "disk_hits": 0,
+              "encodes": 6,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 60,
+              "judged": 2
+            }
+          },
+          "warm": {
+            "config_sha256": "d659380f4df0df598445fa4ed29d50e6d3881fe8fb79cba0fe49848b6dd192e3",
+            "policy_fingerprint": "4dfddbad5e6b9f46eee7a50d29349eae6ef79f9c644fad4337a74ffdb0de2a3b",
+            "flags": [
+              "--cache",
+              "/home/azureuser/lilscript-work/measurements/q2-codec-cache/delivered-control/gzip"
+            ],
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "44bd0c32a8250d5a7b5ffdd2292850a28902fc2a28a5167cd48712e7a6b5bd3e",
+                "raw": 23,
+                "gzip9": 43,
+                "brotli11": 27
+              },
+              {
+                "name": "main.js",
+                "sha256": "b178f13fe985f08e96847df1efc037a6c88bda55973b774c7e46d15f7c8b7d55",
+                "raw": 43,
+                "gzip9": 63,
+                "brotli11": 47
+              }
+            ],
+            "raw": 66,
+            "gzip9": 106,
+            "brotli11": 74,
+            "logical": {
+              "baseline": 547139,
+              "optional": 3322137,
+              "codec": 3755169
+            },
+            "physical": {
+              "memory_hits": 8,
+              "disk_hits": 6,
+              "encodes": 0,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 60,
+              "judged": 2
+            }
+          },
+          "disabled": {
+            "config_sha256": "3b8374defdab569e89aa621ea06b3e6d6914e98d9f586daa2f210859ecd361e5",
+            "policy_fingerprint": "4dfddbad5e6b9f46eee7a50d29349eae6ef79f9c644fad4337a74ffdb0de2a3b",
+            "flags": [
+              "--cache",
+              "off"
+            ],
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "44bd0c32a8250d5a7b5ffdd2292850a28902fc2a28a5167cd48712e7a6b5bd3e",
+                "raw": 23,
+                "gzip9": 43,
+                "brotli11": 27
+              },
+              {
+                "name": "main.js",
+                "sha256": "b178f13fe985f08e96847df1efc037a6c88bda55973b774c7e46d15f7c8b7d55",
+                "raw": 43,
+                "gzip9": 63,
+                "brotli11": 47
+              }
+            ],
+            "raw": 66,
+            "gzip9": 106,
+            "brotli11": 74,
+            "logical": {
+              "baseline": 547139,
+              "optional": 3322137,
+              "codec": 3755169
+            },
+            "physical": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "encodes": 14,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 60,
+              "judged": 2
+            }
+          }
+        },
+        "brotli": {
+          "cache_bytes": 342048,
+          "cold": {
+            "config_sha256": "82d6f36517628193f8f6dc536793c8366d225a48766c90d4fe54d62f26f277be",
+            "policy_fingerprint": "ed389fa1cd2db5baef6948c548791a2ac6a17070e3e486894961703426793b2f",
+            "flags": [],
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "44bd0c32a8250d5a7b5ffdd2292850a28902fc2a28a5167cd48712e7a6b5bd3e",
+                "raw": 23,
+                "gzip9": 43,
+                "brotli11": 27
+              },
+              {
+                "name": "main.js",
+                "sha256": "b178f13fe985f08e96847df1efc037a6c88bda55973b774c7e46d15f7c8b7d55",
+                "raw": 43,
+                "gzip9": 63,
+                "brotli11": 47
+              }
+            ],
+            "raw": 66,
+            "gzip9": 106,
+            "brotli11": 74,
+            "logical": {
+              "baseline": 10886,
+              "optional": 149539,
+              "codec": 1597
+            },
+            "physical": {
+              "memory_hits": 10,
+              "disk_hits": 0,
+              "encodes": 6,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.02,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 6
+            }
+          },
+          "warm": {
+            "config_sha256": "84bf0b7a349b64be42d0b3906530524ef0ddeccfd7583776ad627df4f0b5b35a",
+            "policy_fingerprint": "ed389fa1cd2db5baef6948c548791a2ac6a17070e3e486894961703426793b2f",
+            "flags": [
+              "--cache",
+              "/home/azureuser/lilscript-work/measurements/q2-codec-cache/delivered-control/brotli"
+            ],
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "44bd0c32a8250d5a7b5ffdd2292850a28902fc2a28a5167cd48712e7a6b5bd3e",
+                "raw": 23,
+                "gzip9": 43,
+                "brotli11": 27
+              },
+              {
+                "name": "main.js",
+                "sha256": "b178f13fe985f08e96847df1efc037a6c88bda55973b774c7e46d15f7c8b7d55",
+                "raw": 43,
+                "gzip9": 63,
+                "brotli11": 47
+              }
+            ],
+            "raw": 66,
+            "gzip9": 106,
+            "brotli11": 74,
+            "logical": {
+              "baseline": 10886,
+              "optional": 149539,
+              "codec": 1597
+            },
+            "physical": {
+              "memory_hits": 10,
+              "disk_hits": 6,
+              "encodes": 0,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 6
+            }
+          },
+          "disabled": {
+            "config_sha256": "82d6f36517628193f8f6dc536793c8366d225a48766c90d4fe54d62f26f277be",
+            "policy_fingerprint": "ed389fa1cd2db5baef6948c548791a2ac6a17070e3e486894961703426793b2f",
+            "flags": [
+              "--cache",
+              "off"
+            ],
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "44bd0c32a8250d5a7b5ffdd2292850a28902fc2a28a5167cd48712e7a6b5bd3e",
+                "raw": 23,
+                "gzip9": 43,
+                "brotli11": 27
+              },
+              {
+                "name": "main.js",
+                "sha256": "b178f13fe985f08e96847df1efc037a6c88bda55973b774c7e46d15f7c8b7d55",
+                "raw": 43,
+                "gzip9": 63,
+                "brotli11": 47
+              }
+            ],
+            "raw": 66,
+            "gzip9": 106,
+            "brotli11": 74,
+            "logical": {
+              "baseline": 10886,
+              "optional": 149539,
+              "codec": 1597
+            },
+            "physical": {
+              "memory_hits": 0,
+              "disk_hits": 0,
+              "encodes": 16,
+              "disk_write_errors": 0
+            },
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 6
+            }
+          }
+        }
+      }
+    }
+  ]
+}

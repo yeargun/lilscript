@@ -648,6 +648,12 @@ impl ArtifactArena {
             bound: false,
         }
     }
+    pub(super) fn configure_measurements(&mut self, config: &crate::config::CacheConfig) {
+        self.measurements.get_mut().configure(config);
+    }
+    pub(super) fn measurement_stats(&self) -> compression_cache::MeasurementStats {
+        self.measurements.borrow().stats
+    }
     /// Bind the objective's codec settings, once per compilation: sizes are
     /// cached per artifact and codec, so one compilation measures with one
     /// setting.
@@ -1232,6 +1238,7 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         execution: JavaScriptExecution,
         choices: OutputTactics,
     ) -> Self {
+        retained.configure_measurements(policy.cache());
         Self {
             output,
             staging: ArtifactArena::with_settings(retained.owner, retained.settings),

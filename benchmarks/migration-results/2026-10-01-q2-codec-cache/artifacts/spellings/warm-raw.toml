@@ -1,0 +1,10 @@
+
+[cache]
+codec_reuse=false
+directory='unused-cache'
+[optimization]
+preset='maximum'
+[objective]
+codecs='raw'
+[effort]
+level=13
