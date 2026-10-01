@@ -5,10 +5,11 @@ use super::super::call_graph::Callee;
 use super::super::facts::{
     self, StoredExact as Exact, StoredKnowledge as Knowledge, StoredString, Work,
 };
+use super::storage::Map;
 use super::*;
 use crate::literal::StringValue;
+use crate::output_budget::AllocationClass::Scratch;
 use crate::primitive::Intrinsic;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 const MAX_DEPTH: usize = 8;
@@ -283,7 +284,9 @@ fn intrinsic(
                 .copied();
             Some(match method {
                 I::StringCharAt => computed(unit.into_iter().collect()),
-                I::StringCharCodeAtNumber => Exact::Number(unit.map_or(f64::NAN, f64::from).to_bits()),
+                I::StringCharCodeAtNumber => {
+                    Exact::Number(unit.map_or(f64::NAN, f64::from).to_bits())
+                }
                 I::StringCodeUnitAt => Exact::Integer(i32::from(unit?)),
                 _ => Exact::Integer(unit.map_or(0, i32::from)),
             })
@@ -307,9 +310,16 @@ fn intrinsic(
             let position = argument(1, default)?;
             Some(match method {
                 I::StringIndexOf | I::StringLastIndexOf => {
-                    Exact::Integer(value.index_of(needle, position, method == I::StringLastIndexOf))
+                    Exact::Integer(crate::literal::index_of_units(
+                        &units,
+                        &needle_units,
+                        position,
+                        method == I::StringLastIndexOf,
+                    ))
                 }
-                I::StringIncludes => Exact::Boolean(value.index_of(needle, position, false) >= 0),
+                I::StringIncludes => Exact::Boolean(
+                    crate::literal::index_of_units(&units, &needle_units, position, false) >= 0,
+                ),
                 I::StringStartsWith => {
                     Exact::Boolean(units[index(position)..].starts_with(&needle_units))
                 }
@@ -459,28 +469,35 @@ pub(super) fn call(
     pristine: bool,
     work: &mut Work,
 ) -> Attempt {
-    let mut evaluator = Evaluator {
-        program,
-        effects,
-        pristine,
-        work,
-        steps: MAX_STEPS,
-        refusal: Refusal::Unsupported,
-    };
-    let value = evaluator.call(unit, call, values, 0);
-    let refusal = value.is_none().then_some(if evaluator.work.truncated() {
-        Refusal::Limit
-    } else {
-        evaluator.refusal
+    let mut refusal = Refusal::Unsupported;
+    let value = work.temporary(|work| {
+        let mut evaluator = Evaluator {
+            program,
+            effects,
+            pristine,
+            work,
+            steps: MAX_STEPS,
+            refusal,
+        };
+        let value = evaluator.call(unit, call, values, 0);
+        refusal = if evaluator.work.truncated() {
+            Refusal::Limit
+        } else {
+            evaluator.refusal
+        };
+        value
     });
-    Attempt { value, refusal }
+    Attempt {
+        refusal: value.is_none().then_some(refusal),
+        value,
+    }
 }
 
-struct Evaluator<'a, 'src> {
+struct Evaluator<'a, 'src, 'ledger> {
     program: &'a Program<'src>,
     effects: &'a ProgramEffects,
     pristine: bool,
-    work: &'a mut Work,
+    work: &'a mut Work<'ledger>,
     steps: u32,
     refusal: Refusal,
 }
@@ -492,7 +509,7 @@ enum Flow {
     Continue,
 }
 
-impl Evaluator<'_, '_> {
+impl Evaluator<'_, '_, '_> {
     fn step(&mut self) -> Option<()> {
         let Some(steps) = self.steps.checked_sub(1) else {
             self.refusal = Refusal::Limit;
@@ -548,14 +565,16 @@ impl Evaluator<'_, '_> {
             self.refusal = Refusal::Limit;
             return None;
         }
-        let args: Vec<Exact> = arguments
-            .iter()
-            .map(|arg| match arg {
-                CallArgument::Value(value) => known(values, *value).cloned(),
-                _ => None,
-            })
-            .collect::<Option<_>>()?;
-        match callee {
+        let mut args = self
+            .work
+            .admit(|budget| budget.vector(Scratch, arguments.len()))?;
+        for argument in arguments {
+            let CallArgument::Value(value) = argument else {
+                return None;
+            };
+            args.push(known(values, *value)?.clone());
+        }
+        let result = (|| match callee {
             Callee::Builtin(crate::check::BuiltinCall::MathImul) if self.pristine => {
                 let [left, right] = args.as_slice() else {
                     return None;
@@ -588,7 +607,9 @@ impl Evaluator<'_, '_> {
             }
             Callee::Unit(callee) => self.unit(callee, &args, depth + 1),
             _ => None,
-        }
+        })();
+        self.work.release(Scratch, args)?;
+        result
     }
 
     fn unit(&mut self, unit: UnitId, args: &[Exact], depth: usize) -> Option<Exact> {
@@ -605,22 +626,29 @@ impl Evaluator<'_, '_> {
             .len()
             .checked_mul(std::mem::size_of::<Knowledge>())?
             .checked_add(data.operations.len().checked_mul(128)?)?;
-        if !self.work.reserve_evaluation(bytes as u64) {
+        if !self.work.reserve_policy(bytes as u64) {
             return None;
         }
-        let mut values =
-            vec![Knowledge::Unknown(facts::UnknownReason::Unvisited); data.values.len()];
-        let mut cells: HashMap<CellId, Exact> = data
-            .parameters
-            .iter()
-            .copied()
-            .zip(args.iter().cloned())
-            .collect();
-        match self.region(unit, data.entry, &mut values, &mut cells, depth)? {
-            Flow::Return(value) => Some(value),
-            Flow::Next => Some(Exact::Undefined),
-            Flow::Break | Flow::Continue => None,
+        let mut values = self.work.collect(
+            Scratch,
+            std::iter::repeat_n(
+                Knowledge::Unknown(facts::UnknownReason::Unvisited),
+                data.values.len(),
+            ),
+        )?;
+        let mut cells = Map::new(Scratch);
+        for (&cell, value) in data.parameters.iter().zip(args) {
+            self.work
+                .admit(|budget| cells.insert(cell, value.clone(), budget))?;
         }
+        let result = match self.region(unit, data.entry, &mut values, &mut cells, depth) {
+            Some(Flow::Return(value)) => Some(value),
+            Some(Flow::Next) => Some(Exact::Undefined),
+            Some(Flow::Break | Flow::Continue) | None => None,
+        };
+        self.work.release(Scratch, values)?;
+        self.work.admit(|budget| cells.release(budget))?;
+        result
     }
 
     fn region(
@@ -628,7 +656,7 @@ impl Evaluator<'_, '_> {
         unit: UnitId,
         region: RegionId,
         values: &mut [Knowledge],
-        cells: &mut HashMap<CellId, Exact>,
+        cells: &mut Map<CellId, Exact>,
         depth: usize,
     ) -> Option<Flow> {
         let data = self.program.unit(unit)?;
@@ -649,12 +677,14 @@ impl Evaluator<'_, '_> {
                 OperationKind::Break => return Some(Flow::Break),
                 OperationKind::Continue => return Some(Flow::Continue),
                 OperationKind::Declare(cell) if self.program.cells[cell.index()].owner == unit => {
-                    cells.remove(&cell);
+                    self.work.admit(|budget| cells.remove(&cell, budget))?;
                 }
                 OperationKind::Initialize(cell)
                     if self.program.cells[cell.index()].owner == unit =>
                 {
-                    cells.insert(cell, first()?.clone());
+                    let value = first()?.clone();
+                    self.work
+                        .admit(|budget| cells.insert(cell, value, budget))?;
                 }
                 OperationKind::Load(place) => {
                     let Place::Cell(cell) = data.places[place.index()] else {
@@ -681,20 +711,24 @@ impl Evaluator<'_, '_> {
                     let Place::Cell(cell) = data.places[place.index()] else {
                         return None;
                     };
-                    if self.program.cells[cell.index()].owner != unit || !cells.contains_key(&cell)
+                    if self.program.cells[cell.index()].owner != unit || cells.get(&cell).is_none()
                     {
                         return None;
                     }
                     if matches!(operation.kind, OperationKind::Store(_)) {
                         result = Some(first()?.clone());
-                        cells.insert(cell, result.clone()?);
+                        let value = result.clone()?;
+                        self.work
+                            .admit(|budget| cells.insert(cell, value, budget))?;
                     }
                 }
                 OperationKind::PrepareCall(_) => {}
                 OperationKind::Call(call) => result = Some(self.call(unit, call, values, depth)?),
                 OperationKind::IsUndefined { nullish, .. } => {
-                    result = Some(Exact::Boolean(matches!(first()?, Exact::Undefined)
-                        || nullish && matches!(first()?, Exact::Null)))
+                    result = Some(Exact::Boolean(
+                        matches!(first()?, Exact::Undefined)
+                            || nullish && matches!(first()?, Exact::Null),
+                    ))
                 }
                 OperationKind::Block(child) => {
                     let flow = self.region(unit, child, values, cells, depth)?;

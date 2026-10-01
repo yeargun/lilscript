@@ -159,6 +159,22 @@ impl<K: Ord, V> Map<K, V> {
             }
         }
     }
+    pub(super) fn remove(
+        &mut self,
+        key: &K,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Option<V>, AllocationError> {
+        budget.work(
+            WorkKind::Analysis,
+            u64::from(usize::BITS - self.entries.len().max(1).leading_zeros()) + 1,
+        )?;
+        if let Ok(index) = self.entries.binary_search_by(|(found, _)| found.cmp(key)) {
+            budget.work(WorkKind::Analysis, (self.entries.len() - index) as u64)?;
+            Ok(Some(self.entries.remove(index).1))
+        } else {
+            Ok(None)
+        }
+    }
     pub(super) fn clear(
         &mut self,
         budget: &mut AllocationBudget<'_>,

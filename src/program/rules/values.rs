@@ -15,57 +15,68 @@ use super::super::call_graph::{CallGraph, Callee, Seal};
 use super::super::effects::ProgramEffects;
 use super::super::facts::{exact, StoredExact, StoredKnowledge, UnknownReason, Work};
 use super::super::*;
-use std::collections::VecDeque;
+use super::storage::Map;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq)]
 enum Know {
     Bottom,
     Exact(StoredExact),
-    Finite(Vec<StoredExact>),
+    Finite(Arc<[StoredExact]>),
     Top,
 }
 
 impl Know {
-    fn join(&self, other: &Self) -> Self {
+    fn join(&self, other: &Self, work: &mut Work) -> Self {
         match (self, other) {
             (Self::Bottom, other) | (other, Self::Bottom) => other.clone(),
-            (Self::Exact(a), Self::Exact(b)) if a == b => Self::Exact(a.clone()),
-            (Self::Exact(a), Self::Exact(b)) => Self::set([a.clone(), b.clone()]),
-            (Self::Exact(value), Self::Finite(values))
-            | (Self::Finite(values), Self::Exact(value)) => {
-                let mut joined = values.clone();
-                if !joined.contains(value) {
-                    joined.push(value.clone());
+            (Self::Top, _) | (_, Self::Top) => Self::Top,
+            _ if self == other => self.clone(),
+            _ => {
+                let left = self.alternatives().unwrap();
+                let right = other.alternatives().unwrap();
+                if right.iter().all(|value| left.contains(value)) {
+                    return self.clone();
                 }
-                Self::set(joined)
-            }
-            (Self::Finite(a), Self::Finite(b)) => {
-                let mut joined = a.clone();
-                for value in b {
-                    if !joined.contains(value) {
-                        joined.push(value.clone());
-                    }
+                if left.iter().all(|value| right.contains(value)) {
+                    return other.clone();
                 }
-                Self::set(joined)
+                Self::set(left.iter().chain(right).cloned(), work)
             }
-            _ => Self::Top,
         }
     }
 
-    fn set(values: impl IntoIterator<Item = StoredExact>) -> Self {
-        let mut unique = Vec::new();
+    fn set(values: impl IntoIterator<Item = StoredExact>, work: &mut Work) -> Self {
+        // Construct a bounded set on the stack. Shared immutable sets make
+        // propagation/cloning allocation-free, keeping the common Exact small.
+        let mut unique = std::array::from_fn::<_, FINITE_LIMIT, _>(|_| StoredExact::Undefined);
+        let mut len = 0;
         for value in values {
-            if !unique.contains(&value) {
-                unique.push(value);
-                if unique.len() > FINITE_LIMIT {
+            if !unique[..len].contains(&value) {
+                if len == FINITE_LIMIT {
                     return Self::Top;
                 }
+                unique[len] = value;
+                len += 1;
             }
         }
-        match unique.len() {
+        match len {
             0 => Self::Bottom,
-            1 => Self::Exact(unique.pop().unwrap()),
-            _ => Self::Finite(unique),
+            1 => Self::Exact(std::mem::replace(&mut unique[0], StoredExact::Undefined)),
+            _ => {
+                let bytes =
+                    len * std::mem::size_of::<StoredExact>() + 2 * std::mem::size_of::<usize>();
+                if !work.reserve_evaluation(bytes as u64) {
+                    return Self::Top;
+                }
+                Self::Finite(Arc::from(&unique[..len]))
+            }
         }
     }
 
@@ -131,76 +142,77 @@ impl ProgramValues {
         }
     }
 
-    fn unknown(program: &Program<'_>) -> Self {
-        Self {
-            evaluated: 0,
-            refused: [0; 6],
-            origins: program
-                .units
-                .iter()
-                .map(|unit| vec![0; unit.data().values.len()])
-                .collect(),
-            evaluated_calls: program
-                .units
-                .iter()
-                .map(|unit| vec![false; unit.data().operations.len()])
-                .collect(),
-            units: program
-                .units
-                .iter()
-                .map(|unit| vec![Know::Top; unit.data().values.len()])
-                .collect(),
-        }
-    }
-
-    pub(super) fn compute(
+    pub(super) fn compute_in(
         program: &Program<'_>,
         effects: &ProgramEffects,
         seal: Seal,
         pristine: bool,
-    ) -> Self {
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        let mut work = Work::admitted(WORK_QUOTA, RESULT_LIMIT, budget.scope());
+        let result = Self::compute(program, effects, seal, pristine, &mut work);
+        work.finish()?;
+        result.ok_or(AllocationError::Capacity)
+    }
+
+    fn compute(
+        program: &Program<'_>,
+        effects: &ProgramEffects,
+        seal: Seal,
+        pristine: bool,
+        work: &mut Work,
+    ) -> Option<Self> {
         let graph = effects.graph();
         let count = program.units.len();
 
         // Who calls whom, by resolved call.
-        let mut callers: Vec<Vec<UnitId>> = vec![Vec::new(); count];
-        let mut callees: Vec<Vec<UnitId>> = vec![Vec::new(); count];
+        let mut callers = work.collect(Scratch, (0..count).map(|_| Vec::<UnitId>::new()))?;
+        let mut callees = work.collect(Scratch, (0..count).map(|_| Vec::<UnitId>::new()))?;
         for frozen in &program.units {
             let unit = frozen.id();
             for operation in &frozen.data().operations {
+                visit(work, 1)?;
                 if let OperationKind::Call(call) = operation.kind {
                     if let Callee::Unit(callee) = graph.callee(unit, call) {
-                        callers[callee.index()].push(unit);
-                        callees[unit.index()].push(callee);
+                        work.push(Scratch, &mut callers[callee.index()], unit)?;
+                        work.push(Scratch, &mut callees[unit.index()], callee)?;
                     }
                 }
             }
         }
         for list in callers.iter_mut().chain(callees.iter_mut()) {
+            visit(work, sort_work(list.len()))?;
             list.sort_unstable();
             list.dedup();
         }
 
         // Parameters wait on their callers when every call is known.
-        let mut formals: Vec<Vec<Know>> = program
-            .units
-            .iter()
-            .map(|frozen| {
-                let complete = graph.complete_callers(frozen.id()).is_some();
-                let start = if complete { Know::Bottom } else { Know::Top };
-                vec![start; frozen.data().parameters.len()]
-            })
-            .collect();
-        let mut results = vec![Know::Bottom; count];
+        let mut formals = work.collect(Scratch, (0..count).map(|_| Vec::new()))?;
+        for frozen in &program.units {
+            let start = if graph.complete_callers(frozen.id()).is_some() {
+                Know::Bottom
+            } else {
+                Know::Top
+            };
+            formals[frozen.id().index()] = work.collect(
+                Scratch,
+                std::iter::repeat_n(start, frozen.data().parameters.len()),
+            )?;
+        }
+        let mut results = work.collect(Scratch, std::iter::repeat_n(Know::Bottom, count))?;
 
         // Cells initialized once, never written after, that can hold primitives.
         // Writes are read from the current program, not from conversion's
         // `reassigned` flag, which goes stale as rules remove stores. An
         // explicitly open root contract permits other scripts to write them.
-        let mut cells = vec![Know::Top; program.cells.len()];
-        let mut settled: Vec<Option<(UnitId, ValueId)>> = vec![None; program.cells.len()];
-        let mut initialized_in: Vec<Vec<CellId>> = vec![Vec::new(); count];
+        let mut cells =
+            work.collect(Scratch, std::iter::repeat_n(Know::Top, program.cells.len()))?;
+        let mut settled = work.admit(|budget| {
+            budget.filled(Scratch, program.cells.len(), None::<(UnitId, ValueId)>)
+        })?;
+        let mut initialized_in = work.collect(Scratch, (0..count).map(|_| Vec::<CellId>::new()))?;
         for (index, cell) in program.cells.iter().enumerate() {
+            visit(work, 1)?;
             let id = CellId::from_index(index).unwrap();
             let root = program
                 .unit(cell.owner)
@@ -228,46 +240,49 @@ impl ProgramValues {
             };
             cells[index] = Know::Bottom;
             settled[index] = Some((unit, value));
-            initialized_in[unit.index()].push(id);
+            work.push(Scratch, &mut initialized_in[unit.index()], id)?;
         }
-        let mut readers: Vec<Vec<UnitId>> = vec![Vec::new(); program.cells.len()];
+        let mut readers = work.collect(
+            Scratch,
+            (0..program.cells.len()).map(|_| Vec::<UnitId>::new()),
+        )?;
         for frozen in &program.units {
             let data = frozen.data();
             for operation in &data.operations {
+                visit(work, 1)?;
                 if let OperationKind::Load(place) = operation.kind {
                     if let Some(&Place::Cell(cell)) = data.places.get(place.index()) {
                         if settled[cell.index()].is_some() {
-                            readers[cell.index()].push(frozen.id());
+                            work.push(Scratch, &mut readers[cell.index()], frozen.id())?;
                         }
                     }
                 }
             }
         }
         for list in &mut readers {
+            visit(work, sort_work(list.len()))?;
             list.sort_unstable();
             list.dedup();
         }
 
-        let mut values: Vec<Vec<Know>> = program
-            .units
-            .iter()
-            .map(|frozen| vec![Know::Bottom; frozen.data().values.len()])
-            .collect();
-        let mut evaluated_calls: Vec<Vec<bool>> = program
-            .units
-            .iter()
-            .map(|unit| vec![false; unit.data().operations.len()])
-            .collect();
-        let mut origins: Vec<Vec<u8>> = program
-            .units
-            .iter()
-            .map(|unit| vec![0; unit.data().values.len()])
-            .collect();
+        let mut values = unit_vectors(
+            program,
+            Retained,
+            work,
+            |data| data.values.len(),
+            Know::Bottom,
+        )?;
+        let mut evaluated_calls =
+            unit_vectors(program, Retained, work, |data| data.operations.len(), false)?;
+        let mut origins = unit_vectors(program, Retained, work, |data| data.values.len(), 0u8)?;
         let mut evaluated = 0u32;
         let mut refused = [0u32; 6];
-        let mut queue: VecDeque<usize> = (0..count).collect();
-        let mut queued = vec![true; count];
-        let mut work = Work::bounded(WORK_QUOTA, RESULT_LIMIT);
+        // At most one pending entry per unit. A fixed ring keeps FIFO order
+        // without retaining an ever-growing history or reallocating the queue.
+        let mut queue = work.collect(Scratch, 0..count)?;
+        let mut head = 0;
+        let mut pending = count;
+        let mut queued = work.admit(|budget| budget.filled(Scratch, count, true))?;
         // Each channel adds at most FINITE_LIMIT alternatives before Top;
         // units are
         // re-queued only when one of their inputs rose.
@@ -275,14 +290,30 @@ impl ProgramValues {
             .saturating_mul(16)
             .saturating_add(program.cells.len())
             .saturating_add(64);
-        while let Some(index) = queue.pop_front() {
+        while pending != 0 {
+            let index = queue[head];
+            head = (head + 1) % count;
+            pending -= 1;
+            visit(work, 1)?;
             queued[index] = false;
             if remaining == 0 {
-                let mut unknown = Self::unknown(program);
-                unknown.evaluated = evaluated;
-                unknown.refused = refused;
-                unknown.refused[super::evaluate::Refusal::Limit as usize] += 1;
-                return unknown;
+                for value in values.iter_mut().flatten() {
+                    *value = Know::Top;
+                }
+                for call in evaluated_calls.iter_mut().flatten() {
+                    *call = false;
+                }
+                for origin in origins.iter_mut().flatten() {
+                    *origin = 0;
+                }
+                refused[super::evaluate::Refusal::Limit as usize] += 1;
+                return Some(Self {
+                    units: values,
+                    evaluated_calls,
+                    origins,
+                    evaluated,
+                    refused,
+                });
             }
             remaining -= 1;
             let unit = UnitId::from_index(index).unwrap();
@@ -300,16 +331,17 @@ impl ProgramValues {
                 data,
                 &mut values[index],
                 &channels,
-                &mut work,
+                work,
                 pristine,
                 &mut evaluated_calls[index],
                 &mut origins[index],
                 &mut evaluated,
                 &mut refused,
-            );
-            let mut enqueue = |unit: UnitId, queue: &mut VecDeque<usize>| {
+            )?;
+            let mut enqueue = |unit: UnitId, queue: &mut Vec<usize>| {
                 if !std::mem::replace(&mut queued[unit.index()], true) {
-                    queue.push_back(unit.index());
+                    queue[(head + pending) % count] = unit.index();
+                    pending += 1;
                 }
             };
 
@@ -321,7 +353,7 @@ impl ProgramValues {
             } else {
                 returned
             };
-            let joined = results[index].join(&result);
+            let joined = results[index].join(&result, work);
             if joined != results[index] {
                 results[index] = joined;
                 for &caller in &callers[index] {
@@ -335,8 +367,9 @@ impl ProgramValues {
                     continue;
                 };
                 let slots = formals[callee.index()].len();
-                let mut next = vec![Know::Bottom; slots];
+                let mut next = work.collect(Scratch, std::iter::repeat_n(Know::Bottom, slots))?;
                 for edge in edges {
+                    visit(work, slots as u64 + 1)?;
                     let caller = program.unit(edge.caller).expect("a program unit");
                     let site = &caller.calls[edge.call.index()];
                     let arguments = caller.arguments(site.arguments).unwrap_or(&[]);
@@ -353,7 +386,7 @@ impl ProgramValues {
                                     // Both target entry conventions are valid:
                                     // native supplies the materialized value;
                                     // JavaScript runs the retained default.
-                                    known.join(&Know::Exact(StoredExact::Undefined))
+                                    known.join(&Know::Exact(StoredExact::Undefined), work)
                                 } else {
                                     known
                                 }
@@ -361,17 +394,18 @@ impl ProgramValues {
                             None => Know::Exact(StoredExact::Undefined),
                             _ => Know::Top,
                         };
-                        *slot = slot.join(&argument);
+                        *slot = slot.join(&argument, work);
                     }
                 }
                 let mut rose = false;
-                for (old, new) in formals[callee.index()].iter_mut().zip(next) {
-                    let joined = old.join(&new);
+                for (old, new) in formals[callee.index()].iter_mut().zip(&next) {
+                    let joined = old.join(new, work);
                     if joined != *old {
                         *old = joined;
                         rose = true;
                     }
                 }
+                work.release(Scratch, next)?;
                 if rose {
                     enqueue(callee, &mut queue);
                 }
@@ -380,7 +414,7 @@ impl ProgramValues {
             // The cells this body initializes.
             for &cell in &initialized_in[index] {
                 let (_, value) = settled[cell.index()].expect("a settled cell");
-                let joined = cells[cell.index()].join(&values[index][value.index()]);
+                let joined = cells[cell.index()].join(&values[index][value.index()], work);
                 if joined != cells[cell.index()] {
                     cells[cell.index()] = joined;
                     for &reader in &readers[cell.index()] {
@@ -389,14 +423,37 @@ impl ProgramValues {
                 }
             }
         }
-        Self {
+        Some(Self {
             units: values,
             evaluated_calls,
             origins,
             evaluated,
             refused,
-        }
+        })
     }
+}
+
+fn visit(work: &mut Work, count: u64) -> Option<()> {
+    work.admit(|budget| budget.work(WorkKind::Analysis, count))
+}
+fn sort_work(count: usize) -> u64 {
+    (count as u64).saturating_mul(u64::from(usize::BITS - count.max(1).leading_zeros()) + 1)
+}
+fn unit_vectors<T: Clone>(
+    program: &Program<'_>,
+    class: crate::output_budget::AllocationClass,
+    work: &mut Work,
+    count: impl Fn(&UnitData) -> usize,
+    initial: T,
+) -> Option<Vec<Vec<T>>> {
+    let mut rows = work.admit(|budget| budget.vector(class, program.units.len()))?;
+    for unit in &program.units {
+        rows.push(work.collect(
+            class,
+            std::iter::repeat_n(initial.clone(), count(unit.data())),
+        )?);
+    }
+    Some(rows)
 }
 
 /// Whether a store or a reference argument writes the cell after its
@@ -517,84 +574,100 @@ fn pointwise(
     work: &mut Work,
     mut evaluate: impl FnMut(&[StoredKnowledge], &mut Work) -> Option<StoredExact>,
 ) -> Option<Know> {
-    let mut varied: Vec<(ValueId, &[StoredExact])> = Vec::new();
-    let mut seen = Vec::new();
-    let mut combinations = 1usize;
-    for input in inputs {
-        if seen.contains(&input) {
-            continue;
-        }
-        seen.push(input);
-        let alternatives = know.get(input.index())?.alternatives()?;
-        if alternatives.len() > 1 {
-            combinations = combinations.checked_mul(alternatives.len())?;
-            if combinations > POINTWISE_LIMIT {
-                return None;
+    work.temporary(|work| {
+        let mut varied: Vec<(ValueId, &[StoredExact])> = Vec::new();
+        let mut seen = Vec::new();
+        let mut combinations = 1usize;
+        for input in inputs {
+            if seen.contains(&input) {
+                continue;
             }
-            varied.push((input, alternatives));
+            visit(work, seen.len() as u64 + 1)?;
+            work.push(Scratch, &mut seen, input)?;
+            let alternatives = know.get(input.index())?.alternatives()?;
+            if alternatives.len() > 1 {
+                combinations = combinations.checked_mul(alternatives.len())?;
+                if combinations > POINTWISE_LIMIT {
+                    return None;
+                }
+                work.push(Scratch, &mut varied, (input, alternatives))?;
+            }
         }
-    }
 
-    let mut result = Know::Bottom;
-    let mut complete = true;
-    for ordinal in 0..combinations {
-        let mut selection = ordinal;
-        for &(value, alternatives) in &varied {
-            let at = selection % alternatives.len();
-            selection /= alternatives.len();
-            stored[value.index()] = StoredKnowledge::Exact(alternatives[at].clone());
+        let mut result = Know::Bottom;
+        let mut complete = true;
+        for ordinal in 0..combinations {
+            let mut selection = ordinal;
+            for &(value, alternatives) in &varied {
+                let at = selection % alternatives.len();
+                selection /= alternatives.len();
+                stored[value.index()] = StoredKnowledge::Exact(alternatives[at].clone());
+            }
+            if !work.charge(1) {
+                complete = false;
+                break;
+            }
+            let Some(value) = evaluate(stored, work) else {
+                complete = false;
+                break;
+            };
+            result = result.join(&Know::Exact(value), work);
+            if result == Know::Top {
+                break;
+            }
         }
-        if !work.charge(1) {
-            complete = false;
-            break;
+        for &(value, _) in &varied {
+            stored[value.index()] = know[value.index()].stored();
         }
-        let Some(value) = evaluate(stored, work) else {
-            complete = false;
-            break;
-        };
-        result = result.join(&Know::Exact(value));
-        if result == Know::Top {
-            break;
-        }
-    }
-    for &(value, _) in &varied {
-        stored[value.index()] = know[value.index()].stored();
-    }
-    complete.then_some(result)
+        complete.then_some(result)
+    })
 }
 
-fn operation_inputs(data: &UnitData, operation: &Operation) -> Vec<ValueId> {
-    let mut inputs = data.operands(operation.operands).unwrap_or(&[]).to_vec();
-    if let OperationKind::Load(place) = operation.kind {
-        if let Some(Place::Value(value)) = data.places.get(place.index()) {
-            inputs.push(*value);
-        }
-    }
-    for region in operation.kind.child_regions() {
-        inputs.extend(data.regions[region.index()].result);
-    }
-    inputs
+fn operation_inputs<'a>(
+    data: &'a UnitData,
+    operation: &'a Operation,
+) -> impl Iterator<Item = ValueId> + 'a {
+    let (operands, call) = match operation.kind {
+        OperationKind::Call(call) => (&[][..], Some(call)),
+        _ => (data.operands(operation.operands).unwrap_or(&[]), None),
+    };
+    let loaded = match operation.kind {
+        OperationKind::Load(place) => match data.places.get(place.index()) {
+            Some(Place::Value(value)) => Some(*value),
+            _ => None,
+        },
+        _ => None,
+    };
+    operands
+        .iter()
+        .copied()
+        .chain(loaded)
+        .chain(
+            call.into_iter()
+                .flat_map(move |call| call_inputs(data, call)),
+        )
+        .chain(
+            operation
+                .kind
+                .child_regions()
+                .filter_map(|region| data.regions[region.index()].result),
+        )
 }
 
-fn call_inputs(data: &UnitData, call: CallId) -> Vec<ValueId> {
+fn call_inputs(data: &UnitData, call: CallId) -> impl Iterator<Item = ValueId> + '_ {
     let site = &data.calls[call.index()];
-    let mut inputs: Vec<ValueId> = data
-        .arguments(site.arguments)
+    let receiver = match site.target {
+        CallTarget::Intrinsic { receiver, .. } => receiver,
+        _ => None,
+    };
+    data.arguments(site.arguments)
         .unwrap_or(&[])
         .iter()
         .filter_map(|argument| match argument {
             CallArgument::Value(value) | CallArgument::Spread(value) => Some(*value),
             CallArgument::Reference(_) => None,
         })
-        .collect();
-    if let CallTarget::Intrinsic {
-        receiver: Some(receiver),
-        ..
-    } = site.target
-    {
-        inputs.push(receiver);
-    }
-    inputs
+        .chain(receiver)
 }
 
 fn comparison(op: BinaryOp) -> bool {
@@ -623,6 +696,7 @@ fn branch_refinements(
     work: &mut Work,
     depth: usize,
 ) -> Option<Vec<(ValueId, Know)>> {
+    work.temporary(|work| {
     if depth == 0 {
         return Some(Vec::new());
     }
@@ -631,12 +705,12 @@ fn branch_refinements(
         let filtered =
             Know::set(alternatives.iter().filter_map(|value| {
                 (facts::truthy(program, value) == holds).then_some(value.clone())
-            }));
+            }), work);
         if filtered == Know::Bottom {
             return None;
         }
         if &filtered != &know[condition.index()] {
-            refinements.push((condition, filtered));
+            work.push(Retained, &mut refinements, (condition, filtered))?;
         }
     }
 
@@ -657,7 +731,9 @@ fn branch_refinements(
                 work,
                 depth - 1,
             )?;
+            work.admit(|budget| budget.reserve_vec(Retained, &mut refinements, nested.len()))?;
             refinements.append(&mut nested);
+            work.release(Retained, nested)?;
         }
         OperationKind::IsUndefined { nullish, .. } => {
             let value = *operands.first()?;
@@ -666,12 +742,12 @@ fn branch_refinements(
             };
             let filtered = Know::set(alternatives.iter().filter_map(|candidate| {
                 ((matches!(candidate, StoredExact::Undefined) || nullish && matches!(candidate, StoredExact::Null)) == holds).then_some(candidate.clone())
-            }));
+            }), work);
             if filtered == Know::Bottom {
                 return None;
             }
             if filtered != know[value.index()] {
-                refinements.push((value, filtered));
+                work.push(Retained, &mut refinements, (value, filtered))?;
             }
         }
         OperationKind::Binary(op) if comparison(op) && operands.len() == 2 => {
@@ -685,8 +761,8 @@ fn branch_refinements(
             if left_values.len().saturating_mul(right_values.len()) > POINTWISE_LIMIT {
                 return Some(refinements);
             }
-            let mut left_kept = Vec::new();
-            let mut right_kept = Vec::new();
+            let mut left_kept = Know::Bottom;
+            let mut right_kept = Know::Bottom;
             for left_value in left_values {
                 for right_value in right_values {
                     stored[left.index()] = StoredKnowledge::Exact(left_value.clone());
@@ -704,32 +780,29 @@ fn branch_refinements(
                     }
                     if matches!(result, StoredKnowledge::Exact(StoredExact::Boolean(value)) if value == holds)
                     {
-                        if !left_kept.contains(left_value) {
-                            left_kept.push(left_value.clone());
-                        }
-                        if !right_kept.contains(right_value) {
-                            right_kept.push(right_value.clone());
-                        }
+                        left_kept = left_kept.join(&Know::Exact(left_value.clone()), work);
+                        right_kept = right_kept.join(&Know::Exact(right_value.clone()), work);
                     }
                 }
             }
             stored[left.index()] = know[left.index()].stored();
             stored[right.index()] = know[right.index()].stored();
-            let left_next = Know::set(left_kept);
-            let right_next = Know::set(right_kept);
+            let left_next = left_kept;
+            let right_next = right_kept;
             if left_next == Know::Bottom || right_next == Know::Bottom {
                 return None;
             }
             if left_next != know[left.index()] {
-                refinements.push((left, left_next));
+                work.push(Retained, &mut refinements, (left, left_next))?;
             }
             if right_next != know[right.index()] {
-                refinements.push((right, right_next));
+                work.push(Retained, &mut refinements, (right, right_next))?;
             }
         }
         _ => {}
     }
     Some(refinements)
+    })
 }
 
 /// Evaluates one unit's owned operations, children before the operation that
@@ -748,18 +821,20 @@ fn evaluate(
     origins: &mut [u8],
     evaluated: &mut u32,
     refused: &mut [u32; 6],
-) -> Know {
+) -> Option<Know> {
+    work.temporary(|work| {
     let graph = effects.graph();
     let initialization = effects.initialization();
-    let mut stored: Vec<StoredKnowledge> = know.iter().map(Know::stored).collect();
-    let mut path_cells: std::collections::HashMap<CellId, Know> = std::collections::HashMap::new();
+    let mut stored = work.collect(Scratch, know.iter().map(Know::stored))?;
+    let mut path_cells: Map<CellId, Know> = Map::new(Scratch);
     let mut returned: Option<Know> = None;
-    let mut stack = vec![Step::Enter(data.entry)];
+    let mut stack = work.collect(Scratch, std::iter::once(Step::Enter(data.entry)))?;
     while let Some(step) = stack.pop() {
+        visit(work, 1)?;
         let op = match step {
             Step::Enter(region) => {
                 for &op in data.regions[region.index()].operations.iter().rev() {
-                    stack.push(Step::Prepare(op));
+                    work.push(Scratch, &mut stack, Step::Prepare(op))?;
                 }
                 continue;
             }
@@ -780,7 +855,7 @@ fn evaluate(
                                 work,
                                 8,
                             ) {
-                                children.push((yes, refinements));
+                                work.push(Scratch, &mut children, (yes, refinements))?;
                             }
                             if let Some(no) = no {
                                 if let Some(refinements) = branch_refinements(
@@ -793,7 +868,7 @@ fn evaluate(
                                     work,
                                     8,
                                 ) {
-                                    children.push((no, refinements));
+                                    work.push(Scratch, &mut children, (no, refinements))?;
                                 }
                             }
                         }
@@ -810,7 +885,7 @@ fn evaluate(
                                 work,
                                 8,
                             ) {
-                                children.push((yes, refinements));
+                                work.push(Scratch, &mut children, (yes, refinements))?;
                             }
                             if let Some(refinements) = branch_refinements(
                                 program,
@@ -822,33 +897,26 @@ fn evaluate(
                                 work,
                                 8,
                             ) {
-                                children.push((no, refinements));
+                                work.push(Scratch, &mut children, (no, refinements))?;
                             }
                         }
                     }
-                    _ => children.extend(
-                        operation
-                            .kind
-                            .child_regions()
-                            .map(|region| (region, Vec::new())),
-                    ),
+                    _ => for region in operation.kind.child_regions() {
+                        work.push(Scratch, &mut children, (region, Vec::new()))?;
+                    },
                 }
-                stack.push(Step::Eval(op));
-                for (region, refinements) in children.into_iter().rev() {
-                    stack.push(Step::Child {
-                        region,
-                        refinements,
-                    });
+                work.push(Scratch, &mut stack, Step::Eval(op))?;
+                for (region, refinements) in children.drain(..).rev() {
+                    work.push(Scratch, &mut stack, Step::Child { region, refinements })?;
                 }
+                work.release(Scratch, children)?;
                 continue;
             }
-            Step::Child {
-                region,
-                refinements,
-            } => {
-                let mut previous = Vec::new();
-                let mut previous_cells = Vec::new();
-                for (value, refinement) in refinements {
+            Step::Child { region, mut refinements } => {
+                let mut previous = work.admit(|budget| budget.vector(Scratch, refinements.len()))?;
+                let mut previous_cells = work.admit(|budget| budget.vector(Scratch, refinements.len()))?;
+                for (value, refinement) in refinements.drain(..) {
+                    visit(work, (previous.len() + previous_cells.len()) as u64 + 1)?;
                     if previous.iter().any(|(seen, _)| *seen == value) {
                         continue;
                     }
@@ -860,7 +928,7 @@ fn evaluate(
                             if !written(graph, cell)
                                 && !previous_cells.iter().any(|(seen, _)| *seen == cell)
                             {
-                                let old = path_cells.insert(cell, refinement.clone());
+                                let old = work.admit(|budget| path_cells.insert(cell, refinement.clone(), budget))?;
                                 previous_cells.push((cell, old));
                             }
                         }
@@ -868,28 +936,28 @@ fn evaluate(
                     know[value.index()] = refinement;
                     stored[value.index()] = know[value.index()].stored();
                 }
-                stack.push(Step::Restore {
-                    values: previous,
-                    cells: previous_cells,
-                });
-                stack.push(Step::Enter(region));
+                work.release(Retained, refinements)?;
+                work.push(Scratch, &mut stack, Step::Restore { values: previous, cells: previous_cells })?;
+                work.push(Scratch, &mut stack, Step::Enter(region))?;
                 continue;
             }
-            Step::Restore { values, cells } => {
-                for (value, knowledge) in values {
+            Step::Restore { mut values, mut cells } => {
+                for (value, knowledge) in values.drain(..) {
                     know[value.index()] = knowledge;
                     stored[value.index()] = know[value.index()].stored();
                 }
-                for (cell, previous) in cells {
+                for (cell, previous) in cells.drain(..) {
                     match previous {
                         Some(known) => {
-                            path_cells.insert(cell, known);
+                            work.admit(|budget| path_cells.insert(cell, known, budget))?;
                         }
                         None => {
-                            path_cells.remove(&cell);
+                            work.admit(|budget| path_cells.remove(&cell, budget))?;
                         }
                     }
                 }
+                work.release(Scratch, values)?;
+                work.release(Scratch, cells)?;
                 continue;
             }
             Step::Eval(op) => op,
@@ -902,17 +970,13 @@ fn evaluate(
                 .map_or(Know::Exact(StoredExact::Undefined), |value| {
                     know[value.index()].clone()
                 });
-            returned = Some(returned.map_or(value.clone(), |known| known.join(&value)));
+            returned = Some(returned.map_or(value.clone(), |known| known.join(&value, work)));
             continue;
         }
         let Some(result) = operation.result else {
             continue;
         };
-        let inputs = match operation.kind {
-            OperationKind::Call(call) => call_inputs(data, call),
-            _ => operation_inputs(data, operation),
-        };
-        let mut origin = inputs.iter().fold(0, |bits, input| {
+        let mut origin = operation_inputs(data, operation).fold(0, |bits, input| {
             bits | origins[input.index()]
                 | if matches!(know[input.index()], Know::Finite(_)) {
                     FROM_SET
@@ -921,7 +985,7 @@ fn evaluate(
                 }
         });
         if matches!(operation.kind, OperationKind::Load(place)
-            if matches!(data.places.get(place.index()), Some(Place::Cell(cell)) if path_cells.contains_key(cell)))
+            if matches!(data.places.get(place.index()), Some(Place::Cell(cell)) if path_cells.get(cell).is_some()))
         {
             origin |= FROM_PATH;
         }
@@ -931,10 +995,10 @@ fn evaluate(
                 Some(&Place::Cell(cell)) => {
                     let storage = &program.cells[cell.index()];
                     match storage.binding {
-                        _ if path_cells.contains_key(&cell)
+                        _ if path_cells.get(&cell).is_some()
                             && initialization.initialized(program, unit, op, cell) =>
                         {
-                            path_cells[&cell].clone()
+                            path_cells.get(&cell).unwrap().clone()
                         }
                         CellBinding::Parameter(position) if !written(graph, cell) => channels
                             .formals
@@ -1039,12 +1103,13 @@ fn evaluate(
                 }
             }
         };
-        let joined = know[result.index()].join(&next);
+        let joined = know[result.index()].join(&next, work);
         if joined != know[result.index()] {
             stored[result.index()] = joined.stored();
             know[result.index()] = joined;
         }
         origins[result.index()] |= origin;
     }
-    returned.unwrap_or(Know::Exact(StoredExact::Undefined))
+    Some(returned.unwrap_or(Know::Exact(StoredExact::Undefined)))
+    })
 }

@@ -27,8 +27,8 @@ changed-unit formation and per-module elaboration remain open. Graph, effect and
 analyses are admitted through source normalization, pure-contract checks and JavaScript
 demand. Primitive classes, aggregate origins, activation/default transport and
 forwarding/dead-code, folding, signature, inline and aggregate rewrite plans are admitted.
-Exact-value evaluation remains, alongside the
-remaining dirty dependencies. Keep logical admission, hard TOML
+Exact-value evaluation and local-fact initialization now use their bounded owners.
+Remaining dirty dependencies, incremental formation and per-module elaboration stay open. Keep logical admission, hard TOML
 permissions, source/target identities and selected output independent of cache
 occupancy. Then follow **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
 

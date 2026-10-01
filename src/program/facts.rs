@@ -28,7 +28,6 @@ use crate::compilation_policy::{
     AnalysisAttempt, AnalysisCompletion, AnalysisWorkReceipt, BudgetError, BudgetLedger, WorkDomain,
 };
 use crate::primitive::Intrinsic;
-use ahash::AHashMap;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::mem::size_of;
@@ -43,7 +42,8 @@ pub const LOCAL_FACTS_PLAN: u32 = 1;
 // Version 3 transfers existing exact primitive knowledge through CopyValue.
 // Version 2 introduced shared transfer and separate resource-exhaustion effects.
 // Older receipts cannot qualify this version's answers.
-pub const LOCAL_FACTS_VERSION: u32 = 15;
+// Version 16 admits local initialization scratch and charges scope queries.
+pub const LOCAL_FACTS_VERSION: u32 = 16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Dependencies {
@@ -871,27 +871,124 @@ impl Drop for FactsSession<'_> {
     }
 }
 
-pub(super) struct Work {
+pub(super) struct Work<'ledger> {
+    allocation: crate::output_budget::AllocationBudget<'ledger>,
+    failure: Option<crate::output_budget::AllocationError>,
     quota: u64,
     used: u64,
     result_limit: u64,
     result_used: u64,
     truncated: bool,
 }
-impl Work {
+impl<'ledger> Work<'ledger> {
     pub(super) fn truncated(&self) -> bool {
         self.truncated
     }
     /// A fresh budget for an evaluation outside a facts session (the program
     /// rules' values, `rules/values.rs`).
     pub(super) fn bounded(quota: u64, result_limit: u64) -> Self {
+        Self::admitted(
+            quota,
+            result_limit,
+            crate::output_budget::AllocationBudget::new(None),
+        )
+    }
+    pub(super) fn admitted(
+        quota: u64,
+        result_limit: u64,
+        allocation: crate::output_budget::AllocationBudget<'ledger>,
+    ) -> Self {
         Self {
+            allocation,
+            failure: None,
             quota,
             used: 0,
             result_limit,
             result_used: 0,
             truncated: false,
         }
+    }
+    pub(super) fn admit<T>(
+        &mut self,
+        build: impl FnOnce(
+            &mut crate::output_budget::AllocationBudget<'_>,
+        ) -> Result<T, crate::output_budget::AllocationError>,
+    ) -> Option<T> {
+        if self.failure.is_some() {
+            return None;
+        }
+        match build(&mut self.allocation) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                self.failure = Some(error);
+                None
+            }
+        }
+    }
+    pub(super) fn finish(self) -> Result<(), crate::output_budget::AllocationError> {
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        self.allocation.finish_retained()
+    }
+    /// Local arrays die in this child; only escaping answers keep reservations.
+    /// Policy counters include abandoned attempts, independently of live bytes.
+    pub(super) fn temporary<T>(
+        &mut self,
+        build: impl FnOnce(&mut Work<'_>) -> Option<T>,
+    ) -> Option<T> {
+        if self.failure.is_some() {
+            return None;
+        }
+        let mut child = Work {
+            allocation: self.allocation.scope(),
+            failure: None,
+            quota: self.quota,
+            used: self.used,
+            result_limit: self.result_limit,
+            result_used: self.result_used,
+            truncated: self.truncated,
+        };
+        let value = build(&mut child);
+        let counters = (child.used, child.result_used, child.truncated);
+        let failure = child.failure;
+        let admitted = if value.is_some() && failure.is_none() {
+            child.allocation.finish_retained()
+        } else {
+            drop(child);
+            Ok(())
+        };
+        self.used = counters.0;
+        self.result_used = counters.1;
+        self.truncated = counters.2;
+        self.failure = failure.or(admitted.err());
+        if self.failure.is_some() {
+            None
+        } else {
+            value
+        }
+    }
+    pub(super) fn collect<T>(
+        &mut self,
+        class: crate::output_budget::AllocationClass,
+        values: impl IntoIterator<Item = T>,
+    ) -> Option<Vec<T>> {
+        self.admit(|budget| super::analysis_storage::collect(values, class, budget))
+    }
+    pub(super) fn push<T>(
+        &mut self,
+        class: crate::output_budget::AllocationClass,
+        values: &mut Vec<T>,
+        value: T,
+    ) -> Option<()> {
+        self.admit(|budget| budget.push(class, values, value))
+    }
+    pub(super) fn release<T>(
+        &mut self,
+        class: crate::output_budget::AllocationClass,
+        values: Vec<T>,
+    ) -> Option<()> {
+        self.admit(|budget| super::analysis_storage::release(values, class, budget))
     }
     pub(super) fn charge(&mut self, amount: u64) -> bool {
         let Some(next) = self
@@ -903,7 +1000,8 @@ impl Work {
             return false;
         };
         self.used = next;
-        true
+        self.admit(|budget| budget.work(crate::compilation_policy::WorkKind::Analysis, amount))
+            .is_some()
     }
     fn allocation_fits(&mut self, bound: u64) -> bool {
         let Some(next) = self
@@ -920,17 +1018,34 @@ impl Work {
 
     /// Admit bounded evaluator storage before allocating or scanning it.
     /// This conservative cumulative accounting also bounds abandoned trials.
-    pub(super) fn reserve_evaluation(&mut self, bytes: u64) -> bool {
+    pub(super) fn reserve_storage(&mut self, bytes: u64) -> bool {
+        if !self.allocation_fits(bytes) {
+            return false;
+        }
+        self.result_used += bytes;
+        true
+    }
+    pub(super) fn reserve_policy(&mut self, bytes: u64) -> bool {
         if !self.allocation_fits(bytes) || !self.charge(bytes) {
             return false;
         }
         self.result_used += bytes;
         true
     }
+    pub(super) fn reserve_evaluation(&mut self, bytes: u64) -> bool {
+        self.reserve_policy(bytes)
+            && self
+                .admit(|budget| {
+                    budget.retain(crate::output_budget::AllocationClass::Retained, bytes)
+                })
+                .is_some()
+    }
 }
 
 fn compute(program: &Program<'_>, unit: &UnitData, key: Key) -> (UnitFacts, AnalysisWorkReceipt) {
     let mut work = Work {
+        allocation: crate::output_budget::AllocationBudget::new(None),
+        failure: None,
         quota: key.request.attempt.work_quota,
         used: 0,
         result_limit: key.request.result_bytes,
@@ -961,18 +1076,12 @@ fn compute(program: &Program<'_>, unit: &UnitData, key: Key) -> (UnitFacts, Anal
                 vec![StoredKnowledge::Unknown(UnknownReason::Unvisited); unit.values.len()];
             facts.effects = vec![EvaluationBehavior::UNKNOWN; unit.operations.len()];
             facts.primitive_domains = vec![false; unit.values.len()];
-            // One linear pass, charged like the main one: which never
-            // reassigned locals this unit initializes, and with what.
-            let initializers = if work.charge(unit.operations.len() as u64) {
-                unassigned_local_initializers(program, unit)
-            } else {
-                AHashMap::default()
-            };
-            // The initialization owner's unit-local answer: an `Initialize`
-            // that dominates the read, or the checker's proof.
-            let initialization = work
-                .charge(unit.operations.len() as u64)
-                .then(|| super::initialization::UnitInitialization::build(unit));
+            // The session's preadmitted workspace includes all local proof
+            // arrays, not just the answer eventually inserted into its cache.
+            let scratch_start = work.result_used;
+            let initializers = unassigned_local_initializers(program, unit, &mut work).unwrap_or_default();
+            let initialization = super::initialization::UnitInitialization::build_bounded(unit, &mut work);
+            let scratch_bytes = work.result_used - scratch_start;
             for (index, operation) in unit.operations.iter().enumerate() {
                 if !work.charge(1) {
                     break;
@@ -996,6 +1105,7 @@ fn compute(program: &Program<'_>, unit: &UnitData, key: Key) -> (UnitFacts, Anal
                                         local,
                                         OpId::from_index(index).unwrap(),
                                         cell,
+                                        &mut work,
                                     )
                             }
                             _ => false,
@@ -1029,6 +1139,7 @@ fn compute(program: &Program<'_>, unit: &UnitData, key: Key) -> (UnitFacts, Anal
                         operation,
                         &facts.primitive_domains,
                         &initializers,
+                        &mut work,
                     );
                 }
                 if let Some(result) = operation.result {
@@ -1036,6 +1147,8 @@ fn compute(program: &Program<'_>, unit: &UnitData, key: Key) -> (UnitFacts, Anal
                     facts.values[result.index()] = knowledge;
                 }
             }
+            drop((initializers, initialization));
+            work.result_used -= scratch_bytes;
         }
     } else {
         work.truncated = true;
@@ -1235,62 +1348,86 @@ pub(super) fn primitive_transfer(unit: &UnitData, operation: &Operation) -> Prim
 /// reassigns. For such a cell every write is an `Initialize` here, so a load
 /// can only observe one of these values. Empty when the unit passes storage
 /// by reference anywhere: a callee could then write through it.
-pub(super) fn unassigned_local_initializers(
+fn unassigned_local_initializers(
     program: &Program<'_>,
     unit: &UnitData,
-) -> AHashMap<CellId, Vec<ValueId>> {
-    let mut initializers = AHashMap::<CellId, Vec<ValueId>>::default();
+    work: &mut Work,
+) -> Option<Vec<(CellId, ValueId)>> {
+    if !work.charge(unit.operations.len() as u64) {
+        return None;
+    }
     if unit
         .operations
         .iter()
-        .any(|operation| matches!(operation.kind, OperationKind::PrepareReference { .. }))
+        .any(|op| matches!(op.kind, OperationKind::PrepareReference { .. }))
     {
-        return initializers;
+        return Some(Vec::new());
     }
-    for operation in &unit.operations {
-        let OperationKind::Initialize(cell) = operation.kind else {
-            continue;
-        };
-        let Some(entry) = program.cells.get(cell.index()) else {
-            continue;
-        };
-        if entry.binding != CellBinding::Local || entry.reassigned {
-            continue;
-        }
-        if let Some(&operand) = unit
-            .operands(operation.operands)
-            .and_then(|operands| operands.first())
+    let eligible = |operation: &Operation| match operation.kind {
+        OperationKind::Initialize(cell)
+            if program
+                .cells
+                .get(cell.index())
+                .is_some_and(|entry| entry.binding == CellBinding::Local && !entry.reassigned) =>
         {
-            initializers.entry(cell).or_default().push(operand);
+            unit.operands(operation.operands)
+                .and_then(|args| args.first())
+                .map(|&value| (cell, value))
         }
+        _ => None,
+    };
+    if !work.charge(unit.operations.len() as u64) {
+        return None;
     }
-    initializers
+    let count = unit.operations.iter().filter_map(eligible).count();
+    let bytes = count.checked_mul(size_of::<(CellId, ValueId)>())? as u64;
+    if !work.reserve_storage(bytes)
+        || !work.charge(
+            unit.operations.len() as u64
+                + (count as u64)
+                    .saturating_mul(u64::from(usize::BITS - count.max(1).leading_zeros()) + 1),
+        )
+    {
+        return None;
+    }
+    let mut initializers = Vec::with_capacity(count);
+    initializers.extend(unit.operations.iter().filter_map(eligible));
+    initializers.sort_unstable();
+    Some(initializers)
 }
 
-/// `primitive_result_domain`, plus loads of never-reassigned locals whose
-/// every initializer is already primitive in `domains`. A value not yet
-/// visited counts as not primitive, so the refinement only ever upgrades a
-/// load its initializers already justify.
-pub(super) fn primitive_result_domain_with_locals(
+/// Never-reassigned local loads are primitive only if every initializer is
+/// already primitive. Sorted occurrences avoid one allocation per local cell.
+fn primitive_result_domain_with_locals(
     program: &Program<'_>,
     unit: &UnitData,
     operation: &Operation,
     domains: &[bool],
-    initializers: &AHashMap<CellId, Vec<ValueId>>,
+    initializers: &[(CellId, ValueId)],
+    work: &mut Work,
 ) -> bool {
     if let OperationKind::Load(place) = operation.kind {
         if let Some(Place::Cell(cell)) = unit.places.get(place.index()) {
-            if let Some(values) = initializers.get(cell) {
-                return !values.is_empty()
-                    && values
-                        .iter()
-                        .all(|value| domains.get(value.index()) == Some(&true));
+            if !work
+                .charge(u64::from(usize::BITS - initializers.len().max(1).leading_zeros()) * 2 + 1)
+            {
+                return false;
+            }
+            let start = initializers.partition_point(|&(key, _)| key < *cell);
+            let end = initializers.partition_point(|&(key, _)| key <= *cell);
+            if start != end {
+                return initializers[start..end].iter().all(|&(_, value)| {
+                    work.charge(1) && domains.get(value.index()) == Some(&true)
+                });
             }
         }
     }
-    primitive_result_domain(program, unit, operation, domains)
+    work.charge(
+        unit.operands(operation.operands)
+            .map_or(0, |args| args.len()) as u64
+            + 1,
+    ) && primitive_result_domain(program, unit, operation, domains)
 }
-
 /// Common result-domain transfer over a checked unit. A primitive domain
 /// describes a value if evaluation completes; it does not make the producer
 /// total or prove a mutable/refined load initialized. Work/storage admission
@@ -1410,6 +1547,9 @@ pub(super) fn exact(
                         return StoredKnowledge::Unknown(UnknownReason::WorkLimit);
                     }
                     work.result_used += bound;
+                    if work.admit(|budget| budget.retain(crate::output_budget::AllocationClass::Retained, bound)).is_none() {
+                        return StoredKnowledge::Unknown(UnknownReason::MemoryLimit);
+                    }
                     return StoredKnowledge::Exact(StoredExact::String(StoredString::Computed(
                         Arc::new(left.concat(right)),
                     )));

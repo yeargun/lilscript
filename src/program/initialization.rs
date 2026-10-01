@@ -124,62 +124,110 @@ pub(super) struct UnitInitialization {
 }
 
 impl UnitInitialization {
-    pub(super) fn build(data: &UnitData) -> Self {
-        Self::build_in(data, &mut AllocationBudget::new(None)).expect("inspection initialization")
+    fn counts(data: &UnitData) -> (usize, usize) {
+        let mut counts = (0, 0);
+        for operation in &data.operations {
+            match operation.kind {
+                OperationKind::Initialize(_) | OperationKind::Declare(_) => counts.0 += 1,
+                OperationKind::Try {
+                    catch: Some((Some(_), _)),
+                    ..
+                }
+                | OperationKind::ForIn { .. }
+                | OperationKind::ForOf { .. } => counts.1 += 1,
+                _ => {}
+            }
+        }
+        counts
     }
     pub(super) fn build_in(
         data: &UnitData,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, AllocationError> {
         budget.retained_phase(|budget| {
+            budget.work(WorkKind::Analysis, data.operations.len() as u64)?;
+            let (initializers, bound) = Self::counts(data);
             let parent = budget.filled(Retained, data.regions.len(), None)?;
             let position = budget.filled(Retained, data.operations.len(), 0)?;
-            let dominance = StructuredDominance::build(data, parent, position, |work| {
-                budget.work(WorkKind::Analysis, work as u64)
-            })?;
-            let mut initializers = Vec::new();
-            let mut bound = Vec::new();
-            for (index, operation) in data.operations.iter().enumerate() {
-                budget.work(WorkKind::Analysis, 1)?;
-                match operation.kind {
-                    OperationKind::Initialize(cell) | OperationKind::Declare(cell) => budget.push(
-                        Retained,
-                        &mut initializers,
-                        (cell, OpId::from_index(index).unwrap()),
-                    )?,
-                    OperationKind::Try {
-                        catch: Some((Some(cell), region)),
-                        ..
-                    }
-                    | OperationKind::ForIn {
-                        key: cell,
-                        body: region,
-                        ..
-                    }
-                    | OperationKind::ForOf {
-                        item: cell,
-                        body: region,
-                        ..
-                    } => budget.push(Retained, &mut bound, (cell, index, region))?,
-                    _ => {}
-                }
-            }
-            // The operation ordinal preserves the former map's last-insert
-            // semantics even for unchecked duplicate bindings. Both sorts
-            // are in place; no allocator-owned sorting scratch escapes.
-            let work = initializers.len().saturating_add(bound.len());
-            budget.work(
-                WorkKind::Analysis,
-                (work as u64)
-                    .saturating_mul(u64::from(usize::BITS - work.max(1).leading_zeros()) + 1),
-            )?;
-            initializers.sort_unstable();
-            bound.sort_unstable_by_key(|&(cell, index, _)| (cell, index));
-            Ok(Self {
-                dominance,
-                initializers,
-                bound,
+            let initializers = budget.vector(Retained, initializers)?;
+            let bound = budget.vector(Retained, bound)?;
+            Self::build_buffers(data, parent, position, initializers, bound, |amount| {
+                budget.work(WorkKind::Analysis, amount as u64)
             })
+        })
+    }
+    /// A facts session already reserves its complete result/scratch envelope.
+    /// Reserve these exact-capacity arrays inside that envelope before creating
+    /// them; use the same constructor and charge its actual traversal work.
+    pub(super) fn build_bounded(data: &UnitData, work: &mut super::facts::Work) -> Option<Self> {
+        if !work.charge(data.operations.len() as u64) {
+            return None;
+        }
+        let (initializers, bound) = Self::counts(data);
+        let bytes = data
+            .regions
+            .len()
+            .checked_mul(std::mem::size_of::<Option<OpId>>())?
+            .checked_add(
+                data.operations
+                    .len()
+                    .checked_mul(std::mem::size_of::<usize>())?,
+            )?
+            .checked_add(initializers.checked_mul(std::mem::size_of::<(CellId, OpId)>())?)?
+            .checked_add(bound.checked_mul(std::mem::size_of::<(CellId, usize, RegionId)>())?)?;
+        if !work.reserve_storage(bytes as u64) {
+            return None;
+        }
+        Self::build_buffers(
+            data,
+            vec![None; data.regions.len()],
+            vec![0; data.operations.len()],
+            Vec::with_capacity(initializers),
+            Vec::with_capacity(bound),
+            |amount| work.charge(amount as u64).then_some(()).ok_or(()),
+        )
+        .ok()
+    }
+    fn build_buffers<E>(
+        data: &UnitData,
+        parent: Vec<Option<OpId>>,
+        position: Vec<usize>,
+        mut initializers: Vec<(CellId, OpId)>,
+        mut bound: Vec<(CellId, usize, RegionId)>,
+        mut work: impl FnMut(usize) -> Result<(), E>,
+    ) -> Result<Self, E> {
+        let dominance = StructuredDominance::build(data, parent, position, &mut work)?;
+        for (index, operation) in data.operations.iter().enumerate() {
+            work(1)?;
+            match operation.kind {
+                OperationKind::Initialize(cell) | OperationKind::Declare(cell) => {
+                    initializers.push((cell, OpId::from_index(index).unwrap()))
+                }
+                OperationKind::Try {
+                    catch: Some((Some(cell), region)),
+                    ..
+                }
+                | OperationKind::ForIn {
+                    key: cell,
+                    body: region,
+                    ..
+                }
+                | OperationKind::ForOf {
+                    item: cell,
+                    body: region,
+                    ..
+                } => bound.push((cell, index, region)),
+                _ => {}
+            }
+        }
+        let count = initializers.len().saturating_add(bound.len());
+        work(count.saturating_mul((usize::BITS - count.max(1).leading_zeros()) as usize + 1))?;
+        initializers.sort_unstable();
+        bound.sort_unstable_by_key(|&(cell, index, _)| (cell, index));
+        Ok(Self {
+            dominance,
+            initializers,
+            bound,
         })
     }
 
@@ -188,42 +236,48 @@ impl UnitInitialization {
     /// operation, or the operation lies in the region its binding construct
     /// enters.
     pub(super) fn after(&self, data: &UnitData, cell: CellId, operation: OpId) -> bool {
+        self.after_with(data, cell, operation, |_| Ok::<_, ()>(()))
+            .unwrap_or(false)
+    }
+    fn after_with<E>(
+        &self,
+        data: &UnitData,
+        cell: CellId,
+        operation: OpId,
+        mut work: impl FnMut(usize) -> Result<(), E>,
+    ) -> Result<bool, E> {
+        work((usize::BITS - self.initializers.len().max(1).leading_zeros()) as usize * 2 + 1)?;
         let start = self.initializers.partition_point(|&(key, _)| key < cell);
         let end = self.initializers.partition_point(|&(key, _)| key <= cell);
-        if self.initializers[start..end]
-            .iter()
-            .any(|&(_, initialize)| {
-                self.dominance
-                    .after(data, initialize, operation, |_| Ok::<(), ()>(()))
-                    .unwrap_or(false)
-            })
-        {
-            return true;
+        for &(_, initialize) in &self.initializers[start..end] {
+            if self
+                .dominance
+                .after(data, initialize, operation, &mut work)?
+            {
+                return Ok(true);
+            }
         }
+        work((usize::BITS - self.bound.len().max(1).leading_zeros()) as usize + 1)?;
         let end = self.bound.partition_point(|&(key, _, _)| key <= cell);
-        match (
+        if let (Some(&(key, _, ancestor)), Some(entry)) = (
             end.checked_sub(1).and_then(|index| self.bound.get(index)),
             data.operations.get(operation.index()),
         ) {
-            (Some(&(key, _, region)), Some(entry)) if key == cell => {
-                self.within(data, entry.region, region)
+            if key == cell {
+                let mut region = entry.region;
+                for _ in 0..=data.regions.len() {
+                    work(1)?;
+                    if region == ancestor {
+                        return Ok(true);
+                    }
+                    let Some(owner) = self.dominance.parent(region) else {
+                        return Ok(false);
+                    };
+                    region = data.operations[owner.index()].region;
+                }
             }
-            _ => false,
         }
-    }
-
-    /// Whether `region` is `ancestor` or nested inside it.
-    fn within(&self, data: &UnitData, mut region: RegionId, ancestor: RegionId) -> bool {
-        for _ in 0..=data.regions.len() {
-            if region == ancestor {
-                return true;
-            }
-            let Some(owner) = self.dominance.parent(region) else {
-                return false;
-            };
-            region = data.operations[owner.index()].region;
-        }
-        false
+        Ok(false)
     }
 
     /// The entry-region operation `operation` is nested in (itself when it
@@ -251,13 +305,20 @@ pub(super) fn local_access_initialized(
     local: &UnitInitialization,
     operation: OpId,
     cell: CellId,
+    work: &mut super::facts::Work,
 ) -> bool {
     let Some(storage) = program.cells.get(cell.index()) else {
         return false;
     };
     match storage.binding {
         CellBinding::Local => {
-            checker_proved(storage) || (storage.owner == unit && local.after(data, cell, operation))
+            checker_proved(storage)
+                || (storage.owner == unit
+                    && local
+                        .after_with(data, cell, operation, |amount| {
+                            work.charge(amount as u64).then_some(()).ok_or(())
+                        })
+                        .unwrap_or(false))
         }
         CellBinding::Parameter(_) => !program.is_reference_parameter(cell),
         CellBinding::Function(_) => program

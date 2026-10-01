@@ -1599,3 +1599,20 @@ Aggregate semantics, publication/refusal cleanup, cold/reused views and native
 captured banks pass. No full suite, release, ratchet or fleet rerun; no measured
 compression or CPU claim. Q2 continues with exact-value evaluation and its
 remaining scheduling, formation and elaboration gates.
+
+## 2026-10-01: Q2 exact values and bounded evaluation
+
+Algorithm 59 admits the exact-value solver, finite sets, branch state and
+constant-call execution through the existing owner. A fixed FIFO and streamed
+inputs remove temporary allocation paths; immutable finite sets share backing.
+Local facts version 16 includes initializer/dominance scratch within its
+preadmitted envelope and charges its queries. UTF-16 search reuses existing
+buffers through the shared literal implementation.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-value-plans/README.md):
+the build and all 56 focused checks pass. Finite/path facts, exact primitive
+methods, termination/effects, native captures, cold/warm bills, publication and
+refusal cleanup are covered. Computed payloads use conservative cumulative
+bounds; this record claims no size/CPU win or full allocator accounting. No full
+library, release, CLI, ratchet or fleet rerun. Q2 remains active for its remaining
+dependencies, formation, elaboration and final qualification requirements.

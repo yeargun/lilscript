@@ -231,3 +231,51 @@ fn q2_legality_probes_distinguish_decline_from_refusal_and_drop_temporaries() {
     }
     assert_eq!(ledger.retained_bytes(), 0);
 }
+
+#[test]
+fn q2_exact_value_analysis_releases_answers_and_propagates_nested_refusals() {
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena,
+        "string decorate(string value){return value+\"!\";}int choose(bool yes){if(yes){return 2;}return 3;}print(decorate(\"a\"));print(decorate(\"b\"));print(choose(true));print(choose(false));"
+    ).unwrap();
+    let checked = crate::analyze(&syntax).unwrap();
+    let program = from_checked_source(&syntax, &checked).unwrap();
+    let effects = program.effects(Seal::Module);
+    let mut passed = 0;
+    let mut refused = 0;
+    for (work, bytes) in [
+        (1, 64 << 20),
+        (100_000_000, 64),
+        (300, 64 << 20),
+        (100_000_000, 64 << 20),
+    ] {
+        let mut ledger = ledger(work, bytes);
+        {
+            let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+            let result = budget.with_temporary(
+                |budget| {
+                    values::ProgramValues::compute_in(
+                        &program,
+                        &effects,
+                        Seal::Module,
+                        false,
+                        budget,
+                    )
+                },
+                |values, _| {
+                    assert!(values.evaluated > 0);
+                    Ok::<_, crate::output_budget::AllocationError>(())
+                },
+            );
+            if result.is_ok() {
+                passed += 1;
+            } else {
+                refused += 1;
+            }
+            assert_eq!(budget.retained_bytes(Retained), 0);
+            assert_eq!(budget.retained_bytes(Scratch), 0);
+        }
+        assert_eq!(ledger.retained_bytes(), 0);
+    }
+    assert!(passed > 0 && refused > 0);
+}

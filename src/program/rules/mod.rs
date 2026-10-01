@@ -422,42 +422,48 @@ pub(crate) fn optimize_admitted<'src>(
                     aggregates::apply(editor, &effects, request, &mut receipt, budget)?
                 }
                 ProgramRule::Forward => forward::apply(editor, &effects, &mut receipt, budget)?,
-                ProgramRule::Fold => {
-                    let values = values::ProgramValues::compute(
-                        editor.program(),
-                        &effects,
-                        request.seal,
-                        request.pristine_builtins,
-                    );
-                    receipt.evaluated_calls =
-                        receipt.evaluated_calls.saturating_add(values.evaluated);
-                    for (total, count) in receipt.evaluation_refusals.iter_mut().zip(values.refused)
-                    {
-                        *total = total.saturating_add(count);
-                    }
-                    fold::apply(editor, &values, &effects, &mut receipt, budget)?
-                }
+                ProgramRule::Fold => budget.with_temporary_context(
+                    editor,
+                    |editor, budget| {
+                        Ok::<_, RuleError>(values::ProgramValues::compute_in(
+                            editor.program(),
+                            &effects,
+                            request.seal,
+                            request.pristine_builtins,
+                            budget,
+                        )?)
+                    },
+                    |values, editor, budget| {
+                        receipt.evaluated_calls =
+                            receipt.evaluated_calls.saturating_add(values.evaluated);
+                        for (total, count) in
+                            receipt.evaluation_refusals.iter_mut().zip(values.refused)
+                        {
+                            *total = total.saturating_add(count);
+                        }
+                        fold::apply(editor, values, &effects, &mut receipt, budget)
+                    },
+                )?,
                 ProgramRule::Inline => {
                     inline::apply(editor, &effects, &mut receipt, request.native, budget)?
                 }
                 // Unread parameters and unused results are dead code;
                 // constant parameters are folding.
-                ProgramRule::Parameters => {
-                    let values = values::ProgramValues::compute(
-                        editor.program(),
-                        &effects,
-                        request.seal,
-                        request.pristine_builtins,
-                    );
-                    params::apply(
-                        editor,
-                        &effects,
-                        &values,
-                        request.fold,
-                        &mut receipt,
-                        budget,
-                    )?
-                }
+                ProgramRule::Parameters => budget.with_temporary_context(
+                    editor,
+                    |editor, budget| {
+                        Ok::<_, RuleError>(values::ProgramValues::compute_in(
+                            editor.program(),
+                            &effects,
+                            request.seal,
+                            request.pristine_builtins,
+                            budget,
+                        )?)
+                    },
+                    |values, editor, budget| {
+                        params::apply(editor, &effects, values, request.fold, &mut receipt, budget)
+                    },
+                )?,
                 ProgramRule::DeadCode => {
                     dce::apply(editor, &effects, request.seal, &mut receipt, budget)?
                 }

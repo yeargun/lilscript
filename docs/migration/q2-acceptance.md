@@ -253,3 +253,12 @@ edges are shared across iterative scope proofs; rejected probes release their
 storage. All 23 focused checks pass, including the native captured-bank matrix.
 Exact-value evaluation and the other open Q2 tasks remain; no fleet or release
 measurement was repeated for this internal batch.
+
+The [exact-value batch](../../benchmarks/migration-results/2026-10-01-q2-value-plans/README.md)
+connects whole-program values, constant execution and local initialization scratch
+to their allocation owners. Finite sets share backing; input walks stream and
+the unit queue is bounded without growth. All 56 focused checks pass, including
+cold/warm fact bills, branch/termination/string oracles and hard-refusal cleanup.
+Computed payloads keep conservative cumulative bounds; no exact allocator-byte
+claim is made. Dirty dependencies, incremental formation, per-module elaboration
+and final Q2 qualification remain open.

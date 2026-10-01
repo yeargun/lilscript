@@ -167,31 +167,7 @@ impl StringValue {
     pub fn index_of(&self, needle: &Self, position: i32, last: bool) -> i32 {
         let receiver = self.code_units().collect::<Vec<_>>();
         let needle = needle.code_units().collect::<Vec<_>>();
-        let position = if position < 0 {
-            0
-        } else {
-            usize::try_from(position)
-                .unwrap_or(usize::MAX)
-                .min(receiver.len())
-        };
-        if needle.is_empty() {
-            return position as i32;
-        }
-        if needle.len() > receiver.len() {
-            return -1;
-        }
-        if last {
-            (0..=position.min(receiver.len() - needle.len()))
-                .rev()
-                .find(|index| receiver[*index..*index + needle.len()] == needle)
-                .map_or(-1, |index| index as i32)
-        } else if position + needle.len() > receiver.len() {
-            -1
-        } else {
-            (position..=receiver.len() - needle.len())
-                .find(|index| receiver[*index..*index + needle.len()] == needle)
-                .map_or(-1, |index| index as i32)
-        }
+        index_of_units(&receiver, &needle, position, last)
     }
 
     pub fn repeat(&self, count: usize) -> Self {
@@ -517,5 +493,34 @@ mod tests {
         let lone = StringValue::decode_source(r"\ud800field_\udfff").unwrap();
         assert!(lone.contains_unicode("field_"));
         assert!(!lone.contains_unicode("fields_"));
+    }
+}
+
+/// UTF-16 substring search for clients that already own code-unit buffers.
+pub(crate) fn index_of_units(receiver: &[u16], needle: &[u16], position: i32, last: bool) -> i32 {
+    let position = if position < 0 {
+        0
+    } else {
+        usize::try_from(position)
+            .unwrap_or(usize::MAX)
+            .min(receiver.len())
+    };
+    if needle.is_empty() {
+        return position as i32;
+    }
+    if needle.len() > receiver.len() {
+        return -1;
+    }
+    if last {
+        (0..=position.min(receiver.len() - needle.len()))
+            .rev()
+            .find(|index| receiver[*index..*index + needle.len()] == *needle)
+            .map_or(-1, |index| index as i32)
+    } else if position + needle.len() > receiver.len() {
+        -1
+    } else {
+        (position..=receiver.len() - needle.len())
+            .find(|index| receiver[*index..*index + needle.len()] == *needle)
+            .map_or(-1, |index| index as i32)
     }
 }
