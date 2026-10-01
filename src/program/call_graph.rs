@@ -30,6 +30,14 @@ use crate::check::BuiltinCall;
 use crate::compilation_contract::JavaScriptExecution;
 use crate::primitive::ResolvedIntrinsic;
 
+use super::analysis_storage as storage;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
+
 /// Whether root storage is sealed against the host (see the module comment).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Seal {
@@ -228,81 +236,104 @@ impl CallGraph {
     }
 
     pub fn build(program: &Program<'_>, seal: Seal) -> Self {
-        let scan = Scan::run(program);
-        let mut resolution = vec![Resolution::Pending; program.cells.len()];
-        for cell in 0..program.cells.len() {
-            resolve_cell(
-                program,
+        Self::build_in(program, seal, &mut AllocationBudget::new(None))
+            .expect("inspection call graph")
+    }
+
+    pub(super) fn build_in(
+        program: &Program<'_>,
+        seal: Seal,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        budget.retained_phase(|budget| {
+            let scan = Scan::run_in(program, budget)?;
+            let mut resolution =
+                budget.filled(Scratch, program.cells.len(), Resolution::Pending)?;
+            let mut pending = budget.vector(Scratch, program.cells.len())?;
+            for cell in 0..program.cells.len() {
+                resolve_cell(
+                    program,
+                    seal,
+                    &scan,
+                    CellId::from_index(cell).unwrap(),
+                    &mut resolution,
+                    &mut pending,
+                    budget,
+                )?;
+            }
+            let targets = storage::collect(
+                resolution.iter().map(|state| match state {
+                    Resolution::Done(target) => *target,
+                    _ => None,
+                }),
+                Retained,
+                budget,
+            )?;
+            let units = program.units.len();
+            let mut graph = Self {
+                deps: Deps::of_program_in(program, budget)?,
                 seal,
-                &scan,
-                CellId::from_index(cell).unwrap(),
-                &mut resolution,
-            );
-        }
-        let targets: Vec<Option<Target>> = resolution
-            .iter()
-            .map(|state| match state {
-                Resolution::Done(target) => *target,
-                _ => None,
-            })
-            .collect();
-        let units = program.units.len();
-        let mut graph = Self {
-            deps: Deps::of_program(program),
-            seal,
-            storage: scan.storage,
-            first_initializer: scan.first_initializer,
-            targets,
-            callees: Vec::with_capacity(units),
-            call_operations: scan.call_operations,
-            outgoing: vec![Vec::new(); units],
-            incoming: vec![Vec::new(); units],
-            address_taken: vec![false; units],
-            escapes: vec![Vec::new(); units],
-            interface: vec![false; units],
-            components: Vec::new(),
-            component: vec![0; units],
-            recursive: Vec::new(),
-        };
-        for (index, frozen) in program.units.iter().enumerate() {
-            let unit = UnitId::from_index(index).unwrap();
-            let data = frozen.data();
-            let mut callees = Vec::with_capacity(data.calls.len());
-            for (call_index, site) in data.calls.iter().enumerate() {
-                let call = CallId::from_index(call_index).unwrap();
-                let callee = graph.site_callee(program, data, site);
-                if let Some(operation) = graph.call_operations[index][call_index] {
-                    if let Callee::Unit(body) = callee {
-                        graph.edge(unit, operation, call, body, EdgeKind::Call);
-                    }
-                    if let Callee::Intrinsic(intrinsic) = callee {
-                        if callback_intrinsic(intrinsic) {
-                            if let Some(body) = data
-                                .arguments(site.arguments)
-                                .and_then(|arguments| arguments.first())
-                                .and_then(|argument| match *argument {
-                                    CallArgument::Value(value) => {
-                                        graph.denoted(program, data, value)
+                storage: scan.storage,
+                first_initializer: scan.first_initializer,
+                targets,
+                callees: budget.vector(Retained, units)?,
+                call_operations: scan.call_operations,
+                outgoing: storage::collect((0..units).map(|_| Vec::new()), Retained, budget)?,
+                incoming: storage::collect((0..units).map(|_| Vec::new()), Retained, budget)?,
+                address_taken: budget.filled(Retained, units, false)?,
+                escapes: storage::collect((0..units).map(|_| Vec::new()), Retained, budget)?,
+                interface: budget.filled(Retained, units, false)?,
+                components: Vec::new(),
+                component: budget.filled(Retained, units, 0)?,
+                recursive: Vec::new(),
+            };
+            for (index, frozen) in program.units.iter().enumerate() {
+                let unit = UnitId::from_index(index).unwrap();
+                let data = frozen.data();
+                let mut callees = budget.vector(Retained, data.calls.len())?;
+                for (call_index, site) in data.calls.iter().enumerate() {
+                    let call = CallId::from_index(call_index).unwrap();
+                    let callee = graph.site_callee_in(program, data, site, budget)?;
+                    if let Some(operation) = graph.call_operations[index][call_index] {
+                        if let Callee::Unit(body) = callee {
+                            graph.edge(unit, operation, call, body, EdgeKind::Call, budget)?;
+                        }
+                        if let Callee::Intrinsic(intrinsic) = callee {
+                            if callback_intrinsic(intrinsic) {
+                                if let Some(CallArgument::Value(value)) =
+                                    data.arguments(site.arguments).and_then(|args| args.first())
+                                {
+                                    if let Some(Target::Unit(body)) =
+                                        graph.denoted_in(program, data, *value, budget)?
+                                    {
+                                        graph.edge(
+                                            unit,
+                                            operation,
+                                            call,
+                                            body,
+                                            EdgeKind::Callback,
+                                            budget,
+                                        )?;
                                     }
-                                    CallArgument::Reference(_) | CallArgument::Spread(_) => None,
-                                })
-                                .and_then(|target| match target {
-                                    Target::Unit(body) => Some(body),
-                                    Target::Extern { .. } => None,
-                                })
-                            {
-                                graph.edge(unit, operation, call, body, EdgeKind::Callback);
+                                }
                             }
                         }
                     }
+                    budget.push(Retained, &mut callees, callee)?;
                 }
-                callees.push(callee);
+                budget.push(Retained, &mut graph.callees, callees)?;
             }
-            graph.callees.push(callees);
-        }
-        graph.mark_address_taken(program, &scan.denoting_uses);
-        graph.strongly_connected();
-        graph
+            graph.mark_address_taken(program, &scan.denoting_uses, budget)?;
+            // Scanning and alias resolution no longer overlap SCC scratch.
+            for uses in scan.denoting_uses {
+                storage::release(uses, Scratch, budget)?;
+            }
+            // The outer occurrence table remains scope-owned until return.
+            storage::release(resolution, Scratch, budget)?;
+            storage::release(pending, Scratch, budget)?;
+            graph.strongly_connected(budget)?;
+            Ok(graph)
+        })
     }
 
     fn edge(
@@ -312,7 +343,8 @@ impl CallGraph {
         call: CallId,
         callee: UnitId,
         kind: EdgeKind,
-    ) {
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
         let edge = CallEdge {
             caller,
             operation,
@@ -320,16 +352,23 @@ impl CallGraph {
             callee,
             kind,
         };
-        self.outgoing[caller.index()].push(edge);
-        self.incoming[callee.index()].push(edge);
+        budget.push(Retained, &mut self.outgoing[caller.index()], edge)?;
+        budget.push(Retained, &mut self.incoming[callee.index()], edge)
     }
 
-    fn site_callee(&self, program: &Program<'_>, data: &UnitData, site: &CallSite) -> Callee {
-        match site.target {
+    fn site_callee_in(
+        &self,
+        program: &Program<'_>,
+        data: &UnitData,
+        site: &CallSite,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Callee, AllocationError> {
+        budget.work(WorkKind::Analysis, 1)?;
+        Ok(match site.target {
             CallTarget::Value {
                 callee,
                 invocation: Invocation::Value,
-            } => match self.denoted(program, data, callee) {
+            } => match self.denoted_in(program, data, callee, budget)? {
                 Some(Target::Unit(body)) => Callee::Unit(body),
                 Some(Target::Extern { pure }) => match self.foreign_cell(data, callee) {
                     Some(cell) => Callee::Extern { cell, pure },
@@ -340,7 +379,7 @@ impl CallGraph {
             CallTarget::Value { .. } | CallTarget::Reference { .. } => Callee::Unknown,
             CallTarget::Builtin(builtin) => Callee::Builtin(builtin),
             CallTarget::Intrinsic { operation, .. } => Callee::Intrinsic(operation),
-        }
+        })
     }
 
     fn foreign_cell(&self, data: &UnitData, value: ValueId) -> Option<CellId> {
@@ -365,11 +404,35 @@ impl CallGraph {
         })
     }
 
-    fn mark_address_taken(&mut self, program: &Program<'_>, uses: &[Vec<(ValueId, ValueUse)>]) {
+    fn denoted_in(
+        &self,
+        program: &Program<'_>,
+        data: &UnitData,
+        value: ValueId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Option<Target>, AllocationError> {
+        let target = match denote_using(data, value, || budget.work(WorkKind::Analysis, 1))? {
+            Some(Denotation::Target(target)) => Some(target),
+            Some(Denotation::Cell(cell)) => self.targets.get(cell.index()).copied().flatten(),
+            None => None,
+        };
+        Ok(target.filter(|target| match target {
+            Target::Unit(body) => program.units.get(body.index()).is_some(),
+            Target::Extern { .. } => true,
+        }))
+    }
+
+    fn mark_address_taken(
+        &mut self,
+        program: &Program<'_>,
+        uses: &[Vec<(ValueId, ValueUse)>],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
         for (index, frozen) in program.units.iter().enumerate() {
             let data = frozen.data();
             for &(value, usage) in &uses[index] {
-                let Some(Target::Unit(body)) = self.denoted(program, data, value) else {
+                let Some(Target::Unit(body)) = self.denoted_in(program, data, value, budget)?
+                else {
                     continue;
                 };
                 let direct = match usage {
@@ -403,7 +466,7 @@ impl CallGraph {
                         | ValueUse::CallReceiver { prepare, .. } => EscapeAt::Operation(prepare),
                         ValueUse::RegionResult(region) => EscapeAt::Region(region),
                     };
-                    self.escapes[index].push(Escape { body, at });
+                    budget.push(Retained, &mut self.escapes[index], Escape { body, at })?;
                 }
             }
         }
@@ -433,26 +496,31 @@ impl CallGraph {
                             .into_iter()
                             .chain(class.prototype.iter().map(|(_, cell)| *cell))
                     }),
-            )
-            .collect::<Vec<_>>();
+            );
         for cell in exported {
+            budget.work(WorkKind::Analysis, 1)?;
             if let Some(Target::Unit(body)) = self.targets.get(cell.index()).copied().flatten() {
                 self.address_taken[body.index()] = true;
                 self.interface[body.index()] = true;
             }
         }
+        Ok(())
     }
 
     /// Tarjan's algorithm, iteratively; components come out callees first.
-    fn strongly_connected(&mut self) {
+    fn strongly_connected(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
         let count = self.outgoing.len();
         const UNVISITED: u32 = u32::MAX;
-        let mut index = vec![UNVISITED; count];
-        let mut low = vec![0u32; count];
-        let mut on_stack = vec![false; count];
-        let mut stack = Vec::new();
+        let mut index = budget.filled(Scratch, count, UNVISITED)?;
+        let mut low = budget.filled(Scratch, count, 0u32)?;
+        let mut on_stack = budget.filled(Scratch, count, false)?;
+        let mut stack = budget.vector(Scratch, count)?;
         let mut next = 0u32;
-        let mut self_edge = vec![false; count];
+        let mut self_edge = budget.filled(Scratch, count, false)?;
+        let mut work: Vec<(usize, usize)> = budget.vector(Scratch, count)?;
         for edges in &self.outgoing {
             for edge in edges {
                 if edge.caller == edge.callee {
@@ -465,13 +533,15 @@ impl CallGraph {
                 continue;
             }
             // (node, next outgoing edge to explore)
-            let mut work: Vec<(usize, usize)> = vec![(root, 0)];
+            work.clear();
+            work.push((root, 0));
             index[root] = next;
             low[root] = next;
             next += 1;
             stack.push(root);
             on_stack[root] = true;
             while let Some(&(node, cursor)) = work.last() {
+                budget.work(WorkKind::Analysis, 1)?;
                 if let Some(edge) = self.outgoing[node].get(cursor) {
                     work.last_mut().unwrap().1 += 1;
                     let target = edge.callee.index();
@@ -496,7 +566,7 @@ impl CallGraph {
                     loop {
                         let member = stack.pop().unwrap();
                         on_stack[member] = false;
-                        members.push(UnitId::from_index(member).unwrap());
+                        budget.push(Retained, &mut members, UnitId::from_index(member).unwrap())?;
                         if member == node {
                             break;
                         }
@@ -507,13 +577,17 @@ impl CallGraph {
                     for member in &members {
                         self.component[member.index()] = id;
                     }
-                    self.components.push(members);
-                    self.recursive.push(recursive);
+                    budget.push(Retained, &mut self.components, members)?;
+                    budget.push(Retained, &mut self.recursive, recursive)?;
                 }
             }
         }
+        Ok(())
     }
 
+    pub(super) fn component_index(&self, unit: UnitId) -> usize {
+        self.component[unit.index()] as usize
+    }
     pub fn deps(&self) -> &Deps {
         &self.deps
     }
@@ -573,9 +647,7 @@ impl CallGraph {
     /// Interface/escape changes feed initialization separately. Compare exact
     /// storage and resolution tables, never a collision-prone digest.
     pub(super) fn same_effect_storage(&self, other: &Self) -> bool {
-        self.seal == other.seal
-            && self.storage == other.storage
-            && self.targets == other.targets
+        self.seal == other.seal && self.storage == other.storage && self.targets == other.targets
     }
 
     pub(super) fn same_effect_calls(&self, other: &Self, unit: UnitId) -> bool {
@@ -585,7 +657,8 @@ impl CallGraph {
     }
 
     pub(super) fn component_of(&self, unit: UnitId) -> &[UnitId] {
-        self.component.get(unit.index())
+        self.component
+            .get(unit.index())
             .and_then(|&index| self.components.get(index as usize))
             .map_or(&[], Vec::as_slice)
     }
@@ -655,52 +728,80 @@ impl CallGraph {
     }
 }
 
-/// The target a value denotes, given how cells resolve.
+#[derive(Clone, Copy)]
+enum Denotation {
+    Target(Target),
+    Cell(CellId),
+}
+
+/// Shared, allocation-free value-chain walk. Queries use the same producer;
+/// construction supplies its existing work owner.
+fn denote_using<E>(
+    data: &UnitData,
+    mut value: ValueId,
+    mut work: impl FnMut() -> Result<(), E>,
+) -> Result<Option<Denotation>, E> {
+    for _ in 0..=data.values.len() {
+        work()?;
+        let Some(value_data) = data.values.get(value.index()) else {
+            return Ok(None);
+        };
+        let definition = &data.operations[value_data.definition.index()];
+        match definition.kind {
+            OperationKind::Closure(body) => {
+                return Ok(Some(Denotation::Target(Target::Unit(body))))
+            }
+            OperationKind::Load(place) => match data.places[place.index()] {
+                Place::Value(input) => value = input,
+                Place::Cell(cell) => return Ok(Some(Denotation::Cell(cell))),
+                _ => return Ok(None),
+            },
+            OperationKind::CopyValue => {
+                let Some(input) = data.operands(definition.operands).and_then(|v| v.first()) else {
+                    return Ok(None);
+                };
+                value = *input;
+            }
+            _ => return Ok(None),
+        }
+    }
+    Ok(None)
+}
 fn denote(
     data: &UnitData,
     value: ValueId,
     mut cell: impl FnMut(CellId) -> Option<Target>,
 ) -> Option<Target> {
-    let mut value = value;
-    // CopyValue chains are acyclic (a value is defined before its uses);
-    // the bound keeps a malformed unit from looping.
-    for _ in 0..=data.values.len() {
-        let definition = &data.operations[data.values.get(value.index())?.definition.index()];
-        match definition.kind {
-            OperationKind::Closure(body) => return Some(Target::Unit(body)),
-            OperationKind::Load(place) => match data.places[place.index()] {
-                Place::Value(input) => value = input,
-                Place::Cell(storage) => return cell(storage),
-                _ => return None,
-            },
-            OperationKind::CopyValue => {
-                value = *data.operands(definition.operands)?.first()?;
-            }
-            _ => return None,
-        }
+    match denote_using(data, value, || Ok::<(), std::convert::Infallible>(())).unwrap()? {
+        Denotation::Target(target) => Some(target),
+        Denotation::Cell(storage) => cell(storage),
     }
-    None
 }
 
 fn resolve_cell(
     program: &Program<'_>,
     seal: Seal,
     scan: &Scan,
-    cell: CellId,
-    resolution: &mut Vec<Resolution>,
-) -> Option<Target> {
-    match resolution[cell.index()] {
-        Resolution::Done(target) => return target,
-        // A cycle of aliases never settles on one body.
-        Resolution::Visiting => return None,
-        Resolution::Pending => {}
-    }
-    resolution[cell.index()] = Resolution::Visiting;
-    let target = (|| {
+    mut cell: CellId,
+    resolution: &mut [Resolution],
+    pending: &mut Vec<CellId>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
+    debug_assert!(pending.is_empty());
+    let target = loop {
+        budget.work(WorkKind::Analysis, 1)?;
+        match resolution[cell.index()] {
+            Resolution::Done(target) => break target,
+            Resolution::Visiting => break None,
+            Resolution::Pending => {}
+        }
+        resolution[cell.index()] = Resolution::Visiting;
+        // Each cell enters at most once, within the pre-admitted capacity.
+        pending.push(cell);
         let storage = &program.cells[cell.index()];
         let facts = scan.storage[cell.index()];
         if storage.binding == CellBinding::Foreign {
-            return matches!(
+            break matches!(
                 program.types[storage.ty.index()],
                 Type::Function(_) | Type::GenericFunction(_)
             )
@@ -713,101 +814,200 @@ fn resolve_cell(
             || facts.stored
             || facts.referenced
         {
-            return None;
+            break None;
         }
-        let owner = program.unit(storage.owner)?;
-        if owner.kind == UnitKind::ModuleInitialization && seal != Seal::Module {
-            return None;
-        }
-        let (unit, operation) = scan.first_initializer[cell.index()]?;
-        let data = program.unit(unit)?;
-        let initializer = &data.operations[operation.index()];
-        let &[value] = data.operands(initializer.operands)? else {
-            return None;
+        let Some(owner) = program.unit(storage.owner) else {
+            break None;
         };
-        denote(data, value, |other| {
-            resolve_cell(program, seal, scan, other, resolution)
-        })
-    })();
-    resolution[cell.index()] = Resolution::Done(target);
-    target
+        if owner.kind == UnitKind::ModuleInitialization && seal != Seal::Module {
+            break None;
+        }
+        let Some((unit, operation)) = scan.first_initializer[cell.index()] else {
+            break None;
+        };
+        let Some(data) = program.unit(unit) else {
+            break None;
+        };
+        let Some(&[value]) = data.operands(data.operations[operation.index()].operands) else {
+            break None;
+        };
+        match denote_using(data, value, || budget.work(WorkKind::Analysis, 1))? {
+            Some(Denotation::Target(target)) => break Some(target),
+            Some(Denotation::Cell(other)) => cell = other,
+            None => break None,
+        }
+    };
+    for cell in pending.drain(..) {
+        resolution[cell.index()] = Resolution::Done(target);
+    }
+    Ok(())
 }
 
 impl Scan {
-    fn run(program: &Program<'_>) -> Self {
+    fn run_in(
+        program: &Program<'_>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
         let cells = program.cells.len();
         let mut scan = Self {
-            storage: vec![CellStorage::default(); cells],
-            first_initializer: vec![None; cells],
-            denoting_uses: Vec::with_capacity(program.units.len()),
-            call_operations: Vec::with_capacity(program.units.len()),
+            storage: budget.filled(Retained, cells, CellStorage::default())?,
+            first_initializer: budget.filled(Retained, cells, None)?,
+            denoting_uses: budget.vector(Scratch, program.units.len())?,
+            call_operations: budget.vector(Retained, program.units.len())?,
         };
         for (index, frozen) in program.units.iter().enumerate() {
             let unit = UnitId::from_index(index).unwrap();
             let data = frozen.data();
             let mut denoting = Vec::new();
-            let mut calls = vec![None; data.calls.len()];
+            let mut calls = budget.filled(Retained, data.calls.len(), None)?;
             let storage = &mut scan.storage;
             let first = &mut scan.first_initializer;
+            let mut allocation_error = None;
             let walked = uses::walk(data, |event| {
-                match event {
-                    Event::Cell(cell, usage) => {
-                        let Some(facts) = storage.get_mut(cell.index()) else {
-                            return Ok(());
-                        };
-                        if program.cells[cell.index()].owner != unit
-                            && !matches!(usage, CellUse::Initialize(_) | CellUse::Declare(_))
-                        {
-                            facts.shared = true;
-                        }
-                        match usage {
-                            CellUse::Initialize(operation) => {
-                                facts.initializers = facts.initializers.saturating_add(1);
-                                first[cell.index()].get_or_insert((unit, operation));
+                let visit = (|| -> Result<(), AllocationError> {
+                    budget.work(WorkKind::Analysis, 1)?;
+                    match event {
+                        Event::Cell(cell, usage) => {
+                            let Some(facts) = storage.get_mut(cell.index()) else {
+                                return Ok(());
+                            };
+                            if program.cells[cell.index()].owner != unit
+                                && !matches!(usage, CellUse::Initialize(_) | CellUse::Declare(_))
+                            {
+                                facts.shared = true;
                             }
-                            // `let x;`: its value comes from its stores (R3).
-                            CellUse::Write { .. } | CellUse::Declare(_) => facts.stored = true,
-                            CellUse::Reference { .. } => facts.referenced = true,
-                            // A loop or catch binding is written by its
-                            // construct on every entry.
-                            CellUse::CatchBinding { .. } => facts.stored = true,
-                            CellUse::Read { .. } | CellUse::Parameter(_) | CellUse::Capture => {}
+                            match usage {
+                                CellUse::Initialize(operation) => {
+                                    facts.initializers = facts.initializers.saturating_add(1);
+                                    first[cell.index()].get_or_insert((unit, operation));
+                                }
+                                // `let x;`: its value comes from its stores (R3).
+                                CellUse::Write { .. } | CellUse::Declare(_) => facts.stored = true,
+                                CellUse::Reference { .. } => facts.referenced = true,
+                                // A loop or catch binding is written by its
+                                // construct on every entry.
+                                CellUse::CatchBinding { .. } => facts.stored = true,
+                                CellUse::Read { .. } | CellUse::Parameter(_) | CellUse::Capture => {
+                                }
+                            }
                         }
-                    }
-                    Event::Value(value, usage) => {
-                        let definition = data
-                            .values
-                            .get(value.index())
-                            .and_then(|value| data.operations.get(value.definition.index()));
-                        if definition.is_some_and(|definition| {
-                            matches!(
-                                definition.kind,
-                                OperationKind::Closure(_)
-                                    | OperationKind::Load(_)
-                                    | OperationKind::CopyValue
-                            )
-                        }) {
-                            denoting.push((value, usage));
+                        Event::Value(value, usage) => {
+                            let definition = data
+                                .values
+                                .get(value.index())
+                                .and_then(|value| data.operations.get(value.definition.index()));
+                            if definition.is_some_and(|definition| {
+                                matches!(
+                                    definition.kind,
+                                    OperationKind::Closure(_)
+                                        | OperationKind::Load(_)
+                                        | OperationKind::CopyValue
+                                )
+                            }) {
+                                budget.push(Scratch, &mut denoting, (value, usage))?;
+                            }
                         }
-                    }
-                    Event::Call(call, operation) => {
-                        if let Some(slot) = calls.get_mut(call.index()) {
-                            *slot = Some(operation);
+                        Event::Call(call, operation) => {
+                            if let Some(slot) = calls.get_mut(call.index()) {
+                                *slot = Some(operation);
+                            }
                         }
+                        Event::Closure(..) | Event::Tick => {}
                     }
-                    Event::Closure(..) | Event::Tick => {}
-                }
-                Ok(())
+                    Ok(())
+                })();
+                visit.map_err(|error| {
+                    allocation_error = Some(error);
+                    uses::UseError::Capacity
+                })
             });
+            if let Some(error) = allocation_error {
+                return Err(error);
+            }
             if walked.is_err() {
                 // A unit the use walk rejects is unverified input: nothing
                 // it holds resolves, and every body it could reach escapes.
                 denoting.clear();
                 calls.iter_mut().for_each(|slot| *slot = None);
             }
-            scan.denoting_uses.push(denoting);
-            scan.call_operations.push(calls);
+            budget.push(Scratch, &mut scan.denoting_uses, denoting)?;
+            budget.push(Retained, &mut scan.call_operations, calls)?;
         }
-        scan
+        Ok(scan)
+    }
+}
+
+#[cfg(test)]
+mod admission_tests {
+    use super::*;
+
+    #[test]
+    fn q2_iterative_alias_resolution_handles_long_pending_chains_and_cycles() {
+        let mut source = String::from("int target(){return 7;}");
+        for index in 0..512 {
+            let next = if index == 0 {
+                "target".to_string()
+            } else {
+                format!("a{}", index - 1)
+            };
+            source.push_str(&format!("func()->int a{index}={next};"));
+        }
+        source.push_str("int run(){return a511();}print(run());");
+        let arena = bumpalo::Bump::new();
+        let syntax = crate::parse_source(&arena, &source).unwrap();
+        let semantics = crate::analyze(&syntax).unwrap();
+        let program = from_checked_source(&syntax, &semantics).unwrap();
+        let cell = |name| {
+            CellId::from_index(
+                program
+                    .cells
+                    .iter()
+                    .position(|cell| cell.name == name)
+                    .unwrap(),
+            )
+            .unwrap()
+        };
+        let target = match program.cells[cell("target").index()].binding {
+            CellBinding::Function(unit) => Target::Unit(unit),
+            _ => unreachable!(),
+        };
+        let mut budget = AllocationBudget::new(None);
+        let mut scan = Scan::run_in(&program, &mut budget).unwrap();
+        let mut resolution = vec![Resolution::Pending; program.cells.len()];
+        let mut pending = Vec::with_capacity(program.cells.len());
+        // Start at the chain's last alias, before any earlier cell has resolved.
+        resolve_cell(
+            &program,
+            Seal::Module,
+            &scan,
+            cell("a511"),
+            &mut resolution,
+            &mut pending,
+            &mut budget,
+        )
+        .unwrap();
+        assert!(
+            matches!(resolution[cell("a511").index()], Resolution::Done(Some(answer)) if answer == target)
+        );
+        assert!(pending.is_empty());
+        // A synthetic scan cycle exercises fail-closed handling independently
+        // of the frontend's prohibition on reading an undeclared local.
+        scan.first_initializer[cell("a0").index()] = scan.first_initializer[cell("a2").index()];
+        resolution.fill(Resolution::Pending);
+        resolve_cell(
+            &program,
+            Seal::Module,
+            &scan,
+            cell("a511"),
+            &mut resolution,
+            &mut pending,
+            &mut budget,
+        )
+        .unwrap();
+        assert!(matches!(
+            resolution[cell("a511").index()],
+            Resolution::Done(None)
+        ));
+        assert!(pending.is_empty());
     }
 }

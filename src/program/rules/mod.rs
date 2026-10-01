@@ -307,6 +307,7 @@ pub(crate) fn optimize_admitted<'src>(
     if !request.any() {
         return Ok((program, receipt));
     }
+    program.views.discard_in(budget)?;
     program.views = views::ProgramViews::normalization(
         request.reuse_normalization && crate::schedule::reuses_stability(),
     );
@@ -385,7 +386,7 @@ pub(crate) fn optimize_admitted<'src>(
                 editor.commit_in(budget)?;
                 return Ok(changed);
             }
-            let effects = editor.program().effects(request.seal);
+            let effects = editor.program().effects_in(request.seal, budget)?;
             receipt.observe_effects(&effects, &mut last_effects);
             let changed = match rule {
                 ProgramRule::Defaults => {
@@ -436,6 +437,7 @@ pub(crate) fn optimize_admitted<'src>(
                     dce::apply(editor, &effects, request.seal, &mut receipt, budget)?
                 }
             };
+            drop(effects);
             editor.commit_in(budget)?;
             Ok(changed)
         },
@@ -454,9 +456,10 @@ pub(crate) fn optimize_admitted<'src>(
     // redundant guards. The remaining explicit guards must survive for the
     // target calls that omit their literal arguments.
     if request.fold {
-        let effects = editor.program().effects(request.seal);
+        let effects = editor.program().effects_in(request.seal, budget)?;
         receipt.observe_effects(&effects, &mut last_effects);
         let plan = super::defaults::plan(editor.program(), effects.graph());
+        drop(effects);
         for (unit, call, omitted) in plan.calls {
             editor.unit_mut_in(unit, budget)?.calls[call.index()].omit_trailing = omitted;
             receipt.default_arguments_omitted += omitted;

@@ -34,10 +34,19 @@ use std::mem::size_of;
 pub(super) enum DemandError {
     Budget(BudgetError),
     Unsupported(Unsupported),
+    Allocation(crate::output_budget::AllocationError),
 }
 impl From<BudgetError> for DemandError {
     fn from(error: BudgetError) -> Self {
         Self::Budget(error)
+    }
+}
+impl From<crate::output_budget::AllocationError> for DemandError {
+    fn from(error: crate::output_budget::AllocationError) -> Self {
+        match error {
+            crate::output_budget::AllocationError::Budget(error) => Self::Budget(error),
+            error => Self::Allocation(error),
+        }
     }
 }
 fn unsupported(feature: &'static str) -> DemandError {
@@ -314,6 +323,7 @@ pub(super) struct DemandPlan<'program, 'src> {
     /// The program's effect summaries under this contract's sealing: calls
     /// whose callee has no observable effect and terminates are not roots.
     effects: std::sync::Arc<super::effects::ProgramEffects>,
+    ranges: std::sync::Arc<super::ranges::ProgramRanges>,
 }
 
 impl<'program, 'src> DemandPlan<'program, 'src> {
@@ -324,6 +334,19 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         contract: &JavaScriptCompilationContract,
         mode: DemandMode,
         budget: Option<(&mut BudgetLedger, WorkDomain)>,
+    ) -> Result<Self, DemandError> {
+        Self::build_with_reuse(program, uses, implementations, contract, mode, budget, false)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn build_with_reuse(
+        program: &'program Program<'src>,
+        uses: Option<&'program UseIndex>,
+        implementations: Option<&'program ImplementationMap>,
+        contract: &JavaScriptCompilationContract,
+        mode: DemandMode,
+        budget: Option<(&mut BudgetLedger, WorkDomain)>,
+        reuse_effects: bool,
     ) -> Result<Self, DemandError> {
         let _timing = crate::timing::JS_DEMAND.scope(0);
         let mut budget = Budget::new(budget);
@@ -387,6 +410,14 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                     .any(|argument| matches!(argument, CallArgument::Reference(_)));
             }
         }
+        let seal = super::call_graph::Seal::from_execution(contract.execution);
+        let (effects, ranges) = budget.analysis(|budget| {
+            let effects = super::effects::ProgramEffects::build_reusing_in(
+                program, seal, None, reuse_effects, budget)?;
+            let ranges = super::ranges::ProgramRanges::build_in(program, &effects, seal, budget)?;
+            Ok((super::analysis_storage::shared(effects, budget)?,
+                super::analysis_storage::shared(ranges, budget)?))
+        })?;
         let mut plan = Self {
             program,
             uses,
@@ -420,7 +451,8 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             pending: Vec::new(),
             work: DemandWork::default(),
             charge: None,
-            effects: program.effects(super::call_graph::Seal::from_execution(contract.execution)),
+            effects,
+            ranges,
         };
         plan.index_implementations(implementations, &mut budget)?;
         for &unit in program.initialization.iter() {
@@ -891,6 +923,10 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
         }
         budget.work((usize::BITS - self.string_operations.len().leading_zeros()) as usize)?;
         Ok(self.string_recipe(unit, op))
+    }
+
+    pub(super) fn ranges(&self) -> &std::sync::Arc<super::ranges::ProgramRanges> {
+        &self.ranges
     }
 
     fn index_implementations(
@@ -2777,6 +2813,33 @@ impl<'a> Budget<'a> {
             steps: 0,
             armed: true,
         }
+    }
+    /// Transfer a fresh analysis into this same demand owner without charging
+    /// its retained backing twice. All temporary work finishes before transfer.
+    fn analysis<T>(&mut self,
+        build: impl FnOnce(&mut crate::output_budget::AllocationBudget<'_>) -> Result<T, crate::output_budget::AllocationError>,
+    ) -> Result<T, DemandError> {
+        use crate::output_budget::{AllocationBudget, AllocationClass::Retained, AllocationError};
+        let domain = self.domain;
+        let mut allocation = AllocationBudget::new(self.ledger.as_deref_mut().map(|ledger| (ledger, domain)));
+        let (value, receipt) = allocation.record(build)?;
+        if allocation.is_accounted() {
+            let receipt = receipt.ok_or(AllocationError::Unaccounted)?;
+            let bytes = allocation.retained_bytes(Retained);
+            let next = self.retained.checked_add(bytes).ok_or(AllocationError::Capacity)?;
+            let peak = self.retained.checked_add(receipt.peak_bytes()).ok_or(AllocationError::Capacity)?;
+            let work = receipt.work().try_fold(0u64, |total, (_, units)| total.checked_add(units))
+                .ok_or(AllocationError::Capacity)?;
+            let steps = self.steps.checked_add(work).ok_or(AllocationError::Capacity)?;
+            let charge = allocation.detach_retained((), bytes)?;
+            let (charged_domain, charged_bytes) = charge.into_parts(&())
+                .unwrap_or_else(|_| unreachable!("same demand analysis owner"));
+            debug_assert_eq!((charged_domain, charged_bytes), (domain, bytes));
+            self.retained = next;
+            self.peak = self.peak.max(peak);
+            self.steps = steps;
+        }
+        Ok(value)
     }
     fn work(&mut self, amount: usize) -> Result<(), DemandError> {
         let amount = u64::try_from(amount).map_err(|_| unsupported("demand work capacity"))?;

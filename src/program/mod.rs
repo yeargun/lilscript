@@ -8,6 +8,7 @@
 //! JavaScript formation moves to `crate::js` in M8, native to `src/native/` in M11.
 
 mod activation;
+mod analysis_storage;
 mod aggregates;
 mod ambient;
 mod artifact_provenance;

@@ -38,11 +38,18 @@
 //! loop phis and decide the same `|0` question at run time. Closure and
 //! Terser keep no ranges: a `|0` stays wherever the source wrote one.
 
+use super::analysis_storage as storage;
 use super::call_graph::{EdgeKind, Seal};
 use super::dataflow::{self, Forward};
 use super::effects::ProgramEffects;
 use super::views::Deps;
 use super::*;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
 use crate::primitive::ResolvedIntrinsic;
 use crate::scalar_transfer::NumberFacts;
 use std::cell::RefCell;
@@ -69,62 +76,69 @@ impl ProgramRanges {
     }
 
     pub(super) fn build(program: &Program<'_>, effects: &ProgramEffects, seal: Seal) -> Self {
-        let graph = effects.graph();
-        let mut units: Vec<Vec<NumberFacts>> = program
-            .units
-            .iter()
-            .map(|unit| by_type_all(program, unit.data()))
-            .collect();
-        let mut results: Vec<Option<NumberFacts>> = vec![None; program.units.len()];
-        // The one callee of each call operation the graph resolves.
-        let mut callees: Vec<Vec<Option<UnitId>>> = program
-            .units
-            .iter()
-            .map(|unit| vec![None; unit.data().operations.len()])
-            .collect();
-        for frozen in &program.units {
-            let unit = frozen.id();
-            let mut seen = vec![0u8; frozen.data().operations.len()];
-            for edge in graph.calls_from(unit) {
-                if edge.kind != EdgeKind::Call {
-                    continue;
+        Self::build_in(program, effects, seal, &mut AllocationBudget::new(None))
+            .expect("inspection ranges")
+    }
+
+    pub(super) fn build_in(
+        program: &Program<'_>,
+        effects: &ProgramEffects,
+        seal: Seal,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        budget.retained_phase(|budget| {
+            let graph = effects.graph();
+            let count = program.units.len();
+            let mut units = budget.vector(Retained, count)?;
+            let mut callees = budget.vector(Scratch, count)?;
+            for frozen in &program.units {
+                units.push(by_type_all(program, frozen.data(), budget)?);
+                let mut known = budget.filled(Scratch, frozen.data().operations.len(), None)?;
+                let mut seen = budget.filled(Scratch, known.len(), 0u8)?;
+                for edge in graph.calls_from(frozen.id()) {
+                    budget.work(WorkKind::Analysis, 1)?;
+                    if edge.kind != EdgeKind::Call {
+                        continue;
+                    }
+                    let slot = &mut seen[edge.operation.index()];
+                    *slot = slot.saturating_add(1);
+                    known[edge.operation.index()] = Some(edge.callee);
                 }
-                let slot = &mut seen[edge.operation.index()];
-                *slot = slot.saturating_add(1);
-                callees[unit.index()][edge.operation.index()] = Some(edge.callee);
-            }
-            for (index, count) in seen.iter().enumerate() {
-                if *count > 1 {
-                    callees[unit.index()][index] = None;
+                for (index, count) in seen.iter().enumerate() {
+                    budget.work(WorkKind::Analysis, 1)?;
+                    if *count > 1 {
+                        known[index] = None;
+                    }
                 }
+                storage::release(seen, Scratch, budget)?;
+                callees.push(known);
             }
-        }
-        // Rounds: each solves every unit callees first. A parameter of a
-        // body whose complete call set is known reads the join of what its
-        // callers passed in the round before (the first round's parameters
-        // are their type's). Every round is sound, and each is at least as
-        // narrow as the one before, so stopping at any round is.
-        let mut formals: Vec<Option<Vec<NumberFacts>>> = vec![None; program.units.len()];
-        for _ in 0..ROUNDS {
-            solve_round(
-                program,
-                graph,
-                seal == Seal::StructuralOnly,
-                &callees,
-                &formals,
-                &mut units,
-                &mut results,
-            );
-            let next = passed(program, graph, &units);
-            if next == formals {
-                break;
+            let mut results = budget.filled(Scratch, count, None)?;
+            let mut formals = storage::collect((0..count).map(|_| None), Scratch, budget)?;
+            for _ in 0..ROUNDS {
+                solve_round(
+                    program,
+                    graph,
+                    seal == Seal::StructuralOnly,
+                    &callees,
+                    &formals,
+                    &mut units,
+                    &mut results,
+                    budget,
+                )?;
+                let next = passed(program, graph, &units, budget)?;
+                if next == formals {
+                    release_formals(next, budget)?;
+                    break;
+                }
+                release_formals(std::mem::replace(&mut formals, next), budget)?;
             }
-            formals = next;
-        }
-        Self {
-            deps: Deps::of_program(program),
-            units,
-        }
+            release_formals(formals, budget)?;
+            Ok(Self {
+                deps: Deps::of_program_in(program, budget)?,
+                units,
+            })
+        })
     }
 }
 
@@ -132,15 +146,27 @@ impl ProgramRanges {
 /// calls deeper per round beyond the first.
 const ROUNDS: usize = 3;
 
-/// Per unit: the join, per parameter, of what every call of its complete
-/// call set passes, when every call passes each parameter as a value.
+fn release_formals(
+    formals: Vec<Option<Vec<NumberFacts>>>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
+    let bytes = crate::output_budget::vector_bytes(&formals)?;
+    for facts in formals.into_iter().flatten() {
+        storage::release(facts, Scratch, budget)?;
+    }
+    budget.release(Scratch, bytes)
+}
+
+/// Per unit: the join of every complete call set's value arguments.
 fn passed(
     program: &Program<'_>,
     graph: &super::call_graph::CallGraph,
     units: &[Vec<NumberFacts>],
-) -> Vec<Option<Vec<NumberFacts>>> {
-    let mut formals = vec![None; program.units.len()];
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<Option<Vec<NumberFacts>>>, AllocationError> {
+    let mut formals = storage::collect((0..program.units.len()).map(|_| None), Scratch, budget)?;
     for frozen in &program.units {
+        budget.work(WorkKind::Analysis, 1)?;
         let unit = frozen.id();
         let Some(edges) = graph.complete_callers(unit) else {
             continue;
@@ -149,22 +175,28 @@ fn passed(
             continue;
         }
         let parameters = frozen.data().parameters.len();
-        let mut joined: Vec<Option<NumberFacts>> = vec![None; parameters];
-        let usable = edges.iter().all(|edge| {
+        let mut joined: Vec<Option<NumberFacts>> = budget.filled(Scratch, parameters, None)?;
+        let mut usable = true;
+        'calls: for edge in edges {
+            budget.work(WorkKind::Analysis, 1)?;
             let caller = program.units[edge.caller.index()].data();
             let Some(arguments) = caller
                 .calls
                 .get(edge.call.index())
                 .and_then(|site| caller.arguments(site.arguments))
             else {
-                return false;
+                usable = false;
+                break;
             };
             if arguments.len() != parameters {
-                return false;
+                usable = false;
+                break;
             }
-            arguments.iter().zip(&mut joined).all(|(argument, slot)| {
+            for (argument, slot) in arguments.iter().zip(&mut joined) {
+                budget.work(WorkKind::Analysis, 1)?;
                 let CallArgument::Value(value) = *argument else {
-                    return false;
+                    usable = false;
+                    break 'calls;
                 };
                 let facts = units[edge.caller.index()]
                     .get(value.index())
@@ -174,23 +206,23 @@ fn passed(
                     Some(joined) => joined.join(facts),
                     None => facts,
                 });
-                true
-            })
-        });
-        if usable {
-            formals[unit.index()] = Some(
-                joined
-                    .into_iter()
-                    .map(|facts| facts.unwrap_or(NumberFacts::UNKNOWN))
-                    .collect(),
-            );
+            }
         }
+        if usable {
+            formals[unit.index()] = Some(storage::collect(
+                joined
+                    .iter()
+                    .map(|facts| facts.unwrap_or(NumberFacts::UNKNOWN)),
+                Scratch,
+                budget,
+            )?);
+        }
+        storage::release(joined, Scratch, budget)?;
     }
-    formals
+    Ok(formals)
 }
 
-/// One round: every unit solved callees first, with `formals` for the
-/// parameters where known.
+/// One round: every unit solved callees first, with known parameter facts.
 #[allow(clippy::too_many_arguments)]
 fn solve_round(
     program: &Program<'_>,
@@ -200,63 +232,80 @@ fn solve_round(
     formals: &[Option<Vec<NumberFacts>>],
     units: &mut [Vec<NumberFacts>],
     results: &mut [Option<NumberFacts>],
-) {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
     for component in graph.components() {
         for &unit in component {
-            let data = program.units[unit.index()].data();
-            let recursive = graph.recursive(unit);
-            let (owned, integral) = owned_cells(program, graph, script, unit);
-            let analysis = Ranges {
-                program,
-                data,
-                script,
-                owned,
-                integral,
-                values: RefCell::new(by_type_all(program, data)),
-                callees: &callees[unit.index()],
-                results: &*results,
-            };
-            let mut entry = analysis.unreachable();
-            for (position, &cell) in data.parameters.iter().enumerate() {
-                if let Some(ordinal) = analysis.ordinal(cell) {
-                    let typed = by_type(program, program.cells[cell.index()].ty);
-                    let passed = formals[unit.index()]
-                        .as_ref()
-                        .and_then(|formals| formals.get(position))
-                        .map_or(typed, |facts| facts.meet(typed));
-                    entry[ordinal] = Some(passed);
-                }
-            }
-            if dataflow::solve(data, &analysis, entry, |_| Ok::<(), ()>(())).is_err() {
-                continue;
-            }
-            let values = analysis.values.into_inner();
-            // A body's result: the join of the values it returns (F4
-            // removed the returns no path reaches). A recursive body's
-            // is its type's.
-            if !recursive {
-                let mut result: Option<NumberFacts> = None;
-                for operation in &data.operations {
-                    if !matches!(operation.kind, OperationKind::Return) {
-                        continue;
+            let values = budget.retained_phase(|budget| {
+                budget.work(WorkKind::Analysis, 1)?;
+                let data = program.units[unit.index()].data();
+                let (owned, integral) = owned_cells(program, graph, script, unit, budget)?;
+                let analysis = Ranges {
+                    program,
+                    data,
+                    script,
+                    owned,
+                    integral,
+                    values: RefCell::new(by_type_all(program, data, budget)?),
+                    callees: &callees[unit.index()],
+                    results: &*results,
+                };
+                let mut entry = budget.filled(Scratch, analysis.integral.len(), None)?;
+                for (position, &cell) in data.parameters.iter().enumerate() {
+                    budget.work(WorkKind::Analysis, 1)?;
+                    if let Some(ordinal) = analysis.ordinal(cell) {
+                        let typed = by_type(program, program.cells[cell.index()].ty);
+                        entry[ordinal] = Some(
+                            formals[unit.index()]
+                                .as_ref()
+                                .and_then(|formals| formals.get(position))
+                                .map_or(typed, |facts| facts.meet(typed)),
+                        );
                     }
-                    let returned = data
-                        .operands(operation.operands)
-                        .and_then(|operands| operands.first().copied())
-                        .map_or(NumberFacts::UNKNOWN, |value| values[value.index()]);
-                    result = Some(match result {
-                        Some(result) => result.join(returned),
-                        None => returned,
-                    });
                 }
-                results[unit.index()] = result;
+                match dataflow::solve_discard_in(data, &analysis, &entry, budget) {
+                    Ok(()) => {}
+                    Err(dataflow::Stop::Unsettled) => {
+                        storage::release(analysis.values.into_inner(), Retained, budget)?;
+                        return Ok(None);
+                    }
+                    Err(dataflow::Stop::Budget(error) | dataflow::Stop::Resources(error)) => {
+                        return Err(error)
+                    }
+                }
+                let values = analysis.values.into_inner();
+                if !graph.recursive(unit) {
+                    let mut result: Option<NumberFacts> = None;
+                    for operation in &data.operations {
+                        budget.work(WorkKind::Analysis, 1)?;
+                        if !matches!(operation.kind, OperationKind::Return) {
+                            continue;
+                        }
+                        let returned = data
+                            .operands(operation.operands)
+                            .and_then(|operands| operands.first().copied())
+                            .map_or(NumberFacts::UNKNOWN, |value| values[value.index()]);
+                        result = Some(match result {
+                            Some(result) => result.join(returned),
+                            None => returned,
+                        });
+                    }
+                    results[unit.index()] = result;
+                }
+                Ok(Some(values))
+            })?;
+            if let Some(values) = values {
+                storage::release(
+                    std::mem::replace(&mut units[unit.index()], values),
+                    Retained,
+                    budget,
+                )?;
             }
-            units[unit.index()] = values;
         }
     }
+    Ok(())
 }
 
-/// A value's facts from its type alone (R1).
 fn by_type(program: &Program<'_>, ty: TypeId) -> NumberFacts {
     match program.ty(ty) {
         Some(Type::Int) => NumberFacts::I32,
@@ -265,25 +314,30 @@ fn by_type(program: &Program<'_>, ty: TypeId) -> NumberFacts {
     }
 }
 
-fn by_type_all(program: &Program<'_>, data: &UnitData) -> Vec<NumberFacts> {
-    data.values
-        .iter()
-        .map(|value| by_type(program, value.ty))
-        .collect()
+fn by_type_all(
+    program: &Program<'_>,
+    data: &UnitData,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<NumberFacts>, AllocationError> {
+    storage::collect(
+        data.values.iter().map(|value| by_type(program, value.ty)),
+        Retained,
+        budget,
+    )
 }
 
-/// Per cell of the program: its ordinal in `unit`'s state, when it holds a
-/// Number and only `unit` reads and writes it; and per ordinal, whether the
-/// cell is an `int` (its widening threshold is int32's range).
+/// Local numeric storage excludes captured/reference cells and open roots.
 fn owned_cells(
     program: &Program<'_>,
     graph: &super::call_graph::CallGraph,
     script: bool,
     unit: UnitId,
-) -> (Vec<Option<usize>>, Vec<bool>) {
-    let mut ordinals = vec![None; program.cells.len()];
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(Vec<Option<usize>>, Vec<bool>), AllocationError> {
+    let mut ordinals = budget.filled(Scratch, program.cells.len(), None)?;
     let mut integral = Vec::new();
     for (index, cell) in program.cells.iter().enumerate() {
+        budget.work(WorkKind::Analysis, 1)?;
         if cell.owner != unit {
             continue;
         }
@@ -302,9 +356,9 @@ fn owned_cells(
             _ => continue,
         };
         ordinals[index] = Some(integral.len());
-        integral.push(integer);
+        budget.push(Scratch, &mut integral, integer)?;
     }
-    (ordinals, integral)
+    Ok((ordinals, integral))
 }
 
 /// A classic script's top-level cell: a global lexical binding another
@@ -587,6 +641,20 @@ fn javascript_binary(op: BinaryOp) -> Option<crate::js::Binary> {
 
 impl Forward for Ranges<'_, '_> {
     type State = Vec<Option<NumberFacts>>;
+
+    fn empty_in(&self, budget: &mut AllocationBudget<'_>) -> Result<Self::State, AllocationError> {
+        budget.filled(Retained, self.integral.len(), None)
+    }
+    fn copy_in(
+        &self,
+        state: &Self::State,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self::State, AllocationError> {
+        budget.copy_slice(Retained, state)
+    }
+    fn state_work(&self) -> usize {
+        self.integral.len().saturating_add(1)
+    }
 
     fn unreachable(&self) -> Self::State {
         vec![None; self.integral.len()]

@@ -39,7 +39,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version38 honors authored loop expansion with an independent policy permission.
 // Version 40 carries regional representation pins through source/target edits.
 // Version51 admits delivery placement, trials, simulation and setter payloads.
-pub const POLICY_ALGORITHM_VERSION: u32 = 54;
+// Version55 admits shared source analyses and deterministic effect-summary stages.
+pub const POLICY_ALGORITHM_VERSION: u32 = 55;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -1439,12 +1440,16 @@ impl BudgetLedger {
     pub(crate) fn record_scratch_check(&mut self, domain: WorkDomain, bytes: u64) {
         if let Some(recording) = &mut self.recording { recording.scratch(domain, bytes); }
     }
-    pub(crate) fn begin_recording(&mut self, domain: WorkDomain) {
-        assert!(self.recording.is_none(), "formation admissions must not nest");
-        self.recording = Some(crate::admission_replay::Recording::new(domain, self.work_by_kind, self.work_used));
+    pub(crate) fn begin_recording(&mut self, domain: WorkDomain) -> Option<crate::admission_replay::Recording> {
+        self.recording.replace(crate::admission_replay::Recording::new(domain, self.work_by_kind, self.work_used))
     }
-    pub(crate) fn end_recording(&mut self) -> Option<crate::admission_replay::Receipt> {
-        self.recording.take().expect("active formation admission").finish(self.work_by_kind, self.work_used)
+    pub(crate) fn end_recording(
+        &mut self, mut parent: Option<crate::admission_replay::Recording>,
+    ) -> Option<crate::admission_replay::Receipt> {
+        let recording = self.recording.take().expect("active formation admission");
+        if let Some(parent) = &mut parent { parent.absorb(&recording); }
+        self.recording = parent;
+        recording.finish(self.work_by_kind, self.work_used)
     }
     pub fn work_used(&self, domain: WorkDomain) -> u64 {
         self.work_used[if domain == WorkDomain::Baseline { 0 } else { 1 }]

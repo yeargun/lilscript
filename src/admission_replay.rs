@@ -60,6 +60,22 @@ impl Recording {
             None => self.refuse(),
         }
     }
+    /// Nested fresh builders contribute their peak while the parent's prior
+    /// backing remains live. Work counters already include the child's work.
+    pub(crate) fn absorb(&mut self, child: &Self) {
+        self.domain(child.domain);
+        self.refused |= child.refused;
+        match (
+            self.live.checked_add(child.peak),
+            self.live.checked_add(child.live),
+        ) {
+            (Some(peak), Some(live)) => {
+                self.peak = self.peak.max(peak);
+                self.live = live;
+            }
+            _ => self.refuse(),
+        }
+    }
     pub(crate) fn finish(self, end: [u64; 4], domains: [u64; 2]) -> Option<Receipt> {
         let other = if self.domain == WorkDomain::Baseline {
             1
@@ -82,13 +98,18 @@ impl Recording {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct Receipt {
     work: [u64; 4],
     peak: u64,
     live: u64,
 }
 impl Receipt {
+    pub(crate) fn without_retained(mut self, bytes: u64) -> Option<Self> {
+        self.live = self.live.checked_sub(bytes)?;
+        Some(self)
+    }
+
     pub(crate) fn work(&self) -> impl Iterator<Item = (WorkKind, u64)> {
         [
             WorkKind::Analysis,
@@ -240,6 +261,71 @@ mod tests {
             assert!(panic.is_err());
             assert_eq!(budget.retained_bytes(Retained), before);
             drop(value);
+        }
+        assert_eq!(owner.retained_bytes(), 0);
+    }
+
+    #[test]
+    fn q2_nested_stages_preserve_parent_peak_work_and_refusal() {
+        let mut owner = ledger(1_000_000, 1_000_000);
+        {
+            let mut budget = AllocationBudget::new(Some((&mut owner, WorkDomain::Optional)));
+            let ((prefix, child), outer) = budget
+                .record(|budget| {
+                    let prefix = budget.copy_slice(Retained, &[0u8; 19])?;
+                    let (child, inner) = budget.record(build)?;
+                    let inner = inner.unwrap();
+                    assert_eq!(inner.live_bytes(), child.capacity() as u64);
+                    Ok::<_, AllocationError>((prefix, child))
+                })
+                .unwrap();
+            let outer = outer.unwrap();
+            budget.with_ledger(|ledger| {
+                let (ledger, _) = ledger.unwrap();
+                assert_eq!(outer.peak_bytes(), ledger.peak_retained_bytes());
+                assert_eq!(outer.live_bytes(), ledger.retained_bytes());
+                for (kind, units) in outer.work() {
+                    assert_eq!(units, ledger.work_by_kind(kind));
+                }
+            });
+            let (_, outer) = budget
+                .record(|budget| {
+                    let (_, child) = budget.record(|budget| {
+                        assert!(budget.check_scratch(u64::MAX).is_err());
+                        Ok::<_, AllocationError>(())
+                    })?;
+                    assert!(child.is_none());
+                    Ok::<_, AllocationError>(())
+                })
+                .unwrap();
+            assert!(outer.is_none());
+            // A child unwind must restore the active parent's recorder.
+            let (_, outer) = budget
+                .record(|budget| {
+                    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        let _: Result<((), _), AllocationError> = budget.record(|budget| {
+                            let mut phase = budget.scope();
+                            let _scratch = phase.copy_slice(Scratch, &[0u8; 71])?;
+                            panic!("nested stage");
+                        });
+                    }));
+                    assert!(panic.is_err());
+                    budget.work(WorkKind::Analysis, 5)?;
+                    Ok::<_, AllocationError>(())
+                })
+                .unwrap();
+            let outer = outer.unwrap();
+            assert_eq!(outer.peak_bytes(), 71);
+            assert_eq!(outer.live_bytes(), 0);
+            assert_eq!(
+                outer
+                    .work()
+                    .find(|(kind, _)| *kind == WorkKind::Analysis)
+                    .unwrap()
+                    .1,
+                5
+            );
+            drop((prefix, child));
         }
         assert_eq!(owner.retained_bytes(), 0);
     }

@@ -138,20 +138,41 @@ pub(crate) struct ContractViolation {
 /// The `pure` contract (M6.3): the first declared `pure` function, in unit
 /// order, whose effect summary shows an observable side effect. Checked
 /// after verification, so every analysis reads a well-formed program.
-fn check_contracts(program: &Program<'_>) -> Result<(), (ModuleId, ContractViolation)> {
-    match super::effects::pure_contract_violations(program)
-        .into_iter()
-        .next()
-    {
-        Some((module, span, name)) => Err((
-            module,
-            ContractViolation {
-                span,
-                message: format!(
-                    "function `{name}` is declared `pure` but may perform an observable side effect"
-                ),
-            },
-        )),
+fn check_contracts(
+    program: &Program<'_>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), (ModuleId, ConversionError)> {
+    let mut check = || -> Result<Option<(ModuleId, ContractViolation)>, AllocationError> {
+        // Trusted extern declarations have no body contract to check. Most
+        // modules need no summary here; normalization/demand owns its own view.
+        budget.work(WorkKind::Analysis, program.cells.len() as u64)?;
+        if !program.cells.iter().any(|cell| {
+            cell.declared_pure && matches!(cell.binding, CellBinding::Function(_))
+        }) {
+            return Ok(None);
+        }
+        let mut phase = budget.scope();
+        let effects = super::effects::ProgramEffects::build_reusing_in(
+            program, super::call_graph::Seal::Module, None, false, &mut phase,
+        )?;
+        // Diagnostic text belongs to the caller's diagnostic owner. No view
+        // or summary allocation escapes this temporary analysis scope.
+        let violation = effects.pure_violations_iter().find_map(|unit| {
+            let data = program.unit(unit)?;
+            let cell = program.cells.iter().find(|cell| cell.binding == CellBinding::Function(unit))?;
+            let name = data.function_name
+                .and_then(|name| program.strings.get(name.index()))
+                .and_then(|name| name.as_unicode())
+                .unwrap_or(&cell.name);
+            Some((data.module, ContractViolation {
+                span: cell.declaration,
+                message: format!("function `{name}` is declared `pure` but may perform an observable side effect"),
+            }))
+        });
+        Ok(violation)
+    };
+    match check().map_err(|error| (program.entry_module(), error.into()))? {
+        Some((module, violation)) => Err((module, ConversionError::Contract(violation))),
         None => Ok(()),
     }
 }
@@ -199,7 +220,7 @@ pub(crate) fn from_checked_source_with_rules<'ast, 'src>(
     hosts::apply(&mut program, semantics.view(), host_config, &mut scope).map_err(|(_, error)| error)?;
     program.trap_index_reads = trap_index_reads;
     verify_conversion(&program, source.span, &mut scope)?;
-    check_contracts(&program).map_err(|(_, violation)| ConversionError::Contract(violation))?;
+    check_contracts(&program, &mut scope).map_err(|(_, error)| error)?;
     check_javascript_interfaces(&program, javascript, &mut scope).map_err(|(_, error)| error)?;
     let (program, receipt) = with_rules(program, rules, source.span, &mut scope)?;
     let prepared = publication::PreparedProgram::new(program, &mut scope)
@@ -237,9 +258,9 @@ pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
         sources[semantics.root()].span,
         &mut scope,
     )?;
-    check_contracts(&program).map_err(|(module, violation)| ModuleConversionError {
+    check_contracts(&program, &mut scope).map_err(|(module, error)| ModuleConversionError {
         module: module.index(),
-        error: ConversionError::Contract(violation),
+        error,
     })?;
     check_javascript_interfaces(&program, javascript, &mut scope).map_err(|(module, error)| ModuleConversionError { module: module.index(), error })?;
     let root_span = sources[semantics.root()].span;
@@ -328,7 +349,7 @@ pub fn from_checked_source<'ast, 'src>(
     let result = (|| {
         let program = convert_source(source, semantics, None, &mut budget)?;
         verify_conversion(&program, source.span, &mut budget)?;
-        check_contracts(&program).map_err(|(_, violation)| ConversionError::Contract(violation))?;
+        check_contracts(&program, &mut budget).map_err(|(_, error)| error)?;
         Ok(program)
     })();
     result.map_err(|error| match error {
@@ -463,9 +484,9 @@ pub fn from_checked_modules<'ast, 'src>(
             sources[semantics.root()].span,
             &mut budget,
         )?;
-        check_contracts(&program).map_err(|(module, violation)| ModuleConversionError {
+        check_contracts(&program, &mut budget).map_err(|(module, error)| ModuleConversionError {
             module: module.index(),
-            error: ConversionError::Contract(violation),
+            error,
         })?;
         Ok(program)
     })();

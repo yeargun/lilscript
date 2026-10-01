@@ -97,12 +97,13 @@ impl<'a> AllocationBudget<'a> {
         if self.ledger.is_none() {
             return build(self).map(|value| (value, None));
         }
-        self.ledger
+        let parent = self
+            .ledger
             .as_deref_mut()
             .unwrap()
             .begin_recording(self.domain);
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| build(self)));
-        let receipt = self.ledger.as_deref_mut().unwrap().end_recording();
+        let receipt = self.ledger.as_deref_mut().unwrap().end_recording(parent);
         match result {
             Ok(result) => result.map(|value| (value, receipt)),
             Err(panic) => std::panic::resume_unwind(panic),

@@ -87,3 +87,41 @@ fn q2_effect_components_invalidate_tables_and_contract_even_with_unchanged_bodie
     assert!(restamped.stats.visited > 0);
     assert_ne!(previous.complete.units, warm.complete.units);
 }
+
+#[test]
+fn q2_admitted_effect_stages_match_cold_limits_and_release_both_generations() {
+    use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+    let arena = bumpalo::Bump::new();
+    let program = checked(&arena,
+        "int K=4;int left(int n){if(n==0){return K;}return right(n-1);}int right(int n){if(n==0){print(n);return K;}return left(n-1);}print(left(2));");
+    for seal in [Seal::Module, Seal::StructuralOnly] {
+        let reference = ProgramEffects::build(&program, seal);
+        let run = |reuse, work, memory| {
+            let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+                baseline_work: 0, optional_work: work, baseline_retained_bytes: 0, retained_bytes: memory,
+            }).unwrap();
+            let result = {
+                let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
+                (|| {
+                    let first = ProgramEffects::build_reusing_in(&program, seal, None, reuse, &mut budget)?;
+                    same(&reference, &first);
+                    let second = ProgramEffects::build_reusing_in(&program, seal, Some(&first), reuse, &mut budget)?;
+                    same(&reference, &second);
+                    Ok::<_, AllocationError>(())
+                })()
+            };
+            assert_eq!(ledger.retained_bytes(), 0);
+            (result, ledger.work_used(WorkDomain::Optional), ledger.peak_retained_bytes(),
+                [WorkKind::Analysis, WorkKind::Edit, WorkKind::Render, WorkKind::Codec].map(|kind| ledger.work_by_kind(kind)))
+        };
+        let complete = run(true, 1_000_000, 1_000_000);
+        assert!(complete.0.is_ok(), "{complete:?}");
+        assert_eq!(complete, run(false, 1_000_000, 1_000_000));
+        for work in [0, 1, 32, 128, 512, complete.1 / 2, complete.1 - 1, complete.1] {
+            for memory in [0, 64, 1024, complete.2 / 2, complete.2 - 1, complete.2] {
+                assert_eq!(run(true, work, memory), run(false, work, memory),
+                    "seal={seal:?} work={work} memory={memory}");
+            }
+        }
+    }
+}

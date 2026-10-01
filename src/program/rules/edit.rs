@@ -213,11 +213,12 @@ impl<'src> Editor<'src> {
         }
         storage::release_vec(remaps, Scratch, budget)?;
         if changed {
-            self.program.views.invalidate();
+            self.program.views.invalidate_in(budget)?;
         }
         self.tables_changed = false;
         #[cfg(test)]
         if super::COLD_RULE_VIEWS.with(std::cell::Cell::get) {
+            self.program.views.discard_in(budget)?;
             self.program.views = ProgramViews::default();
         }
         self.retire(budget)
@@ -322,6 +323,7 @@ impl<'src> Editor<'src> {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Program<'src>, RuleError> {
         self.commit_in(budget)?;
+        self.program.views.discard_in(budget)?;
         self.program.views = ProgramViews::default();
         self.retire(budget)?;
         if budget.is_accounted() && !self.retired.is_empty() {

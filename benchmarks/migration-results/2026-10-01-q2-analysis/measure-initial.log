@@ -1,0 +1,17 @@
+file:///home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-q2-analysis/measure.mjs:12
+const run=(command,args,env={})=>{const r=spawnSync(command,args,{cwd:root,env:{...process.env,...env},encoding:'utf8',timeout:300000,maxBuffer:32*1024*1024});if(r.status!==0)throw Error(`${command}: ${r.stderr||r.error}`);return r;};
+                                                                                                                                                                                     ^
+
+Error: /usr/bin/time: error: cannot read `value` before its declaration
+ --> /tmp/lilscript-q2-analysis-artifacts/early-read/main.lil:1:26
+  |
+ 1 | export int read(){return value;}int early=read();int value=4;print(early);
+  |                          ^^^^^
+
+    at run (file:///home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-q2-analysis/measure.mjs:12:182)
+    at file:///home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-q2-analysis/measure.mjs:70:17
+    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v20.19.0

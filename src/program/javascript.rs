@@ -340,6 +340,7 @@ impl From<DemandError> for FormationError {
         match error {
             DemandError::Unsupported(error) => Self::Unsupported(error),
             DemandError::Budget(error) => Self::Budget(error),
+            DemandError::Allocation(error) => Self::Allocation(error),
         }
     }
 }
@@ -413,13 +414,14 @@ pub(super) fn lower_output_admitted(
 ) -> Result<js::Module, FormationError> {
     let mut phase = budget.scope();
     let demand = phase.with_ledger(|ledger| {
-        DemandPlan::build(
+        DemandPlan::build_with_reuse(
             program,
             Some(uses),
             Some(implementations),
             contract,
             mode,
             ledger,
+            reuse_normalization,
         )
     })?;
     let result = form_with_demand(
@@ -726,7 +728,7 @@ fn form_head(
     module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
     module.int32_hints = head.int32_hints;
     // The program's value ranges (M6.4b), once per program under its seal.
-    let ranges = program.ranges(super::call_graph::Seal::from_execution(contract.execution));
+    let ranges = std::sync::Arc::clone(demand.ranges());
     let mut formation = Formation {
         program,
         uses,

@@ -1,0 +1,22 @@
+
+running 18 tests
+test program::call_graph::admission_tests::q2_iterative_alias_resolution_handles_long_pending_chains_and_cycles ... ok
+test program::dataflow::tests::a_loop_that_never_settles_is_refused ... ok
+test program::dataflow::tests::nothing_after_a_return_is_reached_and_a_branch_joins ... ok
+test program::dataflow::tests::q2_transfer_only_flow_admits_live_states_without_operation_history ... ok
+test program::demand::tests::checked_recursive_closure_producer_rejects_in_inspection_and_budgeted_routes ... ok
+test program::demand::tests::execution_roots_and_value_production_have_independent_flags_and_diagnostics ... ok
+test program::demand::tests::failed_admission_releases_memory_and_keeps_work_in_original_domain ... ok
+test program::demand::tests::growing_context_and_pending_buffers_admit_transient_peak_and_roll_back_failures ... ok
+test program::demand::tests::preserve_mode_keeps_unused_computation_through_the_same_kernel ... ok
+test program::demand::tests::resource_only_unused_closure_does_not_enter_its_effectful_body ... ok
+test program::ranges::tests::a_cell_carries_its_range_and_a_callee_its_result ... ok
+test program::ranges::tests::a_counting_loop_bounds_its_counter ... ok
+test program::ranges::tests::a_loop_that_grows_settles_by_widening ... ok
+test program::ranges::tests::a_parameter_joins_what_its_complete_call_set_passes ... ok
+test program::ranges::tests::conditional_results_publish_the_join_after_their_arms ... ok
+test program::ranges::tests::forwarding_keeps_branch_local_range_observations ... ok
+test program::ranges::tests::q2_ranges_keep_answers_and_release_on_admission_refusal ... ok
+test program::ranges::tests::s3_select_branches_keep_comparison_ranges_for_raw_arithmetic ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 2030 filtered out; finished in 0.13s

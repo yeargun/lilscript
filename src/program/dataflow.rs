@@ -41,10 +41,38 @@
 #![allow(dead_code)]
 
 use super::*;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
+use std::cell::RefCell;
 
 /// A forward analysis over one unit's regions.
 pub(super) trait Forward {
     type State: Clone + PartialEq;
+    /// Admitted analyses own fixed-capacity state: transfers, joins and
+    /// widening must not allocate. Inspection-only analyses use the defaults.
+    fn empty_in(&self, budget: &mut AllocationBudget<'_>) -> Result<Self::State, AllocationError> {
+        if budget.is_accounted() {
+            return Err(AllocationError::Unaccounted);
+        }
+        Ok(self.unreachable())
+    }
+    fn copy_in(
+        &self,
+        state: &Self::State,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self::State, AllocationError> {
+        if budget.is_accounted() {
+            return Err(AllocationError::Unaccounted);
+        }
+        Ok(state.clone())
+    }
+    fn state_work(&self) -> usize {
+        1
+    }
     /// The state no path reaches: the identity of `join`.
     fn unreachable(&self) -> Self::State;
     /// Join `from` into `into` (the least upper bound).
@@ -75,6 +103,7 @@ pub(super) trait Forward {
 pub(super) enum Stop<E> {
     /// The caller's budget refused more work.
     Budget(E),
+    Resources(AllocationError),
     /// A loop did not settle within the bound: the lattice was not finite.
     Unsettled,
 }
@@ -104,52 +133,178 @@ enum TargetKind {
     Try,
 }
 
-struct Solver<'a, A: Forward, W> {
-    unit: &'a UnitData,
-    analysis: &'a A,
-    before: Vec<A::State>,
-    /// Innermost last.
-    targets: Vec<Target<A::State>>,
-    /// Returns and throws that leave the unit.
-    exit: A::State,
-    bound: usize,
-    work: W,
+// Each state's exact backing has one owner. A branch/loop temporary drops
+// its actual state before releasing its reservation, including on refusal.
+// The solver's temporary container backing belongs to its enclosing scope.
+struct State<'a, 'b, S> {
+    value: Option<S>,
+    bytes: u64,
+    budget: &'a RefCell<AllocationBudget<'b>>,
+}
+impl<S> std::ops::Deref for State<'_, '_, S> {
+    type Target = S;
+    fn deref(&self) -> &S {
+        self.value.as_ref().unwrap()
+    }
+}
+impl<S> std::ops::DerefMut for State<'_, '_, S> {
+    fn deref_mut(&mut self) -> &mut S {
+        self.value.as_mut().unwrap()
+    }
+}
+impl<S> Drop for State<'_, '_, S> {
+    fn drop(&mut self) {
+        drop(self.value.take());
+        self.budget
+            .borrow_mut()
+            .release(Retained, self.bytes)
+            .expect("solver state owns its backing");
+    }
 }
 
-/// Solve `analysis` over `unit` from `entry`, charging `work` per operation
-/// visited.
+struct Solver<'a, 'b, 'c, A: Forward, W> {
+    unit: &'a UnitData,
+    analysis: &'a A,
+    before: Vec<State<'b, 'c, A::State>>,
+    targets: Vec<Target<State<'b, 'c, A::State>>>,
+    exit: State<'b, 'c, A::State>,
+    bound: usize,
+    work: W,
+    budget: &'b RefCell<AllocationBudget<'c>>,
+}
+
+fn state<'a, 'b, S>(
+    budget: &'a RefCell<AllocationBudget<'b>>,
+    build: impl FnOnce(&mut AllocationBudget<'_>) -> Result<S, AllocationError>,
+) -> Result<State<'a, 'b, S>, AllocationError> {
+    let (value, bytes) = budget.borrow_mut().retained_phase(|budget| {
+        let value = build(budget)?;
+        Ok::<_, AllocationError>((value, budget.retained_bytes(Retained)))
+    })?;
+    Ok(State {
+        value: Some(value),
+        bytes,
+        budget,
+    })
+}
+
+/// Inspection solve with operation history. Production fixed-state consumers
+/// that need only their transfer results use `solve_discard_in` and allocate
+/// no operations-by-state history.
 pub(super) fn solve<A: Forward, E>(
     unit: &UnitData,
     analysis: &A,
     entry: A::State,
     work: impl FnMut(usize) -> Result<(), E>,
 ) -> Result<Solution<A::State>, Stop<E>> {
-    let mut solver = Solver {
-        unit,
-        analysis,
-        before: vec![analysis.unreachable(); unit.operations.len()],
-        targets: Vec::new(),
-        exit: analysis.unreachable(),
-        bound: unit.operations.len() + 2,
-        work,
-    };
+    let budget = RefCell::new(AllocationBudget::new(None));
+    let mut solver = Solver::new(unit, analysis, true, work, &budget)?;
+    let entry = state(&budget, |_| Ok(entry)).map_err(Stop::Resources)?;
     solver.region(unit.entry, entry)?;
     Ok(Solution {
-        before: solver.before,
+        before: std::mem::take(&mut solver.before)
+            .into_iter()
+            .map(|mut state| state.value.take().unwrap())
+            .collect(),
     })
 }
 
-impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
+pub(super) fn solve_discard_in<A: Forward>(
+    unit: &UnitData,
+    analysis: &A,
+    entry: &A::State,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), Stop<AllocationError>> {
+    let budget = RefCell::new(budget.scope());
+    let mut solver = Solver::new(unit, analysis, false, |_| Ok(()), &budget)?;
+    let entry = solver.copy(entry)?;
+    solver.region(unit.entry, entry)?;
+    Ok(())
+}
+
+impl<'a, 'b, 'c, A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'a, 'b, 'c, A, W> {
+    fn new(
+        unit: &'a UnitData,
+        analysis: &'a A,
+        history: bool,
+        work: W,
+        budget: &'b RefCell<AllocationBudget<'c>>,
+    ) -> Result<Self, Stop<E>> {
+        let mut before = budget
+            .borrow_mut()
+            .vector(Scratch, if history { unit.operations.len() } else { 0 })
+            .map_err(Stop::Resources)?;
+        if history {
+            for _ in &unit.operations {
+                before.push(
+                    state(budget, |budget| analysis.empty_in(budget)).map_err(Stop::Resources)?,
+                );
+            }
+        }
+        // At most one active target per region-owning operation. This exact
+        // structural upper bound prevents target growth inside recursive flow.
+        budget
+            .borrow_mut()
+            .work(WorkKind::Analysis, unit.operations.len() as u64)
+            .map_err(Stop::Resources)?;
+        let capacity = unit
+            .operations
+            .iter()
+            .filter(|op| {
+                matches!(
+                    op.kind,
+                    OperationKind::Loop { .. }
+                        | OperationKind::ForIn { .. }
+                        | OperationKind::ForOf { .. }
+                        | OperationKind::Try { .. }
+                )
+            })
+            .count();
+        let targets = budget
+            .borrow_mut()
+            .vector(Scratch, capacity)
+            .map_err(Stop::Resources)?;
+        let exit = state(budget, |budget| analysis.empty_in(budget)).map_err(Stop::Resources)?;
+        Ok(Self {
+            unit,
+            analysis,
+            before,
+            targets,
+            exit,
+            bound: unit.operations.len().saturating_add(2),
+            work,
+            budget,
+        })
+    }
     fn charge(&mut self, units: usize) -> Result<(), Stop<E>> {
-        (self.work)(units).map_err(Stop::Budget)
+        (self.work)(units).map_err(Stop::Budget)?;
+        let work = units
+            .checked_mul(self.analysis.state_work())
+            .ok_or(Stop::Resources(AllocationError::Capacity))?;
+        self.budget
+            .borrow_mut()
+            .work(WorkKind::Analysis, work as u64)
+            .map_err(Stop::Resources)
+    }
+    fn copy(&self, value: &A::State) -> Result<State<'b, 'c, A::State>, Stop<E>> {
+        state(self.budget, |budget| self.analysis.copy_in(value, budget)).map_err(Stop::Resources)
+    }
+    fn empty(&self) -> Result<State<'b, 'c, A::State>, Stop<E>> {
+        state(self.budget, |budget| self.analysis.empty_in(budget)).map_err(Stop::Resources)
     }
 
     /// Flow `state` through `region`: the state its normal completion leaves.
-    fn region(&mut self, region: RegionId, mut state: A::State) -> Result<A::State, Stop<E>> {
+    fn region(
+        &mut self,
+        region: RegionId,
+        mut state: State<'b, 'c, A::State>,
+    ) -> Result<State<'b, 'c, A::State>, Stop<E>> {
         let unit = self.unit;
         for &operation in &unit.regions[region.index()].operations {
             self.charge(1)?;
-            self.before[operation.index()] = state.clone();
+            if !self.before.is_empty() {
+                self.before[operation.index()] = self.copy(&state)?;
+            }
             // Any operation of a `Try`'s body may throw to its catch.
             if let Some(target) = self
                 .targets
@@ -164,12 +319,16 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
         Ok(state)
     }
 
-    fn operation(&mut self, operation: OpId, state: A::State) -> Result<A::State, Stop<E>> {
+    fn operation(
+        &mut self,
+        operation: OpId,
+        state: State<'b, 'c, A::State>,
+    ) -> Result<State<'b, 'c, A::State>, Stop<E>> {
         let unit = self.unit;
         let analysis = self.analysis;
         Ok(match unit.operations[operation.index()].kind {
             OperationKind::If { yes, no } => {
-                let mut taken = state.clone();
+                let mut taken = self.copy(&state)?;
                 analysis.branch(unit, operation, true, &mut taken);
                 let mut other = state;
                 analysis.branch(unit, operation, false, &mut other);
@@ -182,7 +341,7 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                 out
             }
             OperationKind::Select { yes, no } => {
-                let mut taken = state.clone();
+                let mut taken = self.copy(&state)?;
                 analysis.branch(unit, operation, true, &mut taken);
                 let mut other = state;
                 analysis.branch(unit, operation, false, &mut other);
@@ -193,7 +352,7 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                 out
             }
             OperationKind::ShortCircuit { right, .. } => {
-                let right = self.region(right, state.clone())?;
+                let right = self.region(right, self.copy(&state)?)?;
                 let mut out = state;
                 analysis.join(&mut out, &right);
                 analysis.expression_result(unit, operation, &out);
@@ -213,11 +372,11 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                     state,
                     |solver, head| {
                         let tested = solver.region(test, head)?;
-                        let mut entered = tested.clone();
+                        let mut entered = solver.copy(&tested)?;
                         solver.analysis.branch(unit, operation, true, &mut entered);
                         let bodied = solver.region(body, entered)?;
                         let exits = if endless {
-                            solver.analysis.unreachable()
+                            solver.empty()?
                         } else {
                             let mut left = tested;
                             solver.analysis.branch(unit, operation, false, &mut left);
@@ -232,7 +391,7 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                 self.fixed_point(
                     state,
                     |solver, head| {
-                        let mut entered = head.clone();
+                        let mut entered = solver.copy(&head)?;
                         analysis.transfer(unit, operation, &mut entered);
                         let bodied = solver.region(body, entered)?;
                         // The loop exits from its head, before the next binding.
@@ -264,11 +423,11 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                     };
                     analysis.join(into, &state);
                 }
-                analysis.unreachable()
+                self.empty()?
             }
             OperationKind::Return => {
                 analysis.join(&mut self.exit, &state);
-                analysis.unreachable()
+                self.empty()?
             }
             OperationKind::Throw => {
                 // The innermost `Try` already joined this state, as the state
@@ -280,7 +439,7 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                 {
                     analysis.join(&mut self.exit, &state);
                 }
-                analysis.unreachable()
+                self.empty()?
             }
             _ => {
                 let mut state = state;
@@ -296,19 +455,25 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
     /// `update` (when the loop has one) and the result is the next head.
     fn fixed_point(
         &mut self,
-        entry: A::State,
-        mut iteration: impl FnMut(&mut Self, A::State) -> Result<(A::State, A::State), Stop<E>>,
+        entry: State<'b, 'c, A::State>,
+        mut iteration: impl FnMut(
+            &mut Self,
+            State<'b, 'c, A::State>,
+        )
+            -> Result<(State<'b, 'c, A::State>, State<'b, 'c, A::State>), Stop<E>>,
         update: Option<RegionId>,
-    ) -> Result<A::State, Stop<E>> {
+    ) -> Result<State<'b, 'c, A::State>, Stop<E>> {
         let analysis = self.analysis;
-        let mut head = entry.clone();
+        let mut head = self.copy(&entry)?;
         for round in 0..self.bound {
-            self.targets.push(Target {
+            let target = Target {
                 kind: TargetKind::Loop,
-                state: analysis.unreachable(),
-                continues: analysis.unreachable(),
-            });
-            let result = iteration(self, head.clone());
+                state: self.empty()?,
+                continues: self.empty()?,
+            };
+            self.targets.push(target);
+            let input = self.copy(&head)?;
+            let result = iteration(self, input);
             let target = self.targets.pop().expect("the loop's own target");
             let (exits, mut bodied) = result?;
             analysis.join(&mut bodied, &target.continues);
@@ -316,12 +481,12 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
                 Some(update) => self.region(update, bodied)?,
                 None => bodied,
             };
-            let mut next = entry.clone();
+            let mut next = self.copy(&entry)?;
             analysis.join(&mut next, &back);
             if round > 0 {
                 analysis.widen(&head, &mut next);
             }
-            if next == head {
+            if *next == *head {
                 let mut out = exits;
                 analysis.join(&mut out, &target.state);
                 return Ok(out);
@@ -334,23 +499,24 @@ impl<A: Forward, E, W: FnMut(usize) -> Result<(), E>> Solver<'_, A, W> {
     fn try_operation(
         &mut self,
         operation: OpId,
-        state: A::State,
+        state: State<'b, 'c, A::State>,
         body: RegionId,
         catch: Option<(Option<CellId>, RegionId)>,
         finally: Option<RegionId>,
-    ) -> Result<A::State, Stop<E>> {
+    ) -> Result<State<'b, 'c, A::State>, Stop<E>> {
         let analysis = self.analysis;
         let unit = self.unit;
-        self.targets.push(Target {
+        let target = Target {
             kind: TargetKind::Try,
-            state: state.clone(),
-            continues: analysis.unreachable(),
-        });
+            state: self.copy(&state)?,
+            continues: self.empty()?,
+        };
+        self.targets.push(target);
         let result = self.region(body, state);
         let target = self.targets.pop().expect("the try's own target");
         let mut out = result?;
         let throws = target.state;
-        let mut reaching_finally = out.clone();
+        let mut reaching_finally = self.copy(&out)?;
         match catch {
             Some((binding, region)) => {
                 let mut entered = throws;

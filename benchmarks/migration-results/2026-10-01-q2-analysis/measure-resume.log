@@ -1,0 +1,15 @@
+file:///home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-q2-analysis/measure.mjs:114
+console.log(JSON.stringify({checks:cases.length*9,totals,changes:rows.map(row=>({id:row.id,objectives:Object.fromEntries(Object.entries(row.lanes).map(([lane,x])=>[lane,{judged:[x.before.search.judged,x.after.search.judged],cpu:[x.before.cpu_seconds,x.after.cpu_seconds],work:[x.before.resources?.work,x.after.resources?.work]}]))}))},null,2));
+                                                                                                                                                                                                  ^
+
+TypeError: Cannot read properties of null (reading 'judged')
+    at file:///home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-q2-analysis/measure.mjs:114:195
+    at Array.map (<anonymous>)
+    at file:///home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-q2-analysis/measure.mjs:114:148
+    at Array.map (<anonymous>)
+    at file:///home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-q2-analysis/measure.mjs:114:71
+    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v20.19.0

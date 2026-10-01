@@ -2654,13 +2654,14 @@ impl<'src> Compilation<'src> {
         } else {
             super::demand::DemandMode::Preserve
         };
-        let demand = super::demand::DemandPlan::build(
+        let demand = super::demand::DemandPlan::build_with_reuse(
             &semantic.program,
             Some(&semantic.uses),
             Some(map),
             target.language(),
             mode,
             Some((&mut *ledger, domain)),
+            policy.cache().normalization_reuse,
         )
         .map_err(|error| formation_error(error.into()))?;
         let hosts = host_modules.as_ref().map(|(delivery, _)| delivery);

@@ -1,0 +1,78 @@
+
+running 63 tests
+test admission_replay::tests::q2_complete_stage_admits_the_same_limits_before_cold_or_reused_execution ... ok
+test admission_replay::tests::q2_nested_stages_preserve_parent_peak_work_and_refusal ... ok
+test admission_replay::tests::q2_recovered_refusals_cannot_certify_a_formation_and_unwind_clears_ownership ... ok
+test program::call_graph_tests::array_callbacks_are_call_edges ... ok
+test program::call_graph_tests::calls_resolve_through_declarations_and_single_initialization_aliases ... ok
+test program::call_graph_tests::components_put_callees_first_and_mark_recursion ... ok
+test program::call_graph_tests::exported_bodies_escape_to_the_host ... ok
+test program::call_graph_tests::q2_iterative_alias_resolution_handles_forward_chains_and_cycles ... FAILED
+test program::call_graph_tests::reassigned_parameter_and_host_callees_stay_unknown ... ok
+test program::call_graph_tests::script_frames_leave_root_storage_unsealed ... ok
+test program::dataflow::tests::a_loop_that_never_settles_is_refused ... ok
+test program::dataflow::tests::nothing_after_a_return_is_reached_and_a_branch_joins ... ok
+test program::dataflow::tests::q2_transfer_only_flow_admits_live_states_without_operation_history ... ok
+test program::demand::tests::checked_recursive_closure_producer_rejects_in_inspection_and_budgeted_routes ... ok
+test program::demand::tests::execution_roots_and_value_production_have_independent_flags_and_diagnostics ... ok
+test program::demand::tests::failed_admission_releases_memory_and_keeps_work_in_original_domain ... ok
+test program::demand::tests::growing_context_and_pending_buffers_admit_transient_peak_and_roll_back_failures ... ok
+test program::demand::tests::preserve_mode_keeps_unused_computation_through_the_same_kernel ... ok
+test program::demand::tests::resource_only_unused_closure_does_not_enter_its_effectful_body ... ok
+test program::effects::reuse_tests::q2_admitted_effect_stages_match_cold_limits_and_release_both_generations ... ok
+test program::effects::reuse_tests::q2_effect_components_invalidate_tables_and_contract_even_with_unchanged_bodies ... ok
+test program::effects::reuse_tests::q2_effect_components_keep_recursive_limits_and_do_not_restart_stable_members ... ok
+test program::effects::reuse_tests::q2_effect_components_match_dense_summaries_for_recursion_callbacks_and_initialization ... ok
+test program::effects_tests::a_call_whose_callee_read_must_stay_is_kept_whole ... ok
+test program::effects_tests::a_pure_arithmetic_body_is_discardable_once_its_arguments_are_primitive ... ok
+test program::effects_tests::an_exported_function_survives_its_discarded_internal_calls ... ok
+test program::effects_tests::counted_loops_terminate_and_their_bounds_are_obligations ... ok
+test program::effects_tests::discarded_calls_with_effects_or_without_proofs_stay ... ok
+test program::effects_tests::discarded_effect_free_calls_leave_the_output ... ok
+test program::effects_tests::empty_and_reading_bodies_have_no_effect_or_obligation ... ok
+test program::effects_tests::host_values_and_callees_run_user_code ... ok
+test program::effects_tests::loops_without_a_counted_bound_and_recursion_may_diverge ... ok
+test program::effects_tests::s4_identity_views_preserve_real_boundary_effects ... ok
+test program::effects_tests::suspending_bodies_are_not_summarized ... ok
+test program::effects_tests::the_pure_contract_reports_observable_effects_with_a_span ... ok
+test program::effects_tests::throws_escape_unless_a_try_catches_them ... ok
+test program::effects_tests::writes_through_parameters_land_where_the_arguments_point ... ok
+test program::initialization_tests::a_body_escaped_before_a_throwing_statement_may_run_after_initialization_stops ... ok
+test program::initialization_tests::a_body_handed_to_the_host_may_run_from_that_statement_on ... ok
+test program::initialization_tests::a_function_called_before_the_cell_it_reads_is_set_keeps_the_dead_zone ... ok
+test program::initialization_tests::a_parameter_default_is_read_at_every_call_site ... ok
+test program::initialization_tests::a_root_cell_settles_at_its_initializer_and_later_calls_read_it_initialized ... ok
+test program::initialization_tests::a_script_global_function_may_run_at_the_first_hazard ... ok
+test program::initialization_tests::an_import_cycle_that_calls_back_during_root_initialization_keeps_the_dead_zone ... ok
+test program::initialization_tests::every_body_a_root_call_reaches_runs_at_that_statement ... ok
+test program::initialization_tests::exported_bodies_run_after_initialization_unless_host_code_can_call_them_early ... ok
+test program::initialization_tests::motionlil_warning_calls_through_the_exported_binding_leave_the_output ... ok
+test program::initialization_tests::the_checker_proves_occurrences_after_initialization_and_defers_the_rest ... ok
+test program::initialization_tests::zodlil_enum_constants_are_initialized_in_every_function_that_reads_them ... ok
+test program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes ... ok
+test program::ranges::tests::a_cell_carries_its_range_and_a_callee_its_result ... ok
+test program::ranges::tests::a_counting_loop_bounds_its_counter ... ok
+test program::ranges::tests::a_loop_that_grows_settles_by_widening ... ok
+test program::ranges::tests::a_parameter_joins_what_its_complete_call_set_passes ... ok
+test program::ranges::tests::conditional_results_publish_the_join_after_their_arms ... ok
+test program::ranges::tests::forwarding_keeps_branch_local_range_observations ... ok
+test program::ranges::tests::q2_ranges_keep_answers_and_release_on_admission_refusal ... ok
+test program::ranges::tests::s3_select_branches_keep_comparison_ranges_for_raw_arithmetic ... ok
+test program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations ... ok
+test program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates ... ok
+test program::rules::admission_tests::q2_source_shared_body_and_tables_keep_old_reservations_until_readers_drop ... ok
+test program::rules::tests::q2_effect_components_follow_body_storage_callee_and_tdz_edits ... ok
+test program::rules::tests::q2_local_dirty_normalization_preserves_edits_and_runtime_with_dense_rules ... ok
+
+failures:
+
+---- program::call_graph_tests::q2_iterative_alias_resolution_handles_forward_chains_and_cycles stdout ----
+
+thread 'program::call_graph_tests::q2_iterative_alias_resolution_handles_forward_chains_and_cycles' (1018564) panicked at src/program/call_graph_tests.rs:9:43:
+called `Result::unwrap()` on an `Err` value: CheckError { span: Span { start: 38, end: 40 }, message: "cannot read `a1` before its declaration" }
+
+
+failures:
+    program::call_graph_tests::q2_iterative_alias_resolution_handles_forward_chains_and_cycles
+
+test result: FAILED. 62 passed; 1 failed; 0 ignored; 0 measured; 1985 filtered out; finished in 22.52s

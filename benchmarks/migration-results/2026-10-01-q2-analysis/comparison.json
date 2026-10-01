@@ -1,0 +1,2974 @@
+{
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/q2-analysis-1/lilscript",
+    "sha256": "d74be18c449049cdea295968fd5b3259890448835896338392c3e5d1d5677eb3"
+  },
+  "previous": {
+    "path": "/home/azureuser/lilscript-work/bin/q2-formation-5/lilscript",
+    "sha256": "0b1f138dbaba54cc46a3d96c1761b50f8335a10080bd172b1a6f938e49e0c7ae"
+  },
+  "encoder": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "checks": 54,
+  "rows": [
+    {
+      "id": "delivered-setter",
+      "sources": [
+        {
+          "path": "main.lil",
+          "sha256": "e6c65ca742c305d789fde2c6babc7f5430afe1093965ef856046e835c2cd74a8"
+        },
+        {
+          "path": "lib.lil",
+          "sha256": "46030722d2e8a92b305bd0daeb040b70010455eb494ec949f098bda3764aabbc"
+        }
+      ],
+      "lanes": {
+        "raw": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/main-4a555da0fac3.js",
+                "sha256": "d0acedabb75c22ca7b416b11d16464db6b787fd4e903d86ee6064bdf504f80c9",
+                "raw": 91,
+                "gzip9": 103,
+                "brotli11": 76
+              },
+              {
+                "name": "modules/lib-47ef29aa8556.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              }
+            ],
+            "sizes": {
+              "raw": 176,
+              "gzip9": 199,
+              "brotli11": 154
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/main-4a555da0fac3.js",
+                "sha256": "d0acedabb75c22ca7b416b11d16464db6b787fd4e903d86ee6064bdf504f80c9",
+                "raw": 91,
+                "gzip9": 103,
+                "brotli11": 76
+              },
+              {
+                "name": "modules/lib-47ef29aa8556.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              }
+            ],
+            "sizes": {
+              "raw": 176,
+              "gzip9": 199,
+              "brotli11": 154
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/main-4a555da0fac3.js",
+                "sha256": "d0acedabb75c22ca7b416b11d16464db6b787fd4e903d86ee6064bdf504f80c9",
+                "raw": 91,
+                "gzip9": 103,
+                "brotli11": 76
+              },
+              {
+                "name": "modules/lib-47ef29aa8556.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              }
+            ],
+            "sizes": {
+              "raw": 176,
+              "gzip9": 199,
+              "brotli11": 154
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        },
+        "gzip": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/main-af782846aa37.js",
+                "sha256": "bd0b3f8010b7400a0847f0ef32d885e984d7448cb7b84145877b4cebedb016fb",
+                "raw": 91,
+                "gzip9": 102,
+                "brotli11": 95
+              },
+              {
+                "name": "modules/lib-7be19b3b1001.js",
+                "sha256": "e0ad2aa6cd8a198faa138fda06361e6667a981efe1f19a3f961a091e05d96117",
+                "raw": 85,
+                "gzip9": 95,
+                "brotli11": 77
+              }
+            ],
+            "sizes": {
+              "raw": 176,
+              "gzip9": 197,
+              "brotli11": 172
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/main-af782846aa37.js",
+                "sha256": "bd0b3f8010b7400a0847f0ef32d885e984d7448cb7b84145877b4cebedb016fb",
+                "raw": 91,
+                "gzip9": 102,
+                "brotli11": 95
+              },
+              {
+                "name": "modules/lib-7be19b3b1001.js",
+                "sha256": "e0ad2aa6cd8a198faa138fda06361e6667a981efe1f19a3f961a091e05d96117",
+                "raw": 85,
+                "gzip9": 95,
+                "brotli11": 77
+              }
+            ],
+            "sizes": {
+              "raw": 176,
+              "gzip9": 197,
+              "brotli11": 172
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/main-af782846aa37.js",
+                "sha256": "bd0b3f8010b7400a0847f0ef32d885e984d7448cb7b84145877b4cebedb016fb",
+                "raw": 91,
+                "gzip9": 102,
+                "brotli11": 95
+              },
+              {
+                "name": "modules/lib-7be19b3b1001.js",
+                "sha256": "e0ad2aa6cd8a198faa138fda06361e6667a981efe1f19a3f961a091e05d96117",
+                "raw": 85,
+                "gzip9": 95,
+                "brotli11": 77
+              }
+            ],
+            "sizes": {
+              "raw": 176,
+              "gzip9": 197,
+              "brotli11": 172
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        },
+        "brotli": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/main-4a555da0fac3.js",
+                "sha256": "d0acedabb75c22ca7b416b11d16464db6b787fd4e903d86ee6064bdf504f80c9",
+                "raw": 91,
+                "gzip9": 103,
+                "brotli11": 76
+              },
+              {
+                "name": "modules/lib-47ef29aa8556.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              }
+            ],
+            "sizes": {
+              "raw": 176,
+              "gzip9": 199,
+              "brotli11": 154
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/main-4a555da0fac3.js",
+                "sha256": "d0acedabb75c22ca7b416b11d16464db6b787fd4e903d86ee6064bdf504f80c9",
+                "raw": 91,
+                "gzip9": 103,
+                "brotli11": 76
+              },
+              {
+                "name": "modules/lib-47ef29aa8556.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              }
+            ],
+            "sizes": {
+              "raw": 176,
+              "gzip9": 199,
+              "brotli11": 154
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/main-4a555da0fac3.js",
+                "sha256": "d0acedabb75c22ca7b416b11d16464db6b787fd4e903d86ee6064bdf504f80c9",
+                "raw": 91,
+                "gzip9": 103,
+                "brotli11": 76
+              },
+              {
+                "name": "modules/lib-47ef29aa8556.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              }
+            ],
+            "sizes": {
+              "raw": 176,
+              "gzip9": 199,
+              "brotli11": 154
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        }
+      }
+    },
+    {
+      "id": "shared-split",
+      "sources": [
+        {
+          "path": "core.lil",
+          "sha256": "6340cbe4d123eee8c3f0c82cb716bbbb86efea5bd6d152ceb6dce607d85de44b"
+        },
+        {
+          "path": "a.lil",
+          "sha256": "210e1c2741dcd119af0e2e0b3420458cba57447ad9da869864c81ccead7184d5"
+        },
+        {
+          "path": "b.lil",
+          "sha256": "c641cd02578e60b9c2646a5bfd39c80be8ae8d144f80aa3aa048fd36089e3f4e"
+        }
+      ],
+      "lanes": {
+        "raw": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/a-2c88dbefbbff.js",
+                "sha256": "1104e76a5aebca12cd030b81f732a449272641b3ba184e5dad8ad9d993a4a01e",
+                "raw": 130,
+                "gzip9": 125,
+                "brotli11": 97
+              },
+              {
+                "name": "entry/b-3a2fe07d05c1.js",
+                "sha256": "728cac1c7c753b1c35e5f7aa2ba2412e8c0d6a4e81bd84914af1982436fe91e3",
+                "raw": 120,
+                "gzip9": 129,
+                "brotli11": 91
+              },
+              {
+                "name": "chunks/core-0-c1f1b5281e15.js",
+                "sha256": "e28325f9c141dbae8f51589744046d338e76bb4439a02ddc1ce278a2cab653ae",
+                "raw": 104,
+                "gzip9": 105,
+                "brotli11": 79
+              }
+            ],
+            "sizes": {
+              "raw": 458,
+              "gzip9": 464,
+              "brotli11": 346
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/a-2c88dbefbbff.js",
+                "sha256": "1104e76a5aebca12cd030b81f732a449272641b3ba184e5dad8ad9d993a4a01e",
+                "raw": 130,
+                "gzip9": 125,
+                "brotli11": 97
+              },
+              {
+                "name": "entry/b-3a2fe07d05c1.js",
+                "sha256": "728cac1c7c753b1c35e5f7aa2ba2412e8c0d6a4e81bd84914af1982436fe91e3",
+                "raw": 120,
+                "gzip9": 129,
+                "brotli11": 91
+              },
+              {
+                "name": "chunks/core-0-c1f1b5281e15.js",
+                "sha256": "e28325f9c141dbae8f51589744046d338e76bb4439a02ddc1ce278a2cab653ae",
+                "raw": 104,
+                "gzip9": 105,
+                "brotli11": 79
+              }
+            ],
+            "sizes": {
+              "raw": 458,
+              "gzip9": 464,
+              "brotli11": 346
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/a-2c88dbefbbff.js",
+                "sha256": "1104e76a5aebca12cd030b81f732a449272641b3ba184e5dad8ad9d993a4a01e",
+                "raw": 130,
+                "gzip9": 125,
+                "brotli11": 97
+              },
+              {
+                "name": "entry/b-3a2fe07d05c1.js",
+                "sha256": "728cac1c7c753b1c35e5f7aa2ba2412e8c0d6a4e81bd84914af1982436fe91e3",
+                "raw": 120,
+                "gzip9": 129,
+                "brotli11": 91
+              },
+              {
+                "name": "chunks/core-0-c1f1b5281e15.js",
+                "sha256": "e28325f9c141dbae8f51589744046d338e76bb4439a02ddc1ce278a2cab653ae",
+                "raw": 104,
+                "gzip9": 105,
+                "brotli11": 79
+              }
+            ],
+            "sizes": {
+              "raw": 458,
+              "gzip9": 464,
+              "brotli11": 346
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        },
+        "gzip": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/a-bef6a2fede7e.js",
+                "sha256": "c235235829d52ae10463e0019709247d2373bece5b04810b3462615a0a62ea2c",
+                "raw": 130,
+                "gzip9": 125,
+                "brotli11": 97
+              },
+              {
+                "name": "entry/b-dd0f36f118c4.js",
+                "sha256": "fce0a19d18e7874da3dffba9022102801bde29b2b6a8b48c5bb7bdbd5042a88b",
+                "raw": 120,
+                "gzip9": 128,
+                "brotli11": 93
+              },
+              {
+                "name": "chunks/core-0-e00d17638edf.js",
+                "sha256": "b8a13659b32cf2da23d0f74df6824fd2ab2e0fd4598f00c6b5a24d2ca6de6a37",
+                "raw": 104,
+                "gzip9": 105,
+                "brotli11": 80
+              }
+            ],
+            "sizes": {
+              "raw": 458,
+              "gzip9": 463,
+              "brotli11": 350
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/a-bef6a2fede7e.js",
+                "sha256": "c235235829d52ae10463e0019709247d2373bece5b04810b3462615a0a62ea2c",
+                "raw": 130,
+                "gzip9": 125,
+                "brotli11": 97
+              },
+              {
+                "name": "entry/b-dd0f36f118c4.js",
+                "sha256": "fce0a19d18e7874da3dffba9022102801bde29b2b6a8b48c5bb7bdbd5042a88b",
+                "raw": 120,
+                "gzip9": 128,
+                "brotli11": 93
+              },
+              {
+                "name": "chunks/core-0-e00d17638edf.js",
+                "sha256": "b8a13659b32cf2da23d0f74df6824fd2ab2e0fd4598f00c6b5a24d2ca6de6a37",
+                "raw": 104,
+                "gzip9": 105,
+                "brotli11": 80
+              }
+            ],
+            "sizes": {
+              "raw": 458,
+              "gzip9": 463,
+              "brotli11": 350
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/a-bef6a2fede7e.js",
+                "sha256": "c235235829d52ae10463e0019709247d2373bece5b04810b3462615a0a62ea2c",
+                "raw": 130,
+                "gzip9": 125,
+                "brotli11": 97
+              },
+              {
+                "name": "entry/b-dd0f36f118c4.js",
+                "sha256": "fce0a19d18e7874da3dffba9022102801bde29b2b6a8b48c5bb7bdbd5042a88b",
+                "raw": 120,
+                "gzip9": 128,
+                "brotli11": 93
+              },
+              {
+                "name": "chunks/core-0-e00d17638edf.js",
+                "sha256": "b8a13659b32cf2da23d0f74df6824fd2ab2e0fd4598f00c6b5a24d2ca6de6a37",
+                "raw": 104,
+                "gzip9": 105,
+                "brotli11": 80
+              }
+            ],
+            "sizes": {
+              "raw": 458,
+              "gzip9": 463,
+              "brotli11": 350
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        },
+        "brotli": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/a-2c88dbefbbff.js",
+                "sha256": "1104e76a5aebca12cd030b81f732a449272641b3ba184e5dad8ad9d993a4a01e",
+                "raw": 130,
+                "gzip9": 125,
+                "brotli11": 97
+              },
+              {
+                "name": "entry/b-3a2fe07d05c1.js",
+                "sha256": "728cac1c7c753b1c35e5f7aa2ba2412e8c0d6a4e81bd84914af1982436fe91e3",
+                "raw": 120,
+                "gzip9": 129,
+                "brotli11": 91
+              },
+              {
+                "name": "chunks/core-0-c1f1b5281e15.js",
+                "sha256": "e28325f9c141dbae8f51589744046d338e76bb4439a02ddc1ce278a2cab653ae",
+                "raw": 104,
+                "gzip9": 105,
+                "brotli11": 79
+              }
+            ],
+            "sizes": {
+              "raw": 458,
+              "gzip9": 464,
+              "brotli11": 346
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/a-2c88dbefbbff.js",
+                "sha256": "1104e76a5aebca12cd030b81f732a449272641b3ba184e5dad8ad9d993a4a01e",
+                "raw": 130,
+                "gzip9": 125,
+                "brotli11": 97
+              },
+              {
+                "name": "entry/b-3a2fe07d05c1.js",
+                "sha256": "728cac1c7c753b1c35e5f7aa2ba2412e8c0d6a4e81bd84914af1982436fe91e3",
+                "raw": 120,
+                "gzip9": 129,
+                "brotli11": 91
+              },
+              {
+                "name": "chunks/core-0-c1f1b5281e15.js",
+                "sha256": "e28325f9c141dbae8f51589744046d338e76bb4439a02ddc1ce278a2cab653ae",
+                "raw": 104,
+                "gzip9": 105,
+                "brotli11": 79
+              }
+            ],
+            "sizes": {
+              "raw": 458,
+              "gzip9": 464,
+              "brotli11": 346
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/a-2c88dbefbbff.js",
+                "sha256": "1104e76a5aebca12cd030b81f732a449272641b3ba184e5dad8ad9d993a4a01e",
+                "raw": 130,
+                "gzip9": 125,
+                "brotli11": 97
+              },
+              {
+                "name": "entry/b-3a2fe07d05c1.js",
+                "sha256": "728cac1c7c753b1c35e5f7aa2ba2412e8c0d6a4e81bd84914af1982436fe91e3",
+                "raw": 120,
+                "gzip9": 129,
+                "brotli11": 91
+              },
+              {
+                "name": "chunks/core-0-c1f1b5281e15.js",
+                "sha256": "e28325f9c141dbae8f51589744046d338e76bb4439a02ddc1ce278a2cab653ae",
+                "raw": 104,
+                "gzip9": 105,
+                "brotli11": 79
+              }
+            ],
+            "sizes": {
+              "raw": 458,
+              "gzip9": 464,
+              "brotli11": 346
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        }
+      }
+    },
+    {
+      "id": "lazy-preserve-modules",
+      "sources": [
+        {
+          "path": "feature.lil",
+          "sha256": "cc0509eeb318697b3908e1cc38953a742314f49cece39918b5151caf4bf91377"
+        },
+        {
+          "path": "main.lil",
+          "sha256": "35ec5a095cb5b700775e00bc09a739d6c2ce82e97cec1845bb70e9aee40300f5"
+        }
+      ],
+      "lanes": {
+        "raw": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/main-e251d97199fa.js",
+                "sha256": "362808b9be0975b38ef06271b0859326c0cd61ad58d541d68768e374ff21b0a7",
+                "raw": 366,
+                "gzip9": 253,
+                "brotli11": 208
+              },
+              {
+                "name": "modules/feature-70039ba0750c.js",
+                "sha256": "5e40eaf75d78a72ec267d1497faf05660f830d233789f55163fb4f8031b06a4a",
+                "raw": 52,
+                "gzip9": 68,
+                "brotli11": 55
+              }
+            ],
+            "sizes": {
+              "raw": 418,
+              "gzip9": 321,
+              "brotli11": 263
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/main-e251d97199fa.js",
+                "sha256": "362808b9be0975b38ef06271b0859326c0cd61ad58d541d68768e374ff21b0a7",
+                "raw": 366,
+                "gzip9": 253,
+                "brotli11": 208
+              },
+              {
+                "name": "modules/feature-70039ba0750c.js",
+                "sha256": "5e40eaf75d78a72ec267d1497faf05660f830d233789f55163fb4f8031b06a4a",
+                "raw": 52,
+                "gzip9": 68,
+                "brotli11": 55
+              }
+            ],
+            "sizes": {
+              "raw": 418,
+              "gzip9": 321,
+              "brotli11": 263
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/main-e251d97199fa.js",
+                "sha256": "362808b9be0975b38ef06271b0859326c0cd61ad58d541d68768e374ff21b0a7",
+                "raw": 366,
+                "gzip9": 253,
+                "brotli11": 208
+              },
+              {
+                "name": "modules/feature-70039ba0750c.js",
+                "sha256": "5e40eaf75d78a72ec267d1497faf05660f830d233789f55163fb4f8031b06a4a",
+                "raw": 52,
+                "gzip9": 68,
+                "brotli11": 55
+              }
+            ],
+            "sizes": {
+              "raw": 418,
+              "gzip9": 321,
+              "brotli11": 263
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        },
+        "gzip": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/main-789a7f09510d.js",
+                "sha256": "a3d2262f28e997d829de5fa2d78051dbddcb1c266c06f4cc17d61b1008fb80f1",
+                "raw": 366,
+                "gzip9": 251,
+                "brotli11": 200
+              },
+              {
+                "name": "modules/feature-4d7f8804a4a3.js",
+                "sha256": "f06d3ccd08e3577cc33986b89a29d4a4665b651fa1a3a7521ce07ee1c54fdc52",
+                "raw": 52,
+                "gzip9": 68,
+                "brotli11": 53
+              }
+            ],
+            "sizes": {
+              "raw": 418,
+              "gzip9": 319,
+              "brotli11": 253
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/main-789a7f09510d.js",
+                "sha256": "a3d2262f28e997d829de5fa2d78051dbddcb1c266c06f4cc17d61b1008fb80f1",
+                "raw": 366,
+                "gzip9": 251,
+                "brotli11": 200
+              },
+              {
+                "name": "modules/feature-4d7f8804a4a3.js",
+                "sha256": "f06d3ccd08e3577cc33986b89a29d4a4665b651fa1a3a7521ce07ee1c54fdc52",
+                "raw": 52,
+                "gzip9": 68,
+                "brotli11": 53
+              }
+            ],
+            "sizes": {
+              "raw": 418,
+              "gzip9": 319,
+              "brotli11": 253
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/main-789a7f09510d.js",
+                "sha256": "a3d2262f28e997d829de5fa2d78051dbddcb1c266c06f4cc17d61b1008fb80f1",
+                "raw": 366,
+                "gzip9": 251,
+                "brotli11": 200
+              },
+              {
+                "name": "modules/feature-4d7f8804a4a3.js",
+                "sha256": "f06d3ccd08e3577cc33986b89a29d4a4665b651fa1a3a7521ce07ee1c54fdc52",
+                "raw": 52,
+                "gzip9": 68,
+                "brotli11": 53
+              }
+            ],
+            "sizes": {
+              "raw": 418,
+              "gzip9": 319,
+              "brotli11": 253
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        },
+        "brotli": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/main-6add0ca1b755.js",
+                "sha256": "d1c0e7fbbfc83a071e319fb5467772f4b05c6316fbe834f288d1fd46796c1329",
+                "raw": 368,
+                "gzip9": 253,
+                "brotli11": 186
+              },
+              {
+                "name": "modules/feature-1a65020a6bad.js",
+                "sha256": "43adf9f630d44ec1893eed2c5e097f9915ac2360f0da6cd9cae56fd6d9c291dd",
+                "raw": 59,
+                "gzip9": 73,
+                "brotli11": 55
+              }
+            ],
+            "sizes": {
+              "raw": 427,
+              "gzip9": 326,
+              "brotli11": 241
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/main-6add0ca1b755.js",
+                "sha256": "d1c0e7fbbfc83a071e319fb5467772f4b05c6316fbe834f288d1fd46796c1329",
+                "raw": 368,
+                "gzip9": 253,
+                "brotli11": 186
+              },
+              {
+                "name": "modules/feature-1a65020a6bad.js",
+                "sha256": "43adf9f630d44ec1893eed2c5e097f9915ac2360f0da6cd9cae56fd6d9c291dd",
+                "raw": 59,
+                "gzip9": 73,
+                "brotli11": 55
+              }
+            ],
+            "sizes": {
+              "raw": 427,
+              "gzip9": 326,
+              "brotli11": 241
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/main-6add0ca1b755.js",
+                "sha256": "d1c0e7fbbfc83a071e319fb5467772f4b05c6316fbe834f288d1fd46796c1329",
+                "raw": 368,
+                "gzip9": 253,
+                "brotli11": 186
+              },
+              {
+                "name": "modules/feature-1a65020a6bad.js",
+                "sha256": "43adf9f630d44ec1893eed2c5e097f9915ac2360f0da6cd9cae56fd6d9c291dd",
+                "raw": 59,
+                "gzip9": 73,
+                "brotli11": 55
+              }
+            ],
+            "sizes": {
+              "raw": 427,
+              "gzip9": 326,
+              "brotli11": 241
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        }
+      }
+    },
+    {
+      "id": "embedded-host-single",
+      "sources": [
+        {
+          "path": "main.lil",
+          "sha256": "d49a70343741913cf061b1fc33d9d79467d59afae907aaecab5dc4dec97ee3cb"
+        },
+        {
+          "path": "host.js",
+          "sha256": "cefddbdf3809bf663138dc7259da8b45d3c54385fe5bd7877961185fe82f632e"
+        },
+        {
+          "path": "math.js",
+          "sha256": "2495da10ad0faec7861a4046ef1b48ca17680d72d5619a3e65d7d288c447340c"
+        }
+      ],
+      "lanes": {
+        "raw": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/main-840dc09fac5f.js",
+                "sha256": "840dc09fac5fca1d83d863e51cf6eaf9ce05c4623dbc7266dea243bf4336dc13",
+                "raw": 48,
+                "gzip9": 64,
+                "brotli11": 48
+              }
+            ],
+            "sizes": {
+              "raw": 48,
+              "gzip9": 64,
+              "brotli11": 48
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/main-840dc09fac5f.js",
+                "sha256": "840dc09fac5fca1d83d863e51cf6eaf9ce05c4623dbc7266dea243bf4336dc13",
+                "raw": 48,
+                "gzip9": 64,
+                "brotli11": 48
+              }
+            ],
+            "sizes": {
+              "raw": 48,
+              "gzip9": 64,
+              "brotli11": 48
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/main-840dc09fac5f.js",
+                "sha256": "840dc09fac5fca1d83d863e51cf6eaf9ce05c4623dbc7266dea243bf4336dc13",
+                "raw": 48,
+                "gzip9": 64,
+                "brotli11": 48
+              }
+            ],
+            "sizes": {
+              "raw": 48,
+              "gzip9": 64,
+              "brotli11": 48
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        },
+        "gzip": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/main-840dc09fac5f.js",
+                "sha256": "840dc09fac5fca1d83d863e51cf6eaf9ce05c4623dbc7266dea243bf4336dc13",
+                "raw": 48,
+                "gzip9": 64,
+                "brotli11": 48
+              }
+            ],
+            "sizes": {
+              "raw": 48,
+              "gzip9": 64,
+              "brotli11": 48
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/main-840dc09fac5f.js",
+                "sha256": "840dc09fac5fca1d83d863e51cf6eaf9ce05c4623dbc7266dea243bf4336dc13",
+                "raw": 48,
+                "gzip9": 64,
+                "brotli11": 48
+              }
+            ],
+            "sizes": {
+              "raw": 48,
+              "gzip9": 64,
+              "brotli11": 48
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/main-840dc09fac5f.js",
+                "sha256": "840dc09fac5fca1d83d863e51cf6eaf9ce05c4623dbc7266dea243bf4336dc13",
+                "raw": 48,
+                "gzip9": 64,
+                "brotli11": 48
+              }
+            ],
+            "sizes": {
+              "raw": 48,
+              "gzip9": 64,
+              "brotli11": 48
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        },
+        "brotli": {
+          "before": {
+            "files": [
+              {
+                "name": "entry/main-840dc09fac5f.js",
+                "sha256": "840dc09fac5fca1d83d863e51cf6eaf9ce05c4623dbc7266dea243bf4336dc13",
+                "raw": 48,
+                "gzip9": 64,
+                "brotli11": 48
+              }
+            ],
+            "sizes": {
+              "raw": 48,
+              "gzip9": 64,
+              "brotli11": 48
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "entry/main-840dc09fac5f.js",
+                "sha256": "840dc09fac5fca1d83d863e51cf6eaf9ce05c4623dbc7266dea243bf4336dc13",
+                "raw": 48,
+                "gzip9": 64,
+                "brotli11": 48
+              }
+            ],
+            "sizes": {
+              "raw": 48,
+              "gzip9": 64,
+              "brotli11": 48
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "entry/main-840dc09fac5f.js",
+                "sha256": "840dc09fac5fca1d83d863e51cf6eaf9ce05c4623dbc7266dea243bf4336dc13",
+                "raw": 48,
+                "gzip9": 64,
+                "brotli11": 48
+              }
+            ],
+            "sizes": {
+              "raw": 48,
+              "gzip9": 64,
+              "brotli11": 48
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        }
+      }
+    },
+    {
+      "id": "pure-ranges",
+      "sources": [
+        {
+          "path": "main.lil",
+          "sha256": "9a141677e718c8f43ac9d6e5014a6c13101144e2ab64a6cb5c625663f39ffb6b"
+        }
+      ],
+      "lanes": {
+        "raw": {
+          "before": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "543be5dc03704210532df7db6af465d4801ecd64bd486866406ed4a7c0e1d991",
+                "raw": 128,
+                "gzip9": 128,
+                "brotli11": 116
+              }
+            ],
+            "sizes": {
+              "raw": 128,
+              "gzip9": 128,
+              "brotli11": 116
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "543be5dc03704210532df7db6af465d4801ecd64bd486866406ed4a7c0e1d991",
+                "raw": 128,
+                "gzip9": 128,
+                "brotli11": 116
+              }
+            ],
+            "sizes": {
+              "raw": 128,
+              "gzip9": 128,
+              "brotli11": 116
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "543be5dc03704210532df7db6af465d4801ecd64bd486866406ed4a7c0e1d991",
+                "raw": 128,
+                "gzip9": 128,
+                "brotli11": 116
+              }
+            ],
+            "sizes": {
+              "raw": 128,
+              "gzip9": 128,
+              "brotli11": 116
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        },
+        "gzip": {
+          "before": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "134f9dd091a2080ff1b17e4a543356db698c7a7f9657837b6d6fd9cf63d0215d",
+                "raw": 130,
+                "gzip9": 122,
+                "brotli11": 106
+              }
+            ],
+            "sizes": {
+              "raw": 130,
+              "gzip9": 122,
+              "brotli11": 106
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "134f9dd091a2080ff1b17e4a543356db698c7a7f9657837b6d6fd9cf63d0215d",
+                "raw": 130,
+                "gzip9": 122,
+                "brotli11": 106
+              }
+            ],
+            "sizes": {
+              "raw": 130,
+              "gzip9": 122,
+              "brotli11": 106
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "134f9dd091a2080ff1b17e4a543356db698c7a7f9657837b6d6fd9cf63d0215d",
+                "raw": 130,
+                "gzip9": 122,
+                "brotli11": 106
+              }
+            ],
+            "sizes": {
+              "raw": 130,
+              "gzip9": 122,
+              "brotli11": 106
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        },
+        "brotli": {
+          "before": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "8fa76daa362e7c7f5a67df082e379b483c888b96d51b674b5095b26b556f35cf",
+                "raw": 128,
+                "gzip9": 123,
+                "brotli11": 94
+              }
+            ],
+            "sizes": {
+              "raw": 128,
+              "gzip9": 123,
+              "brotli11": 94
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "after": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "8fa76daa362e7c7f5a67df082e379b483c888b96d51b674b5095b26b556f35cf",
+                "raw": 128,
+                "gzip9": 123,
+                "brotli11": 94
+              }
+            ],
+            "sizes": {
+              "raw": 128,
+              "gzip9": 123,
+              "brotli11": 94
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "8fa76daa362e7c7f5a67df082e379b483c888b96d51b674b5095b26b556f35cf",
+                "raw": 128,
+                "gzip9": 123,
+                "brotli11": 94
+              }
+            ],
+            "sizes": {
+              "raw": 128,
+              "gzip9": 123,
+              "brotli11": 94
+            },
+            "resources": null,
+            "search": null,
+            "cpu_seconds": null,
+            "wall_seconds": null,
+            "timing": null,
+            "evidence": "Artifacts recovered from the initial successful comparisons. Resource/search parity and Node oracles passed there, but detailed receipts were not persisted before the last invalid fixture failed."
+          }
+        }
+      }
+    },
+    {
+      "id": "early-read",
+      "sources": [
+        {
+          "path": "main.lil",
+          "sha256": "504c8c778760ec94d4cc9ab4f598b0a65f9feef4896c0da5f217c705f6f5e8eb"
+        }
+      ],
+      "lanes": {
+        "raw": {
+          "before": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "be035a9d0ebd9f6017ac318c92c36121c5a661ea70777967f075da962d7a1178",
+                "raw": 71,
+                "gzip9": 87,
+                "brotli11": 72
+              }
+            ],
+            "sizes": {
+              "raw": 71,
+              "gzip9": 87,
+              "brotli11": 72
+            },
+            "resources": {
+              "baseline_work": 9056,
+              "optional_work": 214807,
+              "codec_work": 39,
+              "peak_retained_bytes": 16035062,
+              "frontend_logical_work": 2992,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 448,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "search": {
+              "structures": 1,
+              "judged": 4,
+              "tried": 56,
+              "scored": 2,
+              "heads": 3
+            },
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "timing": {
+              "wall_ms": 7.8,
+              "js_demand_ms": 0.191,
+              "js_demand_calls": 4,
+              "js_formation_ms": 2.552,
+              "js_formation_calls": 63,
+              "js_formation_reuse_ms": 0,
+              "js_formation_reuse_calls": 12,
+              "formation_admission_refused_ms": 0,
+              "formation_admission_refused_calls": 0,
+              "target_verify_ms": 0.181,
+              "target_verify_calls": 69,
+              "target_edition_ms": 0.005,
+              "target_edition_calls": 69,
+              "target_basis_ms": 0.144,
+              "target_basis_calls": 69,
+              "target_names_ms": 0.187,
+              "target_names_calls": 70,
+              "target_print_ms": 0.245,
+              "target_print_calls": 70,
+              "canonical_gzip_ms": 0,
+              "canonical_gzip_calls": 0,
+              "canonical_brotli_ms": 0,
+              "canonical_brotli_calls": 0,
+              "proxy_brotli_ms": 0,
+              "proxy_brotli_calls": 0,
+              "codec_lookup_ms": 0,
+              "codec_lookup_calls": 0,
+              "codec_reuse_ms": 0,
+              "codec_reuse_calls": 0,
+              "admission_structure_ms": 0.26,
+              "admission_structure_calls": 70,
+              "admission_parse_ms": 0.138,
+              "admission_parse_calls": 7,
+              "js_rule_ms": 2.118,
+              "js_rule_calls": 1128,
+              "source_effect_unit_ms": 0.046,
+              "source_effect_unit_calls": 10,
+              "source_effect_reuse_ms": 0,
+              "source_effect_reuse_calls": 2,
+              "js_rule_reuse_ms": 0,
+              "js_rule_reuse_calls": 0,
+              "js_rule_SelfMethodCalls_ms": 0.01,
+              "js_rule_SelfMethodCalls_calls": 4,
+              "js_rule_SimplifyOperators_ms": 0.002,
+              "js_rule_SimplifyOperators_calls": 4,
+              "js_rule_InlineExpressionFunctions_ms": 0.028,
+              "js_rule_InlineExpressionFunctions_calls": 4,
+              "js_rule_DuplicateExpressionFunctions_ms": 0.123,
+              "js_rule_DuplicateExpressionFunctions_calls": 60,
+              "js_rule_PrivateCallRepresentations_ms": 0.28,
+              "js_rule_PrivateCallRepresentations_calls": 60,
+              "js_rule_InlineStatementFunctions_ms": 0.011,
+              "js_rule_InlineStatementFunctions_calls": 4,
+              "js_rule_EliminateAliases_ms": 0.007,
+              "js_rule_EliminateAliases_calls": 4,
+              "js_rule_FoldLiteralOperations_ms": 0.024,
+              "js_rule_FoldLiteralOperations_calls": 64,
+              "js_rule_ForwardRootConstants_ms": 0.032,
+              "js_rule_ForwardRootConstants_calls": 4,
+              "js_rule_ForwardRootStrings_ms": 0.297,
+              "js_rule_ForwardRootStrings_calls": 54,
+              "js_rule_ForwardSingleUses_ms": 0.036,
+              "js_rule_ForwardSingleUses_calls": 4,
+              "js_rule_ElideUndefined_ms": 0.002,
+              "js_rule_ElideUndefined_calls": 4,
+              "js_rule_MergeDeclarations_ms": 0.002,
+              "js_rule_MergeDeclarations_calls": 4,
+              "js_rule_FoldLogicalAssignments_ms": 0.006,
+              "js_rule_FoldLogicalAssignments_calls": 4,
+              "js_rule_FoldLogicalReturns_ms": 0.002,
+              "js_rule_FoldLogicalReturns_calls": 4,
+              "js_rule_FlattenConstantObjects_ms": 0.021,
+              "js_rule_FlattenConstantObjects_calls": 4,
+              "js_rule_UnobserveCalledNames_ms": 0.007,
+              "js_rule_UnobserveCalledNames_calls": 4,
+              "js_rule_InlineInitializers_ms": 0.006,
+              "js_rule_InlineInitializers_calls": 4,
+              "js_rule_FoldObjectStores_ms": 0.004,
+              "js_rule_FoldObjectStores_calls": 4,
+              "js_rule_DropDoubleNegations_ms": 0.005,
+              "js_rule_DropDoubleNegations_calls": 4,
+              "js_rule_InlineSingleCalls_ms": 0.092,
+              "js_rule_InlineSingleCalls_calls": 54,
+              "js_rule_FlattenBlocks_ms": 0.019,
+              "js_rule_FlattenBlocks_calls": 56,
+              "js_rule_CompressStatements_ms": 0.182,
+              "js_rule_CompressStatements_calls": 60,
+              "js_rule_PlaceSingleCalls_ms": 0.156,
+              "js_rule_PlaceSingleCalls_calls": 60,
+              "js_rule_DropRedundantInitStores_ms": 0.099,
+              "js_rule_DropRedundantInitStores_calls": 60,
+              "js_rule_ScalarizeMemberObjects_ms": 0.115,
+              "js_rule_ScalarizeMemberObjects_calls": 60,
+              "js_rule_PruneDeclarations_ms": 0.141,
+              "js_rule_PruneDeclarations_calls": 60,
+              "js_rule_DropUnreachable_ms": 0.028,
+              "js_rule_DropUnreachable_calls": 60,
+              "js_rule_GroupPrototypeStores_ms": 0.015,
+              "js_rule_GroupPrototypeStores_calls": 60,
+              "js_rule_JoinEmptyDeclarations_ms": 0.02,
+              "js_rule_JoinEmptyDeclarations_calls": 60,
+              "js_rule_DropBareBlocks_ms": 0.024,
+              "js_rule_DropBareBlocks_calls": 60,
+              "js_rule_TruthyNullTests_ms": 0.083,
+              "js_rule_TruthyNullTests_calls": 60,
+              "js_rule_ArrayReceiverCalls_ms": 0.016,
+              "js_rule_ArrayReceiverCalls_calls": 60,
+              "js_rule_EncodeTables_ms": 0,
+              "js_rule_EncodeTables_calls": 0,
+              "js_rule_PackStringArrays_ms": 0,
+              "js_rule_PackStringArrays_calls": 0,
+              "js_rule_PoolStrings_ms": 0.135,
+              "js_rule_PoolStrings_calls": 56
+            }
+          },
+          "after": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "be035a9d0ebd9f6017ac318c92c36121c5a661ea70777967f075da962d7a1178",
+                "raw": 71,
+                "gzip9": 87,
+                "brotli11": 72
+              }
+            ],
+            "sizes": {
+              "raw": 71,
+              "gzip9": 87,
+              "brotli11": 72
+            },
+            "resources": {
+              "baseline_work": 10480,
+              "optional_work": 217180,
+              "codec_work": 39,
+              "peak_retained_bytes": 16039148,
+              "frontend_logical_work": 3625,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 448,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "search": {
+              "structures": 1,
+              "judged": 4,
+              "tried": 56,
+              "scored": 2,
+              "heads": 3
+            },
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "timing": {
+              "wall_ms": 6.9,
+              "js_demand_ms": 0.298,
+              "js_demand_calls": 4,
+              "js_formation_ms": 2.214,
+              "js_formation_calls": 63,
+              "js_formation_reuse_ms": 0,
+              "js_formation_reuse_calls": 12,
+              "formation_admission_refused_ms": 0,
+              "formation_admission_refused_calls": 0,
+              "target_verify_ms": 0.117,
+              "target_verify_calls": 69,
+              "target_edition_ms": 0.004,
+              "target_edition_calls": 69,
+              "target_basis_ms": 0.112,
+              "target_basis_calls": 69,
+              "target_names_ms": 0.147,
+              "target_names_calls": 70,
+              "target_print_ms": 0.163,
+              "target_print_calls": 70,
+              "canonical_gzip_ms": 0,
+              "canonical_gzip_calls": 0,
+              "canonical_brotli_ms": 0,
+              "canonical_brotli_calls": 0,
+              "proxy_brotli_ms": 0,
+              "proxy_brotli_calls": 0,
+              "codec_lookup_ms": 0,
+              "codec_lookup_calls": 0,
+              "codec_reuse_ms": 0,
+              "codec_reuse_calls": 0,
+              "admission_structure_ms": 0.245,
+              "admission_structure_calls": 70,
+              "admission_parse_ms": 0.094,
+              "admission_parse_calls": 7,
+              "js_rule_ms": 1.824,
+              "js_rule_calls": 1128,
+              "source_effect_unit_ms": 0.03,
+              "source_effect_unit_calls": 10,
+              "source_effect_reuse_ms": 0.002,
+              "source_effect_reuse_calls": 10,
+              "js_rule_reuse_ms": 0,
+              "js_rule_reuse_calls": 0,
+              "js_rule_SelfMethodCalls_ms": 0.003,
+              "js_rule_SelfMethodCalls_calls": 4,
+              "js_rule_SimplifyOperators_ms": 0.002,
+              "js_rule_SimplifyOperators_calls": 4,
+              "js_rule_InlineExpressionFunctions_ms": 0.021,
+              "js_rule_InlineExpressionFunctions_calls": 4,
+              "js_rule_DuplicateExpressionFunctions_ms": 0.094,
+              "js_rule_DuplicateExpressionFunctions_calls": 60,
+              "js_rule_PrivateCallRepresentations_ms": 0.222,
+              "js_rule_PrivateCallRepresentations_calls": 60,
+              "js_rule_InlineStatementFunctions_ms": 0.013,
+              "js_rule_InlineStatementFunctions_calls": 4,
+              "js_rule_EliminateAliases_ms": 0.007,
+              "js_rule_EliminateAliases_calls": 4,
+              "js_rule_FoldLiteralOperations_ms": 0.019,
+              "js_rule_FoldLiteralOperations_calls": 64,
+              "js_rule_ForwardRootConstants_ms": 0.033,
+              "js_rule_ForwardRootConstants_calls": 4,
+              "js_rule_ForwardRootStrings_ms": 0.24,
+              "js_rule_ForwardRootStrings_calls": 54,
+              "js_rule_ForwardSingleUses_ms": 0.039,
+              "js_rule_ForwardSingleUses_calls": 4,
+              "js_rule_ElideUndefined_ms": 0.002,
+              "js_rule_ElideUndefined_calls": 4,
+              "js_rule_MergeDeclarations_ms": 0.002,
+              "js_rule_MergeDeclarations_calls": 4,
+              "js_rule_FoldLogicalAssignments_ms": 0.007,
+              "js_rule_FoldLogicalAssignments_calls": 4,
+              "js_rule_FoldLogicalReturns_ms": 0.002,
+              "js_rule_FoldLogicalReturns_calls": 4,
+              "js_rule_FlattenConstantObjects_ms": 0.022,
+              "js_rule_FlattenConstantObjects_calls": 4,
+              "js_rule_UnobserveCalledNames_ms": 0.007,
+              "js_rule_UnobserveCalledNames_calls": 4,
+              "js_rule_InlineInitializers_ms": 0.006,
+              "js_rule_InlineInitializers_calls": 4,
+              "js_rule_FoldObjectStores_ms": 0.004,
+              "js_rule_FoldObjectStores_calls": 4,
+              "js_rule_DropDoubleNegations_ms": 0.005,
+              "js_rule_DropDoubleNegations_calls": 4,
+              "js_rule_InlineSingleCalls_ms": 0.077,
+              "js_rule_InlineSingleCalls_calls": 54,
+              "js_rule_FlattenBlocks_ms": 0.017,
+              "js_rule_FlattenBlocks_calls": 56,
+              "js_rule_CompressStatements_ms": 0.153,
+              "js_rule_CompressStatements_calls": 60,
+              "js_rule_PlaceSingleCalls_ms": 0.134,
+              "js_rule_PlaceSingleCalls_calls": 60,
+              "js_rule_DropRedundantInitStores_ms": 0.078,
+              "js_rule_DropRedundantInitStores_calls": 60,
+              "js_rule_ScalarizeMemberObjects_ms": 0.097,
+              "js_rule_ScalarizeMemberObjects_calls": 60,
+              "js_rule_PruneDeclarations_ms": 0.167,
+              "js_rule_PruneDeclarations_calls": 60,
+              "js_rule_DropUnreachable_ms": 0.023,
+              "js_rule_DropUnreachable_calls": 60,
+              "js_rule_GroupPrototypeStores_ms": 0.014,
+              "js_rule_GroupPrototypeStores_calls": 60,
+              "js_rule_JoinEmptyDeclarations_ms": 0.018,
+              "js_rule_JoinEmptyDeclarations_calls": 60,
+              "js_rule_DropBareBlocks_ms": 0.022,
+              "js_rule_DropBareBlocks_calls": 60,
+              "js_rule_TruthyNullTests_ms": 0.072,
+              "js_rule_TruthyNullTests_calls": 60,
+              "js_rule_ArrayReceiverCalls_ms": 0.014,
+              "js_rule_ArrayReceiverCalls_calls": 60,
+              "js_rule_EncodeTables_ms": 0,
+              "js_rule_EncodeTables_calls": 0,
+              "js_rule_PackStringArrays_ms": 0,
+              "js_rule_PackStringArrays_calls": 0,
+              "js_rule_PoolStrings_ms": 0.108,
+              "js_rule_PoolStrings_calls": 56
+            }
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "be035a9d0ebd9f6017ac318c92c36121c5a661ea70777967f075da962d7a1178",
+                "raw": 71,
+                "gzip9": 87,
+                "brotli11": 72
+              }
+            ],
+            "sizes": {
+              "raw": 71,
+              "gzip9": 87,
+              "brotli11": 72
+            },
+            "resources": {
+              "baseline_work": 10480,
+              "optional_work": 217180,
+              "codec_work": 39,
+              "peak_retained_bytes": 16039148,
+              "frontend_logical_work": 3625,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 448,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "search": {
+              "structures": 1,
+              "judged": 4,
+              "tried": 56,
+              "scored": 2,
+              "heads": 3
+            },
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "timing": {
+              "wall_ms": 6.3,
+              "js_demand_ms": 0.219,
+              "js_demand_calls": 4,
+              "js_formation_ms": 2.116,
+              "js_formation_calls": 63,
+              "js_formation_reuse_ms": 0,
+              "js_formation_reuse_calls": 12,
+              "formation_admission_refused_ms": 0,
+              "formation_admission_refused_calls": 0,
+              "target_verify_ms": 0.107,
+              "target_verify_calls": 69,
+              "target_edition_ms": 0.004,
+              "target_edition_calls": 69,
+              "target_basis_ms": 0.112,
+              "target_basis_calls": 69,
+              "target_names_ms": 0.146,
+              "target_names_calls": 70,
+              "target_print_ms": 0.145,
+              "target_print_calls": 70,
+              "canonical_gzip_ms": 0,
+              "canonical_gzip_calls": 0,
+              "canonical_brotli_ms": 0,
+              "canonical_brotli_calls": 0,
+              "proxy_brotli_ms": 0,
+              "proxy_brotli_calls": 0,
+              "codec_lookup_ms": 0,
+              "codec_lookup_calls": 0,
+              "codec_reuse_ms": 0,
+              "codec_reuse_calls": 0,
+              "admission_structure_ms": 0.192,
+              "admission_structure_calls": 70,
+              "admission_parse_ms": 0.09,
+              "admission_parse_calls": 7,
+              "js_rule_ms": 1.768,
+              "js_rule_calls": 1128,
+              "source_effect_unit_ms": 0.037,
+              "source_effect_unit_calls": 20,
+              "source_effect_reuse_ms": 0,
+              "source_effect_reuse_calls": 0,
+              "js_rule_reuse_ms": 0,
+              "js_rule_reuse_calls": 0,
+              "js_rule_SelfMethodCalls_ms": 0.003,
+              "js_rule_SelfMethodCalls_calls": 4,
+              "js_rule_SimplifyOperators_ms": 0.002,
+              "js_rule_SimplifyOperators_calls": 4,
+              "js_rule_InlineExpressionFunctions_ms": 0.023,
+              "js_rule_InlineExpressionFunctions_calls": 4,
+              "js_rule_DuplicateExpressionFunctions_ms": 0.098,
+              "js_rule_DuplicateExpressionFunctions_calls": 60,
+              "js_rule_PrivateCallRepresentations_ms": 0.215,
+              "js_rule_PrivateCallRepresentations_calls": 60,
+              "js_rule_InlineStatementFunctions_ms": 0.013,
+              "js_rule_InlineStatementFunctions_calls": 4,
+              "js_rule_EliminateAliases_ms": 0.007,
+              "js_rule_EliminateAliases_calls": 4,
+              "js_rule_FoldLiteralOperations_ms": 0.021,
+              "js_rule_FoldLiteralOperations_calls": 64,
+              "js_rule_ForwardRootConstants_ms": 0.031,
+              "js_rule_ForwardRootConstants_calls": 4,
+              "js_rule_ForwardRootStrings_ms": 0.224,
+              "js_rule_ForwardRootStrings_calls": 54,
+              "js_rule_ForwardSingleUses_ms": 0.038,
+              "js_rule_ForwardSingleUses_calls": 4,
+              "js_rule_ElideUndefined_ms": 0.002,
+              "js_rule_ElideUndefined_calls": 4,
+              "js_rule_MergeDeclarations_ms": 0.002,
+              "js_rule_MergeDeclarations_calls": 4,
+              "js_rule_FoldLogicalAssignments_ms": 0.007,
+              "js_rule_FoldLogicalAssignments_calls": 4,
+              "js_rule_FoldLogicalReturns_ms": 0.001,
+              "js_rule_FoldLogicalReturns_calls": 4,
+              "js_rule_FlattenConstantObjects_ms": 0.022,
+              "js_rule_FlattenConstantObjects_calls": 4,
+              "js_rule_UnobserveCalledNames_ms": 0.007,
+              "js_rule_UnobserveCalledNames_calls": 4,
+              "js_rule_InlineInitializers_ms": 0.005,
+              "js_rule_InlineInitializers_calls": 4,
+              "js_rule_FoldObjectStores_ms": 0.004,
+              "js_rule_FoldObjectStores_calls": 4,
+              "js_rule_DropDoubleNegations_ms": 0.005,
+              "js_rule_DropDoubleNegations_calls": 4,
+              "js_rule_InlineSingleCalls_ms": 0.075,
+              "js_rule_InlineSingleCalls_calls": 54,
+              "js_rule_FlattenBlocks_ms": 0.016,
+              "js_rule_FlattenBlocks_calls": 56,
+              "js_rule_CompressStatements_ms": 0.146,
+              "js_rule_CompressStatements_calls": 60,
+              "js_rule_PlaceSingleCalls_ms": 0.161,
+              "js_rule_PlaceSingleCalls_calls": 60,
+              "js_rule_DropRedundantInitStores_ms": 0.075,
+              "js_rule_DropRedundantInitStores_calls": 60,
+              "js_rule_ScalarizeMemberObjects_ms": 0.095,
+              "js_rule_ScalarizeMemberObjects_calls": 60,
+              "js_rule_PruneDeclarations_ms": 0.113,
+              "js_rule_PruneDeclarations_calls": 60,
+              "js_rule_DropUnreachable_ms": 0.023,
+              "js_rule_DropUnreachable_calls": 60,
+              "js_rule_GroupPrototypeStores_ms": 0.013,
+              "js_rule_GroupPrototypeStores_calls": 60,
+              "js_rule_JoinEmptyDeclarations_ms": 0.017,
+              "js_rule_JoinEmptyDeclarations_calls": 60,
+              "js_rule_DropBareBlocks_ms": 0.019,
+              "js_rule_DropBareBlocks_calls": 60,
+              "js_rule_TruthyNullTests_ms": 0.066,
+              "js_rule_TruthyNullTests_calls": 60,
+              "js_rule_ArrayReceiverCalls_ms": 0.013,
+              "js_rule_ArrayReceiverCalls_calls": 60,
+              "js_rule_EncodeTables_ms": 0,
+              "js_rule_EncodeTables_calls": 0,
+              "js_rule_PackStringArrays_ms": 0,
+              "js_rule_PackStringArrays_calls": 0,
+              "js_rule_PoolStrings_ms": 0.126,
+              "js_rule_PoolStrings_calls": 56
+            }
+          }
+        },
+        "gzip": {
+          "before": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "be035a9d0ebd9f6017ac318c92c36121c5a661ea70777967f075da962d7a1178",
+                "raw": 71,
+                "gzip9": 87,
+                "brotli11": 72
+              }
+            ],
+            "sizes": {
+              "raw": 71,
+              "gzip9": 87,
+              "brotli11": 72
+            },
+            "resources": {
+              "baseline_work": 277189,
+              "optional_work": 2823709,
+              "codec_work": 2950923,
+              "peak_retained_bytes": 16337481,
+              "frontend_logical_work": 2992,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 448,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "search": {
+              "structures": 1,
+              "judged": 2,
+              "tried": 38,
+              "scored": 0,
+              "heads": 3
+            },
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "timing": {
+              "wall_ms": 6.1,
+              "js_demand_ms": 0.137,
+              "js_demand_calls": 4,
+              "js_formation_ms": 1.462,
+              "js_formation_calls": 45,
+              "js_formation_reuse_ms": 0,
+              "js_formation_reuse_calls": 10,
+              "formation_admission_refused_ms": 0,
+              "formation_admission_refused_calls": 0,
+              "target_verify_ms": 0.091,
+              "target_verify_calls": 51,
+              "target_edition_ms": 0.003,
+              "target_edition_calls": 51,
+              "target_basis_ms": 0.08,
+              "target_basis_calls": 51,
+              "target_names_ms": 0.106,
+              "target_names_calls": 52,
+              "target_print_ms": 0.131,
+              "target_print_calls": 52,
+              "canonical_gzip_ms": 0.472,
+              "canonical_gzip_calls": 4,
+              "canonical_brotli_ms": 0,
+              "canonical_brotli_calls": 0,
+              "proxy_brotli_ms": 0,
+              "proxy_brotli_calls": 0,
+              "codec_lookup_ms": 0.003,
+              "codec_lookup_calls": 11,
+              "codec_reuse_ms": 0.001,
+              "codec_reuse_calls": 7,
+              "admission_structure_ms": 0.151,
+              "admission_structure_calls": 52,
+              "admission_parse_ms": 0.111,
+              "admission_parse_calls": 5,
+              "js_rule_ms": 1.107,
+              "js_rule_calls": 672,
+              "source_effect_unit_ms": 0.015,
+              "source_effect_unit_calls": 10,
+              "source_effect_reuse_ms": 0,
+              "source_effect_reuse_calls": 2,
+              "js_rule_reuse_ms": 0,
+              "js_rule_reuse_calls": 0,
+              "js_rule_SelfMethodCalls_ms": 0.007,
+              "js_rule_SelfMethodCalls_calls": 4,
+              "js_rule_SimplifyOperators_ms": 0.003,
+              "js_rule_SimplifyOperators_calls": 4,
+              "js_rule_InlineExpressionFunctions_ms": 0.03,
+              "js_rule_InlineExpressionFunctions_calls": 4,
+              "js_rule_DuplicateExpressionFunctions_ms": 0.062,
+              "js_rule_DuplicateExpressionFunctions_calls": 42,
+              "js_rule_PrivateCallRepresentations_ms": 0.148,
+              "js_rule_PrivateCallRepresentations_calls": 42,
+              "js_rule_InlineStatementFunctions_ms": 0.013,
+              "js_rule_InlineStatementFunctions_calls": 4,
+              "js_rule_EliminateAliases_ms": 0.008,
+              "js_rule_EliminateAliases_calls": 4,
+              "js_rule_FoldLiteralOperations_ms": 0.013,
+              "js_rule_FoldLiteralOperations_calls": 46,
+              "js_rule_ForwardRootConstants_ms": 0.036,
+              "js_rule_ForwardRootConstants_calls": 4,
+              "js_rule_ForwardRootStrings_ms": 0.02,
+              "js_rule_ForwardRootStrings_calls": 4,
+              "js_rule_ForwardSingleUses_ms": 0.041,
+              "js_rule_ForwardSingleUses_calls": 4,
+              "js_rule_ElideUndefined_ms": 0.002,
+              "js_rule_ElideUndefined_calls": 4,
+              "js_rule_MergeDeclarations_ms": 0.003,
+              "js_rule_MergeDeclarations_calls": 4,
+              "js_rule_FoldLogicalAssignments_ms": 0.007,
+              "js_rule_FoldLogicalAssignments_calls": 4,
+              "js_rule_FoldLogicalReturns_ms": 0.002,
+              "js_rule_FoldLogicalReturns_calls": 4,
+              "js_rule_FlattenConstantObjects_ms": 0.028,
+              "js_rule_FlattenConstantObjects_calls": 4,
+              "js_rule_UnobserveCalledNames_ms": 0.008,
+              "js_rule_UnobserveCalledNames_calls": 4,
+              "js_rule_InlineInitializers_ms": 0.007,
+              "js_rule_InlineInitializers_calls": 4,
+              "js_rule_FoldObjectStores_ms": 0.005,
+              "js_rule_FoldObjectStores_calls": 4,
+              "js_rule_DropDoubleNegations_ms": 0.005,
+              "js_rule_DropDoubleNegations_calls": 4,
+              "js_rule_InlineSingleCalls_ms": 0.007,
+              "js_rule_InlineSingleCalls_calls": 4,
+              "js_rule_FlattenBlocks_ms": 0.001,
+              "js_rule_FlattenBlocks_calls": 4,
+              "js_rule_CompressStatements_ms": 0.109,
+              "js_rule_CompressStatements_calls": 42,
+              "js_rule_PlaceSingleCalls_ms": 0.097,
+              "js_rule_PlaceSingleCalls_calls": 42,
+              "js_rule_DropRedundantInitStores_ms": 0.055,
+              "js_rule_DropRedundantInitStores_calls": 42,
+              "js_rule_ScalarizeMemberObjects_ms": 0.067,
+              "js_rule_ScalarizeMemberObjects_calls": 42,
+              "js_rule_PruneDeclarations_ms": 0.08,
+              "js_rule_PruneDeclarations_calls": 42,
+              "js_rule_DropUnreachable_ms": 0.016,
+              "js_rule_DropUnreachable_calls": 42,
+              "js_rule_GroupPrototypeStores_ms": 0.009,
+              "js_rule_GroupPrototypeStores_calls": 42,
+              "js_rule_JoinEmptyDeclarations_ms": 0.012,
+              "js_rule_JoinEmptyDeclarations_calls": 42,
+              "js_rule_DropBareBlocks_ms": 0.093,
+              "js_rule_DropBareBlocks_calls": 42,
+              "js_rule_TruthyNullTests_ms": 0.047,
+              "js_rule_TruthyNullTests_calls": 42,
+              "js_rule_ArrayReceiverCalls_ms": 0.009,
+              "js_rule_ArrayReceiverCalls_calls": 42,
+              "js_rule_EncodeTables_ms": 0,
+              "js_rule_EncodeTables_calls": 0,
+              "js_rule_PackStringArrays_ms": 0,
+              "js_rule_PackStringArrays_calls": 0,
+              "js_rule_PoolStrings_ms": 0.01,
+              "js_rule_PoolStrings_calls": 4
+            }
+          },
+          "after": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "be035a9d0ebd9f6017ac318c92c36121c5a661ea70777967f075da962d7a1178",
+                "raw": 71,
+                "gzip9": 87,
+                "brotli11": 72
+              }
+            ],
+            "sizes": {
+              "raw": 71,
+              "gzip9": 87,
+              "brotli11": 72
+            },
+            "resources": {
+              "baseline_work": 278613,
+              "optional_work": 2826082,
+              "codec_work": 2950923,
+              "peak_retained_bytes": 16341567,
+              "frontend_logical_work": 3625,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 448,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "search": {
+              "structures": 1,
+              "judged": 2,
+              "tried": 38,
+              "scored": 0,
+              "heads": 3
+            },
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "timing": {
+              "wall_ms": 5.5,
+              "js_demand_ms": 0.235,
+              "js_demand_calls": 4,
+              "js_formation_ms": 1.302,
+              "js_formation_calls": 45,
+              "js_formation_reuse_ms": 0,
+              "js_formation_reuse_calls": 10,
+              "formation_admission_refused_ms": 0,
+              "formation_admission_refused_calls": 0,
+              "target_verify_ms": 0.079,
+              "target_verify_calls": 51,
+              "target_edition_ms": 0.003,
+              "target_edition_calls": 51,
+              "target_basis_ms": 0.076,
+              "target_basis_calls": 51,
+              "target_names_ms": 0.128,
+              "target_names_calls": 52,
+              "target_print_ms": 0.143,
+              "target_print_calls": 52,
+              "canonical_gzip_ms": 0.476,
+              "canonical_gzip_calls": 4,
+              "canonical_brotli_ms": 0,
+              "canonical_brotli_calls": 0,
+              "proxy_brotli_ms": 0,
+              "proxy_brotli_calls": 0,
+              "codec_lookup_ms": 0.003,
+              "codec_lookup_calls": 11,
+              "codec_reuse_ms": 0.001,
+              "codec_reuse_calls": 7,
+              "admission_structure_ms": 0.145,
+              "admission_structure_calls": 52,
+              "admission_parse_ms": 0.077,
+              "admission_parse_calls": 5,
+              "js_rule_ms": 1.003,
+              "js_rule_calls": 672,
+              "source_effect_unit_ms": 0.03,
+              "source_effect_unit_calls": 10,
+              "source_effect_reuse_ms": 0.002,
+              "source_effect_reuse_calls": 10,
+              "js_rule_reuse_ms": 0,
+              "js_rule_reuse_calls": 0,
+              "js_rule_SelfMethodCalls_ms": 0.003,
+              "js_rule_SelfMethodCalls_calls": 4,
+              "js_rule_SimplifyOperators_ms": 0.002,
+              "js_rule_SimplifyOperators_calls": 4,
+              "js_rule_InlineExpressionFunctions_ms": 0.024,
+              "js_rule_InlineExpressionFunctions_calls": 4,
+              "js_rule_DuplicateExpressionFunctions_ms": 0.063,
+              "js_rule_DuplicateExpressionFunctions_calls": 42,
+              "js_rule_PrivateCallRepresentations_ms": 0.152,
+              "js_rule_PrivateCallRepresentations_calls": 42,
+              "js_rule_InlineStatementFunctions_ms": 0.013,
+              "js_rule_InlineStatementFunctions_calls": 4,
+              "js_rule_EliminateAliases_ms": 0.007,
+              "js_rule_EliminateAliases_calls": 4,
+              "js_rule_FoldLiteralOperations_ms": 0.012,
+              "js_rule_FoldLiteralOperations_calls": 46,
+              "js_rule_ForwardRootConstants_ms": 0.033,
+              "js_rule_ForwardRootConstants_calls": 4,
+              "js_rule_ForwardRootStrings_ms": 0.021,
+              "js_rule_ForwardRootStrings_calls": 4,
+              "js_rule_ForwardSingleUses_ms": 0.045,
+              "js_rule_ForwardSingleUses_calls": 4,
+              "js_rule_ElideUndefined_ms": 0.002,
+              "js_rule_ElideUndefined_calls": 4,
+              "js_rule_MergeDeclarations_ms": 0.002,
+              "js_rule_MergeDeclarations_calls": 4,
+              "js_rule_FoldLogicalAssignments_ms": 0.006,
+              "js_rule_FoldLogicalAssignments_calls": 4,
+              "js_rule_FoldLogicalReturns_ms": 0.001,
+              "js_rule_FoldLogicalReturns_calls": 4,
+              "js_rule_FlattenConstantObjects_ms": 0.022,
+              "js_rule_FlattenConstantObjects_calls": 4,
+              "js_rule_UnobserveCalledNames_ms": 0.007,
+              "js_rule_UnobserveCalledNames_calls": 4,
+              "js_rule_InlineInitializers_ms": 0.006,
+              "js_rule_InlineInitializers_calls": 4,
+              "js_rule_FoldObjectStores_ms": 0.004,
+              "js_rule_FoldObjectStores_calls": 4,
+              "js_rule_DropDoubleNegations_ms": 0.005,
+              "js_rule_DropDoubleNegations_calls": 4,
+              "js_rule_InlineSingleCalls_ms": 0.007,
+              "js_rule_InlineSingleCalls_calls": 4,
+              "js_rule_FlattenBlocks_ms": 0.001,
+              "js_rule_FlattenBlocks_calls": 4,
+              "js_rule_CompressStatements_ms": 0.107,
+              "js_rule_CompressStatements_calls": 42,
+              "js_rule_PlaceSingleCalls_ms": 0.095,
+              "js_rule_PlaceSingleCalls_calls": 42,
+              "js_rule_DropRedundantInitStores_ms": 0.053,
+              "js_rule_DropRedundantInitStores_calls": 42,
+              "js_rule_ScalarizeMemberObjects_ms": 0.067,
+              "js_rule_ScalarizeMemberObjects_calls": 42,
+              "js_rule_PruneDeclarations_ms": 0.079,
+              "js_rule_PruneDeclarations_calls": 42,
+              "js_rule_DropUnreachable_ms": 0.015,
+              "js_rule_DropUnreachable_calls": 42,
+              "js_rule_GroupPrototypeStores_ms": 0.01,
+              "js_rule_GroupPrototypeStores_calls": 42,
+              "js_rule_JoinEmptyDeclarations_ms": 0.012,
+              "js_rule_JoinEmptyDeclarations_calls": 42,
+              "js_rule_DropBareBlocks_ms": 0.014,
+              "js_rule_DropBareBlocks_calls": 42,
+              "js_rule_TruthyNullTests_ms": 0.046,
+              "js_rule_TruthyNullTests_calls": 42,
+              "js_rule_ArrayReceiverCalls_ms": 0.009,
+              "js_rule_ArrayReceiverCalls_calls": 42,
+              "js_rule_EncodeTables_ms": 0,
+              "js_rule_EncodeTables_calls": 0,
+              "js_rule_PackStringArrays_ms": 0,
+              "js_rule_PackStringArrays_calls": 0,
+              "js_rule_PoolStrings_ms": 0.01,
+              "js_rule_PoolStrings_calls": 4
+            }
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "be035a9d0ebd9f6017ac318c92c36121c5a661ea70777967f075da962d7a1178",
+                "raw": 71,
+                "gzip9": 87,
+                "brotli11": 72
+              }
+            ],
+            "sizes": {
+              "raw": 71,
+              "gzip9": 87,
+              "brotli11": 72
+            },
+            "resources": {
+              "baseline_work": 278613,
+              "optional_work": 2826082,
+              "codec_work": 2950923,
+              "peak_retained_bytes": 16341567,
+              "frontend_logical_work": 3625,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 448,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "search": {
+              "structures": 1,
+              "judged": 2,
+              "tried": 38,
+              "scored": 0,
+              "heads": 3
+            },
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "timing": {
+              "wall_ms": 5.5,
+              "js_demand_ms": 0.236,
+              "js_demand_calls": 4,
+              "js_formation_ms": 1.367,
+              "js_formation_calls": 45,
+              "js_formation_reuse_ms": 0,
+              "js_formation_reuse_calls": 10,
+              "formation_admission_refused_ms": 0,
+              "formation_admission_refused_calls": 0,
+              "target_verify_ms": 0.08,
+              "target_verify_calls": 51,
+              "target_edition_ms": 0.003,
+              "target_edition_calls": 51,
+              "target_basis_ms": 0.074,
+              "target_basis_calls": 51,
+              "target_names_ms": 0.103,
+              "target_names_calls": 52,
+              "target_print_ms": 0.126,
+              "target_print_calls": 52,
+              "canonical_gzip_ms": 0.443,
+              "canonical_gzip_calls": 4,
+              "canonical_brotli_ms": 0,
+              "canonical_brotli_calls": 0,
+              "proxy_brotli_ms": 0,
+              "proxy_brotli_calls": 0,
+              "codec_lookup_ms": 0.002,
+              "codec_lookup_calls": 11,
+              "codec_reuse_ms": 0.001,
+              "codec_reuse_calls": 7,
+              "admission_structure_ms": 0.165,
+              "admission_structure_calls": 52,
+              "admission_parse_ms": 0.076,
+              "admission_parse_calls": 5,
+              "js_rule_ms": 1.046,
+              "js_rule_calls": 672,
+              "source_effect_unit_ms": 0.036,
+              "source_effect_unit_calls": 20,
+              "source_effect_reuse_ms": 0,
+              "source_effect_reuse_calls": 0,
+              "js_rule_reuse_ms": 0,
+              "js_rule_reuse_calls": 0,
+              "js_rule_SelfMethodCalls_ms": 0.003,
+              "js_rule_SelfMethodCalls_calls": 4,
+              "js_rule_SimplifyOperators_ms": 0.002,
+              "js_rule_SimplifyOperators_calls": 4,
+              "js_rule_InlineExpressionFunctions_ms": 0.022,
+              "js_rule_InlineExpressionFunctions_calls": 4,
+              "js_rule_DuplicateExpressionFunctions_ms": 0.063,
+              "js_rule_DuplicateExpressionFunctions_calls": 42,
+              "js_rule_PrivateCallRepresentations_ms": 0.144,
+              "js_rule_PrivateCallRepresentations_calls": 42,
+              "js_rule_InlineStatementFunctions_ms": 0.013,
+              "js_rule_InlineStatementFunctions_calls": 4,
+              "js_rule_EliminateAliases_ms": 0.007,
+              "js_rule_EliminateAliases_calls": 4,
+              "js_rule_FoldLiteralOperations_ms": 0.012,
+              "js_rule_FoldLiteralOperations_calls": 46,
+              "js_rule_ForwardRootConstants_ms": 0.033,
+              "js_rule_ForwardRootConstants_calls": 4,
+              "js_rule_ForwardRootStrings_ms": 0.019,
+              "js_rule_ForwardRootStrings_calls": 4,
+              "js_rule_ForwardSingleUses_ms": 0.038,
+              "js_rule_ForwardSingleUses_calls": 4,
+              "js_rule_ElideUndefined_ms": 0.002,
+              "js_rule_ElideUndefined_calls": 4,
+              "js_rule_MergeDeclarations_ms": 0.002,
+              "js_rule_MergeDeclarations_calls": 4,
+              "js_rule_FoldLogicalAssignments_ms": 0.006,
+              "js_rule_FoldLogicalAssignments_calls": 4,
+              "js_rule_FoldLogicalReturns_ms": 0.001,
+              "js_rule_FoldLogicalReturns_calls": 4,
+              "js_rule_FlattenConstantObjects_ms": 0.025,
+              "js_rule_FlattenConstantObjects_calls": 4,
+              "js_rule_UnobserveCalledNames_ms": 0.007,
+              "js_rule_UnobserveCalledNames_calls": 4,
+              "js_rule_InlineInitializers_ms": 0.006,
+              "js_rule_InlineInitializers_calls": 4,
+              "js_rule_FoldObjectStores_ms": 0.004,
+              "js_rule_FoldObjectStores_calls": 4,
+              "js_rule_DropDoubleNegations_ms": 0.005,
+              "js_rule_DropDoubleNegations_calls": 4,
+              "js_rule_InlineSingleCalls_ms": 0.007,
+              "js_rule_InlineSingleCalls_calls": 4,
+              "js_rule_FlattenBlocks_ms": 0.002,
+              "js_rule_FlattenBlocks_calls": 4,
+              "js_rule_CompressStatements_ms": 0.128,
+              "js_rule_CompressStatements_calls": 42,
+              "js_rule_PlaceSingleCalls_ms": 0.097,
+              "js_rule_PlaceSingleCalls_calls": 42,
+              "js_rule_DropRedundantInitStores_ms": 0.054,
+              "js_rule_DropRedundantInitStores_calls": 42,
+              "js_rule_ScalarizeMemberObjects_ms": 0.066,
+              "js_rule_ScalarizeMemberObjects_calls": 42,
+              "js_rule_PruneDeclarations_ms": 0.108,
+              "js_rule_PruneDeclarations_calls": 42,
+              "js_rule_DropUnreachable_ms": 0.016,
+              "js_rule_DropUnreachable_calls": 42,
+              "js_rule_GroupPrototypeStores_ms": 0.01,
+              "js_rule_GroupPrototypeStores_calls": 42,
+              "js_rule_JoinEmptyDeclarations_ms": 0.012,
+              "js_rule_JoinEmptyDeclarations_calls": 42,
+              "js_rule_DropBareBlocks_ms": 0.015,
+              "js_rule_DropBareBlocks_calls": 42,
+              "js_rule_TruthyNullTests_ms": 0.048,
+              "js_rule_TruthyNullTests_calls": 42,
+              "js_rule_ArrayReceiverCalls_ms": 0.01,
+              "js_rule_ArrayReceiverCalls_calls": 42,
+              "js_rule_EncodeTables_ms": 0,
+              "js_rule_EncodeTables_calls": 0,
+              "js_rule_PackStringArrays_ms": 0,
+              "js_rule_PackStringArrays_calls": 0,
+              "js_rule_PoolStrings_ms": 0.01,
+              "js_rule_PoolStrings_calls": 4
+            }
+          }
+        },
+        "brotli": {
+          "before": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "78d139f44e52820496ba2a3fd5ee327838b9bebd221f1fa685a711617343d5f6",
+                "raw": 71,
+                "gzip9": 87,
+                "brotli11": 64
+              }
+            ],
+            "sizes": {
+              "raw": 71,
+              "gzip9": 87,
+              "brotli11": 64
+            },
+            "resources": {
+              "baseline_work": 9063,
+              "optional_work": 392700,
+              "codec_work": 5736,
+              "peak_retained_bytes": 17187513,
+              "frontend_logical_work": 2992,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 448,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "search": {
+              "structures": 1,
+              "judged": 21,
+              "tried": 112,
+              "scored": 8,
+              "heads": 3
+            },
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "timing": {
+              "wall_ms": 13.2,
+              "js_demand_ms": 0.138,
+              "js_demand_calls": 4,
+              "js_formation_ms": 2.973,
+              "js_formation_calls": 119,
+              "js_formation_reuse_ms": 0.001,
+              "js_formation_reuse_calls": 30,
+              "formation_admission_refused_ms": 0,
+              "formation_admission_refused_calls": 0,
+              "target_verify_ms": 0.208,
+              "target_verify_calls": 138,
+              "target_edition_ms": 0.007,
+              "target_edition_calls": 138,
+              "target_basis_ms": 0.205,
+              "target_basis_calls": 138,
+              "target_names_ms": 0.302,
+              "target_names_calls": 139,
+              "target_print_ms": 0.346,
+              "target_print_calls": 139,
+              "canonical_gzip_ms": 0,
+              "canonical_gzip_calls": 0,
+              "canonical_brotli_ms": 4.006,
+              "canonical_brotli_calls": 7,
+              "proxy_brotli_ms": 0.386,
+              "proxy_brotli_calls": 7,
+              "codec_lookup_ms": 0.01,
+              "codec_lookup_calls": 46,
+              "codec_reuse_ms": 0.002,
+              "codec_reuse_calls": 32,
+              "admission_structure_ms": 0.38,
+              "admission_structure_calls": 139,
+              "admission_parse_ms": 0.283,
+              "admission_parse_calls": 24,
+              "js_rule_ms": 2.451,
+              "js_rule_calls": 1736,
+              "source_effect_unit_ms": 0.015,
+              "source_effect_unit_calls": 10,
+              "source_effect_reuse_ms": 0,
+              "source_effect_reuse_calls": 2,
+              "js_rule_reuse_ms": 0,
+              "js_rule_reuse_calls": 0,
+              "js_rule_SelfMethodCalls_ms": 0.013,
+              "js_rule_SelfMethodCalls_calls": 4,
+              "js_rule_SimplifyOperators_ms": 0.002,
+              "js_rule_SimplifyOperators_calls": 4,
+              "js_rule_InlineExpressionFunctions_ms": 0.025,
+              "js_rule_InlineExpressionFunctions_calls": 4,
+              "js_rule_DuplicateExpressionFunctions_ms": 0.16,
+              "js_rule_DuplicateExpressionFunctions_calls": 116,
+              "js_rule_PrivateCallRepresentations_ms": 0.384,
+              "js_rule_PrivateCallRepresentations_calls": 116,
+              "js_rule_InlineStatementFunctions_ms": 0.011,
+              "js_rule_InlineStatementFunctions_calls": 4,
+              "js_rule_EliminateAliases_ms": 0.007,
+              "js_rule_EliminateAliases_calls": 4,
+              "js_rule_FoldLiteralOperations_ms": 0.029,
+              "js_rule_FoldLiteralOperations_calls": 120,
+              "js_rule_ForwardRootConstants_ms": 0.035,
+              "js_rule_ForwardRootConstants_calls": 4,
+              "js_rule_ForwardRootStrings_ms": 0.063,
+              "js_rule_ForwardRootStrings_calls": 12,
+              "js_rule_ForwardSingleUses_ms": 0.036,
+              "js_rule_ForwardSingleUses_calls": 4,
+              "js_rule_ElideUndefined_ms": 0.002,
+              "js_rule_ElideUndefined_calls": 4,
+              "js_rule_MergeDeclarations_ms": 0.002,
+              "js_rule_MergeDeclarations_calls": 4,
+              "js_rule_FoldLogicalAssignments_ms": 0.006,
+              "js_rule_FoldLogicalAssignments_calls": 4,
+              "js_rule_FoldLogicalReturns_ms": 0.001,
+              "js_rule_FoldLogicalReturns_calls": 4,
+              "js_rule_FlattenConstantObjects_ms": 0.022,
+              "js_rule_FlattenConstantObjects_calls": 4,
+              "js_rule_UnobserveCalledNames_ms": 0.007,
+              "js_rule_UnobserveCalledNames_calls": 4,
+              "js_rule_InlineInitializers_ms": 0.006,
+              "js_rule_InlineInitializers_calls": 4,
+              "js_rule_FoldObjectStores_ms": 0.004,
+              "js_rule_FoldObjectStores_calls": 4,
+              "js_rule_DropDoubleNegations_ms": 0.005,
+              "js_rule_DropDoubleNegations_calls": 4,
+              "js_rule_InlineSingleCalls_ms": 0.045,
+              "js_rule_InlineSingleCalls_calls": 12,
+              "js_rule_FlattenBlocks_ms": 0.004,
+              "js_rule_FlattenBlocks_calls": 10,
+              "js_rule_CompressStatements_ms": 0.287,
+              "js_rule_CompressStatements_calls": 116,
+              "js_rule_PlaceSingleCalls_ms": 0.261,
+              "js_rule_PlaceSingleCalls_calls": 116,
+              "js_rule_DropRedundantInitStores_ms": 0.168,
+              "js_rule_DropRedundantInitStores_calls": 116,
+              "js_rule_ScalarizeMemberObjects_ms": 0.179,
+              "js_rule_ScalarizeMemberObjects_calls": 116,
+              "js_rule_PruneDeclarations_ms": 0.207,
+              "js_rule_PruneDeclarations_calls": 116,
+              "js_rule_DropUnreachable_ms": 0.039,
+              "js_rule_DropUnreachable_calls": 116,
+              "js_rule_GroupPrototypeStores_ms": 0.026,
+              "js_rule_GroupPrototypeStores_calls": 116,
+              "js_rule_JoinEmptyDeclarations_ms": 0.033,
+              "js_rule_JoinEmptyDeclarations_calls": 116,
+              "js_rule_DropBareBlocks_ms": 0.038,
+              "js_rule_DropBareBlocks_calls": 116,
+              "js_rule_TruthyNullTests_ms": 0.163,
+              "js_rule_TruthyNullTests_calls": 116,
+              "js_rule_ArrayReceiverCalls_ms": 0.026,
+              "js_rule_ArrayReceiverCalls_calls": 116,
+              "js_rule_EncodeTables_ms": 0,
+              "js_rule_EncodeTables_calls": 0,
+              "js_rule_PackStringArrays_ms": 0,
+              "js_rule_PackStringArrays_calls": 0,
+              "js_rule_PoolStrings_ms": 0.03,
+              "js_rule_PoolStrings_calls": 10
+            }
+          },
+          "after": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "78d139f44e52820496ba2a3fd5ee327838b9bebd221f1fa685a711617343d5f6",
+                "raw": 71,
+                "gzip9": 87,
+                "brotli11": 64
+              }
+            ],
+            "sizes": {
+              "raw": 71,
+              "gzip9": 87,
+              "brotli11": 64
+            },
+            "resources": {
+              "baseline_work": 10487,
+              "optional_work": 395073,
+              "codec_work": 5736,
+              "peak_retained_bytes": 17191599,
+              "frontend_logical_work": 3625,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 448,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "search": {
+              "structures": 1,
+              "judged": 21,
+              "tried": 112,
+              "scored": 8,
+              "heads": 3
+            },
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "timing": {
+              "wall_ms": 12.7,
+              "js_demand_ms": 0.224,
+              "js_demand_calls": 4,
+              "js_formation_ms": 3.009,
+              "js_formation_calls": 119,
+              "js_formation_reuse_ms": 0.001,
+              "js_formation_reuse_calls": 30,
+              "formation_admission_refused_ms": 0,
+              "formation_admission_refused_calls": 0,
+              "target_verify_ms": 0.213,
+              "target_verify_calls": 138,
+              "target_edition_ms": 0.006,
+              "target_edition_calls": 138,
+              "target_basis_ms": 0.256,
+              "target_basis_calls": 138,
+              "target_names_ms": 0.285,
+              "target_names_calls": 139,
+              "target_print_ms": 0.29,
+              "target_print_calls": 139,
+              "canonical_gzip_ms": 0,
+              "canonical_gzip_calls": 0,
+              "canonical_brotli_ms": 3.758,
+              "canonical_brotli_calls": 7,
+              "proxy_brotli_ms": 0.38,
+              "proxy_brotli_calls": 7,
+              "codec_lookup_ms": 0.009,
+              "codec_lookup_calls": 46,
+              "codec_reuse_ms": 0.002,
+              "codec_reuse_calls": 32,
+              "admission_structure_ms": 0.367,
+              "admission_structure_calls": 139,
+              "admission_parse_ms": 0.218,
+              "admission_parse_calls": 24,
+              "js_rule_ms": 2.534,
+              "js_rule_calls": 1736,
+              "source_effect_unit_ms": 0.025,
+              "source_effect_unit_calls": 10,
+              "source_effect_reuse_ms": 0.001,
+              "source_effect_reuse_calls": 10,
+              "js_rule_reuse_ms": 0,
+              "js_rule_reuse_calls": 0,
+              "js_rule_SelfMethodCalls_ms": 0.007,
+              "js_rule_SelfMethodCalls_calls": 4,
+              "js_rule_SimplifyOperators_ms": 0.002,
+              "js_rule_SimplifyOperators_calls": 4,
+              "js_rule_InlineExpressionFunctions_ms": 0.021,
+              "js_rule_InlineExpressionFunctions_calls": 4,
+              "js_rule_DuplicateExpressionFunctions_ms": 0.199,
+              "js_rule_DuplicateExpressionFunctions_calls": 116,
+              "js_rule_PrivateCallRepresentations_ms": 0.418,
+              "js_rule_PrivateCallRepresentations_calls": 116,
+              "js_rule_InlineStatementFunctions_ms": 0.013,
+              "js_rule_InlineStatementFunctions_calls": 4,
+              "js_rule_EliminateAliases_ms": 0.007,
+              "js_rule_EliminateAliases_calls": 4,
+              "js_rule_FoldLiteralOperations_ms": 0.031,
+              "js_rule_FoldLiteralOperations_calls": 120,
+              "js_rule_ForwardRootConstants_ms": 0.033,
+              "js_rule_ForwardRootConstants_calls": 4,
+              "js_rule_ForwardRootStrings_ms": 0.064,
+              "js_rule_ForwardRootStrings_calls": 12,
+              "js_rule_ForwardSingleUses_ms": 0.038,
+              "js_rule_ForwardSingleUses_calls": 4,
+              "js_rule_ElideUndefined_ms": 0.002,
+              "js_rule_ElideUndefined_calls": 4,
+              "js_rule_MergeDeclarations_ms": 0.002,
+              "js_rule_MergeDeclarations_calls": 4,
+              "js_rule_FoldLogicalAssignments_ms": 0.007,
+              "js_rule_FoldLogicalAssignments_calls": 4,
+              "js_rule_FoldLogicalReturns_ms": 0.001,
+              "js_rule_FoldLogicalReturns_calls": 4,
+              "js_rule_FlattenConstantObjects_ms": 0.054,
+              "js_rule_FlattenConstantObjects_calls": 4,
+              "js_rule_UnobserveCalledNames_ms": 0.007,
+              "js_rule_UnobserveCalledNames_calls": 4,
+              "js_rule_InlineInitializers_ms": 0.006,
+              "js_rule_InlineInitializers_calls": 4,
+              "js_rule_FoldObjectStores_ms": 0.004,
+              "js_rule_FoldObjectStores_calls": 4,
+              "js_rule_DropDoubleNegations_ms": 0.005,
+              "js_rule_DropDoubleNegations_calls": 4,
+              "js_rule_InlineSingleCalls_ms": 0.021,
+              "js_rule_InlineSingleCalls_calls": 12,
+              "js_rule_FlattenBlocks_ms": 0.003,
+              "js_rule_FlattenBlocks_calls": 10,
+              "js_rule_CompressStatements_ms": 0.301,
+              "js_rule_CompressStatements_calls": 116,
+              "js_rule_PlaceSingleCalls_ms": 0.258,
+              "js_rule_PlaceSingleCalls_calls": 116,
+              "js_rule_DropRedundantInitStores_ms": 0.176,
+              "js_rule_DropRedundantInitStores_calls": 116,
+              "js_rule_ScalarizeMemberObjects_ms": 0.187,
+              "js_rule_ScalarizeMemberObjects_calls": 116,
+              "js_rule_PruneDeclarations_ms": 0.226,
+              "js_rule_PruneDeclarations_calls": 116,
+              "js_rule_DropUnreachable_ms": 0.04,
+              "js_rule_DropUnreachable_calls": 116,
+              "js_rule_GroupPrototypeStores_ms": 0.028,
+              "js_rule_GroupPrototypeStores_calls": 116,
+              "js_rule_JoinEmptyDeclarations_ms": 0.035,
+              "js_rule_JoinEmptyDeclarations_calls": 116,
+              "js_rule_DropBareBlocks_ms": 0.039,
+              "js_rule_DropBareBlocks_calls": 116,
+              "js_rule_TruthyNullTests_ms": 0.126,
+              "js_rule_TruthyNullTests_calls": 116,
+              "js_rule_ArrayReceiverCalls_ms": 0.027,
+              "js_rule_ArrayReceiverCalls_calls": 116,
+              "js_rule_EncodeTables_ms": 0,
+              "js_rule_EncodeTables_calls": 0,
+              "js_rule_PackStringArrays_ms": 0,
+              "js_rule_PackStringArrays_calls": 0,
+              "js_rule_PoolStrings_ms": 0.023,
+              "js_rule_PoolStrings_calls": 10
+            }
+          },
+          "cold": {
+            "files": [
+              {
+                "name": "main.js",
+                "sha256": "78d139f44e52820496ba2a3fd5ee327838b9bebd221f1fa685a711617343d5f6",
+                "raw": 71,
+                "gzip9": 87,
+                "brotli11": 64
+              }
+            ],
+            "sizes": {
+              "raw": 71,
+              "gzip9": 87,
+              "brotli11": 64
+            },
+            "resources": {
+              "baseline_work": 10487,
+              "optional_work": 395073,
+              "codec_work": 5736,
+              "peak_retained_bytes": 17191599,
+              "frontend_logical_work": 3625,
+              "frontend_allocation_accounting": "partial",
+              "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+              "source_buffer_capacity": 448,
+              "frontend_phase_accounting": {
+                "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+                "main_parse_arena": "not repeated; discovery programs reused",
+                "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+                "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+                "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+                "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+                "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+                "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+                "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+                "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+                "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+                "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+                "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+                "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+                "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+                "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+                "semantic_verification": "pre-admitted work and owned scratch",
+                "module_metadata": "uninstrumented"
+              },
+              "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+              "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+              "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+              "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+              "retained_bytes_after_handoff": 0
+            },
+            "search": {
+              "structures": 1,
+              "judged": 21,
+              "tried": 112,
+              "scored": 8,
+              "heads": 3
+            },
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "timing": {
+              "wall_ms": 13.2,
+              "js_demand_ms": 0.245,
+              "js_demand_calls": 4,
+              "js_formation_ms": 3.017,
+              "js_formation_calls": 119,
+              "js_formation_reuse_ms": 0.001,
+              "js_formation_reuse_calls": 30,
+              "formation_admission_refused_ms": 0,
+              "formation_admission_refused_calls": 0,
+              "target_verify_ms": 0.216,
+              "target_verify_calls": 138,
+              "target_edition_ms": 0.009,
+              "target_edition_calls": 138,
+              "target_basis_ms": 0.213,
+              "target_basis_calls": 138,
+              "target_names_ms": 0.286,
+              "target_names_calls": 139,
+              "target_print_ms": 0.352,
+              "target_print_calls": 139,
+              "canonical_gzip_ms": 0,
+              "canonical_gzip_calls": 0,
+              "canonical_brotli_ms": 3.955,
+              "canonical_brotli_calls": 7,
+              "proxy_brotli_ms": 0.391,
+              "proxy_brotli_calls": 7,
+              "codec_lookup_ms": 0.01,
+              "codec_lookup_calls": 46,
+              "codec_reuse_ms": 0.002,
+              "codec_reuse_calls": 32,
+              "admission_structure_ms": 0.401,
+              "admission_structure_calls": 139,
+              "admission_parse_ms": 0.23,
+              "admission_parse_calls": 24,
+              "js_rule_ms": 2.491,
+              "js_rule_calls": 1736,
+              "source_effect_unit_ms": 0.037,
+              "source_effect_unit_calls": 20,
+              "source_effect_reuse_ms": 0,
+              "source_effect_reuse_calls": 0,
+              "js_rule_reuse_ms": 0,
+              "js_rule_reuse_calls": 0,
+              "js_rule_SelfMethodCalls_ms": 0.007,
+              "js_rule_SelfMethodCalls_calls": 4,
+              "js_rule_SimplifyOperators_ms": 0.002,
+              "js_rule_SimplifyOperators_calls": 4,
+              "js_rule_InlineExpressionFunctions_ms": 0.021,
+              "js_rule_InlineExpressionFunctions_calls": 4,
+              "js_rule_DuplicateExpressionFunctions_ms": 0.183,
+              "js_rule_DuplicateExpressionFunctions_calls": 116,
+              "js_rule_PrivateCallRepresentations_ms": 0.415,
+              "js_rule_PrivateCallRepresentations_calls": 116,
+              "js_rule_InlineStatementFunctions_ms": 0.013,
+              "js_rule_InlineStatementFunctions_calls": 4,
+              "js_rule_EliminateAliases_ms": 0.007,
+              "js_rule_EliminateAliases_calls": 4,
+              "js_rule_FoldLiteralOperations_ms": 0.032,
+              "js_rule_FoldLiteralOperations_calls": 120,
+              "js_rule_ForwardRootConstants_ms": 0.032,
+              "js_rule_ForwardRootConstants_calls": 4,
+              "js_rule_ForwardRootStrings_ms": 0.069,
+              "js_rule_ForwardRootStrings_calls": 12,
+              "js_rule_ForwardSingleUses_ms": 0.036,
+              "js_rule_ForwardSingleUses_calls": 4,
+              "js_rule_ElideUndefined_ms": 0.002,
+              "js_rule_ElideUndefined_calls": 4,
+              "js_rule_MergeDeclarations_ms": 0.002,
+              "js_rule_MergeDeclarations_calls": 4,
+              "js_rule_FoldLogicalAssignments_ms": 0.007,
+              "js_rule_FoldLogicalAssignments_calls": 4,
+              "js_rule_FoldLogicalReturns_ms": 0.001,
+              "js_rule_FoldLogicalReturns_calls": 4,
+              "js_rule_FlattenConstantObjects_ms": 0.022,
+              "js_rule_FlattenConstantObjects_calls": 4,
+              "js_rule_UnobserveCalledNames_ms": 0.007,
+              "js_rule_UnobserveCalledNames_calls": 4,
+              "js_rule_InlineInitializers_ms": 0.005,
+              "js_rule_InlineInitializers_calls": 4,
+              "js_rule_FoldObjectStores_ms": 0.004,
+              "js_rule_FoldObjectStores_calls": 4,
+              "js_rule_DropDoubleNegations_ms": 0.005,
+              "js_rule_DropDoubleNegations_calls": 4,
+              "js_rule_InlineSingleCalls_ms": 0.022,
+              "js_rule_InlineSingleCalls_calls": 12,
+              "js_rule_FlattenBlocks_ms": 0.003,
+              "js_rule_FlattenBlocks_calls": 10,
+              "js_rule_CompressStatements_ms": 0.295,
+              "js_rule_CompressStatements_calls": 116,
+              "js_rule_PlaceSingleCalls_ms": 0.272,
+              "js_rule_PlaceSingleCalls_calls": 116,
+              "js_rule_DropRedundantInitStores_ms": 0.152,
+              "js_rule_DropRedundantInitStores_calls": 116,
+              "js_rule_ScalarizeMemberObjects_ms": 0.185,
+              "js_rule_ScalarizeMemberObjects_calls": 116,
+              "js_rule_PruneDeclarations_ms": 0.213,
+              "js_rule_PruneDeclarations_calls": 116,
+              "js_rule_DropUnreachable_ms": 0.04,
+              "js_rule_DropUnreachable_calls": 116,
+              "js_rule_GroupPrototypeStores_ms": 0.028,
+              "js_rule_GroupPrototypeStores_calls": 116,
+              "js_rule_JoinEmptyDeclarations_ms": 0.036,
+              "js_rule_JoinEmptyDeclarations_calls": 116,
+              "js_rule_DropBareBlocks_ms": 0.065,
+              "js_rule_DropBareBlocks_calls": 116,
+              "js_rule_TruthyNullTests_ms": 0.13,
+              "js_rule_TruthyNullTests_calls": 116,
+              "js_rule_ArrayReceiverCalls_ms": 0.028,
+              "js_rule_ArrayReceiverCalls_calls": 116,
+              "js_rule_EncodeTables_ms": 0,
+              "js_rule_EncodeTables_calls": 0,
+              "js_rule_PackStringArrays_ms": 0,
+              "js_rule_PackStringArrays_calls": 0,
+              "js_rule_PoolStrings_ms": 0.024,
+              "js_rule_PoolStrings_calls": 10
+            }
+          }
+        }
+      }
+    }
+  ],
+  "totals": {
+    "raw": {
+      "before": 1299,
+      "after": 1299
+    },
+    "gzip": {
+      "before": 1252,
+      "after": 1252
+    },
+    "brotli": {
+      "before": 947,
+      "after": 947
+    }
+  }
+}

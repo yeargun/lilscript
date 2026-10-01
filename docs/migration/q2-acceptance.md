@@ -213,3 +213,20 @@ Markedlil avoids 22 of 1,451 formations, but its paired CPU medians are unchange
 The event-log design and its negative results are retained as rejected evidence.
 This closes repeated complete assignments, not changed-unit formation,
 per-module elaboration or the outstanding analysis/planning owners.
+
+The connected analysis batch also removes discarded per-operation flow history
+from range propagation. Its solver admits exact live state copies, and demand
+owns its effects and ranges until formation finishes. Declared-pure checking
+uses a temporary admitted owner and leaves no inspection cache in publication.
+Nested complete-stage receipts preserve deterministic effect SCC/member
+admission when physical reuse is disabled. This is policy algorithm 55; limits
+now count previously omitted graph/summary/range work and backing. Class,
+aggregate, exact-value and rule-planning owners remain the next part of Q2.
+
+The [connected analysis batch](../../benchmarks/migration-results/2026-10-01-q2-analysis/README.md)
+qualifies those graph/effect/range paths with 63 distinct focused checks, 54
+release comparisons and one markedlil raw/13 probe. Funded files and search
+choices remain unchanged; all tested cache vetoes preserve logical admission.
+The larger artifact stays 31,882 bytes with 354 judgments; one 55.24-second CPU
+sample is not a speed claim. Remaining class/aggregate/exact-value, rule-planning,
+default-verification and local-fact initialization owners stay open.

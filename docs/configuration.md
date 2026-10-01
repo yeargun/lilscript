@@ -1275,6 +1275,17 @@ initialization schedule can invalidate an otherwise unchanged leaf. Recursive
 solvers revisit changed dependencies in structural order and retain their
 original convergence limit. No partial recursive result is accepted as stable.
 
+Effect groups and stable recursive members admit a completed analysis stage:
+its measured work, peak temporary storage and surviving facts. Disabling reuse
+executes the same stage physically after the same reservation. Both modes keep
+its dependency and admission metadata; a cache veto therefore does not lower
+memory requirements. Source normalization releases current and previous views
+before publication. JavaScript demand owns its graph, effects and ranges until
+the candidate's formation ends. Range propagation keeps live flow states and
+does not materialize unused per-operation state history. These analysis costs
+are counted from policy algorithm 55; very tight limits can refuse work that
+older compilers did not account for.
+
 Target literal folding and undefined/unreachable cleanup reuse stable answers
 only while their complete node/region/function/table dependencies remain
 unchanged. Other rules still run conservatively. This flag does not change

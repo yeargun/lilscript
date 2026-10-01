@@ -163,3 +163,37 @@ fn a_parameter_joins_what_its_complete_call_set_passes() {
         returned(source, "inc")
     );
 }
+
+#[test]
+fn q2_ranges_keep_answers_and_release_on_admission_refusal() {
+    use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+    let arena = bumpalo::Bump::new();
+    let program = program(&arena,
+        "export int walk(int n){int sum=0;for(int i=0;i<8;i++){if(i<n){sum+=i;}}return sum;}print(walk(4));");
+    for seal in [Seal::Module, Seal::StructuralOnly] {
+        let effects = program.effects(seal);
+        let reference = ProgramRanges::build(&program, &effects, seal);
+        let run = |work, memory| {
+            let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+                baseline_work: 0, optional_work: work, baseline_retained_bytes: 0, retained_bytes: memory,
+            }).unwrap();
+            let outcome = {
+                let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
+                ProgramRanges::build_in(&program, &effects, seal, &mut budget).map(|ranges| {
+                    assert_eq!(ranges.units, reference.units);
+                    assert_eq!(ranges.deps, reference.deps);
+                })
+            };
+            assert_eq!(ledger.retained_bytes(), 0);
+            (outcome, ledger.work_used(WorkDomain::Optional), ledger.peak_retained_bytes())
+        };
+        let complete = run(1_000_000, 1_000_000);
+        assert!(complete.0.is_ok());
+        for work in [0, 1, 100, complete.1 - 1, complete.1] {
+            assert_eq!(run(work, complete.2).0.is_ok(), work == complete.1);
+        }
+        for memory in [0, 1, 100, complete.2 - 1, complete.2] {
+            assert_eq!(run(complete.1, memory).0.is_ok(), memory == complete.2);
+        }
+    }
+}

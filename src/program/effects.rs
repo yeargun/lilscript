@@ -36,10 +36,16 @@ mod reuse;
 #[path = "effects_reuse_tests.rs"]
 mod reuse_tests;
 
+use super::analysis_storage as storage;
 use super::views::{Deps, Fact, Limit, Reason};
 use super::*;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
-use ahash::AHashMap;
 use std::sync::Arc;
 
 /// D3.6 amendment, awaiting an owner ruling (architecture §7): whether a
@@ -400,8 +406,13 @@ pub(super) fn operation_effects(
                 // A tag test on a dynamic host object is one property read;
                 // proxies and getters can run arbitrary code even if unused.
                 return if super::schema::is_shape(ctx.program, ctx.ty(operands[0])) {
-                    Effects { reads: Regions::FIELDS, ..Effects::NONE }
-                } else { Effects::UNKNOWN };
+                    Effects {
+                        reads: Regions::FIELDS,
+                        ..Effects::NONE
+                    }
+                } else {
+                    Effects::UNKNOWN
+                };
             }
             match crate::primitive::runtime_type_test(&ctx.program.types[target.index()]) {
                 Some(crate::primitive::RuntimeTypeTest::TypeOf(_)) => Effects::NONE,
@@ -467,14 +478,15 @@ pub(super) fn operation_effects(
             let site = &ctx.data.calls[call.index()];
             if matches!(site.target, CallTarget::Builtin(BuiltinCall::JsAssume)) {
                 if let (Some(result), Some([CallArgument::Value(argument)])) =
-                    (operation.result, ctx.data.arguments(site.arguments)) {
+                    (operation.result, ctx.data.arguments(site.arguments))
+                {
                     if ctx.data.values[result.index()].ty == ctx.data.values[argument.index()].ty {
                         return Effects::NONE;
                     }
                 }
             }
             call_effects(ctx, values, *call)
-        },
+        }
         Op::Closure(_)
         | Op::Allocate {
             kind:
@@ -609,8 +621,11 @@ fn place_effects(
                     Effects::NONE
                 }
             }
-            Place::ClassField { field, .. } if ctx.program.class(field.nominal)
-                .is_some_and(|class| class.accessors.get(field.slot as usize) == Some(&true)) => {
+            Place::ClassField { field, .. }
+                if ctx.program.class(field.nominal).is_some_and(|class| {
+                    class.accessors.get(field.slot as usize) == Some(&true)
+                }) =>
+            {
                 // A checked accessor is a user-code boundary on every read,
                 // write or location check, including a getter whose result dies.
                 return Effects::UNKNOWN;
@@ -732,7 +747,9 @@ fn object_effects(
         effects.writes = written;
         effects.exhausts_resources = true;
     }
-    if ctx.program.trap_index_reads && access == Access::Read && key.is_some()
+    if ctx.program.trap_index_reads
+        && access == Access::Read
+        && key.is_some()
         && (matches!(ctx.ty(receiver), Type::Array(_) | Type::String)
             || crate::typed_array::is_typed_array_type(ctx.ty(receiver)))
     {
@@ -855,7 +872,7 @@ fn intrinsic_effects(
     values: &impl ValueFacts,
     operation: ResolvedIntrinsic,
     receiver: Option<ValueId>,
-    arguments: impl Iterator<Item = CallArgument>,
+    arguments: impl Iterator<Item = CallArgument> + Clone,
 ) -> Effects {
     let mut effects = classified_intrinsic_effects(ctx, values, operation, receiver, arguments);
     if ctx.program.trap_index_reads
@@ -874,20 +891,21 @@ fn classified_intrinsic_effects(
     values: &impl ValueFacts,
     operation: ResolvedIntrinsic,
     receiver: Option<ValueId>,
-    arguments: impl Iterator<Item = CallArgument>,
+    arguments: impl Iterator<Item = CallArgument> + Clone,
 ) -> Effects {
     use crate::catalog::EffectClass as Class;
-    let arguments = arguments.collect::<Vec<_>>();
-    let argument_values = arguments
-        .iter()
-        .filter_map(|argument| match argument {
-            CallArgument::Value(value) => Some(*value),
-            CallArgument::Reference(_) | CallArgument::Spread(_) => None,
-        })
-        .collect::<Vec<_>>();
-    if argument_values.len() != arguments.len() {
+    if arguments
+        .clone()
+        .any(|argument| !matches!(argument, CallArgument::Value(_)))
+    {
         return Effects::UNKNOWN;
     }
+    let argument_values = || {
+        arguments.clone().filter_map(|argument| match argument {
+            CallArgument::Value(value) => Some(value),
+            _ => None,
+        })
+    };
     // Typed inputs are their types' (R1) and convert without hooks; a
     // dynamic one may run user code.
     let converted = |inputs: &mut dyn Iterator<Item = ValueId>| -> Effects {
@@ -901,8 +919,7 @@ fn classified_intrinsic_effects(
     let class = crate::catalog::effect_class(operation);
     match class {
         Class::Pure { throws, fresh } => {
-            let mut effects =
-                converted(&mut receiver.into_iter().chain(argument_values.iter().copied()));
+            let mut effects = converted(&mut receiver.into_iter().chain(argument_values()));
             effects.may_throw |= throws;
             effects.creates_identity |= fresh;
             effects.exhausts_resources |= fresh;
@@ -918,10 +935,7 @@ fn classified_intrinsic_effects(
             };
             let mut effects = object_effects(ctx, values, receiver, None, Access::Read);
             effects.join(converted(
-                &mut argument_values
-                    .iter()
-                    .copied()
-                    .filter(|&value| primitive_type(ctx.ty(value))),
+                &mut argument_values().filter(|&value| primitive_type(ctx.ty(value))),
             ));
             effects.creates_identity |= fresh;
             effects.exhausts_resources |= fresh;
@@ -933,10 +947,7 @@ fn classified_intrinsic_effects(
             };
             let mut effects = object_effects(ctx, values, receiver, None, Access::Write);
             effects.join(converted(
-                &mut argument_values
-                    .iter()
-                    .copied()
-                    .filter(|&value| primitive_type(ctx.ty(value))),
+                &mut argument_values().filter(|&value| primitive_type(ctx.ty(value))),
             ));
             effects.may_throw |= throws;
             effects
@@ -944,20 +955,17 @@ fn classified_intrinsic_effects(
         Class::Construct { throws } => {
             // A constructor from an iterable runs its iterator; only
             // primitive arguments are known not to.
-            if argument_values
-                .iter()
-                .any(|&value| !primitive_type(ctx.ty(value)))
-            {
+            if argument_values().any(|value| !primitive_type(ctx.ty(value))) {
                 return Effects::UNKNOWN;
             }
-            let mut effects = converted(&mut argument_values.iter().copied());
+            let mut effects = converted(&mut argument_values());
             effects.creates_identity = true;
             effects.exhausts_resources = true;
             effects.may_throw |= throws;
             effects
         }
         Class::Callback => {
-            let (Some(receiver), Some(&callback)) = (receiver, argument_values.first()) else {
+            let (Some(receiver), Some(callback)) = (receiver, argument_values().next()) else {
                 return Effects::UNKNOWN;
             };
             let body = match ctx
@@ -1066,38 +1074,83 @@ impl ProgramEffects {
     }
 
     pub(super) fn build_reusing(
-        program: &Program<'_>, seal: Seal, previous: Option<&Self>, enabled: bool,
+        program: &Program<'_>,
+        seal: Seal,
+        previous: Option<&Self>,
+        enabled: bool,
     ) -> Self {
-        let graph = CallGraph::build(program, seal);
-        let deps = Deps::of_program(program);
-        let previous = previous.filter(|old| {
-            enabled && old.deps.tables == deps.tables
-                && old.trap_index_reads == program.trap_index_reads
-                && graph.same_effect_storage(&old.graph)
-        });
-        let mut initialization = ProgramInitialization::structural(program, &graph);
-        let mut stats = reuse::Stats::default();
-        let structural = reuse::summarize_units(
-            program, &graph, &initialization, true, enabled,
-            previous.map(|old| reuse::Previous::new(&old.deps, &old.graph, &old.structural)),
-            None, &mut stats,
-        );
-        initialization.schedule(program, &graph, &structural.statements);
-        let complete = reuse::summarize_units(
-            program, &graph, &initialization, false, enabled,
-            enabled.then(|| reuse::Previous::new(&deps, &graph, &structural)),
-            previous.map(|old| reuse::Previous::new(&old.deps, &old.graph, &old.complete)),
-            &mut stats,
-        );
-        Self {
-            identity: RevisionId::fresh(), trap_index_reads: program.trap_index_reads,
-            deps, graph, initialization: Arc::new(initialization), structural, complete, stats,
-        }
+        Self::build_reusing_in(
+            program,
+            seal,
+            previous,
+            enabled,
+            &mut AllocationBudget::new(None),
+        )
+        .expect("inspection effects")
     }
 
-    pub(super) fn analysis_identity(&self) -> RevisionId { self.identity }
+    pub(super) fn build_reusing_in(
+        program: &Program<'_>,
+        seal: Seal,
+        previous: Option<&Self>,
+        enabled: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        budget.retained_phase(|budget| {
+            let graph = CallGraph::build_in(program, seal, budget)?;
+            let deps = Deps::of_program_in(program, budget)?;
+            let previous = previous.filter(|old| {
+                old.deps.tables == deps.tables
+                    && old.trap_index_reads == program.trap_index_reads
+                    && graph.same_effect_storage(&old.graph)
+            });
+            let mut initialization = ProgramInitialization::structural_in(program, &graph, budget)?;
+            let mut stats = reuse::Stats::default();
+            let structural = reuse::summarize_units(
+                program,
+                &graph,
+                &initialization,
+                true,
+                enabled,
+                previous.map(|old| reuse::Previous::new(&old.deps, &old.graph, &old.structural)),
+                None,
+                &mut stats,
+                budget,
+            )?;
+            initialization.schedule_in(program, &graph, &structural.statements, budget)?;
+            let complete = reuse::summarize_units(
+                program,
+                &graph,
+                &initialization,
+                false,
+                enabled,
+                Some(reuse::Previous::new(&deps, &graph, &structural)),
+                previous.map(|old| reuse::Previous::new(&old.deps, &old.graph, &old.complete)),
+                &mut stats,
+                budget,
+            )?;
+            Ok(Self {
+                identity: RevisionId::fresh(),
+                trap_index_reads: program.trap_index_reads,
+                deps,
+                graph,
+                initialization: storage::shared(initialization, budget)?,
+                structural,
+                complete,
+                stats,
+            })
+        })
+    }
+
+    pub(super) fn analysis_identity(&self) -> RevisionId {
+        self.identity
+    }
     pub(super) fn reuse_stats(&self) -> (u64, u64, u64) {
-        (self.stats.visited, self.stats.reused, self.stats.components_reused)
+        (
+            self.stats.visited,
+            self.stats.reused,
+            self.stats.components_reused,
+        )
     }
 
     pub fn deps(&self) -> &Deps {
@@ -1120,13 +1173,21 @@ impl ProgramEffects {
         &self.complete.units
     }
     pub(super) fn roots(&self, unit: UnitId) -> &[Root] {
-        self.complete.roots.get(unit.index()).map_or(&[], Vec::as_slice)
+        self.complete
+            .roots
+            .get(unit.index())
+            .map_or(&[], Vec::as_slice)
     }
 
     /// Declared `pure` units whose summary shows an observable effect, in
     /// unit order (M6.3).
     pub fn pure_violations(&self) -> Vec<UnitId> {
-        self.complete.units
+        self.pure_violations_iter().collect()
+    }
+
+    pub(super) fn pure_violations_iter(&self) -> impl Iterator<Item = UnitId> + '_ {
+        self.complete
+            .units
             .iter()
             .enumerate()
             .filter_map(|(index, fact)| match fact {
@@ -1135,7 +1196,6 @@ impl ProgramEffects {
                 }
                 _ => None,
             })
-            .collect()
     }
 }
 
@@ -1267,16 +1327,37 @@ impl ValueFacts for UnitValues {
     }
 }
 
+struct CellFactsMap(Vec<(CellId, usize, CellFacts)>);
+impl CellFactsMap {
+    fn get(&self, cell: &CellId) -> Option<&CellFacts> {
+        self.0
+            .binary_search_by_key(cell, |row| row.0)
+            .ok()
+            .map(|index| &self.0[index].2)
+    }
+    fn get_mut(&mut self, cell: &CellId) -> Option<&mut CellFacts> {
+        self.0
+            .binary_search_by_key(cell, |row| row.0)
+            .ok()
+            .map(|index| &mut self.0[index].2)
+    }
+    fn values_mut(&mut self) -> impl Iterator<Item = &mut CellFacts> {
+        self.0.iter_mut().map(|row| &mut row.2)
+    }
+}
+
 /// Cells whose every write this unit's own operations make, so their
 /// contents follow from those writes.
 fn tracked_cells(
     program: &Program<'_>,
     graph: &CallGraph,
     unit: UnitId,
-) -> AHashMap<CellId, CellFacts> {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<CellFactsMap, AllocationError> {
     let data = program.unit(unit).unwrap();
-    let mut cells = AHashMap::default();
-    let mut track = |cell: CellId, initial: CellFacts| {
+    let mut cells = Vec::new();
+    let mut track = |cell: CellId, initial: CellFacts| -> Result<(), AllocationError> {
+        budget.work(WorkKind::Analysis, 1)?;
         let storage = graph.storage(cell);
         let entry = &program.cells[cell.index()];
         if entry.owner == unit
@@ -1284,8 +1365,10 @@ fn tracked_cells(
             && !(storage.shared && storage.stored)
             && !program.is_reference_parameter(cell)
         {
-            cells.insert(cell, initial);
+            let ordinal = cells.len();
+            budget.push(Scratch, &mut cells, (cell, ordinal, initial))?;
         }
+        Ok(())
     };
     for (position, &cell) in data.parameters.iter().enumerate() {
         let ty = &program.types[program.cells[cell.index()].ty.index()];
@@ -1305,7 +1388,7 @@ fn tracked_cells(
                 },
                 root: Some(Root::Parameter(position as u32)),
             },
-        );
+        )?;
     }
     for operation in &data.operations {
         if let OperationKind::Initialize(cell) = operation.kind {
@@ -1317,11 +1400,25 @@ fn tracked_cells(
                         int32: Proof::Bottom,
                         root: None,
                     },
-                );
+                )?;
             }
         }
     }
-    cells
+    let levels = u64::from(usize::BITS - cells.len().max(1).leading_zeros()) + 1;
+    budget.work(
+        WorkKind::Analysis,
+        (cells.len() as u64).saturating_mul(levels),
+    )?;
+    cells.sort_unstable_by_key(|&(cell, ordinal, _)| (cell, ordinal));
+    cells.dedup_by(|next, kept| {
+        if next.0 == kept.0 {
+            kept.2 = next.2;
+            true
+        } else {
+            false
+        }
+    });
+    Ok(CellFactsMap(cells))
 }
 
 fn unit_values(
@@ -1329,13 +1426,14 @@ fn unit_values(
     graph: &CallGraph,
     summaries: &[Fact<UnitEffects>],
     unit: UnitId,
-) -> UnitValues {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<UnitValues, AllocationError> {
     let data = program.unit(unit).unwrap();
-    let mut cells = tracked_cells(program, graph, unit);
+    let mut cells = tracked_cells(program, graph, unit, budget)?;
     let mut values = UnitValues {
-        primitive: vec![None; data.values.len()],
-        int32: vec![None; data.values.len()],
-        roots: vec![Root::Unknown; data.values.len()],
+        primitive: budget.filled(Scratch, data.values.len(), None)?,
+        int32: budget.filled(Scratch, data.values.len(), None)?,
+        roots: budget.filled(Retained, data.values.len(), Root::Unknown)?,
     };
     let ctx = Context {
         program,
@@ -1348,6 +1446,7 @@ fn unit_values(
     for _ in 0..VALUE_ITERATIONS {
         let mut changed = false;
         for operation in &data.operations {
+            budget.work(WorkKind::Analysis, 1)?;
             if let Some(result) = operation.result {
                 let (primitive, int32, root) = value_transfer(&ctx, &values, &cells, operation);
                 values.primitive[result.index()] = primitive;
@@ -1418,6 +1517,7 @@ fn unit_values(
             };
         }
         for operation in &data.operations {
+            budget.work(WorkKind::Analysis, 1)?;
             if let Some(result) = operation.result {
                 let (primitive, int32, root) = value_transfer(&ctx, &values, &cells, operation);
                 values.primitive[result.index()] = primitive;
@@ -1426,7 +1526,8 @@ fn unit_values(
             }
         }
     }
-    values
+    storage::release(cells.0, Scratch, budget)?;
+    Ok(values)
 }
 
 /// The cell a place's storage is rooted in, through struct projections.
@@ -1445,7 +1546,7 @@ fn place_cell(data: &UnitData, place: PlaceId) -> Option<CellId> {
 fn value_transfer(
     ctx: &Context<'_, '_>,
     values: &UnitValues,
-    cells: &AHashMap<CellId, CellFacts>,
+    cells: &CellFactsMap,
     operation: &Operation,
 ) -> (Option<ParameterSet>, Option<ParameterSet>, Root) {
     use OperationKind as Op;
@@ -1493,7 +1594,11 @@ fn value_transfer(
     );
     match &operation.kind {
         Op::Constant(Constant::Integer(_)) => integer,
-        Op::Constant(_) | Op::IsUndefined { .. } | Op::TypeTest(_) | Op::ClosedClassTest(_) | Op::Template => primitive,
+        Op::Constant(_)
+        | Op::IsUndefined { .. }
+        | Op::TypeTest(_)
+        | Op::ClosedClassTest(_)
+        | Op::Template => primitive,
         Op::IntBinary(_) | Op::Unary { integer: true, .. } => integer,
         Op::Unary { .. } => primitive,
         Op::Binary(BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish) => {
@@ -1619,16 +1724,17 @@ struct Structure {
 }
 
 impl Structure {
-    fn new(data: &UnitData) -> Self {
-        let mut parent = vec![None; data.regions.len()];
+    fn new(data: &UnitData, budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {
+        let mut parent = budget.filled(Scratch, data.regions.len(), None)?;
         for (index, operation) in data.operations.iter().enumerate() {
+            budget.work(WorkKind::Analysis, 1)?;
             for child in operation.kind.child_regions() {
                 if let Some(slot) = parent.get_mut(child.index()) {
                     *slot = OpId::from_index(index);
                 }
             }
         }
-        Self { parent }
+        Ok(Self { parent })
     }
     /// Whether an exception thrown in `region` is caught inside the unit.
     fn caught(&self, data: &UnitData, mut region: RegionId) -> bool {
@@ -1677,76 +1783,87 @@ fn summarize(
     unit: UnitId,
     declared_pure: bool,
     access: &reuse::AccessKey,
-    mut record: Option<&mut Vec<Effects>>,
-) -> (Fact<UnitEffects>, Vec<Root>) {
-    let data = program.unit(unit).unwrap();
-    if data.suspension != Suspension::None {
-        return (Fact::Unknown(Reason::Suspending), Vec::new());
-    }
-    if data.constructor_of.is_some() {
-        return (Fact::Unknown(Reason::HostConstructor), Vec::new());
-    }
-    let values = unit_values(program, graph, summaries, unit);
-    let ctx = Context {
-        program,
-        unit,
-        data,
-        graph: Some(graph),
-        summaries: Some(summaries),
-    };
-    let structure = Structure::new(data);
-    let mut effects = Effects::NONE;
-    let mut result_primitive = Some(ParameterSet::EMPTY);
-    for (index, operation) in data.operations.iter().enumerate() {
-        let id = OpId::from_index(index).unwrap();
-        let mut operation_effects = operation_effects(&ctx, &values, operation);
-        // An access past its cell's initialization cannot observe the
-        // temporal dead zone, its only failure.
-        if operation_effects.may_throw && access.initialized(index) {
-            operation_effects.may_throw = false;
+    record: bool,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(Fact<UnitEffects>, Vec<Root>, Vec<Effects>), AllocationError> {
+    budget.retained_phase(|budget| {
+        let data = program.unit(unit).unwrap();
+        if data.suspension != Suspension::None {
+            return Ok((Fact::Unknown(Reason::Suspending), Vec::new(), Vec::new()));
         }
-        if operation_effects.may_throw && structure.caught(data, operation.region) {
-            operation_effects.may_throw = false;
+        if data.constructor_of.is_some() {
+            return Ok((
+                Fact::Unknown(Reason::HostConstructor),
+                Vec::new(),
+                Vec::new(),
+            ));
         }
-        match operation.kind {
-            OperationKind::Loop { test, body, update } => {
-                if loop_bound(&ctx, &values, &structure, id, test, body, update).is_none() {
-                    operation_effects.may_diverge = true;
-                }
+        let values = unit_values(program, graph, summaries, unit, budget)?;
+        let ctx = Context {
+            program,
+            unit,
+            data,
+            graph: Some(graph),
+            summaries: Some(summaries),
+        };
+        let structure = Structure::new(data, budget)?;
+        let mut statements =
+            budget.vector(Retained, if record { data.operations.len() } else { 0 })?;
+        let mut effects = Effects::NONE;
+        let mut result_primitive = Some(ParameterSet::EMPTY);
+        for (index, operation) in data.operations.iter().enumerate() {
+            budget.work(WorkKind::Analysis, 1)?;
+            let id = OpId::from_index(index).unwrap();
+            let mut operation_effects = operation_effects(&ctx, &values, operation);
+            // An access past its cell's initialization cannot observe the
+            // temporal dead zone, its only failure.
+            if operation_effects.may_throw && access.initialized(index) {
+                operation_effects.may_throw = false;
             }
-            OperationKind::Return => {
-                let returned = data
-                    .operands(operation.operands)
-                    .and_then(|operands| operands.first().copied());
-                if let Some(value) = returned {
-                    result_primitive = result_primitive
-                        .zip(values.primitive(value))
-                        .map(|(a, b)| a.union(b));
-                }
+            if operation_effects.may_throw && structure.caught(data, operation.region) {
+                operation_effects.may_throw = false;
             }
-            _ => {}
+            match operation.kind {
+                OperationKind::Loop { test, body, update } => {
+                    if loop_bound(&ctx, &values, &structure, id, test, body, update).is_none() {
+                        operation_effects.may_diverge = true;
+                    }
+                }
+                OperationKind::Return => {
+                    let returned = data
+                        .operands(operation.operands)
+                        .and_then(|operands| operands.first().copied());
+                    if let Some(value) = returned {
+                        result_primitive = result_primitive
+                            .zip(values.primitive(value))
+                            .map(|(a, b)| a.union(b));
+                    }
+                }
+                _ => {}
+            }
+            if record {
+                statements.push(operation_effects);
+            }
+            operation_effects.transfers_control = false;
+            operation_effects.cell = None;
+            operation_effects.reads = operation_effects.reads.observable();
+            operation_effects.writes = operation_effects.writes.observable();
+            effects.join(operation_effects);
         }
-        if let Some(record) = record.as_deref_mut() {
-            record.push(operation_effects);
-        }
-        operation_effects.transfers_control = false;
-        operation_effects.cell = None;
-        operation_effects.reads = operation_effects.reads.observable();
-        operation_effects.writes = operation_effects.writes.observable();
-        effects.join(operation_effects);
-    }
-    let deps = reuse::summary_deps(program, graph, unit);
-    (
-        Fact::Known(
-            UnitEffects {
-                effects,
-                result_primitive,
-                declared_pure,
-            },
-            deps,
-        ),
-        values.roots,
-    )
+        let deps = reuse::summary_deps(program, graph, unit, budget)?;
+        Ok((
+            Fact::Known(
+                UnitEffects {
+                    effects,
+                    result_primitive,
+                    declared_pure,
+                },
+                deps,
+            ),
+            values.roots,
+            statements,
+        ))
+    })
 }
 
 /// The cell a load, store or place check accesses directly.
@@ -2084,27 +2201,4 @@ fn invariant(
         }
         _ => false,
     }
-}
-
-/// The pure contract (M6.3): each declared `pure` unit whose summary shows an
-/// observable effect, with its declaration span and name.
-pub(super) fn pure_contract_violations(program: &Program<'_>) -> Vec<(ModuleId, Span, String)> {
-    let effects = program.effects(Seal::Module);
-    effects
-        .pure_violations()
-        .into_iter()
-        .filter_map(|unit| {
-            let data = program.unit(unit)?;
-            let cell = program
-                .cells
-                .iter()
-                .find(|cell| cell.binding == CellBinding::Function(unit))?;
-            let name = data
-                .function_name
-                .and_then(|name| program.strings.get(name.index()))
-                .and_then(|name| name.as_unicode().map(str::to_string))
-                .unwrap_or_else(|| cell.name.clone());
-            Some((data.module, cell.declaration, name))
-        })
-        .collect()
 }

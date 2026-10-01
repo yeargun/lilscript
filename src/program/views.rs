@@ -8,9 +8,9 @@
 //! exact dependency checks precede reuse and the cache ends with that phase.
 //! Other views invalidate completely, and every cached current view is checked
 //! against the program revisions before it is served.
+use super::aggregates::ProgramAggregates;
 use super::call_graph::Seal;
 use super::classes::ProgramClasses;
-use super::aggregates::ProgramAggregates;
 use super::effects::ProgramEffects;
 use super::initialization::ProgramInitialization;
 use super::ranges::ProgramRanges;
@@ -37,6 +37,22 @@ impl Deps {
                 .map(|unit| (unit.id(), unit.revision()))
                 .collect(),
         }
+    }
+    pub(super) fn of_program_in(
+        program: &Program<'_>,
+        budget: &mut crate::output_budget::AllocationBudget<'_>,
+    ) -> Result<Self, crate::output_budget::AllocationError> {
+        Ok(Self {
+            tables: program.tables_revision,
+            units: super::analysis_storage::collect(
+                program
+                    .units
+                    .iter()
+                    .map(|unit| (unit.id(), unit.revision())),
+                crate::output_budget::AllocationClass::Retained,
+                budget,
+            )?,
+        })
     }
     pub fn valid_for(&self, program: &Program<'_>) -> bool {
         self.tables == program.tables_revision
@@ -92,7 +108,7 @@ pub struct ProgramViews {
     slots: Slots,
     /// Only source normalization retains a previous generation. At most one
     /// old/current pair per sealing survives, and finish drops both.
-    previous_effects: [Option<Arc<ProgramEffects>>; 2],
+    previous_effects: [Option<Cached<ProgramEffects>>; 2],
     reuse_effects: bool,
 }
 
@@ -101,11 +117,30 @@ struct Slots {
     /// Indexed by `Seal`: effects, with the initialization facts built
     /// beside them, under structural (script) and module sealing of root
     /// storage.
-    effects: [OnceLock<Arc<ProgramEffects>>; 2],
+    effects: [OnceLock<Cached<ProgramEffects>>; 2],
     /// Indexed by `Seal`: value ranges (M6.4b), read by every formation.
     ranges: [OnceLock<Arc<ProgramRanges>>; 2],
     classes: [OnceLock<Arc<ProgramClasses>>; 2],
     aggregates: [OnceLock<Arc<ProgramAggregates>>; 2],
+}
+
+#[derive(Debug)]
+struct Cached<T> {
+    value: Arc<T>,
+    bytes: u64,
+}
+impl<T> Cached<T> {
+    fn discard(
+        self,
+        budget: &mut crate::output_budget::AllocationBudget<'_>,
+    ) -> Result<(), crate::output_budget::AllocationError> {
+        if self.bytes != 0 && Arc::strong_count(&self.value) != 1 {
+            return Err(crate::output_budget::AllocationError::WrongOwner);
+        }
+        let bytes = self.bytes;
+        drop(self);
+        budget.release(crate::output_budget::AllocationClass::Retained, bytes)
+    }
 }
 
 impl Clone for ProgramViews {
@@ -116,16 +151,53 @@ impl Clone for ProgramViews {
 
 impl ProgramViews {
     pub(super) fn normalization(reuse: bool) -> Self {
-        Self { reuse_effects: reuse, ..Self::default() }
+        Self {
+            reuse_effects: reuse,
+            ..Self::default()
+        }
     }
 
     pub(super) fn invalidate(&mut self) {
-        for (slot, previous) in self.slots.effects.iter_mut().zip(&mut self.previous_effects) {
-            if self.reuse_effects {
-                if let Some(current) = slot.take() { *previous = Some(current); }
-            } else { *previous = None; }
+        self.invalidate_in(&mut crate::output_budget::AllocationBudget::new(None))
+            .expect("inspection invalidation");
+    }
+    pub(super) fn invalidate_in(
+        &mut self,
+        budget: &mut crate::output_budget::AllocationBudget<'_>,
+    ) -> Result<(), crate::output_budget::AllocationError> {
+        for (slot, previous) in self
+            .slots
+            .effects
+            .iter_mut()
+            .zip(&mut self.previous_effects)
+        {
+            if let Some(current) = slot.take() {
+                if let Some(old) = previous.replace(current) {
+                    old.discard(budget)?;
+                }
+            }
+        }
+        // Both physical modes retain the same dependency-qualified stages.
+        // A veto executes their cold builders without changing reservations.
+        self.slots = Slots::default();
+        Ok(())
+    }
+    pub(super) fn discard_in(
+        &mut self,
+        budget: &mut crate::output_budget::AllocationBudget<'_>,
+    ) -> Result<(), crate::output_budget::AllocationError> {
+        for slot in &mut self.slots.effects {
+            if let Some(value) = slot.take() {
+                value.discard(budget)?;
+            }
+        }
+        for previous in &mut self.previous_effects {
+            if let Some(value) = previous.take() {
+                value.discard(budget)?;
+            }
         }
         self.slots = Slots::default();
+        Ok(())
     }
 }
 
@@ -134,7 +206,11 @@ impl<'src> Program<'src> {
         let slot = &self.views.slots.aggregates[seal as usize];
         let build = || Arc::new(ProgramAggregates::build(self, &self.effects(seal)));
         let cached = slot.get_or_init(build);
-        if cached.deps().valid_for(self) { Arc::clone(cached) } else { build() }
+        if cached.deps().valid_for(self) {
+            Arc::clone(cached)
+        } else {
+            build()
+        }
     }
 
     pub(crate) fn primitive_classes(&self, seal: Seal) -> Arc<ProgramClasses> {
@@ -172,14 +248,55 @@ impl<'src> Program<'src> {
     /// replaced in place) is recomputed rather than served.
     pub fn effects(&self, seal: Seal) -> Arc<ProgramEffects> {
         let slot = &self.views.slots.effects[seal as usize];
-        let build = || Arc::new(ProgramEffects::build_reusing(
-            self, seal, self.views.previous_effects[seal as usize].as_deref(), self.views.reuse_effects,
-        ));
-        let cached = slot.get_or_init(build);
-        if cached.deps().valid_for(self) {
-            Arc::clone(cached)
+        let build = || {
+            Arc::new(ProgramEffects::build_reusing(
+                self,
+                seal,
+                self.views.previous_effects[seal as usize]
+                    .as_ref()
+                    .map(|old| &*old.value),
+                self.views.reuse_effects,
+            ))
+        };
+        let cached = slot.get_or_init(|| Cached {
+            value: build(),
+            bytes: 0,
+        });
+        if cached.value.deps().valid_for(self) {
+            Arc::clone(&cached.value)
         } else {
             build()
         }
+    }
+
+    pub(crate) fn effects_in(
+        &self,
+        seal: Seal,
+        budget: &mut crate::output_budget::AllocationBudget<'_>,
+    ) -> Result<Arc<ProgramEffects>, crate::output_budget::AllocationError> {
+        let slot = &self.views.slots.effects[seal as usize];
+        if slot.get().is_none() {
+            let cached = budget.retained_phase(|budget| {
+                let value = ProgramEffects::build_reusing_in(
+                    self,
+                    seal,
+                    self.views.previous_effects[seal as usize]
+                        .as_ref()
+                        .map(|old| &*old.value),
+                    self.views.reuse_effects,
+                    budget,
+                )?;
+                let value = super::analysis_storage::shared(value, budget)?;
+                let bytes = budget.retained_bytes(crate::output_budget::AllocationClass::Retained);
+                Ok::<_, crate::output_budget::AllocationError>(Cached { value, bytes })
+            })?;
+            slot.set(cached)
+                .expect("one compiler owns analysis publication");
+        }
+        let cached = slot.get().unwrap();
+        if !cached.value.deps().valid_for(self) || (budget.is_accounted() && cached.bytes == 0) {
+            return Err(crate::output_budget::AllocationError::WrongOwner);
+        }
+        Ok(Arc::clone(&cached.value))
     }
 }

@@ -65,11 +65,17 @@
 //! provably runs before every reference, ReferenceCollection.java:54-76) is
 //! the structured dominance used here within one unit.
 use super::activation::StructuredDominance;
+use super::analysis_storage as storage;
 use super::call_graph::{CallGraph, EscapeAt, Seal};
 use super::effects::Effects;
 use super::views::Deps;
 use super::*;
-use ahash::AHashMap;
+use crate::compilation_policy::WorkKind;
+use crate::output_budget::{
+    AllocationBudget,
+    AllocationClass::{Retained, Scratch},
+    AllocationError,
+};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
@@ -111,53 +117,70 @@ pub enum Moment {
 pub(super) struct UnitInitialization {
     dominance: StructuredDominance,
     /// The `Initialize` operations of each cell.
-    initializers: AHashMap<CellId, Vec<OpId>>,
+    initializers: Vec<(CellId, OpId)>,
     /// A catch binding, for-in key or for-of item is initialized throughout
     /// the region its construct enters.
-    bound: AHashMap<CellId, RegionId>,
+    bound: Vec<(CellId, usize, RegionId)>,
 }
 
 impl UnitInitialization {
     pub(super) fn build(data: &UnitData) -> Self {
-        let dominance = StructuredDominance::build(
-            data,
-            vec![None; data.regions.len()],
-            vec![0; data.operations.len()],
-            |_| Ok::<(), ()>(()),
-        )
-        .expect("an infallible work counter");
-        let mut initializers: AHashMap<CellId, Vec<OpId>> = AHashMap::default();
-        let mut bound = AHashMap::default();
-        for (index, operation) in data.operations.iter().enumerate() {
-            match operation.kind {
-                // `let x;` initializes the binding as JavaScript does; the
-                // checker proves no read precedes its first store (R3).
-                OperationKind::Initialize(cell) | OperationKind::Declare(cell) => initializers
-                    .entry(cell)
-                    .or_default()
-                    .push(OpId::from_index(index).unwrap()),
-                OperationKind::Try {
-                    catch: Some((Some(cell), region)),
-                    ..
+        Self::build_in(data, &mut AllocationBudget::new(None)).expect("inspection initialization")
+    }
+    pub(super) fn build_in(
+        data: &UnitData,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        budget.retained_phase(|budget| {
+            let parent = budget.filled(Retained, data.regions.len(), None)?;
+            let position = budget.filled(Retained, data.operations.len(), 0)?;
+            let dominance = StructuredDominance::build(data, parent, position, |work| {
+                budget.work(WorkKind::Analysis, work as u64)
+            })?;
+            let mut initializers = Vec::new();
+            let mut bound = Vec::new();
+            for (index, operation) in data.operations.iter().enumerate() {
+                budget.work(WorkKind::Analysis, 1)?;
+                match operation.kind {
+                    OperationKind::Initialize(cell) | OperationKind::Declare(cell) => budget.push(
+                        Retained,
+                        &mut initializers,
+                        (cell, OpId::from_index(index).unwrap()),
+                    )?,
+                    OperationKind::Try {
+                        catch: Some((Some(cell), region)),
+                        ..
+                    }
+                    | OperationKind::ForIn {
+                        key: cell,
+                        body: region,
+                        ..
+                    }
+                    | OperationKind::ForOf {
+                        item: cell,
+                        body: region,
+                        ..
+                    } => budget.push(Retained, &mut bound, (cell, index, region))?,
+                    _ => {}
                 }
-                | OperationKind::ForIn {
-                    key: cell,
-                    body: region,
-                }
-                | OperationKind::ForOf {
-                    item: cell,
-                    body: region,
-                } => {
-                    bound.insert(cell, region);
-                }
-                _ => {}
             }
-        }
-        Self {
-            dominance,
-            initializers,
-            bound,
-        }
+            // The operation ordinal preserves the former map's last-insert
+            // semantics even for unchecked duplicate bindings. Both sorts
+            // are in place; no allocator-owned sorting scratch escapes.
+            let work = initializers.len().saturating_add(bound.len());
+            budget.work(
+                WorkKind::Analysis,
+                (work as u64)
+                    .saturating_mul(u64::from(usize::BITS - work.max(1).leading_zeros()) + 1),
+            )?;
+            initializers.sort_unstable();
+            bound.sort_unstable_by_key(|&(cell, index, _)| (cell, index));
+            Ok(Self {
+                dominance,
+                initializers,
+                bound,
+            })
+        })
     }
 
     /// Whether `operation` of this unit runs only after `cell`, which the
@@ -165,20 +188,26 @@ impl UnitInitialization {
     /// operation, or the operation lies in the region its binding construct
     /// enters.
     pub(super) fn after(&self, data: &UnitData, cell: CellId, operation: OpId) -> bool {
-        if let Some(sites) = self.initializers.get(&cell) {
-            if sites.iter().any(|&initialize| {
+        let start = self.initializers.partition_point(|&(key, _)| key < cell);
+        let end = self.initializers.partition_point(|&(key, _)| key <= cell);
+        if self.initializers[start..end]
+            .iter()
+            .any(|&(_, initialize)| {
                 self.dominance
                     .after(data, initialize, operation, |_| Ok::<(), ()>(()))
                     .unwrap_or(false)
-            }) {
-                return true;
-            }
+            })
+        {
+            return true;
         }
+        let end = self.bound.partition_point(|&(key, _, _)| key <= cell);
         match (
-            self.bound.get(&cell),
+            end.checked_sub(1).and_then(|index| self.bound.get(index)),
             data.operations.get(operation.index()),
         ) {
-            (Some(&region), Some(entry)) => self.within(data, entry.region, region),
+            (Some(&(key, _, region)), Some(entry)) if key == cell => {
+                self.within(data, entry.region, region)
+            }
             _ => false,
         }
     }
@@ -268,118 +297,139 @@ impl ProgramInitialization {
     /// The answer that needs no effects: every body may run from the first
     /// point on.
     pub(super) fn structural(program: &Program<'_>, graph: &CallGraph) -> Self {
-        let count = program.units.len();
-        let locals: Vec<UnitInitialization> = program
-            .units
-            .iter()
-            .map(|unit| UnitInitialization::build(unit.data()))
-            .collect();
-        let mut moments = vec![Moment::Instantiation];
-        if program
-            .modules
-            .iter()
-            .any(|module| !module.foreign_imports.is_empty())
-        {
-            moments.push(Moment::HostModules);
-        }
-        let mut statements: Vec<Option<Vec<RootPoint>>> = vec![None; count];
-        for &initializer in program.initialization.iter() {
-            let Some(data) = program.unit(initializer) else {
-                continue;
-            };
-            if statements[initializer.index()].is_some() {
-                continue;
+        Self::structural_in(program, graph, &mut AllocationBudget::new(None))
+            .expect("inspection initialization")
+    }
+    pub(super) fn structural_in(
+        program: &Program<'_>,
+        graph: &CallGraph,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        budget.retained_phase(|budget| {
+            let count = program.units.len();
+            let mut locals = budget.vector(Retained, count)?;
+            for unit in &program.units {
+                let local = UnitInitialization::build_in(unit.data(), budget)?;
+                budget.push(Retained, &mut locals, local)?;
             }
-            let local = &locals[initializer.index()];
-            let mut entry = vec![None; data.operations.len()];
-            let prefix = data.instantiation_prefix as usize;
-            for (position, &operation) in data.regions[data.entry.index()]
-                .operations
+            let mut moments = budget.copy_slice(Retained, &[Moment::Instantiation])?;
+            if program
+                .modules
                 .iter()
-                .enumerate()
+                .any(|module| !module.foreign_imports.is_empty())
             {
-                entry[operation.index()] = Some(if position < prefix {
-                    RootPoint::INSTANTIATION
-                } else {
-                    let point = RootPoint(moments.len() as u32);
-                    moments.push(Moment::Statement {
-                        unit: initializer,
-                        operation,
+                budget.push(Retained, &mut moments, Moment::HostModules)?;
+            }
+            let mut statements = storage::collect((0..count).map(|_| None), Retained, budget)?;
+            for &initializer in program.initialization.iter() {
+                let Some(data) = program.unit(initializer) else {
+                    continue;
+                };
+                if statements[initializer.index()].is_some() {
+                    continue;
+                }
+                let local = &locals[initializer.index()];
+                let mut entry = budget.filled(Scratch, data.operations.len(), None)?;
+                let prefix = data.instantiation_prefix as usize;
+                for (position, &operation) in data.regions[data.entry.index()]
+                    .operations
+                    .iter()
+                    .enumerate()
+                {
+                    entry[operation.index()] = Some(if position < prefix {
+                        RootPoint::INSTANTIATION
+                    } else {
+                        let point = RootPoint(moments.len() as u32);
+                        budget.push(
+                            Retained,
+                            &mut moments,
+                            Moment::Statement {
+                                unit: initializer,
+                                operation,
+                            },
+                        )?;
+                        point
                     });
-                    point
-                });
+                }
+                budget.work(WorkKind::Analysis, data.operations.len() as u64)?;
+                let points = storage::collect(
+                    (0..data.operations.len()).map(|index| {
+                        local
+                            .statement(data, OpId::from_index(index).unwrap())
+                            .and_then(|statement| entry[statement.index()])
+                            // Unverified structure: the earliest point a
+                            // statement can hold, which proves nothing.
+                            .unwrap_or(RootPoint::FIRST)
+                    }),
+                    Retained,
+                    budget,
+                )?;
+                storage::release(entry, Scratch, budget)?;
+                statements[initializer.index()] = Some(points);
             }
-            let points = (0..data.operations.len())
-                .map(|index| {
-                    local
-                        .statement(data, OpId::from_index(index).unwrap())
-                        .and_then(|statement| entry[statement.index()])
-                        // Unverified structure: the earliest point a
-                        // statement can hold, which proves nothing.
-                        .unwrap_or(RootPoint::FIRST)
-                })
-                .collect();
-            statements[initializer.index()] = Some(points);
-        }
-        let settled = program
-            .cells
-            .iter()
-            .enumerate()
-            .map(|(index, storage)| {
-                let cell = CellId::from_index(index).unwrap();
-                let points = statements.get(storage.owner.index())?.as_ref()?;
-                match storage.binding {
-                    CellBinding::Function(_) => Some(RootPoint::INSTANTIATION),
-                    CellBinding::Local => {
-                        let (unit, operation) = graph.initializer(cell)?;
-                        let data = program.unit(unit)?;
-                        (unit == storage.owner
-                            && data.operations.get(operation.index())?.region == data.entry)
-                            .then(|| points[operation.index()])
-                            .filter(|&point| point != RootPoint::INSTANTIATION)
+            let settled = storage::collect(
+                program.cells.iter().enumerate().map(|(index, storage)| {
+                    let cell = CellId::from_index(index).unwrap();
+                    let points = statements.get(storage.owner.index())?.as_ref()?;
+                    match storage.binding {
+                        CellBinding::Function(_) => Some(RootPoint::INSTANTIATION),
+                        CellBinding::Local => {
+                            let (unit, operation) = graph.initializer(cell)?;
+                            let data = program.unit(unit)?;
+                            (unit == storage.owner
+                                && data.operations.get(operation.index())?.region == data.entry)
+                                .then(|| points[operation.index()])
+                                .filter(|&point| point != RootPoint::INSTANTIATION)
+                        }
+                        CellBinding::Parameter(_) | CellBinding::Foreign => None,
                     }
-                    CellBinding::Parameter(_) | CellBinding::Foreign => None,
-                }
-            })
-            .collect();
-        let mut creation: Vec<Option<(UnitId, OpId)>> = vec![None; count];
-        let mut created = vec![0u8; count];
-        for (index, frozen) in program.units.iter().enumerate() {
-            let unit = UnitId::from_index(index).unwrap();
-            for (position, operation) in frozen.data().operations.iter().enumerate() {
-                if let OperationKind::Closure(body) = operation.kind {
-                    if let Some(slot) = created.get_mut(body.index()) {
-                        *slot = slot.saturating_add(1);
-                        creation[body.index()] = Some((unit, OpId::from_index(position).unwrap()));
+                }),
+                Retained,
+                budget,
+            )?;
+            let mut creation = budget.filled(Retained, count, None)?;
+            let mut created = budget.filled(Scratch, count, 0u8)?;
+            for (index, frozen) in program.units.iter().enumerate() {
+                let unit = UnitId::from_index(index).unwrap();
+                for (position, operation) in frozen.data().operations.iter().enumerate() {
+                    budget.work(WorkKind::Analysis, 1)?;
+                    if let OperationKind::Closure(body) = operation.kind {
+                        if let Some(slot) = created.get_mut(body.index()) {
+                            *slot = slot.saturating_add(1);
+                            creation[body.index()] =
+                                Some((unit, OpId::from_index(position).unwrap()));
+                        }
                     }
                 }
             }
-        }
-        for (slot, count) in creation.iter_mut().zip(&created) {
-            if *count != 1 {
-                *slot = None;
-            }
-        }
-        let first_run = (0..count)
-            .map(|index| {
-                if statements[index].is_some() {
-                    RootPoint::INSTANTIATION
-                } else {
-                    RootPoint::FIRST
+            for (slot, count) in creation.iter_mut().zip(&created) {
+                if *count != 1 {
+                    *slot = None;
                 }
+            }
+            let first_run = storage::collect(
+                (0..count).map(|index| {
+                    if statements[index].is_some() {
+                        RootPoint::INSTANTIATION
+                    } else {
+                        RootPoint::FIRST
+                    }
+                }),
+                Retained,
+                budget,
+            )?;
+            let hazards = budget.filled(Retained, moments.len(), true)?;
+            Ok(Self {
+                deps: Deps::of_program_in(program, budget)?,
+                moments,
+                statements,
+                settled,
+                locals,
+                creation,
+                first_run,
+                hazards,
             })
-            .collect();
-        let hazards = vec![true; moments.len()];
-        Self {
-            deps: Deps::of_program(program),
-            moments,
-            statements,
-            settled,
-            locals,
-            creation,
-            first_run,
-            hazards,
-        }
+        })
     }
 
     /// Each body's first point, from the effects of the root statements
@@ -391,8 +441,18 @@ impl ProgramInitialization {
         graph: &CallGraph,
         statements: &[Vec<Effects>],
     ) {
+        self.schedule_in(program, graph, statements, &mut AllocationBudget::new(None))
+            .expect("inspection schedule")
+    }
+    pub(super) fn schedule_in(
+        &mut self,
+        program: &Program<'_>,
+        graph: &CallGraph,
+        statements: &[Vec<Effects>],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
         let count = program.units.len();
-        let mut hazards = vec![false; self.moments.len()];
+        let mut hazards = budget.filled(Retained, self.moments.len(), false)?;
         for (point, moment) in self.moments.iter().enumerate() {
             if *moment == Moment::HostModules {
                 hazards[point] = true;
@@ -420,7 +480,14 @@ impl ProgramInitialization {
             }
         }
         // The first hazard at or after each point.
-        let mut next = vec![RootPoint::END; self.moments.len() + 1];
+        let mut next = budget.filled(
+            Scratch,
+            self.moments
+                .len()
+                .checked_add(1)
+                .ok_or(AllocationError::Capacity)?,
+            RootPoint::END,
+        )?;
         for point in (0..self.moments.len()).rev() {
             next[point] = if hazards[point] {
                 RootPoint(point as u32)
@@ -433,9 +500,37 @@ impl ProgramInitialization {
                 .copied()
                 .unwrap_or(RootPoint::END)
         };
-        let mut first_run = vec![RootPoint::END; count];
-        let mut escaped = vec![RootPoint::END; count];
-        let mut heap: BinaryHeap<Reverse<(RootPoint, u32)>> = BinaryHeap::new();
+        let mut first_run = budget.filled(Retained, count, RootPoint::END)?;
+        let mut escaped = budget.filled(Scratch, count, RootPoint::END)?;
+        // Every body's earliest heap pop settles it. Each edge and escape
+        // can therefore enqueue at most once; public/lazy entries are seeds.
+        let mut capacity = count
+            .checked_add(program.exports().len())
+            .ok_or(AllocationError::Capacity)?;
+        for unit in &program.units {
+            capacity = capacity
+                .checked_add(graph.calls_from(unit.id()).len())
+                .and_then(|n| n.checked_add(graph.escapes_in(unit.id()).len()))
+                .ok_or(AllocationError::Capacity)?;
+        }
+        for module in program.modules.iter() {
+            capacity = capacity
+                .checked_add(module.namespace.len())
+                .ok_or(AllocationError::Capacity)?;
+        }
+        let mut heap: BinaryHeap<Reverse<(RootPoint, u32)>> =
+            BinaryHeap::from(budget.vector(Scratch, capacity)?);
+        let push = |heap: &mut BinaryHeap<_>,
+                    value,
+                    budget: &mut AllocationBudget<'_>|
+         -> Result<(), AllocationError> {
+            budget.work(WorkKind::Analysis, 1)?;
+            if heap.len() == heap.capacity() {
+                return Err(AllocationError::Capacity);
+            }
+            heap.push(value);
+            Ok(())
+        };
         let statements = &self.statements;
         let locals = &self.locals;
         // Where an escape happens in a statically ordered initializer.
@@ -449,13 +544,22 @@ impl ProgramInitialization {
                 .and_then(|operation| points.get(operation.index()).copied())
                 .unwrap_or(RootPoint::FIRST)
         };
-        let mut escape = |heap: &mut BinaryHeap<_>, body: UnitId, point: RootPoint| {
+        let mut escape = |heap: &mut BinaryHeap<_>,
+                          body: UnitId,
+                          point: RootPoint,
+                          budget: &mut AllocationBudget<'_>|
+         -> Result<(), AllocationError> {
             if let Some(slot) = escaped.get_mut(body.index()) {
                 if point < *slot {
                     *slot = point;
-                    heap.push(Reverse((hazard_after(point), body.index() as u32)));
+                    push(
+                        heap,
+                        Reverse((hazard_after(point), body.index() as u32)),
+                        budget,
+                    )?;
                 }
             }
+            Ok(())
         };
         for (index, points) in statements.iter().enumerate() {
             let unit = UnitId::from_index(index).unwrap();
@@ -466,10 +570,14 @@ impl ProgramInitialization {
                             .get(edge.operation.index())
                             .copied()
                             .unwrap_or(RootPoint::FIRST);
-                        heap.push(Reverse((point, edge.callee.index() as u32)));
+                        push(
+                            &mut heap,
+                            Reverse((point, edge.callee.index() as u32)),
+                            budget,
+                        )?;
                     }
                     for site in graph.escapes_in(unit) {
-                        escape(&mut heap, site.body, escape_point(unit, site.at));
+                        escape(&mut heap, site.body, escape_point(unit, site.at), budget)?;
                     }
                 }
                 // A module initializer outside the static order belongs to a
@@ -479,7 +587,11 @@ impl ProgramInitialization {
                     .unit(unit)
                     .is_some_and(|data| data.kind == UnitKind::ModuleInitialization) =>
                 {
-                    heap.push(Reverse((hazard_after(RootPoint::FIRST), index as u32)));
+                    push(
+                        &mut heap,
+                        Reverse((hazard_after(RootPoint::FIRST), index as u32)),
+                        budget,
+                    )?;
                 }
                 None => {}
             }
@@ -504,14 +616,14 @@ impl ProgramInitialization {
                     .namespace
                     .iter()
                     .map(|&(_, cell)| (cell, RootPoint::INSTANTIATION))
-            }))
-            .collect::<Vec<_>>();
+            }));
         for (cell, point) in interface {
             if let Some(body) = graph.cell_body(cell) {
-                escape(&mut heap, body, point);
+                escape(&mut heap, body, point, budget)?;
             }
         }
         while let Some(Reverse((point, index))) = heap.pop() {
+            budget.work(WorkKind::Analysis, 1)?;
             let index = index as usize;
             if statements[index].is_some() || point >= first_run[index] {
                 continue;
@@ -520,11 +632,15 @@ impl ProgramInitialization {
             let unit = UnitId::from_index(index).unwrap();
             for edge in graph.calls_from(unit) {
                 if point < first_run[edge.callee.index()] {
-                    heap.push(Reverse((point, edge.callee.index() as u32)));
+                    push(
+                        &mut heap,
+                        Reverse((point, edge.callee.index() as u32)),
+                        budget,
+                    )?;
                 }
             }
             for site in graph.escapes_in(unit) {
-                escape(&mut heap, site.body, point);
+                escape(&mut heap, site.body, point, budget)?;
             }
         }
         for (index, points) in statements.iter().enumerate() {
@@ -532,8 +648,20 @@ impl ProgramInitialization {
                 first_run[index] = RootPoint::INSTANTIATION;
             }
         }
-        self.first_run = first_run;
-        self.hazards = hazards;
+        storage::release(
+            std::mem::replace(&mut self.first_run, first_run),
+            Retained,
+            budget,
+        )?;
+        storage::release(
+            std::mem::replace(&mut self.hazards, hazards),
+            Retained,
+            budget,
+        )?;
+        storage::release(next, Scratch, budget)?;
+        storage::release(escaped, Scratch, budget)?;
+        storage::release(heap.into_vec(), Scratch, budget)?;
+        Ok(())
     }
 
     pub fn deps(&self) -> &Deps {

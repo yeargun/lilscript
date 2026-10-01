@@ -1525,3 +1525,27 @@ CPU medians are 55.90 seconds cold and 55.91 with reuse. This establishes no
 markedlil speed gain. Most assignments differ. No full suite/fleet or port
 distribution rerun; no ratchet updates. Global analysis/planning, remaining dirty
 dependencies, changed-unit formation and per-module elaboration keep Q2 active.
+
+## 2026-10-01: Q2 admitted graph, effect and range owners
+
+Source normalization, declared-pure checking and JavaScript demand now own
+admitted graph/initialization/effect/range storage. Iterative aliases avoid
+recursive resolution; sorted occurrence tables replace local hash maps. Range
+flow keeps live states and removes the discarded operation-state history.
+Nested completed-stage receipts preserve effect cache on/off logical limits.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-analysis/README.md):
+algorithm 55 pin `q2-analysis-1`, SHA-256
+`d74be18c449049cdea295968fd5b3259890448835896338392c3e5d1d5677eb3`.
+63 distinct focused checks and 54 release comparisons pass. All control files
+match the prior compiler, at 1,299 raw / 1,252 gzip / 947 Brotli. The runner's
+invalid last fixture and reporting error are retained; 45 completed compiler
+checks were recovered without re-execution, with their missing detailed
+telemetry explicitly recorded. Cache on/off comparisons had passed.
+
+One markedlil raw/13 probe keeps the exact 31,882-byte artifact, 354 judgments
+and both API observations. CPU is 55.24 seconds, with no paired speed claim.
+Peak admission is 30,854,238 bytes and all handoff charges release. No full
+suite/fleet/ratchet rerun or port distribution changes. Q2 continues with the
+remaining global fact/planning consumers, dirty dependencies, changed-unit
+formation and per-module elaboration.
