@@ -356,6 +356,11 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
         mut head_unchanged: bool,
     ) -> Result<u32, RuleError> {
+        #[cfg(any(test, debug_assertions))]
+        if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
+            verify::check(self, &mut AllocationBudget::new(None))
+                .map_err(|error| RuleError::Bug(format!("before target rules: {error}")))?;
+        }
         crate::schedule::fixed_point(
             self,
             rules,
@@ -415,6 +420,10 @@ impl Module {
             let (before, measure) = before;
             self.check_journal(&before, &journal)
                 .map_err(|error| RuleError::Bug(format!("{rule:?}: {error}")))?;
+            if journal.edits() > 0 && std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
+                verify::check(self, &mut AllocationBudget::new(None))
+                    .map_err(|error| RuleError::Bug(format!("{rule:?}: {error}")))?;
+            }
             // Normalization removes nodes. Spelling choices are bounded,
             // one-way rewrites under the explicit per-site assignment.
             if rule.transitional().is_none()

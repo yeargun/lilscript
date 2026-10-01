@@ -1116,3 +1116,53 @@ fn constructor_exports_publish_classes_and_refuse_what_cannot_be_one() {
         assert!(error.error.message.contains(expected), "{source}: {error}");
     }
 }
+
+#[test]
+fn s4_dual_class_imports_keep_type_and_constructor_identities_through_a_barrel() {
+    let sources = [
+        r#"import {Crate as Box} from "./barrel";Box box=new Box(7);print(box.value);"#,
+        r#"import {Box as Crate} from "./box";export {Crate};export constructor Crate;"#,
+        "export class Box{int value;init(int value){this.value=value;}}export constructor Box;",
+    ];
+    let arena = Bump::new();
+    let programs: Vec<_> = sources
+        .iter()
+        .map(|source| parse_source(&arena, source).unwrap())
+        .collect();
+    let checked =
+        analyze_modules(&programs, &graph(&sources, &[&[1], &[2], &[]], &[2, 1, 0])).unwrap();
+    let owner = checked.view(2).unwrap();
+    let nominal = owner.type_binding("Box").unwrap();
+    let constructor = owner.nominal_class(nominal).unwrap().value.unwrap();
+    for (module, name) in [(0, "Box"), (1, "Crate")] {
+        assert_eq!(
+            checked.view(module).unwrap().type_binding(name),
+            Some(nominal)
+        );
+        let imports = &checked.interfaces()[module].imports;
+        assert_eq!(imports.len(), 2);
+        assert_eq!(imports[0].target, InterfaceTarget::Type(nominal));
+        assert_eq!(imports[1].target, InterfaceTarget::Value(constructor));
+    }
+    let program = crate::program::from_checked_modules(&programs, &checked).unwrap();
+    program.verify().unwrap();
+}
+
+#[test]
+fn s4_type_only_import_does_not_authorize_a_constructor_reexport() {
+    let sources = [
+        r#"import {Box} from "./box";export constructor Box;"#,
+        "export class Box{int value;init(int value){this.value=value;}}",
+    ];
+    let arena = Bump::new();
+    let programs: Vec<_> = sources
+        .iter()
+        .map(|source| parse_source(&arena, source).unwrap())
+        .collect();
+    let error = analyze_modules(&programs, &graph(&sources, &[&[1], &[]], &[1, 0])).unwrap_err();
+    assert_eq!(error.module, 0);
+    assert!(
+        error.error.message.contains("imported constructor value"),
+        "{error}"
+    );
+}

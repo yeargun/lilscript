@@ -612,10 +612,6 @@ fn a_public_struct_whose_copy_would_lose_identity_or_frame_stays_refused() {
             "struct P{int x;}export int apply(func(P)->int f){return f(P{1});}",
             "public value-struct ABI adaptation",
         ),
-        (
-            "struct P{int x;}export P? maybe(int x){if(x>0){return P{x};}return null;}",
-            "public value-struct ABI adaptation",
-        ),
         // The wrapper supplies its own receiver; a body observing one would
         // see the wrapper's instead of the caller's.
         (

@@ -16,6 +16,9 @@ Complete **S4**: identities/defaults, the record fact/type fix, typed
 receivers/rest, checked array reads and value updates are implemented in its
 [contracts batch](../../benchmarks/migration-results/2026-10-01-s4-contracts/README.md).
 Continue its remaining shared-consumer and language/boundary work before Q2.
+Concrete generic structs, nullable/default/rest value adapters, published
+constructor/prototype adapters and dual type/constructor module bindings are
+implemented in the [boundaries batch](../../benchmarks/migration-results/2026-10-01-s4-boundaries/README.md).
 The [handoff](handoff.md) records the current scope and compiler pins.
 
 The owner requests substantial implementation batches followed by focused

@@ -2873,6 +2873,127 @@ fn s4_forwarded_host_alias_preserves_omission_and_explicit_argument_order() {
 }
 
 #[test]
+fn s4_dual_class_imports_and_reexports_preserve_runtime_identity() {
+    let scratch = Scratch::new();
+    for (file, source) in [
+        ("entry.lil", r#"import {Crate} from "./barrel";
+            export {Crate};export constructor Crate;
+            export int read(){Crate box=new Crate(9);return box.value;}
+            export async JsValue load(){auto ns=await import("./box");return ns.Box;}"#),
+        ("barrel.lil", r#"import {Box as Crate} from "./box";export {Crate};export constructor Crate;"#),
+        ("box.lil", "export class Box{int value;init(int value){this.value=value;}}export constructor Box;"),
+    ] {
+        std::fs::write(scratch.0.join(file), source).unwrap();
+    }
+    let result = compile_path(&scratch.0.join("entry.lil"), &config(""), ServiceOptions {
+        objectives: Some(Objectives::All), ..ServiceOptions::default()
+    }).unwrap();
+    for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(), "",
+            "const box=new library.Crate(4);console.log(JSON.stringify([box.value,box.constructor===library.Crate,box instanceof library.Crate,library.read(),await library.load()===library.Crate]));"),
+            "[4,true,true,9,true]\n");
+    }
+}
+
+#[test]
+fn s4_generic_struct_schemas_keep_copies_and_public_shapes() {
+    let source = r#"
+        struct Box<T>{T value;}
+        struct Point{int x;int y;}
+        export Box<Point> change(Box<Point> original){
+            Box<Point> copy=original;copy.value.x=8;return copy;
+        }
+        export Box<int> scalar(int value){return Box{value};}
+        export Box<Point>? maybe(bool yes){
+            if(yes){return Box{Point{1,2}};}return null;
+        }
+        export int shifts(int n){Box<Box<Box<int>>> box=Box{Box{Box{4}}};return box.value.value.value+(n>>2)+(n>>>3);}
+        export int nested(){
+            Box<Box<Point>> first=Box{Box{Point{3,4}}};
+            Box<Box<Point>> copy=first;copy.value.value.y=9;
+            return first.value.value.y*10+copy.value.value.y;
+        }
+    "#;
+    let result = compile_source(
+        source,
+        &config(""),
+        ServiceOptions {
+            objectives: Some(Objectives::All),
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",
+            "const p={value:{x:1,y:2}},q=library.change(p);console.log(JSON.stringify([p,q,p!==q,p.value!==q.value,library.scalar(7),library.maybe(false),library.maybe(true),library.nested(),library.shifts(-8)]));"),
+            "[{\"value\":{\"x\":1,\"y\":2}},{\"value\":{\"x\":8,\"y\":2}},true,true,{\"value\":7},null,{\"value\":{\"x\":1,\"y\":2}},49,536870913]\n");
+    }
+}
+
+#[test]
+fn s4_struct_boundary_defaults_and_rest_keep_public_arity_and_value_copies() {
+    let source = r#"
+        struct Point{int x;}
+        export int count(Point point=Point{7},Point... rest){
+            int n=point.x;for(int i=0;i<rest.length;i++){n+=rest[i].x;rest[i].x=99;}return n;
+        }
+        export Point? same(Point? point){return point;}
+        Point id<T>(Point value,T unused){return value;}
+        export int privateCopy(){
+            Point first=Point{4};Point copy=id(first,true);copy.x=8;return first.x*10+copy.x;
+        }
+    "#;
+    let result = compile_source(
+        source,
+        &config(""),
+        ServiceOptions {
+            objectives: Some(Objectives::All),
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",
+            "const p={x:2},q={x:3};console.log(JSON.stringify([library.count.length,library.count(),library.count(undefined,q),library.count(p,q),p,q,library.same(null),library.same(p),library.privateCopy()]));"),
+            "[0,7,10,5,{\"x\":2},{\"x\":3},null,{\"x\":2},48]\n");
+    }
+}
+
+#[test]
+fn s4_struct_constructor_and_prototype_boundaries_keep_class_identity() {
+    let source = r#"
+        struct Point{int x;}
+        class Box{
+            int total;
+            init(Point first=Point{3},Point... rest){
+                this.total=first.x;for(int i=0;i<rest.length;i++){this.total+=rest[i].x;}
+            }
+            Point add(Point value=Point{4},Point... rest){
+                value.x+=this.total;for(int i=0;i<rest.length;i++){value.x+=rest[i].x;}return value;
+            }
+        }
+        class Derived extends Box{init(Point first=Point{2}){super(first);}}
+        export constructor Box;export constructor Derived;
+        export Box make(){return new Box(Point{5},Point{6});}
+        export Derived derived(){return new Derived(Point{7});}
+    "#;
+    let result = compile_source(
+        source,
+        &config(""),
+        ServiceOptions {
+            objectives: Some(Objectives::All),
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",
+            "let reads=0;const p={get x(){reads++;return 8;}},q={x:2},box=new library.Box(p,q),base=new library.Box(),derived=new library.Derived();console.log(JSON.stringify([library.Box.name,library.Box.length,box.constructor===library.Box,box instanceof library.Box,box.total,base.total,box.add.length,box.add(),box.add(q,q),q,reads,derived.total,derived instanceof library.Box,derived.constructor===library.Derived,library.make().total,library.derived().total]));"),
+            "[\"Box\",0,true,true,10,3,0,{\"x\":14},{\"x\":14},{\"x\":2},1,2,true,true,11,7]\n");
+    }
+}
+
+#[test]
 fn s4_receiver_and_class_rest_exports_preserve_public_calling_conventions() {
     let source="export constructor Box;class Box{int value;init(int x=7,int... values){this.value=x;for(int i=0;i<values.length;i++){this.value+=values[i];}}int sum(int first=2,int... values){int n=this.value+first;for(int i=0;i<values.length;i++){n+=values[i];}return n;}}export auto add=(this int self,int first=2,int... values)=>{int n=self+first;for(int i=0;i<values.length;i++){n+=values[i];}return n;};";
     let result = compile_source(

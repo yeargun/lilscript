@@ -14,6 +14,7 @@ use crate::check::type_substitution::substitute_signature_with;
 #[path = "verify_admission_tests.rs"]
 mod admission_tests;
 use scratch::work;
+use std::borrow::Cow;
 use std::cmp::Ordering;
 
 #[derive(Debug)]
@@ -96,9 +97,8 @@ fn validate_signature(
 
 /// One borrowed type/root summary per canonical place; later operation checks
 /// need no recursive projection walk or repeated nominal table search.
-#[derive(Clone, Copy)]
 struct VerifiedPlace<'program, 'src> {
-    ty: Option<&'program Type<'src>>,
+    ty: Option<Cow<'program, Type<'src>>>,
     root: PlaceId,
     writable: bool,
 }
@@ -136,34 +136,27 @@ fn verify_places<'program, 'src>(
                 if base.index() >= index {
                     return Err("field projection base must precede its place".into());
                 }
-                let parent = places[base.index()];
-                TypeQueryAdmission::new(budget)
-                    .work((usize::BITS - program.fields.len().leading_zeros()) as usize + 1)?;
+                let parent = &places[base.index()];
                 let field = program.field(field).ok_or("unknown semantic field")?;
-                let owner = program
-                    .structs
-                    .get(field.owner.index())
-                    .filter(|owner| owner.identity == field.owner)
-                    .ok_or("unknown semantic field owner")?;
-                let identity = match parent.ty {
-                    Some(Type::Struct(declaration)) if owner.type_parameters.is_empty() => {
-                        declaration.identity
-                    }
-                    Some(Type::StructInstance { .. }) | Some(Type::Struct(_)) => {
-                        return Err(
-                            "generic struct projection requires an instantiated schema".into()
-                        );
-                    }
-                    _ => return Err("field projection base is not a struct value".into()),
-                };
-                if identity != owner.identity {
-                    return Err("field projection has an incompatible nominal owner".into());
-                }
-                (
-                    Some(&program.types[field.ty.index()]),
-                    parent.root,
-                    parent.writable,
-                )
+                let owner = parent
+                    .ty
+                    .as_deref()
+                    .ok_or("field projection base has no type")?;
+                let ty = super::schema::field_type(
+                    program,
+                    owner,
+                    field,
+                    &mut TypeQueryAdmission::new(budget),
+                )?
+                .ok_or("field projection has an incompatible nominal owner or type arguments")?;
+                let root = parent.root;
+                let writable = parent.writable;
+                places.push(VerifiedPlace {
+                    ty: Some(ty),
+                    root,
+                    writable,
+                });
+                continue;
             }
             Place::Member { receiver, key } => {
                 if key.index() >= program.strings.len() {
@@ -224,7 +217,11 @@ fn verify_places<'program, 'src>(
                 (ty, own, true)
             }
         };
-        places.push(VerifiedPlace { ty, root, writable });
+        places.push(VerifiedPlace {
+            ty: ty.map(Cow::Borrowed),
+            root,
+            writable,
+        });
     }
     Ok(places)
 }
@@ -929,7 +926,7 @@ fn verify_units(
                         }
                         OperationKind::CheckPlace(place) => {
                             access_place(*place)?;
-                            let checked = places[place.index()];
+                            let checked = &places[place.index()];
                             let checkable = matches!(
                                 unit.places[place.index()],
                                 Place::Field { .. }
@@ -1106,7 +1103,7 @@ fn verify_units(
                                 }
                             }
                             access_place(*place)?;
-                            let checked = places[place.index()];
+                            let checked = &places[place.index()];
                             if !checked.writable
                                 || !matches!(unit.places[checked.root.index()], Place::Cell(_))
                             {
@@ -1792,7 +1789,10 @@ fn verify_types(
                     })
                 }
                 Place::Value(_) => {
-                    let declared = places[place.index()].ty.ok_or("missing value place type")?;
+                    let declared = places[place.index()]
+                        .ty
+                        .as_deref()
+                        .ok_or("missing value place type")?;
                     // A checked value view either preserves/refines an existing
                     // type, or widens a selected branch to its original join.
                     // It never makes an immutable SSA value writable.
@@ -1808,7 +1808,10 @@ fn verify_types(
                     )
                 }
                 Place::Field { .. } => {
-                    let declared = places[place.index()].ty.ok_or("missing value place type")?;
+                    let declared = places[place.index()]
+                        .ty
+                        .as_deref()
+                        .ok_or("missing value place type")?;
                     expect(if writing {
                         places[place.index()].writable
                             && class_assignable(program, declared, operand(0), &mut query)?
@@ -2142,30 +2145,20 @@ fn verify_types(
                     .get(identity.index())
                     .filter(|definition| definition.identity == *identity)
                     .ok_or("unknown struct allocation")?;
-                let identity = match result {
-                    Some(Type::Struct(declaration)) if definition.type_parameters.is_empty() => {
-                        declaration.identity
-                    }
-                    Some(Type::Struct(_)) | Some(Type::StructInstance { .. }) => {
-                        return Err(
-                            "generic struct construction requires an instantiated schema".into(),
-                        );
-                    }
-                    _ => return Err(error()),
-                };
+                let owner = result.ok_or_else(error)?;
+                let schema = super::schema::struct_definition(program, owner)
+                    .ok_or("struct construction has an invalid instantiated schema")?;
                 expect(
-                    identity == definition.identity && operands.len() == definition.fields.len(),
+                    schema.identity == definition.identity
+                        && operands.len() == definition.fields.len(),
                 )?;
                 for (field, &value) in program.fields[definition.fields.clone()]
                     .iter()
                     .zip(operands)
                 {
-                    if !class_assignable(
-                        program,
-                        &program.types[field.ty.index()],
-                        value_type(value),
-                        &mut query,
-                    )? {
+                    let expected = super::schema::field_type(program, owner, field, &mut query)?
+                        .ok_or("struct construction field owner mismatch")?;
+                    if !class_assignable(program, &expected, value_type(value), &mut query)? {
                         return Err(error());
                     }
                 }
@@ -2367,7 +2360,7 @@ fn verify_types(
                 }
             }
             if let CallTarget::Reference { place } = site.target {
-                if let Some(declared) = places[place.index()].ty {
+                if let Some(declared) = places[place.index()].ty.as_deref() {
                     if !type_equal_with(declared, callee_type, &mut query)?
                         && !(matches!(declared, Type::Nullable(_) | Type::Union(_))
                             && class_assignable(program, declared, callee_type, &mut query)?)
@@ -2470,7 +2463,11 @@ fn verify_types(
                     (
                         crate::primitive::ParameterPassing::MutableReference,
                         CallArgument::Reference(place),
-                    ) => type_matches(places[place.index()].ty, Some(&expected.ty), query)?,
+                    ) => type_matches(
+                        places[place.index()].ty.as_deref(),
+                        Some(&expected.ty),
+                        query,
+                    )?,
                     _ => false,
                 })
             };

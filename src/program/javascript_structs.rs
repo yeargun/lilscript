@@ -3,7 +3,7 @@
 //! a target recipe, not a source alias rule or permission to expose its arrays.
 use super::*;
 
-pub(super) struct Plan {
+pub(super) struct Plan<'src> {
     pub(super) boundary_types: Vec<bool>,
     // D2 public adapters, created on demand at the export boundary: one
     // wrapper per exported function and one codec per schema and direction.
@@ -11,7 +11,7 @@ pub(super) struct Plan {
     // units whose public face is their wrapper.
     pub(super) public_units: Vec<UnitId>,
     pub(super) public_exports: Vec<(CellId, js::BindingId, Option<js::FunctionId>)>,
-    pub(super) public_codecs: Vec<(usize, bool, js::BindingId)>,
+    pub(super) public_codecs: Vec<(Type<'src>, bool, js::BindingId)>,
     /// Single-use struct values that flow into a `JsValue` destination: each
     /// is formed through its D2 public encoder, as an exported result is.
     pub(super) public_encodes: Vec<(ContextId, ValueId)>,
@@ -28,11 +28,11 @@ pub(super) struct FieldRecipe {
     pub(super) schema: usize,
 }
 
-pub(super) fn plan(
-    program: &Program<'_>,
+pub(super) fn plan<'src>(
+    program: &Program<'src>,
     contract: &JavaScriptCompilationContract,
     budget: &mut AllocationBudget<'_>,
-) -> Result<Plan, FormationError> {
+) -> Result<Plan<'src>, FormationError> {
     if program.structs.is_empty() {
         return Ok(Plan {
             boundary_types: Vec::new(),
@@ -76,7 +76,12 @@ pub(super) fn plan(
                 .into());
             }
             if let CellBinding::Function(unit) = program.cells[cell.index()].binding {
-                budget.push(AllocationClass::Scratch, &mut public_units, unit)?;
+                if program
+                    .unit(unit)
+                    .is_some_and(|data| data.constructor_of.is_none())
+                {
+                    budget.push(AllocationClass::Scratch, &mut public_units, unit)?;
+                }
             }
         }
         budget.work(
@@ -88,6 +93,27 @@ pub(super) fn plan(
         )?;
         public_units.sort_unstable();
         public_units.dedup();
+    }
+    // Kept constructors are their own public class identity. Their entry
+    // decodes arguments in place, including internal subclasses of a published
+    // class; they must not be replaced by ordinary function wrappers.
+    for class in program
+        .classes
+        .iter()
+        .filter(|class| class.observed && !class.external)
+    {
+        budget.work(WorkKind::Render, 1)?;
+        if let Some(cell) = class.value {
+            if boundary_types[program.cells[cell.index()].ty.index()]
+                && !super::public_structs::adaptable_export(program, cell, budget)?
+            {
+                return Err(Unsupported {
+                    span: program.cells[cell.index()].declaration,
+                    feature: "constructor value-struct ABI adaptation",
+                }
+                .into());
+            }
+        }
     }
     let mut fields = budget.vector(AllocationClass::Scratch, program.fields.len())?;
     for (schema, definition) in program.structs.iter().enumerate() {
@@ -125,7 +151,7 @@ pub(super) fn plan(
     })
 }
 
-impl Plan {
+impl Plan<'_> {
     /// A unit published only through its D2 wrapper.
     pub(super) fn wrapped(&self, unit: UnitId) -> bool {
         self.public_units.binary_search(&unit).is_ok()
@@ -141,11 +167,7 @@ impl Formation<'_, '_, '_, '_, '_> {
         for definition in self.program.structs.iter() {
             self.work(1)?;
             if definition.identity == identity {
-                return if definition.type_parameters.is_empty() {
-                    Ok(())
-                } else {
-                    Err(self.error(span, "instantiated value-struct schema"))
-                };
+                return Ok(());
             }
         }
         Err(self.error(span, "missing value-struct schema"))
@@ -159,22 +181,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             .binary_search_by_key(&field.index(), |(identity, _)| *identity)
             .map_err(|_| self.error(Span::default(), "missing value-struct field"))?;
         let recipe = self.struct_plan.fields[index].1;
-        if !self.program.structs[recipe.schema]
-            .type_parameters
-            .is_empty()
-        {
-            return Err(self.error(Span::default(), "instantiated value-struct field schema"));
-        }
         Ok(recipe)
-    }
-
-    pub(super) fn struct_field_type(
-        &mut self,
-        field: NominalMemberId,
-    ) -> Result<TypeId, FormationError> {
-        let recipe = self.field_recipe(field)?;
-        let start = self.program.structs[recipe.schema].fields.start;
-        Ok(self.program.fields[start + recipe.slot].ty)
     }
 
     pub(super) fn field_path(
@@ -324,7 +331,10 @@ impl Formation<'_, '_, '_, '_, '_> {
                 target = self.slot(target, recipe.slot)?;
             }
             self.drop_scratch(path)?;
-            return self.expression(js::Expr::Assign { target, value: replacement });
+            return self.expression(js::Expr::Assign {
+                target,
+                value: replacement,
+            });
         }
         // A source refinement can have become stale during reentry. Access
         // every current parent independently of how many siblings survive;

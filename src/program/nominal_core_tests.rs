@@ -201,6 +201,21 @@ fn equal_spelling_private_schemas_remain_incompatible_for_projection_and_constru
 }
 
 #[test]
+fn s4_generic_struct_verification_checks_instantiated_fields() {
+    checked("struct Box<T>{T value;}Box<int> a=Box{7};Box<string> b=Box{\"text\"};print(a.value);print(b.value);", |program| {
+        let integer = program.types.iter().position(|ty| matches!(ty, Type::StructInstance{args,..} if args == &[Type::Int])).unwrap();
+        let string = program.types.iter().position(|ty| matches!(ty, Type::StructInstance{args,..} if args == &[Type::String])).unwrap();
+        let unit=program.initialization()[0];
+        let mut forged=program.clone();
+        let mut working=forged.units[unit.index()].clone().into_working();
+        let value=working.get_mut().values.iter_mut().find(|value|value.ty.index()==integer).unwrap();
+        value.ty=TypeId::from_index(string).unwrap();
+        forged.units[unit.index()]=working.freeze();
+        assert!(forged.verify().is_err(),"same nominal identity cannot replace concrete field types");
+    });
+}
+
+#[test]
 fn unused_nested_nominal_contracts_reject_wrong_names_ids_and_arity_before_adoption() {
     for shape in 0..4 {
         checked(

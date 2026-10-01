@@ -92,6 +92,7 @@ struct ParserCore<'arena, 'src> {
     tokens: TokenStorage<'arena, 'src>,
     cursor: usize,
     source_len: usize,
+    last_split_span: Option<Span>,
 }
 
 impl<'arena, 'src> ParserCore<'arena, 'src> {
@@ -136,6 +137,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             tokens,
             cursor: 0,
             source_len: source.len() + base_offset,
+            last_split_span: None,
         })
     }
 
@@ -1482,11 +1484,31 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 break;
             }
         }
-        self.expect(
-            |kind| matches!(kind, TokenKind::Greater),
-            "expected `>` after type arguments",
-        )?;
+        self.close_type_arguments()?;
         Ok(args.into_bump_slice())
+    }
+
+    /// A type consumes one closing angle from a shift token. Splitting the
+    /// remaining token in place preserves source spans and allocates nothing;
+    /// expression parsing still sees ordinary shift operators everywhere else.
+    fn close_type_arguments(&mut self) -> Result<(), AdmittedParseError> {
+        let remainder = match self.peek_kind() {
+            Some(TokenKind::Greater) => {
+                self.advance();
+                return Ok(());
+            }
+            Some(TokenKind::ShiftRight) => TokenKind::Greater,
+            Some(TokenKind::UnsignedShiftRight) => TokenKind::ShiftRight,
+            Some(TokenKind::GreaterEq) => TokenKind::Eq,
+            Some(TokenKind::ShiftRightEq) => TokenKind::GreaterEq,
+            Some(TokenKind::UnsignedShiftRightEq) => TokenKind::ShiftRightEq,
+            _ => return Err(self.error_here("expected `>` after type arguments")),
+        };
+        let token = &mut self.tokens[self.cursor];
+        self.last_split_span = Some(Span::new(token.span.start, token.span.start + 1));
+        token.span.start += 1;
+        token.kind = remainder;
+        Ok(())
     }
 
     fn parse_type(&mut self) -> Result<TypeRef<'arena, 'src>, AdmittedParseError> {
@@ -2653,6 +2675,16 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
     }
 
     fn scan_type_end(&self, start: usize) -> Result<Option<usize>, AdmittedParseError> {
+        let mut closing = 0;
+        let end = self.scan_type_end_inner(start, &mut closing)?;
+        Ok(if closing == 0 { end } else { None })
+    }
+
+    fn scan_type_end_inner(
+        &self,
+        start: usize,
+        closing: &mut u8,
+    ) -> Result<Option<usize>, AdmittedParseError> {
         let mut index = start;
         match self.lookahead_kind(index)? {
             Some(
@@ -2669,20 +2701,29 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 if matches!(self.lookahead_kind(index)?, Some(TokenKind::Less)) {
                     index += 1;
                     loop {
-                        let Some(end) = self.scan_type_end(index)? else {
+                        let Some(end) = self.scan_type_end_inner(index, closing)? else {
                             return Ok(None);
                         };
                         index = end;
-                        if matches!(self.lookahead_kind(index)?, Some(TokenKind::Comma)) {
+                        if *closing == 0
+                            && matches!(self.lookahead_kind(index)?, Some(TokenKind::Comma))
+                        {
                             index += 1;
                             continue;
                         }
                         break;
                     }
-                    if !matches!(self.lookahead_kind(index)?, Some(TokenKind::Greater)) {
-                        return Ok(None);
+                    if *closing != 0 {
+                        *closing -= 1;
+                    } else {
+                        *closing = match self.lookahead_kind(index)? {
+                            Some(TokenKind::Greater) => 0,
+                            Some(TokenKind::ShiftRight) => 1,
+                            Some(TokenKind::UnsignedShiftRight) => 2,
+                            _ => return Ok(None),
+                        };
+                        index += 1;
                     }
-                    index += 1;
                 }
             }
             Some(TokenKind::Func) => {
@@ -2705,10 +2746,13 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                         if self.reference_parameter_at(index, false)? {
                             index += 1;
                         }
-                        let Some(end) = self.scan_type_end(index)? else {
+                        let Some(end) = self.scan_type_end_inner(index, closing)? else {
                             return Ok(None);
                         };
                         index = end;
+                        if *closing != 0 {
+                            return Ok(None);
+                        }
                         if matches!(self.lookahead_kind(index)?, Some(TokenKind::Ellipsis)) {
                             index += 1;
                         }
@@ -2722,24 +2766,26 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                         break;
                     }
                 }
-                if !matches!(self.lookahead_kind(index)?, Some(TokenKind::RParen)) {
+                if *closing != 0 || !matches!(self.lookahead_kind(index)?, Some(TokenKind::RParen))
+                {
                     return Ok(None);
                 }
                 index += 1;
                 if !matches!(self.lookahead_kind(index)?, Some(TokenKind::ThinArrow)) {
                     return Ok(None);
                 }
-                let Some(end) = self.scan_type_end(index + 1)? else {
+                let Some(end) = self.scan_type_end_inner(index + 1, closing)? else {
                     return Ok(None);
                 };
                 index = end;
             }
             Some(TokenKind::LParen) => {
-                let Some(end) = self.scan_type_end(index + 1)? else {
+                let Some(end) = self.scan_type_end_inner(index + 1, closing)? else {
                     return Ok(None);
                 };
                 index = end;
-                if !matches!(self.lookahead_kind(index)?, Some(TokenKind::RParen)) {
+                if *closing != 0 || !matches!(self.lookahead_kind(index)?, Some(TokenKind::RParen))
+                {
                     return Ok(None);
                 }
                 index += 1;
@@ -2747,7 +2793,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             _ => return Ok(None),
         }
 
-        loop {
+        while *closing == 0 {
             if matches!(
                 (self.lookahead_kind(index)?, self.lookahead_kind(index + 1)?),
                 (Some(TokenKind::LBracket), Some(TokenKind::RBracket))
@@ -2760,8 +2806,8 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             }
         }
 
-        if matches!(self.lookahead_kind(index)?, Some(TokenKind::Pipe)) {
-            let Some(end) = self.scan_type_end(index + 1)? else {
+        if *closing == 0 && matches!(self.lookahead_kind(index)?, Some(TokenKind::Pipe)) {
+            let Some(end) = self.scan_type_end_inner(index + 1, closing)? else {
                 return Ok(None);
             };
             index = end;
@@ -2918,6 +2964,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
     fn match_kind(&mut self, predicate: impl FnOnce(&TokenKind<'src>) -> bool) -> bool {
         if self.check(predicate) {
             self.cursor += 1;
+            self.last_split_span = None;
             true
         } else {
             false
@@ -2938,10 +2985,14 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
     fn advance(&mut self) -> Option<Token<'src>> {
         let token = self.tokens.get(self.cursor).cloned()?;
         self.cursor += 1;
+        self.last_split_span = None;
         Some(token)
     }
 
     fn previous_span(&self) -> Span {
+        if let Some(span) = self.last_split_span {
+            return span;
+        }
         self.tokens
             .get(self.cursor.saturating_sub(1))
             .map(|token| token.span)

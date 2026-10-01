@@ -83,6 +83,20 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     }
                     None
                 }
+                (Type::StructInstance { .. }, Type::StructInstance { .. })
+                | (Type::GenericFunction(_), Type::GenericFunction(_)) => {
+                    if !crate::check::type_relation::type_equal_with(
+                        expected,
+                        actual,
+                        &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget),
+                    )? {
+                        return Err(self.error(
+                            span,
+                            "instantiated value-struct transfer disagrees with its schema",
+                        ));
+                    }
+                    None
+                }
                 (Type::Class(expected), Type::Class(actual))
                 | (Type::Enum(expected), Type::Enum(actual)) => {
                     self.work(1)?;
@@ -169,7 +183,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         actual: &Type<'_>,
     ) -> Result<bool, FormationError> {
         let admitted = match actual {
-            Type::Struct(_) => {
+            Type::Struct(_) | Type::StructInstance { .. } | Type::Nullable(_) => {
                 super::public_structs::adaptable(self.program, actual, 0, self.budget)?
             }
             // A function value is wrapped by a D2 callable adapter.
@@ -213,12 +227,19 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         if !self.struct_boundary_value(context, value) {
             return Ok(());
         }
+        let projected = if matches!(
+            self.data(context).places[place.index()],
+            Place::Field { .. }
+        ) {
+            super::super::schema::place_type(self.program, self.data(context), place, self.budget)?
+        } else {
+            None
+        };
         let expected = match self.data(context).places[place.index()] {
             Place::Cell(cell) => &self.program.types[self.program.cells[cell.index()].ty.index()],
-            Place::Field { field, .. } => {
-                let ty = self.struct_field_type(field)?;
-                &self.program.types[ty.index()]
-            }
+            Place::Field { .. } => projected
+                .as_deref()
+                .ok_or_else(|| self.error(span, "missing instantiated field type"))?,
             Place::Member { .. } | Place::ClassField { .. } | Place::Index { .. } => {
                 match self.member_declared_type(context, place)? {
                     Some(declared) => declared,
@@ -286,13 +307,17 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         }
         self.work(1)?;
         let data = self.data(context);
+        let projected = if matches!(data.places[place.index()], Place::Field { .. }) {
+            super::super::schema::place_type(self.program, data, place, self.budget)?
+        } else {
+            None
+        };
         let declared = match data.places[place.index()] {
             Place::Cell(cell) => &self.program.types[self.program.cells[cell.index()].ty.index()],
             Place::Value(value) => &self.program.types[data.values[value.index()].ty.index()],
-            Place::Field { field, .. } => {
-                let ty = self.struct_field_type(field)?;
-                &self.program.types[ty.index()]
-            }
+            Place::Field { .. } => projected
+                .as_deref()
+                .ok_or_else(|| self.error(span, "missing instantiated field type"))?,
             Place::Member { .. } | Place::ClassField { .. } | Place::Index { .. } => {
                 match self.member_declared_type(context, place)? {
                     Some(declared) => declared,
@@ -450,12 +475,16 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     let fields =
                         fields.ok_or_else(|| self.error(span, "missing value-struct schema"))?;
                     for (field, &value) in self.program.fields[fields].iter().zip(operands) {
-                        self.struct_transfer(
-                            context,
-                            value,
-                            &self.program.types[field.ty.index()],
-                            span,
-                        )?;
+                        let field_ty = super::super::schema::field_type(
+                            self.program,
+                            result_type.unwrap(),
+                            field,
+                            &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget),
+                        )?
+                        .ok_or_else(|| {
+                            self.error(span, "missing instantiated construction field")
+                        })?;
+                        self.struct_transfer(context, value, &field_ty, span)?;
                     }
                 }
             },

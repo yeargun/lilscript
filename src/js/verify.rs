@@ -197,6 +197,9 @@ pub(super) fn check(
         | Expr::Construct {
             arguments: elements,
             ..
+        }
+        | Expr::SuperCall {
+            arguments: elements,
         } = expression
         {
             for element in elements {
@@ -235,9 +238,8 @@ pub(super) fn check(
             Expr::Sequence(values) if values.len() < 2 => {
                 return Err("sequence needs two operands".into());
             }
-            // Every child precedes its parent, so a spread's only legal
-            // parent (an array literal) has not been visited yet; the
-            // placement check runs after this pass.
+            // Every child precedes its parent, so a spread's array or call
+            // parent has not been visited yet; check placement after this pass.
             Expr::Unary {
                 op: Unary::Delete,
                 value,

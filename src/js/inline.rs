@@ -926,6 +926,7 @@ impl Module {
                     }
                     let declared = &module.functions[function.index()];
                     if !declared.arrow
+                        || declared.rest
                         || declared.suspension != Suspension::None
                         || declared.length.is_some()
                     {
@@ -999,7 +1000,11 @@ impl Module {
                         continue;
                     }
                     let parameters = &module.functions[function.index()].parameters;
-                    if arguments.len() != parameters.len() {
+                    if arguments.len() != parameters.len()
+                        || arguments.iter().any(|argument| {
+                            matches!(module.expressions[argument.index()], Expr::Spread(_))
+                        })
+                    {
                         continue;
                     }
                     let mut stable = true;

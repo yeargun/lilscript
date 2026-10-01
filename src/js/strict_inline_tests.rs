@@ -163,3 +163,76 @@ fn strict_target_inliners_preserve_known_execution_modes_and_effect_order() {
         }
     }
 }
+
+#[test]
+fn s4_statement_inlining_preserves_rest_arrays_and_spread_evaluation() {
+    for (rest, spread) in [(false, false), (true, false), (false, true)] {
+        let mut module = Module::default();
+        let root = module.root;
+        let scope = module.regions[root.index()].scope;
+        let f = binding(&mut module, root, 0, "take");
+        let body = module.region(scope);
+        let parameter = binding(&mut module, body, 1, "value");
+        let read = expr(&mut module, Expr::Binding(parameter));
+        let output = host(&mut module, "observe");
+        let observed = call(&mut module, output, vec![read], Invocation::Value);
+        module.regions[body.index()]
+            .statements
+            .push(Statement::Evaluate(observed));
+        let function = FunctionId::new(module.functions.len());
+        module.functions.push(Function {
+            rest,
+            parameters: vec![parameter],
+            body,
+            arrow: true,
+            name: FunctionName::Unobserved,
+            strict: false,
+            length: None,
+            suspension: Suspension::None,
+        });
+        let created = expr(&mut module, Expr::Function(function));
+        module.regions[root.index()]
+            .statements
+            .push(Statement::Let {
+                binding: f,
+                value: Some(created),
+            });
+        let callee = expr(&mut module, Expr::Binding(f));
+        let argument = if spread {
+            let iterable = host(&mut module, "values");
+            expr(&mut module, Expr::Spread(iterable))
+        } else {
+            expr(&mut module, Expr::Literal(Literal::Number(7.0)))
+        };
+        let called = call(&mut module, callee, vec![argument], Invocation::Value);
+        module.regions[root.index()]
+            .statements
+            .push(Statement::Evaluate(called));
+        module.root_rows = vec![RootRow::new(0, Anchor::Anchored); 2];
+        module.verify().unwrap();
+        let (changed, _) = module
+            .inline_statement_functions(true, false, &mut AllocationBudget::new(None))
+            .unwrap();
+        assert_eq!(changed, usize::from(!rest && !spread));
+        module.verify().unwrap();
+        let code = module.render(PrintPolicy::default()).unwrap();
+        let output = Command::new("node").args(["-e", &format!(
+            "const events=[],values={{*[Symbol.iterator](){{events.push('start');yield 7;events.push('end');}}}};function observe(value){{events.push(value)}};{code};console.log(JSON.stringify(events));"
+        )]).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            if spread {
+                "[\"start\",\"end\",7]\n"
+            } else if rest {
+                "[[7]]\n"
+            } else {
+                "[7]\n"
+            }
+        );
+    }
+}

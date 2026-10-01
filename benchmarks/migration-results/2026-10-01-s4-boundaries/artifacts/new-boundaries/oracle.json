@@ -1,0 +1,39 @@
+{
+  "exercise": "let reads=0;const p={get x(){reads++;return 8;}},q={x:2},box=new m.Box(p,q),base=new m.Box(),derived=new m.Derived(),original={value:{x:6}},copy=m.wrap(original);console.log(JSON.stringify([m.Box.name,m.Box.length,box.constructor===m.Box,box instanceof m.Box,box.total,base.total,box.add.length,box.add(),box.add(q,q),q,reads,derived.total,derived instanceof m.Box,derived.constructor===m.Derived,m.make().total,m.derived().total,original,copy,original!==copy,original.value!==copy.value]));",
+  "expected": [
+    "Box",
+    0,
+    true,
+    true,
+    10,
+    3,
+    0,
+    {
+      "x": 14
+    },
+    {
+      "x": 14
+    },
+    {
+      "x": 2
+    },
+    1,
+    2,
+    true,
+    true,
+    11,
+    7,
+    {
+      "value": {
+        "x": 6
+      }
+    },
+    {
+      "value": {
+        "x": 7
+      }
+    },
+    true,
+    true
+  ]
+}

@@ -826,3 +826,24 @@ retained pin 1. Pin 2 corrects a verifier refusal after extern-alias forwarding;
 all eight requested Object.hasOwn script/module lanes and its targeted call
 arity oracle pass. The initial failing report stays in evidence and the stale
 case ledger entry is removed. Q2 has not started.
+
+## 2026-10-01: S4 generic values and public boundaries
+
+The [boundaries batch](../../benchmarks/migration-results/2026-10-01-s4-boundaries/README.md)
+implements shared concrete generic struct field substitution, nested generic
+closings, nullable/default/rest value adapters, published constructors and
+prototype methods, and dual type/constructor imports with explicit re-exports.
+Dynamic namespace lookup selects the runtime export. It removes the obsolete
+uninstantiated field lookup. Required ABI conversions have no effort gate.
+Algorithm 21 identifies this batch; search 31 and walk 10 are unchanged.
+
+The pinned release is `s4-boundaries-1`, SHA-256
+`b80138abcdf0504f274219880b631387230e97e4b50c63d032cc35b26fb68b26`.
+Twenty-three focused checks pass after the coherent batch; the existing parser
+and nominal core groups passed earlier in it. Six matched objective cells
+against `s4-contracts-2` are unchanged (487 raw / 256 gzip / 204 Brotli total).
+The combined new-capability oracle passes all three objectives and final bytes
+match scoring. No full suite, fleet, timing or Closure claim. S4 remains active;
+public callable defaults/rest/receivers, observed generic classes, opaque
+transport, shapes/variants/enums and the remaining contracts/fact audit remain
+open. The milestone order is unchanged.

@@ -9,7 +9,18 @@ Checkout `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
 C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3 are implemented. **S4 remains the sole active
 milestone**, under its [acceptance contract](s4-acceptance.md).
 
-The [S4 contracts batch](../../benchmarks/migration-results/2026-10-01-s4-contracts/README.md)
+The latest [S4 boundaries batch](../../benchmarks/migration-results/2026-10-01-s4-boundaries/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-boundaries-1/lilscript`, SHA-256
+`b80138abcdf0504f274219880b631387230e97e4b50c63d032cc35b26fb68b26`.
+Algorithm 21 / search 31 / walk 10; shared local facts version 9.
+Concrete generic struct schemas, nested type closings, nullable/default/rest
+public exports, constructor/prototype adapters, and dual type/constructor
+imports/re-exports are implemented. Twenty-three focused checks and the release
+boundary oracle pass; two matched workloads have unchanged independent sizes.
+Next close public callable defaults/rest/receivers and wider generic/host
+transport, then the remaining S4 language and shared-consumer work.
+
+The prior [S4 contracts batch](../../benchmarks/migration-results/2026-10-01-s4-contracts/README.md)
 pins `/home/azureuser/lilscript-work/bin/s4-contracts-2/lilscript`, SHA-256
 `36458f95ec83d67f85c2cfdca1703dc716fa6af07b8067acfd6dd77f7edc64e2`.
 Algorithm 20 / search 31 / walk 10; shared local facts version 9.

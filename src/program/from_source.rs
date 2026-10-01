@@ -649,7 +649,8 @@ fn convert_modules<'ast, 'src>(
                     interface
                         .exports
                         .iter()
-                        .find(|export| export.external == name)
+                        .find(|export| export.external == name
+                            && matches!(export.target, crate::check::InterfaceTarget::Value(_)))
                 })
                 .and_then(|export| interface_target(export.target))
                 .and_then(|target| match target {
@@ -2100,13 +2101,6 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             .as_ref()
             .and_then(|values| values.get(&(cell.index() as u32)))
             .copied())
-    }
-    /// A registered class field's spelling and declared type.
-    fn registered_class_field(&self, field: FieldRef) -> Option<(StringId, TypeId)> {
-        self.registered_class(field.nominal)?
-            .fields
-            .get(field.slot as usize)
-            .copied()
     }
     /// A class definition already registered in the program, by identity.
     fn registered_class(&self, class: NominalId) -> Option<&ClassDefinition> {
@@ -4319,22 +4313,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         base: PlaceId,
     ) -> Result<PlaceId, ConversionError> {
         self.work(1)?;
-        let declared = match self.units[unit.index()].places[base.index()] {
-            Place::Cell(cell) => Some(self.program.cells[cell.index()].ty),
-            Place::Field { field, .. } => self.program.field(field).map(|field| field.ty),
-            Place::ClassField { receiver, field } => {
-                let receiver = self.units[unit.index()].values[receiver.index()].ty;
-                match &self.program.types[receiver.index()] {
-                    Type::Class(_) => self.registered_class_field(field).map(|(_, ty)| ty),
-                    _ => None,
-                }
-            }
-            _ => None,
-        };
-        let Some(declared) = declared else {
-            return Ok(base);
-        };
-        if !matches!(self.program.types[declared.index()], Type::Nullable(_)) {
+        let nullable =
+            super::schema::place_type(&self.program, &self.units[unit.index()], base, self.budget)?
+                .is_some_and(|ty| matches!(ty.as_ref(), Type::Nullable(_)));
+        if !nullable {
             return Ok(base);
         }
         let narrowed = self.expression_type(object)?;

@@ -6,28 +6,20 @@
 //! incoming field once, in declaration order, into a fresh positional product,
 //! calls the private function, and returns a fresh object. Components transfer
 //! raw, like every other adapter; the private body keeps its own
-//! normalization. A struct inside a collection, callable, union or nullable
-//! has identity or aliasing that copying cannot preserve, so it stays refused.
+//! normalization. Concrete generic schemas and nullable values use the same
+//! adapter. Rest arrays are fresh and may be decoded; other array parameters
+//! require the read-only proof below. Aliased mutable collections and opaque
+//! unions remain refused when their sharing cannot survive conversion.
 use super::*;
+use crate::check::{
+    binary_types::TypeConstructionAdmission, type_admission::TypeQueryAdmission,
+    type_relation::type_equal_with,
+};
 use crate::primitive::ParameterPassing;
 
 /// Nested value structs are acyclic by construction; the bound only keeps
 /// the check itself bounded.
 const MAX_PUBLIC_DEPTH: usize = 32;
-
-fn schema_of(
-    program: &Program<'_>,
-    identity: NominalId,
-    budget: &mut AllocationBudget<'_>,
-) -> Result<Option<usize>, FormationError> {
-    for (schema, definition) in program.structs.iter().enumerate() {
-        budget.work(WorkKind::Analysis, 1)?;
-        if definition.identity == identity {
-            return Ok(Some(schema));
-        }
-    }
-    Ok(None)
-}
 
 pub(super) fn carries_product(
     ty: &Type<'_>,
@@ -58,22 +50,25 @@ pub(super) fn adaptable(
     if !carries_product(ty, budget)? {
         return Ok(true);
     }
-    let Type::Struct(structure) = ty else {
-        return Ok(false);
-    };
     if depth >= MAX_PUBLIC_DEPTH {
         return Ok(false);
     }
-    let Some(schema) = schema_of(program, structure.identity, budget)? else {
+    if let Type::Nullable(inner) = ty {
+        return adaptable(program, inner, depth + 1, budget);
+    }
+    let Some(definition) = super::super::schema::struct_definition(program, ty) else {
         return Ok(false);
     };
-    let definition = &program.structs[schema];
-    if !definition.type_parameters.is_empty() {
-        return Ok(false);
-    }
     for field in &program.fields[definition.fields.clone()] {
         budget.work(WorkKind::Analysis, 1)?;
-        if !adaptable(program, &program.types[field.ty.index()], depth + 1, budget)? {
+        let field_ty = super::super::schema::field_type(
+            program,
+            ty,
+            field,
+            &mut TypeQueryAdmission::new(budget),
+        )?
+        .expect("field of its verified schema");
+        if !adaptable(program, &field_ty, depth + 1, budget)? {
             return Ok(false);
         }
     }
@@ -104,8 +99,8 @@ pub(super) fn adaptable_callable(
 }
 
 /// A declared, never-reassigned function whose value parameters and result
-/// are adaptable. A struct parameter with a default would need the wrapper to
-/// forward absence; that is not part of this adapter.
+/// are adaptable. Optional parameters preserve absence for the callee's default;
+/// rest parameters own their fresh array, so decoding cannot break host aliases.
 pub(super) fn adaptable_export(
     program: &Program<'_>,
     cell: CellId,
@@ -124,15 +119,19 @@ pub(super) fn adaptable_export(
     for (position, parameter) in signature.params.iter().enumerate() {
         budget.work(WorkKind::Analysis, 1)?;
         let element_array = match &parameter.ty {
-            Type::Array(element) if matches!(element.as_ref(), Type::Struct(_)) => {
+            Type::Array(element)
+                if matches!(
+                    element.as_ref(),
+                    Type::Struct(_) | Type::StructInstance { .. }
+                ) =>
+            {
                 adaptable(program, element, 0, budget)?
-                    && read_only_array(program, unit, position, budget)?
+                    && (parameter.rest || read_only_array(program, unit, position, budget)?)
             }
             _ => false,
         };
         if parameter.passing != ParameterPassing::Value
             || !(element_array || adaptable(program, &parameter.ty, 0, budget)?)
-            || (parameter.optional && carries_product(&parameter.ty, budget)?)
         {
             return Ok(false);
         }
@@ -248,7 +247,7 @@ fn read_only_array(
     Ok(true)
 }
 
-impl Formation<'_, '_, '_, '_, '_> {
+impl<'src> Formation<'_, '_, 'src, '_, '_> {
     fn adapter_binding(
         &mut self,
         scope: js::ScopeId,
@@ -283,17 +282,18 @@ impl Formation<'_, '_, '_, '_, '_> {
     /// Adaptability already holds, so a non-struct type carries no product.
     pub(super) fn public_value(
         &mut self,
-        ty: &Type<'_>,
+        ty: &Type<'src>,
         value: js::ExprId,
         incoming: bool,
     ) -> Result<js::ExprId, FormationError> {
         // A read-only array parameter of structs decodes each element once,
         // in order: `values.map(decode)`.
-        if let (true, Type::Array(element)) = (incoming, ty) {
-            if let Type::Struct(structure) = element.as_ref() {
-                let schema = schema_of(self.program, structure.identity, self.budget)?
-                    .ok_or_else(|| self.error(Span::default(), "missing value-struct schema"))?;
-                let codec = self.public_codec(schema, true)?;
+        if let Type::Array(element) = ty {
+            if matches!(
+                element.as_ref(),
+                Type::Struct(_) | Type::StructInstance { .. }
+            ) {
+                let codec = self.public_codec(element, incoming)?;
                 let property = js::Property::Named(self.text("map")?);
                 let callee = self.expression(js::Expr::Member {
                     object: value,
@@ -309,11 +309,24 @@ impl Formation<'_, '_, '_, '_, '_> {
                 });
             }
         }
-        let Type::Struct(structure) = ty else {
+        if let Type::Nullable(_) = ty {
+            if carries_product(ty, self.budget)? {
+                let codec = self.public_codec(ty, incoming)?;
+                let callee = self.reference(codec)?;
+                let mut arguments = self.budget.vector(AllocationClass::Retained, 1)?;
+                self.append(&mut arguments, value)?;
+                return self.expression(js::Expr::Call {
+                    callee,
+                    arguments,
+                    invocation: Invocation::Value,
+                });
+            }
+            return Ok(value);
+        }
+        let Some(definition) = super::super::schema::struct_definition(self.program, ty) else {
             return Ok(value);
         };
-        let schema = schema_of(self.program, structure.identity, self.budget)?
-            .ok_or_else(|| self.error(Span::default(), "missing value-struct schema"))?;
+        let schema = definition.identity.index();
         // A fresh product meets its public shape field by field: `{k:e,…}`,
         // not `encode([e,…])`. The fields evaluate in declaration order
         // either way; a nested encoder moves before the later fields, but
@@ -338,14 +351,21 @@ impl Formation<'_, '_, '_, '_, '_> {
                 .budget
                 .vector(AllocationClass::Retained, fields.len())?;
             for (field, &element) in fields.iter().zip(&remaining) {
-                let value = self.public_value(&program.types[field.ty.index()], element, false)?;
+                let field_ty = super::super::schema::field_type(
+                    program,
+                    ty,
+                    field,
+                    &mut TypeQueryAdmission::new(self.budget),
+                )?
+                .expect("field of its verified schema");
+                let value = self.public_value(&field_ty, element, false)?;
                 let key = self.public_key(&field.name)?;
                 self.append(&mut entries, (key, value))?;
             }
             self.drop_scratch(remaining)?;
             return self.expression(js::Expr::Object(entries));
         }
-        let codec = self.public_codec(schema, incoming)?;
+        let codec = self.public_codec(ty, incoming)?;
         let callee = self.reference(codec)?;
         let mut arguments = self.budget.vector(AllocationClass::Retained, 1)?;
         self.append(&mut arguments, value)?;
@@ -354,6 +374,79 @@ impl Formation<'_, '_, '_, '_, '_> {
             arguments,
             invocation: Invocation::Value,
         })
+    }
+
+    /// Decode a boundary parameter while preserving an omitted default. Each
+    /// read is a distinct target occurrence of the same inert local binding.
+    pub(super) fn public_parameter(
+        &mut self,
+        parameter: &crate::check::FunctionParameter<'src>,
+        binding: js::BindingId,
+    ) -> Result<js::ExprId, FormationError> {
+        let value = self.reference(binding)?;
+        let converted = self.public_value(&parameter.ty, value, true)?;
+        if !parameter.optional || !carries_product(&parameter.ty, self.budget)? {
+            return Ok(converted);
+        }
+        let value = self.reference(binding)?;
+        let undefined = self.literal(js::Literal::Undefined)?;
+        let condition = self.expression(js::Expr::Binary {
+            op: js::Binary::StrictEqual,
+            left: value,
+            right: undefined,
+        })?;
+        let absent = self.literal(js::Literal::Undefined)?;
+        self.expression(js::Expr::Conditional {
+            condition,
+            yes: absent,
+            no: converted,
+        })
+    }
+
+    /// A class keeps its constructor/prototype identity. Convert its public
+    /// value parameters once, before any body/default evaluation. Derived
+    /// constructors need no access to `this` for this entry prefix.
+    pub(super) fn public_constructor_parameters(
+        &mut self,
+        context: ContextId,
+        body: js::RegionId,
+    ) -> Result<(), FormationError> {
+        let data = self.data(context);
+        if data.constructor_of.is_none() {
+            return Ok(());
+        }
+        let Some(ty) = data.callable_type else {
+            return Ok(());
+        };
+        if self.struct_plan.boundary_types.is_empty()
+            || !self.struct_plan.boundary_types[ty.index()]
+        {
+            return Ok(());
+        }
+        let Type::Function(signature) = &self.program.types[ty.index()] else {
+            return Err(self.error(Span::default(), "constructor parameter signature"));
+        };
+        for (parameter, &cell) in signature.params.iter().zip(&data.parameters).skip(1) {
+            if !carries_product(&parameter.ty, self.budget)? {
+                continue;
+            }
+            let binding = self.cell_binding(context, cell)?;
+            let value = self.public_parameter(parameter, binding)?;
+            let target = self.reference(binding)?;
+            let assign = self.expression(js::Expr::Assign { target, value })?;
+            self.statement(body, js::Statement::Evaluate(assign))?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn public_constructor_argument(
+        &mut self,
+        context: ContextId,
+        argument: ValueId,
+    ) -> Result<js::ExprId, FormationError> {
+        let ty = &self.program.types[self.data(context).values[argument.index()].ty.index()];
+        let value = self.value(context, argument)?;
+        self.public_value(ty, value, false)
     }
 
     /// A function value that reaches a `JsValue` position: host code calls it
@@ -508,14 +601,16 @@ impl Formation<'_, '_, '_, '_, '_> {
     /// One private codec per schema and direction, shared by every export.
     fn public_codec(
         &mut self,
-        schema: usize,
+        ty: &Type<'src>,
         incoming: bool,
     ) -> Result<js::BindingId, FormationError> {
         for index in 0..self.struct_plan.public_codecs.len() {
             self.work(1)?;
-            let (cached, direction, binding) = self.struct_plan.public_codecs[index];
-            if cached == schema && direction == incoming {
-                return Ok(binding);
+            let (cached, direction, binding) = &self.struct_plan.public_codecs[index];
+            if *direction == incoming
+                && type_equal_with(cached, ty, &mut TypeQueryAdmission::new(self.budget))?
+            {
+                return Ok(*binding);
             }
         }
         let program = self.program;
@@ -525,36 +620,62 @@ impl Formation<'_, '_, '_, '_, '_> {
         let body_scope = self.module.regions[body.index()].scope;
         let parameter =
             self.adapter_binding(body_scope, if incoming { "boundary" } else { "product" })?;
-        let fields = &program.fields[program.structs[schema].fields.clone()];
-        let mut elements = self
-            .budget
-            .vector(AllocationClass::Retained, fields.len())?;
-        let mut entries = self
-            .budget
-            .vector(AllocationClass::Retained, fields.len())?;
-        for (position, field) in fields.iter().enumerate() {
-            self.work(1)?;
+        let result = if let Type::Nullable(inner) = ty {
             let source = self.reference(parameter)?;
-            let ty = &program.types[field.ty.index()];
-            if incoming {
-                let property = self.public_key(&field.name)?;
-                let value = self.expression(js::Expr::Member {
-                    object: source,
-                    property,
-                })?;
-                let value = self.public_value(ty, value, true)?;
-                self.append(&mut elements, value)?;
-            } else {
-                let value = self.slot(source, position)?;
-                let value = self.public_value(ty, value, false)?;
-                let key = self.public_key(&field.name)?;
-                self.append(&mut entries, (key, value))?;
-            }
-        }
-        let result = if incoming {
-            self.product(elements)?
+            let null = self.literal(js::Literal::Null)?;
+            let absent = self.expression(js::Expr::Binary {
+                op: js::Binary::Equal,
+                left: source,
+                right: null,
+            })?;
+            let source = self.reference(parameter)?;
+            let present = self.public_value(inner, source, incoming)?;
+            let source = self.reference(parameter)?;
+            self.expression(js::Expr::Conditional {
+                condition: absent,
+                yes: source,
+                no: present,
+            })?
         } else {
-            self.expression(js::Expr::Object(entries))?
+            let definition = super::super::schema::struct_definition(program, ty)
+                .ok_or_else(|| self.error(Span::default(), "missing instantiated public schema"))?;
+            let fields = &program.fields[definition.fields.clone()];
+            let mut elements = self
+                .budget
+                .vector(AllocationClass::Retained, fields.len())?;
+            let mut entries = self
+                .budget
+                .vector(AllocationClass::Retained, fields.len())?;
+            for (position, field) in fields.iter().enumerate() {
+                self.work(1)?;
+                let source = self.reference(parameter)?;
+                let field_ty = super::super::schema::field_type(
+                    program,
+                    ty,
+                    field,
+                    &mut TypeQueryAdmission::new(self.budget),
+                )?
+                .expect("field of its verified schema");
+                if incoming {
+                    let property = self.public_key(&field.name)?;
+                    let value = self.expression(js::Expr::Member {
+                        object: source,
+                        property,
+                    })?;
+                    let value = self.public_value(&field_ty, value, true)?;
+                    self.append(&mut elements, value)?;
+                } else {
+                    let value = self.slot(source, position)?;
+                    let value = self.public_value(&field_ty, value, false)?;
+                    let key = self.public_key(&field.name)?;
+                    self.append(&mut entries, (key, value))?;
+                }
+            }
+            if incoming {
+                self.product(elements)?
+            } else {
+                self.expression(js::Expr::Object(entries))?
+            }
         };
         self.statement(body, js::Statement::Return(Some(result)))?;
         let mut parameters = self.budget.vector(AllocationClass::Retained, 1)?;
@@ -580,10 +701,11 @@ impl Formation<'_, '_, '_, '_, '_> {
         let binding =
             self.adapter_binding(scope, if incoming { "public_in" } else { "public_out" })?;
         self.helper_statement(root, js::Statement::Function { binding, function })?;
+        let owned_ty = TypeQueryAdmission::new(self.budget).clone_type(ty)?;
         self.budget.push(
             AllocationClass::Scratch,
             &mut self.struct_plan.public_codecs,
-            (schema, incoming, binding),
+            (owned_ty, incoming, binding),
         )?;
         Ok(binding)
     }
@@ -609,6 +731,12 @@ impl Formation<'_, '_, '_, '_, '_> {
         let CellBinding::Function(unit) = declared.binding else {
             return Err(self.error(declared.declaration, "public value-struct ABI adaptation"));
         };
+        if program
+            .unit(unit)
+            .is_some_and(|data| data.constructor_of.is_some())
+        {
+            return Ok(inner);
+        }
         // The wrapper supplies its own receiver and argument list. A body that
         // observes either would see the wrapper's instead of the caller's.
         for index in 0..self.demand.contexts().len() {
@@ -664,8 +792,7 @@ impl Formation<'_, '_, '_, '_, '_> {
             self.work(1)?;
             let binding = self.adapter_binding(body_scope, "value")?;
             self.append(&mut parameters, binding)?;
-            let value = self.reference(binding)?;
-            let value = self.public_value(&parameter.ty, value, true)?;
+            let value = self.public_parameter(parameter, binding)?;
             let value = if parameter.rest {
                 self.expression(js::Expr::Spread(value))?
             } else {
@@ -695,7 +822,10 @@ impl Formation<'_, '_, '_, '_, '_> {
                 arrow: false,
                 name: js::FunctionName::Exact(name),
                 strict: false,
-                length: None,
+                length: program.units[unit.index()]
+                    .data()
+                    .declared_length
+                    .map(|length| length as usize),
                 suspension: crate::js::Suspension::None,
             },
         )?;

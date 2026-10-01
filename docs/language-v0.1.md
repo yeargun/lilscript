@@ -617,6 +617,11 @@ a published class that inherits must state `init` with `super(...)`. One
 external name may export both a class's type and its constructor
 (`export class Box …` with `export constructor Box;`). Ordinary `export class`
 continues to export only the instance type and may dissolve completely.
+Importing that dual name binds both the nominal type and the canonical
+constructor, including under an alias. A barrel forwards the type with
+`export {Box};` and the value with `export constructor Box;`; a type-only
+import does not authorize a constructor re-export. Dynamic namespaces expose
+the runtime constructor under its exported name.
 
 A published class's identity is observed, so it stays a JavaScript class, and
 so does every class sharing its internal inheritance chain: its bases, which
@@ -751,9 +756,20 @@ program. An exported function that takes or returns a struct shows JavaScript
 callers a plain object, `{x: 10, y: 20}`, with the fields as own properties in
 declaration order. Each call returns a fresh object. An incoming object is read
 once per field when the call starts, so changing it afterwards changes nothing.
-The function keeps its source name, arity and constructibility. A struct inside
-an array, map, set, record, callback or nullable at an export is rejected with a
-diagnostic, because a copy there would break sharing the caller can observe.
+The function keeps its source name, arity and constructibility. Concrete generic
+structs use their instantiated field types, including nested structs and
+nullable values. Defaults preserve omission and explicit `undefined`; a rest
+parameter receives copies in a fresh array. Ordinary arrays of structs are
+accepted only for parameters whose body provably reads the array without
+exposing its identity or changing its elements. Mutable collections and opaque
+union crossings remain rejected where adaptation would break host sharing.
+
+Published constructors decode struct parameters in the constructor itself,
+preserving class identity, `instanceof`, defaults and public arity. Prototype
+methods decode incoming structs and encode returned structs. Calls from
+LilScript into those constructors use the same public shapes, including
+`super` calls. These are required ABI conversions, independent of optimization
+effort and tactic flags.
 
 Classes may define fields, one `init` constructor, and methods. `this` is
 available in constructor and method bodies.

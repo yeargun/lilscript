@@ -54,6 +54,7 @@ pub(crate) mod ranges;
 mod record_family;
 mod rewrite_lineage;
 pub(crate) mod rules;
+mod schema;
 mod search_entries;
 mod search_opportunities;
 pub mod storage;

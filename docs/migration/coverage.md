@@ -148,8 +148,8 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M12.2 | [D3](plan.md#d3) | four site receipts. |
 | Architecture §22 | Resolved by this replan: stale active text archived | "today the default strips it" is stale. |
 | A1 | [C3](plan.md#c3), resolved | The missing historical CPU pair is explicitly unavailable; a current repeated per-cell baseline is retained without a cross-version claim. |
-| No owner yet | [S4](plan.md#s4) | structs crossing to the host or through generics are refused (an `extern` taking a struct, a struct union widened to `JsValue`, a generic function taking a struct); |
-| No owner yet | [S4](plan.md#s4) | M4.1's gaps: generic classes, D2 adapters for a published constructor's struct parameters, and an import of a name that is both a type and a constructor; |
+| No owner yet | [S4](plan.md#s4) | Concrete generic struct schemas and nullable/default/rest public adapters are implemented; opaque unions, mutable collection aliases and wider generic callable transport remain open. |
+| No owner yet | [S4](plan.md#s4) | M4.1: published constructors/prototype methods with struct parameters and dual type/constructor imports/re-exports are implemented; observed generic classes remain open. |
 | No owner yet | [C1](plan.md#c1) | `pool_strings` and `pack_string_arrays` ignore their permissions; |
 | No owner yet | [D3](plan.md#d3) | katexlil keeps `src/fontMetricsData.js` for two scripts. |
 | Ledger rows owned by done tasks | [S4](plan.md#s4), resolved | Object.hasOwn's explicit host binding and forwarded-call contract pass eight script/module lanes; stale ledger entry removed |

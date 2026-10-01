@@ -406,8 +406,28 @@ fn declaration_phase<'ast, 'src>(
             if export.kind != crate::ast::ExportKind::ConstructorValue {
                 continue;
             }
-            let class = checked.facts[module].type_bindings[export.local.name];
-            checked.declarations.classes[class.index()].published = true;
+            let class = checked.facts[module]
+                .type_bindings
+                .get(export.local.name)
+                .copied()
+                .filter(|identity| identity.is_class())
+                .ok_or_else(|| {
+                    error(
+                        module,
+                        export.local.span,
+                        format!("constructor export `{}` is not a class", export.local.name),
+                    )
+                })?;
+            let info = &mut checked.declarations.classes[class.index()];
+            if info.external || info.object {
+                return Err(error(
+                    module,
+                    export.local.span,
+                    "constructor exports require a non-object, non-extern class",
+                )
+                .into());
+            }
+            info.published = true;
         }
     }
     Ok(DeclarationPhase {
@@ -998,6 +1018,9 @@ struct InterfaceGraph<'src> {
     /// the class's type.
     constructors: Vec<AHashMap<&'src str, usize>>,
     imports: Vec<AHashMap<&'src str, usize>>,
+    /// A dual import retains both namespaces. Its primary node carries the
+    /// nominal; this node carries the explicitly exported constructor value.
+    constructor_imports: Vec<AHashMap<&'src str, usize>>,
     values: Vec<(usize, usize, &'src str)>,
     /// Exports of `auto` bindings: `(node, module, export index)`. Their
     /// type is known only once the module's bodies are checked, so no other
@@ -1016,6 +1039,7 @@ impl<'src> InterfaceGraph<'src> {
             exports: vec![AHashMap::default(); programs.len()],
             constructors: vec![AHashMap::default(); programs.len()],
             imports: vec![AHashMap::default(); programs.len()],
+            constructor_imports: vec![AHashMap::default(); programs.len()],
             values: Vec::new(),
             inferred: Vec::new(),
             ready: VecDeque::new(),
@@ -1063,37 +1087,44 @@ impl<'src> InterfaceGraph<'src> {
                     graph.nodes[producer]
                         .consumers
                         .push(graph.imports[module][specifier.local.name]);
+                    if let (Some(_), Some(&constructor)) = (
+                        graph.exports[dependency].get(specifier.imported.name),
+                        graph.constructors[dependency].get(specifier.imported.name),
+                    ) {
+                        let node = graph.nodes.len();
+                        graph.nodes.push(AliasNode {
+                            target: None,
+                            consumers: Vec::new(),
+                        });
+                        graph.constructor_imports[module].insert(specifier.local.name, node);
+                        graph.nodes[constructor].consumers.push(node);
+                    }
                 }
             }
             for (index, export) in program.exports.iter().enumerate() {
                 if export.kind == crate::ast::ExportKind::ConstructorValue {
                     let node = graph.constructors[module][export.exported.name];
-                    // The class's constructor value, a runtime export seeded
-                    // with the class's value binding once schemas exist.
-                    let class = checked.facts[module]
+                    // Local values are seeded after schemas. An imported
+                    // constructor follows its value edge, including through
+                    // barrels and cycles; validate its nominal after the type
+                    // namespace has propagated.
+                    if checked.facts[module]
                         .type_bindings
+                        .contains_key(export.local.name)
+                    {
+                        graph.values.push((node, module, export.local.name));
+                    } else if let Some(&producer) = graph.constructor_imports[module]
                         .get(export.local.name)
-                        .copied()
-                        .filter(|identity| identity.is_class())
-                        .ok_or_else(|| {
-                            error(
-                                module,
-                                export.local.span,
-                                format!(
-                                    "constructor export `{}` is not a class",
-                                    export.local.name
-                                ),
-                            )
-                        })?;
-                    let info = &checked.declarations.classes[class.index()];
-                    if info.external || info.object {
+                        .or_else(|| graph.imports[module].get(export.local.name))
+                    {
+                        graph.nodes[producer].consumers.push(node);
+                    } else {
                         return Err(error(
                             module,
                             export.local.span,
-                            "constructor exports require a non-object, non-extern class",
+                            format!("constructor export `{}` is not a class", export.local.name),
                         ));
                     }
-                    graph.values.push((node, module, export.local.name));
                     continue;
                 }
                 let node = graph.exports[module][export.exported.name];
@@ -1242,45 +1273,59 @@ impl<'src> InterfaceGraph<'src> {
                                 ),
                             )
                         })?;
-                    if is_object_type(checked, target) {
-                        continue;
-                    }
-                    if let InterfaceTarget::Value(symbol) = target {
-                        if locals[module].contains_key(specifier.local.name)
-                            || scopes[module].contains_key(specifier.local.name)
-                        {
-                            return Err(error(
-                                module,
-                                specifier.local.span,
-                                format!("duplicate module binding `{}`", specifier.local.name),
-                            )
-                            .into());
+                    let constructor = self.constructor_imports[module]
+                        .get(specifier.local.name)
+                        .map(|&node| {
+                            self.nodes[node].target.ok_or_else(|| {
+                                error(
+                                    module,
+                                    specifier.imported.span,
+                                    "cyclic constructor import cannot be resolved",
+                                )
+                            })
+                        })
+                        .transpose()?;
+                    for target in [Some(target), constructor].into_iter().flatten() {
+                        if is_object_type(checked, target) {
+                            continue;
                         }
-                        scopes[module].insert(specifier.local.name, symbol);
-                        let facts = &mut checked.facts[module];
-                        facts
-                            .binding_types
-                            .insert(specifier.local.id, BindingType::Symbol(symbol));
-                        facts.record_identifier(
-                            &mut checked.declarations,
-                            specifier.local.id,
-                            symbol,
-                        );
+                        if let InterfaceTarget::Value(symbol) = target {
+                            if locals[module].contains_key(specifier.local.name)
+                                || scopes[module].contains_key(specifier.local.name)
+                            {
+                                return Err(error(
+                                    module,
+                                    specifier.local.span,
+                                    format!("duplicate module binding `{}`", specifier.local.name),
+                                )
+                                .into());
+                            }
+                            scopes[module].insert(specifier.local.name, symbol);
+                            let facts = &mut checked.facts[module];
+                            facts
+                                .binding_types
+                                .insert(specifier.local.id, BindingType::Symbol(symbol));
+                            facts.record_identifier(
+                                &mut checked.declarations,
+                                specifier.local.id,
+                                symbol,
+                            );
+                        }
+                        budget
+                            .push(
+                                AllocationClass::Scratch,
+                                &mut checked.interfaces[module].imports,
+                                ModuleImport {
+                                    module: dependency,
+                                    imported: specifier.imported.name,
+                                    local: specifier.local.name,
+                                    target,
+                                    span: specifier.local.span,
+                                    node: specifier.local.id,
+                                },
+                            )
+                            .map_err(|error| resource(module, error))?;
                     }
-                    budget
-                        .push(
-                            AllocationClass::Scratch,
-                            &mut checked.interfaces[module].imports,
-                            ModuleImport {
-                                module: dependency,
-                                imported: specifier.imported.name,
-                                local: specifier.local.name,
-                                target,
-                                span: specifier.local.span,
-                                node: specifier.local.id,
-                            },
-                        )
-                        .map_err(|error| resource(module, error))?;
                 }
             }
             for export in program.exports {
@@ -1298,6 +1343,16 @@ impl<'src> InterfaceGraph<'src> {
                 let target = self.nodes[node].target.ok_or_else(|| {
                     error(module, export.span, "cyclic export cannot be resolved")
                 })?;
+                if export.kind == crate::ast::ExportKind::ConstructorValue
+                    && !matches!(target, InterfaceTarget::Value(_))
+                {
+                    return Err(error(
+                        module,
+                        export.local.span,
+                        "constructor re-export requires an imported constructor value",
+                    )
+                    .into());
+                }
                 if is_object_type(checked, target) {
                     continue;
                 }

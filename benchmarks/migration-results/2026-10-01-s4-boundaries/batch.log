@@ -1,0 +1,10 @@
+checked matched receiver/raw
+checked matched receiver/gzip
+checked matched receiver/brotli
+checked matched generic-open/raw
+checked matched generic-open/gzip
+checked matched generic-open/brotli
+checked new boundaries/raw
+checked new boundaries/gzip
+checked new boundaries/brotli
+{"raw":{"before":487,"after":487,"delta":0},"gzip":{"before":256,"after":256,"delta":0},"brotli":{"before":204,"after":204,"delta":0}}

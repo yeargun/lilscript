@@ -1,0 +1,57 @@
+
+running 2 tests
+test build::tests::s4_generic_struct_schemas_keep_copies_and_public_shapes ... ok
+test program::nominal_core_tests::s4_generic_struct_verification_checks_instantiated_fields ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1888 filtered out; finished in 8.50s
+
+
+running 2 tests
+test build::tests::s4_struct_boundary_defaults_and_rest_keep_public_arity_and_value_copies ... ok
+test build::tests::s4_struct_constructor_and_prototype_boundaries_keep_class_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1888 filtered out; finished in 12.40s
+
+
+running 2 tests
+test build::tests::s4_dual_class_imports_and_reexports_preserve_runtime_identity ... ok
+test check::modules::tests::s4_dual_class_imports_keep_type_and_constructor_identities_through_a_barrel ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1888 filtered out; finished in 0.67s
+
+
+running 1 test
+test check::modules::tests::s4_type_only_import_does_not_authorize_a_constructor_reexport ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1889 filtered out; finished in 0.00s
+
+
+running 1 test
+test check::modules::tests::constructor_exports_publish_classes_and_refuse_what_cannot_be_one ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1889 filtered out; finished in 0.00s
+
+
+running 14 tests
+test program::javascript_struct_boundary_tests::a_public_struct_whose_copy_would_lose_identity_or_frame_stays_refused ... ok
+test program::javascript_struct_boundary_tests::a_struct_reaching_a_jsvalue_is_its_public_shape_and_stays_a_value ... ok
+test program::javascript_struct_boundary_tests::an_exported_function_may_take_a_struct_array_it_only_reads ... ok
+test program::javascript_struct_boundary_tests::core_verified_load_refinements_do_not_supply_a_missing_product_adapter ... ok
+test program::javascript_struct_boundary_tests::exact_nullable_transfers_and_unrelated_dynamic_calls_remain_executable ... ok
+test program::javascript_struct_boundary_tests::exported_value_struct_functions_publish_one_object_adapter_with_source_reflection ... ok
+test program::javascript_struct_boundary_tests::function_values_reaching_host_code_are_wrapped_by_a_callable_adapter ... ok
+test program::javascript_struct_boundary_tests::integer_fields_from_a_trusted_extern_wrap_as_int32 ... ok
+test program::javascript_struct_boundary_tests::lazy_results_and_thrown_products_cannot_launder_their_representation ... ok
+test program::javascript_struct_boundary_tests::own_and_arrow_captured_arguments_cannot_erase_struct_parameter_backing ... ok
+test program::javascript_struct_boundary_tests::private_record_products_and_unobserved_array_construction_keep_value_semantics ... ok
+test program::javascript_struct_boundary_tests::prototype_index_hooks_are_outside_the_supported_host_model ... ok
+test program::javascript_struct_boundary_tests::struct_arrays_keep_value_semantics_through_indexing_methods_and_spread ... ok
+test program::javascript_struct_boundary_tests::struct_bearing_callable_frames_are_strict_in_scripts_and_modules ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 1876 filtered out; finished in 1.71s
+
+
+test js::tests::strict_inline::s4_statement_inlining_preserves_rest_arrays_and_spread_evaluation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1890 filtered out; finished in 0.08s
+

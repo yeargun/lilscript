@@ -30,6 +30,10 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    boundaries, host catalog/generic transport. Audit the carried struct/host,
    struct/generic, generic-method/class, dual type/constructor import, explicit
    undefined-argument and detached `charCodeAt` cases against public routes.
+   Concrete generic struct schemas, nullable/default/rest public adapters,
+   constructor/prototype adapters and dual type/constructor imports/re-exports
+   are implemented in the boundaries batch. Observed generic classes and wider
+   opaque generic/union transport remain open.
 8. [ ] Register/document any new behavior controls and their gates, interactions,
    costs and hard vetoes. Keep semantic assumptions separate from effort. Q4 owns
    general const-data encodings and schema specialization; Q2 owns incremental

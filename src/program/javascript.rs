@@ -823,7 +823,7 @@ fn form_head(
                         .unit(unit)
                         .and_then(|data| data.declared_length)
                         .map(|position| position as usize - receiver);
-                    if let Some(first) = first {
+                    if let Some(first) = first.filter(|_| !formation.struct_plan.wrapped(unit)) {
                         formation.work(formation.unit_functions.len())?;
                         let mut formed = false;
                         for index in 0..formation.unit_functions.len() {
@@ -1165,7 +1165,7 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     entry_depths: Vec<usize>,
     records: Vec<RecordStorage<'program>>,
     // Target-boundary classification, allocated only for programs with structs.
-    struct_plan: structs::Plan,
+    struct_plan: structs::Plan<'src>,
     storage: super::physical_storage::StorageProofs,
     reference_plan: references::Plan,
     /// One hoisted `JS.methodN` adapter factory per calling convention.
@@ -4561,7 +4561,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     .budget
                     .vector(AllocationClass::Retained, operands.len() - 1)?;
                 for &argument in &operands[1..] {
-                    let argument = self.value(unit, argument)?;
+                    let argument = self.public_constructor_argument(unit, argument)?;
                     self.append(&mut arguments, argument)?;
                 }
                 if let Type::Function(signature) =
@@ -5001,6 +5001,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 if let (Some(result), None) = (operation.result, &method) {
                     self.export_parameter_checks(unit, result, child, body)?;
                 }
+                self.public_constructor_parameters(child, body)?;
                 self.statement_region(child, self.data(child).entry)?;
                 self.finish_unit(child)?;
                 let parameters = match &method {
@@ -5384,6 +5385,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             Some(Type::Function(signature)) => signature.clone(),
             _ => return Err(self.error(span, "prototype method signature")),
         };
+        if !public_structs::adaptable_export(program, cell, self.budget)? {
+            return Err(self.error(span, "prototype method value-struct ABI adaptation"));
+        }
         let parent = self.plan(unit).regions[region.index()];
         let scope = self.module.regions[parent.index()].scope;
         let body = self.module.region_in(scope, self.budget)?;
@@ -5393,11 +5397,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let mut arguments = self.budget.vector(AllocationClass::Retained, count + 1)?;
         let this = self.expression(js::Expr::This)?;
         self.append(&mut arguments, this)?;
-        for _ in 0..count {
+        for formal in signature.params.iter().skip(1) {
             self.work(1)?;
             let parameter = self.fresh_binding(inner, "argument")?;
             self.append(&mut parameters, parameter)?;
-            let value = self.reference(parameter)?;
+            let value = self.public_parameter(formal, parameter)?;
             self.append(&mut arguments, value)?;
         }
         if signature.has_rest() {
@@ -5410,7 +5414,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             arguments,
             invocation: Invocation::Value,
         })?;
-        self.statement(body, js::Statement::Return(Some(call)))?;
+        let returned = self.public_value(&signature.return_type, call, false)?;
+        self.statement(body, js::Statement::Return(Some(returned)))?;
         let length = program
             .unit(method)
             .and_then(|data| data.declared_length)
@@ -5621,7 +5626,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         .budget
                         .vector(AllocationClass::Retained, operands.len())?;
                     for &argument in operands {
-                        let argument = self.value(unit, argument)?;
+                        let argument = self.public_constructor_argument(unit, argument)?;
                         self.append(&mut arguments, argument)?;
                     }
                     let base = self

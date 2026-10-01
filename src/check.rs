@@ -4807,6 +4807,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         Type::Struct(info.declaration),
                     )
                 } else {
+                    // A non-absent literal can initialize an optional value;
+                    // its generic arguments come from the present member.
+                    let expected = expected.map(|ty| match ty {
+                        Type::Nullable(inner) => inner.as_ref(),
+                        other => other,
+                    });
                     let Some(Type::StructInstance {
                         declaration: expected_declaration,
                         args,
