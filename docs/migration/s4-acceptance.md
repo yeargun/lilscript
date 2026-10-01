@@ -51,7 +51,10 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    constructor/default/rest contracts, fixed struct callable crossings and native
    nominal identity/casts are implemented. Closed private erased transport now
    covers branches, recursive helpers, mutable private collections, nested
-   products, captures and complete concrete callback inputs. Wider public opaque generic/union transport
+   products, captures and complete concrete callback inputs. Concrete public
+   callback parameters use the value codec when identity is unobserved and uses
+   are invocations; defaults/rest and development checks are implemented.
+   Wider public opaque generic/union transport
    remains open. ABI enums/flags now carry checked values/ordinals, canonical
    storage, domain validation and shared/native operations. Disjoint class/tagged
    payload matches and sealed calls now preserve lexical scopes, defaults/rest,

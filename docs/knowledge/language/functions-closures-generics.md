@@ -45,6 +45,14 @@ crossing needs a concrete public codec: exposing the private product backing
 would break value snapshots. Public opaque generic crossings and aliased mutable
 host collections remain migration work.
 
+An exported function may accept a callback with concrete struct parameters or a
+struct result when it only calls that callback. Local aliases, defaults and
+rest arguments keep the same rule. The boundary adapter encodes arguments and
+snapshots returned fields once; exceptions propagate. Development checks validate
+the original callable and returned fields before conversion. A callback that
+escapes, is captured or has its identity observed still needs a wider ABI and is
+refused; a fresh wrapper would change its meaning.
+
 ## Optimization contracts
 
 - Interprocedural effects decide whether an unused call may disappear; `pure` is a

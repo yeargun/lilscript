@@ -6,6 +6,62 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[test]
+fn s4_public_callbacks_adapt_structs_without_observing_callable_identity() {
+    let source=r#"
+        struct Point{int x;int y;}
+        export Point apply(func(Point)->Point f,Point p){auto alias=f;Point a=alias(p);p.x=90;return alias(a);}
+        export int sum(func(Point...)->Point f){Point p=f(Point{2,3},Point{5,7});return p.x+p.y;}
+        Point add(Point p){p.x+=1;return p;}
+        export Point defaulted(func(Point)->Point f=add){return f(Point{4,8});}
+        export int internal(){Point p=apply(add,Point{1,2});return p.x+p.y;}
+    "#;
+    for effort in [0,13] {
+        let mut settings=config("[policy.tactics]\ninlining='off'\nconstant-folding='off'\nscalar-replacement='off'");settings.effort.level=effort;
+        let result=compile_source(source,&settings,ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",r#"
+                const events=[],p={x:2,y:3};
+                function callback(value){events.push([value.x,value.y]);value.x+=4;
+                    return {get x(){events.push('x');return value.x},get y(){events.push('y');return value.y+1}};}
+                const result=library.apply(callback,p);
+                const total=library.sum((...values)=>({x:values.reduce((n,v)=>n+v.x,0),y:values.reduce((n,v)=>n+v.y,0)}));
+                let thrown=false;try{library.apply(()=>{throw 'sentinel'},p)}catch(e){thrown=e==='sentinel'}
+                console.log(JSON.stringify([result,p,events,total,library.defaulted(),library.defaulted(v=>({x:v.x+10,y:v.y})),library.internal(),thrown,library.apply.length,library.sum.length,library.defaulted.length]));
+            "#),"[{\"x\":10,\"y\":5},{\"x\":2,\"y\":3},[[2,3],\"x\",\"y\",[6,4],\"x\",\"y\"],17,{\"x\":5,\"y\":8},{\"x\":14,\"y\":8},5,true,2,1,0]\n");
+        }
+        check_scores(&result);
+    }
+}
+
+#[test]
+fn s4_public_callbacks_keep_identity_and_capture_boundaries_explicit() {
+    for body in [
+        "observe(f);return 0;",
+        "auto nested=()=>f(Point{1});return nested();",
+        "auto alias=f;observe(alias);return 0;",
+    ] {
+        let source=format!("struct Point{{int x;}}extern void observe(JsValue f);export int run(func(Point)->int f){{{body}}}");
+        let mut settings=config("[policy.tactics]\ninlining='off'\nconstant-folding='off'");settings.effort.level=0;
+        let error=compile_source(&source,&settings,ServiceOptions::default()).unwrap_err();
+        assert!(error.to_string().contains("public value-struct ABI adaptation"),"{error}");
+    }
+}
+
+#[test]
+fn s4_public_callbacks_development_validates_the_original_values_once() {
+    let source="struct Point{int x;}export int run(func(Point)->Point f){Point result=f(Point{3});return result.x;}export int unused(func(Point)->Point f){return 8;}";
+    let result=compile_source(source,&config("checks='development'"),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",r#"
+            let reads=0;const valid=library.run(()=>({get x(){reads++;return 7}}));
+            const checks=[];for(const bad of [null,3,'wrong',{}]){try{library.unused(bad);checks.push(false)}catch(e){checks.push(e instanceof TypeError)}}
+            for(const bad of [null,3,{x:'wrong'},{x:2.5}]){try{library.run(()=>bad);checks.push(false)}catch(e){checks.push(e instanceof TypeError)}}
+            console.log(JSON.stringify([valid,reads,checks]));
+        "#),"[7,1,[true,true,true,true,true,true,true,true]]\n");
+    }
+}
+
+#[test]
 fn s4_erased_transport_preserves_branch_collection_nested_and_recursive_values() {
     let source=r#"
         struct Point{int x;}

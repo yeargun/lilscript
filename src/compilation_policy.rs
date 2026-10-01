@@ -35,7 +35,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version32 preserves erased dispatch and fresh captured expression cells.
 // Version33 resolves explicit host paths and native provider bindings.
 // Version34 qualifies closed erased product transport across private bodies.
-pub const POLICY_ALGORITHM_VERSION: u32 = 34;
+// Version35 adapts concrete public callbacks with closed invocation uses.
+pub const POLICY_ALGORITHM_VERSION: u32 = 35;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.

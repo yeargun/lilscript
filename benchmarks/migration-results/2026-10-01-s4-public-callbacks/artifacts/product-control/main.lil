@@ -1,0 +1,1 @@
+struct Point{int x;int y;}export Point increment(Point p){p.x+=1;return p;}

@@ -11,15 +11,21 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 erased transport batch](../../benchmarks/migration-results/2026-10-01-s4-erased-transport/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-erased-transport-1/lilscript`, SHA-256
-`b0d10fdb01b8bd1517ff6681fcaae880c380f607d52ca04b02101733deea397d`.
-Algorithm 34 / search 32 / walk 10 / local facts 14. Closed private generic
-product transport supports branches, recursive helpers, private collections,
-nested products, captures and complete concrete callback inputs. Focused runtime,
-refusal and resource/reuse checks, CLI build and independent artifact oracles
-pass, including hard TOML vetoes. The existing forwarding control is unchanged
-at 50 raw / 69 gzip / 53 Brotli. Wider public opaque ABI remains open.
+The latest [S4 public callback batch](../../benchmarks/migration-results/2026-10-01-s4-public-callbacks/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-public-callbacks-1/lilscript`, SHA-256
+`4e4f5cdeb5448da427f8a15b9d4bf5d136cf0d090eb6702e25bc324a0758ddb3`.
+Algorithm 35 / search 32 / walk 10 / local facts 14. Concrete public struct-bearing
+callbacks are adapted when their use is limited to invocation, including local
+aliases, defaults and rest. Development validates original host values and
+snapshots each field once. Three focused checks and 21 affected boundary/shape
+checks pass, with the release CLI and independent artifact oracles. The product
+control is byte-identical at 175 raw / 134 gzip / 112 Brotli. Identity-observing
+or captured public callbacks still need a wider ABI.
+
+The preceding erased transport batch supports closed private generic branches,
+recursive helpers, collections, nested products, captures and concrete callback
+inputs. Its tests include hard TOML vetoes and bounded resource/reuse behavior.
+Wider public opaque ABI remains open.
 
 The preceding host catalog batch implemented generic extern schemas, bundled
 ECMAScript/DOM modules, TOML host paths and native provider symbols/sources,

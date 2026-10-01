@@ -1067,3 +1067,22 @@ without an old-compiler win claim. Pin `s4-erased-transport-1`, SHA-256
 algorithm 34 / search 32 / walk 10 / local facts 14. No full-suite/fleet/timing or
 native-completion claim. Public opaque crossings and shared-consumer removals
 remain S4; the sequential milestone order is unchanged.
+
+## 2026-10-01: S4 concrete public callbacks
+
+The [callback boundary batch](../../benchmarks/migration-results/2026-10-01-s4-public-callbacks/README.md)
+admits concrete struct-bearing callback parameters whose identity is unobserved
+and uses are invocations. Local aliases, defaults, rest, internal calls and
+exceptions use the common callable codec. Development validates the original
+host function and returned fields without reading a valid getter twice; shapes
+and products share the non-null object check.
+
+Three focused callback checks and 21 affected boundary/shape checks pass. The
+release CLI and independent artifact oracles pass, and the matched production
+product control stays byte-identical at 175 raw / 134 gzip / 112 Brotli. The new
+capability measures 616 raw / 299 gzip / 272 Brotli without an old-compiler win
+claim. Pin `s4-public-callbacks-1`, SHA-256
+`4e4f5cdeb5448da427f8a15b9d4bf5d136cf0d090eb6702e25bc324a0758ddb3`;
+algorithm 35 / search 32 / walk 10 / local facts 14. S4 remains active for wider
+public opaque transport and shared consumers/removals. No full-library/fleet,
+timing, native-completion, ratchet-baseline or port-artifact change.

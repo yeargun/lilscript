@@ -153,13 +153,83 @@ pub(super) fn adaptable_export(
             }
             _ => false,
         };
+        let callable = if let Some(signature) = parameter.ty.callable_signature() {
+            adaptable_callable(program, signature, budget)?
+                && call_only_parameter(program, unit, position, budget)?
+        } else { false };
         if parameter.passing != ParameterPassing::Value
-            || !(element_array || adaptable(program, &parameter.ty, 0, budget)?)
+            || !(element_array || callable || adaptable(program, &parameter.ty, 0, budget)?)
         {
             return Ok(false);
         }
     }
     adaptable(program, &signature.return_type, 0, budget)
+}
+
+/// A host callback can be adapted when its source value is only invoked. The
+/// wrapper's identity, properties and constructibility are then unobservable.
+/// Follow local aliases, but reject escapes and captures. A default or local
+/// reassignment still supplies the same checked private callable convention.
+/// This proof is about uses, not callback purity: every call and throw remains.
+fn call_only_parameter(program: &Program<'_>, unit: UnitId, position: usize,
+    budget: &mut AllocationBudget<'_>) -> Result<bool, FormationError> {
+    let data = program.units[unit.index()].data();
+    let Some(&parameter) = data.parameters.get(position) else { return Ok(false); };
+    let mut scope = budget.scope();
+    let mut cells = scope.vector(AllocationClass::Scratch, 1)?;
+    scope.push(AllocationClass::Scratch, &mut cells, parameter)?;
+    let loads = |cells: &[CellId], value: ValueId| {
+        matches!(data.operations[data.values[value.index()].definition.index()].kind,
+            OperationKind::Load(place) if matches!(data.places[place.index()], Place::Cell(cell) if cells.contains(&cell)))
+    };
+    // Checked SSA values precede their initializer. Local aliases
+    // therefore close in source operation order, with no iterative dataflow.
+    for operation in &data.operations {
+        scope.work(WorkKind::Analysis, cells.len() as u64 + 1)?;
+        if let OperationKind::Initialize(cell) = operation.kind {
+            if data.operands(operation.operands).unwrap().first().is_some_and(|&v| loads(&cells, v)) {
+                scope.push(AllocationClass::Scratch, &mut cells, cell)?;
+            }
+        }
+    }
+    for &cell in &cells {
+        if program.cells[cell.index()].owner != unit { return Ok(false); }
+        for other in &program.units {
+            scope.work(WorkKind::Analysis, other.data().captures.len() as u64 + 1)?;
+            if other.data().captures.contains(&cell) { return Ok(false); }
+        }
+    }
+    for operation in &data.operations {
+        let operands = data.operands(operation.operands).unwrap();
+        scope.work(WorkKind::Analysis, (operands.len()+1).saturating_mul(cells.len()+1) as u64)?;
+        if !matches!(operation.kind, OperationKind::Initialize(cell) if cells.contains(&cell))
+            && !matches!(operation.kind, OperationKind::IsUndefined { parameter: Some(_), .. })
+            && operands.iter().any(|&value| loads(&cells, value)) { return Ok(false); }
+        if let OperationKind::Call(call) = operation.kind {
+            for argument in data.arguments(data.calls[call.index()].arguments).unwrap() {
+                scope.work(WorkKind::Analysis, cells.len() as u64 + 1)?;
+                match *argument {
+                    CallArgument::Value(value) | CallArgument::Spread(value) if loads(&cells, value) => return Ok(false),
+                    CallArgument::Reference(place) if matches!(data.places[place.index()], Place::Cell(cell) if cells.contains(&cell)) => return Ok(false),
+                    _ => {}
+                }
+            }
+        }
+    }
+    for place in &data.places {
+        scope.work(WorkKind::Analysis, cells.len() as u64 + 1)?;
+        match *place {
+            Place::Member { receiver, .. } | Place::ClassField { receiver, .. }
+            | Place::Index { receiver, .. } if loads(&cells, receiver) => return Ok(false),
+            Place::Value(value) if loads(&cells, value) => return Ok(false),
+            _ => {}
+        }
+    }
+    for region in &data.regions {
+        scope.work(WorkKind::Analysis, cells.len() as u64 + 1)?;
+        if region.result.is_some_and(|value| loads(&cells, value)) { return Ok(false); }
+    }
+    Ok(true)
 }
 
 /// Whether the function only reads the array its parameter holds: the cell
@@ -311,7 +381,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
     ) -> Result<js::ExprId, FormationError> {
         let value = if incoming { self.enum_crossing(ty, value)? } else { value };
         if ty.callable_signature().is_some()
-            && carries_absence(self.program, ty, self.budget)? {
+            && (carries_product(ty, self.budget)? || carries_absence(self.program, ty, self.budget)?) {
             return self.public_callable_type(ty, value, incoming);
         }
         // A read-only array parameter of structs decodes each element once,
@@ -527,6 +597,12 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
 
     pub(super) fn public_callable_type(&mut self, ty: &Type<'src>, value: js::ExprId, incoming: bool)
         -> Result<js::ExprId, FormationError> {
+        let value = if incoming && self.contract.checks == crate::compilation_contract::PreconditionChecks::Development {
+            let check = self.crossing_helper(super::checks::Crossing::Function, false)?;
+            let callee = self.reference(check)?;
+            let arguments = self.budget.copy_slice(AllocationClass::Retained, &[value])?;
+            self.expression(js::Expr::Call { callee, arguments, invocation: Invocation::Value })?
+        } else { value };
         let factory = self.public_callable_factory(ty, incoming)?;
         let callee = self.reference(factory)?;
         let mut arguments = self.budget.vector(AllocationClass::Retained, 1)?;
@@ -733,6 +809,10 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         } else {
             let definition = super::super::schema::struct_definition(program, ty)
                 .ok_or_else(|| self.error(Span::default(), "missing instantiated public schema"))?;
+            if incoming && self.contract.checks == crate::compilation_contract::PreconditionChecks::Development {
+                let object = self.reference(parameter)?;
+                self.require_data_object(body, object)?;
+            }
             let fields = &program.fields[definition.fields.clone()];
             let mut elements = self
                 .budget
@@ -756,6 +836,14 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
                         object: source,
                         property,
                     })?;
+                    let value = if self.contract.checks == crate::compilation_contract::PreconditionChecks::Development {
+                        if let Some((kind, absent)) = super::checks::Crossing::of(&field_ty) {
+                            let check = self.crossing_helper(kind, absent)?;
+                            let callee = self.reference(check)?;
+                            let arguments = self.budget.copy_slice(AllocationClass::Retained, &[value])?;
+                            self.expression(js::Expr::Call { callee, arguments, invocation: Invocation::Value })?
+                        } else { value }
+                    } else { value };
                     let value = self.public_value(&field_ty, value, true)?;
                     self.append(&mut elements, value)?;
                 } else {

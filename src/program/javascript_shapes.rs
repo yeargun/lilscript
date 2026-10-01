@@ -304,6 +304,32 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let ty = &self.program.types[ty.index()];
         self.shape_crossing_type(ty, value, seen)
     }
+    /// Shared non-null object contract for declared shapes and public products.
+    pub(super) fn require_data_object(&mut self, body: js::RegionId, object: js::ExprId)
+        -> Result<(), FormationError> {
+        let nullish = self.nullish(object)?;
+        let present = self.expression(js::Expr::Unary {
+            op: js::Unary::Not,
+            value: nullish,
+        })?;
+        let typeof_value = self.expression(js::Expr::Unary {
+            op: js::Unary::TypeOf,
+            value: object,
+        })?;
+        let word = self.string(&"object".into())?;
+        let word = self.literal(js::Literal::String(word))?;
+        let object_type = self.expression(js::Expr::Binary {
+            op: js::Binary::StrictEqual,
+            left: typeof_value,
+            right: word,
+        })?;
+        let valid = self.expression(js::Expr::Binary {
+            op: js::Binary::And,
+            left: present,
+            right: object_type,
+        })?;
+        self.shape_require(body, valid)
+    }
     fn shape_crossing_type(
         &mut self,
         ty: &Type<'src>,
@@ -342,28 +368,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     },
                 )?;
             }
-            let nullish = self.nullish(object)?;
-            let present = self.expression(js::Expr::Unary {
-                op: js::Unary::Not,
-                value: nullish,
-            })?;
-            let typeof_value = self.expression(js::Expr::Unary {
-                op: js::Unary::TypeOf,
-                value: object,
-            })?;
-            let word = self.string(&"object".into())?;
-            let word = self.literal(js::Literal::String(word))?;
-            let object_type = self.expression(js::Expr::Binary {
-                op: js::Binary::StrictEqual,
-                left: typeof_value,
-                right: word,
-            })?;
-            let valid = self.expression(js::Expr::Binary {
-                op: js::Binary::And,
-                left: present,
-                right: object_type,
-            })?;
-            self.shape_require(body, valid)?;
+            self.require_data_object(body, object)?;
             // Each schema has its own weak set in this crossing's state. A
             // recursive graph terminates; the same object under another view
             // is still checked, and a subsequent crossing starts fresh.

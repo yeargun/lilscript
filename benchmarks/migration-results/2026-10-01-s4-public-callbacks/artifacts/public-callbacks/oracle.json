@@ -1,0 +1,16 @@
+{
+  "exercise": "console.log(JSON.stringify([m.apply(p=>({x:p.x+1,y:p.y+2}),{x:3,y:4}),m.sum((...values)=>({x:values.reduce((s,p)=>s+p.x,0),y:values.reduce((s,p)=>s+p.y,0)})),m.defaulted(),m.internal()]));",
+  "expected": [
+    {
+      "x": 5,
+      "y": 8
+    },
+    17,
+    {
+      "x": 5,
+      "y": 8
+    },
+    5
+  ],
+  "setup": ""
+}

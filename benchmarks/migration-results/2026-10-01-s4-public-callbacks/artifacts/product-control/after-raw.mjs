@@ -1,0 +1,1 @@
+let a=b=>{let c=b[0]+1|0;b[0],b=[c,b[1]];return b};function f(e){return[e.x,e.y]}function h(g){return{x:g[0],y:g[1]}}function increment(d){return h(a(f(d)))}export{increment};

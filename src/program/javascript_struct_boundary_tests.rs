@@ -600,16 +600,14 @@ fn exported_value_struct_functions_publish_one_object_adapter_with_source_reflec
 #[test]
 fn a_public_struct_whose_copy_would_lose_identity_or_frame_stays_refused() {
     for (source, feature) in [
-        // A mutated collection, a callable or a nullable carrying a struct
-        // has aliasing or identity a copying adapter cannot preserve. (A
-        // read-only array parameter decodes; generic structs do not reach
-        // formation yet, since conversion refuses them first.)
+        // Mutable collection aliases and escaping callable identities need
+        // more than a copying adapter. Call-only parameters can be adapted.
         (
             "struct P{int x;}export void add(P[] items){items.push(P{1});}",
             "public value-struct ABI adaptation",
         ),
         (
-            "struct P{int x;}export int apply(func(P)->int f){return f(P{1});}",
+            "struct P{int x;}export func(P)->int echo(func(P)->int f){return f;}",
             "public value-struct ABI adaptation",
         ),
         // The wrapper supplies its own receiver; a body observing one would

@@ -148,7 +148,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M12.2 | [D3](plan.md#d3) | four site receipts. |
 | Architecture §22 | Resolved by this replan: stale active text archived | "today the default strips it" is stale. |
 | A1 | [C3](plan.md#c3), resolved | The missing historical CPU pair is explicitly unavailable; a current repeated per-cell baseline is retained without a cross-version claim. |
-| No owner yet | [S4](plan.md#s4) | Concrete generic struct schemas and nullable/default/rest public adapters are implemented; opaque unions, mutable collection aliases and wider generic callable transport remain open. |
+| No owner yet | [S4](plan.md#s4) | Concrete generic structs, nullable/default/rest adapters and invocation-only concrete public callbacks are implemented; opaque unions, mutable collection aliases and identity-observing generic callable transport remain open. |
 | No owner yet | [S4](plan.md#s4) | M4.1: published constructors/prototype methods with struct parameters and dual type/constructor imports/re-exports and observed generic classes are implemented; wider opaque generic transport remains open. |
 | No owner yet | [C1](plan.md#c1) | `pool_strings` and `pack_string_arrays` ignore their permissions; |
 | No owner yet | [D3](plan.md#d3) | katexlil keeps `src/fontMetricsData.js` for two scripts. |

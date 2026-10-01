@@ -1,0 +1,6 @@
+struct Point{int x;int y;}
+        export Point apply(func(Point)->Point f,Point p){auto alias=f;Point a=alias(p);p.x=90;return alias(a);}
+        export int sum(func(Point...)->Point f){Point p=f(Point{2,3},Point{5,7});return p.x+p.y;}
+        Point add(Point p){p.x+=1;return p;}
+        export Point defaulted(func(Point)->Point f=add){return f(Point{4,8});}
+        export int internal(){Point p=apply(add,Point{1,2});return p.x+p.y;}
