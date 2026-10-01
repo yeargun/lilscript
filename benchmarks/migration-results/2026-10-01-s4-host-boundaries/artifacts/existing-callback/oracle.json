@@ -1,0 +1,5 @@
+{
+  "prelude": "globalThis.call=(f,a)=>{const r=typeof a==='string'?f.call(a):f(a);return typeof r==='object'&&r!==null?JSON.stringify(r):r};",
+  "exercise": "m.run();",
+  "expected": "{\"name\":\"self\",\"value\":\"s\"}\nnull\n{\"name\":\"b\",\"value\":\"c\"}\nk=v"
+}

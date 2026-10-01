@@ -136,8 +136,8 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M7.5 | [S3](plan.md#s3), resolved | closures created inside a body; |
 | M7.5 | [S3](plan.md#s3), resolved | bodies across modules. |
 | M9.3 / M10.4 | [G3](plan.md#g3), complete | Guarded receiver aliases for repeated `this` reads; derived constructors, direct eval and shared owners excluded. Affected runtime evidence retained, broad parity remains V1. |
-| M9.3 / M10.4 | [S4](plan.md#s4) | Non-private callbacks retain the shared adapter until the R7 language contract supplies a replacement. |
-| M9.3 / M10.4 | [S4](plan.md#s4) | R7 owns replacing adapter rest-list `arguments` with actual rest semantics, including `.length` and variable indices. |
+| M9.3 / M10.4 | [S4](plan.md#s4) | Implemented: non-private callbacks use the common value codec with typed receiver, default/rest and reflected-length contracts. |
+| M9.3 / M10.4 | [S4](plan.md#s4) | Implemented: callable adapters use actual rest arrays, preserving `.length`, undefined/default behavior and variable indices. |
 | M4 / M10 | [S4](plan.md#s4) | `??=` on a place: implemented and qualified in `8ebb686d`; four carried tests enabled |
 | M4 / M10 | [S4](plan.md#s4) | Generic methods implemented and checked on JavaScript/native; observed generic classes remain open |
 | M4 / M10 | [S4](plan.md#s4) | an explicit `JS.undefined()` argument; |

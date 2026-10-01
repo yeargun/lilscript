@@ -759,7 +759,7 @@ struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     class_methods: Vec<ClassMethod<'src>>,
     /// The class and `this` cell of the `init` being converted, for `super`.
     current_class: Option<(NominalId, CellId)>,
-    /// Each class's (and `object`'s) name binding, by symbol: built once.
+    /// Each class's name binding, by symbol: built once.
     class_values: Option<crate::stable_hash::StableHashMap<u32, NominalId>>,
     /// A field's own initializer (R3), by its class and its own slot.
     field_initializers:
@@ -1047,13 +1047,12 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     )?;
                 }
                 Item::Stmt(_) => {}
-                Item::Class(declaration) if !declaration.object => {
+                Item::Class(declaration) => {
                     self.register_class(declaration)?;
                 }
                 Item::ExternClass(declaration) => {
                     self.register_extern_class(declaration)?;
                 }
-                _ => return self.unsupported(item.span(), "nominal callable declarations"),
             }
         }
         Ok(())
@@ -2070,7 +2069,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 .into()
             })
     }
-    /// The class (or `object`) an identifier names as a value, if any.
+    /// The class an identifier names as a value, if any.
     fn class_value(
         &mut self,
         name: ast::Ident<'src>,
@@ -2084,7 +2083,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             None => Ok(None),
         }
     }
-    /// The class (or `object`) whose name declares this cell's binding.
+    /// The class whose name declares this cell's binding.
     fn class_of_value(&mut self, cell: CellId) -> Result<Option<NominalId>, ConversionError> {
         if self.class_values.is_none() {
             let mut values = crate::stable_hash::StableHashMap::default();

@@ -875,10 +875,9 @@ pub struct ClassInfo<'src> {
     pub constructor: Option<FunctionType<'src>>,
     /// The binding the class's name declares as a value: its constructor
     /// (an internal class; only a class kept as a JavaScript class has one at
-    /// run time) or the singleton (an `object`).
+    /// run time).
     pub value: Option<SymbolId>,
     pub external: bool,
-    pub object: bool,
     /// Some module publishes the class's constructor (`export constructor`).
     pub published: bool,
     /// The class's identity is observable, so it stays a JavaScript class:
@@ -1312,7 +1311,7 @@ impl<'src> DeclarationTables<'src> {
         };
         for index in 0..classes.len() {
             let info = &classes[index];
-            if info.external || info.object {
+            if info.external {
                 continue;
             }
             if info.published && info.base.is_some() && info.constructor.is_none() {
@@ -2588,13 +2587,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         program: &Program<'ast, 'src>,
     ) -> Result<(), AdmittedCheckError> {
         for item in program.items {
-            let (name, type_params, span, kind, external, object) = match item {
+            let (name, type_params, span, kind, external) = match item {
                 Item::Struct(decl) => (
                     decl.name,
                     decl.type_params,
                     decl.span,
                     NominalKind::Struct,
-                    false,
                     false,
                 ),
                 Item::Class(decl) => (
@@ -2603,7 +2601,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     decl.span,
                     NominalKind::Class,
                     false,
-                    decl.object,
                 ),
                 Item::ExternClass(decl) => (
                     decl.name,
@@ -2611,31 +2608,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     decl.span,
                     NominalKind::Class,
                     true,
-                    false,
                 ),
-                Item::Enum(decl) => (
-                    decl.name,
-                    &[][..],
-                    decl.span,
-                    NominalKind::Enum,
-                    false,
-                    false,
-                ),
+                Item::Enum(decl) => (decl.name, &[][..], decl.span, NominalKind::Enum, false),
                 _ => continue,
             };
             let type_params = validate_type_params(self.module, type_params)?;
 
-            if let Some(&existing) = self.facts.type_bindings.get(name.name) {
-                // Several `object` declarations of one name in one scope
-                // contribute members to one object.
-                if object
-                    && self
-                        .view()
-                        .nominal_class(existing)
-                        .is_some_and(|class| class.object)
-                {
-                    continue;
-                }
+            if self.facts.type_bindings.contains_key(name.name) {
                 return Err(AdmittedCheckError::new(
                     span,
                     format!("duplicate type declaration `{}`", name.name),
@@ -2683,15 +2662,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             constructor: None,
                             value: None,
                             external,
-                            object,
                             published: false,
                             observed: false,
                             span,
                         },
                     )?;
-                    if !object {
-                        self.record_type_binding(name.id, &Type::Class(declaration))?;
-                    }
+                    self.record_type_binding(name.id, &Type::Class(declaration))?;
                     identity
                 }
                 NominalKind::Enum => {
@@ -2830,23 +2806,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             ));
                         }
                         let signature = self.function_type(method)?;
-                        if decl.object {
-                            let index = fields.len();
-                            fields.insert(
-                                method.name.name,
-                                FieldInfo {
-                                    member: self.declarations.declare_member(
-                                        owner,
-                                        MemberSlot::field(index),
-                                        self.budget,
-                                    )?,
-                                    name: method.name.name,
-                                    ty: Type::Function(signature.clone()),
-                                    index,
-                                    span: method.span,
-                                },
-                            );
-                        }
                         methods.insert(
                             method.name.name,
                             MethodInfo {
@@ -2899,62 +2858,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
             }
 
-            let merge_object = {
+            {
                 let info = &mut self.declarations.classes[owner.index()];
-                if decl.object
-                    && info.object
-                    && self
-                        .scopes
-                        .last()
-                        .is_some_and(|scope| scope.contains_key(decl.name.name))
-                {
-                    for name in methods.keys() {
-                        if info.methods.contains_key(name) || info.fields.contains_key(name) {
-                            return Err(AdmittedCheckError::new(
-                                decl.span,
-                                format!("duplicate member `{name}` in object `{}`", decl.name.name),
-                            ));
-                        }
-                    }
-                    for (next_index, (name, mut field)) in (info.fields.len()..).zip(fields) {
-                        field.index = next_index;
-                        self.declarations.nominal_members[field.member.index()].slot =
-                            MemberSlot::field(next_index);
-                        info.fields.insert(name, field);
-                    }
-                    for (offset, method) in methods.values().enumerate() {
-                        self.declarations.nominal_members[method.member.index()].slot =
-                            MemberSlot::method(info.methods.len() + offset);
-                    }
-                    info.methods.extend(methods);
-                    true
-                } else {
-                    info.fields = fields;
-                    info.methods = methods;
-                    info.base = base;
-                    info.constructor = constructor.clone();
-                    info.object = decl.object;
-                    false
-                }
-            };
+                info.fields = fields;
+                info.methods = methods;
+                info.base = base;
+                info.constructor = constructor.clone();
+            }
             self.pop_type_params();
-            if merge_object {
-                if let Some(&symbol) = self
-                    .scopes
-                    .last()
-                    .and_then(|scope| scope.get(decl.name.name))
-                {
-                    self.record_identifier(decl.name.id, symbol);
-                    self.record_type_binding(decl.name.id, &Type::Class(declaration))?;
-                }
-                continue;
-            }
-
-            if decl.object {
-                let value = self.declare(decl.name, Type::Class(declaration))?;
-                self.declarations.classes[owner.index()].value = Some(value);
-                continue;
-            }
 
             // The class's name as a value is its constructor: only a class
             // kept as a JavaScript class has one at run time, and LilScript
@@ -4895,12 +4806,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         return Err(AdmittedCheckError::new(
                             *span,
                             format!("extern class `{}` cannot be constructed", class.name),
-                        ));
-                    }
-                    if info.object {
-                        return Err(AdmittedCheckError::new(
-                            *span,
-                            format!("object `{}` cannot be constructed with `new`", class.name),
                         ));
                     }
                     if let Some(signature) = &info.constructor {
@@ -8952,21 +8857,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             return Ok(false);
         };
         let info = &self.declarations.classes[declaration.identity.index()];
-        let (external, object, generic) = (
+        let (external, generic) = (
             info.external,
-            info.object,
             !args.is_empty() || !info.type_params.is_empty(),
         );
         if generic {
             return Err(AdmittedCheckError::new(
                 span,
                 format!("an identity test on the generic class `{target}` is not supported"),
-            ));
-        }
-        if object {
-            return Err(AdmittedCheckError::new(
-                span,
-                format!("`{target}` is an `object` with one instance: compare it with `===`"),
             ));
         }
         let fits = is_js_value_or_nullable_js_value(value)
@@ -12561,36 +12459,6 @@ mod tests {
 
         let error = check("extern class Document{}Document value=new Document();").unwrap_err();
         assert!(error.message.contains("cannot be constructed"));
-    }
-
-    #[test]
-    fn accepts_closed_objects_and_merges_method_tables() {
-        check("object Api{int add(int left,int right){return left+right;}}print(Api.add(1,2));")
-            .unwrap();
-        check(
-            "object Api{int add(int left,int right){return left+right;}}object Api{int mul(int left,int right){return left*right;}}print(Api.add(1,2)+Api.mul(3,4));",
-        )
-        .unwrap();
-        let constructed = check("object Api{int id(){return 1;}}Api value=new Api();").unwrap_err();
-        assert!(
-            constructed
-                .message
-                .contains("object `Api` cannot be constructed with `new`"),
-            "{constructed}"
-        );
-        let duplicate = check(
-            "object Api{int add(int left,int right){return left+right;}}object Api{int add(int left,int right){return left+right;}}",
-        )
-        .unwrap_err();
-        assert!(
-            duplicate.message.contains("duplicate member `add`"),
-            "{duplicate}"
-        );
-        let clash = check("class Api{}object Api{int id(){return 1;}}").unwrap_err();
-        assert!(
-            clash.message.contains("duplicate type declaration `Api`"),
-            "{clash}"
-        );
     }
 
     #[test]

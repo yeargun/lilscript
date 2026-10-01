@@ -1096,7 +1096,7 @@ fn constructor_exports_publish_classes_and_refuse_what_cannot_be_one() {
     for (source, expected) in [
         (
             "extern class Host{}export constructor Host;",
-            "non-object, non-extern class",
+            "non-extern class",
         ),
         (
             "export int value=1;export constructor value;",

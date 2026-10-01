@@ -3469,8 +3469,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     /// shape, its fields by name, as an exported function's input is decoded
     /// (the D2 decoder). A struct is a value, so the view is a copy made at
     /// the assumption; a host object read and written in place is an
-    /// `extern class`. A type the decoder cannot reach (a nullable struct, a
-    /// record of structs) is refused rather than read as private storage.
+    /// `extern class`. A type the decoder cannot reach (for example an aliased
+    /// mutable record of structs) is refused rather than read as private storage.
     fn assumed_product(
         &mut self,
         unit: ContextId,
@@ -3501,17 +3501,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             return Ok(expression);
         }
         let decoded = match result {
-            Type::Struct(_) => Some(result),
-            Type::Array(element) if matches!(element.as_ref(), Type::Struct(_)) => {
-                Some(element.as_ref())
-            }
-            _ => None,
+            Type::Array(element) => element.as_ref(),
+            result => result,
         };
-        let decodable = match decoded {
-            Some(structure) => public_structs::adaptable(program, structure, 0, self.budget)?,
-            None => false,
-        };
-        if !decodable {
+        if !public_structs::adaptable(program, decoded, 0, self.budget)? {
             return Err(self.error(
                 operation.span,
                 "JS.assume to a type holding a value struct needs its public decoder",

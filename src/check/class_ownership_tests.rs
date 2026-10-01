@@ -126,68 +126,6 @@ fn hierarchy_resolution_moves_own_field_and_method_payloads_without_cloning() {
 }
 
 #[test]
-fn merged_object_members_keep_order_identity_and_shared_callable_payloads() {
-    let arena = bumpalo::Bump::new();
-    let program = crate::parse_source(
-        &arena,
-        "object Api{int[][] first(int[][] value){return value;}}object Api{string second(string value){return value;}}object Api{bool third(bool value){return value;}}",
-    )
-    .unwrap();
-    let model = analyze(&program).unwrap();
-    let info = model.class_info("Api").unwrap();
-    assert!(info.object);
-    assert_eq!(
-        info.fields.keys().copied().collect::<Vec<_>>(),
-        ["first", "second", "third"]
-    );
-    assert_eq!(
-        info.methods.keys().copied().collect::<Vec<_>>(),
-        ["first", "second", "third"]
-    );
-    let owner = model.type_binding("Api").unwrap();
-    let mut identities = AHashSet::default();
-    for (index, name) in ["first", "second", "third"].into_iter().enumerate() {
-        let field = &info.fields[name];
-        let method = &info.methods[name];
-        let Type::Function(field_signature) = &field.ty else {
-            panic!("object member must retain its callable field");
-        };
-        assert!(Arc::ptr_eq(&field_signature.0, &method.signature.0));
-        assert_eq!(field.index, index);
-        assert_eq!(method.owner, owner);
-        assert!(identities.insert(field.member));
-        assert!(identities.insert(method.member));
-        let field_definition = model.declarations.nominal_members[field.member.index()];
-        let method_definition = model.declarations.nominal_members[method.member.index()];
-        assert_eq!(field_definition.owner, owner);
-        assert_eq!(method_definition.owner, owner);
-        assert!(matches!(field_definition.slot, MemberSlot::Field(slot) if slot as usize == index));
-        assert!(
-            matches!(method_definition.slot, MemberSlot::Method(slot) if slot as usize == index)
-        );
-        assert!(matches!(
-            model.nominal_member(field.member),
-            Some(NominalMember::Field { owner: actual, field: canonical })
-                if actual == owner && std::ptr::eq(canonical, field)
-        ));
-        assert!(matches!(
-            model.nominal_member(method.member),
-            Some(NominalMember::Method { owner: actual, name: actual_name, method: canonical })
-                if actual == owner && actual_name == name && std::ptr::eq(canonical, method)
-        ));
-    }
-    assert_eq!(identities.len(), 6);
-    let mut symbol = None;
-    for item in program.items {
-        let Item::Class(declaration) = item else {
-            unreachable!();
-        };
-        let actual = model.identifier_symbol(declaration.name.id).unwrap();
-        assert_eq!(*symbol.get_or_insert(actual), actual);
-    }
-}
-
-#[test]
 fn three_level_generic_inheritance_preserves_substitutions_and_declaring_slots() {
     let arena = bumpalo::Bump::new();
     let program = crate::parse_source(
@@ -280,11 +218,11 @@ fn three_level_generic_inheritance_preserves_substitutions_and_declaring_slots()
 }
 
 #[test]
-fn canonical_class_and_object_signatures_finalize_pending_default_bindings() {
+fn canonical_class_signatures_finalize_pending_default_bindings() {
     let arena = bumpalo::Bump::new();
     let program = crate::parse_source(
         &arena,
-        "int seed=7;class Base{int read(int value=seed){return value;}}class Child extends Base{int own(int value=seed){return value;}}object Api{int read(int value=seed){return value;}}extern class Foreign{int read(int value=seed);}",
+        "int seed=7;class Base{int read(int value=seed){return value;}}class Child extends Base{int own(int value=seed){return value;}}class Api{int read(int value=seed){return value;}}extern class Foreign{int read(int value=seed);}",
     )
     .unwrap();
     let model = analyze(&program).unwrap();

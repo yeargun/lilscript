@@ -84,7 +84,6 @@ compiler does meanwhile.
 | `enum E`            | one value from a closed named variant set                     | zero-based integer discriminant                   | `int32_t` discriminant                      |
 | `struct S`          | positional value aggregate                                    | scalars, tuple, or boundary object                | positional C value record                   |
 | `class C`           | nominal reference value with methods                          | dissolved record or class at an escaping boundary | pointer to a C record                       |
-| `object O`          | closed public object; ABI keys, private method bodies         | named object literal or clustered assigns         | unsupported                                 |
 | `extern class C`    | typed JavaScript host object interface                        | existing host object with exact member names      | unsupported without an explicit user ABI    |
 | `func(T...)->R`     | callable value                                                | function/closure                                  | function plus environment                   |
 | `C<T...>`           | applied generic class                                         | same nominal class layout                         | pointer with boxed polymorphic fields       |
@@ -590,7 +589,7 @@ export constructor Coordinate;
 export constructor InternalWidget as Widget;
 ```
 
-Only explicitly exported top-level functions, variables, structs, classes, objects, and
+Only explicitly exported top-level functions, variables, structs, classes, and
 externs can be imported. Imported names may be aliased with `as`, types
 included (`import { Node as TreeNode } from "./tree";`). Every top-level name
 belongs to its module's scope: module-private functions, variables, structs,
@@ -758,7 +757,9 @@ declaration order. Each call returns a fresh object. An incoming object is read
 once per field when the call starts, so changing it afterwards changes nothing.
 The function keeps its source name, arity and constructibility. Concrete generic
 structs use their instantiated field types, including nested structs and
-nullable values. Defaults preserve omission and explicit `undefined`; a rest
+nullable values. `JS.assume` uses those decoders too, including nullable
+struct array elements; a value snapshot reads each public field once.
+Defaults preserve omission and explicit `undefined`; a rest
 parameter receives copies in a fresh array. Ordinary arrays of structs are
 accepted only for parameters whose body provably reads the array without
 exposing its identity or changing its elements. Mutable collections and opaque
@@ -769,7 +770,9 @@ preserving class identity, `instanceof`, defaults and public arity. Prototype
 methods decode incoming structs and encode returned structs. Calls from
 LilScript into those constructors use the same public shapes, including
 `super` calls. These are required ABI conversions, independent of optimization
-effort and tactic flags.
+effort and tactic flags. Function values crossing to host code also preserve
+optional parameters, rest arrays and explicit receivers. A receiver adapter is
+strict even in a classic script, so a primitive receiver is not boxed.
 
 Classes may define fields, one `init` constructor, and methods. `this` is
 available in constructor and method bodies.
@@ -814,28 +817,9 @@ Priced priced = listing;
 print(priced.total(2));
 ```
 
-A closed `object` is a singleton with ABI keys. Method bodies are ordinary
-private functions: they nest, mangle, and fold like other helpers. Keys are ABI
-and stay stable. Several `object` declarations of one name in one module
-contribute methods to one object; like every nominal, an object's name is
-scoped to its module. **Until M10.10** the compiler does not
-compile `object` singletons: the checker accepts the declaration and its uses,
-but conversion refuses a use ("a class or object name used as a value"). The architecture recommends deleting the feature
-in favour of module namespaces and const records; the owner decides.
-
-```lilscript
-object Api {
-  int add(int left, int right) {
-    return left + right;
-  }
-}
-
-print(Api.add(1, 2));
-```
-
-`object` is distinct from `Record<T>` (open data keys), positional `struct`,
-and `extern class` (host names). Objects cannot declare type parameters, fields,
-`init`, or `extends`, and cannot be constructed with `new`.
+`object Name { ... }` singleton declarations have been removed (R16). Use
+ordinary module exports for named operations and records for stored data.
+The `object {key: value}` expression remains a JavaScript object literal.
 
 Base fields are flattened first and inherited methods call their original
 statically known function. Generic base applications such as

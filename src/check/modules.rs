@@ -266,7 +266,7 @@ struct DeclarationPhase<'ast, 'src> {
 }
 
 /// Phase 3's product: every nominal's schema and class hierarchy, and each
-/// module's value scope so far: its classes' constructor values and objects.
+/// module's value scope so far: its classes' constructor values.
 struct SchemaPhase<'ast, 'src> {
     declared: DeclarationPhase<'ast, 'src>,
     scopes: Vec<AHashMap<&'src str, SymbolId>>,
@@ -419,11 +419,11 @@ fn declaration_phase<'ast, 'src>(
                     )
                 })?;
             let info = &mut checked.declarations.classes[class.index()];
-            if info.external || info.object {
+            if info.external {
                 return Err(error(
                     module,
                     export.local.span,
-                    "constructor exports require a non-object, non-extern class",
+                    "constructor exports require a non-extern class",
                 )
                 .into());
             }
@@ -1286,9 +1286,6 @@ impl<'src> InterfaceGraph<'src> {
                         })
                         .transpose()?;
                     for target in [Some(target), constructor].into_iter().flatten() {
-                        if is_object_type(checked, target) {
-                            continue;
-                        }
                         if let InterfaceTarget::Value(symbol) = target {
                             if locals[module].contains_key(specifier.local.name)
                                 || scopes[module].contains_key(specifier.local.name)
@@ -1353,9 +1350,6 @@ impl<'src> InterfaceGraph<'src> {
                     )
                     .into());
                 }
-                if is_object_type(checked, target) {
-                    continue;
-                }
                 let direct_value = locals[module]
                     .get(export.local.name)
                     .is_some_and(|(span, _)| *span == export.local.span);
@@ -1417,14 +1411,6 @@ impl<'src> InterfaceGraph<'src> {
         }
         Ok(())
     }
-}
-
-/// An `object` singleton's name is not an interface type: its identity is
-/// scoped like every nominal's, but it is never published in a module
-/// interface (the program has no `object` definitions; plan M10.10).
-fn is_object_type(checked: &CheckedModules<'_, '_>, target: InterfaceTarget) -> bool {
-    matches!(target, InterfaceTarget::Type(identity)
-        if identity.is_class() && checked.declarations.classes[identity.index()].object)
 }
 
 #[cfg(test)]

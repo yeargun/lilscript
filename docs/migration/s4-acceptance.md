@@ -32,7 +32,9 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    undefined-argument and detached `charCodeAt` cases against public routes.
    Concrete generic struct schemas, nullable/default/rest public adapters,
    constructor/prototype adapters and dual type/constructor imports/re-exports
-   are implemented in the boundaries batch. Observed generic classes and wider
+   are implemented in the boundaries batch. The host batch closes callable
+   defaults/rest/receivers and generic/nullable `JS.assume`, and retires zero-use
+   object singletons. Observed generic classes and wider
    opaque generic/union transport remain open.
 8. [ ] Register/document any new behavior controls and their gates, interactions,
    costs and hard vetoes. Keep semantic assumptions separate from effort. Q4 owns

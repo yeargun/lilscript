@@ -1,0 +1,13 @@
+
+        struct NV { string name; string value; }
+        extern JsValue call(JsValue callback, JsValue argument);
+        JsValue method = JS.method0((JsValue self) => { return NV{"self", JS.string(self)}; });
+        JsValue maybe = (JsValue x) => { if (JS.isNullish(x)) { return null; } return NV{"b", "c"}; };
+        JsValue takes = (NV pair) => pair.name + "=" + pair.value;
+        export void run() {
+            print(call(method, "s"));
+            print(call(maybe, null));
+            print(call(maybe, 1));
+            print(call(takes, JS.object("name", "k", "value", "v")));
+        }
+    

@@ -85,17 +85,21 @@ pub(super) fn adaptable_callable(
 ) -> Result<bool, FormationError> {
     for parameter in &signature.params {
         budget.work(WorkKind::Analysis, 1)?;
+        let ty = if parameter.rest {
+            match &parameter.ty {
+                Type::Array(element) => element.as_ref(),
+                _ => return Ok(false),
+            }
+        } else {
+            &parameter.ty
+        };
         if parameter.passing != crate::primitive::ParameterPassing::Value
-            || !adaptable(program, &parameter.ty, 0, budget)?
+            || !adaptable(program, ty, 0, budget)?
         {
             return Ok(false);
         }
     }
-    let result = match signature.return_type.as_ref() {
-        Type::Nullable(inner) if matches!(inner.as_ref(), Type::Struct(_)) => inner.as_ref(),
-        result => result,
-    };
-    adaptable(program, result, 0, budget)
+    adaptable(program, &signature.return_type, 0, budget)
 }
 
 /// A declared, never-reassigned function whose value parameters and result
@@ -119,12 +123,7 @@ pub(super) fn adaptable_export(
     for (position, parameter) in signature.params.iter().enumerate() {
         budget.work(WorkKind::Analysis, 1)?;
         let element_array = match &parameter.ty {
-            Type::Array(element)
-                if matches!(
-                    element.as_ref(),
-                    Type::Struct(_) | Type::StructInstance { .. }
-                ) =>
-            {
+            Type::Array(element) if carries_product(element, budget)? => {
                 adaptable(program, element, 0, budget)?
                     && (parameter.rest || read_only_array(program, unit, position, budget)?)
             }
@@ -289,10 +288,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         // A read-only array parameter of structs decodes each element once,
         // in order: `values.map(decode)`.
         if let Type::Array(element) = ty {
-            if matches!(
-                element.as_ref(),
-                Type::Struct(_) | Type::StructInstance { .. }
-            ) {
+            if carries_product(element, self.budget)? {
                 let codec = self.public_codec(element, incoming)?;
                 let property = js::Property::Named(self.text("map")?);
                 let callee = self.expression(js::Expr::Member {
@@ -499,10 +495,14 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             .vector(AllocationClass::Retained, signature.params.len())?;
         for parameter in &signature.params {
             self.work(1)?;
-            let binding = self.adapter_binding(inner_scope, "value")?;
-            self.append(&mut parameters, binding)?;
-            let value = self.reference(binding)?;
-            let value = self.public_value(&parameter.ty, value, true)?;
+            let value = if parameter.receiver {
+                let receiver = self.expression(js::Expr::This)?;
+                self.public_value(&parameter.ty, receiver, true)?
+            } else {
+                let binding = self.adapter_binding(inner_scope, "value")?;
+                self.append(&mut parameters, binding)?;
+                self.public_parameter(parameter, binding)?
+            };
             let value = if parameter.rest {
                 self.expression(js::Expr::Spread(value))?
             } else {
@@ -510,41 +510,34 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             };
             self.append(&mut arguments, value)?;
         }
-        let callee = self.reference(target)?;
+        let callback = self.reference(target)?;
+        let (callee, invocation) = if signature.has_receiver() {
+            let property = js::Property::Named(self.text("call")?);
+            (
+                self.expression(js::Expr::Member {
+                    object: callback,
+                    property,
+                })?,
+                Invocation::Reference,
+            )
+        } else {
+            (callback, Invocation::Value)
+        };
         let call = self.expression(js::Expr::Call {
             callee,
             arguments,
-            invocation: Invocation::Value,
+            invocation,
         })?;
-        match signature.return_type.as_ref() {
-            Type::Nullable(present) if matches!(present.as_ref(), Type::Struct(_)) => {
-                // `let r=f(…);return r==null?r:encode(r)`: the call runs once.
-                let result = self.adapter_binding(inner_scope, "result")?;
-                self.statement(
-                    inner,
-                    js::Statement::Let {
-                        binding: result,
-                        value: Some(call),
-                    },
-                )?;
-                let left = self.reference(result)?;
-                let right = self.literal(js::Literal::Null)?;
-                let condition = self.expression(js::Expr::Binary {
-                    op: js::Binary::Equal,
-                    left,
-                    right,
-                })?;
-                let yes = self.reference(result)?;
-                let no = self.reference(result)?;
-                let no = self.public_value(present, no, false)?;
-                let returned = self.expression(js::Expr::Conditional { condition, yes, no })?;
-                self.statement(inner, js::Statement::Return(Some(returned)))?;
-            }
-            result => {
-                let returned = self.public_value(result, call, false)?;
-                self.statement(inner, js::Statement::Return(Some(returned)))?;
-            }
-        }
+        let returned = self.public_value(&signature.return_type, call, false)?;
+        self.statement(inner, js::Statement::Return(Some(returned)))?;
+        let length = signature
+            .params
+            .iter()
+            .filter(|p| !p.receiver)
+            .take_while(|p| !p.optional && !p.rest)
+            .count();
+        let length =
+            (length < parameters.len() - usize::from(signature.has_rest())).then_some(length);
         let adapted = js::FunctionId::try_new(self.module.functions.len())
             .ok_or(AllocationError::Capacity)?;
         self.budget.push(
@@ -557,7 +550,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
                 arrow: false,
                 name: js::FunctionName::Unobserved,
                 strict: false,
-                length: None,
+                length,
                 suspension: crate::js::Suspension::None,
             },
         )?;
@@ -576,7 +569,10 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
                 body: outer,
                 arrow: false,
                 name: js::FunctionName::Unobserved,
-                strict: false,
+                // A strict lexical parent also makes a rest wrapper strict,
+                // without an illegal directive in its parameterized body.
+                // In particular, primitive receivers must not be boxed.
+                strict: signature.has_receiver(),
                 length: None,
                 suspension: crate::js::Suspension::None,
             },

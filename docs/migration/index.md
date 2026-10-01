@@ -19,6 +19,9 @@ Continue its remaining shared-consumer and language/boundary work before Q2.
 Concrete generic structs, nullable/default/rest value adapters, published
 constructor/prototype adapters and dual type/constructor module bindings are
 implemented in the [boundaries batch](../../benchmarks/migration-results/2026-10-01-s4-boundaries/README.md).
+Host callable defaults/rest/receivers, generic/nullable `JS.assume` and zero-use
+`object` singleton retirement are implemented in the
+[host batch](../../benchmarks/migration-results/2026-10-01-s4-host-boundaries/README.md).
 The [handoff](handoff.md) records the current scope and compiler pins.
 
 The owner requests substantial implementation batches followed by focused

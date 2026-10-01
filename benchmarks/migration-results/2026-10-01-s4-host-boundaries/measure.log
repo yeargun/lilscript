@@ -1,0 +1,10 @@
+checked existing-callback/module/raw
+checked existing-callback/module/gzip
+checked existing-callback/module/brotli
+checked callable-contracts/script/raw
+checked callable-contracts/script/gzip
+checked callable-contracts/script/brotli
+checked callable-contracts/module/raw
+checked callable-contracts/module/gzip
+checked callable-contracts/module/brotli
+{"raw":{"before":531,"after":549,"delta":18},"gzip":{"before":256,"after":255,"delta":-1},"brotli":{"before":223,"after":220,"delta":-3}}

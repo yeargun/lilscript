@@ -304,11 +304,6 @@ fn construction_errors_preserve_exact_precedence_and_inference_revalidation() {
             "extern class `Foreign` cannot be constructed",
         ),
         (
-            "object Api{int value(){return 1;}}auto value=new Api<Missing>(missing);",
-            "new Api<Missing>(missing)",
-            "object `Api` cannot be constructed with `new`",
-        ),
-        (
             "class Box<T>{init(T value){}}auto value=new Box<int,string>();",
             "new Box<int,string>()",
             "class `Box` constructor expects 1 arguments, found 0",

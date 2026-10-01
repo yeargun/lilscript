@@ -2873,6 +2873,70 @@ fn s4_forwarded_host_alias_preserves_omission_and_explicit_argument_order() {
 }
 
 #[test]
+fn s4_assumed_generic_and_nullable_structs_snapshot_public_fields_once() {
+    let source = r#"
+        struct Point{int x;}
+        struct Box<T>{T value;}
+        export int read(JsValue input){
+            Box<Point>? snapshot=JS.assume(input);
+            if(snapshot==null){return -1;}
+            Box<Point> copy=snapshot;copy.value.x+=1;
+            return snapshot.value.x*10+copy.value.x;
+        }
+        export int sum(JsValue input){
+            Point?[] items=JS.assume(input);int n=0;
+            for(int i=0;i<items.length;i++){Point? p=items[i];if(p!=null){n+=p.x;}}
+            return n;
+        }
+    "#;
+    let result=compile_source(source,&config(""),ServiceOptions {
+        objectives:Some(Objectives::All),..ServiceOptions::default()
+    }).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",
+            "let reads=0;const p={get x(){reads++;return 3;}};console.log(JSON.stringify([library.read(null),library.read(undefined),library.read({value:p}),reads,library.sum([null,p,undefined,{x:4}]),reads]));"),
+            "[-1,-1,34,1,7,2]\n");
+    }
+}
+
+#[test]
+fn s4_host_callbacks_keep_struct_defaults_rest_and_primitive_receivers() {
+    let source = r#"
+        struct Point{int x;}
+        extern void observe(JsValue callback,JsValue method,JsValue nullable);
+        JsValue callback=(Point p=Point{4},Point... rest)=>{
+            for(int i=0;i<rest.length;i++){p.x+=rest[i].x;}return p;
+        };
+        JsValue method=(this int self,Point p=Point{2},Point... rest)=>{
+            p.x+=self;for(int i=0;i<rest.length;i++){p.x+=rest[i].x;}return p;
+        };
+        JsValue nullable=(Point? ... rest)=>{
+            int n=0;for(int i=0;i<rest.length;i++){Point? p=rest[i];if(p!=null){n+=p.x;}}
+            return Point{n};
+        };
+        observe(callback,method,nullable);
+    "#;
+    for script in [false, true] {
+        let result = compile_source(source,&config(""),ServiceOptions {
+            preserve_root_exports: !script,
+            objectives: Some(Objectives::All),..ServiceOptions::default()
+        }).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            let javascript = result.javascript(codec).unwrap().javascript();
+            let code = format!(
+                "globalThis.observe=(f,g,h)=>{{const q={{x:3}};console.log(JSON.stringify([f.length,f(),f(undefined,q),g.length,g.call(5),g.call(5,q,q),h(null,q),q]));}};{javascript}"
+            );
+            let mut command = Command::new("node");
+            if !script {command.arg("--input-type=module");}
+            let output = command.args(["-e", &code]).output().unwrap();
+            assert!(output.status.success(), "{}\n{javascript}", String::from_utf8_lossy(&output.stderr));
+            assert_eq!(String::from_utf8(output.stdout).unwrap(),
+                "[0,{\"x\":4},{\"x\":7},0,{\"x\":7},{\"x\":11},{\"x\":3},{\"x\":3}]\n");
+        }
+    }
+}
+
+#[test]
 fn s4_dual_class_imports_and_reexports_preserve_runtime_identity() {
     let scratch = Scratch::new();
     for (file, source) in [

@@ -178,7 +178,6 @@ pub struct ClassDecl<'ast, 'src> {
     pub type_params: &'ast [Ident<'src>],
     pub base: Option<TypeRef<'ast, 'src>>,
     pub members: &'ast [ClassMember<'ast, 'src>],
-    pub object: bool,
     pub span: Span,
 }
 

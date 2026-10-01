@@ -870,11 +870,7 @@ fn append_document_completions(source: &str, items: &mut Vec<Value>) {
                 json!({
                     "label": decl.name.name,
                     "kind": 7,
-                    "detail": if decl.object {
-                        "LilScript object"
-                    } else {
-                        "LilScript class"
-                    }
+                    "detail": "LilScript class"
                 })
             }
             Item::ExternClass(decl) => {

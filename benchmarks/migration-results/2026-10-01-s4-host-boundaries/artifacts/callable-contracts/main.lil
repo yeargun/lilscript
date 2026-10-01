@@ -1,0 +1,15 @@
+
+        struct Point{int x;}
+        extern void observe(JsValue callback,JsValue method,JsValue nullable);
+        JsValue callback=(Point p=Point{4},Point... rest)=>{
+            for(int i=0;i<rest.length;i++){p.x+=rest[i].x;}return p;
+        };
+        JsValue method=(this int self,Point p=Point{2},Point... rest)=>{
+            p.x+=self;for(int i=0;i<rest.length;i++){p.x+=rest[i].x;}return p;
+        };
+        JsValue nullable=(Point? ... rest)=>{
+            int n=0;for(int i=0;i<rest.length;i++){Point? p=rest[i];if(p!=null){n+=p.x;}}
+            return Point{n};
+        };
+        observe(callback,method,nullable);
+    

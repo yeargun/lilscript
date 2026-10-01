@@ -847,3 +847,23 @@ match scoring. No full suite, fleet, timing or Closure claim. S4 remains active;
 public callable defaults/rest/receivers, observed generic classes, opaque
 transport, shapes/variants/enums and the remaining contracts/fact audit remain
 open. The milestone order is unchanged.
+
+
+## 2026-10-01: S4 host callback contracts and singleton retirement
+
+The [host batch](../../benchmarks/migration-results/2026-10-01-s4-host-boundaries/README.md)
+completes callable defaults, rest, typed receivers and public length under the
+common concrete struct codec. Strict receiver factories preserve primitives in
+classic scripts. Generic/nullable `JS.assume` values use the same decoder. R16
+removes unsupported object singleton syntax and its AST/checker/module/LSP
+special cases after a compiler-token census finds zero declarations across 27
+workloads and 2,707 files. Ordinary object literals remain.
+
+Algorithm 22 identifies pin `s4-host-boundaries-1`, SHA-256
+`0167a9299329bd439f1a32e39074bf05dd065a8de7b506eee635ffbbad8cc073`.
+Seventy distinct focused checks pass across the batch. One existing test caught
+an invalid reflected-length marker, corrected and qualified by a focused
+follow-up. The CLI/LSP release builds pass. The existing callback comparison is
++18 raw / −1 gzip / −3 Brotli; new callback script/module host oracles pass all
+objectives and scored bytes equal served bytes. The raw regression is retained.
+No full suite, fleet, timing, Closure or native-complete claim. S4 stays active.

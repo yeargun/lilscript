@@ -175,7 +175,10 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 
 - **Clause.** Every non-exported declaration has a complete, known use set. An `export` between internal modules is visibility, never ABI; the exports of every declared delivery entry are ABI (a package with subpath entries has several). `object` singletons are deleted (0 uses; they do not compile today): module namespaces and const records cover them.
 - **Replaces.** v0.1:773-794.
-- **Status.** Target (M10.10).
+- **Status.** Dual type/constructor imports and explicit re-exports are implemented.
+  S4 removes `object` singleton syntax and its checker/AST/LSP machinery after a
+  zero-use census of the maintained ports. Remaining entry-boundary propagation
+  stays owned by S4 and the delivery work.
 
 ### R17 Host interop is declarative
 

@@ -1,0 +1,5 @@
+{
+  "prelude": "globalThis.observe=(f,g,h)=>{const q={x:3};console.log(JSON.stringify([f.length,f(),f(undefined,q),g.length,g.call(5),g.call(5,q,q),h(null,q),q]));};",
+  "exercise": "",
+  "expected": "[0,{\"x\":4},{\"x\":7},0,{\"x\":7},{\"x\":11},{\"x\":3},{\"x\":3}]"
+}
