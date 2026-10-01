@@ -618,16 +618,6 @@ fn reads_in_order(
     Ok(true)
 }
 
-/// Whether anything reads `value`.
-pub(super) fn used(data: &UnitData, value: ValueId) -> bool {
-    super::dce::used_in(
-        data,
-        value,
-        &mut crate::output_budget::AllocationBudget::new(None),
-    )
-    .expect("inspection value reads")
-}
-
 /// A statement region, where the target writes statements (not a loop's
 /// test or update, not an expression's operand), in which no value computed
 /// before `operation` is read after it, and no call prepared before it is

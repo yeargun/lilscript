@@ -1,0 +1,427 @@
+   Compiling lilscript v0.1.0 (/home/azureuser/lilscript)
+warning: unused import: `DefaultValue`
+   --> src/primitive.rs:723:24
+    |
+723 |     use crate::check::{DefaultValue, FunctionType, Type};
+    |                        ^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::program::publication::*`
+ --> src/program/rewrite_tests.rs:9:5
+  |
+9 | use crate::program::publication::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::program::*`
+  --> src/program/rewrite_tests.rs:10:5
+   |
+10 | use crate::program::*;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::program::*`
+  --> src/program/search_fairness_tests.rs:10:5
+   |
+10 | use crate::program::*;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::program::publication::*`
+  --> src/program/function_support_tests.rs:11:5
+   |
+11 | use crate::program::publication::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DefaultValue`
+ --> src/program/string_call_verify_tests.rs:5:20
+  |
+5 | use crate::check::{DefaultValue, FunctionSignature, FunctionType};
+  |                    ^^^^^^^^^^^^
+
+warning: unused import: `EvaluationBehavior`
+ --> src/program/reference_core_tests.rs:4:26
+  |
+4 | use super::facts::{self, EvaluationBehavior};
+  |                          ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DefaultValue`
+ --> src/program/parameter_contract_tests.rs:6:20
+  |
+6 | use crate::check::{DefaultValue, FunctionParameter, FunctionSignature, FunctionType};
+  |                    ^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/program/rules/aggregates.rs:127:32
+    |
+127 |         |plan, editor, budget| apply_fields(editor, plan, receipt, budget),
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<_, AllocationError>`, found `Result<bool, RuleError>`
+    |
+    = note: expected enum `Result<_, output_budget::AllocationError>`
+               found enum `Result<bool, program::rules::RuleError>`
+
+error[E0308]: mismatched types
+   --> src/program/rules/aggregates.rs:124:5
+    |
+123 |   ) -> Result<bool, super::RuleError> {
+    |        ------------------------------ expected `Result<bool, program::rules::RuleError>` because of return type
+124 | /     budget.with_temporary_context(
+125 | |         editor,
+126 | |         |editor, budget| field_plan(editor.program(), effects, facts, request, budget),
+127 | |         |plan, editor, budget| apply_fields(editor, plan, receipt, budget),
+128 | |     )
+    | |_____^ expected `Result<bool, RuleError>`, found `Result<_, AllocationError>`
+    |
+    = note: expected enum `Result<bool, program::rules::RuleError>`
+               found enum `Result<_, output_budget::AllocationError>`
+help: use the `?` operator to extract the `Result<_, output_budget::AllocationError>` value, propagating a `Result::Err` value to the caller
+    |
+128 |     )?
+    |      +
+
+warning: variable does not need to be mutable
+   --> src/check/modules.rs:576:21
+    |
+576 |                 let mut ty = analyzer.resolve_value_type(decl.ty, "module binding")?;
+    |                     ----^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/check/narrowing_input_tests.rs:379:9
+    |
+379 |     let mut config = crate::config::ProjectConfig::default();
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused variable: `span`
+    --> src/check.rs:5361:63
+     |
+5361 |                 kind: ExprKind::ArrowFunction { params, body, span },
+     |                                                               ^^^^ help: try ignoring the field: `span: _`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `seed`
+   --> src/check/binding_ownership_tests.rs:191:9
+    |
+191 |     let seed = model
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_seed`
+
+warning: unused variable: `seed`
+   --> src/check/class_ownership_tests.rs:229:9
+    |
+229 |     let seed = model
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_seed`
+
+warning: unused variable: `seed`
+   --> src/check/constructor_ownership_tests.rs:164:9
+    |
+164 |     let seed = model
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_seed`
+
+warning: variable does not need to be mutable
+    --> src/js/tests.rs:1896:9
+     |
+1896 |     let mut sum = |module: &mut Module, right: f64| {
+     |         ----^^^
+     |         |
+     |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/demand.rs:2965:13
+     |
+2965 |         let mut config = crate::config::ProjectConfig::default();
+     |             ----^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: unreachable pattern
+    --> src/program/from_source.rs:4379:13
+     |
+4379 |             _ => return self.unsupported(statement.span(), "statement conversion"),
+     |             ^ no value can reach this
+     |
+note: multiple earlier patterns match some of the same values
+    --> src/program/from_source.rs:4379:13
+     |
+4110 | /             Stmt::ArrayDestructure {
+4111 | |                 bindings, value, ..
+4112 | |             } => self.array_destructure(unit, region, bindings, value)?,
+     | |_____________- matches some of the same values
+4113 | /             Stmt::RecordDestructure {
+4114 | |                 bindings,
+4115 | |                 rest,
+4116 | |                 value,
+4117 | |                 span,
+4118 | |                 ..
+4119 | |             } => self.record_destructure(unit, region, bindings, *rest, value, *span)?,
+     | |_____________- matches some of the same values
+4120 |               Stmt::VarDecl(declaration, ..) => {
+     |               ------------------------------ matches some of the same values
+...
+4148 |               Stmt::Expr(expr, ..) => {
+     |               -------------------- matches some of the same values
+...
+4379 |               _ => return self.unsupported(statement.span(), "statement conversion"),
+     |               ^ ...and 15 other patterns collectively make this unreachable
+     = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `program`
+   --> src/program/javascript_public_structs.rs:714:13
+    |
+714 |         let program = self.program;
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program`
+
+warning: unreachable pattern
+   --> src/program/native_plan.rs:839:13
+    |
+839 |             _ => {
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> src/program/native_plan.rs:839:13
+    |
+629 |             Place::Cell(cell) => PlacePlan {
+    |             ----------------- matches some of the same values
+...
+635 |             Place::Value(value) => PlacePlan {
+    |             ------------------- matches some of the same values
+...
+733 |             Place::Index { receiver, key } => {
+    |             ------------------------------ matches some of the same values
+...
+757 |             Place::Member { .. } => {
+    |             -------------------- matches some of the same values
+...
+839 |             _ => {
+    |             ^ ...and 2 other patterns collectively make this unreachable
+
+warning: variable does not need to be mutable
+  --> src/program/product_demand_tests.rs:68:9
+   |
+68 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/exclusive_publication_tests.rs:215:9
+    |
+215 |     let mut config = crate::config::ProjectConfig::default();
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/exclusive_publication_tests.rs:705:17
+    |
+705 |             let mut config = crate::config::ProjectConfig::default();
+    |                 ----^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/exclusive_publication_tests.rs:1064:17
+     |
+1064 |             let mut config = crate::config::ProjectConfig::default();
+     |                 ----^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/search_terminal_tests.rs:523:17
+    |
+523 |             let mut search = compilation
+    |                 ----^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/function_support_tests.rs:63:9
+   |
+63 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/value_placement.rs:1063:17
+     |
+1063 |             let mut config = crate::config::ProjectConfig::default();
+     |                 ----^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/program/value_placement.rs:1379:17
+     |
+1379 |             let mut config = crate::config::ProjectConfig::default();
+     |                 ----^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/verify.rs:559:17
+    |
+559 |             let mut name_work = 1;
+    |                 ----^^^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/frame_contract_tests.rs:18:9
+   |
+18 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/script_observation_tests.rs:25:9
+   |
+25 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/effects_tests.rs:108:9
+    |
+108 |     let mut config = crate::config::ProjectConfig::default();
+    |         ----^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/helper_context_tests.rs:94:9
+   |
+94 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/javascript_reference_tests.rs:280:13
+    |
+280 |         let mut config = crate::config::ProjectConfig::default();
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/module_helper_tests.rs:115:13
+    |
+115 |         let mut config = crate::config::ProjectConfig::default();
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/publication_tests.rs:11:9
+   |
+11 |     let mut config: crate::config::ProjectConfig = toml::from_str(text).unwrap();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/publication_tests.rs:844:13
+    |
+844 |         let mut config = crate::config::ProjectConfig::default();
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/program/publication_tests.rs:983:13
+    |
+983 |         let mut config: crate::config::ProjectConfig =
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/compilation_facts_tests.rs:57:9
+   |
+57 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/record_javascript_tests.rs:29:9
+   |
+29 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/string_demand_tests.rs:40:9
+   |
+40 |     let mut configuration = crate::config::ProjectConfig::default();
+   |         ----^^^^^^^^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/formation_budget_tests.rs:30:9
+   |
+30 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/value_place_tests.rs:98:13
+   |
+98 |         let mut config = crate::config::ProjectConfig::default();
+   |             ----^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/function_publication_tests.rs:35:9
+   |
+35 |     let mut config: crate::config::ProjectConfig = toml::from_str(text).unwrap();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/function_demand_tests.rs:35:9
+   |
+35 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/cell_location_demand_tests.rs:40:9
+   |
+40 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/reference_support_tests.rs:85:9
+   |
+85 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/program/reference_support_demand_tests.rs:45:9
+   |
+45 |     let mut config = crate::config::ProjectConfig::default();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+For more information about this error, try `rustc --explain E0308`.
+warning: `lilscript` (lib test) generated 47 warnings
+error: could not compile `lilscript` (lib test) due to 2 previous errors; 47 warnings emitted

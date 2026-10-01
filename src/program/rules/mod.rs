@@ -400,8 +400,7 @@ pub(crate) fn optimize_admitted<'src>(
             receipt.observe_effects(&effects, &mut last_effects);
             if matches!(
                 rule,
-                ProgramRule::Aggregates
-                    | ProgramRule::Forward
+                ProgramRule::Forward
                     | ProgramRule::Fold
                     | ProgramRule::Inline
                     | ProgramRule::DeadCode
@@ -521,22 +520,6 @@ pub(crate) fn optimize_admitted<'src>(
 /// cell's initialization cannot fail: the temporal dead zone is a passive
 /// load's only failure (as `facts.rs` refines it). A value with exact
 /// knowledge is a primitive, so it runs no conversion hook.
-fn behaviors(
-    program: &Program<'_>,
-    effects: &ProgramEffects,
-    unit: UnitId,
-    values: Option<&values::ProgramValues>,
-) -> Vec<EvaluationBehavior> {
-    behaviors_in(
-        program,
-        effects,
-        unit,
-        values,
-        &mut crate::output_budget::AllocationBudget::new(None),
-    )
-    .expect("inspection operation behaviors")
-}
-
 fn behaviors_in(
     program: &Program<'_>,
     effects: &ProgramEffects,

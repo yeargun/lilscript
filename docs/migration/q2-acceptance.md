@@ -246,3 +246,10 @@ read/spelling queries remove repeated temporary allocations. Thirty-eight
 focused checks pass, including the native closure case after selecting the
 already installed Clang. Aggregate rewrite plans and exact-value evaluation
 remain open under task 4; this is not Q2 completion.
+
+The [aggregate rewrite batch](../../benchmarks/migration-results/2026-10-01-q2-aggregate-plans/README.md)
+admits field, scalar, namespace, object, alias and collected-store plans. Creator
+edges are shared across iterative scope proofs; rejected probes release their
+storage. All 23 focused checks pass, including the native captured-bank matrix.
+Exact-value evaluation and the other open Q2 tasks remain; no fleet or release
+measurement was repeated for this internal batch.

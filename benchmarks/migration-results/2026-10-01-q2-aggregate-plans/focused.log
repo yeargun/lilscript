@@ -1,0 +1,28 @@
+
+running 23 tests
+test program::rules::admission_tests::q2_legality_probes_distinguish_decline_from_refusal_and_drop_temporaries ... ok
+test program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations ... ok
+test program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates ... ok
+test program::rules::aggregate_tests::s2_aliases_share_mutable_array_fields_and_keep_effect_order ... ok
+test program::rules::aggregate_tests::s2_capture_has_one_bank_per_loop_activation ... ok
+test program::rules::aggregate_tests::s2_closure_reentry_sees_completed_allocation ... ok
+test program::rules::aggregate_tests::s2_early_capture_and_throwing_initializers_keep_failure_order ... ok
+test program::rules::aggregate_tests::s2_field_constants_respect_alias_writers ... ok
+test program::rules::aggregate_tests::s2_fresh_field_collection_obeys_the_pristine_contract ... ok
+test program::rules::aggregate_tests::s2_namespace_reads_and_calls_remove_private_receiver ... ok
+test program::rules::aggregate_tests::s2_nullable_control_join_does_not_claim_an_allocation ... ok
+test program::rules::aggregate_tests::s2_open_script_roots_remain_observable ... ok
+test program::rules::aggregate_tests::s2_private_class_fields_and_alias_mutation ... ok
+test program::rules::aggregate_tests::s2_record_absence_and_special_keys_keep_normalization ... ok
+test program::rules::aggregate_tests::s2_record_aliases_share_captured_writes_and_absence ... ok
+test program::rules::aggregate_tests::s2_record_undefined_payload_keeps_nullish_normalization ... ok
+test program::rules::aggregate_tests::s2_scalar_cells_keep_nullable_declared_storage_types ... ok
+test program::rules::aggregate_tests::s2_scalar_permission_is_independent_of_field_folding ... ok
+test program::rules::aggregate_tests::s2_store_collection_keeps_record_absence_and_reads ... ok
+test program::rules::aggregate_tests::s2_unread_fields_preserve_calls_and_overwritten_stores ... ok
+test program::rules::aggregate_tests::s2_whole_identity_dynamic_keys_and_escape_retain_storage ... ok
+test program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return ... ok
+test program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 2029 filtered out; finished in 3.15s
+

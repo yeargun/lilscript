@@ -245,19 +245,6 @@ fn cell_usage(
     Ok(CellUsage { read, visible })
 }
 
-/// The values an operation reads: its operands, the values its places and
-/// call name, and the results of the regions it owns.
-pub(super) fn reads(data: &UnitData, operation: &Operation, out: &mut Vec<ValueId>) {
-    out.clear();
-    visit_reads(
-        data,
-        operation,
-        &mut AllocationBudget::new(None),
-        |value, budget| budget.push(Scratch, out, value),
-    )
-    .expect("inspection operation reads");
-}
-
 /// Stream reads so cascading liveness never materializes another operand list.
 /// A visitor can admit its own queue growth through the same allocation owner.
 pub(super) fn visit_reads(
@@ -334,8 +321,7 @@ pub(super) fn visit_reads(
     Ok(())
 }
 
-/// A read query needs no temporary value list. Callers outside planning use
-/// the same walk with an inspection budget.
+/// A read query needs no temporary value list.
 pub(super) fn used_in(
     data: &UnitData,
     value: ValueId,

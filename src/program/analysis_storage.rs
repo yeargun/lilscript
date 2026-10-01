@@ -159,6 +159,23 @@ impl<K: Ord, V> Map<K, V> {
             }
         }
     }
+    pub(super) fn clear(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        budget.work(WorkKind::Analysis, self.entries.len() as u64)?;
+        self.entries.clear();
+        Ok(())
+    }
+    pub(super) fn retain(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+        mut keep: impl FnMut(&K, &mut V) -> bool,
+    ) -> Result<(), AllocationError> {
+        budget.work(WorkKind::Analysis, self.entries.len() as u64)?;
+        self.entries.retain_mut(|(key, value)| keep(key, value));
+        Ok(())
+    }
     pub(super) fn release(self, budget: &mut AllocationBudget<'_>) -> Result<(), AllocationError> {
         release(self.entries, self.class, budget)
     }

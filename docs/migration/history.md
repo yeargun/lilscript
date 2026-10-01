@@ -1585,3 +1585,17 @@ signature coupling, nested/cross-module captures, call order, folds and cold/reu
 views pass. No full library, CLI, release, ratchet or fleet rerun. No measured
 compression or CPU improvement is claimed. Aggregate rewrite planning,
 exact-value evaluation and the other open Q2 gates remain next.
+
+## 2026-10-01: Q2 aggregate rewrite planning
+
+Algorithm 58 admits all aggregate rewrite plans and their nested backing.
+Shared creator edges and an explicit stack replace repeated recursive scope
+scans. Rejected probes release their storage, class facts are delayed until a
+consumer needs them, and unused inspection wrappers are removed.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-aggregate-plans/README.md):
+23 focused checks pass after correcting a build-time error-type mismatch.
+Aggregate semantics, publication/refusal cleanup, cold/reused views and native
+captured banks pass. No full suite, release, ratchet or fleet rerun; no measured
+compression or CPU claim. Q2 continues with exact-value evaluation and its
+remaining scheduling, formation and elaboration gates.
