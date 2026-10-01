@@ -1631,3 +1631,18 @@ work and peak storage; invalidation, control flow, captures, native behavior and
 refusal/publication cleanup pass. No broad suite or release/fleet rerun and no
 measured size or CPU claim. Remaining Q2 dependencies, incremental formation,
 elaboration and final qualification stay open.
+
+## 2026-10-01: Q2 primitive-class dependencies
+
+Algorithm 61 replaces global class sweeps with admitted reverse dependencies
+and a fixed work queue. All writers and complete caller sets participate;
+open roots, references, host values and activation observations keep their
+existing barriers. A per-producer visit bound retains sound wider facts.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-class-dependencies/README.md):
+22 focused checks and 54 release controls pass. The release comparison covers
+all algorithms 56–61 against 55; files and selected totals remain identical
+(1,299 raw / 1,252 gzip / 947 Brotli). Reuse-on/off resources and search match.
+Newly counted work is reported, with no CPU improvement claim or full library/
+fleet rerun. Q2 remains active for its other dependency, formation, elaboration
+and final qualification requirements.

@@ -1,0 +1,27 @@
+
+running 22 tests
+test program::classes::tests::classes_follow_closed_producers_and_revision_owners ... ok
+test program::classes::tests::q2_class_aggregate_and_default_owners_release_on_invalidation_and_refusal ... ok
+test program::classes::tests::q2_primitive_dependencies_cross_long_call_chains_without_global_sweeps ... ok
+test program::classes::tests::q2_primitive_dependencies_join_every_writer_and_keep_open_roots_unknown ... ok
+test program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations ... ok
+test program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates ... ok
+test program::rules::admission_tests::q2_stable_local_plans_replay_identical_logical_work_and_peak_storage ... ok
+test program::rules::aggregate_tests::s2_early_capture_and_throwing_initializers_keep_failure_order ... ok
+test program::rules::aggregate_tests::s2_field_constants_respect_alias_writers ... ok
+test program::rules::aggregate_tests::s2_open_script_roots_remain_observable ... ok
+test program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return ... ok
+test program::rules::tests::a_script_keeps_its_root_bindings ... ok
+test program::rules::tests::a_settled_root_condition_chooses_its_branch_only_when_sealed ... ok
+test program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution ... ok
+test program::rules::tests::constant_call_folding_preserves_argument_effects_and_mutable_captures ... ok
+test program::rules::tests::constant_scalar_methods_fold_through_nested_pure_calls ... ok
+test program::rules::tests::default_transport_keeps_observed_argument_count_and_signed_zero ... ok
+test program::rules::tests::default_transport_preserves_callee_guards_and_argument_effects ... ok
+test program::rules::tests::exact_values_cross_settled_cells_parameters_and_results ... ok
+test program::rules::tests::forwarding_preserves_snapshots_writes_and_argument_evaluation ... ok
+test program::rules::tests::host_annotations_do_not_authorize_common_coercions ... ok
+test program::rules::tests::immutable_scalar_cells_and_common_primitive_operations_forward ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 2034 filtered out; finished in 3.34s
+

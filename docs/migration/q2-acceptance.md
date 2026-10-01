@@ -270,3 +270,21 @@ off. Terminal suffix checks share child-region facts; reachability retains only
 its boolean projection. Native created-body queries share admitted storage.
 All 25 focused checks pass, including selected-byte/logical-work/peak equality.
 Global dependencies, incremental formation and elaboration remain open.
+
+Next connected dependency batch: replace primitive-class whole-program sweeps
+with a bounded worklist over value, cell and return facts. Include all writes,
+complete-call-set arguments, omitted/default arguments, call results, cell reads
+and lazy region results. Build compact reverse edges under the allocation owner;
+cap each producer at sixteen visits and keep wider sound facts on exhaustion.
+Prediction: less repeated transfer work when few facts change, more scratch for
+the dependency index, and potentially more useful facts through long call chains.
+No universal CPU or compressed-size win is presumed. Qualify host/open-root and
+writer barriers, long-chain propagation, the connected consumers and refusal
+cleanup together, then measure affected artifacts under each objective.
+
+The [class dependency batch](../../benchmarks/migration-results/2026-10-01-q2-class-dependencies/README.md)
+implements that bounded propagation. All 22 focused checks and 54 release
+comparisons pass. The release comparison covers algorithms 56–61 together;
+all selected files and independent-objective scores match algorithm 55, and
+physical reuse preserves logical admission. Remaining dependency scheduling,
+incremental formation and module elaboration stay open.

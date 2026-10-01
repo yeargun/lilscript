@@ -29,6 +29,7 @@ demand. Primitive classes, aggregate origins, activation/default transport and
 forwarding/dead-code, folding, signature, inline and aggregate rewrite plans are admitted.
 Exact-value evaluation, local-fact initialization and local normalizer plans use
 their bounded owners; stable local proofs replay identical logical stages in both reuse modes.
+Primitive classes now propagate through explicit bounded dependencies instead of global sweeps.
 Remaining dirty dependencies, incremental formation and per-module elaboration stay open. Keep logical admission, hard TOML
 permissions, source/target identities and selected output independent of cache
 occupancy. Then follow **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.

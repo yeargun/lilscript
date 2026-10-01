@@ -140,3 +140,76 @@ fn q2_class_aggregate_and_default_owners_release_on_invalidation_and_refusal() {
     }
     assert_eq!(outcomes, [true, true]);
 }
+
+#[test]
+fn q2_primitive_dependencies_cross_long_call_chains_without_global_sweeps() {
+    let mut source = String::new();
+    for index in 0..63 {
+        source.push_str(&format!("int f{index}(){{return f{}();}}", index + 1));
+    }
+    source.push_str("int f63(){return 7;}print(f0());");
+    inspect(&source, |program| {
+        let classes = program.primitive_classes(Seal::Module);
+        let graph = program.effects(Seal::Module);
+        let mut known = 0;
+        for unit in &program.units {
+            for operation in &unit.data().operations {
+                if let (OperationKind::Call(call), Some(value)) =
+                    (&operation.kind, operation.result)
+                {
+                    if matches!(graph.graph().callee(unit.id(), *call), Callee::Unit(_)) {
+                        assert!(
+                            classes.value(unit.id(), value).primitive(),
+                            "a closed constant-return chain stays primitive"
+                        );
+                        known += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(known, 64);
+    });
+}
+
+#[test]
+fn q2_primitive_dependencies_join_every_writer_and_keep_open_roots_unknown() {
+    inspect(
+        "extern int host;int state=3;void update(){state=host;}update();print(state);",
+        |program| {
+            let classes = program.primitive_classes(Seal::Module);
+            let state = program
+                .cells
+                .iter()
+                .position(|cell| cell.name == "state")
+                .unwrap();
+            assert!(
+                !classes.cell(CellId::from_index(state).unwrap()).primitive(),
+                "one unknown writer blocks a primitive proof"
+            );
+        },
+    );
+    inspect(
+        "int state=3;int read(){return state;}print(read());",
+        |program| {
+            let classes = program.primitive_classes(Seal::StructuralOnly);
+            let state = program
+                .cells
+                .iter()
+                .position(|cell| cell.name == "state")
+                .unwrap();
+            assert!(!classes.cell(CellId::from_index(state).unwrap()).primitive());
+            for unit in &program.units {
+                for operation in &unit.data().operations {
+                    if let (OperationKind::Load(place), Some(value)) =
+                        (&operation.kind, operation.result)
+                    {
+                        if matches!(unit.data().places[place.index()], Place::Cell(cell) if cell.index() == state)
+                        {
+                            assert!(!classes.value(unit.id(), value).primitive());
+                        }
+                    }
+                }
+            }
+        },
+    );
+}

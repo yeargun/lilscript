@@ -1,0 +1,30 @@
+{
+  "algorithm": 61,
+  "tests": [
+    "program::classes::tests::classes_follow_closed_producers_and_revision_owners",
+    "program::classes::tests::q2_class_aggregate_and_default_owners_release_on_invalidation_and_refusal",
+    "program::classes::tests::q2_primitive_dependencies_cross_long_call_chains_without_global_sweeps",
+    "program::classes::tests::q2_primitive_dependencies_join_every_writer_and_keep_open_roots_unknown",
+    "program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations",
+    "program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates",
+    "program::rules::admission_tests::q2_stable_local_plans_replay_identical_logical_work_and_peak_storage",
+    "program::rules::aggregate_tests::s2_early_capture_and_throwing_initializers_keep_failure_order",
+    "program::rules::aggregate_tests::s2_field_constants_respect_alias_writers",
+    "program::rules::aggregate_tests::s2_open_script_roots_remain_observable",
+    "program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return",
+    "program::rules::tests::a_script_keeps_its_root_bindings",
+    "program::rules::tests::a_settled_root_condition_chooses_its_branch_only_when_sealed",
+    "program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution",
+    "program::rules::tests::constant_call_folding_preserves_argument_effects_and_mutable_captures",
+    "program::rules::tests::constant_scalar_methods_fold_through_nested_pure_calls",
+    "program::rules::tests::default_transport_keeps_observed_argument_count_and_signed_zero",
+    "program::rules::tests::default_transport_preserves_callee_guards_and_argument_effects",
+    "program::rules::tests::exact_values_cross_settled_cells_parameters_and_results",
+    "program::rules::tests::forwarding_preserves_snapshots_writes_and_argument_evaluation",
+    "program::rules::tests::host_annotations_do_not_authorize_common_coercions",
+    "program::rules::tests::immutable_scalar_cells_and_common_primitive_operations_forward"
+  ],
+  "count": 22,
+  "exit_code": 0,
+  "scope": "Focused debug-library checks; no full library, release, ratchet or fleet run."
+}
