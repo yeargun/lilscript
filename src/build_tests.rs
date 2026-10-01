@@ -3522,3 +3522,180 @@ fn s4_shapes_require_concrete_public_presence_and_keep_public_class_product_stor
         "#),"[5,{\"x\":1,\"y\":9},{\"x\":10,\"y\":9},1,{},{\"value\":3},{\"value\":null}]\n");
     }
 }
+
+#[test]
+fn s4_absence_unifies_defaults_and_keeps_boundary_pins() {
+    let source=r#"
+        int count=0;
+        int next(){count+=1;return count;}
+        int choose(int value=next()){return value;}
+        export int exercise(){int?? a=undefined;int? b=null;int same=0;if(a==b){same=100;}return same+choose(a)*10+choose(b);}
+        export int | undefined absentU(){return null;}
+        export int | null absentN(){return undefined;}
+        export int? inferred(){return undefined;}
+        export int defaulted(int value=7){return value;}
+    "#;
+    let settings=config("[language]\nabsence='unified'");
+    let result=compile_source(source,&settings,ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",r#"
+            console.log(JSON.stringify([library.exercise(),library.absentU()===undefined,library.absentN()===null,library.inferred()===null,library.defaulted(),library.defaulted(undefined),library.defaulted(0),library.defaulted.length]));
+        "#),"[112,true,true,true,7,7,0,0]\n");
+    }
+}
+
+#[test]
+fn s4_absence_keeps_public_optional_keys_and_pinned_fields() {
+    let source=r#"
+        shape S{data int? missing;data int | null n;data int | undefined u;}
+        class C{int? value;init(){this.value=null;}void set(int? value){this.value=value;}}
+        export constructor C;
+        export S make(){return S{missing:undefined,n:undefined,u:null};}
+        export void set(S s,int? value){s.missing=value;s.n=value;s.u=value;}
+        struct P{int? x;int | null y;}
+        export P pair(){return P{undefined,null};}
+    "#;
+    let result=compile_source(source,&config("[language]\nabsence='unified'"),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",r#"
+            const s=library.make(),c=new library.C(),p=library.pair();
+            const outcomes=[Object.keys(s),s.n===null,s.u===undefined,Object.keys(c),Object.keys(p),p.y===null];
+            library.set(s,3);c.set(2);outcomes.push(s.missing,c.value);
+            library.set(s,null);c.set(undefined);outcomes.push(Object.keys(s),Object.keys(c),s.n===null,s.u===undefined);
+            console.log(JSON.stringify(outcomes));
+        "#),"[[\"n\",\"u\"],true,true,[],[\"y\"],true,3,2,[\"n\",\"u\"],[],true,true]\n");
+    }
+}
+
+#[test]
+fn s4_absence_refuses_spelling_observations_and_keeps_dynamic_tests() {
+    for source in [
+        "void f(int? x){print(x);}",
+        "string f(int? x){return string(x);}",
+        "number f(int? x){return float(x);}",
+        "JsValue f(int? x){return typeof x;}",
+        "bool f(int? x){return x===null;}",
+        "bool f(int?[] a,int? x){return a.includes(x);}",
+        "string f(int?[] a){return JSON.stringify(a);}",
+        "Set<int?> s=new Set<int?>();",
+        "Map<int?,int> m=new Map<int?,int>();",
+    ] {
+        for target in [ServiceTarget::JavaScript,ServiceTarget::Native] {
+            let error=compile_source(source,&config("[language]\nabsence='unified'"),ServiceOptions{target,..ServiceOptions::default()}).unwrap_err();
+            assert_eq!(error.phase,"check","{source}: {error:?}");
+            assert!(error.message.contains("R2"),"{source}: {error:?}");
+        }
+    }
+    let result=compile_source("export bool exact(JsValue x){return x===null;}",&config("[language]\nabsence='unified'"),ServiceOptions::default()).unwrap();
+    assert_eq!(execute_javascript(result.javascript(Objective::Brotli).unwrap().javascript(),"","console.log(library.exact(null),library.exact(undefined));"),"true false\n");
+}
+
+#[test]
+fn s4_absence_adapts_host_defaults_callbacks_and_checks_pins() {
+    let source=r#"
+        extern int host(int n=9);
+        extern bool inspect(func(int | undefined)->int | null callback);
+        int? callback(int? x){return x;}
+        export int run(int? x){return host(x);}
+        export bool visit(){return inspect(callback);}
+        export int take(int | null x){return x??5;}
+        export int optional(int x=7){return x;}
+        export int invoke(func(int | undefined)->int | null callback){return callback(null)??3;}
+    "#;
+    let result=compile_source(source,&config("checks='development'\n[language]\nabsence='unified'"),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),r#"
+            globalThis.host=(n=9)=>n;
+            globalThis.inspect=callback=>callback(undefined)===null;
+        "#,r#"
+            const outcomes=[library.run(null),library.run(0),library.visit(),library.take(null),library.optional(),library.invoke(x=>x===undefined?null:999)];
+            for(const f of [()=>library.take(undefined),()=>library.optional(null)]){try{f();outcomes.push(false)}catch(e){outcomes.push(e instanceof TypeError)}}
+            console.log(JSON.stringify(outcomes));
+        "#),"[9,0,true,5,7,3,true,true]\n");
+    }
+}
+
+#[test]
+fn s4_absence_preserves_mutable_collection_aliases_and_later_writes() {
+    let source=r#"
+        export (int | undefined)[] values=[null,2];
+        export Map<string,int | null> valuesByName=new Map<string,int | null>();
+        export void change((int | undefined)[] target){target[1]=null;target.push(null);}
+        export void changeMap(Map<string,int | null> target){int? missing=undefined;target.set("a",missing);}
+        export (int | undefined)[] copy((int | null)[] source){return [...source];}
+        export int?[] mapped(int[] source){return source.map((int value)=>{int? x=undefined;return x;});}
+    "#;
+    let result=compile_source(source,&config("[language]\nabsence='unified'"),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",r#"
+            const a=library.values,m=library.valuesByName;library.change(a);library.changeMap(m);
+            console.log(JSON.stringify([a===library.values,a.length,a.every(x=>x===undefined),m===library.valuesByName,m.get('a')===null,library.mapped([1,2]).every(x=>x===null),library.copy([null,null]).every(x=>x===undefined)]));
+        "#),"[true,3,true,true,true,true,true]\n");
+    }
+    let error=compile_source("void f((int | undefined)[] a){(int | null)[] b=a;}",&config("[language]\nabsence='unified'"),ServiceOptions::default()).unwrap_err();
+    assert_eq!(error.phase,"check");
+}
+
+#[test]
+fn s4_absence_config_types_and_native_omission_share_the_contract() {
+    let legacy=ProjectConfig::default();
+    let unified:ProjectConfig=toml::from_str("[language]\nabsence='unified'").unwrap();
+    assert_ne!(legacy.language,unified.language);
+    assert!(toml::from_str::<ProjectConfig>("[language]\nabsence='guess'").is_err());
+    for effort in [0,13] {
+        let mut settings=unified.clone();settings.effort.level=effort;
+        let result=compile_source("int? pick(bool b){if(b){return undefined;}return 3;}int value(int x=9){return x;}print((pick(true)??4)+value());",
+            &settings,ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap();
+        assert_eq!(execute_native(result.native_c().unwrap()),"13\n");
+    }
+    let error=compile_source("int f(int x=1){return x;}int? x=null;print(f(x));",&unified,ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap_err();
+    assert_eq!(error.phase,"check");assert!(error.message.contains("N2"),"{error:?}");
+    let source="int? f(int? x){return x;}export int | undefined result(int | null x){return f(x);}export (int | undefined)[] list=[null];";
+    let arena=bumpalo::Bump::new();
+    let parsed=crate::parser::parse_source(&arena,source).unwrap();
+    let checked=crate::check::analyze(&parsed).unwrap();
+    let result=checked.symbols().iter().find(|symbol|symbol.name=="result").unwrap();
+    let crate::check::Type::Function(signature)=&result.ty else{panic!("function type")};
+    let crate::check::Type::Nullable(returns)=signature.return_type.as_ref() else{panic!("nullable result")};
+    let crate::check::Type::Nullable(parameter)=&signature.params[0].ty else{panic!("nullable parameter")};
+    assert_eq!(returns.boundary,crate::check::AbsencePin::Undefined);
+    assert_eq!(parameter.boundary,crate::check::AbsencePin::Null);
+}
+
+#[test]
+fn s4_absence_default_constructors_super_and_generics_share_the_call_contract() {
+    let source = r#"
+        class C{int value;init(int value=7){this.value=value;}}
+        class D extends C{init(int? value){super(value);}}
+        class Box<T>{T value;init(T fallback,T value=fallback){this.value=value;}}
+        export constructor C;
+        export constructor D;
+        T choose<T>(T fallback,T value=fallback){return value;}
+        export int legacySpelling(){C c=new C(JS.undefined());return c.value+choose(5,JS.undefined());}
+        export int run(int? value){
+            C c=new C(value);D d=new D(value);Box<int> b=new Box<int>(9,value);
+            return c.value+d.value+b.value+choose(10,value)+choose(11,undefined);
+        }
+    "#;
+    for checks in ["production", "development"] {
+        let settings = config(&format!("checks='{checks}'\n[language]\nabsence='unified'"));
+        let result = compile_source(source, &settings, ServiceOptions {
+            objectives: Some(Objectives::All), ..ServiceOptions::default()
+        }).unwrap();
+        for objective in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+            assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(), "", r#"
+                console.log(JSON.stringify([library.run(null),library.run(2),new library.C().value,new library.D(null).value,library.legacySpelling()]));
+            "#), "[44,19,7,7,12]\n");
+        }
+    }
+    for source in [
+        "class C{int value;init(int value=7){this.value=value;}}C c=new C(null);print(c.value);",
+        "class C{int value;init(int value=7){this.value=value;}}class D extends C{init(int? value){super(value);}}D d=new D(null);print(d.value);",
+    ] {
+        let error = compile_source(source, &config("[language]\nabsence='unified'"), ServiceOptions {
+            target: ServiceTarget::Native, ..ServiceOptions::default()
+        }).unwrap_err();
+        assert_eq!(error.phase, "check");
+        assert!(error.message.contains("N2"), "{error:?}");
+    }
+}

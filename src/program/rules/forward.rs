@@ -23,7 +23,7 @@ enum PrimitiveOperation {
         op: crate::ast::UnaryOp,
         integer: bool,
     },
-    IsUndefined(Option<u32>),
+    IsUndefined(Option<u32>, bool),
     Intrinsic(crate::primitive::ResolvedIntrinsic),
 }
 
@@ -397,7 +397,7 @@ fn primitive(kind: &OperationKind) -> Option<PrimitiveOperation> {
         OperationKind::IntBinary(operation) => PrimitiveOperation::Int(operation),
         OperationKind::Binary(operation) => PrimitiveOperation::Binary(operation),
         OperationKind::Unary { op, integer } => PrimitiveOperation::Unary { op, integer },
-        OperationKind::IsUndefined { parameter } => PrimitiveOperation::IsUndefined(parameter),
+        OperationKind::IsUndefined { parameter, nullish } => PrimitiveOperation::IsUndefined(parameter, nullish),
         OperationKind::Intrinsic(operation) => PrimitiveOperation::Intrinsic(operation),
         _ => return None,
     })

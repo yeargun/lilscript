@@ -508,7 +508,7 @@ pub(super) fn constant(program: &Program<'_>, ty: TypeId, known: &StoredExact) -
             (Type::Null | Type::Nullable(_) | Type::Dynamic | Type::Unknown, StoredExact::Null) => {
                 Constant::Null
             }
-            (Type::Dynamic | Type::Unknown, StoredExact::Undefined) => Constant::Undefined,
+            (Type::Null | Type::Nullable(_) | Type::Dynamic | Type::Unknown, StoredExact::Undefined) => Constant::Undefined,
             (Type::Nullable(inner), known) => return for_type(program, inner, known),
             (Type::Union(members), known) => {
                 return members.iter().find_map(|ty| for_type(program, ty, known))

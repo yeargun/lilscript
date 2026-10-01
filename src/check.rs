@@ -18,6 +18,7 @@ use crate::span::Span;
 use crate::typed_array::TypedArrayKind;
 
 pub(crate) mod binary_types;
+pub(crate) mod absence;
 pub(crate) mod capabilities;
 mod field_initialization;
 mod shapes;
@@ -32,7 +33,7 @@ pub use type_pool::CheckedTypeId;
 pub(crate) mod type_payload;
 pub(crate) mod type_relation;
 pub(crate) mod type_substitution;
-pub(crate) use modules::with_analyzed_modules;
+pub(crate) use modules::{with_analyzed_modules, with_analyzed_modules_with_contract};
 #[cfg(test)]
 pub(crate) use modules::AdmittedModuleCheckError;
 pub use modules::{
@@ -209,6 +210,39 @@ impl<'src> TypeParameter<'src> {
     }
 }
 
+/// Absence has one semantic meaning; an ABI may require a particular spelling.
+/// Keeping this on the nullable node preserves nested collection/callable pins.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum AbsencePin {
+    #[default]
+    Auto,
+    Null,
+    Undefined,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NullableType<'src> {
+    inner: Box<Type<'src>>,
+    pub boundary: AbsencePin,
+}
+
+impl<'src> NullableType<'src> {
+    pub fn new(inner: Box<Type<'src>>, boundary: AbsencePin) -> Self {
+        Self { inner, boundary }
+    }
+    pub fn into_inner(self) -> Type<'src> { *self.inner }
+}
+impl<'src> std::ops::Deref for NullableType<'src> {
+    type Target = Type<'src>;
+    fn deref(&self) -> &Self::Target { &self.inner }
+}
+impl<'src> AsRef<Type<'src>> for NullableType<'src> {
+    fn as_ref(&self) -> &Type<'src> { &self.inner }
+}
+impl fmt::Display for NullableType<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { self.inner.fmt(f) }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type<'src> {
     Int,
@@ -240,7 +274,7 @@ pub enum Type<'src> {
     Generator(Box<Type<'src>>),
     ModuleNamespace(u32),
     ModuleLoadError,
-    Nullable(Box<Type<'src>>),
+    Nullable(NullableType<'src>),
     Union(Vec<Type<'src>>),
     /// A declared shape view containing every component's fields.
     Intersection(Vec<Type<'src>>),
@@ -268,6 +302,21 @@ pub enum Type<'src> {
 }
 
 impl<'src> Type<'src> {
+    pub fn nullable(inner: Box<Self>) -> Self {
+        Self::pinned_nullable(inner, AbsencePin::Auto)
+    }
+
+    pub fn pinned_nullable(inner: Box<Self>, boundary: AbsencePin) -> Self {
+        match *inner {
+            Self::Nullable(mut nullable) => {
+                if boundary != AbsencePin::Auto { nullable.boundary = boundary; }
+                Self::Nullable(nullable)
+            }
+            Self::Null => Self::Null,
+            _ => Self::Nullable(NullableType::new(inner, boundary)),
+        }
+    }
+
     /// The runtime calling convention is independent of generic binders.
     pub(crate) fn callable_signature(&self) -> Option<&FunctionType<'src>> {
         match self {
@@ -297,8 +346,8 @@ impl Type<'_> {
             | Self::Record(value)
             | Self::Set(value)
             | Self::Task(value)
-            | Self::Generator(value)
-            | Self::Nullable(value) => value.mentions_unknown(),
+            | Self::Generator(value) => value.mentions_unknown(),
+            Self::Nullable(value) => value.mentions_unknown(),
             Self::Map(key, value) => key.mentions_unknown() || value.mentions_unknown(),
             Self::Union(values) | Self::Intersection(values)
             | Self::StructInstance { args: values, .. }
@@ -320,7 +369,7 @@ impl Type<'_> {
             Self::Set(value) => Self::Set(Box::new(value.without_unknown())),
             Self::Task(value) => Self::Task(Box::new(value.without_unknown())),
             Self::Generator(value) => Self::Generator(Box::new(value.without_unknown())),
-            Self::Nullable(value) => Self::Nullable(Box::new(value.without_unknown())),
+            Self::Nullable(value) => Self::pinned_nullable(Box::new(value.without_unknown()), value.boundary),
             Self::Map(key, value) => Self::Map(
                 Box::new(key.without_unknown()),
                 Box::new(value.without_unknown()),
@@ -370,8 +419,11 @@ impl Type<'_> {
                 | Self::Record(value)
                 | Self::Set(value)
                 | Self::Task(value)
-                | Self::Generator(value)
-                | Self::Nullable(value) => {
+                | Self::Generator(value) => {
+                    current = value;
+                    continue;
+                }
+                Self::Nullable(value) => {
                     current = value;
                     continue;
                 }
@@ -456,6 +508,7 @@ impl fmt::Display for Type<'_> {
             Self::Generator(value) => write!(f, "Generator<{value}>"),
             Self::ModuleNamespace(module) => write!(f, "module#{module}"),
             Self::ModuleLoadError => f.write_str("ModuleLoadError"),
+            Self::Nullable(inner) if inner.boundary != AbsencePin::Auto => write!(f, "({inner} | {})", if inner.boundary == AbsencePin::Null { "null" } else { "undefined" }),
             Self::Nullable(inner) => match inner.as_ref() {
                 Self::Union(_) | Self::Intersection(_) => write!(f, "({inner})?"),
                 _ => write!(f, "{inner}?"),
@@ -1067,6 +1120,10 @@ pub struct CheckedCallInstantiation<'src> {
 struct SourceInfo<'ast, 'src> {
     expression: Option<&'ast Expr<'ast, 'src>>,
     resolution: ExpressionResolution,
+    /// The checked argument needs optional-value transport into a defaulted
+    /// parameter. Native capability admission consumes the same call contract,
+    /// including constructor and super calls.
+    absent_default_argument: bool,
 }
 
 impl fmt::Debug for SourceInfo<'_, '_> {
@@ -1078,6 +1135,7 @@ impl fmt::Debug for SourceInfo<'_, '_> {
                 &self.expression.map(|expr| (expr.id, expr.span())),
             )
             .field("resolution", &self.resolution)
+            .field("absent_default_argument", &self.absent_default_argument)
             .finish()
     }
 }
@@ -1085,6 +1143,7 @@ impl fmt::Debug for SourceInfo<'_, '_> {
 /// Canonical declarations are owned once, including all local symbols.
 #[derive(Debug, Clone, Default)]
 struct DeclarationTables<'src> {
+    source_contract: crate::config::LanguageConfig,
     types: type_pool::TypePool<'src>,
     /// Written after initialization: an assignment or a mutable reference.
     assigned_symbols: AHashSet<SymbolId>,
@@ -1774,6 +1833,8 @@ impl<'ast, 'src> CheckedModule<'ast, 'src> {
 }
 
 impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
+    pub(crate) fn source_contract(&self) -> crate::config::LanguageConfig { self.declarations.source_contract }
+    pub(crate) fn absence_abi(&self) -> bool { self.source_contract().unified_absence() || self.declarations.types.absence_pins }
     pub fn expression_type(&self, id: crate::ast::SourceNodeId) -> Option<&'view Type<'src>> {
         self.expression_type_id(id).map(|id| self.checked_type(id))
     }
@@ -2117,8 +2178,17 @@ pub(crate) fn with_analyzed_source<'ast, 'src, R>(
     budget: &mut AllocationBudget<'_>,
     client: impl FnOnce(&CheckedModule<'ast, 'src>, &mut AllocationBudget<'_>) -> R,
 ) -> Result<R, AdmittedCheckError> {
+    with_analyzed_source_with_contract(program, crate::config::LanguageConfig::default(), budget, client)
+}
+
+pub(crate) fn with_analyzed_source_with_contract<'ast, 'src, R>(
+    program: &Program<'ast, 'src>,
+    contract: crate::config::LanguageConfig,
+    budget: &mut AllocationBudget<'_>,
+    client: impl FnOnce(&CheckedModule<'ast, 'src>, &mut AllocationBudget<'_>) -> R,
+) -> Result<R, AdmittedCheckError> {
     let mut scope = budget.scope();
-    let model = analyze_single_source(program, &mut scope)?;
+    let model = analyze_single_source_with_contract(program, contract, &mut scope)?;
     #[cfg(test)]
     let model = AdmittedFactsOwner::new(model, 1);
     let output = client(&model, &mut scope);
@@ -2196,13 +2266,21 @@ fn analyze_single_source<'ast, 'src>(
     program: &Program<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<CheckedModule<'ast, 'src>, AdmittedCheckError> {
+    analyze_single_source_with_contract(program, crate::config::LanguageConfig::default(), budget)
+}
+
+fn analyze_single_source_with_contract<'ast, 'src>(
+    program: &Program<'ast, 'src>,
+    contract: crate::config::LanguageConfig,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<CheckedModule<'ast, 'src>, AdmittedCheckError> {
     if let Some(import) = program.imports.first() {
         return Err(AdmittedCheckError::new(
             import.span,
             "imports require file-based compilation so the module graph can be resolved",
         ));
     }
-    let checked = modules::analyze_source_in(program, budget).map_err(|failure| failure.error)?;
+    let checked = modules::analyze_source_in(program, contract, budget).map_err(|failure| failure.error)?;
     let model = checked.into_single();
     #[cfg(debug_assertions)]
     assert!(
@@ -4528,6 +4606,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.facts.source_info[expr.id.index()] = SourceInfo {
             expression: Some(expr),
             resolution: ExpressionResolution::None,
+            absent_default_argument: false,
         };
         let ty = match expr {
             Expr {
@@ -4579,7 +4658,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             } if ident.name == "undefined" && self.builtin_namespace_is_unshadowed("undefined") => {
                 // JavaScript's `undefined`, a `JsValue` (R12): `JS.undefined()`.
                 self.resolve_dynamic(expr.id, BuiltinCall::JsUndefined);
-                Type::Dynamic
+                if self.declarations.source_contract.unified_absence()
+                    && expected.is_some_and(|ty| matches!(ty, Type::Nullable(_) | Type::Null)) {
+                    Type::Null
+                } else { Type::Dynamic }
             }
             Expr {
                 kind: ExprKind::Ident(ident),
@@ -5025,7 +5107,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     let mut actual_args = Vec::with_capacity(args.len());
                     for (index, arg) in args.iter().enumerate() {
                         let pattern = pattern(index, arg.spread);
-                        let resolved = substitute_type(pattern, &substitutions);
+                        let optional = params[index.min(constructor.as_ref().unwrap().fixed_params())].optional
+                            && self.declarations.source_contract.unified_absence();
+                        let mut resolved = substitute_type(pattern, &substitutions);
+                        if optional { resolved = Type::nullable(Box::new(resolved)); }
                         let expected = (!contains_type_parameter(&resolved, &parameter_names))
                             .then_some(&resolved);
                         let actual = if arg.spread {
@@ -5036,17 +5121,20 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         } else {
                             self.analyze_value_argument(arg, expected)?
                         };
-                        infer_type_arguments(
-                            pattern,
-                            &actual,
-                            &parameter_names,
-                            &mut substitutions,
-                            arg.span,
-                        )?;
-                        let resolved = substitute_type(pattern, &substitutions);
+                        let present = match &actual {
+                            Type::Nullable(inner) if optional => inner.as_ref(),
+                            _ => &actual,
+                        };
+                        if !optional || !matches!(present, Type::Null) {
+                            infer_type_arguments(pattern, present, &parameter_names, &mut substitutions, arg.span)?;
+                        }
+                        let mut resolved = substitute_type(pattern, &substitutions);
+                        if optional { resolved = Type::nullable(Box::new(resolved)); }
                         if !contains_type_parameter(&resolved, &parameter_names) {
                             self.require_assignable(&resolved, &actual, arg.span)?;
                         }
+                        self.facts.source_info[arg.expression.id.index()].absent_default_argument =
+                            optional && absence::optional(&actual);
                         actual_args.push(actual);
                     }
                     let resolved_args = type_params
@@ -5069,7 +5157,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         self.declarations.reflect(argument);
                     }
                     for (index, (arg, actual)) in args.iter().zip(&actual_args).enumerate() {
-                        let resolved = substitute_type(pattern(index, arg.spread), &substitutions);
+                        let mut resolved = substitute_type(pattern(index, arg.spread), &substitutions);
+                        if params[index.min(constructor.as_ref().unwrap().fixed_params())].optional
+                            && self.declarations.source_contract.unified_absence() {
+                            resolved = Type::nullable(Box::new(resolved));
+                        }
                         self.require_assignable(&resolved, actual, arg.span)?;
                     }
                     if type_params.is_empty() {
@@ -5142,7 +5234,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         ),
                     ));
                 };
-                let member = self.analyze_member_type(*inner, *property, expr.id, *span)?;
+                let member = self.analyze_member_type(inner.into_inner(), *property, expr.id, *span)?;
                 self.check_member_value(expr.id, *span)?;
                 let id = self.declarations.types.intern(&member, self.budget)?;
                 self.facts.optional_present_types.insert(expr.id, id);
@@ -5737,6 +5829,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 self.facts.source_info[target.id.index()] = SourceInfo {
                     expression: Some(target),
                     resolution: ExpressionResolution::None,
+                    absent_default_argument: false,
                 };
                 self.record_type(target.id, &Type::Dynamic)?;
                 self.resolve_dynamic(expr.id, BuiltinCall::JsDelete);
@@ -5801,6 +5894,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     self.facts.source_info[next.id.index()] = SourceInfo {
                         expression: Some(next),
                         resolution: ExpressionResolution::None,
+                    absent_default_argument: false,
                     };
                     next = lhs;
                     continue;
@@ -5938,6 +6032,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.facts.source_info[expression.id.index()] = SourceInfo {
             expression: Some(expression),
             resolution: ExpressionResolution::None,
+            absent_default_argument: false,
         };
         let ty = match expression {
             Expr {
@@ -6636,7 +6731,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             Type::Array(_) | Type::String if property.name == "length" => Ok(Type::Int),
             Type::Dynamic => match property.name {
                 "length" => Ok(Type::Float),
-                "message" | "specifier" => Ok(Type::Nullable(Box::new(Type::String))),
+                "message" | "specifier" => Ok(Type::nullable(Box::new(Type::String))),
                 "truthy" | "isArray" | "isObject" => {
                     Ok(Type::Function(FunctionType::new(FunctionSignature {
                         params: Vec::new(),
@@ -6963,6 +7058,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.facts.source_info[member.id.index()] = SourceInfo {
             expression: Some(member),
             resolution: ExpressionResolution::None,
+            absent_default_argument: false,
         };
         let receiver = self.analyze_expr(object, None)?;
         if let Type::Function(signature) = &receiver {
@@ -7486,8 +7582,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     }
                     self.pending_references = true;
                 } else {
-                    let actual = self.analyze_value_argument(arg, Some(&parameter.ty))?;
-                    self.require_assignable(&parameter.ty, &actual, arg.span)?;
+                    let expected = if parameter.optional && self.declarations.source_contract.unified_absence() {
+                        Type::nullable(Box::new(parameter.ty.clone()))
+                    } else { parameter.ty.clone() };
+                    let actual = self.analyze_value_argument(arg, Some(&expected))?;
+                    self.require_assignable(&expected, &actual, arg.span)?;
+                    self.facts.source_info[arg.expression.id.index()].absent_default_argument =
+                        parameter.optional && self.declarations.source_contract.unified_absence()
+                            && absence::optional(&actual);
                 }
             }
             Ok(())
@@ -7607,6 +7709,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     ));
                 };
                 let actual = self.analyze_value_argument(value, None)?;
+                if self.declarations.source_contract.unified_absence() && absence::json_observes(&actual, self.budget)? {
+                    return Err(AdmittedCheckError::new(value.span,
+                        "JSON serialization observes optional values outside optional object fields (R2); narrow before serializing"));
+                }
                 if !json_stringify_type_supported(&actual) {
                     return Err(AdmittedCheckError::new(
                         value.span,
@@ -7767,7 +7873,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 "undefined" => {
                     require_arity(0..=0)?;
-                    (BuiltinCall::JsUndefined, js.clone(), Vec::new())
+                    let result = if self.declarations.source_contract.unified_absence()
+                        && expected.is_some_and(absence::optional) { Type::Null } else { js.clone() };
+                    (BuiltinCall::JsUndefined, result, Vec::new())
                 }
                 "typeOf" => {
                     require_arity(1..=1)?;
@@ -8253,7 +8361,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         };
         for (index, arg) in args.iter().enumerate() {
             let pattern = pattern(index, arg.spread);
-            let partially_resolved = substitute_type(pattern, &substitutions);
+            let optional = function.signature.params[index.min(function.signature.fixed_params())].optional
+                && self.declarations.source_contract.unified_absence();
+            let mut partially_resolved = substitute_type(pattern, &substitutions);
+            if optional { partially_resolved = Type::nullable(Box::new(partially_resolved)); }
             let expected = (!contains_type_parameter(&partially_resolved, &parameters))
                 .then_some(&partially_resolved);
             let actual = if arg.spread {
@@ -8264,11 +8375,17 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             } else {
                 self.analyze_value_argument(arg, expected)?
             };
-            infer_type_arguments(pattern, &actual, &parameters, &mut substitutions, arg.span)?;
-            let resolved = substitute_type(pattern, &substitutions);
+            let present = match &actual { Type::Nullable(inner) if optional => inner.as_ref(), _ => &actual };
+            if !optional || !matches!(present, Type::Null) {
+                infer_type_arguments(pattern, present, &parameters, &mut substitutions, arg.span)?;
+            }
+            let mut resolved = substitute_type(pattern, &substitutions);
+            if optional { resolved = Type::nullable(Box::new(resolved)); }
             if !contains_type_parameter(&resolved, &parameters) {
                 self.require_assignable(&resolved, &actual, arg.span)?;
             }
+            self.facts.source_info[arg.expression.id.index()].absent_default_argument =
+                optional && absence::optional(&actual);
             actual_args.push(actual);
         }
         for parameter in &function.type_params {
@@ -8285,7 +8402,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 .reflect(&substitutions[&parameter.identity]);
         }
         for (index, (arg, actual)) in args.iter().zip(&actual_args).enumerate() {
-            let resolved = substitute_type(pattern(index, arg.spread), &substitutions);
+            let mut resolved = substitute_type(pattern(index, arg.spread), &substitutions);
+            if function.signature.params[index.min(function.signature.fixed_params())].optional
+                && self.declarations.source_contract.unified_absence() {
+                resolved = Type::nullable(Box::new(resolved));
+            }
             self.require_assignable(&resolved, actual, arg.span)?;
         }
         let Type::Function(signature) =
@@ -8702,6 +8823,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             TypeKind::Float => Ok(Type::Float),
             TypeKind::String => Ok(Type::String),
             TypeKind::Bool => Ok(Type::Bool),
+            TypeKind::Null | TypeKind::Undefined => Err(AdmittedCheckError::new(
+                ty.span, "an absence boundary spelling must accompany a present type: `T | null` or `T | undefined` (R2)")),
             TypeKind::Void if allow_void => Ok(Type::Void),
             TypeKind::Void => Err(AdmittedCheckError::new(
                 ty.span,
@@ -8879,13 +9002,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
             TypeKind::Nullable(inner) => {
                 let inner = self.resolve_value_type(*inner, "nullable value")?;
-                if matches!(inner, Type::Nullable(_) | Type::Null) {
-                    return Err(AdmittedCheckError::new(
-                        ty.span,
-                        "nullable types cannot be nested",
-                    ));
-                }
-                Ok(Type::Nullable(Box::new(inner)))
+                Ok(Type::nullable(Box::new(inner)))
             }
             TypeKind::Intersection(members) => {
                 let mut types = Vec::with_capacity(members.len());
@@ -8907,10 +9024,28 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
             TypeKind::Union(members) => {
                 let mut resolved = Vec::with_capacity(members.len());
+                let mut pin = AbsencePin::Auto;
                 for member in members {
-                    resolved.push(self.resolve_value_type(*member, "union member")?);
+                    let spelling = match member.kind {
+                        TypeKind::Null => Some(AbsencePin::Null),
+                        TypeKind::Undefined => Some(AbsencePin::Undefined),
+                        _ => None,
+                    };
+                    if let Some(spelling) = spelling {
+                        if pin != AbsencePin::Auto && pin != spelling {
+                            return Err(AdmittedCheckError::new(member.span,
+                                "a boundary must choose one absent spelling; use `T?` internally (R2)"));
+                        }
+                        pin = spelling;
+                    } else {
+                        resolved.push(self.resolve_value_type(*member, "union member")?);
+                    }
                 }
-                Ok(normalize_union(resolved))
+                if resolved.is_empty() {
+                    return Err(AdmittedCheckError::new(ty.span, "an absence boundary needs a present type (R2)"));
+                }
+                let result = normalize_union(resolved);
+                Ok(if pin == AbsencePin::Auto { result } else { Type::pinned_nullable(Box::new(result), pin) })
             }
             TypeKind::Function {
                 params,
@@ -9146,11 +9281,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             (Type::Intersection(members), actual) => members.iter().all(|expected| self.is_assignable(expected, actual)),
             (expected, Type::Intersection(members)) => members.iter().any(|actual| self.is_assignable(expected, actual)),
             (Type::Array(expected), Type::Array(actual)) => {
-                self.is_assignable(expected, actual) && self.is_assignable(actual, expected)
+                absence::same_storage_pin(expected, actual)
+                    && self.is_assignable(expected, actual) && self.is_assignable(actual, expected)
             }
             (Type::Task(expected), Type::Task(actual))
-            | (Type::Generator(expected), Type::Generator(actual))
-            | (Type::Nullable(expected), Type::Nullable(actual)) => {
+            | (Type::Generator(expected), Type::Generator(actual)) => {
+                self.is_assignable(expected, actual)
+            }
+            (Type::Nullable(expected), Type::Nullable(actual)) => {
                 self.is_assignable(expected, actual)
             }
             (Type::Nullable(expected), actual) => self.is_assignable(expected, actual),
@@ -10111,8 +10249,8 @@ fn contains_host_value(ty: &Type<'_>) -> bool {
         | Type::Record(inner)
         | Type::Set(inner)
         | Type::Task(inner)
-        | Type::Generator(inner)
-        | Type::Nullable(inner) => contains_host_value(inner),
+        | Type::Generator(inner) => contains_host_value(inner),
+        Type::Nullable(inner) => contains_host_value(inner),
         Type::Map(key, value) => contains_host_value(key) || contains_host_value(value),
         Type::Union(types) | Type::Intersection(types)
         | Type::ClassInstance { args: types, .. }
@@ -10150,8 +10288,8 @@ fn nominals_in(ty: &Type<'_>, out: &mut Vec<NominalId>) {
         | Type::Record(value)
         | Type::Set(value)
         | Type::Task(value)
-        | Type::Generator(value)
-        | Type::Nullable(value) => nominals_in(value, out),
+        | Type::Generator(value) => nominals_in(value, out),
+        Type::Nullable(value) => nominals_in(value, out),
         Type::Map(key, value) => {
             nominals_in(key, out);
             nominals_in(value, out);
@@ -10340,8 +10478,8 @@ fn nullable_type<'src>(ty: Type<'src>) -> Type<'src> {
         {
             Type::Union(members)
         }
-        Type::Union(members) => Type::Nullable(Box::new(Type::Union(members))),
-        ty => Type::Nullable(Box::new(ty)),
+        Type::Union(members) => Type::nullable(Box::new(Type::Union(members))),
+        ty => Type::nullable(Box::new(ty)),
     }
 }
 
@@ -10443,7 +10581,7 @@ fn optional_result_type<'src>(ty: Type<'src>, span: Span) -> Result<Type<'src>, 
             "optional method calls are not yet supported; coalesce the receiver before calling",
         )),
         Type::Nullable(_) => Ok(ty),
-        ty => Ok(Type::Nullable(Box::new(ty))),
+        ty => Ok(Type::nullable(Box::new(ty))),
     }
 }
 
@@ -10543,7 +10681,8 @@ fn spread_refusal(span: Span) -> AdmittedCheckError {
 fn crosses_by_conversion(ty: &Type<'_>) -> bool {
     match ty {
         Type::Struct(_) | Type::StructInstance { .. } => true,
-        Type::Nullable(inner) | Type::Array(inner) => crosses_by_conversion(inner),
+        Type::Nullable(inner) => crosses_by_conversion(inner),
+        Type::Array(inner) => crosses_by_conversion(inner),
         Type::Union(members) => members.iter().any(crosses_by_conversion),
         _ => false,
     }
@@ -10726,7 +10865,7 @@ fn subtract_guarded_type<'src>(value: &Type<'src>, target: &Type<'src>) -> Optio
         Type::Nullable(inner) if target == &Type::Null => Some(inner.as_ref().clone()),
         Type::Nullable(inner) if target == inner.as_ref() => Some(Type::Null),
         Type::Nullable(inner) => subtract_guarded_type(inner, target)
-            .map(|remaining| Type::Nullable(Box::new(remaining))),
+            .map(|remaining| Type::nullable(Box::new(remaining))),
         _ => None,
     }
 }
@@ -11110,7 +11249,7 @@ mod tests {
         };
         assert_eq!(members.len(), 2);
         assert!(members.contains(&reference) && members.contains(&value));
-        let wrapped = Type::Nullable(Box::new(Type::Array(Box::new(Type::GenericFunction(
+        let wrapped = Type::nullable(Box::new(Type::Array(Box::new(Type::GenericFunction(
             GenericFunctionType {
                 type_params: vec![crate::check::TypeParameter::fixture("T")],
                 signature: FunctionType::new(FunctionSignature {

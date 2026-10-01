@@ -354,6 +354,8 @@ pub struct Program<'src> {
     /// before optimization. Immutable under the table revision and preserved
     /// by every candidate; a dead result cannot erase a required bounds check.
     trap_index_reads: bool,
+    source_contract: crate::config::LanguageConfig,
+    absence_abi: bool,
     units: Vec<FrozenUnit>,
     // Published tables are immutable. Retaining a candidate shares their
     // buffers and nested payloads; a unit-only edit does not copy every cell,
@@ -976,6 +978,9 @@ pub enum OperationKind {
     /// of the initialized parameter's value representation.
     IsUndefined {
         parameter: Option<u32>,
+        /// Unified absence defaults also accept null. This is operation data,
+        /// so all evaluators, refinements and replayed candidates agree.
+        nullish: bool,
     },
     /// `value is T` on a union or nullable: the target's runtime test
     /// (`typeof` for primitives and functions, `Array.isArray` for arrays).

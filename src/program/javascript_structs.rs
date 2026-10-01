@@ -5,6 +5,7 @@ use super::*;
 
 pub(super) struct Plan<'src> {
     pub(super) boundary_types: Vec<bool>,
+    pub(super) abi_types: Vec<bool>,
     // D2 public adapters, created on demand at the export boundary: one
     // wrapper per exported function and one codec per schema and direction.
     // A wrapped function's own name and callable kind are private: sorted
@@ -16,7 +17,7 @@ pub(super) struct Plan<'src> {
     /// is formed through its D2 public encoder, as an exported result is.
     pub(super) public_encodes: Vec<(ContextId, ValueId)>,
     /// One hoisted D2 callable adapter factory per function type.
-    pub(super) public_callables: Vec<(TypeId, js::BindingId)>,
+    pub(super) public_callables: Vec<(Type<'src>, bool, js::BindingId)>,
     // Sorted once by stable member identity. Entries retain physical slots and
     // their schema owner, so emission never resolves a field by source spelling.
     fields: Vec<(usize, FieldRecipe)>,
@@ -33,18 +34,13 @@ pub(super) fn plan<'src>(
     contract: &JavaScriptCompilationContract,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Plan<'src>, FormationError> {
-    if program.structs.is_empty() {
-        return Ok(Plan {
-            boundary_types: Vec::new(),
-            public_units: Vec::new(),
-            public_exports: Vec::new(),
-            public_codecs: Vec::new(),
-            public_encodes: Vec::new(),
-            public_callables: Vec::new(),
-            fields: Vec::new(),
-        });
+    if program.structs.is_empty() && !program.absence_abi {
+        return Ok(Plan { boundary_types: Vec::new(), abi_types: Vec::new(),
+            public_units: Vec::new(), public_exports: Vec::new(), public_codecs: Vec::new(),
+            public_encodes: Vec::new(), public_callables: Vec::new(), fields: Vec::new() });
     }
     let mut boundary_types = budget.vector(AllocationClass::Scratch, program.types.len())?;
+    let mut abi_types = budget.vector(AllocationClass::Scratch, program.types.len())?;
     let mut pending = budget.vector(AllocationClass::Scratch, 1)?;
     for ty in program.types.iter() {
         let contains = super::super::facts::contains_nominal_product(
@@ -53,6 +49,8 @@ pub(super) fn plan<'src>(
             &mut references::Meter(budget),
         )?;
         budget.push(AllocationClass::Scratch, &mut boundary_types, contains)?;
+        let abi = contains || super::public_structs::carries_absence(program, ty, budget)?;
+        budget.push(AllocationClass::Scratch, &mut abi_types, abi)?;
     }
     let bytes = pending
         .capacity()
@@ -65,7 +63,8 @@ pub(super) fn plan<'src>(
         budget.work(WorkKind::Render, program.exports().len() as u64)?;
         for (_, cell) in program.value_exports() {
             budget.work(WorkKind::Render, 1)?;
-            if !boundary_types[program.cells[cell.index()].ty.index()] {
+            if !abi_types[program.cells[cell.index()].ty.index()]
+                || program.types[program.cells[cell.index()].ty.index()].callable_signature().is_none() {
                 continue;
             }
             if !super::public_structs::adaptable_export(program, cell, budget)? {
@@ -142,6 +141,7 @@ pub(super) fn plan<'src>(
     fields.sort_unstable_by_key(|(identity, _)| *identity);
     Ok(Plan {
         boundary_types,
+        abi_types,
         public_units,
         public_exports: Vec::new(),
         public_codecs: Vec::new(),

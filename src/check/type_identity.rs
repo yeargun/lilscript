@@ -60,8 +60,8 @@ fn ty(a: &Type<'_>, b: &Type<'_>, rename: Rename<'_>, alpha: bool) -> bool {
         | (Type::Record(a), Type::Record(b))
         | (Type::Set(a), Type::Set(b))
         | (Type::Task(a), Type::Task(b))
-        | (Type::Generator(a), Type::Generator(b))
-        | (Type::Nullable(a), Type::Nullable(b)) => ty(a, b, rename, alpha),
+        | (Type::Generator(a), Type::Generator(b)) => ty(a, b, rename, alpha),
+        (Type::Nullable(a), Type::Nullable(b)) => a.boundary == b.boundary && ty(a, b, rename, alpha),
         (Type::Map(a, b), Type::Map(c, d)) => ty(a, c, rename, alpha) && ty(b, d, rename, alpha),
         (Type::Union(a), Type::Union(b)) | (Type::Intersection(a), Type::Intersection(b)) => list(a, b, rename, alpha),
         (

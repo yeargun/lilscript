@@ -31,6 +31,8 @@ use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
 use crate::scalar_transfer::NumberFacts;
 
+#[path = "javascript_absence.rs"]
+mod absence;
 #[path = "javascript_checks.rs"]
 mod checks;
 #[path = "javascript_host.rs"]
@@ -105,12 +107,12 @@ fn load_result_recipe(
     let index = matches!(unit.places[place.index()], Place::Index { .. });
     let receiver_ty = &program.types[unit.values[receiver.index()].ty.index()];
     let result_ty = &program.types[ty.index()];
-    if matches!(receiver_ty, Type::Record(_))
+    if !program.source_contract.unified_absence() && (matches!(receiver_ty, Type::Record(_))
         || super::schema::is_shape(program, receiver_ty)
             && matches!(result_ty, Type::Nullable(_) | Type::Null)
         || index
             && matches!(receiver_ty, Type::Array(_))
-            && matches!(result_ty, Type::Nullable(_) | Type::Null)
+            && matches!(result_ty, Type::Nullable(_) | Type::Null))
     {
         LoadResultRecipe::NullishNull
     } else if index && matches!(receiver_ty, Type::Uint32Array) && matches!(result_ty, Type::Int) {
@@ -856,8 +858,8 @@ fn form_head(
                     }
                 }
                 let mut binding = formation.cell_binding(context, cell)?;
-                if !formation.struct_plan.boundary_types.is_empty()
-                    && formation.struct_plan.boundary_types[program.cells[cell.index()].ty.index()]
+                if !formation.struct_plan.abi_types.is_empty() && formation.struct_plan.abi_types[program.cells[cell.index()].ty.index()]
+                    && matches!(program.cells[cell.index()].binding, CellBinding::Function(_))
                 {
                     binding = formation.public_struct_export(cell, binding)?;
                 }
@@ -3295,7 +3297,15 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 let expression =
                     self.call(unit, call, arguments, operation.span, expanded_products)?;
-                let expression = self.assumed_product(unit, call, &operation, expression)?;
+                let mut expression = self.assumed_product(unit, call, &operation, expression)?;
+                if self.host_call_boundary(unit, call) {
+                    if let Some(result) = operation.result {
+                        let ty = &self.program.types[self.data(unit).values[result.index()].ty.index()];
+                        if ty.callable_signature().is_some() && public_structs::carries_absence(self.program, ty, self.budget)? {
+                            expression = self.public_value(ty, expression, true)?;
+                        }
+                    }
+                }
                 // Host calls retain their evaluation/throwing behavior, but
                 // their returned JS value still owes the source operation's
                 // result contract. A replaced logger cannot give Print a
@@ -4127,7 +4137,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     receiver,
                     arguments,
                 };
-                if operation != Intrinsic::MapGet {
+                if operation != Intrinsic::MapGet || self.program.source_contract.unified_absence() {
                     call
                 } else if self
                     .contract
@@ -4498,6 +4508,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 let value = self.value(unit, operands[0])?;
                 if let Place::Cell(cell) = self.data(unit).places[place.index()] {
+                    let expected = &self.program.types[self.program.cells[cell.index()].ty.index()];
+                    let actual = &self.program.types[self.data(unit).values[operands[0].index()].ty.index()];
+                    let value = if matches!(expected, Type::Dynamic | Type::Unknown) { self.absence_erasure(actual, value)? } else { value };
                     let stored = self.store_cell(unit, cell, value)?;
                     if references::is_reference(self.program, cell) && operation.result.is_some() {
                         let mut sequence = self.budget.vector(AllocationClass::Retained, 2)?;
@@ -4510,6 +4523,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                     return self.save(unit, operation, stored);
                 }
+                let value = if let Place::Index { receiver, .. } = self.data(unit).places[place.index()] {
+                    match &self.program.types[self.data(unit).values[receiver.index()].ty.index()] {
+                        Type::Array(element) => self.stored_absence(element, value)?,
+                        _ => value,
+                    }
+                } else { value };
                 let public_type = self.public_storage_type(unit, place)?;
                 let mut sequence = Vec::new();
                 let result_binding = if public_type.is_some() && operation.result.is_some() {
@@ -4544,11 +4563,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 let value = self.carrier_value(unit, cell, value)?;
                 js::Expr::Assign { target, value }
             }
-            OperationKind::IsUndefined { .. } => {
+            OperationKind::IsUndefined { nullish, .. } => {
                 let left = self.value(unit, operands[0])?;
-                let right = self.literal(js::Literal::Undefined)?;
+                let right = self.literal(if nullish { js::Literal::Null } else { js::Literal::Undefined })?;
                 js::Expr::Binary {
-                    op: js::Binary::StrictEqual,
+                    op: if nullish { js::Binary::Equal } else { js::Binary::StrictEqual },
                     left,
                     right,
                 }
@@ -4586,11 +4605,15 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             // `new C(...)`: the first operand is C's constructor, the class value.
             OperationKind::ConstructClass => {
                 let callee = self.value(unit, operands[0])?;
+                let signature = self.program.types
+                    [self.data(unit).values[operands[0].index()].ty.index()]
+                    .callable_signature();
                 let mut arguments = self
                     .budget
                     .vector(AllocationClass::Retained, operands.len() - 1)?;
-                for &argument in &operands[1..] {
-                    let argument = self.public_constructor_argument(unit, argument)?;
+                for (index, &argument) in operands[1..].iter().enumerate() {
+                    let parameter = signature.and_then(|signature| signature.params.get(index + 1));
+                    let argument = self.public_constructor_argument(unit, argument, parameter)?;
                     self.append(&mut arguments, argument)?;
                 }
                 if let Some(signature) = self.program.types
@@ -4758,6 +4781,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     && operands[..2]
                         .iter()
                         .any(|&value| matches!(ty(value), Type::Dynamic));
+                let absent_test = self.program.source_contract.unified_absence()
+                    && matches!(op, BinaryOp::Eq | BinaryOp::NotEq)
+                    && operands[..2].iter().any(|&value| matches!(ty(value), Type::Nullable(_)));
                 let null_test = matches!(op, BinaryOp::Eq | BinaryOp::NotEq)
                     && operands[..2]
                         .iter()
@@ -4775,7 +4801,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     && primitive(ty(operands[0])).is_some()
                     && primitive(ty(operands[0])) == primitive(ty(operands[1]));
                 js::Expr::Binary {
-                    op: match (dynamic || null_test || same_primitive, op) {
+                    op: match (dynamic || null_test || absent_test || same_primitive, op) {
                         (true, BinaryOp::Eq) => js::Binary::Equal,
                         (true, _) => js::Binary::NotEqual,
                         _ => binary(op),
@@ -4880,7 +4906,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         self.work(1)?;
                         let mut value = self.value(unit, operand)?;
                         if spreads {
+                            value = self.array_spread(unit, operation.result.unwrap(), operand, value)?;
                             value = self.expression(js::Expr::Spread(value))?;
+                        } else {
+                            value = self.array_element(unit, operation.result.unwrap(), value)?;
                         }
                         self.append(&mut values, value)?;
                     }
@@ -4893,6 +4922,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     for &operand in operands {
                         self.work(1)?;
                         let value = self.value(unit, operand)?;
+                        let value = self.array_element(unit, operation.result.unwrap(), value)?;
                         self.append(&mut values, value)?;
                     }
                     js::Expr::Array(values)
@@ -5652,6 +5682,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 OperationKind::Initialize(cell) => {
                     let value = self.value(unit, operands[0])?;
+                    let expected = &self.program.types[self.program.cells[cell.index()].ty.index()];
+                    let actual = &self.program.types[self.data(unit).values[operands[0].index()].ty.index()];
+                    let value = if matches!(expected, Type::Dynamic | Type::Unknown) { self.absence_erasure(actual, value)? } else { value };
+                    let value = self.boundary_cell(cell, value)?;
                     let value = self.carrier_value(unit, cell, value)?;
                     js::Statement::Let {
                         binding: self.cell_binding(unit, cell)?,
@@ -5664,22 +5698,22 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     binding: self.cell_binding(unit, cell)?,
                     value: None,
                 },
-                OperationKind::Return => js::Statement::Return(
-                    operands
-                        .first()
-                        .map(|value| self.value(unit, *value))
-                        .transpose()?,
-                ),
+                OperationKind::Return => {
+                    let returned = if let Some(&source) = operands.first() {
+                        let value = self.value(unit, source)?;
+                        let data = self.data(unit);
+                        let expected = data.callable_type.and_then(|id| self.program.types[id.index()].callable_signature())
+                            .map(|s| s.return_type.as_ref());
+                        let actual = &self.program.types[data.values[source.index()].ty.index()];
+                        Some(if expected.is_some_and(|ty| matches!(ty, Type::Dynamic | Type::Unknown)) {
+                            self.absence_erasure(actual, value)?
+                        } else { value })
+                    } else { None };
+                    js::Statement::Return(returned)
+                },
                 OperationKind::Throw => js::Statement::Throw(self.value(unit, operands[0])?),
                 // `super(...)`, then the instance parameter names `this`.
                 OperationKind::SuperConstruct => {
-                    let mut arguments = self
-                        .budget
-                        .vector(AllocationClass::Retained, operands.len())?;
-                    for &argument in operands {
-                        let argument = self.public_constructor_argument(unit, argument)?;
-                        self.append(&mut arguments, argument)?;
-                    }
                     let base = self
                         .data(unit)
                         .constructor_of
@@ -5689,11 +5723,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     let signature = base.and_then(|base| {
                         base.constructor
                             .or_else(|| base.value.map(|cell| self.program.cells[cell.index()].ty))
-                    });
-                    if let Some(signature) =
-                        signature.and_then(|ty| self.program.types[ty.index()].callable_signature())
-                    {
-                        let receiver = usize::from(base.is_some_and(|base| !base.external));
+                    }).and_then(|ty| self.program.types[ty.index()].callable_signature());
+                    let receiver = usize::from(base.is_some_and(|base| !base.external));
+                    let mut arguments = self
+                        .budget
+                        .vector(AllocationClass::Retained, operands.len())?;
+                    for (index, &argument) in operands.iter().enumerate() {
+                        let parameter = signature.and_then(|signature| signature.params.get(index + receiver));
+                        let argument = self.public_constructor_argument(unit, argument, parameter)?;
+                        self.append(&mut arguments, argument)?;
+                    }
+                    if let Some(signature) = signature {
                         if signature.has_rest()
                             && arguments.len() + receiver == signature.params.len()
                         {

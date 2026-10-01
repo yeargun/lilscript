@@ -79,7 +79,16 @@ Typed forms should remove avoidable representation and runtime costs, and declar
   - **Crossings pin one spelling.** A boundary type states `T | null`, `T | undefined` or an optional key; the crossing normalizes once, only where the producer's spelling is not already the pinned one. Converting `T?` to `JsValue` is such a crossing.
 - **Replaces.** v0.1:77 (`T` or raw `null`), :145, :329-331 (`?? null`), :448-452.
 - **JS.** Bare operations. **Native.** One absent tag; the refused operations are refused on both targets, so they agree.
-- **Status.** First batch in force (K10, 2026-09-28): `T??` is `T?` wherever a type is built (substitution, destructuring); `migration/absence` warns at the operations that could observe the spelling and writes today's meaning where it has one spelling (`x ?? "null"` for `print` and `string`, `==` for `===` on typed operands). Open, the second batch: the refusals, the normalizations' removal (`??null`, `??""`), defaulted parameters of type `T` inside with the default on absence, `T?` keys and elements, and reflected nominals' missing keys.
+- **Status.** Implemented under `[language] absence = "unified"`: shared
+  checker/lint observation rules, collapsed optional types, internal absence
+  equality/defaults, removal of internal read normalization, public optional-key
+  omission and explicit null/undefined pins. Mutable collections retain their
+  identity and normalize optional storage on writes; different storage pins
+  require a copy. Defaults retain the same contract through functions, generic
+  calls, constructors and `super`. `legacy` remains the migration default until
+  qualified port adoption in D3/V2. Native absent-to-default transport has a
+  source diagnostic pending N2. General erased product/union/callable transport
+  remains R18; the absence selector does not claim that wider ABI work complete.
 
 ---
 

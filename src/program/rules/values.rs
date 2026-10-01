@@ -408,10 +408,9 @@ fn written(graph: &CallGraph, cell: CellId) -> bool {
 
 /// Whether `value` reads a parameter that always holds a value of its type:
 /// every caller is known, typed and passes an argument in its position, and
-/// the type excludes `undefined`, so a default that only an omitted or
-/// `undefined` argument triggers never runs. Typed callers evaluate every
-/// default they can (`DefaultConvention::MaterializeAtCaller`) and omit only
-/// trailing arrows, and every store into the parameter is typed too.
+/// the supplied argument's type excludes every spelling accepted by this
+/// guard. A nonnullable defaulted formal does not prove a present input: the
+/// unified contract permits optional arguments and the callee runs defaults.
 /// Formation's `Binding::defined` states the same fact on the target tree.
 fn typed_argument(
     program: &Program<'_>,
@@ -419,6 +418,7 @@ fn typed_argument(
     unit: UnitId,
     data: &UnitData,
     value: ValueId,
+    nullish: bool,
 ) -> bool {
     let definition = &data.operations[data.values[value.index()].definition.index()];
     let OperationKind::Load(place) = definition.kind else {
@@ -438,6 +438,8 @@ fn typed_argument(
             let site = &caller.calls[edge.call.index()];
             caller.arguments(site.arguments).is_some_and(|arguments| {
                 arguments.len().saturating_sub(site.omit_trailing as usize) > position as usize
+                    && (!nullish || matches!(arguments.get(position as usize), Some(CallArgument::Value(value))
+                        if !crate::check::absence::may_be_absent(&program.types[caller.values[value.index()].ty.index()])))
             })
         })
     };
@@ -657,13 +659,13 @@ fn branch_refinements(
             )?;
             refinements.append(&mut nested);
         }
-        OperationKind::IsUndefined { .. } => {
+        OperationKind::IsUndefined { nullish, .. } => {
             let value = *operands.first()?;
             let Some(alternatives) = know.get(value.index())?.alternatives() else {
                 return Some(refinements);
             };
             let filtered = Know::set(alternatives.iter().filter_map(|candidate| {
-                (matches!(candidate, StoredExact::Undefined) == holds).then_some(candidate.clone())
+                ((matches!(candidate, StoredExact::Undefined) || nullish && matches!(candidate, StoredExact::Null)) == holds).then_some(candidate.clone())
             }));
             if filtered == Know::Bottom {
                 return None;
@@ -956,10 +958,10 @@ fn evaluate(
                 }
                 _ => Know::Top,
             },
-            OperationKind::IsUndefined { .. }
+            OperationKind::IsUndefined { nullish, .. }
                 if operands
                     .first()
-                    .is_some_and(|value| typed_argument(program, graph, unit, data, *value)) =>
+                    .is_some_and(|value| typed_argument(program, graph, unit, data, *value, *nullish)) =>
             {
                 Know::Exact(StoredExact::Boolean(false))
             }

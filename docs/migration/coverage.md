@@ -73,7 +73,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M9.10 | [Q3](plan.md#q3) | Calibration |
 | M9.11 | [G3](plan.md#g3), complete | Effect-free declaration/closure/literal groups, module/anchor barriers and gzip-window evidence |
 | M9.12 | [G3](plan.md#g3), complete | Optional forms and receiver aliases compete through the common exact artifact path |
-| M10.9 | [S4](plan.md#s4) | R2's second batch (normalize at crossings, the refusals), `a.get(i)` |
+| M10.9 | [S4](plan.md#s4), transition [V2](plan.md#v2) | R2 unified absence/pins/defaults/optional keys and checked `a.get(i)` implemented; `charCodeAt` number contract remains S4, qualified default adoption V2 |
 | M10.11 | [S4](plan.md#s4) | termination (Y4), pins |
 | M10.13 | [S4](plan.md#s4), transition [V2](plan.md#v2) | Explicit field contract and shared checker/lint proof implemented; qualified port adoption and default transition remain V2 (M12.4) |
 | M10.14 | [S4](plan.md#s4) | constructibility (Y3) |
@@ -140,7 +140,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M9.3 / M10.4 | [S4](plan.md#s4) | Implemented: callable adapters use actual rest arrays, preserving `.length`, undefined/default behavior and variable indices. |
 | M4 / M10 | [S4](plan.md#s4) | `??=` on a place: implemented and qualified in `8ebb686d`; four carried tests enabled |
 | M4 / M10 | [S4](plan.md#s4) | Implemented: generic methods and observed generic classes, checked constructor/default/rest substitution, fixed struct generic callables and canonical one-module exports |
-| M4 / M10 | [S4](plan.md#s4) | an explicit `JS.undefined()` argument; |
+| M4 / M10 | [S4](plan.md#s4), resolved | Unified defaults accept explicit `undefined` and `JS.undefined()` through functions, generic calls, constructors and `super`; native absent-to-default transport is source-diagnosed pending N2 |
 | M4 / M10 | [S4](plan.md#s4) | Resolved: detached primitive methods have a checked refusal and explicit-closure alternative; the focused `charCodeAt` audit passes. |
 | M10.14 | [G2](plan.md#g2) | Complete in G2: both wrapper-name cases explicitly select name preservation and expect anonymous adapters. |
 | M12.2 | [D3](plan.md#d3) | the nominal rename reverts (`~/lilscript-work/portwork/nominal/`); |

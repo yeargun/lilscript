@@ -60,7 +60,7 @@ fn corpus() -> Vec<Type<'static>> {
     let bases = types.clone();
     for ty in bases {
         types.extend([
-            Type::Nullable(Box::new(ty.clone())),
+            Type::nullable(Box::new(ty.clone())),
             Type::Array(Box::new(ty.clone())),
             Type::Record(Box::new(ty.clone())),
             Type::Task(Box::new(ty.clone())),
@@ -218,8 +218,8 @@ fn payload_nodes(ty: &Type<'_>) -> usize {
             | Type::Record(inner)
             | Type::Set(inner)
             | Type::Task(inner)
-            | Type::Generator(inner)
-            | Type::Nullable(inner) => pending.push(inner),
+            | Type::Generator(inner) => pending.push(inner),
+            Type::Nullable(inner) => pending.push(inner),
             Type::Map(key, value) => pending.extend([key.as_ref(), value.as_ref()]),
             Type::Union(members)
             | Type::StructInstance { args: members, .. }

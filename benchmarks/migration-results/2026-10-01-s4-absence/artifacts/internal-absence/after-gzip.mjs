@@ -1,0 +1,1 @@
+let same=function(a,b,c){return a.get(b)==a.get(c)};export{same};

@@ -623,6 +623,11 @@ pub fn parse_project_config(source: &str) -> Result<ParsedConfig, String> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LanguageConfig {
+    /// `legacy` preserves the migration-era null-normalized internal values.
+    /// `unified` permits either absent spelling internally and refuses operations
+    /// that distinguish them without narrowing. Public types pin null/undefined
+    /// at crossings. Independent of target, optimization flags and effort.
+    pub absence: AbsenceContract,
     /// `legacy` (default during port migration) supplies implicit class-field
     /// defaults. `explicit` requires assignment on every normal constructor
     /// path before reading/capturing `this`, or a declared field initializer.
@@ -631,6 +636,18 @@ pub struct LanguageConfig {
     /// The conservative flow proof can require explicit defaults around
     /// exception paths. It adds bounded checking work, not codec judgments.
     pub field_initialization: FieldInitialization,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AbsenceContract {
+    #[default]
+    Legacy,
+    Unified,
+}
+
+impl LanguageConfig {
+    pub(crate) fn unified_absence(self) -> bool { self.absence == AbsenceContract::Unified }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]

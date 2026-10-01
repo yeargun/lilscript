@@ -2545,7 +2545,7 @@ fn value_matches_type(value: &Value, target: TypeKind<'_, '_>) -> Option<bool> {
             }
             Some(matches)
         }
-        TypeKind::Void | TypeKind::Auto | TypeKind::Named { .. } => None,
+        TypeKind::Void | TypeKind::Auto | TypeKind::Named { .. } | TypeKind::Null | TypeKind::Undefined => None,
     }
 }
 

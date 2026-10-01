@@ -8,8 +8,11 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 use crate::check::{
-    with_analyzed_modules, with_analyzed_source, AdmittedCheckError, CheckedModules,
+    with_analyzed_modules_with_contract, with_analyzed_source_with_contract,
+    AdmittedCheckError, CheckedModules,
 };
+#[cfg(test)]
+use crate::check::{with_analyzed_modules, with_analyzed_source};
 use crate::compilation_policy::{
     BaselineFirstPlan, BudgetLedger, CompilationRequest, ResolvedPolicy, TacticId, WorkDomain,
     WorkKind,
@@ -1349,8 +1352,9 @@ fn check_source_frontend<'src>(
     let phase = Instant::now();
     let (program, release_started) = arena
         .with_ledger(|ledger, domain| {
-            with_analyzed_source(
+            with_analyzed_source_with_contract(
                 &syntax,
+                source_contract,
                 &mut AllocationBudget::new(Some((ledger, domain))),
                 |semantics, budget| -> Result<_, ServiceError> {
                     crate::check::capabilities::language(semantics.view(),Some(0),source_contract,budget)
@@ -1502,9 +1506,10 @@ fn check_path_frontend<'src, T>(
     let phase = Instant::now();
     let (program, inspected, release_started) = arena
         .with_ledger(|ledger, domain| {
-            with_analyzed_modules(
+            with_analyzed_modules_with_contract(
                 &syntax,
                 &modules,
+                source_contract,
                 &mut AllocationBudget::new(Some((ledger, domain))),
                 |semantics, budget| -> Result<_, ServiceError> {
                     for (module,input) in modules.modules.iter().enumerate() {

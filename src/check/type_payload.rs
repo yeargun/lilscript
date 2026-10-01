@@ -147,8 +147,11 @@ pub(crate) fn measure_payload<'a, 'src, E>(
                     | Type::Record(inner)
                     | Type::Set(inner)
                     | Type::Task(inner)
-                    | Type::Generator(inner)
-                    | Type::Nullable(inner) => {
+                    | Type::Generator(inner) => {
+                        add(&mut measured.owned_bytes, count(size_of::<Type<'_>>())?)?;
+                        enqueue(Payload::Type(inner), &mut next, &mut pending, &mut scope)?;
+                    }
+                    Type::Nullable(inner) => {
                         add(&mut measured.owned_bytes, count(size_of::<Type<'_>>())?)?;
                         enqueue(Payload::Type(inner), &mut next, &mut pending, &mut scope)?;
                     }

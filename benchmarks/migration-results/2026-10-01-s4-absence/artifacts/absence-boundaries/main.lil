@@ -1,0 +1,1 @@
+int count=0;int next(){count+=1;return count;}int choose(int value=next()){return value;}export int exercise(){int? a=undefined;int? b=null;int same=0;if(a==b){same=100;}return same+choose(a)*10+choose(b);}export int | undefined absentU(){return null;}export int | null absentN(){return undefined;}export int defaulted(int value=7){return value;}

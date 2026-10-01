@@ -690,8 +690,9 @@ impl Evaluator<'_, '_> {
                 }
                 OperationKind::PrepareCall(_) => {}
                 OperationKind::Call(call) => result = Some(self.call(unit, call, values, depth)?),
-                OperationKind::IsUndefined { .. } => {
-                    result = Some(Exact::Boolean(matches!(first()?, Exact::Undefined)))
+                OperationKind::IsUndefined { nullish, .. } => {
+                    result = Some(Exact::Boolean(matches!(first()?, Exact::Undefined)
+                        || nullish && matches!(first()?, Exact::Null)))
                 }
                 OperationKind::Block(child) => {
                     let flow = self.region(unit, child, values, cells, depth)?;

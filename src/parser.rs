@@ -1584,6 +1584,8 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 kind: TypeKind::Void,
                 span: token.span,
             },
+            TokenKind::Null => TypeRef { kind: TypeKind::Null, span: token.span },
+            TokenKind::Ident("undefined") => TypeRef { kind: TypeKind::Undefined, span: token.span },
             TokenKind::Auto => TypeRef {
                 kind: TypeKind::Auto,
                 span: token.span,
@@ -1655,7 +1657,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     kind: TypeKind::Array(element),
                     span: open.merge(close.span).merge(element.span),
                 };
-            } else if self.match_kind(|kind| matches!(kind, TokenKind::Question)) {
+            } else if self.match_kind(|kind| matches!(kind, TokenKind::Question | TokenKind::QuestionQuestion)) {
                 let question = self.previous_span();
                 let inner = admission::alloc(self.arena, self.admission, ty)?;
                 ty = TypeRef {
@@ -2721,6 +2723,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 | TokenKind::String
                 | TokenKind::Bool
                 | TokenKind::Void
+                | TokenKind::Null
                 | TokenKind::Auto,
             ) => index += 1,
             Some(TokenKind::Ident(_) | TokenKind::From) => {
@@ -2826,7 +2829,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                 (Some(TokenKind::LBracket), Some(TokenKind::RBracket))
             ) {
                 index += 2;
-            } else if matches!(self.lookahead_kind(index)?, Some(TokenKind::Question)) {
+            } else if matches!(self.lookahead_kind(index)?, Some(TokenKind::Question | TokenKind::QuestionQuestion)) {
                 index += 1;
             } else {
                 break;

@@ -143,7 +143,7 @@ pub fn analyze_modules<'ast, 'src>(
     programs: &[Program<'ast, 'src>],
     modules: &ModuleSet,
 ) -> Result<CheckedModules<'ast, 'src>, ModuleCheckError> {
-    analyze_modules_in(programs, modules, &mut AllocationBudget::new(None)).map_err(|failure| {
+    analyze_modules_in(programs, modules, crate::config::LanguageConfig::default(), &mut AllocationBudget::new(None)).map_err(|failure| {
         match failure.error {
             AdmittedCheckError::Semantic(error) => ModuleCheckError {
                 module: failure.module,
@@ -167,8 +167,18 @@ pub(crate) fn with_analyzed_modules<'ast, 'src, S, R>(
     budget: &mut AllocationBudget<'_>,
     client: impl FnOnce(&CheckedModules<'ast, 'src>, &mut AllocationBudget<'_>) -> R,
 ) -> Result<R, AdmittedModuleCheckError> {
+    with_analyzed_modules_with_contract(programs, modules, crate::config::LanguageConfig::default(), budget, client)
+}
+
+pub(crate) fn with_analyzed_modules_with_contract<'ast, 'src, S, R>(
+    programs: &[Program<'ast, 'src>],
+    modules: &ModuleSet<S>,
+    contract: crate::config::LanguageConfig,
+    budget: &mut AllocationBudget<'_>,
+    client: impl FnOnce(&CheckedModules<'ast, 'src>, &mut AllocationBudget<'_>) -> R,
+) -> Result<R, AdmittedModuleCheckError> {
     let mut scope = budget.scope();
-    let checked = analyze_modules_in(programs, modules, &mut scope)?;
+    let checked = analyze_modules_in(programs, modules, contract, &mut scope)?;
     #[cfg(test)]
     let checked = AdmittedFactsOwner::new(checked, programs.len());
     let output = client(&checked, &mut scope);
@@ -183,6 +193,7 @@ pub(crate) fn with_analyzed_modules<'ast, 'src, S, R>(
 /// `import extern` edges as unresolved specifiers.
 pub(super) fn analyze_source_in<'ast, 'src>(
     program: &Program<'ast, 'src>,
+    contract: crate::config::LanguageConfig,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<CheckedModules<'ast, 'src>, AdmittedModuleCheckError> {
     let modules = ModuleSet {
@@ -206,7 +217,7 @@ pub(super) fn analyze_source_in<'ast, 'src>(
         root_names: vec!["main".to_string()],
         eager: vec![true],
     };
-    analyze_modules_in(std::slice::from_ref(program), &modules, budget)
+    analyze_modules_in(std::slice::from_ref(program), &modules, contract, budget)
 }
 
 impl<'ast, 'src> CheckedModules<'ast, 'src> {
@@ -248,9 +259,11 @@ fn resource(module: ModuleId, error: AllocationError) -> AdmittedModuleCheckErro
 fn analyze_modules_in<'ast, 'src, S>(
     programs: &[Program<'ast, 'src>],
     modules: &ModuleSet<S>,
+    contract: crate::config::LanguageConfig,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<CheckedModules<'ast, 'src>, AdmittedModuleCheckError> {
-    let graph = graph_phase(programs, modules, budget)?;
+    let mut graph = graph_phase(programs, modules, budget)?;
+    graph.checked.declarations.source_contract = contract;
     let declared = declaration_phase(programs, graph, budget)?;
     let schemas = schema_phase(programs, declared, budget)?;
     let signatures = signature_phase(programs, modules, schemas, budget)?;

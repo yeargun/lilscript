@@ -981,6 +981,7 @@ impl<'demand, 'program, 'src, 'budget, 'ledger>
         cell: CellId,
         value: js::ExprId,
     ) -> Result<js::ExprId, FormationError> {
+        let value = self.boundary_cell(cell, value)?;
         if !is_reference(self.program, cell) {
             self.product_lookup()?;
             if self.demand.product_for_cell(cell).is_some() {

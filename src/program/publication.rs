@@ -3230,6 +3230,8 @@ fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
     Program {
         tables_revision: program.tables_revision,
         trap_index_reads: program.trap_index_reads,
+        source_contract: program.source_contract,
+        absence_abi: program.absence_abi,
         units: program.units.clone(),
         cells: program.cells.clone(),
         types: program.types.clone(),

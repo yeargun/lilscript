@@ -1,0 +1,11 @@
+{
+  "exercise": "console.log(JSON.stringify([m.exercise(),m.absentU()===undefined,m.absentN()===null,m.defaulted(),m.defaulted(0),m.defaulted.length]));",
+  "expected": [
+    112,
+    true,
+    true,
+    7,
+    0,
+    0
+  ]
+}

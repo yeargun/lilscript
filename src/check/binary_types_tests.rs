@@ -67,9 +67,9 @@ fn corpus() -> Vec<Type<'static>> {
         Type::Task(Box::new(Type::Int)),
         Type::Task(Box::new(Type::Float)),
         Type::Generator(Box::new(Type::String)),
-        Type::Nullable(Box::new(Type::Int)),
-        Type::Nullable(Box::new(Type::Bool)),
-        Type::Nullable(Box::new(Type::Void)),
+        Type::nullable(Box::new(Type::Int)),
+        Type::nullable(Box::new(Type::Bool)),
+        Type::nullable(Box::new(Type::Void)),
         Type::Union(vec![]),
         Type::Union(vec![Type::Int, Type::Bool]),
         Type::Union(vec![Type::Bool, Type::Int]),
@@ -202,7 +202,7 @@ fn normalization_keeps_source_order_nullability_and_nominal_identity() {
     assert_eq!(normalize_union_plain(vec![]), Type::Union(vec![]));
     assert_eq!(
         normalize_union_plain(vec![Type::Null, Type::Int]),
-        Type::Nullable(Box::new(Type::Int))
+        Type::nullable(Box::new(Type::Int))
     );
 }
 
@@ -277,10 +277,10 @@ impl TypeConstructionAdmission for Probe {
 
 fn nullish_operands() -> (Type<'static>, Type<'static>) {
     (
-        Type::Nullable(Box::new(Type::Array(Box::new(Type::Union(vec![
+        Type::nullable(Box::new(Type::Array(Box::new(Type::Union(vec![
             Type::Int,
             Type::String,
-            Type::Nullable(Box::new(Type::Bool)),
+            Type::nullable(Box::new(Type::Bool)),
         ]))))),
         Type::Array(Box::new(Type::Union(vec![
             Type::String,

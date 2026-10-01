@@ -242,6 +242,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         if self.contract.checks != PreconditionChecks::Development {
             return Ok(value);
         }
+        let value = self.checked_absence_pin(&self.program.types[ty.index()], value)?;
         if super::super::schema::is_shape(self.program, &self.program.types[ty.index()]) {
             return self.shape_crossing(ty, value, None);
         }

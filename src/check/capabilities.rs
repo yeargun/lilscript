@@ -79,6 +79,10 @@ pub(crate) fn native(
         let Some(expression) = info.expression else {
             continue;
         };
+        if info.absent_default_argument {
+            return Err(AdmittedCheckError::new(expression.span(),
+                "native transport of an absent value to a defaulted parameter is not implemented yet (N2)"));
+        }
         if let Some(id) = view.expression_type_id(expression.id) {
             if !seen[id.index()] {
                 check_type(view, view.checked_type(id), expression.span(), budget)?;
@@ -130,6 +134,7 @@ pub(crate) fn language(
     contract: crate::config::LanguageConfig,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), AdmittedCheckError> {
+    if contract.unified_absence() { super::absence::check(view, module, budget)?; }
     if contract.field_initialization == crate::config::FieldInitialization::Legacy {
         return Ok(());
     }

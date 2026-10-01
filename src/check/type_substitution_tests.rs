@@ -58,7 +58,7 @@ fn forward_substitution_matches_previous_checker_with_nested_types_and_union_col
         let previous = corpus.clone();
         for item in previous {
             corpus.push(Type::Array(Box::new(item.clone())));
-            corpus.push(Type::Nullable(Box::new(item.clone())));
+            corpus.push(Type::nullable(Box::new(item.clone())));
             corpus.push(Type::Map(
                 Box::new(parameter.clone()),
                 Box::new(item.clone()),
@@ -250,7 +250,7 @@ fn old_substitute_type<'src>(
         // type (or to `null`) stays one level deep.
         Type::Nullable(inner) => match old_substitute_type(inner, substitutions) {
             absent @ (Type::Nullable(_) | Type::Null) => absent,
-            inner => Type::Nullable(Box::new(inner)),
+            inner => Type::nullable(Box::new(inner)),
         },
         Type::Union(members) => normalize_union(
             members

@@ -1,0 +1,1 @@
+let a=a=>{a[1]=null??void 0;a.push(null??void 0)};function c(a){return a??void 0}let b=a=>[...Array.from(a,c)],d=[null??void 0,2??void 0];function change(b){return a(b)}function copy(a){return b(a)}export{d as values,change,copy};

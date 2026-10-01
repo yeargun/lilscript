@@ -23,6 +23,8 @@ pub enum TypeKind<'ast, 'src> {
     String,
     Bool,
     Void,
+    Null,
+    Undefined,
     Auto,
     Named {
         name: &'src str,

@@ -19,8 +19,8 @@ pub(in crate::program) fn contains_nominal_product<'types, 'src, A: Admission>(
                 pending.clear();
                 return Ok(true);
             }
-            Type::Nullable(inner)
-            | Type::Array(inner)
+            Type::Nullable(inner) => next = Some(inner),
+            Type::Array(inner)
             | Type::Record(inner)
             | Type::Set(inner)
             | Type::Task(inner)

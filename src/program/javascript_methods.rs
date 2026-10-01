@@ -386,12 +386,12 @@ impl Formation<'_, '_, '_, '_, '_> {
     /// receiver as an ordinary argument (and, in a classic script, its frame
     /// is printed strict), so it keeps its parameter list.
     fn struct_boundary_unit(&self, unit: UnitId) -> bool {
-        !self.struct_plan.boundary_types.is_empty()
+        !self.struct_plan.abi_types.is_empty()
             && self
                 .program
                 .unit(unit)
                 .and_then(|data| data.callable_type)
-                .is_some_and(|ty| self.struct_plan.boundary_types[ty.index()])
+                .is_some_and(|ty| self.struct_plan.abi_types[ty.index()])
     }
 
     /// Whether every use of `value` only invokes it (through the local cells

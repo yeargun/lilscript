@@ -63,6 +63,15 @@ JavaScript and native and is independent of effort.
 
 ## Types
 
+The migration contract `[language] absence = "unified"` selects R2's single
+internal absent value. `T | null` and `T | undefined` retain explicit boundary
+pins, and `T??` collapses to `T?`. Optional values must be narrowed before
+operations that distinguish absent spellings. Defaults apply to either absent
+spelling internally; public defaults retain JavaScript's undefined/omission
+contract. See [R2](language.md#4-absence-r2) and the
+[configuration tradeoffs](configuration.md#absence-during-migration). The
+compatibility default remains `legacy` during port migration.
+
 | LilScript type      | Meaning                                                       | JavaScript representation                         | Native representation                       |
 | ------------------- | ------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
 | `int`               | signed 32-bit integer with operator-defined overflow behavior | number with i32 normalization                     | `i32`                                       |

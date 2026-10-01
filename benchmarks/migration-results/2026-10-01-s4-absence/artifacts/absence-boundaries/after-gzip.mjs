@@ -1,0 +1,1 @@
+let e=e=>{e==null&&(t=t+1|0,e=t);return e},exercise=function(){return(100+(e(null)*10|0)|0)+e(null)|0},u=e=>{e==null&&(e=7);return e},t=0;function absentU(){return null??void 0}function absentN(){return null??null}function defaulted(e=void 0){return u(e)}export{exercise,absentU,absentN,defaulted};

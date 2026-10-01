@@ -138,12 +138,17 @@ fn unequal<A: RelationAdmission>(
             // Failed derived equality of matching Array wrappers proves their
             // children unequal. One invariant descent pays every relation
             // visit without repeating either equality or both directions.
+            if !super::absence::same_storage_pin(expected, actual) { return Ok(false); }
             return relate_known_unequal(expected, actual, RelationMode::Invariant, admission);
         }
         (Type::Task(expected), Type::Task(actual))
-        | (Type::Generator(expected), Type::Generator(actual))
-        | (Type::Nullable(expected), Type::Nullable(actual)) => {
+        | (Type::Generator(expected), Type::Generator(actual)) => {
             return relate_known_unequal(expected, actual, mode, admission);
+        }
+        (Type::Nullable(expected), Type::Nullable(actual)) => {
+            // Boundary pins do not distinguish internal values or callable
+            // parameters. A mutable collection checks its storage separately.
+            return relate(expected, actual, mode, admission);
         }
         (Type::Record(_), Type::Record(_))
         | (Type::Map(_, _), Type::Map(_, _))

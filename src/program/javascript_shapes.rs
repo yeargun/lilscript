@@ -6,6 +6,7 @@ use crate::check::binary_types::TypeConstructionAdmission;
 #[derive(Clone, PartialEq, Eq)]
 pub(super) enum Helper<'src> {
     Clean(TypeId),
+    CleanProduct(Type<'src>),
     Store(FieldRef),
     Check(Type<'src>),
     Test(TypeId),
@@ -125,7 +126,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let ty =
             super::super::schema::place_type(self.program, self.data(unit), place, self.budget)?
                 .ok_or_else(|| self.error(Span::default(), "missing public storage field"))?;
-        if !public_structs::carries_product(&ty, self.budget)? {
+        if !public_structs::carries_product(&ty, self.budget)?
+            && !public_structs::carries_absence(self.program, &ty, self.budget)? {
             return Ok(None);
         }
         self.require_storage_adapter(&ty, Span::default())?;
@@ -315,6 +317,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             let (helper, body, parameters) = self.shape_helper_start(key, 2)?;
             let scope = self.module.regions[body.index()].scope;
             let object = self.reference(parameters[0])?;
+            let checked = self.checked_absence_pin(ty, object)?;
+            self.statement(body, js::Statement::Evaluate(checked))?;
+            let object = self.reference(parameters[0])?;
             let state = self.reference(parameters[1])?;
             let absent = matches!(ty, Type::Nullable(_));
             let schema = match ty {
@@ -465,10 +470,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     op: js::Unary::Not,
                     value: missing,
                 })?;
-                let checked_body = if matches!(
-                    field_ty.as_ref(),
-                    Type::Nullable(_) | Type::Null | Type::TypeParameter(_)
-                ) {
+                let checked_body = if Self::optional_key(&field_ty) || matches!(field_ty.as_ref(), Type::TypeParameter(_)) {
                     let yes = self.module.region_in(scope, self.budget)?;
                     self.statement(
                         body,
@@ -505,6 +507,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     self.shape_require(checked_body, equal)?;
                 }
                 let value = self.shape_named(descriptor, "value")?;
+                let value = self.checked_absence_pin(&field_ty, value)?;
                 let checked = if self.checked_data_type(&field_ty) {
                     Some(self.shape_crossing_type(&field_ty, value, Some(state))?)
                 } else if let Some((kind, absent)) = checks::Crossing::of(&field_ty) {
@@ -548,7 +551,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         for (cached, binding) in &self.shape_helpers {
             query.work(1)?;
             let equal = match (cached, key) {
-                (Helper::Check(a), Helper::Check(b)) => {
+                (Helper::Check(a), Helper::Check(b)) | (Helper::CleanProduct(a), Helper::CleanProduct(b)) => {
                     crate::check::type_relation::type_equal_with(a, b, &mut query)?
                 }
                 (Helper::Update(a, x), Helper::Update(b, y)) => {
@@ -667,18 +670,75 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             },
         )
     }
+    fn optional_key(ty: &Type<'_>) -> bool {
+        matches!(ty, Type::Nullable(inner) if inner.boundary == crate::check::AbsencePin::Auto)
+            || matches!(ty, Type::Null)
+    }
+
+    pub(super) fn public_product_cleanup(&mut self, ty: &Type<'src>, value: js::ExprId)
+        -> Result<js::ExprId, FormationError> {
+        if !self.program.source_contract.unified_absence() { return Ok(value); }
+        let definition = super::super::schema::struct_definition(self.program, ty)
+            .ok_or_else(|| self.error(Span::default(), "missing public value schema"))?;
+        let mut optional = Vec::new();
+        for field in &self.program.fields[definition.fields.clone()] {
+            let field_ty = super::super::schema::field_type(self.program, ty, field,
+                &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget))?.unwrap();
+            if Self::optional_key(&field_ty) {
+                self.budget.push(AllocationClass::Scratch, &mut optional, field)?;
+            }
+        }
+        if optional.is_empty() { self.drop_scratch(optional)?; return Ok(value); }
+        let key = Helper::CleanProduct(crate::check::type_admission::TypeQueryAdmission::new(self.budget).clone_type(ty)?);
+        let helper = if let Some(helper) = self.shape_helper(&key)? { helper } else {
+            let (helper, body, parameters) = self.shape_helper_start(key, 1)?;
+            for field in &optional {
+                let object = self.reference(parameters[0])?;
+                let property = self.public_key(&field.name)?;
+                let member = self.expression(js::Expr::Member { object, property })?;
+                let condition = self.nullish(member)?;
+                let deleted = self.expression(js::Expr::Unary { op: js::Unary::Delete, value: member })?;
+                self.shape_if(body, condition, deleted)?;
+            }
+            let returned = self.reference(parameters[0])?;
+            self.statement(body, js::Statement::Return(Some(returned)))?;
+            self.shape_helper_finish(helper, body, parameters)?;
+            helper
+        };
+        self.drop_scratch(optional)?;
+        self.shape_call(helper, &[value])
+    }
+
     pub(super) fn shape_cleanup(
         &mut self,
         ty: TypeId,
         value: js::ExprId,
     ) -> Result<js::ExprId, FormationError> {
-        if !super::super::schema::is_shape(self.program, &self.program.types[ty.index()]) {
-            return Ok(value);
-        }
-        let fields = self.shape_fields(ty)?;
+        let declared = &self.program.types[ty.index()];
+        let class = match declared {
+            Type::Class(d) | Type::ClassInstance { declaration: d, .. } => self.program.class(d.identity),
+            _ => None,
+        };
+        let unified = self.program.source_contract.unified_absence();
+        if class.is_some_and(|class| unified && !class.reflected && !class.external) { return Ok(value); }
+        let fields = if let Some(class) = class.filter(|class| !class.shape && unified && class.reflected) {
+            let mut fields = self.budget.vector(AllocationClass::Scratch, class.fields.len())?;
+            for slot in 0..class.fields.len() {
+                let field = FieldRef { nominal: class.identity, slot: slot as u32 };
+                let field_ty = super::super::schema::class_field_type(self.program, declared, field,
+                    &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget))?
+                    .ok_or_else(|| self.error(Span::default(), "missing optional class field"))?;
+                let field_ty = crate::check::type_admission::TypeQueryAdmission::new(self.budget).clone_type(&field_ty)?;
+                self.budget.push(AllocationClass::Scratch, &mut fields, (field, field_ty))?;
+            }
+            fields
+        } else {
+            if !super::super::schema::is_shape(self.program, declared) { return Ok(value); }
+            self.shape_fields(ty)?
+        };
         if !fields
             .iter()
-            .any(|(_, ty)| matches!(ty, Type::Nullable(_) | Type::Null))
+            .any(|(_, ty)| Self::optional_key(ty))
         {
             return Ok(value);
         }
@@ -689,7 +749,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             let (helper, body, parameters) = self.shape_helper_start(key, 1)?;
             for (field, ty) in fields {
                 self.work(1)?;
-                if !matches!(ty, Type::Nullable(_) | Type::Null) {
+                if !Self::optional_key(&ty) {
                     continue;
                 }
                 let object = self.reference(parameters[0])?;
@@ -718,10 +778,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             return Ok(None);
         };
         let class = self.program.class(field.nominal).unwrap();
-        if !class.shape {
+        if !class.shape && !(class.reflected && self.program.source_contract.unified_absence()) {
             return Ok(None);
         }
-        let accessor = class.accessors[field.slot as usize];
+        if self.program.source_contract.unified_absence() && !class.reflected && !class.external { return Ok(None); }
+        let accessor = class.shape && class.accessors[field.slot as usize];
         let declared =
             super::super::schema::place_type(self.program, self.data(unit), place, self.budget)?
                 .ok_or_else(|| {
@@ -732,10 +793,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             // null. Public erased slots require a checked presence contract.
             return Ok(None);
         }
-        if !matches!(
-            declared.as_ref(),
-            Type::Nullable(_) | Type::Null | Type::TypeParameter(_)
-        ) {
+        if !Self::optional_key(declared.as_ref()) && !matches!(declared.as_ref(), Type::TypeParameter(_)) {
             return Ok(None);
         }
         let key = Helper::Store(field);

@@ -1,0 +1,10 @@
+{
+  "exercise": "const a=m.values;m.change(a);const source=[null,3];console.log(JSON.stringify([a===m.values,a.length,a.every(x=>x===undefined),m.copy(source)[0]===undefined,source[0]===null]));",
+  "expected": [
+    true,
+    3,
+    true,
+    true,
+    true
+  ]
+}

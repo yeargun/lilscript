@@ -158,17 +158,17 @@ pub(crate) fn common_type_with<'src, A: TypeConstructionAdmission>(
     let (left, right, wrapper): (_, _, fn(Box<Type<'src>>) -> Type<'src>) = match (lhs, rhs) {
         (Type::Nullable(inner), Type::Null) | (Type::Null, Type::Nullable(inner)) => {
             let inner = admission.clone_type(inner)?;
-            return Ok(Some(Type::Nullable(admission.box_type(inner)?)));
+            return Ok(Some(Type::nullable(admission.box_type(inner)?)));
         }
         (Type::Null, other) | (other, Type::Null) if !matches!(other, Type::Null | Type::Void) => {
             let inner = admission.clone_type(other)?;
-            return Ok(Some(Type::Nullable(admission.box_type(inner)?)));
+            return Ok(Some(Type::nullable(admission.box_type(inner)?)));
         }
         (Type::Nullable(left), Type::Nullable(right)) => {
-            (left.as_ref(), right.as_ref(), Type::Nullable)
+            (left.as_ref(), right.as_ref(), Type::nullable)
         }
         (Type::Nullable(nullable), other) | (other, Type::Nullable(nullable)) => {
-            (nullable.as_ref(), other, Type::Nullable)
+            (nullable.as_ref(), other, Type::nullable)
         }
         (Type::Array(left), Type::Array(right)) => (left.as_ref(), right.as_ref(), Type::Array),
         (Type::Record(left), Type::Record(right)) => {
@@ -244,7 +244,7 @@ pub(crate) fn normalize_union_with<'src, A: TypeConstructionAdmission>(
             let position = 1 - null;
             work(admission, flattened.len() - position - 1)?;
             let inner = flattened.remove(position);
-            return Ok(Type::Nullable(admission.box_type(inner)?));
+            return Ok(Type::nullable(admission.box_type(inner)?));
         }
     }
     if flattened.len() == 1 {

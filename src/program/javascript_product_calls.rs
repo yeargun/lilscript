@@ -485,8 +485,9 @@ impl Formation<'_, '_, '_, '_, '_> {
             }
             Ok(true)
         } else {
-            let value = self.value(caller, value)?;
-            self.append_prepared_argument(before, arguments, value)?;
+            let formed = self.value(caller, value)?;
+            let formed = self.boundary_argument(caller, call, position, value, formed)?;
+            self.append_prepared_argument(before, arguments, formed)?;
             Ok(false)
         }
     }

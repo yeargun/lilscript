@@ -898,6 +898,8 @@ fn share_program_without_units<'src>(program: &Program<'src>) -> Program<'src> {
     Program {
         tables_revision: program.tables_revision,
         trap_index_reads: program.trap_index_reads,
+        source_contract: program.source_contract,
+        absence_abi: program.absence_abi,
         units: Vec::new(),
         cells: program.cells.clone(),
         types: program.types.clone(),

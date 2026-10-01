@@ -1782,6 +1782,8 @@ fn verify_types(
                 Constant::String(_) => Type::String,
                 Constant::Boolean(_) => Type::Bool,
                 Constant::Null => Type::Null,
+                Constant::Undefined if program.source_contract.unified_absence()
+                    && matches!(result, Some(Type::Nullable(_) | Type::Null)) => Type::Null,
                 Constant::Undefined => Type::Dynamic,
             };
             expect(class_assignable(
@@ -1859,7 +1861,7 @@ fn verify_types(
         OperationKind::CopyValue => {
             expect(type_matches(result, Some(operand(0)), &mut query)? && !operand(0).is_void())
         }
-        OperationKind::IsUndefined { parameter } => {
+        OperationKind::IsUndefined { parameter, .. } => {
             if let Some(position) = parameter {
                 let cell = *unit
                     .parameters
@@ -2519,7 +2521,14 @@ fn verify_types(
              -> Result<bool, VerificationError> {
                 Ok(match (expected.passing, *actual) {
                     (crate::primitive::ParameterPassing::Value, CallArgument::Value(value)) => {
-                        class_assignable(program, &expected.ty, value_type(value), query)?
+                        let actual = value_type(value);
+                        if expected.optional && program.source_contract.unified_absence() {
+                            match actual {
+                                Type::Null => true,
+                                Type::Nullable(inner) => class_assignable(program, &expected.ty, inner, query)?,
+                                _ => class_assignable(program, &expected.ty, actual, query)?,
+                            }
+                        } else { class_assignable(program, &expected.ty, actual, query)? }
                     }
                     (
                         crate::primitive::ParameterPassing::MutableReference,
@@ -2802,7 +2811,15 @@ fn constructor_arguments<'program, 'src>(
         return Ok(false);
     }
     for (&operand, parameter) in arguments.iter().zip(parameters) {
-        if !class_assignable(program, &parameter.ty, value_type(operand), query)? {
+        let actual = value_type(operand);
+        let matches = if parameter.optional && program.source_contract.unified_absence() {
+            match actual {
+                Type::Null => true,
+                Type::Nullable(inner) => class_assignable(program, &parameter.ty, inner, query)?,
+                _ => class_assignable(program, &parameter.ty, actual, query)?,
+            }
+        } else { class_assignable(program, &parameter.ty, actual, query)? };
+        if !matches {
             return Ok(false);
         }
     }
@@ -2862,12 +2879,15 @@ fn class_assignable(
     query.work(1)?;
     Ok(match (expected, actual) {
         (Type::Array(expected), Type::Array(actual)) => {
-            class_assignable(program, expected, actual, query)?
+            crate::check::absence::same_storage_pin(expected, actual)
+                && class_assignable(program, expected, actual, query)?
                 && class_assignable(program, actual, expected, query)?
         }
         (Type::Task(expected), Type::Task(actual))
-        | (Type::Generator(expected), Type::Generator(actual))
-        | (Type::Nullable(expected), Type::Nullable(actual)) => {
+        | (Type::Generator(expected), Type::Generator(actual)) => {
+            class_assignable(program, expected, actual, query)?
+        }
+        (Type::Nullable(expected), Type::Nullable(actual)) => {
             class_assignable(program, expected, actual, query)?
         }
         (Type::Nullable(expected), actual) => class_assignable(program, expected, actual, query)?,

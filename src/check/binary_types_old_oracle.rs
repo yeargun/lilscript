@@ -75,13 +75,13 @@ pub(super) fn old_common_type<'src>(lhs: &Type<'src>, rhs: &Type<'src>) -> Optio
             Some(Type::Nullable(inner.clone()))
         }
         (Type::Null, other) | (other, Type::Null) if !matches!(other, Type::Null | Type::Void) => {
-            Some(Type::Nullable(Box::new(other.clone())))
+            Some(Type::nullable(Box::new(other.clone())))
         }
         (Type::Nullable(lhs), Type::Nullable(rhs)) => {
-            old_common_type(lhs, rhs).map(|inner| Type::Nullable(Box::new(inner)))
+            old_common_type(lhs, rhs).map(|inner| Type::nullable(Box::new(inner)))
         }
         (Type::Nullable(nullable), other) | (other, Type::Nullable(nullable)) => {
-            old_common_type(nullable, other).map(|inner| Type::Nullable(Box::new(inner)))
+            old_common_type(nullable, other).map(|inner| Type::nullable(Box::new(inner)))
         }
         (Type::Array(lhs), Type::Array(rhs)) => {
             old_common_type(lhs, rhs).map(|element| Type::Array(Box::new(element)))
@@ -117,7 +117,7 @@ pub(super) fn old_normalize_union<'src>(members: Vec<Type<'src>>) -> Type<'src> 
         let null = flattened.iter().position(|member| member == &Type::Null);
         if let Some(null) = null {
             let inner = flattened.remove(1 - null);
-            return Type::Nullable(Box::new(inner));
+            return Type::nullable(Box::new(inner));
         }
     }
     if flattened.len() == 1 {

@@ -935,3 +935,24 @@ new shape/product capability oracles pass each objective, with scored/delivered
 identity. No fleet, full library, paired CPU/runtime or native-complete claim.
 Erased public generic presence is explicitly refused pending R18; native shape
 storage remains N2. S4 stays the only active milestone.
+
+## 2026-10-01: S4 unified absence and pinned crossings
+
+The [absence batch](../../benchmarks/migration-results/2026-10-01-s4-absence/README.md)
+implements the independent TOML source contract, nullable boundary metadata,
+shared checker/lint observation rules, internal absence/default semantics,
+public optional keys and mutable absence storage. Constructor, `super` and
+generic paths share the ordinary call contract, including `JS.undefined()`.
+An actual-argument presence check fixes premature default-guard elimination.
+The old independent absence lint recognizer is replaced by the checker owner.
+
+Pin `s4-absence-1`, SHA-256
+`945e677ab8d07f24a7362dd8518e0d60ee693153b2d147b953876d537e5faa3e`;
+algorithm 28 / search 31 / walk 10 / local facts 11. Ten distinct focused checks
+and CLI/lint/LSP release builds pass. Two same-contract controls stay at
+388 raw / 299 gzip / 246 Brotli. A separately identified opt-in contract case
+improves 16 raw / 8 gzip / 7 Brotli with an identical behavior oracle. Two new
+boundary oracles pass all three objectives; scored and delivered bytes agree.
+No full-library/fleet rerun, timing or Closure claim. S4 remains active; R11,
+R8, R17/R18 and shared-consumer completion follow. D3/V2 own qualified default
+adoption, and N2 owns unsupported native absence transport.

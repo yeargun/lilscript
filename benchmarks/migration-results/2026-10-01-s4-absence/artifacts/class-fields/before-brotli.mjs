@@ -1,0 +1,1 @@
+let e=class Box{constructor(t){let e=this;e.value=0;e.entries=[];e.value=t;e.entries=[t,t+1|0]}next(){return t(this)}},t=e=>{e.value=e.value+1|0;return e.value},read=function(a){let r=new e(a);return t(r)+r.entries[1]|0};export{e as Box,read};

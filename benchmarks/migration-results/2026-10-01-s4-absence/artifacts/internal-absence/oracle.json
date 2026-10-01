@@ -1,0 +1,9 @@
+{
+  "exercise": "const values=new Map([['a',0],['b',7],['c',7]]);console.log(JSON.stringify([m.same(values,'a','a'),m.same(values,'b','c'),m.same(values,'a','b'),m.same(values,'x','y')]));",
+  "expected": [
+    true,
+    true,
+    false,
+    true
+  ]
+}

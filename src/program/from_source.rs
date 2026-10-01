@@ -862,6 +862,8 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             program: Program {
                 tables_revision: RevisionId::fresh(),
                 trap_index_reads: false,
+                source_contract: semantics.source_contract(),
+                absence_abi: semantics.absence_abi(),
                 units: Vec::new(),
                 cells: table(Vec::new(), budget)?,
                 types: table(Vec::new(), budget)?,
@@ -3480,9 +3482,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 self.units[unit.index()]
                     .declared_length
                     .get_or_insert(position as u32);
-                if self.semantics.builtin_call(default.id) == Some(BuiltinCall::JsUndefined)
-                    || self.semantics.dynamic_operation(default.id)
-                        == Some(BuiltinCall::JsUndefined)
+                if !self.program.source_contract.unified_absence()
+                    && (self.semantics.builtin_call(default.id) == Some(BuiltinCall::JsUndefined)
+                    || self.semantics.dynamic_operation(default.id) == Some(BuiltinCall::JsUndefined))
                 {
                     continue;
                 }
@@ -3499,6 +3501,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 entry,
                 OperationKind::IsUndefined {
                     parameter: Some(position as u32),
+                    nullish: self.program.source_contract.unified_absence(),
                 },
                 &[current],
                 boolean,
@@ -4880,6 +4883,11 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             }
             ExprKind::Call { callee, args, .. } => {
                 let resolution = self.semantics.expression_resolution(expr.id);
+                if resolution == ExpressionResolution::Builtin(BuiltinCall::JsUndefined)
+                    && self.program.source_contract.unified_absence()
+                    && matches!(self.program.types[ty.index()], Type::Null) {
+                    return self.value(unit, region, OperationKind::Constant(Constant::Null), &[], ty, origin, span);
+                }
                 if let ExpressionResolution::Builtin(
                     builtin @ (BuiltinCall::JsAnd | BuiltinCall::JsOr),
                 ) = resolution
@@ -6024,7 +6032,12 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     span,
                 );
             }
-            (ExprKind::Ident(_), BuiltinCall::JsUndefined) => {}
+            (ExprKind::Ident(_), BuiltinCall::JsUndefined) => {
+                let ty = self.expression_type(expr)?;
+                if self.program.source_contract.unified_absence() && matches!(self.program.types[ty.index()], Type::Null) {
+                    return self.value(unit, region, OperationKind::Constant(Constant::Null), &[], ty, origin, span);
+                }
+            }
             // `(this JsValue self, …) => …`: its closure is the adapter's one
             // operand, formed where `JS.method<N>(lambda)` forms it (R7).
             (ExprKind::ArrowFunction { .. }, adapter) if method_adapter(adapter) => {

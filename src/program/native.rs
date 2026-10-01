@@ -1038,7 +1038,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
                     self.type_test(id, result.unwrap(), args[0], test)?;
                 }
             }
-            OperationKind::IsUndefined { parameter } => {
+            OperationKind::IsUndefined { parameter, .. } => {
                 let result = result.unwrap().index();
                 if let Some(position) = parameter {
                     self.write(format_args!("ls_v{result} = ls_argc <= {position};\n"))?;

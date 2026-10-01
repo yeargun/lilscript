@@ -134,7 +134,7 @@ fn clone_allowance_lives_through_comparison_and_refusal_preserves_inputs() {
 
 #[test]
 fn binary_expected_result_survives_comparison_and_failed_construction_cleans_up() {
-    let left = Type::Nullable(Box::new(Type::Array(Box::new(Type::Int))));
+    let left = Type::nullable(Box::new(Type::Array(Box::new(Type::Int))));
     let right = Type::Array(Box::new(Type::Float));
     let expected = Type::Array(Box::new(Type::Float));
     for memory in [0, 10_000] {

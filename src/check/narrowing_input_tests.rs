@@ -83,7 +83,7 @@ fn narrowed_inputs_match_full_traversal_across_boolean_shapes_and_live_contexts(
                                         span: Span::empty(10_000),
                                         id: SourceNodeId::detached(10_000),
                                     },
-                                    Type::Nullable(Box::new(Type::String)),
+                                    Type::nullable(Box::new(Type::String)),
                                 )
                                 .unwrap();
                             for context in 0..5 {
@@ -107,7 +107,7 @@ fn narrowed_inputs_match_full_traversal_across_boolean_shapes_and_live_contexts(
                                                     span: Span::empty(10_001),
                                                     id: SourceNodeId::detached(10_001),
                                                 },
-                                                Type::Nullable(Box::new(Type::Bool)),
+                                                Type::nullable(Box::new(Type::Bool)),
                                             )
                                             .unwrap();
                                     }
@@ -203,7 +203,7 @@ fn discarded_projections_still_resolve_guards_and_report_the_first_diagnostic() 
                 span: Span::empty(10_000),
                 id: SourceNodeId::detached(10_000),
             },
-            Type::Nullable(Box::new(Type::String)),
+            Type::nullable(Box::new(Type::String)),
         )
         .unwrap();
     let guard = expression(&program, 0);
@@ -255,7 +255,7 @@ fn sparse_guard_prefixes_recheck_only_retained_guards_with_linear_work() {
                         span: Span::empty(10_000),
                         id: SourceNodeId::detached(10_000),
                     },
-                    Type::Nullable(Box::new(Type::String)),
+                    Type::nullable(Box::new(Type::String)),
                 )
                 .unwrap();
             if two_guards {
@@ -266,7 +266,7 @@ fn sparse_guard_prefixes_recheck_only_retained_guards_with_linear_work() {
                             span: Span::empty(10_001),
                             id: SourceNodeId::detached(10_001),
                         },
-                        Type::Nullable(Box::new(Type::Int)),
+                        Type::nullable(Box::new(Type::Int)),
                     )
                     .unwrap();
             }
@@ -319,7 +319,7 @@ fn guard_input_resource_refusals_preserve_declarations_and_restore_scopes() {
                     span: Span::empty(10_000),
                     id: SourceNodeId::detached(10_000),
                 },
-                Type::Nullable(Box::new(Type::String)),
+                Type::nullable(Box::new(Type::String)),
             )
             .unwrap();
         let result = analyzer.analyze_binary_expression(expression(&program, 0), None);
@@ -338,7 +338,7 @@ fn guard_input_resource_refusals_preserve_declarations_and_restore_scopes() {
         assert_eq!(analyzer.scopes[0]["value"], value);
         assert_eq!(
             analyzer.declarations.symbols[value.0 as usize].ty,
-            Type::Nullable(Box::new(Type::String))
+            Type::nullable(Box::new(Type::String))
         );
         let shared = (analyzer.declarations.symbols.capacity() * size_of::<Symbol<'_>>()
             + analyzer.declarations.symbol_modules.capacity()

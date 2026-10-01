@@ -39,7 +39,7 @@ pub const LOCAL_FACTS_PLAN: u32 = 1;
 // Version 3 transfers existing exact primitive knowledge through CopyValue.
 // Version 2 introduced shared transfer and separate resource-exhaustion effects.
 // Older receipts cannot qualify this version's answers.
-pub const LOCAL_FACTS_VERSION: u32 = 10;
+pub const LOCAL_FACTS_VERSION: u32 = 11;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Dependencies {
@@ -1350,8 +1350,9 @@ pub(super) fn exact(
                 None => return unknown(),
             }
         }
-        OperationKind::IsUndefined { .. } => match known(operands[0]) {
-            Some(value) => StoredExact::Boolean(matches!(value, StoredExact::Undefined)),
+        OperationKind::IsUndefined { nullish, .. } => match known(operands[0]) {
+            Some(value) => StoredExact::Boolean(matches!(value, StoredExact::Undefined)
+                || *nullish && matches!(value, StoredExact::Null)),
             None => return unknown(),
         },
         OperationKind::IntBinary(op) => {

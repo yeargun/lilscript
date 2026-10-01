@@ -40,6 +40,30 @@ pub(super) fn carries_product(
     Ok(contains)
 }
 
+/// Nullable ABI metadata is distinct from the product-layout predicate. Shared
+/// validators must not mistake an optional primitive for a value struct.
+pub(super) fn carries_absence(
+    program: &Program<'_>, ty: &Type<'_>, budget: &mut AllocationBudget<'_>,
+) -> Result<bool, FormationError> {
+    use crate::check::type_payload::{measure_payload, Payload, PayloadError};
+    if !program.absence_abi { return Ok(false); }
+    let mut found = false;
+    let measured = measure_payload(Payload::Type(ty), budget, |node| {
+        if let Payload::Type(Type::Nullable(inner)) = node {
+            found |= program.source_contract.unified_absence() || inner.boundary != crate::check::AbsencePin::Auto;
+        }
+        if let Payload::Signature(signature) = node {
+            found |= program.source_contract.unified_absence() && signature.params.iter().any(|p| p.optional);
+        }
+        Ok::<_, std::convert::Infallible>(())
+    });
+    match measured {
+        Ok(_) => Ok(found),
+        Err(PayloadError::Allocation(error)) => Err(error.into()),
+        Err(PayloadError::Visitor(never)) => match never {},
+    }
+}
+
 /// Whether `ty` crosses the public boundary exactly under the object ABI.
 pub(super) fn adaptable(
     program: &Program<'_>,
@@ -266,7 +290,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         )?)
     }
 
-    fn public_key(&mut self, name: &str) -> Result<js::Property, FormationError> {
+    pub(super) fn public_key(&mut self, name: &str) -> Result<js::Property, FormationError> {
         // `__proto__:` in an object literal sets the prototype instead of
         // defining a field, so that one name is always a computed key.
         if name != "__proto__" && js::identifier_name(name) {
@@ -285,6 +309,10 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         value: js::ExprId,
         incoming: bool,
     ) -> Result<js::ExprId, FormationError> {
+        if ty.callable_signature().is_some()
+            && carries_absence(self.program, ty, self.budget)? {
+            return self.public_callable_type(ty, value, incoming);
+        }
         // A read-only array parameter of structs decodes each element once,
         // in order: `values.map(decode)`.
         if let Type::Array(element) = ty {
@@ -306,7 +334,19 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             }
         }
         if let Type::Nullable(_) = ty {
-            if carries_product(ty, self.budget)? {
+            if carries_product(ty, self.budget)? || carries_absence(self.program, ty, self.budget)? {
+                if !incoming && !carries_product(ty, self.budget)?
+                    && self.contract.ecmascript.allows(JsSyntaxFeature::NullishCoalescing) {
+                    let Type::Nullable(inner) = ty else { unreachable!() };
+                    let right = self.literal(if inner.boundary == crate::check::AbsencePin::Undefined {
+                        js::Literal::Undefined
+                    } else { js::Literal::Null })?;
+                    return self.expression(js::Expr::Binary { op: js::Binary::Nullish, left: value, right });
+                }
+                if incoming && !carries_product(ty, self.budget)?
+                    && self.contract.checks != crate::compilation_contract::PreconditionChecks::Development {
+                    return Ok(value);
+                }
                 let codec = self.public_codec(ty, incoming)?;
                 let callee = self.reference(codec)?;
                 let mut arguments = self.budget.vector(AllocationClass::Retained, 1)?;
@@ -359,7 +399,8 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
                 self.append(&mut entries, (key, value))?;
             }
             self.drop_scratch(remaining)?;
-            return self.expression(js::Expr::Object(entries));
+            let object = self.expression(js::Expr::Object(entries))?;
+            return self.public_product_cleanup(ty, object);
         }
         let codec = self.public_codec(ty, incoming)?;
         let callee = self.reference(codec)?;
@@ -380,6 +421,13 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         binding: js::BindingId,
     ) -> Result<js::ExprId, FormationError> {
         let value = self.reference(binding)?;
+        if parameter.optional && self.program.source_contract.unified_absence()
+            && self.contract.checks == crate::compilation_contract::PreconditionChecks::Development {
+            let inner = TypeQueryAdmission::new(self.budget).clone_type(&parameter.ty)?;
+            let inner = TypeQueryAdmission::new(self.budget).box_type(inner)?;
+            let ty = crate::check::Type::pinned_nullable(inner, crate::check::AbsencePin::Undefined);
+            return self.public_value(&ty, value, true);
+        }
         let converted = self.public_value(&parameter.ty, value, true)?;
         if !parameter.optional || !carries_product(&parameter.ty, self.budget)? {
             return Ok(converted);
@@ -414,8 +462,8 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         let Some(ty) = data.callable_type else {
             return Ok(());
         };
-        if self.struct_plan.boundary_types.is_empty()
-            || !self.struct_plan.boundary_types[ty.index()]
+        if self.struct_plan.abi_types.is_empty()
+            || !self.struct_plan.abi_types[ty.index()]
         {
             return Ok(());
         }
@@ -423,7 +471,9 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             return Err(self.error(Span::default(), "constructor parameter signature"));
         };
         for (parameter, &cell) in signature.params.iter().zip(&data.parameters).skip(1) {
-            if !carries_product(&parameter.ty, self.budget)? {
+            if !carries_product(&parameter.ty, self.budget)?
+                && !carries_absence(self.program, &parameter.ty, self.budget)?
+                && !(parameter.optional && self.program.source_contract.unified_absence()) {
                 continue;
             }
             let binding = self.cell_binding(context, cell)?;
@@ -439,9 +489,26 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         &mut self,
         context: ContextId,
         argument: ValueId,
+        parameter: Option<&crate::check::FunctionParameter<'src>>,
     ) -> Result<js::ExprId, FormationError> {
         let ty = &self.program.types[self.data(context).values[argument.index()].ty.index()];
         let value = self.value(context, argument)?;
+        // Kept constructors have a public entry, even when invoked internally.
+        // Use the caller's concrete payload for erased generic parameters, but
+        // retain the declared absence spelling (defaults require undefined).
+        if let Some(parameter) = parameter {
+            let pin = if parameter.optional && self.program.source_contract.unified_absence() {
+                Some(crate::check::AbsencePin::Undefined)
+            } else if let Type::Nullable(inner) = &parameter.ty {
+                Some(inner.boundary)
+            } else { None };
+            if let Some(pin) = pin {
+                let ty = if matches!(ty, Type::Null) { Type::Dynamic }
+                    else { TypeQueryAdmission::new(self.budget).clone_type(ty)? };
+                let ty = TypeQueryAdmission::new(self.budget).box_type(ty)?;
+                return self.public_value(&Type::pinned_nullable(ty, pin), value, false);
+            }
+        }
         self.public_value(ty, value, false)
     }
 
@@ -454,7 +521,12 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         ty: TypeId,
         value: js::ExprId,
     ) -> Result<js::ExprId, FormationError> {
-        let factory = self.public_callable_factory(ty)?;
+        self.public_callable_type(&self.program.types[ty.index()], value, false)
+    }
+
+    pub(super) fn public_callable_type(&mut self, ty: &Type<'src>, value: js::ExprId, incoming: bool)
+        -> Result<js::ExprId, FormationError> {
+        let factory = self.public_callable_factory(ty, incoming)?;
         let callee = self.reference(factory)?;
         let mut arguments = self.budget.vector(AllocationClass::Retained, 1)?;
         self.append(&mut arguments, value)?;
@@ -465,16 +537,16 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         })
     }
 
-    fn public_callable_factory(&mut self, ty: TypeId) -> Result<js::BindingId, FormationError> {
+    fn public_callable_factory(&mut self, ty: &Type<'src>, incoming: bool) -> Result<js::BindingId, FormationError> {
         for index in 0..self.struct_plan.public_callables.len() {
             self.work(1)?;
-            let (cached, binding) = self.struct_plan.public_callables[index];
-            if cached == ty {
-                return Ok(binding);
+            let (cached, direction, binding) = &self.struct_plan.public_callables[index];
+            if *direction == incoming && type_equal_with(cached, ty, &mut TypeQueryAdmission::new(self.budget))? {
+                return Ok(*binding);
             }
         }
         let program = self.program;
-        let Some(signature) = program.types[ty.index()].callable_signature() else {
+        let Some(signature) = ty.callable_signature() else {
             return Err(self.error(
                 Span::default(),
                 "public callable adapter over a non-function",
@@ -497,11 +569,14 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             self.work(1)?;
             let value = if parameter.receiver {
                 let receiver = self.expression(js::Expr::This)?;
-                self.public_value(&parameter.ty, receiver, true)?
+                self.public_value(&parameter.ty, receiver, !incoming)?
             } else {
                 let binding = self.adapter_binding(inner_scope, "value")?;
                 self.append(&mut parameters, binding)?;
-                self.public_parameter(parameter, binding)?
+                if incoming {
+                    let value = self.reference(binding)?;
+                    self.outgoing_parameter(parameter, value)?
+                } else { self.public_parameter(parameter, binding)? }
             };
             let value = if parameter.rest {
                 self.expression(js::Expr::Spread(value))?
@@ -528,7 +603,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             arguments,
             invocation,
         })?;
-        let returned = self.public_value(&signature.return_type, call, false)?;
+        let returned = self.public_value(&signature.return_type, call, incoming)?;
         self.statement(inner, js::Statement::Return(Some(returned)))?;
         let length = signature
             .params
@@ -586,16 +661,17 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
                 function: factory,
             },
         )?;
+        let ty = TypeQueryAdmission::new(self.budget).clone_type(ty)?;
         self.budget.push(
             AllocationClass::Scratch,
             &mut self.struct_plan.public_callables,
-            (ty, binding),
+            (ty, incoming, binding),
         )?;
         Ok(binding)
     }
 
     /// One private codec per schema and direction, shared by every export.
-    fn public_codec(
+    pub(super) fn public_codec(
         &mut self,
         ty: &Type<'src>,
         incoming: bool,
@@ -617,6 +693,15 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         let parameter =
             self.adapter_binding(body_scope, if incoming { "boundary" } else { "product" })?;
         let result = if let Type::Nullable(inner) = ty {
+            if incoming && inner.boundary != crate::check::AbsencePin::Auto
+                && self.contract.checks == crate::compilation_contract::PreconditionChecks::Development {
+                let left = self.reference(parameter)?;
+                let right = self.literal(if inner.boundary == crate::check::AbsencePin::Null {
+                    js::Literal::Undefined
+                } else { js::Literal::Null })?;
+                let wrong = self.expression(js::Expr::Binary { op: js::Binary::StrictEqual, left, right })?;
+                self.absence_reject(body, wrong)?;
+            }
             let source = self.reference(parameter)?;
             let null = self.literal(js::Literal::Null)?;
             let absent = self.expression(js::Expr::Binary {
@@ -625,11 +710,23 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
                 right: null,
             })?;
             let source = self.reference(parameter)?;
-            let present = self.public_value(inner, source, incoming)?;
-            let source = self.reference(parameter)?;
+            let mut present = self.public_value(inner, source, incoming)?;
+            if incoming && self.contract.checks == crate::compilation_contract::PreconditionChecks::Development {
+                if let Some((kind, _)) = super::checks::Crossing::of(inner) {
+                    let check = self.crossing_helper(kind, false)?;
+                    let callee = self.reference(check)?;
+                    let arguments = self.budget.copy_slice(AllocationClass::Retained, &[present])?;
+                    present = self.expression(js::Expr::Call { callee, arguments, invocation: Invocation::Value })?;
+                }
+            }
+            let absent_value = if incoming || !carries_absence(program, ty, self.budget)? {
+                self.reference(parameter)?
+            } else { self.literal(if inner.boundary == crate::check::AbsencePin::Undefined {
+                js::Literal::Undefined
+            } else { js::Literal::Null })? };
             self.expression(js::Expr::Conditional {
                 condition: absent,
-                yes: source,
+                yes: absent_value,
                 no: present,
             })?
         } else {
@@ -670,7 +767,8 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             if incoming {
                 self.product(elements)?
             } else {
-                self.expression(js::Expr::Object(entries))?
+                let object = self.expression(js::Expr::Object(entries))?;
+                self.public_product_cleanup(ty, object)?
             }
         };
         self.statement(body, js::Statement::Return(Some(result)))?;

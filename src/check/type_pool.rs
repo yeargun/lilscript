@@ -35,6 +35,7 @@ struct Entry<'src> {
 pub(super) struct TypePool<'src> {
     entries: Vec<Entry<'src>>,
     slots: Vec<Option<CheckedTypeId>>,
+    pub(super) absence_pins: bool,
 }
 impl<'src> TypePool<'src> {
     pub(super) fn len(&self) -> usize {
@@ -67,7 +68,8 @@ impl<'src> TypePool<'src> {
         ty: &Type<'src>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<CheckedTypeId, AllocationError> {
-        let (hash, measured) = fingerprint(ty, budget)?;
+        let (hash, measured, pins) = fingerprint(ty, budget)?;
+        self.absence_pins |= pins;
         if !self.slots.is_empty() {
             let mut position = hash as usize & (self.slots.len() - 1);
             while let Some(id) = self.slots[position] {
@@ -136,8 +138,9 @@ impl<'src> TypePool<'src> {
 fn fingerprint(
     ty: &Type<'_>,
     budget: &mut AllocationBudget<'_>,
-) -> Result<(u64, PayloadMeasure), AllocationError> {
+) -> Result<(u64, PayloadMeasure, bool), AllocationError> {
     let mut hash = crate::stable_hash::StableBuildHasher::default().build_hasher();
+    let mut pins = false;
     let measured = measure_payload(Payload::Type(ty), budget, |node| {
         match node {
             Payload::Type(ty) => {
@@ -151,6 +154,10 @@ fn fingerprint(
                     }
                     Type::Union(members) | Type::Intersection(members) => members.len().hash(&mut hash),
                     Type::ModuleNamespace(module) => module.hash(&mut hash),
+                    Type::Nullable(inner) => {
+                        inner.boundary.hash(&mut hash);
+                        pins |= inner.boundary != super::AbsencePin::Auto;
+                    },
                     Type::GenericFunction(function) => {
                         function.type_params.len().hash(&mut hash);
                         for parameter in &function.type_params {
@@ -175,7 +182,7 @@ fn fingerprint(
         Ok::<_, Infallible>(())
     });
     match measured {
-        Ok(measured) => Ok((hash.finish(), measured)),
+        Ok(measured) => Ok((hash.finish(), measured, pins)),
         Err(PayloadError::Allocation(error)) => Err(error),
         Err(PayloadError::Visitor(never)) => match never {},
     }

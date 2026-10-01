@@ -93,11 +93,9 @@ pub(crate) fn substitute_type_with<'types, 'src: 'types, A: SubstitutionAdmissio
         // `T?` with `T := U?` is `U?` (R2: `T??` is `T?`): an absent value
         // has one kind, whatever made it optional.
         Type::Nullable(inner) => {
+            let boundary = inner.boundary;
             let inner = substitute_type_with(inner, lookup, admission)?;
-            if matches!(inner, Type::Nullable(_) | Type::Null) {
-                return Ok(inner);
-            }
-            Ok(Type::Nullable(admission.box_type(inner)?))
+            Ok(Type::pinned_nullable(admission.box_type(inner)?, boundary))
         }
         Type::Intersection(members) => Ok(Type::Intersection(substitute_members(members, lookup, admission)?)),
         Type::Union(members) => {

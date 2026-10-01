@@ -83,11 +83,43 @@ codec trials or promise smaller output. The resolved receipt and cache
 fingerprint include it. Normal configuration discovery and explicit `--config`
 precedence apply; unknown keys or values fail.
 
+## Absence during migration
+
+`[language] absence = "legacy" | "unified"` selects R2 independently of effort,
+target and optimization permissions. `legacy` is the compatibility default until
+the qualified port transition. `unified` permits either `null` or `undefined`
+inside an optional value and applies a parameter default to either absence.
+Narrow optional values before string conversion, spelling tests or collection
+operations that distinguish them. The checker and `migration/absence` lint share
+the observation rule; lint fixes preserve legacy text where that is possible.
+
+Write `T | null` or `T | undefined` for a boundary with an exact spelling. The
+type retains the pin through generic substitution and nested callable types.
+An unpinned optional callable result uses `null` at a JavaScript crossing;
+an unpinned optional public object field is an omitted key. A defaulted public
+parameter accepts omission or `undefined`; development checks reject `null`.
+The program's internal default still applies to both spellings.
+
+Mutable arrays and maps retain their identity across aliases. Writes normalize
+an optional element or value to its storage pin, including later indexed writes,
+`push`, `fill` and `set`. Arrays with different element pins cannot alias through
+assignment; a fresh spread copy can change the pin. This puts the conversion at
+the write and avoids an eager copy at every public call. Native transport of an
+absent argument to a defaulted parameter is diagnosed at the source until N2
+implements that calling convention; omitted native arguments already work.
+
+This can remove repeated internal normalization and private optional-field key
+maintenance. Public adapters may add code and runtime work where an exact
+spelling is required. It is a language choice, not a claim that every artifact
+gets smaller. The receipt and policy fingerprint retain the choice. Unknown
+keys and values fail configuration loading; no compression level overrides it.
+
 ## The schema
 
 ```toml
 [language]
 field_initialization = "legacy" # legacy | explicit; source contract, independent of effort
+absence = "legacy"            # legacy | unified; internal absence and boundary contracts
 
 [objective]
 codecs = ["brotli"]           # any nonempty subset of raw | gzip | brotli; separate results
