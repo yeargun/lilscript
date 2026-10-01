@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 /// A family of choices. Each owns the meaning of its sites' identities and
 /// its alternatives' ids. M9.5–M9.9 add theirs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ChoiceFamily {
     RecordLayout,
@@ -195,7 +195,8 @@ impl ChoiceFamily {
 /// of the tree and across every formation of one candidate: for data, the
 /// root binding the table initializes (never an expression id, which
 /// formation renumbers).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ChoiceKey {
     pub family: ChoiceFamily,
     pub site: SiteId,
@@ -203,7 +204,7 @@ pub struct ChoiceKey {
 
 /// A site's identity (M4.4): the source symbol its binding declares, or, for
 /// a binding formation creates, the binding's ordinal in the tree.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SiteId {
     Symbol(u32),
@@ -218,12 +219,13 @@ pub enum SiteId {
 
 /// One alternative of a site, named by its family. `AltId(0)` is the
 /// family's canonical form (for data, the literal as written).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct AltId(pub u8);
 
 /// An immutable assignment of alternatives to sites, sorted by key and shared
 /// between the artifacts that hold it. A site it does not name takes its seed.
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(try_from = "SavedChoices", into = "SavedChoices")]
 pub struct ChoiceMap {
     entries: Option<Arc<[(ChoiceKey, AltId)]>>,
     joint: bool,
@@ -590,5 +592,28 @@ mod tests {
             seed(&[offered(0, 0), offered(1, 90), offered(2, 90)]),
             AltId(1)
         );
+    }
+}
+
+// Persist choices only. Deserialization cannot create a proof, and every
+// formation still checks site legality and current tactic permissions.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SavedChoices {
+    entries: Vec<(ChoiceKey, AltId)>,
+    joint: bool,
+}
+impl From<ChoiceMap> for SavedChoices {
+    fn from(map: ChoiceMap) -> Self {
+        Self { entries: map.iter().collect(), joint: map.joint }
+    }
+}
+impl TryFrom<SavedChoices> for ChoiceMap {
+    type Error = &'static str;
+    fn try_from(saved: SavedChoices) -> Result<Self, Self::Error> {
+        if saved.entries.windows(2).any(|pair| pair[0].0 >= pair[1].0) {
+            return Err("decision sites must be strictly sorted and unique");
+        }
+        Ok(Self { entries: (!saved.entries.is_empty()).then(|| saved.entries.into()), joint: saved.joint })
     }
 }

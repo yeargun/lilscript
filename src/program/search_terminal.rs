@@ -203,6 +203,9 @@ pub struct TerminalObjective {
     /// Where each lower one-pass level would have stopped, as the walk from
     /// the level-0 artifact passed it (the replay check, §9.6).
     pub stops: Vec<Stop>,
+    /// A saved assignment is a fallible optional proposal, never admission evidence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decision_error: Option<String>,
 }
 
 /// A lower level's stopping point on the walk from the level-0 artifact:
@@ -1756,11 +1759,20 @@ impl JavaScriptSearch<'_, '_> {
         policy: &ResolvedPolicy,
         request: SearchRequest,
     ) -> Result<&TerminalReport, SearchError> {
+        self.challenge_with_decisions(policy, request, &[None, None, None])
+    }
+
+    pub(crate) fn challenge_with_decisions(
+        &mut self,
+        policy: &ResolvedPolicy,
+        request: SearchRequest,
+        decisions: &[Option<SavedDecision>; 3],
+    ) -> Result<&TerminalReport, SearchError> {
         if self.terminal.is_none() {
             let objective = policy.objective().ok_or(CandidateError::NotJavaScript)?;
             let mut report = TerminalReport::default();
             let walked = request.objectives.iter().try_for_each(|codec| {
-                if let Some(stage) = self.walk_objective(policy, objective, codec)? {
+                if let Some(stage) = self.walk_objective(policy, objective, codec, request, decisions[index(codec)].as_ref())? {
                     report.objectives.push(stage);
                 }
                 Ok::<_, SearchError>(())
@@ -1789,6 +1801,8 @@ impl JavaScriptSearch<'_, '_> {
         policy: &ResolvedPolicy,
         objective: OptimizationObjective,
         codec: Objective,
+        request: SearchRequest,
+        decision: Option<&SavedDecision>,
     ) -> Result<Option<TerminalObjective>, SearchError> {
         let Some(winner) = self.portfolio.selected[index(codec)] else {
             return Ok(None);
@@ -1840,7 +1854,17 @@ impl JavaScriptSearch<'_, '_> {
             restarts_tried: 0,
             starts: Vec::new(),
             stops: Vec::new(),
+            decision_error: None,
         };
+        if let Some(decision) = decision {
+            // Fast levels normally have only their baseline start and need no
+            // pin. A lock introduces a second start that may replace it before
+            // the baseline walk. Keep that existing admitted owner until the
+            // common challenge cleanup unpins it.
+            self.portfolio.pinned.get_or_insert(level0);
+            self.replay_decision(policy, request, codec, decision, &mut report)?;
+        }
+        let winner = self.portfolio.selected[index(codec)].unwrap();
         if level0 != winner {
             self.walk_from(
                 policy,
@@ -1931,6 +1955,103 @@ impl JavaScriptSearch<'_, '_> {
         Ok(Some(report))
     }
 
+    /// First terminal move: recreate the locked assignment and judge complete
+    /// bytes exactly. It uses the normal walk limits and keeps its incumbent on
+    /// every refusal. Structural discovery has already established that prior.
+    fn replay_decision(
+        &mut self,
+        policy: &ResolvedPolicy,
+        request: SearchRequest,
+        codec: Objective,
+        decision: &SavedDecision,
+        report: &mut TerminalObjective,
+    ) -> Result<(), SearchError> {
+        let mut record = StartTrial {
+            name: "decision-lock".into(), pass: 0,
+            outcome: ChallengerOutcome::Budget,
+            start: None, size: None, delta: None, proxy: None, audit: None,
+        };
+        let walk = policy.objective().unwrap().walk;
+        if report.examined >= walk.prefix || report.judged >= walk.exact {
+            report.starts.push(record);
+            return Ok(());
+        }
+        report.examined += 1;
+        report.tried += 1;
+        let replayed = (|| -> Result<(), SearchError> {
+            let state = self.decision_state(decision, policy, request)?;
+            let candidate = self.states[state].as_ref().unwrap().candidate;
+            let held = self.portfolio.entries.get(self.portfolio.selected[index(codec)].unwrap()).unwrap().artifact;
+            let provenance = self.compilation.artifacts.provenance(held)?;
+            let plan = provenance.naming().clone();
+            let output = provenance.description().output();
+            let origin = Incumbent {
+                artifact: held,
+                spelling: Spelling { families: output.families, self_named: plan.self_named, read_order: plan.read_order },
+                choices: output.choices.clone(), literals: output.literals, plan,
+                size: self.compilation.artifacts.with_artifact(held, |view| view.sizes.get(codec))?.unwrap(),
+                qualified: None,
+            };
+            let judge = Judge {
+                policy, codec, output: &decision.output,
+                available: RENDER_BOUND.max(self.portfolio.baseline_capacity), margin: 0,
+                baseline: self.portfolio.baseline_qualification(codec).copied(),
+                proxy_pruning: crate::compilation_policy::ProxyPruning::Off,
+            };
+            let portfolio = &mut self.portfolio;
+            self.compilation.with_javascript_formations_in(
+                candidate, policy, decision.output.dead_code_elimination, decision.output.target_compaction,
+                decision.output.rules, decision.output.families.head(), WorkDomain::Optional,
+                |formations| -> Result<(), SearchError> {
+                    report.heads += 1;
+                    let (measured, _, probed) = judge.measure(formations,
+                        Spelling { families: decision.output.families, self_named: decision.naming.self_named, read_order: decision.naming.read_order },
+                        &decision.output.choices, &decision.naming, decision.output.literals, &origin, false)?;
+                    report.codec_probes += usize::from(probed);
+                    let (artifact, size, qualified) = match measured {
+                        Ok(result) => result,
+                        Err(judgement) => {
+                            record.outcome = match judgement {
+                                Judgement::Identical => ChallengerOutcome::Identical,
+                                Judgement::Stopped => ChallengerOutcome::Stopped,
+                                _ => ChallengerOutcome::Refused,
+                            };
+                            return Ok(());
+                        }
+                    };
+                    report.judged += 1;
+                    report.scored += 1;
+                    record.start = Some(size);
+                    record.size = Some(size);
+                    record.delta = Some(size as i64 - origin.size as i64);
+                    let promoted = (|| {
+                        if !judge.wins(formations, artifact, qualified, (held, origin.size))? { return Ok(false); }
+                        formations.with_arena(|arena, _, budget| {
+                            portfolio.promote_terminal(arena, budget, codec, state, artifact, qualified)
+                        })?;
+                        Ok::<_, SearchError>(true)
+                    })();
+                    if !matches!(promoted, Ok(true)) {
+                        formations.with_arena(|arena, _, budget| arena.discard(artifact, budget))?;
+                    }
+                    record.outcome = if promoted? { ChallengerOutcome::Kept } else { ChallengerOutcome::Rejected };
+                    Ok(())
+                },
+            )??;
+            Ok(())
+        })();
+        if let Err(error) = replayed {
+            if matches!(&error, SearchError::Candidate(CandidateError::Budget(_))) && !resource(&error) {
+                return Err(error);
+            }
+            record.outcome = if resource(&error) || error.optional_memory_refusal() { ChallengerOutcome::Stopped }
+                else { ChallengerOutcome::Refused };
+            report.decision_error = Some(format!("{error:?}"));
+        }
+        report.starts.push(record);
+        Ok(())
+    }
+
     /// Walk from the portfolio entry at `position` in its candidate's
     /// formations, settle the result against the objective's winner, and
     /// then, with `restarts`, restart from the same entry under each other
@@ -2012,7 +2133,9 @@ impl JavaScriptSearch<'_, '_> {
         let available = RENDER_BOUND.max(self.portfolio.baseline_capacity);
         // The walk from the level-0 artifact passes every lower one-pass
         // level's stopping point (levels 0 to 12, below this one).
-        let replay = (name == "level-0").then(|| Replay {
+        // A fingerprinted lock is specific to its effort/configuration. Its
+        // explicit first move is not a prefix replay claim for lower levels.
+        let replay = (name == "level-0" && !report.starts.iter().any(|start| start.name == "decision-lock")).then(|| Replay {
             pending: (0..policy.effort())
                 .map(|level| {
                     (

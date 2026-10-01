@@ -17,7 +17,7 @@ scheduling, shared formation, persistent transparent reuse and resource
 accounting. The rooted use-index consumer and admitted module graph are
 implemented. Edit journals, in-place renumbering and complete retained target copies have admitted storage;
 local normalization proofs, dependency-qualified effect components and optional
-disk codec and whole-build reuse are qualified. Delivery revalidates print proofs after creating
+disk codec/whole-build reuse and explicit decision locks are qualified. Delivery revalidates print proofs after creating
 setters. Keep logical admission, hard TOML
 permissions, source/target identities and selected output independent of cache
 occupancy. Then follow **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.

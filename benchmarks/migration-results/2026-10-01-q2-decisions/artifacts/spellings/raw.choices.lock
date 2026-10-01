@@ -1,0 +1,87 @@
+{
+  "format": 1,
+  "fingerprint": "0d5d4b89a6a6471b68b197bcaee55a67e485c9fa1a21d1a006ab656dd2946d64",
+  "assignments": [
+    {
+      "recipe": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "output": {
+        "dead_code_elimination": true,
+        "target_compaction": true,
+        "rules": {
+          "constant_folding": true,
+          "inlining": true,
+          "scalar_replacement": true,
+          "data_encoding": false,
+          "array_packing": "disabled",
+          "call_specialization": true,
+          "helper_sharing": true,
+          "parameterized_helpers": false,
+          "statement_spellings": true,
+          "declaration_order": false,
+          "receiver_aliases": true
+        },
+        "literals": "Original",
+        "families": {
+          "block_inlining": true,
+          "expression_inlining": true,
+          "call_specialization": false,
+          "helper_sharing": false,
+          "parameterized_helpers": false,
+          "flat_blocks": true,
+          "statements": {
+            "conditional_values": true,
+            "exit_points": true,
+            "loop_fusion": true,
+            "conditional_returns": true,
+            "logical_branches": true
+          },
+          "string_pooling": true,
+          "string_array_packing": false,
+          "string_constants": true,
+          "loop_heads": true,
+          "logical_statements": true,
+          "compound_assignments": true,
+          "quotes": true,
+          "int32_hints": false,
+          "property_mangling": false
+        },
+        "choices": {
+          "entries": [
+            [
+              {
+                "family": "logical-branches",
+                "site": {
+                  "target": {
+                    "head": 0,
+                    "kind": 1,
+                    "ordinal": 15
+                  }
+                }
+              },
+              0
+            ]
+          ],
+          "joint": false
+        }
+      },
+      "naming": {
+        "style": "Global",
+        "alphabet": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_",
+        "source_names": [],
+        "self_named": true,
+        "read_order": true,
+        "local_read_order": false,
+        "compact_order": false
+      }
+    },
+    null,
+    null
+  ]
+}

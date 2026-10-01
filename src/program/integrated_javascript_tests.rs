@@ -1290,3 +1290,67 @@ fn integrated_edit_reuse_and_fresh_recomputation_under_the_same_rules() {
     assert_eq!(reused["fact_work"], fresh["fact_work"]);
     assert!(reused["executed_fact_steps"].as_u64() < fresh["executed_fact_steps"].as_u64());
 }
+
+#[test]
+fn q2_decision_lock_reconstructs_all_recipe_families_in_a_fresh_compilation() {
+    fn with_source<R>(inspect: impl FnOnce(Program<'_>) -> R) -> R {
+        // This focused control has every recipe kind without depending on the
+        // older full integration corpus's syntax/default-contract migration.
+        let source = format!(r#"{}
+            func(int)->int make(int seed) {{
+                Record<int> state=record{{count:seed}};
+                auto step=(int delta)=>{{state.count=(state.count??0)+delta;return state.count??0;}};
+                auto makeLabel=()=>"counter/"+"ready";
+                return (int delta)=>{{print(makeLabel());return step(delta);}};
+            }}
+            int editTarget(){{return 11;}}
+            auto counter=make(2);print(counter(3));print(productScore(7,4));
+        "#, include_str!("fixtures/integrated-architecture/products.lil"));
+        let arena = bumpalo::Bump::new();
+        let syntax = crate::parse_source(&arena, &source).unwrap();
+        let checked = crate::analyze(&syntax).unwrap();
+        inspect(from_checked_source(&syntax, &checked).unwrap())
+    }
+    let mut config = configuration(true);
+    // No structural search: the saved record/helpers/string/products/call
+    // layouts must be rebuilt rather than found in the automatic portfolio.
+    config.effort.level = 1;
+    let policy = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
+    let saved = with_source(|program| {
+        let mut c = compilation(WORK, false);
+        let source = c.adopt_checked(program, WorkDomain::Baseline).unwrap();
+        let target = targets(&c.view(source).unwrap());
+        let direct = c.direct_javascript(source, &policy, WorkDomain::Baseline).unwrap();
+        c.enable_local_facts(cache(), WorkDomain::Optional).unwrap();
+        let supplied = portfolio(&mut c, direct, &target, &policy);
+        let selected = supplied.iter().find(|(name, _)| *name == "shared-caller-callee-fields-inline").unwrap().1;
+        let saved = c.with_implementation_description(selected, WorkDomain::Optional, |description| {
+            SavedDecision::capture(description, &OutputTactics::from_policy(&policy), &Plan::new(Style::Scoped)).unwrap()
+        }).unwrap();
+        assert_eq!(c.finish().retained_bytes(), 0);
+        saved
+    });
+    with_source(|program| {
+        let mut c = compilation(WORK, true);
+        let source = c.adopt_checked(program, WorkDomain::Baseline).unwrap();
+        let request = SearchRequest {
+            objectives: Objectives::One(Objective::Brotli), scalar: request(), helper: helper_request(),
+            string: string_request(), facts_cache: cache(),
+        };
+        let mut search = c.search_javascript(source, &policy, request).unwrap();
+        assert_eq!(search.counters().proof_queries, 0);
+        let report = search.challenge_with_decisions(&policy, request, &[None, None, Some(saved)]).unwrap();
+        let result = &report.objectives[0];
+        assert!(result.decision_error.is_none(), "{result:?}");
+        assert!(matches!(result.starts[0].outcome, ChallengerOutcome::Kept | ChallengerOutcome::Rejected | ChallengerOutcome::Identical), "{result:?}");
+        assert!(search.counters().proof_queries >= 7);
+        search.with_winner(Objective::Brotli, |view, _| {
+            let run = Command::new("node").args(["--input-type=module", "-e", view.javascript]).output().unwrap();
+            assert!(run.status.success(), "{}", String::from_utf8_lossy(&run.stderr));
+            assert_eq!(String::from_utf8(run.stdout).unwrap(),
+                "counter/ready\n5\n14\n7\n4\n13\n5\n7\n4\n27\n");
+        }).unwrap();
+        drop(search);
+        assert_eq!(c.finish().retained_bytes(), 0);
+    });
+}

@@ -45,6 +45,7 @@ mod rewrites;
 pub use rewrites::RewriteError;
 #[path = "search.rs"]
 mod search;
+pub(crate) use search::SavedDecision;
 pub use search::{
     ChallengerOutcome, ChallengerTrial, JavaScriptSearch, SearchCounters, SearchError, SearchLimit,
     SearchObservation, SearchRequest, TerminalObjective, TerminalReport,

@@ -4,7 +4,7 @@ use super::{extract::OutputError, verify::Structure, Expr, ExprId, Literal, Modu
 use crate::compilation_policy::WorkKind;
 use crate::output_budget::AllocationBudget;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize)]
 pub enum LiteralOutput {
     #[default]
     Original,

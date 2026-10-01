@@ -103,6 +103,15 @@ Physical reuse of compilation and compression.
 | `codec_reuse` | `bool` | `true` | Reuse exact-byte codec receipts across artifacts (default true). |
 | `directory` | `Option<PathBuf>` | `None` | Optional persistent cache directory, relative to this config file. |
 
+## `[decisions]` — closed
+
+Saved complete JavaScript assignments, re-proved and re-judged in the terminal walk.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `read` | `Option<PathBuf>` | `unset` | Read an optional fingerprinted lock. |
+| `write` | `Option<PathBuf>` | `unset` | Write the selected per-objective assignments after a successful build. |
+
 ## `[target]` — closed
 
 `[target]`: the contract axes of schema v3 this compiler reads so far.

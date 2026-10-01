@@ -78,3 +78,28 @@ controls. Fresh graph/host identities and full config/compiler/limits qualify
 hits; all-objective logical/output parity passes. This closes whole-build
 persistence, not the per-module elaboration cache, decision lock or incremental
 formation requirements.
+
+Next batch: explicit decision locks. Save separate objective assignments with
+complete input/config/compiler identities, reconstruct structural recipes through
+current proof producers, and judge complete delivered bytes through the ordinary
+admission path. Replay is the first optional terminal move, within that walk's
+existing limits; the mandatory baseline survives every refusal. Prediction:
+reproducible useful starts, sometimes fewer subsequent moves, with additional
+proof/formation cost when the saved assignment does not help. No speed or size
+win is presumed. TOML and CLI controls are explicit; malformed or stale files
+produce a reported miss, never evidence or permission. Requested writes fail
+visibly if they cannot be completed.
+
+This corrects the old M3.9 proposal to reuse a compression verdict from a matching
+site/unit hash. Compression, naming and incumbent comparisons depend on complete
+delivered bytes. An unchanged local site cannot certify an unchanged verdict;
+only the existing exact-byte, encoder-qualified measurement cache can reuse that
+cost. Decision locks therefore require complete identities and fresh legality
+and artifact admission, and do not promise reuse across source edits.
+
+The [decision-lock batch](../../benchmarks/migration-results/2026-10-01-q2-decisions/README.md)
+implements that explicit full-identity replay and its TOML/CLI controls. Current
+proofs and exact artifact admission protect each independent objective; ten
+focused checks and 36 release oracles pass. Bytes are unchanged on the controls,
+and search cost varies in both directions. This completes the lock portion of
+tasks 3 and 5, not per-module elaboration or incremental formation.

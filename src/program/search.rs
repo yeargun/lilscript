@@ -21,6 +21,9 @@ use selection::Portfolio;
 mod terminal;
 #[path = "search_independent.rs"]
 mod independent;
+#[path = "search_decisions.rs"]
+mod decisions;
+pub(crate) use decisions::SavedDecision;
 pub use terminal::{ChallengerOutcome, ChallengerTrial, TerminalObjective, TerminalReport};
 
 #[cfg(test)]

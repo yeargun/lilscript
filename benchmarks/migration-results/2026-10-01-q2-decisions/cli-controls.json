@@ -1,0 +1,7 @@
+{
+  "default_write_in_current_directory": true,
+  "explicit_read_overrides_toml": true,
+  "off_disables_toml_read": true,
+  "native_refuses_locks": true,
+  "help_documents_flags": true
+}

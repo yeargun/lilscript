@@ -702,6 +702,8 @@ pub struct ProjectConfig {
     pub effort: EffortConfig,
     /// Physical build/analysis/codec reuse; never an optimization permission.
     pub cache: CacheConfig,
+    /// Explicit saved search assignments; optional, independent of transparent caches.
+    pub decisions: DecisionsConfig,
     pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
     pub target: TargetConfig,
@@ -710,6 +712,19 @@ pub struct ProjectConfig {
     pub format: FormatConfig,
     #[serde(skip)]
     pub config_dir: Option<PathBuf>,
+}
+
+/// Saved complete JavaScript assignments, re-proved and re-judged in the
+/// terminal walk. Omitted paths disable IO. Paths are relative to the TOML file.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DecisionsConfig {
+    /// Read an optional fingerprinted lock. A missing, malformed or stale file
+    /// reports a miss. Replay spends the current walk's normal work/size budget.
+    pub read: Option<PathBuf>,
+    /// Write the selected per-objective assignments after a successful build.
+    /// Adds IO, not search; failure is an error. Same path as read is supported.
+    pub write: Option<PathBuf>,
 }
 
 /// Physical reuse of compilation and compression. These controls do not

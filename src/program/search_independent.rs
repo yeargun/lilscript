@@ -18,6 +18,7 @@ impl<'src> Compilation<'src> {
         &mut self,
         source: SemanticId,
         requests: &[(&ResolvedPolicy, SearchRequest)],
+        decisions: &[Option<SavedDecision>; 3],
         mut observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<[Option<IndependentSearchResult>; 3], SearchError> {
         assert!((2..=3).contains(&requests.len()));
@@ -34,6 +35,7 @@ impl<'src> Compilation<'src> {
                 source,
                 requests,
                 requests.len(),
+                decisions,
                 &mut results,
                 &mut observe,
             )
@@ -61,6 +63,7 @@ impl<'src> Compilation<'src> {
         source: SemanticId,
         requests: &[(&ResolvedPolicy, SearchRequest)],
         total: usize,
+        decisions: &[Option<SavedDecision>; 3],
         results: &mut [Option<IndependentSearchResult>; 3],
         observe: &mut impl FnMut(SearchObservation<'_>),
     ) -> Result<BaselineSeal, SearchError> {
@@ -83,7 +86,7 @@ impl<'src> Compilation<'src> {
         continuation?;
         let seal = search
             .compilation
-            .prepare_independent_objectives(source, earlier, total, results, observe)?;
+            .prepare_independent_objectives(source, earlier, total, decisions, results, observe)?;
         search.sealed = Some(seal);
         let slot = index(objective.codec);
         let share = search
@@ -104,7 +107,7 @@ impl<'src> Compilation<'src> {
                     observe,
                 );
             }
-            search.challenge(policy, request)?;
+            search.challenge_with_decisions(policy, request, decisions)?;
             Ok::<_, SearchError>(())
         }));
         let (used, _) = search.compilation.ledger.optional_search_work();

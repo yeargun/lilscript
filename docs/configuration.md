@@ -1158,9 +1158,66 @@ preflight as well as their normal frontend work; tiny builds may gain nothing.
 The cache stores detached artifacts, not live checked programs. The checked
 session/callback APIs always execute their frontend. This cache does not reuse
 individual modules after a graph changes. Whole-build hits are also disabled
-when either `normalization_reuse` or `codec_reuse` is false, when a physical
+when explicit decision-lock reading/writing is configured, when either
+`normalization_reuse` or `codec_reuse` is false, when a physical
 verification audit is active, or when the policy sets a wall-clock deadline.
 Set `build_reuse=false` to audit compilation while keeping codec reuse.
+
+## Saved search decisions
+
+```toml
+[decisions]
+# read = "lilscript.choices.lock"
+# write = "lilscript.choices.lock"
+```
+
+Both paths are optional and relative to the TOML file. Omitted means no lock IO.
+`read` proposes a saved complete assignment independently for raw, gzip and
+Brotli. Its fingerprint includes the complete current graph and embedded host
+identities, configuration, compiler/encoder identity and service limits. The
+read/write paths and transparent cache settings are excluded. A missing,
+malformed, oversized or mismatched file is a reported miss and normal compilation
+continues. Source edits invalidate the lock; a matching local function does not
+establish an unchanged whole-file compression verdict.
+
+The proposal is the first terminal move after structural discovery. It spends
+one position in the current walk and its ordinary optional work/memory and exact
+judgment limits. Effort zero does not replay. Current proof producers establish
+the structural recipes; formation checks target choices and naming permissions;
+the objective judges the complete delivered artifact. All hard TOML vetoes,
+runtime contracts and per-entry dominance requirements remain in force. A
+refused or losing proposal leaves the established incumbent available. A useful
+proposal can change the later search trajectory; this explicit search input is
+not transparent caching and does not promise the same final bytes as no lock.
+
+`write` saves selected assignments after a successful JavaScript build, including
+each independently requested objective. It adds no search. The same path may be
+read and written. A failed write is an error and leaves the previous file intact;
+replacement uses a temporary file in the destination directory. The directory
+must exist. Lock files are at most 1 MiB and at most one sixteenth of the effective
+retained-byte ceiling. Input/configuration and serialized handoff buffers remain
+outside the core compilation ledger; reconstruction, formation, encoding and
+admission use the normal ledger. Publication rewrites with nonempty semantic
+lineage cannot be exported as an incomplete word recipe.
+
+`--choices FILE` overrides `read`, and `--choices off` disables it.
+`--write-choices [FILE]` overrides `write`, defaulting to
+`lilscript.choices.lock` when FILE is omitted. CLI paths start in the current
+directory. Native-only builds refuse decision-lock controls. Explicit lock IO
+disables completed-build cache hits, so the compiler actually revalidates a read
+and performs a requested write; exact-byte codec and normalization reuse remain
+available. Checked-session clients can replay while searching the original
+checked root; a newly published semantic source does not inherit that lock. Writes belong to
+the completed `compile_source`/`compile_path`/`compile_entries` build operation.
+
+`report.decisions` records read/write status, fingerprint and miss reason. Each
+terminal objective records a `decision-lock` start and a `decision_error` on a
+failed reconstruction. Saving helps reproduce starts, but replay adds proof and
+formation cost when the assignment is already available or unhelpful. It can
+also spend work otherwise used by later moves. No compile-time or size gain is
+guaranteed, and saved verdicts never substitute for current artifact admission.
+
+## Reuse storage and telemetry
 
 `build-v1.bin` has 64 fixed slots of 4,194,384 bytes, at most 268,440,576 bytes
 of file extent (unused regions can be sparse). Each JSON payload is at most

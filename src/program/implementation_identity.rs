@@ -49,7 +49,7 @@ use std::mem::size_of;
 mod shared;
 pub(super) use shared::SharedImplementationIdentity;
 
-const FORMAT: u32 = 3;
+pub(super) const FORMAT: u32 = 3;
 const HASH_OFFSET: u64 = 0xcbf29ce484222325;
 const HASH_PRIME: u64 = 0x100000001b3;
 

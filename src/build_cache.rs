@@ -30,7 +30,10 @@ pub(super) struct Request {
 
 impl Request {
     fn new(config: &ProjectConfig, options: ServiceOptions) -> Result<Option<Self>, ServiceError> {
-        if !config.cache.build_reuse || config.cache.directory.is_none() {
+        // Explicit lock IO must execute: replay re-proves/re-judges, and an
+        // explicit write must not be suppressed by a completed-build hit.
+        if config.decisions.read.is_some() || config.decisions.write.is_some()
+            || !config.cache.build_reuse || config.cache.directory.is_none() {
             return Ok(None);
         }
         // A physical audit must really execute the requested proofs/encoders.

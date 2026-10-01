@@ -77,9 +77,23 @@ configuration/compiler/limits gate hits. 12 focused tests, schema/release CLI
 controls and 72 release oracles pass; all prior outputs and current logical
 bills match. Warm generic samples drop to .00–.01 CPU seconds; cold cache IO
 adds .01–.02 seconds and tiny gzip has no clear benefit. No broader claim.
-Per-module elaboration and decision-lock replay remain, as do formation and
+Per-module elaboration and (at that pin) decision-lock replay remained, as did formation and
 remaining resource owners. Low-effort handoffs can carry unmeasured codec
 scores: preserve None, never invent a score. Native public exports still refuse.
+
+The [decision-lock batch](../../benchmarks/migration-results/2026-10-01-q2-decisions/README.md)
+pins `q2-decisions-1`, SHA-256
+`a0c3d68135f3b50f12c5485880b0583c6fdfb73af9ca41de3fdb240d753dd8d3`,
+algorithm 50. `[decisions] read/write`, `--choices FILE|off` and
+`--write-choices [FILE]` save separate objective assignments. Full current
+identities gate reads; current proofs, permissions, limits and artifact admission
+qualify the first terminal move. Fast tiers pin the baseline through replay.
+Ten focused checks and 36 release oracles pass; all prior/control bytes match.
+No general speed benefit: one Brotli walk drops 50→42 judgments, another grows
+65→84. Keep explicit opt-in and negative evidence. Whole-build hits are bypassed
+for explicit lock IO. Do not reuse a local-site compression verdict across source
+changes; complete bytes/encoder identity are necessary. Per-module elaboration,
+formation, global dependencies and remaining resource owners stay open.
 
 S4 is complete under its [acceptance record](s4-acceptance.md) and
 [explicit ABI scope decision](s4-public-abi.md). Unrestricted public erased
@@ -98,7 +112,7 @@ hard TOML/replay permissions. The shared fact/removal audit is complete.
    The use-index consumer, module graph, local dirty maps and renumbering plans
    are complete. Remaining global rule dependencies, placement storage,
    source analysis/edit owners, cross-candidate formation,
-   per-module elaboration reuse and explicit decision-lock replay remain.
+   per-module elaboration reuse remain. Explicit full-identity decision locks are now implemented.
 
 2. Finish Q2 before **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
    Q3 owns markedlil candidate growth and G3's 48 → 292 spelling judgments for

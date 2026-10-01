@@ -21,7 +21,8 @@ use std::mem::size_of;
 
 /// The passes actually selected for output formation. Enabled permissions are
 /// defaults, not obligations: an admitted candidate may choose a proper subset.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct OutputTactics {
     pub dead_code_elimination: bool,
     pub target_compaction: bool,

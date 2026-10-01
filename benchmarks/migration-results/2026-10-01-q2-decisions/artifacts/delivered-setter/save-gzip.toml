@@ -1,0 +1,11 @@
+[delivery]
+mode='preserve-modules'
+
+[decisions]
+write="/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-q2-decisions/artifacts/delivered-setter/gzip.choices.lock"
+[optimization]
+preset='maximum'
+[objective]
+codecs='gzip'
+[effort]
+level=13

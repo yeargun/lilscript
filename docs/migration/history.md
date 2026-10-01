@@ -1404,3 +1404,28 @@ with each payload bounded by 4 MiB and one eighth of the retained-byte ceiling.
 Initial invalid fixtures and the reader's overstrict low-effort score check
 were corrected and only affected checks rerun. Per-module elaboration, decision
 locks, incremental formation and remaining resource owners stay Q2 work.
+
+## 2026-10-01: Q2 explicit decision-lock replay
+
+Completed the [preregistered decision-lock batch](q2-acceptance.md) on top of
+`18b2cf7b`, implementing strict TOML/CLI IO, bounded atomic storage, complete
+identities, fresh structural reconstruction and exact independent-objective
+admission. The old local-site/unit verdict proposal is corrected because
+compression and naming depend on the complete artifact. A lock is an explicit
+search start, not transparent caching. The mandatory incumbent remains protected,
+including at fast effort levels after a lifetime defect found by reconstruction
+qualification. No semantic proof payload or saved cost becomes trusted evidence.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-decisions/README.md):
+pin `q2-decisions-1`, SHA-256
+`a0c3d68135f3b50f12c5485880b0583c6fdfb73af9ca41de3fdb240d753dd8d3`,
+algorithm 50. Ten focused checks, schema/CLI controls and 36 release
+artifact/runtime/independent-score oracles pass. Previous/no-lock/save/replay
+outputs all match: 6,615 raw / 1,715 gzip / 1,001 Brotli, zero deltas. Saving alone
+preserves logical work. Replay changes the trajectory: two-file Brotli falls
+50→42 judgments, spelling Brotli grows 65→84, with no general CPU gain in the
+coarse samples. Keep the feature explicit and off by default. The older full
+integration fixture's parse refusal is carried to V1; a focused five-family
+control supplies reconstruction and runtime evidence. No full library/fleet
+rerun, ratchet baseline or port artifact change. Q2 remains the sole active
+milestone for its remaining reuse, formation and resource owners.

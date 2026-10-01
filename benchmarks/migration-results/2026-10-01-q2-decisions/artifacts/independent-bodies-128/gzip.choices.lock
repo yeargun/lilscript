@@ -1,0 +1,73 @@
+{
+  "format": 1,
+  "fingerprint": "7d31be72214a24e46dba16039825cbe6023a242ec492f76048526b8cb674dfee",
+  "assignments": [
+    null,
+    {
+      "recipe": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "output": {
+        "dead_code_elimination": true,
+        "target_compaction": true,
+        "rules": {
+          "constant_folding": true,
+          "inlining": true,
+          "scalar_replacement": true,
+          "data_encoding": false,
+          "array_packing": "disabled",
+          "call_specialization": true,
+          "helper_sharing": true,
+          "parameterized_helpers": false,
+          "statement_spellings": true,
+          "declaration_order": false,
+          "receiver_aliases": true
+        },
+        "literals": "Original",
+        "families": {
+          "block_inlining": false,
+          "expression_inlining": false,
+          "call_specialization": false,
+          "helper_sharing": false,
+          "parameterized_helpers": false,
+          "flat_blocks": false,
+          "statements": {
+            "conditional_values": false,
+            "exit_points": false,
+            "loop_fusion": false,
+            "conditional_returns": false,
+            "logical_branches": false
+          },
+          "string_pooling": false,
+          "string_array_packing": false,
+          "string_constants": false,
+          "loop_heads": true,
+          "logical_statements": false,
+          "compound_assignments": false,
+          "quotes": false,
+          "int32_hints": false,
+          "property_mangling": false
+        },
+        "choices": {
+          "entries": [],
+          "joint": false
+        }
+      },
+      "naming": {
+        "style": "Source",
+        "alphabet": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_",
+        "source_names": [],
+        "self_named": false,
+        "read_order": false,
+        "local_read_order": false,
+        "compact_order": false
+      }
+    },
+    null
+  ]
+}

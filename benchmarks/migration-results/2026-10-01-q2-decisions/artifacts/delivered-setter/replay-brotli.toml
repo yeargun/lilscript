@@ -1,0 +1,11 @@
+[delivery]
+mode='preserve-modules'
+
+[decisions]
+read="/home/azureuser/lilscript/benchmarks/migration-results/2026-10-01-q2-decisions/artifacts/delivered-setter/brotli.choices.lock"
+[optimization]
+preset='maximum'
+[objective]
+codecs='brotli'
+[effort]
+level=13

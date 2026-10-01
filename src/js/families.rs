@@ -23,7 +23,7 @@ use super::selection::Objective;
 use crate::compilation_policy::{ResolvedPolicy, RuntimeRisk, TacticId, TacticUse};
 
 /// Where a selected string-array packing pass may add decoding work.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ArrayPacking {
     Disabled,
@@ -61,7 +61,8 @@ impl ArrayPacking {
 
 /// Optional semantic work performed on the target tree. This assignment is
 /// part of a formed head's identity and of its artifacts' permission evidence.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TargetRules {
     pub constant_folding: bool,
     pub inlining: bool,
@@ -165,7 +166,8 @@ impl TargetRules {
 /// repeat matching often prefers in statement form. The rules that do remove
 /// operations (same-exit merge, trailing-statement dedup, exit to `break`)
 /// are not here: `compress_statements` runs them under every objective.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct StatementSpellings {
     /// `if(c)x=a;else x=b` as `x=c?a:b`, for a binding or a property of one
     /// (Closure's MinimizeConditions, Terser's `conditionals`).
@@ -208,7 +210,8 @@ impl StatementSpellings {
 /// target's rules, so any assignment is a correct program; only its size
 /// depends on the codec. Target compaction governs all of them; semantic
 /// families additionally require their own tactic's permission.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct OutputFamilies {
     /// A function called once becomes a block at its call, its parameters
     /// copies to forward (Closure's FunctionInjector block mode).

@@ -115,6 +115,16 @@ struct Args {
     #[arg(long, value_name = "DIR|off")]
     cache: Option<String>,
 
+    /// Replay a fingerprinted JavaScript decision lock as the first terminal move.
+    /// Overrides [decisions] read; off disables reading. Relative to the current directory.
+    #[arg(long, value_name = "FILE|off")]
+    choices: Option<String>,
+
+    /// Save selected JavaScript choices; omitted FILE uses lilscript.choices.lock.
+    /// Overrides [decisions] write. Relative to the current directory.
+    #[arg(long, num_args = 0..=1, default_missing_value = "lilscript.choices.lock", value_name = "FILE")]
+    write_choices: Option<PathBuf>,
+
     /// Compiler worker threads, the one parallelism flag. Accepted; the
     /// compiler does not run worker threads yet, so it has no effect. A
     /// thread count never changes the output.
@@ -221,6 +231,14 @@ fn run() -> Result<(), String> {
     );
     for warning in &loaded.warnings {
         eprintln!("warning: {config_label}: {warning}");
+    }
+    if let Some(path) = &args.choices {
+        loaded.config.decisions.read = if path == "off" { None } else {
+            Some(std::env::current_dir().map_err(|error| error.to_string())?.join(path))
+        };
+    }
+    if let Some(path) = &args.write_choices {
+        loaded.config.decisions.write = Some(std::env::current_dir().map_err(|error| error.to_string())?.join(path));
     }
     if let Some(cache) = &args.cache {
         if cache == "off" {

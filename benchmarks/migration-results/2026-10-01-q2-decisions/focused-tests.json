@@ -1,0 +1,27 @@
+{
+  "tests": {
+    "build::decisions::tests::q2_decision_lock_complete_identity_rejects_source_contract_effort_and_limit_changes": "ok",
+    "build::decisions::tests::q2_decision_lock_config_is_strict_relative_and_never_native": "ok",
+    "build::decisions::tests::q2_decision_lock_current_module_graph_and_multifile_delivery": "ok",
+    "build::decisions::tests::q2_decision_lock_rejudges_all_objectives_and_rewrites_atomically": "ok",
+    "build::decisions::tests::q2_decision_lock_untrusted_assignments_cannot_override_toml_or_panic": "ok",
+    "build::decisions::tests::q2_decision_lock_zero_effort_io_bounds_and_failed_write_keep_the_previous_file": "ok",
+    "program::integrated_javascript_tests::q2_decision_lock_reconstructs_all_recipe_families_in_a_fresh_compilation": "ok",
+    "build::cache::tests::q2_build_cache_source_preserves_all_objectives_logical_limits_and_hard_vetoes": "ok",
+    "build::decisions::tests::q2_decision_lock_optional_work_refusal_keeps_the_admitted_baseline": "ok",
+    "program::publication::search::terminal::tests::every_effort_level_starts_from_the_same_baseline_and_ends_at_most_there": "ok"
+  },
+  "passed": 10,
+  "logs": [
+    "/tmp/lilscript-q2-decisions-tests.log",
+    "/tmp/lilscript-q2-decisions-rerun.log",
+    "/tmp/lilscript-q2-decisions-final-tests.log"
+  ],
+  "scope": "focused decision-lock implementation and affected baseline/cache checks; no full library or fleet run",
+  "repairs": [
+    "Initial compile errors: missing output borrow and retained-charge error conversion.",
+    "Old full integration fixture has a pre-existing nullish-statement parse refusal; focused control uses the same five recipe kinds without that obsolete syntax.",
+    "Replay must pin the admitted baseline at fast effort levels before a locked candidate can replace it.",
+    "Effort-prefix stop receipts are omitted when an explicit effort-specific lock changes the walk."
+  ]
+}

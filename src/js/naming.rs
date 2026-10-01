@@ -7,7 +7,7 @@ use crate::compilation_policy::{ResolvedPolicy, RuntimeRisk, TacticId, TacticUse
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use std::sync::OnceLock;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Style {
     Global,
     Scoped,
@@ -17,7 +17,8 @@ pub enum Style {
 /// A validated permutation of the identifier alphabet. Its private storage
 /// prevents a naming plan from supplying duplicate or illegal characters.
 /// It is an explicit joint choice because changing it can rename every scope.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct Alphabet([u8; 54]);
 
 impl Default for Alphabet {
@@ -54,11 +55,13 @@ impl Alphabet {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Plan {
     pub style: Style,
     pub alphabet: Alphabet,
     /// Lexical names retained as a compression choice, not a semantic pin.
+    #[serde(with = "saved_binding_ids")]
     pub source_names: Vec<BindingId>,
     /// Each function that is not an arrow and has an exact name prints as
     /// `function name(){…}`, so the binding holding it takes a short name.
@@ -1021,3 +1024,31 @@ fn encode_name(index: usize, alphabet: Alphabet, compact: bool, bytes: &mut [u8]
 #[path = "naming_order.rs"]
 mod order;
 use order::Compact;
+
+impl From<Alphabet> for String {
+    fn from(value: Alphabet) -> Self { value.as_str().to_owned() }
+}
+impl TryFrom<String> for Alphabet {
+    type Error = &'static str;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let bytes: [u8; 54] = value.as_bytes().try_into().map_err(|_| "identifier alphabet length")?;
+        let mut sorted = bytes;
+        sorted.sort_unstable();
+        let mut expected = *crate::identifier_names::ALPHABET;
+        expected.sort_unstable();
+        if sorted != expected { return Err("identifier alphabet must be a permutation"); }
+        Ok(Self(bytes))
+    }
+}
+mod saved_binding_ids {
+    use super::BindingId;
+    use serde::{Deserialize, Serialize};
+    pub fn serialize<S: serde::Serializer>(ids: &[BindingId], serializer: S) -> Result<S::Ok, S::Error> {
+        ids.iter().map(|id| id.index()).collect::<Vec<_>>().serialize(serializer)
+    }
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Vec<BindingId>, D::Error> {
+        Vec::<u32>::deserialize(deserializer)?.into_iter().map(|id| {
+            BindingId::try_new(id as usize).ok_or_else(|| serde::de::Error::custom("binding index capacity"))
+        }).collect()
+    }
+}

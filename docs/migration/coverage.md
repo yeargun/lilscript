@@ -26,7 +26,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M3.7 | [C1](plan.md#c1) | Environment variables |
 | M3.8a | [D2](plan.md#d2) | Consumer-shakeable delivery, first half |
 | M3.8b | [D2](plan.md#d2) | Consumer-shakeable delivery, second half |
-| M3.9 | [Q2](plan.md#q2) | Whole-build/codec caches implemented; per-module elaboration, decision lock and incremental reuse remain |
+| M3.9 | [Q2](plan.md#q2) | Whole-build/codec caches and explicit decision locks implemented; per-module elaboration and incremental reuse remain |
 | M4.2 | [S4](plan.md#s4) | Implemented: type-parameter identity and canonical checked types |
 | M4.3 | [S4](plan.md#s4) | Implemented: defaults evaluated in the selected declaration's scope |
 | M4.4 | [S4](plan.md#s4) | Implemented: statement ids, binder identity and canonical checked types |
@@ -125,7 +125,7 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M3.5 | [Q3](plan.md#q3) | level 0 still measures exactly; |
 | M3.5 | [Q3](plan.md#q3) | monotone selection between two search levels; |
 | M3.5 | [Q3](plan.md#q3) | the data estimator is raw bytes under every objective. |
-| M3.9 | [Q2](plan.md#q2) | Unchanged-file codec receipts and complete builds have bounded persistent reuse; per-module elaboration and explicit decision replay remain. |
+| M3.9 | [Q2](plan.md#q2) | Unchanged-file codec receipts and complete builds have bounded persistent reuse; fingerprinted choices replay through current proof/admission owners. Per-module elaboration remains. |
 | M5.6 | [Q2](plan.md#q2), resolved | Entry graph and cycle checking use admitted shared graph routines; remaining placement/analysis/edit admission stays Q2 |
 | M8.5 / M3.3 | [Q4](plan.md#q4) | table decoders sit at the first module's root. |
 | M8.7 | [C3](plan.md#c3), resolved | NO3's second half is empty; every retired threshold has a generic owner and historical provenance outside compiler sources. |
@@ -180,3 +180,10 @@ and G1, including with inlining or scalar replacement disabled. The 64-helper
 prefix passes; 128 fails. [Reproduction and evidence](../../benchmarks/migration-results/2026-10-01-g1-complete/README.md#existing-refusal-found-during-qualification).
 S4's contracts batch fixes the refined result view and passes the independent
 eight-input oracle under all three objectives. The source stays frozen.
+
+Q2 decision-lock qualification also encountered a pre-existing parse refusal in
+`src/program/fixtures/integrated-architecture/marked-api.lil` at the bare
+`nullable??demandFallback("nullish")` statement. **V1** owns updating that older
+integration fixture during the deferred broad qualification. The new focused
+reconstruction control covers records, helpers, strings, products and call
+layouts without depending on that obsolete syntax; no full-suite claim follows.

@@ -2,6 +2,8 @@
 //! Unsupported input is diagnosed here; no text rewrite runs.
 #[path = "build_cache.rs"]
 mod cache;
+#[path = "build_decisions.rs"]
+mod decisions;
 
 use std::fmt;
 use std::path::Path;
@@ -343,6 +345,7 @@ struct Frontend {
     /// Relative host modules every output carries.
     hosts: crate::host_modules::HostDelivery,
     native_bindings: Vec<(crate::program::CellId, String)>,
+    decisions: decisions::Request,
 }
 
 #[cfg(test)]
@@ -472,6 +475,7 @@ impl Frontend {
             source_buffer_bytes: None,
             hosts: Default::default(),
             native_bindings: Vec::new(),
+            decisions: decisions::Request::new(config, options)?,
         };
         frontend.checkpoint(1)?;
         Ok(frontend)
@@ -505,9 +509,11 @@ impl Frontend {
             source_buffer_bytes,
             hosts,
             native_bindings,
+            mut decisions,
         } = self;
         let frontend_work = ledger.work_used(WorkDomain::Baseline);
         let source_identity = digest(serde_json::to_vec(&inputs).unwrap());
+        decisions.identify(&inputs);
         let program = prepared.program();
         let shape = json!({
             "modules": program.modules().len(), "units": program.units().len(),
@@ -571,6 +577,7 @@ impl Frontend {
             shape,
             source_buffer_bytes,
             native_bindings,
+            decisions,
         })
     }
 }
@@ -592,6 +599,7 @@ pub struct CheckedSourceSession<'src> {
     shape: Value,
     source_buffer_bytes: Option<u64>,
     native_bindings: Vec<(crate::program::CellId, String)>,
+    decisions: decisions::Request,
 }
 
 /// Independently optimized winners retain each objective's qualification.
@@ -705,7 +713,7 @@ impl<'src> CheckedSourceSession<'src> {
                 }
             }
         }
-        let mut delivered = deliver_javascript(&mut self.compilation, qualified.unwrap())?;
+        let mut delivered = deliver_javascript(&mut self.compilation, qualified.unwrap(), self.decisions.is_writing())?;
         let total_ns = nanos(started);
         delivered.details["formation_naming_render_ns"] = json!(total_ns - codec_ns);
         delivered.details["codec_ns"] = json!(codec_ns);
@@ -723,6 +731,10 @@ impl<'src> CheckedSourceSession<'src> {
         observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<ServiceJavaScriptBatch, ServiceError> {
         let objectives = self.objectives()?;
+        // A session client may publish another semantic source. The lock was
+        // fingerprinted for this factory's original checked root only.
+        let no_decisions = [None, None, None];
+        let decisions = if source == self.source { &self.decisions.assignments } else { &no_decisions };
         if objectives.iter().count() > 1 {
             return self.search_independent_javascript(source, observe);
         }
@@ -738,7 +750,7 @@ impl<'src> CheckedSourceSession<'src> {
         // the level-0 artifact and, from the default level, from the
         // structural search's winner and the naming restarts too.
         let terminal = search
-            .challenge(policy, request)
+            .challenge_with_decisions(policy, request, decisions)
             .map(|report| serde_json::to_value(report).unwrap_or(Value::Null))
             .map_err(|error| ServiceError::output("javascript", error))?;
         let counters = search.counters();
@@ -782,7 +794,7 @@ impl<'src> CheckedSourceSession<'src> {
                     winners[codec_index(codec)] = Some(artifacts.len());
                 }
             }
-            match deliver_javascript(&mut self.compilation, receipt) {
+            match deliver_javascript(&mut self.compilation, receipt, self.decisions.is_writing()) {
                 Ok(artifact) => artifacts.push(artifact),
                 Err(error) => {
                     for pending in handoffs {
@@ -807,6 +819,8 @@ impl<'src> CheckedSourceSession<'src> {
         observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<ServiceJavaScriptBatch, ServiceError> {
         let policies = self.independent_javascript.as_ref().unwrap();
+        let no_decisions = [None, None, None];
+        let decisions = if source == self.source { &self.decisions.assignments } else { &no_decisions };
         let requests: Vec<_> = policies
             .iter()
             .map(|policy| {
@@ -822,7 +836,7 @@ impl<'src> CheckedSourceSession<'src> {
             .collect();
         let results = self
             .compilation
-            .search_javascript_independent(source, &requests, observe)
+            .search_javascript_independent(source, &requests, decisions, observe)
             .map_err(|error| ServiceError::output("javascript", error))?;
         let mut report = json!({
             "independent": true,
@@ -891,7 +905,7 @@ impl<'src> CheckedSourceSession<'src> {
             .enumerate()
             .filter_map(|(index, result)| result.map(|result| (index, result)));
         while let Some((index, result)) = results.next() {
-            match deliver_javascript(&mut self.compilation, result.winner) {
+            match deliver_javascript(&mut self.compilation, result.winner, self.decisions.is_writing()) {
                 Ok(artifact) => {
                     winners[index] = Some(artifacts.len());
                     artifacts.push(artifact);
@@ -1001,6 +1015,7 @@ impl<'src> CheckedSourceSession<'src> {
         output.report["native_delivery"] = json!(native_cost);
         output.report["first_artifact_ns"] = json!(first_artifact_ns);
         output.report["search"] = search_report;
+        self.decisions.finish(&mut output)?;
         Ok(output)
     }
 
@@ -1140,11 +1155,13 @@ fn record_retained(event: &'static str, bytes: u64) {
 fn deliver_javascript(
     compilation: &mut Compilation<'_>,
     receipt: QualifiedArtifact,
+    save_decision: bool,
 ) -> Result<ServiceJavaScript, ServiceError> {
     let delivered = (|| {
         let (sizes, several, details) = compilation.with_qualified_artifact(&receipt, |view, provenance| {
         let plan = provenance.naming();
         (view.sizes, view.layout.is_some(), json!({
+            "decision":save_decision.then(|| SavedDecision::capture(view.implementation, &view.output, plan)).flatten(),
             "recipe_words":view.implementation.recipe_words(),
             "recipe_fingerprint":view.recipe_fingerprint,
             "semantic":semantic_report(view.implementation.snapshot_identity(),

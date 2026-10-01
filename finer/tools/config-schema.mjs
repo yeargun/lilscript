@@ -56,7 +56,7 @@ export function parseDefaults(text, name) {
 const SECTIONS = [
   ["language", "LanguageConfig"], ["host", "HostConfig"],
   ["optimization", "OptimizationConfig"], ["objective", "ObjectiveConfig"], ["effort", "EffortConfig"],
-  ["javascript", "JavaScriptConfig"], ["mangle", "MangleConfig"], ["cache", "CacheConfig"],
+  ["javascript", "JavaScriptConfig"], ["mangle", "MangleConfig"], ["cache", "CacheConfig"], ["decisions", "DecisionsConfig"],
   ["target", "TargetConfig"], ["delivery", "DeliveryConfig"], ["lint", "LintConfig"], ["format", "FormatConfig"],
   ["policy", "PolicyConfig"],
   // These accepted leaf tables do not use the nested *Config convention.
