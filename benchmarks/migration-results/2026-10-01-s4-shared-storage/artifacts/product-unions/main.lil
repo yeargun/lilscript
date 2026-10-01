@@ -1,0 +1,10 @@
+struct Point{int x;int y;}
+        struct Box<T>{T value;}
+        export Point|string change(Point|string value){if(value is string){return value+"!";}Point p=value;p.x+=1;return p;}
+        export Box<int>|bool flip(Box<int>|bool value){if(value is bool){return !value;}Box<int> b=value;b.value+=2;return b;}
+        export Point|int next(Point|int value){if(value is int){return value+3;}Point p=value;p.y+=4;return p;}
+        export Point|string apply(func(Point|string)->(Point|string) f,Point|string value){return f(value);}
+        export JsValue opaque(Point|string value){return value;}
+        export Point|string assumed(JsValue value){Point|string item=JS.assume(value);return change(item);}
+        T pick<T>(T|string value,T fallback){if(value is string){return fallback;}return value;}
+        export int internal(){Point p=pick("other",Point{7,8});Point|string value=change(p);if(value is string){return 0;}Point q=value;return p.x*10+q.x;}

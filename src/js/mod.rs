@@ -34,6 +34,7 @@ pub use families::{
 mod constants;
 pub mod extract;
 mod facts;
+mod facts_values;
 mod literal_output;
 pub mod manifest;
 mod mentions;
@@ -919,13 +920,6 @@ pub enum ValueClass {
     /// An object or `null` (a nullable object type): truthy exactly when it
     /// is not `null` (or not yet assigned).
     NullableObject,
-}
-
-impl Module {
-    /// The class of every binding, `None` where unknown.
-    pub(crate) fn value_classes(&self) -> Vec<Option<ValueClass>> {
-        self.bindings.iter().map(|binding| binding.class).collect()
-    }
 }
 
 /// One authored named ESM import. Rows retain module-request order even when
@@ -2349,19 +2343,14 @@ impl Module {
             crate::compilation_policy::WorkKind::Analysis,
             self.exports.len() as u64,
         )?;
-        // Only code that can run counts: edits leave unreachable nodes. The
-        // same walk finds the bindings that code assigns, so the two cannot
-        // disagree about which nodes are live.
-        let mut written = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
+        // Occurrence counts include shared nodes at each evaluation site;
+        // physical writes come from the shared reachable binding owner below.
         self.walk_mentions(
             &mut vec![self.root],
             &mut Vec::new(),
             budget,
-            |binding, write| {
+            |binding, _| {
                 references[binding.index()] = references[binding.index()].saturating_add(1);
-                if write {
-                    written[binding.index()] = true;
-                }
             },
         )?;
         for export in &self.exports {
@@ -2403,7 +2392,7 @@ impl Module {
                 // assigns is not its initializer everywhere, and an
                 // assignment's target is not a place a value can take.
                 let movable = references[binding.index()] == 1
-                    && !written[binding.index()]
+                    && !order.written(binding)
                     && !self.bindings[binding.index()].pinned
                     && !matches!(self.expressions[value.index()], Expr::Class { .. })
                     && function.is_none_or(|function| {
@@ -2422,7 +2411,7 @@ impl Module {
                     match self.first_leaf(next, binding) {
                         Some(leaf) => Some((leaf, index + 1)),
                         None if head && self.creates_function(value) => None,
-                        // Past a quiet start of the statement (quiet.rs).
+                        // Past the shared effect/initialization proof for the statement.
                         None => self
                             .quiet_leaf(
                                 RegionId::new(region),

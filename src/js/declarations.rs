@@ -78,47 +78,13 @@ impl Module {
         if !self.pristine_builtins || !self.pure_property_reads {
             return Ok(0);
         }
-        let mut written = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
-        budget.work(Analysis, self.expressions.len() as u64)?;
-        for expression in &self.expressions {
-            if let Expr::Assign { target, .. } = expression {
-                if let Expr::Binding(binding) = self.expressions[target.index()] {
-                    written[binding.index()] = true;
-                }
-            }
-        }
-        // Adapters: bindings holding a function whose body only returns a
-        // function it creates. Calling one runs nothing else and cannot throw.
-        let mut adapter = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
-        for region in &self.regions {
-            for statement in &region.statements {
-                budget.work(Analysis, 1)?;
-                let (binding, function) = match *statement {
-                    Statement::Function { binding, function } => (binding, function),
-                    Statement::Let {
-                        binding,
-                        value: Some(value),
-                    } => match self.expressions[value.index()] {
-                        Expr::Function(function) => (binding, function),
-                        _ => continue,
-                    },
-                    _ => continue,
-                };
-                let body = self.functions[function.index()].body;
-                adapter[binding.index()] = !written[binding.index()]
-                    && matches!(
-                        self.regions[body.index()].statements[..],
-                        [Statement::Return(Some(value))]
-                            if matches!(self.expressions[value.index()], Expr::Function(_))
-                    );
-            }
-        }
+        self.with_reach_tree(budget, |module, reach, budget| {
         let creates = |module: &Self, value: ExprId| match &module.expressions[value.index()] {
             Expr::Literal(_) | Expr::Function(_) | Expr::Regex(_) => true,
             Expr::Call {
                 callee, arguments, ..
             } => {
-                matches!(module.expressions[callee.index()], Expr::Binding(binding) if adapter[binding.index()])
+                matches!(module.expressions[callee.index()], Expr::Binding(binding) if reach.bindings[binding.index()].factory(module))
                     && arguments.iter().all(|argument| {
                         matches!(
                             module.expressions[argument.index()],
@@ -159,13 +125,13 @@ impl Module {
                 .then(|| (*prototype, class, key.clone(), value))
         };
         let mut grouped = 0;
-        for region in 0..self.regions.len() {
-            let root = region == self.root.index();
+        for region in 0..module.regions.len() {
+            let root = region == module.root.index();
             let mut index = 0;
-            while index < self.regions[region].statements.len() {
+            while index < module.regions[region].statements.len() {
                 budget.work(Analysis, 1)?;
                 let Some((prototype, class, _, _)) =
-                    store(self, &self.regions[region].statements[index])
+                    store(module, &module.regions[region].statements[index])
                 else {
                     index += 1;
                     continue;
@@ -176,9 +142,9 @@ impl Module {
                 let mut declarations = Vec::new();
                 let mut end = index;
                 let mut last_store = index;
-                while let Some(statement) = self.regions[region].statements.get(end) {
+                while let Some(statement) = module.regions[region].statements.get(end) {
                     budget.work(Analysis, 1)?;
-                    let same_module = !root || self.root_module(end) == self.root_module(index);
+                    let same_module = !root || module.root_module(end) == module.root_module(index);
                     if !same_module {
                         break;
                     }
@@ -187,7 +153,7 @@ impl Module {
                         end += 1;
                         continue;
                     }
-                    match store(self, statement) {
+                    match store(module, statement) {
                         Some((_, other, key, value)) if other == class => {
                             entries.push((Property::Named(key), value));
                             end += 1;
@@ -198,7 +164,7 @@ impl Module {
                 }
                 // Declarations after the last store stay where they are.
                 let kept = declarations.len()
-                    - self.regions[region].statements[last_store..end]
+                    - module.regions[region].statements[last_store..end]
                         .iter()
                         .filter(|statement| matches!(statement, Statement::Function { .. }))
                         .count();
@@ -209,8 +175,8 @@ impl Module {
                     continue;
                 }
                 let count = entries.len();
-                let object = self.expression_in(Expr::Host(Host::new("Object")), None, budget)?;
-                let assign = self.expression_in(
+                let object = module.expression_in(Expr::Host(Host::new("Object")), None, budget)?;
+                let assign = module.expression_in(
                     Expr::Member {
                         object,
                         property: Property::Named("assign".into()),
@@ -218,8 +184,8 @@ impl Module {
                     None,
                     budget,
                 )?;
-                let literal = self.expression_in(Expr::Object(entries), None, budget)?;
-                let call = self.expression_in(
+                let literal = module.expression_in(Expr::Object(entries), None, budget)?;
+                let call = module.expression_in(
                     Expr::Call {
                         callee: assign,
                         arguments: vec![prototype, literal],
@@ -229,7 +195,7 @@ impl Module {
                     budget,
                 )?;
                 let replaced = declarations.len() + 1;
-                let removed_kinds = self.regions[region].statements[index..end]
+                let removed_kinds = module.regions[region].statements[index..end]
                     .iter()
                     .map(|statement| {
                         if matches!(statement, Statement::Function { .. }) {
@@ -242,7 +208,7 @@ impl Module {
                 declarations.push(Statement::Evaluate(call));
                 // The hoisted declarations keep their rows; the one call
                 // holds every store.
-                self.splice_statements(region, index..end, declarations, |original| {
+                module.splice_statements(region, index..end, declarations, |original| {
                     let mut stores = None::<RootRow>;
                     let mut declared = Vec::with_capacity(replaced);
                     for (offset, row) in original.iter().enumerate() {
@@ -260,6 +226,7 @@ impl Module {
             }
         }
         Ok(grouped)
+        })?
     }
 }
 

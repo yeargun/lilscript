@@ -32,7 +32,8 @@ fn backing<T>(values: &Vec<T>) -> u64 {
 }
 
 fn tree_backing(tree: &ReachTree) -> u64 {
-    backing(&tree.expressions)
+    backing(&tree.bindings)
+        + backing(&tree.expressions)
         + backing(&tree.regions)
         + backing(&tree.strict_regions)
         + backing(&tree.strict_expressions)
@@ -52,7 +53,8 @@ fn compare(module: &Module) {
         assert_eq!(full.strict_expressions, old.strict_expressions);
         assert_eq!(full.captured, old.captured);
         assert_eq!(full.parameters, old.parameters);
-        let expected = backing(&full.expressions)
+        let expected = backing(&full.bindings)
+            + backing(&full.expressions)
             + backing(&full.regions)
             + backing(&full.strict_regions)
             + backing(&full.strict_expressions)
@@ -78,6 +80,48 @@ fn compare(module: &Module) {
         drop(tree);
     }
     assert_eq!(ledger.retained_bytes(), 0);
+}
+
+#[test]
+fn target_storage_facts_invalidate_aliases_and_track_nonexpression_writes() {
+    let mut module = Module::default();
+    let root = module.root;
+    let source = binding(&mut module, root, 0, "source");
+    let alias = binding(&mut module, root, 1, "alias");
+    let imported = binding(&mut module, root, 2, "imported");
+    let published = binding(&mut module, root, 3, "published");
+    let caught = binding(&mut module, root, 4, "caught");
+    let array = expr(&mut module, Expr::Array(Vec::new()));
+    let read = expr(&mut module, Expr::Binding(source));
+    module.regions[root.index()].statements.extend([
+        Statement::Let { binding: source, value: Some(array) },
+        Statement::Let { binding: alias, value: Some(read) },
+    ]);
+    module.imports.push(Import { source: "host".into(), imported: "value".into(), binding: imported });
+    module.exports.push(Export { binding: published, name: "value".into() });
+    let body = module.region(module.regions[root.index()].scope);
+    module.regions[root.index()].statements.push(Statement::Try {
+        body, catch: Some(Catch { binding: Some(caught), body }), finally: None,
+    });
+    let first = module.reach_tree(&mut AllocationBudget::new(None)).unwrap();
+    assert!(first.bindings[source.index()].fixed());
+    assert!(first.bindings[source.index()].literal_array());
+    assert!(!first.bindings[imported.index()].fixed());
+    assert!(!first.bindings[published.index()].fixed());
+    assert!(first.bindings[caught.index()].implicit_writes);
+    // The next pass must see the new write; it cannot forward the old alias.
+    let target = expr(&mut module, Expr::Binding(source));
+    let value = number(&mut module, 7.0);
+    let write = expr(&mut module, Expr::Assign { target, value });
+    module.regions[root.index()].statements.push(Statement::Evaluate(write));
+    let next = module.reach_tree(&mut AllocationBudget::new(None)).unwrap();
+    assert!(!next.bindings[source.index()].fixed());
+    assert!(!next.bindings[source.index()].literal_array());
+    assert_eq!(next.bindings[source.index()].assignments, 1);
+    assert_eq!(module.eliminate_aliases(&mut AllocationBudget::new(None)).unwrap(), 0);
+    // Unreachable arena writes do not poison the reachable storage proof.
+    module.regions[root.index()].statements.pop();
+    assert_eq!(module.eliminate_aliases(&mut AllocationBudget::new(None)).unwrap(), 1);
 }
 
 #[test]

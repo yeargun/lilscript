@@ -33,17 +33,17 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M4.5 | [S4](plan.md#s4) | Contracts and capabilities at check time |
 | M4.6 | [S4](plan.md#s4) | one operation identity in the IR (M5.2), `hasOwnProperty.call` and effect-free constructions (M10.17) |
 | M5.1 | [Q2](plan.md#q2) | `UseIndex`, deleting `drop_unreferenced_functions` |
-| M5.2 | [S4](plan.md#s4) | transfers for rule-created bindings and functions, and the deletions they allow (`quiet.rs` first) |
+| M5.2 | [S4](plan.md#s4), complete | Shared physical binding/operation facts, regenerated after edits; duplicate target derivations removed |
 | M5.3a | [Q2](plan.md#q2) | the program rules' SCC order with a dirty worklist; classifying the remaining rules |
-| M5.3b | [S4](plan.md#s4) | Transitional rules deleted |
+| M5.3b | [S4](plan.md#s4), complete | Replaced proofs removed; retained generated-storage normalization classified in the [owner audit](s4-target-facts.md) |
 | M5.6 | [Q2](plan.md#q2) | Resource accounting (counts) |
 | M5.7 | [Q2](plan.md#q2) | Incremental tail |
-| M6.1 | [S4](plan.md#s4) | deleting the tree's re-derivations |
-| M6.2 | [S4](plan.md#s4) | the same deletions |
+| M6.1 | [S4](plan.md#s4), complete | Common target call/use and operation owners; local substitution obligations retained |
+| M6.2 | [S4](plan.md#s4), complete | Duplicate operation-effect proofs removed; source stamps and conservative physical transfer shared |
 | M6.3 | [S1](plan.md#s1), implementation complete | The `pure` contract. Computed, not consumed |
 | M6.4a | [S1](plan.md#s1), implementation complete | finite sets, `simplify::known`'s constant cases |
 | M6.4b | [S1](plan.md#s1), then [S4](plan.md#s4) | S1 complete: shared primitive classes/ranges and equivalent formation number sources; S4: absorb/delete recipe-dependent `raw_domains.rs` and the target binding-class derivation after S2/Q1 consumers migrate |
-| M6.5 | [S4](plan.md#s4) | deleting `quiet.rs`'s order and `root_constants.rs`'s own proof |
+| M6.5 | [S4](plan.md#s4), complete | One initialization/order owner for constants and placement; reachable writes include generated storage |
 | M6.6 | [S2](plan.md#s2), complete | Bounded allocation/alias/escape facts and complete-use physical ownership witnesses |
 | M6.7 | [S2](plan.md#s2), complete | Field reads, writes, constants, identity and boundary observations |
 | M6.8 | [S3](plan.md#s3), complete | Bounded caller-path frequency, conservative recursion/host/loop handling and counted consumption in capture placement |
@@ -74,7 +74,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M9.11 | [G3](plan.md#g3), complete | Effect-free declaration/closure/literal groups, module/anchor barriers and gzip-window evidence |
 | M9.12 | [G3](plan.md#g3), complete | Optional forms and receiver aliases compete through the common exact artifact path |
 | M10.9 | [S4](plan.md#s4), transition [V2](plan.md#v2) | R2 unified absence/pins/defaults/optional keys, checked `a.get(i)` and R11 `charCodeAt` number/NaN implemented on both targets; qualified default adoption remains V2 |
-| M10.11 | [S4](plan.md#s4) | termination (Y4), pins |
+| M10.11 | [S4](plan.md#s4) | Preserve Y4; implement current-path consumers for `@pool`, `inline for` and `@choose` |
 | M10.13 | [S4](plan.md#s4), transition [V2](plan.md#v2) | Explicit field contract and shared checker/lint proof implemented; qualified port adoption and default transition remain V2 (M12.4) |
 | M10.14 | [S4](plan.md#s4) | constructibility (Y3) |
 | M10.3 | [Q4](plan.md#q4) | Const data (R9) |

@@ -1103,3 +1103,24 @@ without a baseline-win claim. Pin `s4-product-unions-1`, SHA-256
 `c1034897a2200225478fdbce609ee7f94c8b50d7aab621241b9c686b4d274ace`;
 algorithm 36 / search 32 / walk 10 / local facts 14. S4 remains active; no
 full-library/fleet/timing or native-completion claim.
+
+## 2026-10-01: S4 shared target facts and normalization contracts
+
+The [fact-consumer batch](../../benchmarks/migration-results/2026-10-01-s4-shared-storage/README.md)
+replaces duplicated target write/call, array-origin, closure-factory and effect
+proofs with shared reachable binding and operation owners. Primitive host-result
+categories now belong to the catalog. Retained rules have explicit progress
+measures or bounded representation/inlining contracts; the
+[owner audit](s4-target-facts.md) records why generated ABI/storage normalization
+remains necessary and which later removals belong to Q2/Q4.
+
+135 focused checks and the release build pass. Five matched programs pass
+independent behavior oracles for all objectives; all artifacts and search counts
+are unchanged, totaling 14,378 raw / 3,359 gzip / 2,524 Brotli. The 292 spelling
+and 588 records-128 Brotli judgments remain negative search-cost evidence.
+Pin `s4-shared-storage-1`, SHA-256
+`7659ea2a498c298552dbb13b6e07c67c017f55d7ec5a6c3c3e0ef1c6c4f08ab8`;
+algorithm 37 / search 32 / walk 10 / local facts 14. No full-library/fleet,
+compile-speed, runtime-parity, native-completion or baseline-update claim.
+The audit also finds `@pool` parsed without a consumer, `@choose` absent and
+`inline for` lowered as an ordinary loop; S4 must close those author controls.

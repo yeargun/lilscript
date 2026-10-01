@@ -10,13 +10,11 @@
 //! or effort level. A round ceiling that is reached is a compiler bug and
 //! fails the build: it never delivers a partial tree.
 //!
-//! Most rules here are **transitional** (L20): one of today's passes, hosted
-//! in its relative order until the task named by `Rule::transitional` lands
-//! its replacement and deletes it. A classified rule is legal by the tree's
-//! own syntax or its annotations. Normalization strictly decreases reachable
-//! functions/nodes. Registered spelling choices instead use one-way forms:
-//! their input patterns disappear after the selected rewrite; they cannot
-//! reverse another spelling choice during this fixed point.
+//! Target normalization consumes current physical storage and operation facts,
+//! including helpers created after source optimization. Its retained rules have
+//! explicit progress measures below. Registered representation choices and
+//! bounded inlining can expand a tree; their producer bounds and the scheduler's
+//! fail-closed round ceiling apply instead of a false node-decrease claim.
 //!
 //! Test and debug builds check every rule's journal against the actual
 //! difference (`journal.rs`) and verify the tree after every round.
@@ -128,54 +126,68 @@ impl Rule {
         }
     }
 
-    /// For a transitional rule, the plan task whose landing deletes it
-    /// (architecture §8.2's table); `None` for a classified rule, whose
-    /// legality is the tree's own syntax or its annotations.
-    pub(crate) fn transitional(self) -> Option<&'static str> {
-        Some(match self {
-            // Fact-free JS target rules: classified. Each removes nodes
-            // and nothing else.
-            Self::ElideUndefined
-            | Self::DropUnreachable
-            | Self::DropBareBlocks
-            | Self::DropDoubleNegations
-            | Self::FoldLogicalAssignments
-            | Self::FoldLogicalReturns
-            | Self::FlattenBlocks
-            | Self::CompressStatements => return None,
-            Self::SelfMethodCalls => "M10.4/M10.7 (receivers)",
-            Self::ArrayReceiverCalls => "M6.4b (array class)",
-            Self::InlineExpressionFunctions
-            | Self::DuplicateExpressionFunctions
-            | Self::InlineStatementFunctions
-            | Self::InlineSingleCalls
-            | Self::PlaceSingleCalls => "M7.5a (removing case), M9.1 (duplicating case)",
-            Self::EliminateAliases | Self::ForwardRootConstants => {
-                "S4 after Q1 (representation-created storage)"
-            }
-            // The family's choice goes to the choice system (M9.1).
-            Self::ForwardRootStrings => "M7.4 and M9.1",
-            Self::FlattenConstantObjects | Self::UnobserveCalledNames => "M7.6",
-            Self::InlineInitializers | Self::DropRedundantInitStores | Self::FoldObjectStores => {
-                "M9.7 and M7.7"
-            }
-            Self::ScalarizeMemberObjects => "M7.9",
-            Self::DropUnreferencedFunctions => "M5.1 (DCE as a program edit)",
-            // JS target rules kept on the tree, classified once their
-            // legality reads the annotations instead of `quiet.rs` (or,
-            // for the declaration joins, once a measure covers moves).
-            Self::ForwardSingleUses
+    /// Legality stays with each producer. This table records its termination
+    /// obligation independently from permissions and objective selection.
+    fn progress(self) -> Progress {
+        match self {
+            // These rewrites remove syntax while retaining operand order.
+            // Source behaviour stamps and physical initialization facts are
+            // consumed by placement/folding, never guessed from printed code.
+            Self::SelfMethodCalls | Self::ArrayReceiverCalls
+            | Self::EliminateAliases | Self::ForwardSingleUses
             | Self::MergeDeclarations
-            | Self::JoinEmptyDeclarations
-            | Self::SimplifyOperators
-            | Self::TruthyNullTests
-            | Self::FoldLiteralOperations => "M5.2 (annotations)",
-            Self::PrivateCallRepresentations => {
-                "Q1 (proved representation alternatives; can increase nodes)"
-            }
-            Self::EncodeTables | Self::PackStringArrays | Self::PoolStrings => "M9.8",
-            Self::GroupPrototypeStores => "M8.7",
-        })
+            | Self::TruthyNullTests | Self::FoldLiteralOperations
+            | Self::ElideUndefined | Self::DropUnreachable
+            | Self::DropBareBlocks | Self::DropDoubleNegations
+            | Self::FoldLogicalAssignments | Self::FoldLogicalReturns
+            | Self::FlattenBlocks | Self::DropRedundantInitStores | Self::FoldObjectStores
+            | Self::GroupPrototypeStores => Progress::Nodes,
+            // A literal replaces a binding read without necessarily removing
+            // a node. Pooling runs after this fixed point, so cannot reverse it.
+            Self::ForwardRootConstants | Self::ForwardRootStrings => Progress::BindingReads,
+            Self::SimplifyOperators => Progress::Operators,
+            // Complete-use/storage witnesses remove physical observations.
+            Self::FlattenConstantObjects => Progress::MemberReads,
+            Self::ScalarizeMemberObjects => Progress::Objects,
+            Self::InlineInitializers => Progress::Calls,
+            Self::UnobserveCalledNames => Progress::Names,
+            // Only an uninitialized declaration moves; its position decreases
+            // and it crosses no other declaration or reference to the binding.
+            Self::JoinEmptyDeclarations => Progress::DeclarationOrder,
+            // Inlining admits bounded templates and nesting, forbids recursive
+            // substitution, and never delivers a tree before fixed point.
+            Self::InlineExpressionFunctions | Self::InlineStatementFunctions
+            | Self::InlineSingleCalls | Self::PlaceSingleCalls => Progress::BoundedExpansion,
+            // Q1 site assignments are one-way in each fresh candidate. They
+            // may increase nodes; exact final bytes decide admission afterward.
+            Self::DuplicateExpressionFunctions | Self::PrivateCallRepresentations
+            | Self::CompressStatements => Progress::SelectedRepresentation,
+            // Q2 replaces the remaining private liveness traversal; Q4 owns
+            // data/prelude producers. Their deletion is not a prerequisite of S4.
+            Self::DropUnreferencedFunctions => Progress::Nodes,
+            Self::EncodeTables | Self::PackStringArrays | Self::PoolStrings => Progress::SelectedRepresentation,
+        }
+    }
+
+}
+
+#[derive(Clone, Copy)]
+enum Progress {
+    Nodes,
+    BindingReads,
+    Operators,
+    MemberReads,
+    Objects,
+    Calls,
+    Names,
+    DeclarationOrder,
+    BoundedExpansion,
+    SelectedRepresentation,
+}
+
+impl Progress {
+    fn measured(self) -> bool {
+        !matches!(self, Self::BoundedExpansion | Self::SelectedRepresentation)
     }
 }
 
@@ -218,7 +230,7 @@ pub(crate) const HEAD: &[Rule] = &[
     Rule::InlineExpressionFunctions,
     Rule::InlineStatementFunctions,
     // Layouts and inlining create fresh transports after the shared IR.
-    // Q1/S4 replace these when every representation owns its storage facts.
+    // The common reachable binding owner supplies their current storage facts.
     Rule::EliminateAliases,
     Rule::FoldLiteralOperations,
     Rule::ForwardRootConstants,
@@ -410,7 +422,7 @@ impl Module {
         let _timing = crate::timing::JS_RULE.scope(0);
         let _rule_timing = RULE_TIMINGS[rule as usize].scope(0);
         #[cfg(any(test, debug_assertions))]
-        let before = (self.clone(), self.measure());
+        let before = (self.clone(), self.measure(rule.progress()));
         self.open_journal();
         let result = self.run_rule(rule, context, budget);
         let journal = self.take_journal();
@@ -426,26 +438,27 @@ impl Module {
             }
             // Normalization removes nodes. Spelling choices are bounded,
             // one-way rewrites under the explicit per-site assignment.
-            if rule.transitional().is_none()
-                && rule != Rule::CompressStatements
+            if rule.progress().measured()
                 && journal.edits() > 0
-                && self.measure() >= measure
+                && self.measure(rule.progress()) >= measure
             {
                 return Err(RuleError::Bug(format!(
                     "{rule:?} edited without decreasing the measure: {measure:?} to {:?}",
-                    self.measure()
+                    self.measure(rule.progress())
                 )));
             }
         }
         Ok(journal.edits() > 0)
     }
 
-    /// The scheduler's measure (architecture §8.2): the reachable functions,
-    /// then the reachable nodes (statements and expression nodes).
+    /// Reachable progress only: dead arena nodes cannot hide an edit. Node
+    /// normalization orders functions before nodes; other rules use the
+    /// specific observation they retire, then nodes to break ties.
     #[cfg(any(test, debug_assertions))]
-    fn measure(&self) -> (usize, usize) {
+    fn measure(&self, progress: Progress) -> (usize, usize) {
         let mut functions = 0;
         let mut nodes = 0;
+        let mut observations = 0;
         let mut reached = vec![false; self.regions.len()];
         let mut regions = vec![self.root];
         let mut pending = Vec::new();
@@ -453,19 +466,32 @@ impl Module {
             if std::mem::replace(&mut reached[region.index()], true) {
                 continue;
             }
-            for statement in &self.regions[region.index()].statements {
+            for (index, statement) in self.regions[region.index()].statements.iter().enumerate() {
                 nodes += 1;
+                if matches!(progress, Progress::DeclarationOrder) && matches!(statement, Statement::Let { value: None, .. }) {
+                    observations += index;
+                }
                 statement.visit_regions(|child| regions.push(child));
                 if let Statement::Function { function, .. } = statement {
                     functions += 1;
+                    if matches!(progress, Progress::Names) && !matches!(self.functions[function.index()].name, FunctionName::Unobserved) { observations += 1; }
                     regions.push(self.functions[function.index()].body);
                 }
                 statement.visit_expressions(|root| pending.push(root));
                 while let Some(id) = pending.pop() {
                     nodes += 1;
                     let node = &self.expressions[id.index()];
+                    observations += usize::from(match progress {
+                        Progress::BindingReads => matches!(node, Expr::Binding(_)),
+                        Progress::Operators => matches!(node, Expr::Binary { op: Binary::StrictEqual | Binary::StrictNotEqual, .. }),
+                        Progress::MemberReads => matches!(node, Expr::Member { .. }),
+                        Progress::Objects => matches!(node, Expr::Object(_)),
+                        Progress::Calls => matches!(node, Expr::Call { .. }),
+                        _ => false,
+                    });
                     for function in node.created_functions() {
                         functions += 1;
+                        if matches!(progress, Progress::Names) && !matches!(self.functions[function.index()].name, FunctionName::Unobserved) { observations += 1; }
                         regions.push(self.functions[function.index()].body);
                     }
                     let _ = node.visit_children(|child| {
@@ -475,7 +501,8 @@ impl Module {
                 }
             }
         }
-        (functions, nodes)
+        if matches!(progress, Progress::Operators) { (nodes, observations) }
+        else { (if matches!(progress, Progress::Nodes) { functions } else { observations }, nodes) }
     }
 
     fn run_rule(
@@ -658,5 +685,31 @@ impl Module {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod contract_tests {
+    use super::*;
+
+    #[test]
+    fn shared_host_results_guard_equal_node_operator_progress() {
+        for (host, pristine, expected) in [("Object", true, Binary::Equal), ("Object", false, Binary::StrictEqual), ("Foreign", true, Binary::StrictEqual)] {
+            let mut module = Module::default();
+            module.pristine_builtins = pristine;
+            let object = module.expression(Expr::Host(Host::new(host)), None);
+            let method = module.expression(Expr::Member { object, property: Property::Named("hasOwn".into()) }, None);
+            let input = module.expression(Expr::Host(Host::new("input")), None);
+            let key = module.expression(Expr::Literal(Literal::String("key".into())), None);
+            let left = module.expression(Expr::Call { callee: method, arguments: vec![input, key], invocation: Invocation::Reference }, None);
+            let right = module.expression(Expr::Literal(Literal::Bool(true)), None);
+            let comparison = module.expression(Expr::Binary { op: Binary::StrictEqual, left, right }, None);
+            module.regions[module.root.index()].statements.push(Statement::Evaluate(comparison));
+            let context = Context { rules: TargetRules::SEMANTIC, frames_hidden: true, strict: true,
+                pristine, prunes: false, numeric_lengths: false, year: 2022,
+                statements: StatementSpellings::NONE, choices: None, families: OutputFamilies::NONE };
+            module.run_rules(&[Rule::SimplifyOperators], &context, &mut AllocationBudget::new(None)).unwrap();
+            assert!(matches!(module.expressions[comparison.index()], Expr::Binary { op, .. } if op == expected));
+        }
     }
 }

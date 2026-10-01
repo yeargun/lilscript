@@ -577,3 +577,6 @@ pub(crate) fn native_type_capability(ty: &crate::check::Type<'_>) -> Option<&'st
         _ => None,
     }
 }
+
+mod host_values;
+pub(crate) use host_values::{HostResult, host_result, host_prototype_result};

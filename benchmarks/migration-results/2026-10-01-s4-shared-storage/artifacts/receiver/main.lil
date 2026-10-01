@@ -1,0 +1,1 @@
+class Box{int amount;init(int n){this.amount=n;}int total(){return this.amount+this.amount+this.amount+this.amount+this.amount+this.amount+this.amount+this.amount+this.amount+this.amount+this.amount+this.amount;}}export constructor Box;

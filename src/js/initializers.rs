@@ -51,24 +51,6 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         self.with_reach_tree(budget, |module, reach, budget| {
-            // Every reference, and those that are a call statement's callee.
-            let mut uses = vec![0usize; module.bindings.len()];
-            let mut written = vec![false; module.bindings.len()];
-            for &(id, _) in &reach.expressions {
-                budget.work(Analysis, 1)?;
-                match &module.expressions[id.index()] {
-                    Expr::Binding(binding) => uses[binding.index()] += 1,
-                    Expr::Assign { target, .. } => {
-                        if let Expr::Binding(binding) = module.expressions[target.index()] {
-                            written[binding.index()] = true;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            for export in &module.exports {
-                written[export.binding.index()] = true;
-            }
             let mut call_statements = vec![0usize; module.bindings.len()];
             for &region in &reach.regions {
                 for statement in &module.regions[region.index()].statements {
@@ -96,7 +78,7 @@ impl Module {
                     // Each qualifying construction is rewritten on its own: other
                     // uses keep calling the function, which the binding always
                     // holds.
-                    if written[binding.index()]
+                    if !reach.bindings[binding.index()].fixed()
                         || module.bindings[binding.index()].pinned
                         || call_statements[binding.index()] == 0
                     {
@@ -208,23 +190,6 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         self.with_reach_tree(budget, |module, reach, budget| {
-            let mut uses = vec![0usize; module.bindings.len()];
-            let mut written = vec![false; module.bindings.len()];
-            for &(id, _) in &reach.expressions {
-                budget.work(Analysis, 1)?;
-                match &module.expressions[id.index()] {
-                    Expr::Binding(binding) => uses[binding.index()] += 1,
-                    Expr::Assign { target, .. } => {
-                        if let Expr::Binding(binding) = module.expressions[target.index()] {
-                            written[binding.index()] = true;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            for export in &module.exports {
-                written[export.binding.index()] = true;
-            }
             // Every construction: its initializer, its literal, and where its
             // call stands.
             let mut constructions: Vec<(Initialized, ExprId, Site)> = Vec::new();
@@ -299,9 +264,9 @@ impl Module {
                         let Some(function) = declared[binding.index()] else {
                             continue;
                         };
-                        if written[binding.index()]
+                        if !reach.bindings[binding.index()].fixed()
                             || module.bindings[binding.index()].pinned
-                            || uses[binding.index()] != callee_sites[binding.index()]
+                            || reach.bindings[binding.index()].mentions != callee_sites[binding.index()]
                         {
                             continue;
                         }

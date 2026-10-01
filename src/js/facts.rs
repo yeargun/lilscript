@@ -7,6 +7,61 @@
 use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 
+/// Physical storage facts, accumulated by the admitted reachable-tree walk.
+/// Source annotations describe values; these rows describe all writes and
+/// observations of the bindings that actually survive target formation.
+/// A row is valid only for that walk's tree revision, never across an edit.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct BindingUse {
+    pub(super) mentions: usize,
+    pub(super) calls: usize,
+    pub(super) assignments: usize,
+    pub(super) written: bool,
+    pub(super) implicit_writes: bool,
+    pub(super) external: bool,
+    /// None: no initialized value yet; Some(false): a non-array value exists.
+    arrays: Option<bool>,
+    factory: Option<FunctionId>,
+}
+
+impl BindingUse {
+    pub(super) fn fixed(self) -> bool { !self.written && !self.external }
+
+    pub(super) fn literal_array(self) -> bool {
+        !self.external && self.arrays == Some(true)
+    }
+
+    pub(super) fn factory(self, module: &Module) -> bool {
+        self.fixed() && self.factory.is_some_and(|function| {
+            matches!(module.regions[module.functions[function.index()].body.index()].statements[..],
+                [Statement::Return(Some(value))] if matches!(module.expressions[value.index()], Expr::Function(_)))
+        })
+    }
+
+    pub(super) fn value(&mut self, module: &Module, value: ExprId) {
+        let array = matches!(module.expressions[value.index()], Expr::Array(_));
+        self.arrays = Some(self.arrays.unwrap_or(true) && array);
+        self.factory = match module.expressions[value.index()] {
+            Expr::Function(function) => Some(function),
+            _ => None,
+        };
+    }
+
+    pub(super) fn parameter(&mut self) { self.arrays = Some(false); }
+
+    pub(super) fn implicit_write(&mut self) {
+        self.written = true;
+        self.implicit_writes = true;
+        self.arrays = Some(false);
+        self.factory = None;
+    }
+
+    pub(super) fn declaration(&mut self, function: FunctionId) {
+        self.arrays = Some(false);
+        self.factory = Some(function);
+    }
+}
+
 /// When a root declaration initializes its binding, or when a function is
 /// first created: a hoisted declaration before any root statement runs,
 /// otherwise during that root statement.
@@ -99,30 +154,12 @@ impl Module {
         frames: &Frames,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<BindingFacts, AllocationError> {
-        let mut written = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
-        budget.work(
-            Analysis,
-            (self.expressions.len() + self.regions.len()) as u64,
-        )?;
-        for expression in &self.expressions {
-            if let Expr::Assign { target, .. } = expression {
-                if let Expr::Binding(binding) = self.expressions[target.index()] {
-                    written[binding.index()] = true;
-                }
-            }
-        }
-        for region in &self.regions {
-            for statement in &region.statements {
-                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } =
-                    statement
-                {
-                    written[binding.index()] = true;
-                }
-            }
-        }
-        for import in &self.imports {
-            written[import.binding.index()] = true;
-        }
+        let retained = budget.retained_bytes(AllocationClass::Retained);
+        let reach = self.reach_tree(budget)?;
+        let reach_bytes = budget.retained_bytes(AllocationClass::Retained) - retained;
+        let mut written = budget.vector(AllocationClass::Scratch, reach.bindings.len())?;
+        budget.work(Analysis, reach.bindings.len() as u64)?;
+        written.extend(reach.bindings.iter().map(|row| row.written));
         let mut literals = budget.filled(AllocationClass::Scratch, self.bindings.len(), None)?;
         let mut declared = budget.filled(AllocationClass::Scratch, self.bindings.len(), None)?;
         let mut created = budget.filled(AllocationClass::Scratch, self.functions.len(), None)?;
@@ -204,29 +241,6 @@ impl Module {
             };
         }
         let statements = &self.regions[self.root.index()].statements;
-        // Root functions whose whole body returns a function expression (a
-        // receiver adapter, a closure factory): calling one runs no program
-        // code, it only creates a function.
-        let mut factories = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
-        for statement in statements {
-            let (binding, function) = match *statement {
-                Statement::Function { binding, function } => (binding, function),
-                // `let n=a=>b=>…`, never assigned again.
-                Statement::Let {
-                    binding,
-                    value: Some(value),
-                } if !written[binding.index()] => match self.expressions[value.index()] {
-                    Expr::Function(function) => (binding, function),
-                    _ => continue,
-                },
-                _ => continue,
-            };
-            let body = &self.regions[self.functions[function.index()].body.index()].statements;
-            if let [Statement::Return(Some(value))] = body[..] {
-                factories[binding.index()] =
-                    matches!(self.expressions[value.index()], Expr::Function(_));
-            }
-        }
         let mut runs_from =
             budget.filled(AllocationClass::Scratch, statements.len(), statements.len())?;
         let mut next = statements.len();
@@ -240,7 +254,7 @@ impl Module {
                 Statement::Let {
                     value: Some(value), ..
                 }
-                | Statement::Evaluate(value) => self.creates_only(value, &factories, budget)?,
+                | Statement::Evaluate(value) => self.creates_only(value, &reach.bindings, budget)?,
                 _ => false,
             };
             if !quiet {
@@ -248,6 +262,8 @@ impl Module {
             }
             runs_from[index] = next;
         }
+        drop(reach);
+        budget.release(AllocationClass::Retained, reach_bytes)?;
         Ok(BindingFacts {
             written,
             literals,
@@ -266,7 +282,7 @@ impl Module {
     fn creates_only(
         &self,
         value: ExprId,
-        factories: &[bool],
+        bindings: &[BindingUse],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<bool, AllocationError> {
         budget.work(Analysis, 1)?;
@@ -283,17 +299,17 @@ impl Module {
             Expr::Call {
                 callee, arguments, ..
             } => {
-                let factory = matches!(self.expressions[callee.index()], Expr::Binding(binding) if factories[binding.index()]);
+                let factory = matches!(self.expressions[callee.index()], Expr::Binding(binding) if bindings[binding.index()].factory(self));
                 let mut quiet = factory;
                 for &argument in arguments {
-                    quiet = quiet && self.creates_only(argument, factories, budget)?;
+                    quiet = quiet && self.creates_only(argument, bindings, budget)?;
                 }
                 quiet
             }
             Expr::Array(items) => {
                 let mut quiet = true;
                 for &item in items {
-                    quiet = quiet && self.creates_only(item, factories, budget)?;
+                    quiet = quiet && self.creates_only(item, bindings, budget)?;
                 }
                 quiet
             }
@@ -302,7 +318,7 @@ impl Module {
                 for (key, item) in entries {
                     quiet = quiet
                         && !matches!(key, Property::Computed(_))
-                        && self.creates_only(*item, factories, budget)?;
+                        && self.creates_only(*item, bindings, budget)?;
                 }
                 quiet
             }
@@ -408,17 +424,49 @@ impl Module {
         }
     }
 
-    /// `Math.max` under pristine builtins: a named path into a standard global.
+    /// A pinned standard host binding, distinct from a live module import.
+    pub(super) fn standard_global(&self, binding: BindingId) -> bool {
+        let declared = &self.bindings[binding.index()];
+        declared.pinned
+            && matches!(crate::catalog::host_kind(&declared.spelling), crate::catalog::HostKind::Standard(_))
+            && !self.imports.iter().any(|import| import.binding == binding)
+    }
+
+    /// A checked standard global or a statically named path from one.
+    pub(super) fn static_property_key(&self, property: &Property) -> bool {
+        match property {
+            Property::Named(_) => true,
+            Property::Computed(key) => matches!(self.expressions[key.index()], Expr::Literal(Literal::String(_))),
+        }
+    }
+
     pub(super) fn standard_member(&self, id: ExprId) -> bool {
         match &self.expressions[id.index()] {
             Expr::Host(host) => matches!(host.kind, crate::catalog::HostKind::Standard(_)),
-            Expr::Member {
-                object,
-                property: Property::Named(_),
-            } => self.standard_member(*object),
+            Expr::Binding(binding) => self.standard_global(*binding),
+            Expr::Member { object, property } => self.static_property_key(property) && self.standard_member(*object),
             _ => false,
         }
     }
+
+    /// Frame-elision queries share the operation transfer. Binding reads can
+    /// throw on TDZ without running user code; moving/discarding such a read
+    /// still requires the separate initialization proof.
+    pub(super) fn runs_no_user_code(&self, root: ExprId) -> bool {
+        let node = &self.expressions[root.index()];
+        let own = match node {
+            Expr::Binding(binding) => !self.bindings[binding.index()].pinned
+                || self.pristine_builtins && self.standard_global(*binding),
+            _ => self.operation_behaviour(root).is_some_and(Behaviour::quiet),
+        };
+        let mut children = true;
+        let _ = node.visit_children(|child| {
+            children &= self.runs_no_user_code(child);
+            Ok::<_, ()>(())
+        });
+        own && children
+    }
+
 }
 
 impl Module {

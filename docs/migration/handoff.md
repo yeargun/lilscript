@@ -11,15 +11,20 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 product union batch](../../benchmarks/migration-results/2026-10-01-s4-product-unions/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-product-unions-1/lilscript`, SHA-256
-`c1034897a2200225478fdbce609ee7f94c8b50d7aab621241b9c686b4d274ace`.
-Algorithm 36 / search 32 / walk 10 / local facts 14. Concrete product/primitive
-unions use category codecs at public and assumed crossings, including nullable
-values and invocation-only callbacks. Private narrowing and erased generic
-primitive tests retain representation independence. Three focused checks and
-three opaque-boundary regressions pass, with release/artifact oracles. The
-scalar-union control is byte-identical at 76 raw / 94 gzip / 66 Brotli.
+The latest [S4 shared storage batch](../../benchmarks/migration-results/2026-10-01-s4-shared-storage/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-shared-storage-1/lilscript`, SHA-256
+`7659ea2a498c298552dbb13b6e07c67c017f55d7ec5a6c3c3e0ef1c6c4f08ab8`.
+Algorithm 37 / search 32 / walk 10 / local facts 14. Shared reachable storage,
+operation and host-result owners replace target private derivations. Retained
+normalization has explicit progress contracts; see the [owner audit](s4-target-facts.md).
+135 focused checks and the release build pass. Five matched programs have
+identical artifacts and search counts under all objectives (14,378 raw / 3,359
+gzip / 2,524 Brotli). No compile-speed or full-suite claim. The 588 records-128
+Brotli judgments remain negative Q2/Q3 cost evidence.
+
+The preceding product-union batch supplies concrete product/primitive codecs,
+nullable values and primitive category narrowing. Its pin and evidence remain
+in history. Wider ambiguous/opaque ABI is still open.
 
 The preceding public callback batch adapts concrete struct-bearing callbacks
 when their use is limited to invocation, including local aliases, defaults and
@@ -55,10 +60,13 @@ selectors retain compatibility defaults until D3/V2's qualified transition.
    transport remain N2. Native `preserve_root_exports=false` still skips frontend
    export checking without retiring the shared program's root export table; N1
    must resolve that capability/formation mismatch.
-3. Complete the shared-consumer audit. The contracts batch already deleted
-   `raw_domains.rs` and `quiet.rs` and routed root constants through the common
-   target binding facts; verify remaining consumers/transitional passes against
-   their current owners rather than treating those deleted files as open work.
+3. Complete R15 author controls. `RegionPolicy` in `ast.rs` currently contains
+   only `pool_strings`; the parser accepts `@pool`, but no current Program or
+   target consumer reads it. `inline for` is checked as const but `from_source`
+   ignores its `inline` field and forms an ordinary loop. `@choose` is absent.
+   Carry source policy through checked units and stable sites, enforce hard
+   TOML vetoes and replay, and document supported family alternatives. The
+   shared-consumer/removal audit is complete; Q2/Q4 own the deferred producers.
 4. Preserve `ref`, public constructibility and `pure` termination: Y2/Y3/Y4 have
    no approved semantic amendment. D3/V2 own qualified language-default changes.
 5. After S4 closes, continue **Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.

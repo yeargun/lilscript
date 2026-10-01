@@ -1,0 +1,11 @@
+{
+  "exercise": "const box=new m.Box(7);const a=box.total();let reads=0;Object.defineProperty(box,'amount',{get(){return ++reads;}});console.log(JSON.stringify([a,box.total(),reads,box.total(),reads]));",
+  "expected": [
+    84,
+    78,
+    12,
+    222,
+    24
+  ],
+  "setup": ""
+}

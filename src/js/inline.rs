@@ -69,26 +69,6 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
         self.with_reach(budget, |module, reach, budget| {
-            let mut written = vec![false; module.bindings.len()];
-            let mut calls = vec![0usize; module.bindings.len()];
-            for &(id, _) in &reach.expressions {
-                match &module.expressions[id.index()] {
-                    Expr::Assign { target, .. } => {
-                        if let Expr::Binding(binding) = module.expressions[target.index()] {
-                            written[binding.index()] = true;
-                        }
-                    }
-                    Expr::Call { callee, .. } => {
-                        if let Expr::Binding(binding) = module.expressions[callee.index()] {
-                            calls[binding.index()] += 1;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            for export in &module.exports {
-                written[export.binding.index()] = true;
-            }
             // Root constants declared with a literal before any root statement can
             // run code: every read inside a function finds them initialized.
             let mut early = vec![false; module.bindings.len()];
@@ -100,7 +80,7 @@ impl Module {
                 match value {
                     Some(value) if !module.inert_value(value, budget)? => break,
                     Some(value) => {
-                        early[binding.index()] = !written[binding.index()]
+                        early[binding.index()] = reach.bindings[binding.index()].fixed()
                             && matches!(module.expressions[value.index()], Expr::Literal(_));
                     }
                     None => {}
@@ -120,7 +100,7 @@ impl Module {
                     let Expr::Function(function) = module.expressions[value.index()] else {
                         continue;
                     };
-                    if written[binding.index()] || module.bindings[binding.index()].pinned {
+                    if !reach.bindings[binding.index()].fixed() || module.bindings[binding.index()].pinned {
                         continue;
                     }
                     let Some((body, nodes, reads, first, prefix, discards)) =
@@ -133,14 +113,14 @@ impl Module {
                     if !frames_hidden && !module.runs_no_user_code(body) {
                         continue;
                     }
-                    if nodes > limit && calls[binding.index()] != 1 {
+                    if nodes > limit && reach.bindings[binding.index()].calls != 1 {
                         continue;
                     }
-                    if calls[binding.index()] > 1 {
+                    if reach.bindings[binding.index()].calls > 1 {
                         if let Some((choices, seed)) = choice {
                             let saving =
                                 20i64.saturating_sub((nodes as i64).saturating_mul(
-                                    calls[binding.index()].saturating_sub(1) as i64,
+                                    reach.bindings[binding.index()].calls.saturating_sub(1) as i64,
                                 ));
                             if !module.binary_choice(
                                 binding,
@@ -237,14 +217,14 @@ impl Module {
                 // repeated calls the compatibility policy only substitutes
                 // repeatable arguments, avoiding repeated expression expansion.
                 // Broader duplicating alternatives belong to call search (S3).
-                let single = calls[binding.index()] == 1;
+                let single = reach.bindings[binding.index()].calls == 1;
                 let mut fits = true;
                 let mut last: Option<usize> = None;
                 for (index, &argument) in arguments.iter().enumerate() {
                     let reads = found.reads[index];
                     let stable = if single {
                         module
-                            .stable(argument, index, arguments, reach, &written, &early, budget)?
+                            .stable(argument, index, arguments, reach, &early, budget)?
                     } else {
                         reads != 1
                             && module.repeatable(argument, index, arguments, reach, budget)?
@@ -547,7 +527,6 @@ impl Module {
         index: usize,
         arguments: &[ExprId],
         reach: &Reach,
-        written: &[bool],
         early: &[bool],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<bool, AllocationError> {
@@ -555,7 +534,7 @@ impl Module {
             Expr::Literal(_) => Ok(true),
             Expr::Binding(binding) if early[binding.index()] => Ok(true),
             Expr::Binding(binding) if reach.parameters[binding.index()] => {
-                if !written[binding.index()] {
+                if reach.bindings[binding.index()].fixed() {
                     return Ok(true);
                 }
                 if reach.captured[binding.index()] {
@@ -585,7 +564,7 @@ impl Module {
                 self.pristine_builtins && matches!(host.kind, crate::catalog::HostKind::Standard(_))
             }
             Expr::Member { object, property } => {
-                self.pristine_builtins && self.literal_key(property) && self.standard_path(*object)
+                self.pristine_builtins && self.literal_key(property) && self.standard_member(*object)
             }
             Expr::Unary {
                 op: Unary::Not | Unary::TypeOf | Unary::Void,
@@ -609,86 +588,8 @@ impl Module {
         }
     }
 
-    /// A declared extern naming a standard global: pinned to its spelling,
-    /// never assigned, and not an import.
-    pub(super) fn standard_global(&self, binding: BindingId) -> bool {
-        let declared = &self.bindings[binding.index()];
-        declared.pinned
-            && matches!(
-                crate::catalog::host_kind(&declared.spelling),
-                crate::catalog::HostKind::Standard(_)
-            )
-            && !self.imports.iter().any(|import| import.binding == binding)
-    }
-
-    /// Whether evaluating `root` runs no user code: no getter outside the
-    /// standard library, conversion hook or call.
-    fn runs_no_user_code(&self, root: ExprId) -> bool {
-        let expression = &self.expressions[root.index()];
-        let own = match expression {
-            Expr::Literal(_) => true,
-            // A global may be an accessor; only standard ones are fixed.
-            Expr::Binding(binding) => {
-                !self.bindings[binding.index()].pinned
-                    || self.pristine_builtins && self.standard_global(*binding)
-            }
-            Expr::Host(host) => {
-                self.pristine_builtins && matches!(host.kind, crate::catalog::HostKind::Standard(_))
-            }
-            Expr::Member { object, property } => {
-                self.pristine_builtins && self.literal_key(property) && self.standard_path(*object)
-            }
-            Expr::Unary {
-                op: Unary::Not | Unary::TypeOf | Unary::Void,
-                ..
-            } => true,
-            Expr::Binary {
-                op:
-                    Binary::StrictEqual
-                    | Binary::StrictNotEqual
-                    | Binary::And
-                    | Binary::Or
-                    | Binary::Nullish,
-                ..
-            } => true,
-            Expr::Conditional { .. } | Expr::Array(_) | Expr::Sequence(_) => true,
-            Expr::Object(entries) => entries.iter().all(|(key, _)| self.literal_key(key)),
-            // The program's facts (M5.2's behaviour column): a call or an
-            // operation that runs only the program's own code, quietly.
-            _ if self.operation_behaviour(root).is_some_and(Behaviour::quiet) => true,
-            _ => false,
-        };
-        let mut children = true;
-        let _ = expression.visit_children(|child| {
-            children &= self.runs_no_user_code(child);
-            Ok::<_, ()>(())
-        });
-        own && children
-    }
-
-    /// A standard global or a named property path from one.
-    fn standard_path(&self, id: ExprId) -> bool {
-        match &self.expressions[id.index()] {
-            Expr::Host(host) => matches!(host.kind, crate::catalog::HostKind::Standard(_)),
-            Expr::Binding(binding) => self.standard_global(*binding),
-            Expr::Member { object, property } => {
-                self.literal_key(property) && self.standard_path(*object)
-            }
-            _ => false,
-        }
-    }
-
-    /// A property named by syntax: `.name` or a literal string key.
     fn literal_key(&self, property: &Property) -> bool {
-        match property {
-            Property::Named(_) => true,
-            Property::Computed(key) => {
-                matches!(
-                    self.expressions[key.index()],
-                    Expr::Literal(Literal::String(_))
-                )
-            }
-        }
+        self.static_property_key(property)
     }
 
     /// The node that replaces a call: `root` copied with each parameter read
@@ -865,27 +766,7 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
         self.with_reach(budget, |module, reach, budget| {
-            let mut written = vec![false; module.bindings.len()];
-            let mut calls = vec![0usize; module.bindings.len()];
             let mut other_use = vec![false; module.bindings.len()];
-            for &(id, _) in &reach.expressions {
-                match &module.expressions[id.index()] {
-                    Expr::Assign { target, .. } => {
-                        if let Expr::Binding(binding) = module.expressions[target.index()] {
-                            written[binding.index()] = true;
-                        }
-                    }
-                    Expr::Call { callee, .. } => {
-                        if let Expr::Binding(binding) = module.expressions[callee.index()] {
-                            calls[binding.index()] += 1;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            for export in &module.exports {
-                written[export.binding.index()] = true;
-            }
             // Bindings read other than as a callee (they must keep their value).
             for &(id, _) in &reach.expressions {
                 let _ = module.expressions[id.index()].visit_children(|child| {
@@ -917,9 +798,9 @@ impl Module {
                     let Expr::Function(function) = module.expressions[value.index()] else {
                         continue;
                     };
-                    if written[binding.index()]
+                    if !reach.bindings[binding.index()].fixed()
                         || other_use[binding.index()]
-                        || calls[binding.index()] != 1
+                        || reach.bindings[binding.index()].calls != 1
                         || module.bindings[binding.index()].pinned
                     {
                         continue;
@@ -1174,17 +1055,6 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         self.with_reach(budget, |module, reach, budget| {
-        let mut written = vec![false; module.bindings.len()];
-        for &(id, _) in &reach.expressions {
-            if let Expr::Assign { target, .. } = &module.expressions[id.index()] {
-                if let Expr::Binding(binding) = module.expressions[target.index()] {
-                    written[binding.index()] = true;
-                }
-            }
-        }
-        for export in &module.exports {
-            written[export.binding.index()] = true;
-        }
         let mut replacement: Vec<Option<BindingId>> = vec![None; module.bindings.len()];
         let mut removed = 0;
         for &region in &reach.regions {
@@ -1202,8 +1072,8 @@ impl Module {
                         value: Some(value),
                     } => match module.expressions[value.index()] {
                         Expr::Binding(source)
-                            if !written[binding.index()]
-                                && !written[source.index()]
+                            if reach.bindings[binding.index()].fixed()
+                                && reach.bindings[source.index()].fixed()
                                 && !module.bindings[binding.index()].pinned
                                 && source != binding =>
                         {
@@ -1281,7 +1151,6 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         self.with_reach_tree(budget, |module, reach, budget| {
-        let mut written = vec![false; module.bindings.len()];
         let mut arrows = vec![false; module.bindings.len()];
         // Where each binding is assigned: a statement of a region, or (None)
         // somewhere a later evaluation could run it.
@@ -1301,7 +1170,6 @@ impl Module {
             let expression = &module.expressions[id.index()];
             if let Expr::Assign { target, value } = expression {
                 if let Expr::Binding(binding) = module.expressions[target.index()] {
-                    written[binding.index()] = true;
                     let arrow = matches!(
                         module.expressions[value.index()],
                         Expr::Function(function) if module.functions[function.index()].arrow
@@ -1322,9 +1190,6 @@ impl Module {
                 parent[child.index()] = Some((id, role));
                 Ok::<_, ()>(())
             });
-        }
-        for export in &module.exports {
-            written[export.binding.index()] = true;
         }
         // Statement roots and loop heads also use bindings.
         let mut root_use = vec![false; module.bindings.len()];
@@ -1363,9 +1228,6 @@ impl Module {
                         }
                         _ => {}
                     },
-                    Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } => {
-                        written[binding.index()] = true;
-                    }
                     _ => {}
                 }
             }
@@ -1384,14 +1246,6 @@ impl Module {
             // Writes found as statement roots, against all reachable writes.
             writes[binding.index()].len()
         };
-        let mut all_writes = vec![0usize; module.bindings.len()];
-        for &(id, _) in &reach.expressions {
-            if let Expr::Assign { target, .. } = &module.expressions[id.index()] {
-                if let Expr::Binding(binding) = module.expressions[target.index()] {
-                    all_writes[binding.index()] += 1;
-                }
-            }
-        }
         // An assigned literal counts when it is its binding's only write and
         // the binding is declared without a value: before the statement it
         // is `undefined`, so every flattened read must run after it.
@@ -1402,7 +1256,7 @@ impl Module {
             let declared_empty = module.regions[module.root.index()].statements.iter().any(|statement| {
                 matches!(statement, Statement::Let { binding: found, value: None } if *found == binding)
             });
-            if all_writes[binding.index()] == 1
+            if reach.bindings[binding.index()].assignments == 1
                 && declared_empty
                 && !module.exports.iter().any(|export| export.binding == binding)
             {
@@ -1412,11 +1266,13 @@ impl Module {
             }
         }
         let settled_at = |binding: BindingId, region: RegionId, index: usize| {
-            !written[binding.index()]
-                || assignments(binding) == all_writes[binding.index()]
+            !reach.bindings[binding.index()].external
+                && (reach.bindings[binding.index()].fixed()
+                || !reach.bindings[binding.index()].implicit_writes
+                    && assignments(binding) == reach.bindings[binding.index()].assignments
                     && writes[binding.index()].iter().all(
                         |site| matches!(site, Some((found, at)) if *found == region && *at < index),
-                    )
+                    ))
         };
         // A read of `M` before its declaration throws; the flattened read
         // would not. So nothing earlier in its region may mention `M`, not
@@ -1449,7 +1305,7 @@ impl Module {
             budget.work(Analysis, 1)?;
             let early =
                 assigned[object.index()] || first[object.index()].is_some_and(|at| at <= index);
-            if written[object.index()] && !assigned[object.index()]
+            if !reach.bindings[object.index()].fixed() && !assigned[object.index()]
                 || root_use[object.index()]
                 || module.bindings[object.index()].pinned
                 || early && region != module.root
@@ -1521,7 +1377,7 @@ impl Module {
                             Expr::Assign { target, value } if value == site => {
                                 match module.expressions[target.index()] {
                                     Expr::Binding(alias)
-                                        if all_writes[alias.index()] == 1
+                                        if reach.bindings[alias.index()].assignments == 1
                                             && !root_use[alias.index()]
                                             && !module.bindings[alias.index()].pinned
                                             && !module
@@ -1589,7 +1445,7 @@ impl Module {
                             && settled_at(binding, region, index)
                             && (!callee
                                 || arrows[binding.index()]
-                                || written[binding.index()] && assigned_arrow[binding.index()]) =>
+                                || !reach.bindings[binding.index()].fixed() && assigned_arrow[binding.index()]) =>
                     {
                         Some(Expr::Binding(binding))
                     }

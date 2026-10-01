@@ -5,6 +5,7 @@ use crate::compilation_policy::WorkKind::Analysis;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct ReachTree {
+    pub(super) bindings: Vec<facts::BindingUse>,
     pub(super) expressions: Vec<(ExprId, usize)>,
     pub(super) regions: Vec<RegionId>,
     /// Relative to a sloppy root: bit 1 is sloppy, bit 2 strict. A shared
@@ -14,6 +15,7 @@ pub(super) struct ReachTree {
 }
 
 pub(super) struct Reach {
+    pub(super) bindings: Vec<facts::BindingUse>,
     pub(super) expressions: Vec<(ExprId, usize)>,
     pub(super) regions: Vec<RegionId>,
     pub(super) strict_regions: Vec<u8>,
@@ -141,12 +143,14 @@ impl Module {
         drop((declared, references));
         phase.finish_retained()?;
         let ReachTree {
+            bindings,
             expressions,
             regions,
             strict_regions,
             strict_expressions,
         } = tree;
         Ok(Reach {
+            bindings,
             expressions,
             regions,
             strict_regions,
@@ -172,6 +176,7 @@ impl Module {
         // Capture buffers keep their outer owner; this walk never grows them.
         let mut captures = captures;
         let mut reach = ReachTree {
+            bindings: phase.filled(AllocationClass::Retained, self.bindings.len(), facts::BindingUse::default())?,
             // Each node enters its result once, even if reached in both
             // strictness contexts. Admit those bounds once, before the walk.
             expressions: phase.vector(AllocationClass::Retained, self.expressions.len())?,
@@ -183,6 +188,13 @@ impl Module {
                 0,
             )?,
         };
+        phase.work(Analysis, (self.imports.len() + self.exports.len()) as u64)?;
+        for import in &self.imports {
+            let row = &mut reach.bindings[import.binding.index()];
+            row.external = true;
+            row.implicit_write();
+        }
+        for export in &self.exports { reach.bindings[export.binding.index()].external = true; }
         let mut regions = Vec::new();
         phase.push(
             AllocationClass::Scratch,
@@ -203,6 +215,15 @@ impl Module {
             }
             for statement in &self.regions[region.index()].statements {
                 phase.work(Analysis, 1)?;
+                if seen == 0 {
+                    match *statement {
+                        Statement::Let { binding, value: Some(value) } => reach.bindings[binding.index()].value(self, value),
+                        Statement::Function { binding, function } => reach.bindings[binding.index()].declaration(function),
+                        Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } => reach.bindings[binding.index()].implicit_write(),
+                        Statement::Try { catch: Some(Catch { binding: Some(binding), .. }), .. } => reach.bindings[binding.index()].implicit_write(),
+                        _ => {}
+                    }
+                }
                 if CAPTURES {
                     let declared = &mut captures.as_mut().unwrap().declared;
                     match statement {
@@ -236,6 +257,10 @@ impl Module {
                 phase.reserve_vec(AllocationClass::Scratch, &mut regions, children)?;
                 statement.visit_regions(|child| regions.push((child, depth + 1, owner, strict)));
                 if let Statement::Function { function, .. } = statement {
+                    phase.work(Analysis, self.functions[function.index()].parameters.len() as u64)?;
+                    for parameter in &self.functions[function.index()].parameters {
+                        reach.bindings[parameter.index()].parameter();
+                    }
                     if CAPTURES {
                         captures
                             .as_mut()
@@ -265,6 +290,19 @@ impl Module {
                     reach.strict_expressions[id.index()] |= mask;
                     if seen == 0 {
                         reach.expressions.push((id, at));
+                        match *expression {
+                            Expr::Binding(binding) => reach.bindings[binding.index()].mentions += 1,
+                            Expr::Assign { target, value } => if let Expr::Binding(binding) = self.expressions[target.index()] {
+                                let row = &mut reach.bindings[binding.index()];
+                                row.written = true;
+                                row.assignments += 1;
+                                row.value(self, value);
+                            },
+                            Expr::Call { callee, .. } => if let Expr::Binding(binding) = self.expressions[callee.index()] {
+                                reach.bindings[binding.index()].calls += 1;
+                            },
+                            _ => {}
+                        }
                     }
                     if CAPTURES {
                         if let Expr::Binding(binding) = expression {
@@ -272,6 +310,10 @@ impl Module {
                         }
                     }
                     for function in expression.created_functions() {
+                        phase.work(Analysis, self.functions[function.index()].parameters.len() as u64)?;
+                        for parameter in &self.functions[function.index()].parameters {
+                            reach.bindings[parameter.index()].parameter();
+                        }
                         if CAPTURES {
                             captures
                                 .as_mut()

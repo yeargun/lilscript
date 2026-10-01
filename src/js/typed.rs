@@ -25,7 +25,6 @@ impl Module {
         if !self.bindings.iter().any(|binding| binding.class.is_some()) {
             return Ok(0);
         }
-        let classes = self.value_classes();
         self.with_reach_tree(budget, |module, reach, budget| {
             let mut tests = Vec::new();
             for &region in &reach.regions {
@@ -77,7 +76,7 @@ impl Module {
                         };
                         let object = |id: ExprId| match module.expressions[id.index()] {
                             Expr::Binding(binding) => matches!(
-                                classes.get(binding.index()).copied().flatten(),
+                                module.bindings[binding.index()].class,
                                 Some(ValueClass::NullableObject | ValueClass::Object)
                             ),
                             _ => false,
@@ -118,70 +117,6 @@ impl Module {
             return Ok((0, None));
         }
         self.with_reach_tree(budget, |module, reach, budget| {
-            // Bindings whose every value is an array literal (and parameters,
-            // loop and catch bindings, never).
-            let mut arrays = vec![Some(false); module.bindings.len()];
-            let mut parameters = vec![false; module.bindings.len()];
-            for function in &module.functions {
-                for parameter in &function.parameters {
-                    parameters[parameter.index()] = true;
-                }
-            }
-            let mut mark = |binding: BindingId, is_array: bool, arrays: &mut Vec<Option<bool>>| {
-                let slot = &mut arrays[binding.index()];
-                *slot = match *slot {
-                    Some(false) if is_array => Some(true),
-                    Some(true) if is_array => Some(true),
-                    Some(false) => Some(false),
-                    _ => None,
-                };
-                if !is_array {
-                    *slot = None;
-                }
-            };
-            for &region in &reach.regions {
-                for statement in &module.regions[region.index()].statements {
-                    budget.work(Analysis, 1)?;
-                    match *statement {
-                        Statement::Let {
-                            binding,
-                            value: Some(value),
-                        } => mark(
-                            binding,
-                            matches!(module.expressions[value.index()], Expr::Array(_)),
-                            &mut arrays,
-                        ),
-                        Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } => {
-                            arrays[binding.index()] = None
-                        }
-                        Statement::Try {
-                            catch:
-                                Some(Catch {
-                                    binding: Some(binding),
-                                    ..
-                                }),
-                            ..
-                        } => arrays[binding.index()] = None,
-                        Statement::Function { binding, .. } => arrays[binding.index()] = None,
-                        _ => {}
-                    }
-                }
-            }
-            for &(id, _) in &reach.expressions {
-                budget.work(Analysis, 1)?;
-                if let Expr::Assign { target, value } = module.expressions[id.index()] {
-                    if let Expr::Binding(binding) = module.expressions[target.index()] {
-                        mark(
-                            binding,
-                            matches!(module.expressions[value.index()], Expr::Array(_)),
-                            &mut arrays,
-                        );
-                    }
-                }
-            }
-            for export in &module.exports {
-                arrays[export.binding.index()] = None;
-            }
             let host = |module: &Self, id: ExprId, global: crate::catalog::Global| matches!(&module.expressions[id.index()], Expr::Host(found) if found.kind == crate::catalog::HostKind::Standard(global));
             let named = |module: &Self, id: ExprId| match &module.expressions[id.index()] {
                 Expr::Member {
@@ -223,7 +158,7 @@ impl Module {
                 let Expr::Binding(binding) = module.expressions[receiver.index()] else {
                     continue;
                 };
-                if parameters[binding.index()] || arrays[binding.index()] != Some(true) {
+                if !reach.bindings[binding.index()].literal_array() {
                     continue;
                 }
                 rewrites.push((id, receiver, method));

@@ -1,0 +1,15 @@
+[optimization]
+preset='maximum'
+[objective]
+codecs='gzip'
+[effort]
+level=13
+[javascript]
+ecmascript='es2021'
+[policy.tactics]
+inlining='off'
+constant-folding='off'
+scalar-replacement='off'
+string-pooling='off'
+helper-sharing='off'
+call-specialization='off'

@@ -1,0 +1,25 @@
+{
+  "exercise": "let events=[];globalThis.observe=n=>events.push(n);console.log(JSON.stringify([m.select0(true,7),m.select0(false,7),m.select1(true,7),m.select1(false,7),m.select2(true,7),m.select2(false,7),m.select3(true,7),m.select3(false,7),m.select4(true,7),m.select4(false,7),m.select5(true,7),m.select5(false,7),m.loops(7),m.loops(0),events,m.quotes()]));",
+  "expected": [
+    8,
+    6,
+    9,
+    5,
+    10,
+    4,
+    11,
+    3,
+    12,
+    2,
+    13,
+    1,
+    21,
+    0,
+    [
+      21,
+      99
+    ],
+    "\"quoted\" \"again\""
+  ],
+  "setup": ""
+}

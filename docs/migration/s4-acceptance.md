@@ -15,13 +15,15 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    implemented; target provider headers share the native value layout.
    Preserve source spans. N1/N2 own additional native implementations, not hidden
    late refusals of a checked capability.
-4. [~] Transport and invalidate facts for representation-created bindings,
+4. [x] Transport and invalidate facts for representation-created bindings,
    functions and storage. Replace `raw_domains.rs`, `quiet.rs` and root-constant
    private proofs with their shared owners and target transfer. Remove duplicate
    call/effect/value/initialization derivations only with working consumers.
-5. [ ] Remove replaced transitional source/target passes; retain a normalization
+5. [x] Remove replaced transitional source/target passes; retain a normalization
    rule only with explicit generic legality, owned facts and a convergence rule.
    Source optimizations and target alternatives keep their hard TOML vetoes.
+   The [owner audit](s4-target-facts.md) records the integrated consumers, removed
+   duplicate derivations and explicit Q2/Q4 successor ownership.
 6. [~] Complete supported R2/R3/R11 crossings, definite-assignment migration and
    checked indexing, and R7 receiver/rest lowering. R2's unified source contract,
    explicit boundary pins, public optional keys and mutable absence storage are
@@ -65,7 +67,9 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    shape/class product fields use storage codecs. Erased public generic optional
    presence remains R18, and native shapes remain N2. The detached primitive-method audit passes with the existing
    source-owned refusal and explicit-closure alternative.
-8. [ ] Register/document any new behavior controls and their gates, interactions,
+8. [~] Complete R15 author controls: `@pool` is parsed but not consumed,
+   `@choose` is absent and `inline for` still lowers as an ordinary loop.
+   Register/document any new behavior controls and their gates, interactions,
    costs and hard vetoes. Keep semantic assumptions separate from effort. Q4 owns
    general const-data encodings and schema specialization; Q2 owns incremental
    scheduling/accounting, Q3 search policy and D1–D3 delivery production.
