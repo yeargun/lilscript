@@ -1690,3 +1690,30 @@ relocation is not required or claimed. Per-module elaboration remains required
 in D3 under the shared graph/session owner. Counted resource limits and exact
 retained-copy/artifact owners do not claim whole-process allocator coverage;
 public receipts now expose remaining target as well as frontend gaps. Q3 follows.
+
+## 2026-10-01: Q3 objective policy and protected effort completion
+
+Algorithm 64/search 33 implements bounded compatible-assignment evidence,
+independent objective priorities from frozen C3 training, decoder-inclusive
+codec estimates, protected completed effort checkpoints and deterministic
+bounded delivered-file workers. TOML search knobs and execution jobs, CLI
+precedence, gates and work/memory tradeoffs are documented. Existing proxy
+margins/seeds remain where evidence does not justify changing them.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q3-search/README.md)
+retains 25 focused passing checks and initial failures, 48 generic release
+builds, six affected data builds, pinned source/binary identities, independent
+Node oracles and canonical codec remeasurement. The generic totals from 12 to
+13 change 18,083 → 18,031 raw, 8,741 → 8,739 gzip and 6,357 → 6,248 Brotli;
+protected 13 and 14 match ordinary 13 here. Standalone checkpoint hashes and
+fast-stop replay match. Protection and additional exploration cost CPU; 14
+adds no size win in these four programs. The data fixture is unchanged raw/gzip
+and +6 Brotli against algorithm62 because estimates alter the search path;
+all legal alternatives and exact behavior remain. No fixture-specific tuning.
+
+One genuine mandatory-baseline failure was incorrectly caught as optional and
+fixed before qualification. Other initial failures were fixtures/trace
+assertions; the inherited Q2 report macro expansion was fixed. The archived
+markedlil 14→46 trace already attributes 31 of 32 extra judgments to a second
+terminal start, buying 13 Brotli bytes. No fleet or full-library rerun. Q3 is
+complete and Q4 is next.

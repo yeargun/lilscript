@@ -1,0 +1,2087 @@
+diff --git a/docs/configuration.md b/docs/configuration.md
+index ffc727e3..f06525b0 100644
+--- a/docs/configuration.md
++++ b/docs/configuration.md
+@@ -269,6 +269,8 @@ version = 3                  # explicit runtime permissions; omitted version kee
+ # wall_time_ms = 60000
+ 
+ [policy.search]
++protect_effort = true         # retain preceding effort winners from level 13
++objective_prior = "auto"     # per-objective extra ordering: auto 14+, on 13+
+ codec_schedule = "staged"     # staged | immediate
+ proxy_pruning = "on"          # on | audit | off; terminal proxy rejection
+ deferred_naming_starts = "auto" # auto: effort 14+; on: 13+; off: never
+@@ -467,9 +469,10 @@ the diagnosed level-16 startup grant for compatibility. Architecture
+ 
+ The fast-tier walk extends a fixed sequence of moves (the replay checks in
+ [testing.md](testing.md#the-effort-schedules-monotonicity-m35)). Each build
+-retains its best admitted artifact. Wider structural search can explore
+-different paths, and hard limits can stop them at different points; output
+-that never grows between every pair of effort levels remains Q3 work.
++retains its best admitted artifact. From 13, `protect_effort=true` completes and
++retains the preceding effort under its own policy before opening the wider
++frontier. Hard limits can prevent completing or requalifying a checkpoint; the
++report identifies that limit instead of promising unbounded monotonicity.
+ `candidate_search = "off"` (and `--mode development`) keeps only the level-0
+ artifact at any level.
+ 
+@@ -569,6 +572,8 @@ objective. More candidates are useful only when their result justifies the cost.
+ 
+ | `[policy.search]` key | Default and useful situation | Tradeoff and effect of disabling/changing it |
+ |---|---|---|
++| `protect_effort` | `true`; keep completed preceding-effort winners across frontier/tactic changes | Adds earlier-tier work and retained artifacts at 13+. `false` removes this guarantee; hard limits can prevent completing a checkpoint in either mode |
++| `objective_prior` | `"auto"`; additional objective-specific ordering at 14+, `"on"` at 13 | Calibrated generic priorities offer another path while retaining the ordinary winner. Extra work may earn no bytes; `"off"` skips it |
+ | `deferred_naming_starts` | `"auto"`; use levels 14–16 for expensive attempts at the last few bytes, or `"on"` to opt in at 13 | Can refine an initially larger naming seed into a winner. May multiply compile time with no size change. `"off"` removes only this tail; completed ordinary winners remain protected |
+ | `deferred_naming_polish` | `true`; when the deferred tail runs, combine its names with local allocation and private fields | Extra formation, memory and scoring can reveal combinations the ordinary walk misses. `false` leaves the deferred ordinary walks. No work when the tail is disabled |
+ | `proxy_pruning` | `"on"`; avoid costly exact judgments of unpromising moves | A proxy can miss useful starts or moves. `"audit"` spends extra exact probes to diagnose misses without selecting from them; `"off"` explores every reached nonidentical move within the same limits. Neither is exhaustive |
+@@ -1371,3 +1376,86 @@ settings under execution/resolution, outside the semantic fingerprint. Unknown
+ keys, non-boolean reuse flags and an empty directory are errors. Per-module
+ elaboration caching remains migration work; decision-lock replay is documented
+ above.
++
++### Objective search and scoring workers
++
++```toml
++[policy.search]
++protect_effort = true
++objective_prior = "auto"
++
++[execution]
++jobs = 1
++```
++
++`protect_effort` defaults to `true`. At effort 13 and above, the compiler first
++completes the preceding effort's search, then retains its complete winner while
++trying the new frontier and newly available tactics. All requested objectives
++and preceding tiers admit their mandatory baselines before optional search.
++The preceding winner is qualified again under the current policy, including
++runtime permissions and every explicit veto. Final selection requires that no
++entry's objective cost grows. Levels 0–12 retain their existing deterministic
++walk prefixes; turning search off does not run checkpoint searches.
++
++Use `false` when faster compilation matters more than retaining a preceding
++effort's result. It removes checkpoint work and ownership; a higher effort can
++then select a larger file because its search order or frontier changed. The
++same finite hard work and memory ceilings still apply with protection on. A
++refused checkpoint or requalification is reported and the current admitted
++incumbent survives; this is not an unlimited-resource promise. Fingerprinted
++decision locks are specific to the requested effort and run only in that tier.
++
++`objective_prior` is `"auto"`, `"on"`, or `"off"` (boolean aliases are accepted).
++Auto adds a separate objective-specific ordering start at effort 14–16; on
++permits it at 13, and off skips it. Frozen generic C3 training selects different
++orders for raw, gzip and Brotli. The ordinary winner is retained before the
++extra start, and only exact whole-artifact improvement can replace it. This
++can cost extra formation and judgments for a very small or zero gain. It does
++not change the default family seed or proxy margin. No program/library name is
++a tuning input. Gzip still has no lossy proxy; Brotli's configured mode/window
++and its existing proxy quality/margin remain explicit.
++
++Data-encoding estimates now state their `estimate_codec` in choice receipts.
++Raw uses the structural byte estimate. Gzip scores isolated literal/encoding
++fragments at the configured level and window; Brotli uses the configured mode
++and window at `min(quality, 5)`. Each encoding fragment includes its complete
++generated decoder and stream arguments, named independently. This accounts for
++local helper overhead without pretending to predict surrounding dictionary
++context, final global names or shared-decoder savings. Legal alternatives remain
++in the schedule even when their estimate is negative. The configured exact
++codec judges the complete emitted artifact. Fragment estimation adds work only
++when data reconstruction is permitted; it grants no runtime permission.
++
++`execution.jobs` accepts 1–4 and defaults to 1; `-j N` / `--jobs N` overrides it.
++It controls physical scoring of independent delivered files. Single-file
++formation/search remains serial, so this flag is useful for several entries or
++split delivery rather than a one-file build. Up to four files form one fixed
++batch regardless of worker count. Completed measurements are consumed in file
++order through the ordinary qualification owner. Worker count changes neither
++policy fingerprint, deterministic logical bills nor selected bytes.
++
++Each admitted batch reserves up to 8 MiB of codec scratch plus a 512 KiB stack
++and 4 KiB metadata per file, even at jobs 1. Each worker also has a finite share
++of available work. If the reservation cannot fit, scoring uses the ordinary
++serial path; if one private encode exceeds its share, its incomplete receipt is
++discarded and that file uses the serial scorer. No worker publishes or selects
++an artifact. Deadline-constrained builds use the cooperative serial path.
++Transparent memory/disk codec hits still pay their cold logical receipt.
++
++More workers can reduce elapsed scoring time at the cost of concurrent CPU and
++scratch. Small files may be slower because thread startup costs more than the
++encode; no speedup is presumed. The report records `execution.jobs`,
++`codec_cache.worker_batches`, `worker_encodes`, `worker_fallbacks` and
++`peak_workers`, separately from logical judgments. Physical worker/caching
++settings stay outside the semantic policy fingerprint. The retired
++`--codec-jobs` remains a diagnosed compatibility flag, not a second control.
++
++Terminal reports list `effort_checkpoints` with each tier's objective bytes,
++digest, proposal/render/judgment counts and cumulative optional work within its
++objective share. `effort_refusal` explains an incomplete checkpoint.
++`protected_effort` on a final objective records the ordinary winner's score and
++the selected preceding winner's score; selection by per-entry dominance is not
++reported as a strictly improving search move. Kept moves and settled starts also
++report `raw_delta`, so an equal compressed score has an explicit raw-byte tie
++break. In a multi-objective build these
++receipts live in each independent objective's terminal report.
+diff --git a/docs/migration/handoff.md b/docs/migration/handoff.md
+index 689c429e..b9d6d5b2 100644
+--- a/docs/migration/handoff.md
++++ b/docs/migration/handoff.md
+@@ -1,35 +1,57 @@
+-# Migration handoff — Q2 complete; Q3 next
++# Migration handoff — Q3 qualification active
+ 
+-The owner requests implementation of the remaining migration, one milestone at
+-a time. Commit/push are authorized. Implement coherent batches, then focused
+-checks. Do not resume deferred S1 broad reruns or repeat the full library/fleet.
+-One heavy build/test/measurement job at a time. No PR requested.
++The owner requests implementation of the entire remaining migration, one
++milestone at a time. Continue after each step; commit/push are authorized.
++Implement coherent batches, then focused checks. Do not resume deferred S1 broad
++reruns or repeatedly run the full library/fleet. One heavy job at a time.
++No PR or subagents requested.
+ 
+ Checkout `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
+-C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3/S4/Q2 are implemented. Q3 is next.
+-The [index](index.md), [acceptance contract](q2-acceptance.md) and
+-[coverage](coverage.md) own remaining work; [history](history.md) owns prior
+-results and negative evidence. Do not treat earlier partial batches as Q2 completion.
++HEAD `e18adb46` completes Q2 and is pushed. C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3/S4/Q2
++are implemented. **Q3 is the sole active milestone, not yet committed.**
+ 
+-Latest qualified release: `/home/azureuser/lilscript-work/bin/q2-print-1/lilscript`,
+-algorithm 62 / search 32 / local facts 16. [Evidence and identities](../../benchmarks/migration-results/2026-10-01-q2-print-formation/README.md).
+-The preceding connected-analysis pin is `q2-dependencies-1`, algorithm 61.
+-All affected bytes and cache-on/off logical admission agree. The latest markedlil
+-probe reports fewer full formations; its single CPU pair is not a stable estimate.
++Q3 implementation is algorithm 64/search 33: bounded cross-start assignment
++verdicts, protected effort checkpoints, independent objective priors, local
++codec estimates including complete data decoders, and bounded deterministic
++file workers controlled by `[execution].jobs`/`-j`. Public policy/control and
++tradeoff docs are updated. One real mandatory-baseline error was caught/fixed;
++the other initial failures were fixtures/trace assertions. Cumulative 25 focused
++checks pass, recorded with initial failures in
++`benchmarks/migration-results/2026-10-01-q3-search/qualification.json`.
++Do not repeat that whole batch. The final correction carries fast-tier replay
++stops from the actual level-12 policy, and the case runner also reads higher
++effort checkpoint hashes. Release qualification compares those hashes against
++standalone 12/13/14 builds.
+ 
+-Next: Q3, independent objective search policies, calibrated estimates/proxies,
+-protected effort tiers and deterministic worker scoring. Q2 is complete under
+-its explicit plan correction. Its algorithm-63 scheduler batch passes 21 focused
+-checks; no release/fleet run was repeated. The initial global cache experiment
+-was rejected and preserved in its evidence, not landed. Do not rerun the obsolete
+-`/tmp/lilscript-q2-global-proofs-edit.py` helpers. Per-module elaboration is now
+-explicitly D3 work under the shared graph/session owner. Arbitrary target-unit
+-fragment relocation is not implemented or claimed.
++Remaining Q3 work: finish the release build, pin the actual binary and source
++identity, run `qualify.py` (four frozen generic inputs, independently by codec,
++ordinary13 and protected12/13/14, Node oracles and canonical remeasurement),
++then `data.py` (the affected 22KB data fixture under each objective against
++algorithm62). Both scripts take the pinned new compiler as their argument and
++keep large outputs outside the repo. Verify CLI jobs override/invalid controls.
++No full suite, fleet, or markedlil rebuild is needed. The historical markedlil
++14→46 diagnosis is already in old history: an extra terminal start explains
++31 of 32 added judgments. Current Q2 physical formation cost evidence is linked
++from the Q3 README. Record actual results, close the Q3 acceptance/checklist,
++commit and push, **then continue with Q4**.
+ 
+-Subsequent order: **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
+-Keep separate raw/gzip/Brotli incumbents, default effort 13 size quality,
++Latest qualified prior release:
++`/home/azureuser/lilscript-work/bin/q2-print-1/lilscript` (algorithm62), SHA in its
++[receipt](../../benchmarks/migration-results/2026-10-01-q2-print-formation/identity.json).
++Q2 algorithm63 has focused qualification but no separate release. The Q3 data
++comparison explicitly includes algorithm63's accounting change.
++
++Remaining order: **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
++Q4 owns deep const data/exact bounded evaluation, static-schema specialization,
++helper ownership/placement, pooling and remaining encodings, including lazy
++legality/runtime gates. Read its actual legacy rows and R9 before implementation.
++Per-module elaboration remains required in D3 under the shared graph/session
++owner. Arbitrary target-fragment relocation and unsupported public erased/
++identity/mutable ABIs are explicitly scoped future proposals, not claimed work.
++
++Keep separate raw/gzip/Brotli incumbents, default effort13 size quality,
+ explicit costly 14/15 strategies and hard TOML vetoes. Every new control needs
+-its situation, defaults, overrides and compilation/size/runtime tradeoffs.
+-Native Clang is already installed at
++its situation, defaults, overrides and compile/size/runtime tradeoffs.
++Native Clang is installed at
+ `/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18`.
+-Do not touch the stopped remarklil rebuild process owned by the separate rebuild.
++Do not touch the stopped remarklil rebuild owned by the separate rebuild task.
+diff --git a/docs/migration/index.md b/docs/migration/index.md
+index d9560ed0..413b673e 100644
+--- a/docs/migration/index.md
++++ b/docs/migration/index.md
+@@ -7,7 +7,7 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
+ ## Now
+ 
+ - **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
+-- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is complete** under its [acceptance contract](q2-acceptance.md), including the explicit reuse/resource scope correction. **Q3 is next.**
++- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is complete** under its [acceptance contract](q2-acceptance.md), including the explicit reuse/resource scope correction. **Q3 is the sole active milestone** under its [acceptance contract](q3-acceptance.md).
+ - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
+ 
+ ## Next
+diff --git a/docs/testing.md b/docs/testing.md
+index 7ff02d17..d69c56e5 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -117,9 +117,9 @@ For every compiled (case, lane), the report records the artifact's byte size and
+ 
+ ### The effort schedule's monotonicity (M3.5)
+ 
+-`scripts/monotone.mjs --compiler <lilscript>` runs the case runner once per level of a list (by default `0,1,5,10,11,12,13,14,15,16`: one level per tier of the effort schedule, and every level from the default up) in the production JavaScript lanes (by default `production/*/module`), and compares each (case, lane) between consecutive levels under the lane's codec. Up to level 13 a higher level walks the same list further from the level-0 artifact and keeps a move only on a strict exact win, and every other start (the structural search's winner, the naming restarts; AM2) replaces the result only on one, so an artifact that grows from one level to the next, or a lane that passes at one level and fails at the next, is a violation and exits 1. Above 13 the structural search widens with the level, which is monotone in practice rather than by construction; a growth there is reported the same way. It prints each level's lane totals.
++`scripts/monotone.mjs --compiler <lilscript>` runs the case runner once per level of a list (by default `0,1,5,10,11,12,13,14,15,16`: one level per tier of the effort schedule, and every level from the default up) in the production JavaScript lanes (by default `production/*/module`), and compares each (case, lane) between consecutive levels under the lane's codec. Levels 0–12 extend the same one-pass walk. From 13, protected effort checkpoints retain the preceding policy's completed winner across changed frontiers and automatic tactic gates, with per-entry dominance and exact `(objective, raw)` tie breaks. A growth or newly failing lane is reported as a violation; inspect the hard-resource and `effort_refusal` receipts when a complete checkpoint could not be admitted. It prints each level's lane totals.
+ 
+-It also runs the replay check of architecture §9.6. A production build's walk from the level-0 artifact records, in its receipt's `stops`, the size and SHA-256 of the incumbent wherever a lower one-pass level (0–12) would have stopped. The case runner keeps them from `--explain json`. Every recorded stop of a listed level must be the artifact that level's own build delivered, byte for byte; a mismatch is a `REPLAY` violation.
++It also runs the replay check of architecture §9.6. A production build's walk from the level-0 artifact records, in its receipt's `stops`, the size and SHA-256 of the incumbent wherever a lower one-pass level (0–12) would have stopped. The case runner keeps them from `--explain json`. Protected tiers carry these stops from the actual level-12 policy and add complete higher-effort checkpoint hashes. Every recorded stop of a listed level must be the artifact that level's own build delivered, byte for byte; a mismatch is a `REPLAY` violation.
+ 
+ **The audit lane.** `LILSCRIPT_WALK_AUDIT=1` is a diagnostic that changes no output. It makes the walk also measure each pruned move exactly, and records the exact delta in the move's `audit` field. A pruned move with a negative exact delta is a miss of the proxy (M3.5's no-prune lane). `~/lilscript-work/tools/walk-calibrate.py` counts the misses.
+ 
+diff --git a/scripts/cases.mjs b/scripts/cases.mjs
+index eafa3cff..bafbbf2f 100644
+--- a/scripts/cases.mjs
++++ b/scripts/cases.mjs
+@@ -608,7 +608,12 @@ export function walkCounts(stderr) {
+     pruned: stage?.pruned ?? 0,
+     passes: stage?.passes ?? 0,
+     starts: stage?.starts?.length ?? 0,
+-    stops: (stage?.stops ?? []).map(({ level, size, sha256 }) => ({ level, size, sha256 })),
++    stops: [...new Map([
++      ...(stage?.stops ?? []).map(({ level, size, sha256 }) => [level, { level, size, sha256 }]),
++      ...(search.terminal?.effort_checkpoints ?? []).flatMap(checkpoint =>
++        checkpoint.objectives.filter(([codec]) => codec === stage?.codec)
++          .map(([, size, sha256]) => [checkpoint.level, { level: checkpoint.level, size, sha256 }])),
++    ]).values()],
+   };
+ }
+ 
+diff --git a/src/build.rs b/src/build.rs
+index 9874e30b..059b26aa 100644
+--- a/src/build.rs
++++ b/src/build.rs
+@@ -1068,8 +1068,6 @@ impl<'src> CheckedSourceSession<'src> {
+                 "codec_work":ledger.work_by_kind(WorkKind::Codec),"peak_retained_bytes":ledger.peak_retained_bytes(),
+                 "frontend_logical_work":frontend_work,
+                 "frontend_allocation_accounting":"partial",
+-                "target_allocation_accounting":"partial",
+-                "target_allocation_scope":"complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+                 "source_buffer_accounting":if source_buffer_bytes.is_some() {"pre-admitted stable arena backing; insertion String overlap charged"} else {"caller-owned text; excluded"},
+                 "source_buffer_capacity":source_buffer_bytes,
+                 "frontend_phase_accounting":{
+@@ -1098,7 +1096,11 @@ impl<'src> CheckedSourceSession<'src> {
+                 "scope":"admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate"
+             }
+         });
++        report["resources"]["target_allocation_accounting"] = json!("partial");
++        report["resources"]["target_allocation_scope"] = json!("complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact");
+         report["codec_cache"] = json!(codec_cache);
++        report["execution"] = json!({"jobs": javascript.as_ref().or(native.as_ref()).unwrap().execution().jobs,
++            "scoring_batch": 4, "worker_codec_bytes": 8 * 1024 * 1024});
+         FinishedSourceSession { report, ledger }
+     }
+ }
+diff --git a/src/build_delivery_tests.rs b/src/build_delivery_tests.rs
+index 588d4bc2..acec1b35 100644
+--- a/src/build_delivery_tests.rs
++++ b/src/build_delivery_tests.rs
+@@ -1344,3 +1344,26 @@ fn an_interface_called_before_another_entry_loads_is_observed() {
+     }
+     let _ = fs::remove_dir_all(directory);
+ }
++
++#[test]
++fn q3_scoring_workers_keep_complete_delivery_and_runtime_identical() {
++    let directory = workspace("q3-workers", &[
++        ("core.lil", "int count=0;export int bump(){count=count+1;return count;}"),
++        ("a.lil", r#"import {bump} from "./core";export int read(){return bump();}"#),
++        ("b.lil", r#"import {bump} from "./core";export int read(){return bump();}"#),
++    ]);
++    let entries = entries_in(&directory, &[("a", "a.lil"), ("b", "b.lil")]);
++    let mut config = config("mode='split'");
++    config.effort.level = 1; // Scoring workers have no work at the unmeasured level 0.
++    let mut previous = None;
++    for jobs in [1, 4] {
++        config.execution.jobs = jobs;
++        let compiled = compile_entries(&entries, &config, options()).unwrap();
++        assert_eq!(run_script(&directory, &compiled,
++            "const a=await import('./a.js');const b=await import('./b.js');console.log(a.read(),b.read(),a.read());"), "1 2 3\n");
++        let state = (delivered(&compiled), compiled.report()["resources"].clone());
++        if let Some(previous) = &previous { assert_eq!(&state, previous); } else { previous = Some(state); }
++        assert!(compiled.report()["codec_cache"]["worker_batches"].as_u64().unwrap_or(0) > 0, "{}", compiled.report());
++    }
++    fs::remove_dir_all(directory).unwrap();
++}
+diff --git a/src/build_objective_tests.rs b/src/build_objective_tests.rs
+index 8041a7e1..f8073918 100644
+--- a/src/build_objective_tests.rs
++++ b/src/build_objective_tests.rs
+@@ -425,3 +425,16 @@ fn independent_objective_callback_unwind_restores_allowance_and_releases_handoff
+     .unwrap();
+     assert_eq!(finished.ledger.retained_bytes(), 0);
+ }
++
++#[test]
++fn q3_level_zero_selection_uses_no_codec_or_checkpoint_work() {
++    let config = configuration(0, "");
++    let result = compile_source("export int square(int x){return x*x;}", &config,
++        ServiceOptions { objectives: Some(Objectives::All), ..ServiceOptions::default() }).unwrap();
++    assert_eq!(result.report()["resources"]["codec_work"], 0);
++    assert_eq!(result.report()["resources"]["optional_work"], 0);
++    for codec in CODECS { assert!(result.javascript(codec).is_some()); }
++    for lane in result.report()["search"]["objectives"].as_array().unwrap() {
++        assert!(lane["terminal"]["effort_checkpoints"].is_null());
++    }
++}
+diff --git a/src/build_terminal_tests.rs b/src/build_terminal_tests.rs
+index 908fc63b..1550e3a8 100644
+--- a/src/build_terminal_tests.rs
++++ b/src/build_terminal_tests.rs
+@@ -216,7 +216,7 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
+                 match outcome(trial) {
+                     "kept" => {
+                         let delta = trial["delta"].as_i64().unwrap();
+-                        assert!(delta < 0, "a kept move is strictly smaller: {trial}");
++                        assert!(delta < 0 || delta == 0 && trial["raw_delta"].as_i64().is_some_and(|raw| raw < 0), "a kept move strictly improves (objective, raw): {trial}");
+                         assert_eq!(trial["size"].as_i64().unwrap(), incumbent + delta);
+                         incumbent += delta;
+                     }
+@@ -248,7 +248,7 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
+         assert_eq!(delta, incumbent - best, "{start}");
+         match outcome(start) {
+             "kept" => {
+-                assert!(delta < 0, "{start}");
++                assert!(delta < 0 || delta == 0 && start["raw_delta"].as_i64().is_some_and(|raw| raw < 0), "{start}");
+                 best = incumbent;
+             }
+             other => assert!(
+@@ -286,7 +286,7 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
+     let restart = |trial: &Value| {
+         trial["name"]
+             .as_str()
+-            .is_some_and(|name| !matches!(name, "search" | "level-0" | "beam" | "local-naming"))
++            .is_some_and(|name| name.starts_with("naming:") || name.starts_with("deferred-naming:"))
+     };
+     let restarts = |outcomes: &[&str]| {
+         walk.iter()
+@@ -327,6 +327,10 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
+         stage["pruned"].as_u64().unwrap() as usize,
+         count(false, &["pruned"]) + restarts(&["pruned"])
+     );
++    if let Some(protected) = stage["protected_effort"].as_array() {
++        assert_eq!(protected[0].as_i64().unwrap(), best);
++        best = protected[1].as_i64().unwrap();
++    }
+     assert_eq!(stage["after"].as_i64().unwrap(), best);
+     assert!(
+         best <= searched,
+diff --git a/src/compilation_policy.rs b/src/compilation_policy.rs
+index d16496fc..ead75da7 100644
+--- a/src/compilation_policy.rs
++++ b/src/compilation_policy.rs
+@@ -42,7 +42,9 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
+ // Version55 admits shared source analyses and deterministic effect-summary stages.
+ // Version56 admits primitive/aggregate/default facts and forwarding/liveness plans.
+ // Version63 qualifies six target-local proofs with complete dependency and storage keys.
+-pub const POLICY_ALGORITHM_VERSION: u32 = 63;
++// Version64 protects effort checkpoints, bounds assignment evidence, ranks data
++// with objective fragments and admits fixed batches of independent file scores.
++pub const POLICY_ALGORITHM_VERSION: u32 = 64;
+ // Version22 admits state reclamation visits, including physical artifact slots,
+ // instead of reserving a worst-case Cartesian scan before any inspection.
+ // Version18 admits and releases Analyzer scope and callable-context backing.
+@@ -63,7 +65,8 @@ pub const POLICY_ALGORITHM_VERSION: u32 = 63;
+ // Version29 gates deferred naming at 14 by default and combines it with final refinements.
+ // Version30 adds common per-site moves and a protected, configurable joint tail.
+ // Version31 protects the prior search before compact allocation.
+-pub const SEARCH_SCHEDULE_VERSION: u32 = 32;
++// Version33 adds effort checkpoints, cross-start evidence and objective priors.
++pub const SEARCH_SCHEDULE_VERSION: u32 = 33;
+ 
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ pub enum CompilationRequest {
+@@ -328,6 +331,13 @@ where
+ #[serde(default, deny_unknown_fields)]
+ pub struct SearchSchedule {
+     pub codec_schedule: CodecSchedule,
++    /// Complete lower effort checkpoints before a changed frontier, retaining
++    /// their qualified winners. False requests the legacy independent tier.
++    pub protect_effort: bool,
++    /// Additional objective-calibrated start after the ordinary incumbent:
++    /// auto at 14, on at 13, off never. Exact bytes alone admit its result.
++    #[serde(deserialize_with = "deferred_naming_permission")]
++    pub objective_prior: TacticPermission,
+     /// Terminal proxy rejection: `on` (default), `audit` (also measure rejected moves) or `off` (judge every reached move exactly).
+     pub proxy_pruning: ProxyPruning,
+     /// Revisit pruned naming starts: `auto` from effort 14, `on` from 13, `off` never. Boolean true/false remain on/off aliases; extra compile work may yield no size win.
+@@ -344,6 +354,8 @@ impl Default for SearchSchedule {
+     fn default() -> Self {
+         Self {
+             codec_schedule: CodecSchedule::Staged,
++            protect_effort: true,
++            objective_prior: TacticPermission::Auto,
+             proxy_pruning: ProxyPruning::On,
+             deferred_naming_starts: TacticPermission::Auto,
+             deferred_naming_polish: true,
+@@ -614,6 +626,7 @@ pub fn serialize_bound<S: serde::Serializer>(
+ #[derive(Debug, Clone, PartialEq, Eq)]
+ pub struct ResolvedPolicy {
+     cache: crate::config::CacheConfig,
++    execution: crate::config::ExecutionConfig,
+     source_contract: crate::config::LanguageConfig,
+     hosts: crate::config::HostConfig,
+     contract: CompilationContract,
+@@ -626,6 +639,7 @@ pub struct ResolvedPolicy {
+     constraints: CandidateConstraints,
+     diagnostics: Vec<String>,
+     fingerprint: [u8; 32],
++    effort_overrides: [Option<usize>; 5],
+ }
+ 
+ impl ResolvedPolicy {
+@@ -643,6 +657,7 @@ impl ResolvedPolicy {
+     ) -> Self {
+         let mut policy = Self {
+             cache: Default::default(),
++            execution: Default::default(),
+             source_contract,
+             hosts: Default::default(),
+             contract,
+@@ -655,6 +670,7 @@ impl ResolvedPolicy {
+             constraints,
+             diagnostics,
+             fingerprint: [0; 32],
++            effort_overrides: [None; 5],
+         };
+         policy.fingerprint = Sha256::digest(policy.receipt().to_string().as_bytes()).into();
+         policy
+@@ -665,6 +681,11 @@ impl ResolvedPolicy {
+         self
+     }
+     pub fn cache(&self) -> &crate::config::CacheConfig { &self.cache }
++    pub(crate) fn with_execution(mut self, execution: crate::config::ExecutionConfig) -> Self {
++        self.execution = execution;
++        self
++    }
++    pub fn execution(&self) -> crate::config::ExecutionConfig { self.execution }
+ 
+     pub fn source_contract(&self) -> crate::config::LanguageConfig {
+         self.source_contract
+@@ -697,6 +718,51 @@ impl ResolvedPolicy {
+     pub fn effort(&self) -> u8 {
+         self.effort
+     }
++    pub(crate) fn with_effort_overrides(mut self, overrides: [Option<usize>; 5]) -> Self {
++        self.effort_overrides = overrides;
++        self.fingerprint = Sha256::digest(self.receipt().to_string().as_bytes()).into();
++        self
++    }
++
++    /// Shared semantic rules have effort-independent permissions. Re-resolve
++    /// the target's automatic gates and counted search limits at a lower tier;
++    /// explicit permissions and explicit ceilings keep their original values.
++    pub(crate) fn preceding_effort(&self) -> Option<Self> {
++        let mut objective = self.objective?;
++        if self.effort < 13 || !objective.search.protect_effort || objective.walk.prefix == 0 {
++            return None;
++        }
++        let mut lower = self.clone();
++        lower.effort -= 1;
++        for id in TacticId::ALL {
++            let tactic = &mut lower.tactics[id as usize];
++            if tactic.permission == TacticPermission::Auto && lower.effort < id.spec().minimum_effort {
++                tactic.enabled = false;
++            }
++        }
++        loop {
++            let mut changed = false;
++            for id in TacticId::ALL {
++                if lower.tactics[id as usize].enabled && id.spec().prerequisites.iter()
++                    .any(|required| !lower.tactics[*required as usize].enabled) {
++                    lower.tactics[id as usize].enabled = false;
++                    changed = true;
++                }
++            }
++            if !changed { break; }
++        }
++        let structural = StructuralSchedule::at(lower.effort);
++        let [proposals, probes, candidates, bytes, width] = self.effort_overrides;
++        objective.optional_alternatives = proposals.unwrap_or(structural.proposals);
++        objective.optional_codec_probes = probes.unwrap_or(structural.codec_probes);
++        objective.retained_candidates = candidates.unwrap_or(structural.candidates);
++        objective.retained_candidate_bytes = bytes.unwrap_or(structural.bytes);
++        objective.beam_width = width.unwrap_or(structural.width);
++        objective.walk = WalkSchedule::at(lower.effort, objective.codec);
++        lower.objective = Some(objective);
++        lower.fingerprint = Sha256::digest(lower.receipt().to_string().as_bytes()).into();
++        Some(lower)
++    }
+     /// Effective permission for the deferred tail; actual work also needs a
+     /// proxy-rejected seed and remaining resources. Explicit on preserves the
+     /// level-13 opt-in, but never expands the fast tiers or overrides a veto.
+@@ -730,7 +796,7 @@ impl ResolvedPolicy {
+     pub fn resolution(&self) -> serde_json::Value {
+         use serde_json::json;
+         json!({"configuration_version": self.configuration_version,
+-        "cache": self.cache,
++        "cache": self.cache, "execution": self.execution,
+         "runtime_permissions": if self.configuration_version == LEGACY_POLICY_VERSION {
+             "legacy-effort-16-startup"
+         } else { "explicit" },
+@@ -1014,7 +1080,7 @@ impl ResolvedPolicy {
+                     "request_bytes":delivery.request_bytes, "depth_bytes":delivery.depth_bytes},
+             }),
+         };
+-        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"proxy_pruning":o.search.proxy_pruning,"deferred_naming_starts":o.search.deferred_naming_starts,"deferred_naming_starts_enabled":self.deferred_naming_starts_enabled(),"deferred_naming_polish":o.search.deferred_naming_polish,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
++        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "effort_overrides":self.effort_overrides,"search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"protect_effort":o.search.protect_effort,"objective_prior":o.search.objective_prior,"proxy_pruning":o.search.proxy_pruning,"deferred_naming_starts":o.search.deferred_naming_starts,"deferred_naming_starts_enabled":self.deferred_naming_starts_enabled(),"deferred_naming_polish":o.search.deferred_naming_polish,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
+         json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "configuration_version":self.configuration_version, "source_contract":self.source_contract, "host":self.hosts, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| {
+             let spec = id.spec();
+             let available = !spec.producers.is_empty() && (!spec.javascript_only || self.javascript_contract().is_some());
+@@ -1523,10 +1589,38 @@ mod tests {
+         TacticUse { tactic, risk }
+     }
+ 
++    #[test]
++    fn q3_preceding_effort_resolves_like_standalone_with_explicit_controls() {
++        use crate::config::ProjectConfig;
++        for codec in ["raw", "gzip", "brotli"] {
++            for extra in ["", "[javascript]\ncandidate_beam_width=3\ncandidate_proposal_limit=11\nterminal_codec_probe_limit=17\ncandidate_limit=20\ncandidate_byte_budget=1000000\n[policy.tactics]\nreceiver-aliases='on'\nnaming-compaction='off'\nstartup-reconstruction='on'"] {
++                let mut config: ProjectConfig = toml::from_str(&format!("objective.codecs='{codec}'\neffort.level=16\n{extra}")).unwrap();
++                let mut resolved = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
++                for level in (12..16).rev() {
++                    let lower = resolved.preceding_effort().unwrap();
++                    config.effort.level = level;
++                    let independent = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
++                    assert_eq!(lower.receipt(), independent.receipt(), "{codec}/{level}/{extra}");
++                    assert_eq!(lower.fingerprint(), independent.fingerprint());
++                    for tactic in TacticId::ALL {
++                        if tactic.spec().producers.contains(&TacticProducer::SharedRules) {
++                            assert_eq!(lower.tactic(tactic), resolved.tactic(tactic));
++                        }
++                    }
++                    resolved = lower;
++                }
++                assert!(resolved.preceding_effort().is_none());
++            }
++        }
++        assert!(js("[policy.search]\nprotect_effort=false").preceding_effort().is_none());
++    }
++
+     #[test]
+     fn search_schedule_defaults_and_partial_configuration_are_resolved_once() {
+         let default = SearchSchedule {
+             codec_schedule: CodecSchedule::Staged,
++            protect_effort: true,
++            objective_prior: TacticPermission::Auto,
+             proxy_pruning: ProxyPruning::On,
+             deferred_naming_starts: TacticPermission::Auto,
+             deferred_naming_polish: true,
+@@ -1550,6 +1644,8 @@ mod tests {
+             serde_json::json!({
+                 "version": SEARCH_SCHEDULE_VERSION,
+                 "codec_schedule": "immediate",
++                "protect_effort": true,
++                "objective_prior": "auto",
+                 "proxy_pruning": "on",
+                 "deferred_naming_starts": "auto",
+                 "deferred_naming_starts_enabled": false,
+@@ -1566,6 +1662,8 @@ mod tests {
+             let expected = PolicyConfig {
+                 search: SearchSchedule {
+                     codec_schedule,
++                    protect_effort: true,
++                    objective_prior: TacticPermission::Auto,
+                     proxy_pruning: ProxyPruning::Audit,
+                     deferred_naming_starts: TacticPermission::Off,
+                     deferred_naming_polish: false,
+diff --git a/src/config.rs b/src/config.rs
+index c1cc6d0a..058062dd 100644
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -702,6 +702,7 @@ pub struct ProjectConfig {
+     pub effort: EffortConfig,
+     /// Physical build/analysis/codec reuse; never an optimization permission.
+     pub cache: CacheConfig,
++    pub execution: ExecutionConfig,
+     /// Explicit saved search assignments; optional, independent of transparent caches.
+     pub decisions: DecisionsConfig,
+     pub javascript: JavaScriptConfig,
+@@ -714,6 +715,22 @@ pub struct ProjectConfig {
+     pub config_dir: Option<PathBuf>,
+ }
+ 
++/// Physical scoring workers. The deterministic batch width is fixed by the
++/// compiler, so jobs controls concurrency rather than exploration or bytes.
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, serde::Serialize)]
++#[serde(default, deny_unknown_fields)]
++pub struct ExecutionConfig {
++    /// 1 through 4, default 1. Only independent delivered files score together.
++    pub jobs: usize,
++}
++impl Default for ExecutionConfig { fn default() -> Self { Self { jobs: 1 } } }
++impl ExecutionConfig {
++    fn validated(self) -> Result<Self, String> {
++        if !(1..=4).contains(&self.jobs) { return Err("`execution.jobs` must be between 1 and 4".into()); }
++        Ok(self)
++    }
++}
++
+ /// Saved complete JavaScript assignments, re-proved and re-judged in the
+ /// terminal walk. Omitted paths disable IO. Paths are relative to the TOML file.
+ #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+@@ -1048,7 +1065,11 @@ impl ProjectConfig {
+             policy.resources.restricted_by(ceilings),
+             policy.constraints,
+             diagnostics,
+-        ).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?))
++        ).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?)
++            .with_execution(self.execution.validated()?)
++            .with_effort_overrides([self.javascript.candidate_proposal_limit,
++                self.javascript.terminal_codec_probe_limit, self.javascript.candidate_limit,
++                self.javascript.candidate_byte_budget, self.javascript.candidate_beam_width]))
+     }
+ 
+     /// The delivery part of the contract (plan M3.3). `library` is the
+@@ -1222,6 +1243,7 @@ impl ProjectConfig {
+     }
+ 
+     pub fn validate(&self) -> Result<(), String> {
++        self.execution.validated()?;
+         self.host.validate()?;
+         if let Some(policy) = &self.policy {
+             policy.validate()?;
+@@ -1704,7 +1726,7 @@ impl JavaScriptOptimization {
+     }
+ }
+ 
+-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+ #[serde(rename_all = "kebab-case")]
+ pub enum CompressionCostModel {
+     Raw,
+diff --git a/src/config_cache_tests.rs b/src/config_cache_tests.rs
+index 7cb1a071..c05a703d 100644
+--- a/src/config_cache_tests.rs
++++ b/src/config_cache_tests.rs
+@@ -35,3 +35,22 @@ fn q2_cache_controls_are_strict_relative_and_outside_semantic_identity() {
+         .unwrap_err()
+         .contains("cache.directory"));
+ }
++
++#[test]
++fn q3_worker_controls_are_strict_and_only_search_choices_change_semantic_identity() {
++    let request = crate::compilation_policy::CompilationRequest::JavaScript { preserve_root_exports: true };
++    let mut config = parse_project_config("[execution]\njobs=4\n[policy.search]\nprotect_effort=false\nobjective_prior='on'\n").unwrap().config;
++    let threaded = config.resolve_policy(request).unwrap();
++    assert_eq!(threaded.execution().jobs, 4);
++    assert!(!threaded.objective().unwrap().search.protect_effort);
++    config.execution.jobs = 1;
++    let serial = config.resolve_policy(request).unwrap();
++    assert_eq!(threaded.fingerprint(), serial.fingerprint());
++    assert_ne!(threaded.resolution(), serial.resolution());
++    config.policy.as_mut().unwrap().search.protect_effort = true;
++    assert_ne!(serial.fingerprint(), config.resolve_policy(request).unwrap().fingerprint());
++    for source in ["[execution]\njobs=0", "[execution]\njobs=5", "[execution]\njobs='4'", "[execution]\nunknown=1",
++        "[policy.search]\nprotect_effort='off'", "[policy.search]\nobjective_prior='guess'"] {
++        assert!(parse_project_config(source).is_err(), "{source}");
++    }
++}
+diff --git a/src/js/cloning.rs b/src/js/cloning.rs
+index f4df9d8a..81849212 100644
+--- a/src/js/cloning.rs
++++ b/src/js/cloning.rs
+@@ -282,6 +282,7 @@ impl Module {
+         let budget = &mut phase;
+         let result = Self {
+             expressions: map(&self.expressions, budget, Expr::clone_in)?,
++            data_estimator: self.data_estimator,
+             origins: budget.copy_slice(Retained, &self.origins)?,
+             authored_pool: map(&self.authored_pool, budget, string)?,
+             authored_pool_formed: self.authored_pool_formed,
+@@ -370,6 +371,7 @@ impl Module {
+             int32_hints: self.int32_hints,
+             choice_sites: map(&self.choice_sites, budget, |site, budget| {
+                 Ok(ChoiceSite {
++                    estimate_codec: site.estimate_codec,
+                     key: site.key,
+                     name: text(&site.name, budget)?,
+                     alternatives: budget.copy_slice(Retained, &site.alternatives)?,
+diff --git a/src/js/cloning_tests.rs b/src/js/cloning_tests.rs
+index eec61fcc..942bda31 100644
+--- a/src/js/cloning_tests.rs
++++ b/src/js/cloning_tests.rs
+@@ -161,6 +161,7 @@ fn payloads() -> Vec<(&'static str, Module)> {
+             "reserved" => module.reserved.push(text.clone()),
+             "carried" => module.carried.push(text.clone()),
+             "choice" => module.choice_sites.push(ChoiceSite {
++                estimate_codec: crate::config::CompressionCostModel::Raw,
+                 key: ChoiceKey {
+                     family: ChoiceFamily::DataEncoding,
+                     site: SiteId::Formed(0),
+diff --git a/src/js/families.rs b/src/js/families.rs
+index 43addc35..568554f6 100644
+--- a/src/js/families.rs
++++ b/src/js/families.rs
+@@ -349,7 +349,13 @@ impl OutputFamilies {
+                 int32_hints: false,
+                 property_mangling: false,
+             },
+-            Objective::Gzip | Objective::Brotli => Self {
++            // Independent rows. Training does not justify a different gzip
++            // seed yet; its later calibrated move ordering is codec-specific.
++            Objective::Gzip => Self {
++                loop_heads: true,
++                ..Self::NONE
++            },
++            Objective::Brotli => Self {
+                 loop_heads: true,
+                 ..Self::NONE
+             },
+@@ -477,6 +483,33 @@ pub enum Challenger {
+ }
+ 
+ impl Challenger {
++    /// Training-only prior, applied as an additional start after the ordinary
++    /// incumbent. Promote only moves that won in at least two generic families
++    /// in C3; missing/new families retain their compatibility order. This is
++    /// an ordering hypothesis, never a legality or compressed-size proof.
++    pub(crate) fn objective_order(codec: Objective) -> &'static [Self; 23] {
++        const RAW: [Challenger; 23] = Challenger::promoted(&[Challenger::SelfNamed]);
++        const GZIP: [Challenger; 23] = Challenger::promoted(&[
++            Challenger::OtherSeed, Challenger::SelfNamed, Challenger::CompoundAssignments]);
++        const BROTLI: [Challenger; 23] = Challenger::promoted(&[
++            Challenger::CompoundAssignments, Challenger::OtherSeed, Challenger::SelfNamed]);
++        match codec { Objective::Raw => &RAW, Objective::Gzip => &GZIP, Objective::Brotli => &BROTLI }
++    }
++
++    const fn promoted(first: &[Self]) -> [Self; 23] {
++        let mut order = Self::ORDER;
++        let mut length = 0;
++        while length < first.len() { order[length] = first[length]; length += 1; }
++        let mut index = 0;
++        while index < Self::ORDER.len() {
++            let mut position = 0;
++            while position < first.len() && first[position] as u8 != Self::ORDER[index] as u8 { position += 1; }
++            if position == first.len() { order[length] = Self::ORDER[index]; length += 1; }
++            index += 1;
++        }
++        order
++    }
++
+     /// The declared schedule.
+     pub const ORDER: [Self; 23] = [
+         Self::Int32Hints,
+diff --git a/src/js/mod.rs b/src/js/mod.rs
+index 454dc5b4..71f2ec02 100644
+--- a/src/js/mod.rs
++++ b/src/js/mod.rs
+@@ -1034,6 +1034,9 @@ pub struct EntryPublic {
+ 
+ #[derive(Debug, Clone, PartialEq)]
+ pub struct Module {
++    /// Local data ranking uses this objective's proxy and window. The full
++    /// artifact, with its final names and shared helpers, is judged separately.
++    pub(crate) data_estimator: Option<(crate::config::CompressionCostModel, crate::compression::CodecSettings)>,
+     pub expressions: Vec<Expr>,
+     pub origins: Vec<Option<SourceNodeId>>,
+     /// Source-authored string values admitted to shared storage regardless of seed.
+@@ -3142,6 +3145,7 @@ impl Module {
+                 Retained,
+                 &mut self.choice_sites,
+                 ChoiceSite {
++                    estimate_codec: crate::config::CompressionCostModel::Raw,
+             pinned: false,
+                     key,
+                     name,
+@@ -3163,6 +3167,7 @@ impl Module {
+         });
+         Ok(Self {
+             expressions: vec![],
++            data_estimator: None,
+             origins: vec![],
+             authored_pool: Vec::new(),
+             authored_pool_formed: false,
+diff --git a/src/js/spellings.rs b/src/js/spellings.rs
+index ea9de674..2ff3b759 100644
+--- a/src/js/spellings.rs
++++ b/src/js/spellings.rs
+@@ -389,6 +389,7 @@ impl Module {
+                 Retained,
+                 &mut self.choice_sites,
+                 ChoiceSite {
++                    estimate_codec: crate::config::CompressionCostModel::Raw,
+                     key,
+                     name,
+                     alternatives,
+diff --git a/src/js/tables.rs b/src/js/tables.rs
+index 70aa59cf..62b4fd45 100644
+--- a/src/js/tables.rs
++++ b/src/js/tables.rs
+@@ -1340,7 +1340,7 @@ impl Module {
+     }
+ 
+     /// The data-encoding family (M9.8) on the root's constant tables: every
+-    /// site with an alternative the estimator says saves bytes is recorded
++    /// site with a legal alternative is recorded, including negative estimates,
+     /// in `choice_sites`, once, and takes the alternative `choices` names,
+     /// or its seed. A table kept as its literal is found again by the
+     /// scheduler's next round: its site is already recorded. Returns how
+@@ -1392,10 +1392,15 @@ impl Module {
+         }
+         let mut encodings = Vec::new();
+         for (index, binding, node) in &sites {
+-            let literal = literal_length(node) as i64;
++            let raw_literal = literal_length(node) as i64;
++            let estimate_codec = self.data_estimator.map_or(crate::config::CompressionCostModel::Raw, |row| row.0);
++            let literal = match self.data_estimator.filter(|(codec, _)| *codec != crate::config::CompressionCostModel::Raw) {
++                Some((codec, settings)) => estimate_fragment(Some(node), None, codec, settings, budget)? as i64,
++                None => raw_literal,
++            };
+             // Planning and verifying every alternative is linear in the
+             // table, a few passes each.
+-            budget.work(Analysis, 8 * literal as u64)?;
++            budget.work(Analysis, 8 * raw_literal as u64)?;
+             let original = Decoded::of(node);
+             let mut alternatives = vec![ChoiceAlternative {
+                 alternative: LITERAL,
+@@ -1412,7 +1417,7 @@ impl Module {
+                     alternatives.push(ChoiceAlternative {
+                         alternative: FRONT_CODED,
+                         name: "front-coded",
+-                        saving: literal - front.length() as i64,
++                        saving: raw_literal - front.length() as i64,
+                     });
+                     plans.push((FRONT_CODED, Encoding::FrontCoded(front)));
+                 }
+@@ -1434,18 +1439,21 @@ impl Module {
+                         alternatives.push(ChoiceAlternative {
+                             alternative,
+                             name,
+-                            saving: literal - plan.length() as i64,
++                            saving: raw_literal - plan.length() as i64,
+                         });
+                         plans.push((alternative, Encoding::Columns(plan)));
+                     }
+                 }
+             }
+-            if alternatives
+-                .iter()
+-                .all(|alternative| alternative.saving <= 0)
+-            {
+-                continue;
++            if plans.is_empty() { continue; }
++            if let Some((codec, settings)) = self.data_estimator.filter(|(codec, _)| *codec != crate::config::CompressionCostModel::Raw) {
++                for (alternative, plan) in &plans {
++                    let length = estimate_fragment(None, Some(plan), codec, settings, budget)?;
++                    alternatives.iter_mut().find(|offered| offered.alternative == *alternative).unwrap().saving = literal - length as i64;
++                }
+             }
++            // A negative estimate orders a legal alternative; it cannot erase
++            // a compressed win or a shared-decoder combination from discovery.
+             let key = ChoiceKey {
+                 family: ChoiceFamily::DataEncoding,
+                 site: match self.bindings[binding.index()].source_symbol {
+@@ -1466,6 +1474,7 @@ impl Module {
+                 })
+                 .unwrap_or(seed);
+             self.choice_sites.push(ChoiceSite {
++                estimate_codec,
+             pinned: false,
+                 key,
+                 name: self.bindings[binding.index()].spelling.clone(),
+@@ -1775,6 +1784,76 @@ impl Module {
+     }
+ }
+ 
++/// A local fragment including the complete generated decoder. Its names and
++/// compression context differ from the final bundle, so this is only a prior.
++/// Gzip uses its configured settings; Brotli uses min(quality, 5), preserving
++/// mode/window. Estimates never prune a legal representation.
++fn estimate_fragment(
++    literal: Option<&Node>, encoding: Option<&Encoding<'_>>,
++    codec: crate::config::CompressionCostModel, settings: crate::compression::CodecSettings,
++    budget: &mut AllocationBudget<'_>,
++) -> Result<usize, AllocationError> {
++    let mut phase = budget.scope();
++    let mut module = Module::new_in(&mut phase)?;
++    module.pristine_builtins = true;
++    let (definition, value) = match encoding {
++        None => (None, Emit { module: &mut module, budget: &mut phase }.datum(literal.unwrap())?),
++        Some(Encoding::FrontCoded(front)) => {
++            let (decoder, definition) = module.table_decoder(&mut phase)?;
++            let mut emit = Emit { module: &mut module, budget: &mut phase };
++            let keys = emit.string(&front.keys)?;
++            let values = emit.string(&front.values)?;
++            let separator = emit.string(&front.separator.to_string())?;
++            let callee = emit.read(decoder)?;
++            let value = emit.node(Expr::Call { callee, arguments: vec![keys, values, separator], invocation: Invocation::Value })?;
++            (Some(definition), value)
++        }
++        Some(Encoding::Columns(columns)) => {
++            let (decoder, definition) = module.columns_decoder(&columns.schema(), &mut phase)?;
++            let mut emit = Emit { module: &mut module, budget: &mut phase };
++            let mut arguments = emit.budget.vector(AllocationClass::Retained, columns.columns.len() + 2)?;
++            for column in &columns.columns {
++                let value = match &column.data {
++                    Data::Nodes(nodes) => {
++                        let mut items = emit.budget.vector(AllocationClass::Retained, nodes.len())?;
++                        for node in nodes { items.push(emit.datum(node)?); }
++                        emit.node(Expr::Array(items))?
++                    }
++                    _ => emit.stream(column)?,
++                };
++                arguments.push(value);
++            }
++            for dictionary in [&columns.numbers, &columns.strings].into_iter().flatten() {
++                arguments.push(emit.dictionary(dictionary)?);
++            }
++            let callee = emit.read(decoder)?;
++            let value = emit.node(Expr::Call { callee, arguments, invocation: Invocation::Value })?;
++            (Some(definition), value)
++        }
++    };
++    if let Some(definition) = definition {
++        phase.push(AllocationClass::Retained, &mut module.regions[0].statements, definition)?;
++    }
++    phase.push(AllocationClass::Retained, &mut module.regions[0].statements, Statement::Evaluate(value))?;
++    let output_error = |error: super::extract::OutputError| match error {
++        super::extract::OutputError::Admission(error) => error,
++        _ => AllocationError::Capacity,
++    };
++    let structure = super::verify::verify_in(&module, &mut phase).map_err(output_error)?;
++    let basis = super::naming::Basis::new_in(&module, &structure, &mut phase).map_err(output_error)?;
++    let names = basis.names_in(&super::naming::Plan::new(super::naming::Style::Global), &mut phase).map_err(output_error)?;
++    let bytes = super::print::render_admitted(&module, &names, usize::MAX, &mut phase).map_err(|error| match error {
++        super::print::PrintError::Admission(error) => error,
++        _ => AllocationError::Capacity,
++    })?;
++    let size = crate::compression::measure_admitted_at(bytes.as_bytes(), codec, &settings,
++        crate::compression::Role::Proxy, &mut phase).map_err(|error| match error {
++            crate::compression::CodecError::Admission(error) => error,
++            _ => AllocationError::Capacity,
++        })?.size;
++    Ok(size)
++}
++
+ /// The bindings a columns decoder reads its streams through.
+ struct Context<'p> {
+     plan: &'p Schema,
+@@ -2101,6 +2180,33 @@ impl Emit<'_, '_, '_> {
+     }
+ 
+     /// One column's stream literal.
++    fn datum(&mut self, node: &Node) -> Result<ExprId, AllocationError> {
++        match &node.value {
++            Value::Number(value) => self.number(*value),
++            Value::String(value) => self.string(value),
++            Value::Bool(value) => self.node(Expr::Literal(Literal::Bool(*value))),
++            Value::Null => self.node(Expr::Literal(Literal::Null)),
++            Value::Array(values) => {
++                let mut items = self.budget.vector(AllocationClass::Retained, values.len())?;
++                for value in values { items.push(self.datum(value)?); }
++                self.node(Expr::Array(items))
++            }
++            Value::Object { null_proto, entries } => {
++                let mut items = self.budget.vector(AllocationClass::Retained, entries.len() + usize::from(*null_proto))?;
++                if *null_proto {
++                    let value = self.node(Expr::Literal(Literal::Null))?;
++                    items.push((Property::Named("__proto__".into()), value));
++                }
++                for (name, value) in entries {
++                    let key = self.string(name)?;
++                    let value = self.datum(value)?;
++                    items.push((Property::Computed(key), value));
++                }
++                self.node(Expr::Object(items))
++            }
++        }
++    }
++
+     fn stream(&mut self, column: &Column<'_>) -> Result<ExprId, AllocationError> {
+         let mut items = Vec::new();
+         match &column.data {
+diff --git a/src/js/tables_tests.rs b/src/js/tables_tests.rs
+index 1a26bd36..e803b7c8 100644
+--- a/src/js/tables_tests.rs
++++ b/src/js/tables_tests.rs
+@@ -432,13 +432,16 @@ fn the_seed_is_the_largest_estimated_saving() {
+         .unwrap();
+     assert!(best.saving > 0);
+     assert_eq!(site.seed, best.alternative);
+-    // A tiny table saves nothing: not a site, the literal stays.
++    // A tiny table saves nothing: keep the literal seed while retaining legal
++    // alternatives for compressed and joint-decoder competition.
+     let (module, _) = table_module(&Lit::O(vec![("a", Lit::N(0.5)), ("b", Lit::N(0.25))]));
+     let mut formed = module.clone();
+     formed
+         .encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
+         .unwrap();
+-    assert!(formed.choice_sites.is_empty());
++    assert_eq!(formed.choice_sites.len(), 1);
++    assert_eq!(formed.choice_sites[0].seed, LITERAL);
++    assert!(formed.choice_sites[0].alternatives.iter().all(|offered| offered.saving <= 0));
+ }
+ 
+ #[test]
+@@ -523,3 +526,42 @@ fn s4_authored_pool_constrains_array_and_table_encodings() {
+         assert_eq!(run(&pinned),expected);
+     }
+ }
++
++#[test]
++fn q3_data_ranking_uses_each_objective_and_keeps_negative_legal_alternatives() {
++    use crate::config::CompressionCostModel as Codec;
++    let literal = metrics();
++    let (original, _) = table_module(&literal);
++    let oracle = run(&original);
++    let mut estimates = Vec::new();
++    for codec in [Codec::Raw, Codec::Gzip, Codec::Brotli] {
++        for settings in [crate::compression::CodecSettings::CANONICAL,
++            crate::compression::CodecSettings {
++                gzip: crate::compression::GzipSettings { level: 1, window: 9 },
++                brotli: crate::compression::BrotliSettings { quality: 3, window: 10, mode: crate::compression::BrotliMode::Text },
++            }] {
++            let mut formed = original.clone();
++            formed.data_estimator = Some((codec, settings));
++            formed.encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None)).unwrap();
++            assert_eq!(run(&formed), oracle);
++            let site = formed.choice_sites[0].clone();
++            assert_eq!(site.estimate_codec, codec);
++            assert_eq!(site.seed, seed(&site.alternatives));
++            estimates.push(site.alternatives.iter().map(|offered| offered.saving).collect::<Vec<_>>());
++            for offered in &site.alternatives {
++                let mut alternative = original.clone();
++                alternative.data_estimator = Some((codec, settings));
++                alternative.encode_tables(&ChoiceMap::SEEDS.with(site.key, offered.alternative), &mut AllocationBudget::new(None)).unwrap();
++                assert_eq!(run(&alternative), oracle, "{codec:?}: {}", offered.name);
++            }
++        }
++    }
++    assert!(estimates.windows(2).any(|rows| rows[0] != rows[1]), "objective estimates must read actual codec streams");
++    // Even individually losing alternatives are necessary for shared helpers
++    // and for compressed-context interactions. The scheduler must see them.
++    let (mut tiny, _) = table_module(&Lit::O(vec![("a", Lit::N(0.5)), ("b", Lit::N(0.25))]));
++    tiny.encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None)).unwrap();
++    assert_eq!(tiny.choice_sites[0].seed, LITERAL);
++    assert!(tiny.choice_sites[0].alternatives.iter().any(|offered| offered.saving < 0));
++    assert!(!crate::representation::schedule(&tiny.choice_sites, false).is_empty());
++}
+diff --git a/src/main.rs b/src/main.rs
+index 7abe439a..adae77f7 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -125,9 +125,8 @@ struct Args {
+     #[arg(long, num_args = 0..=1, default_missing_value = "lilscript.choices.lock", value_name = "FILE")]
+     write_choices: Option<PathBuf>,
+ 
+-    /// Compiler worker threads, the one parallelism flag. Accepted; the
+-    /// compiler does not run worker threads yet, so it has no effect. A
+-    /// thread count never changes the output.
++    /// Scoring workers (1-4), overriding [execution].jobs. Independent
++    /// delivered files score in bounded batches; worker count preserves bytes.
+     #[arg(short = 'j', long, value_name = "N")]
+     jobs: Option<NonZeroUsize>,
+ 
+@@ -257,11 +256,7 @@ fn run() -> Result<(), String> {
+     if legacy_audit {
+         eprintln!("warning: LILSCRIPT_WALK_AUDIT is deprecated; use --proxy-pruning audit or [policy.search] proxy_pruning = \"audit\"; an explicit --proxy-pruning overrides this adapter");
+     }
+-    if args.jobs.is_some() {
+-        eprintln!(
+-            "warning: --jobs has no effect in this compiler yet: it compiles and encodes on one thread"
+-        );
+-    }
++    if let Some(jobs) = args.jobs { loaded.config.execution.jobs = jobs.get(); }
+     if args.write_lock {
+         let path = write_lockfile(&loaded.config).map_err(|error| error.to_string())?;
+         eprintln!("wrote {}", path.display());
+@@ -1197,7 +1192,7 @@ fn policy_report(
+         // How this run executes, after command-line overrides. Deliberately
+         // outside the fingerprint: thread counts must never change the output.
+         "execution": {
+-            "threads": args.jobs.map(NonZeroUsize::get),
++            "threads": loaded.config.execution.jobs,
+             // Removed (architecture §14.2): reported, with no effect, for
+             // one release.
+             "codec_workers": args.codec_jobs.map(NonZeroUsize::get),
+diff --git a/src/program/artifact_compression.rs b/src/program/artifact_compression.rs
+index 9825c13b..b721d04a 100644
+--- a/src/program/artifact_compression.rs
++++ b/src/program/artifact_compression.rs
+@@ -13,6 +13,8 @@ const CAPACITY: usize = 256;
+ 
+ #[path = "artifact_compression_disk.rs"]
+ mod disk;
++#[path = "artifact_compression_workers.rs"]
++mod workers;
+ 
+ #[derive(Debug, Clone, Copy, Default, serde::Serialize)]
+ pub(crate) struct MeasurementStats {
+@@ -20,6 +22,10 @@ pub(crate) struct MeasurementStats {
+     pub disk_hits: u64,
+     pub encodes: u64,
+     pub disk_write_errors: u64,
++    pub worker_encodes: u64,
++    pub worker_fallbacks: u64,
++    pub worker_batches: u64,
++    pub peak_workers: usize,
+ }
+ 
+ 
+@@ -45,6 +51,7 @@ pub(super) struct Measurements {
+     config: crate::config::CacheConfig,
+     disk: Option<disk::Disk>,
+     pub(super) stats: MeasurementStats,
++    pub(super) jobs: usize,
+     #[cfg(test)]
+     pub(super) hits: usize,
+ }
+@@ -82,6 +89,13 @@ impl Measurements {
+         settings: &CodecSettings,
+         role: Role,
+         budget: &mut AllocationBudget<'_>,
++    ) -> Result<usize, CandidateError> {
++        self.measure_prepared(owner, bytes, model, settings, role, None, budget)
++    }
++
++    pub(super) fn measure_prepared(
++        &mut self, owner: RevisionId, bytes: &[u8], model: CompressionCostModel,
++        settings: &CodecSettings, role: Role, prepared: Option<Measurement>, budget: &mut AllocationBudget<'_>,
+     ) -> Result<usize, CandidateError> {
+         if model == CompressionCostModel::Raw {
+             return Ok(bytes.len());
+@@ -152,7 +166,10 @@ impl Measurements {
+             }
+         }
+         self.stats.encodes += 1;
+-        let measurement = compression::measure_admitted_at(bytes, model, settings, role, budget)?;
++        let measurement = match prepared {
++            Some(measurement) => { measurement.replay(budget)?; measurement }
++            None => compression::measure_admitted_at(bytes, model, settings, role, budget)?,
++        };
+         if self.config.codec_reuse && reuse_enabled() {
+             if self.disk.as_ref().is_some_and(|disk| disk.write(&key, measurement).is_err()) {
+                 self.stats.disk_write_errors += 1;
+diff --git a/src/program/artifacts.rs b/src/program/artifacts.rs
+index 3a8f7f6f..dcf00edd 100644
+--- a/src/program/artifacts.rs
++++ b/src/program/artifacts.rs
+@@ -327,23 +327,24 @@ impl Record {
+         budget: &mut AllocationBudget<'_>,
+     ) -> Result<Vec<usize>, CandidateError> {
+         let mut sizes = budget.vector(AllocationClass::Retained, self.files.len())?;
+-        for file in &self.files {
+-            budget.work(WorkKind::Codec, 1)?;
+-            let size = match file.sizes.measured(codec) {
+-                Some(size) => size,
+-                None => {
+-                    let size = cache.measure(
+-                        owner,
+-                        file.code.as_bytes(),
+-                        codec,
+-                        settings,
+-                        crate::compression::Role::Exact,
+-                        budget,
+-                    )?;
+-                    file.sizes.publish(codec, size)?
+-                }
+-            };
+-            sizes.push(size);
++        for batch in self.files.chunks(4) {
++            let mut inputs = [None; 4];
++            for (index, file) in batch.iter().enumerate() {
++                if file.sizes.measured(codec).is_none() { inputs[index] = Some(file.code.as_bytes()); }
++            }
++            let prepared = cache.prepare_batch(&inputs, codec, settings, crate::compression::Role::Exact, budget)?;
++            for (index, file) in batch.iter().enumerate() {
++                budget.work(WorkKind::Codec, 1)?;
++                let size = match file.sizes.measured(codec) {
++                    Some(size) => size,
++                    None => {
++                        let size = cache.measure_prepared(owner, file.code.as_bytes(), codec, settings,
++                            crate::compression::Role::Exact, prepared[index], budget)?;
++                        file.sizes.publish(codec, size)?
++                    }
++                };
++                sizes.push(size);
++            }
+         }
+         Ok(sizes)
+     }
+@@ -618,8 +619,9 @@ impl ArtifactArena {
+             bound: false,
+         }
+     }
+-    pub(super) fn configure_measurements(&mut self, config: &crate::config::CacheConfig) {
++    pub(super) fn configure_measurements(&mut self, config: &crate::config::CacheConfig, execution: crate::config::ExecutionConfig) {
+         self.measurements.get_mut().configure(config);
++        self.measurements.get_mut().jobs = execution.jobs;
+     }
+     pub(super) fn measurement_stats(&self) -> compression_cache::MeasurementStats {
+         self.measurements.borrow().stats
+@@ -1224,7 +1226,7 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
+         execution: JavaScriptExecution,
+         choices: OutputTactics,
+     ) -> Self {
+-        retained.configure_measurements(policy.cache());
++        retained.configure_measurements(policy.cache(), policy.execution());
+         Self {
+             output,
+             staging: ArtifactArena::with_settings(retained.owner, retained.settings),
+diff --git a/src/program/javascript.rs b/src/program/javascript.rs
+index 01ba874c..8a5a02d4 100644
+--- a/src/program/javascript.rs
++++ b/src/program/javascript.rs
+@@ -628,10 +628,12 @@ pub(super) fn form_tail_admitted(
+     families: js::OutputFamilies,
+     choices: &js::ChoiceMap,
+     reuse_normalization: bool,
++    data_estimator: Option<(crate::config::CompressionCostModel, crate::compression::CodecSettings)>,
+     budget: &mut AllocationBudget<'_>,
+ ) -> Result<js::Module, FormationError> {
+     let _timing = crate::timing::JS_FORMATION.scope(0);
+     if let Some(tail) = &mut head.tail { tail.reuse_normalization = reuse_normalization; }
++    head.module.data_estimator = data_estimator;
+     form_tail(head, families, choices, budget)
+ }
+ 
+diff --git a/src/program/publication.rs b/src/program/publication.rs
+index d632fd8f..20d0fc67 100644
+--- a/src/program/publication.rs
++++ b/src/program/publication.rs
+@@ -1224,6 +1224,7 @@ impl Formations<'_, '_> {
+                         choices.families,
+                         &choices.choices,
+                         self.policy.cache().normalization_reuse,
++                        self.policy.objective().map(|objective| (objective.codec, objective.codec_settings)),
+                         budget,
+                     )
+                     .map_err(formation_error)?;
+@@ -2979,7 +2980,7 @@ impl<'src> Compilation<'src> {
+         domain: WorkDomain,
+     ) -> Result<Option<BoundJavaScript>, CandidateError> {
+         let payload = admitted_contract_payload(policy.contract(), &mut self.ledger, domain)?;
+-        self.artifacts.configure_measurements(policy.cache());
++        self.artifacts.configure_measurements(policy.cache(), policy.execution());
+         // Every size the compilation measures is judged with the objective's
+         // codec settings (law B2).
+         if let Some(objective) = policy.objective() {
+diff --git a/src/program/search.rs b/src/program/search.rs
+index 7df332c0..3e9e3f2f 100644
+--- a/src/program/search.rs
++++ b/src/program/search.rs
+@@ -21,6 +21,8 @@ use selection::Portfolio;
+ mod terminal;
+ #[path = "search_independent.rs"]
+ mod independent;
++#[path = "search_effort.rs"]
++mod effort;
+ #[path = "search_decisions.rs"]
+ mod decisions;
+ pub(crate) use decisions::SavedDecision;
+@@ -265,6 +267,12 @@ pub struct JavaScriptSearch<'a, 'src> {
+     discovery_refusal: Option<SearchError>,
+     /// The walk's report, once it has run.
+     terminal: Option<TerminalReport>,
++    assignment_evidence: terminal::AssignmentEvidence,
++    protected: [Option<QualifiedArtifact>; 3],
++    protected_selected: [bool; 3],
++    protected_choices: [Vec<terminal::ChoiceOutcome>; 3],
++    effort_checkpoints: Vec<effort::EffortCheckpoint>,
++    effort_refusal: Option<String>,
+ }
+ 
+ impl<'src> Compilation<'src> {
+@@ -291,8 +299,12 @@ impl<'src> Compilation<'src> {
+         source: SemanticId,
+         policy: &ResolvedPolicy,
+         request: SearchRequest,
+-        observe: impl FnMut(SearchObservation<'_>),
++        mut observe: impl FnMut(SearchObservation<'_>),
+     ) -> Result<JavaScriptSearch<'a, 'src>, SearchError> {
++        if policy.preceding_effort().is_some() {
++            return self.prepare_effort_search(source, policy, request,
++                &mut |compilation| Ok(compilation.ledger.seal_baseline()?), &mut observe);
++        }
+         let explore = policy
+             .objective()
+             .is_some_and(|objective| objective.walk.starts);
+@@ -403,6 +415,12 @@ impl<'src> Compilation<'src> {
+             stopped: None,
+             discovery_refusal: None,
+             terminal: None,
++            assignment_evidence: terminal::AssignmentEvidence::default(),
++            protected: [None; 3],
++            protected_selected: [false; 3],
++            protected_choices: [Vec::new(), Vec::new(), Vec::new()],
++            effort_checkpoints: Vec::new(),
++            effort_refusal: None,
+         };
+         search.grow_states(1, WorkDomain::Baseline)?;
+         let direct = search
+@@ -480,25 +498,11 @@ impl JavaScriptSearch<'_, '_> {
+         objective: Objective,
+         inspect: impl FnOnce(ArtifactView<'_>, &Plan) -> R,
+     ) -> Option<R> {
+-        let winner = self
+-            .portfolio
+-            .entries
+-            .get(self.portfolio.selected[index(objective)]?)
+-            .unwrap();
+-        Some(
+-            self.compilation
+-                .with_artifact(winner.artifact, |artifact| {
+-                    inspect(
+-                        artifact,
+-                        self.compilation
+-                            .artifacts
+-                            .provenance(winner.artifact)
+-                            .expect("search owns winner provenance")
+-                            .naming(),
+-                    )
+-                })
+-                .expect("search owns every retained winner"),
+-        )
++        let artifact = self.winner_qualification(objective)?.artifact();
++        Some(self.compilation.with_artifact(artifact, |view| {
++            inspect(view, self.compilation.artifacts.provenance(artifact)
++                .expect("search owns winner provenance").naming())
++        }).expect("search owns every retained winner"))
+     }
+     pub fn ledger(&self) -> &BudgetLedger {
+         &self.compilation.ledger
+@@ -510,6 +514,12 @@ impl JavaScriptSearch<'_, '_> {
+     /// Returns None without consuming a package winner; use with_winner or
+     /// take_winner_artifact to preserve its required second file.
+     pub fn take_winner(&mut self, objective: Objective) -> Option<String> {
++        if self.protected_selected[index(objective)] {
++            let artifact = self.protected[index(objective)]?.artifact();
++            if self.compilation.with_artifact(artifact, |view| !view.files.is_empty()).ok()? { return None; }
++            self.take_protected_winner(objective);
++            return Some(self.compilation.take_artifact(artifact).expect("search owns protected winner"));
++        }
+         let mut budget =
+             AllocationBudget::new(Some((&mut self.compilation.ledger, WorkDomain::Optional)));
+         self.portfolio
+@@ -521,10 +531,12 @@ impl JavaScriptSearch<'_, '_> {
+     /// the originating Compilation. Taking one artifact consumes all
+     /// objective aliases of that winner.
+     pub fn take_winner_artifact(&mut self, objective: Objective) -> Option<ArtifactId> {
++        if self.protected_selected[index(objective)] { return self.take_protected_winner(objective); }
+         self.portfolio.take_winner_artifact(objective)
+     }
+ 
+     pub fn winner_qualification(&self, objective: Objective) -> Option<&QualifiedArtifact> {
++        if self.protected_selected[index(objective)] { return self.protected[index(objective)].as_ref(); }
+         self.portfolio
+             .entries
+             .get(self.portfolio.selected[index(objective)]?)?
+@@ -1663,6 +1675,8 @@ fn bytes<T>(count: usize) -> Result<u64, AllocationError> {
+ 
+ impl Drop for JavaScriptSearch<'_, '_> {
+     fn drop(&mut self) {
++        self.discard_protected();
++        self.assignment_evidence.discard(self.owner, &mut self.compilation.ledger);
+         let mut budget =
+             AllocationBudget::new(Some((&mut self.compilation.ledger, WorkDomain::Optional)));
+         self.portfolio
+diff --git a/src/program/search_independent.rs b/src/program/search_independent.rs
+index 766b4067..041afd9a 100644
+--- a/src/program/search_independent.rs
++++ b/src/program/search_independent.rs
+@@ -65,75 +65,51 @@ impl<'src> Compilation<'src> {
+         total: usize,
+         decisions: &[Option<SavedDecision>; 3],
+         results: &mut [Option<IndependentSearchResult>; 3],
+-        observe: &mut impl FnMut(SearchObservation<'_>),
++        observe: &mut dyn FnMut(SearchObservation<'_>),
+     ) -> Result<BaselineSeal, SearchError> {
+         let Some((&(policy, request), earlier)) = requests.split_last() else {
+             // Every requested incumbent and score now exists. No later
+             // objective needs to reopen Baseline or guess a memory reserve.
+             return Ok(self.ledger.seal_baseline()?);
+         };
+-        let objective = policy.objective().unwrap();
+-        let seeds = Plan::seeds_for_policy(policy).map_err(CandidateError::from)?;
+-        let mut search = self.prepare_javascript_search(source, policy)?;
+-        let (baseline_renders, continuation) = search.evaluate_baseline(
+-            policy,
+-            request.objectives,
+-            &seeds[..1],
+-            objective.walk.starts,
+-            false,
+-            observe,
+-        )?;
+-        continuation?;
+-        let seal = search
+-            .compilation
+-            .prepare_independent_objectives(source, earlier, total, decisions, results, observe)?;
+-        search.sealed = Some(seal);
+-        let slot = index(objective.codec);
+-        let share = search
+-            .compilation
+-            .ledger
+-            .begin_objective_share(total + 1 - requests.len());
+-        let (_, allowance) = search.compilation.ledger.optional_search_work();
++        let codec = policy.objective().unwrap().codec;
++        let slot = index(codec);
++        let observer = std::cell::RefCell::new(observe);
++        let mut share = None;
++        let mut allowance = 0;
++        let mut seal = None;
+         let outcome = catch_unwind(AssertUnwindSafe(|| {
+-            if objective.walk.starts && objective.optional_alternatives != 0 {
+-                let continuation =
+-                    search.continue_independent_baseline(policy, request, seeds, observe);
+-                search.explore_after_baseline(
+-                    policy,
+-                    request,
+-                    seeds,
+-                    baseline_renders,
+-                    continuation,
+-                    observe,
+-                );
+-            }
++            let mut search = self.prepare_effort_search(source, policy, request,
++                &mut |compilation| {
++                    let ready = compilation.prepare_independent_objectives(source, earlier, total,
++                        decisions, results, &mut |event| observer.borrow_mut()(event))?;
++                    seal = Some(ready);
++                    share = Some(compilation.ledger.begin_objective_share(total + 1 - requests.len()));
++                    allowance = compilation.ledger.optional_search_work().1;
++                    Ok(ready)
++                }, &mut |event| observer.borrow_mut()(event))?;
+             search.challenge_with_decisions(policy, request, decisions)?;
++            let used = search.compilation.ledger.optional_search_work().0;
++            let stopped = search.stopped().map(|error| format!("{error:?}"));
++            let winner = search.take_qualified_winner(codec)
++                .expect("every objective retains its qualified baseline or improvement");
++            results[slot] = Some(IndependentSearchResult {
++                winner, counters: search.counters(), terminal: search.terminal.take().unwrap(), stopped,
++                optional_work_allowance: allowance, optional_work_used: used,
++            });
+             Ok::<_, SearchError>(())
+         }));
+-        let (used, _) = search.compilation.ledger.optional_search_work();
+-        search.compilation.ledger.end_objective_share(share);
++        if let Some(share) = share { self.ledger.end_objective_share(share); }
+         match outcome {
+             Ok(result) => result?,
+             Err(payload) => resume_unwind(payload),
+         }
+-        let stopped = search.stopped().map(|error| format!("{error:?}"));
+-        let winner = search
+-            .take_qualified_winner(objective.codec)
+-            .expect("every independent objective retains its qualified baseline or improvement");
+-        results[slot] = Some(IndependentSearchResult {
+-            winner,
+-            counters: search.counters(),
+-            terminal: search.terminal.take().unwrap(),
+-            stopped,
+-            optional_work_allowance: allowance,
+-            optional_work_used: used,
+-        });
+-        Ok(seal)
++        Ok(seal.expect("all mandatory objectives precede optional work"))
+     }
+ }
+ 
+ impl JavaScriptSearch<'_, '_> {
+-    fn continue_independent_baseline(
++    pub(super) fn continue_independent_baseline(
+         &mut self,
+         policy: &ResolvedPolicy,
+         request: SearchRequest,
+diff --git a/src/program/search_terminal.rs b/src/program/search_terminal.rs
+index e74ff43b..9d102174 100644
+--- a/src/program/search_terminal.rs
++++ b/src/program/search_terminal.rs
+@@ -16,16 +16,16 @@
+ //! The level sets only counts (`WalkSchedule`): the positions the walk may
+ //! examine, the exact judgements it may make, and its passes. A pass walks
+ //! the list once; a pass that keeps a move is followed by another, up to the
+-//! level's number, so from level 14 the walk reaches its fixed point. Then
++//! level's number, so from level 13 the walk reaches its fixed point. Then
+ //! the tail: a restart from A0 under each other naming seed, walked in passes
+ //! of its own and kept only when its result is strictly smaller, and the
+ //! retained structural candidates. Both stages share the representation family
+ //! contract and complete-artifact admission.
+ //!
+ //! The fast tiers replay a fixed move sequence, and each walk retains its
+-//! best admitted result. A wider structural frontier or a shared hard limit
+-//! can change which moves later effort levels reach; universal non-growth
+-//! across levels is not established. Decisions are sequential and deterministic
++//! best admitted result. Protected effort checkpoints retain preceding winners
++//! across changed frontiers, subject to the shared hard limits and fresh
++//! qualification. Decisions are sequential and deterministic
+ //! given the request and admitted resources, independent of thread count and
+ //! allocation addresses.
+ //!
+@@ -35,6 +35,7 @@
+ //! challenger law; migration 7.34–7.37 read +128 over 20 ports that way).
+ use super::*;
+ use crate::js::{Challenger, ChoiceMap, Spelling};
++use crate::compilation_policy::TacticPermission;
+ 
+ /// What became of one declared challenger on one objective's final candidate.
+ #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+@@ -76,6 +77,9 @@ pub struct ChallengerTrial {
+     pub size: Option<usize>,
+     /// That size minus the incumbent's at the time (negative is smaller).
+     pub delta: Option<i64>,
++    /// Raw byte change for a kept move or settled start; proves codec tie breaks.
++    #[serde(skip_serializing_if = "Option::is_none")]
++    pub raw_delta: Option<i64>,
+     /// The proxy judge's delta against the incumbent, when it judged.
+     pub proxy: Option<i64>,
+     /// The audit lane's exact delta of a pruned move.
+@@ -92,6 +96,9 @@ pub struct JointTrial {
+     pub outcome: ChallengerOutcome,
+     pub size: Option<usize>,
+     pub delta: Option<i64>,
++    /// Raw byte change for a kept move or settled start; proves codec tie breaks.
++    #[serde(skip_serializing_if = "Option::is_none")]
++    pub raw_delta: Option<i64>,
+     pub proxy: Option<i64>,
+     /// The audit lane's exact delta of a pruned move.
+     #[serde(skip_serializing_if = "Option::is_none")]
+@@ -102,16 +109,20 @@ pub struct JointTrial {
+ /// source name, taking one of its other alternatives.
+ #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+ pub struct ChoiceTrial {
++    pub estimate_codec: crate::config::CompressionCostModel,
+     pub family: crate::js::ChoiceFamily,
+     pub site: String,
+     pub alternative: &'static str,
+-    /// The estimator's raw bytes saved against the site's canonical form:
++    /// The estimator's bytes saved against the site's canonical form:
+     /// the order of the schedule, never the verdict.
+     pub estimate: i64,
+     pub pass: usize,
+     pub outcome: ChallengerOutcome,
+     pub size: Option<usize>,
+     pub delta: Option<i64>,
++    /// Raw byte change for a kept move or settled start; proves codec tie breaks.
++    #[serde(skip_serializing_if = "Option::is_none")]
++    pub raw_delta: Option<i64>,
+     pub proxy: Option<i64>,
+     /// The audit lane's exact delta of a pruned move.
+     #[serde(skip_serializing_if = "Option::is_none")]
+@@ -121,6 +132,7 @@ pub struct ChoiceTrial {
+ /// A choice site of the delivered artifact and the alternative it took.
+ #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+ pub struct ChoiceOutcome {
++    pub estimate_codec: crate::config::CompressionCostModel,
+     pub pinned: bool,
+     pub family: crate::js::ChoiceFamily,
+     pub site: String,
+@@ -168,6 +180,9 @@ pub struct TerminalObjective {
+     pub before: usize,
+     pub searched: usize,
+     pub after: usize,
++    /// Ordinary winner and delivered checkpoint after the final dominance check.
++    #[serde(skip_serializing_if = "Option::is_none")]
++    pub protected_effort: Option<(usize, usize)>,
+     /// The delivered artifact's families and raw spelling, by name.
+     pub spelling: Vec<&'static str>,
+     /// The delivered artifact's naming seed.
+@@ -225,7 +240,7 @@ pub struct Stop {
+ const RENDER_BOUND: usize = 768 * 1024;
+ 
+ /// The digest a stop records of an artifact's delivered files.
+-fn delivered_digest(view: &ArtifactView<'_>) -> String {
++pub(super) fn delivered_digest(view: &ArtifactView<'_>) -> String {
+     use sha2::{Digest, Sha256};
+     if view.files.is_empty() {
+         return format!("{:x}", Sha256::digest(view.javascript.as_bytes()));
+@@ -267,6 +282,9 @@ pub struct StartTrial {
+     /// Its walk's result, and that minus the winner's at the time.
+     pub size: Option<usize>,
+     pub delta: Option<i64>,
++    /// Raw byte change for a kept move or settled start; proves codec tie breaks.
++    #[serde(skip_serializing_if = "Option::is_none")]
++    pub raw_delta: Option<i64>,
+     /// A restart's proxy delta against the level-0 artifact.
+     pub proxy: Option<i64>,
+     /// The audit lane's exact delta of a pruned move.
+@@ -278,6 +296,10 @@ pub struct StartTrial {
+ #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+ pub struct TerminalReport {
+     pub objectives: Vec<TerminalObjective>,
++    #[serde(skip_serializing_if = "Vec::is_empty")]
++    pub effort_checkpoints: Vec<super::effort::EffortCheckpoint>,
++    #[serde(skip_serializing_if = "Option::is_none")]
++    pub effort_refusal: Option<String>,
+ }
+ 
+ fn codec_name(codec: Objective) -> &'static str {
+@@ -355,7 +377,7 @@ fn refusal(error: CandidateError) -> Result<Judgement, SearchError> {
+ }
+ 
+ /// A resource refusal from the portfolio's own admission.
+-fn resource(error: &SearchError) -> bool {
++pub(super) fn resource(error: &SearchError) -> bool {
+     matches!(error, SearchError::Candidate(error) if exhausted(error))
+         || matches!(
+             error,
+@@ -696,6 +718,68 @@ struct Assignment {
+     literals: crate::js::LiteralOutput,
+ }
+ 
++/// Two source-state namespaces cover the structural winner and the direct
++/// recipe. No artifact is retained here. Entries are only bounds on whether
++/// forming an assignment can beat the current incumbent; a potentially useful
++/// assignment is always formed and admitted again.
++#[derive(Default)]
++pub(super) struct AssignmentEvidence {
++    slots: [Option<EvidenceSlot>; 2],
++    next: usize,
++    charge: Option<crate::output_budget::RetainedCharge<RevisionId>>,
++}
++struct EvidenceSlot {
++    candidate: CandidateId,
++    codec: Objective,
++    rules: crate::js::TargetRules,
++    dead_code: bool,
++    compact: bool,
++    entries: Vec<(Assignment, Recall)>,
++}
++impl AssignmentEvidence {
++    fn prepare(&mut self, owner: RevisionId, ledger: &mut BudgetLedger) -> Result<(), SearchError> {
++        if self.charge.is_some() { return Ok(()); }
++        // Include both complete namespaces and the largest Vec growth overlap.
++        // Arc-backed choices are counted conservatively in every retained key.
++        let capacity = 2 * (ASSIGNMENT_BYTES + ASSIGNMENT_ENTRIES * std::mem::size_of::<(Assignment, Recall)>());
++        let mut budget = AllocationBudget::new(Some((ledger, WorkDomain::Optional)));
++        budget.retain(crate::output_budget::AllocationClass::Retained, capacity as u64)?;
++        self.charge = Some(budget.detach_retained(owner, capacity as u64)?);
++        Ok(())
++    }
++
++    pub(super) fn discard(&mut self, owner: RevisionId, ledger: &mut BudgetLedger) {
++        self.slots = [None, None];
++        if let Some(charge) = self.charge.take() {
++            charge.discard(&owner, ledger).expect("search owns bounded assignment evidence");
++        }
++    }
++
++    fn entries(&mut self, candidate: CandidateId, codec: Objective, output: &OutputTactics,
++        reset: bool) -> &mut Vec<(Assignment, Recall)> {
++        let hit = self.slots.iter().position(|slot| slot.as_ref().is_some_and(|slot|
++            slot.candidate == candidate && slot.codec == codec && slot.rules == output.rules
++                && slot.dead_code == output.dead_code_elimination && slot.compact == output.target_compaction));
++        let index = hit.unwrap_or_else(|| { let index = self.next; self.next ^= 1; index });
++        if hit.is_none() {
++            self.slots[index] = Some(EvidenceSlot { candidate, codec, rules: output.rules,
++                dead_code: output.dead_code_elimination, compact: output.target_compaction, entries: Vec::new() });
++        }
++        let entries = &mut self.slots[index].as_mut().unwrap().entries;
++        if reset { entries.clear(); }
++        entries
++    }
++}
++
++const ASSIGNMENT_ENTRIES: usize = 512;
++const ASSIGNMENT_BYTES: usize = 256 * 1024;
++
++fn assignment_bytes(key: &Assignment) -> usize {
++    std::mem::size_of::<(Assignment, Recall)>()
++        .saturating_add(key.choices.retained_bytes())
++        .saturating_add(key.source_names.capacity() * std::mem::size_of::<crate::js::BindingId>())
++}
++
+ /// One start's walks inside its candidate's formations (architecture §9.6,
+ /// AM2): the list walked in passes from an incumbent, restarts from the
+ /// same candidate, and the settlement of each result against the
+@@ -720,13 +804,22 @@ struct Walker<'w, 'scope, 'src> {
+     /// Every assignment this start's walks judged, with its verdict. Sizes
+     /// only fall along a walk, so a measured assignment that was not smaller
+     /// then is not smaller now; a repeat is not formed again.
+-    memo: Vec<(Assignment, Recall)>,
++    memo: &'w mut Vec<(Assignment, Recall)>,
++    order: &'static [Challenger; 23],
+     /// On the walk from the level-0 artifact: the lower levels whose
+     /// stopping points it records.
+     replay: Option<Replay>,
+ }
+ 
+ impl Walker<'_, '_, '_> {
++    fn raw_delta(&mut self, judgement: &Judgement, incumbent: &Incumbent) -> Result<Option<i64>, SearchError> {
++        let Judgement::Kept { artifact, .. } = judgement else { return Ok(None); };
++        Ok(Some(self.formations.with_arena(|arena, _, _| {
++            Ok::<_, CandidateError>(arena.with_artifact(*artifact, |view| view.sizes.raw)? as i64
++                - arena.with_artifact(incumbent.artifact, |view| view.sizes.raw)? as i64)
++        })?))
++    }
++
+     /// Whether the walk may examine one more position.
+     fn open(&self) -> bool {
+         self.report.examined < self.walk.prefix && self.report.judged < self.walk.exact
+@@ -822,6 +915,12 @@ impl Walker<'_, '_, '_> {
+         literals: crate::js::LiteralOutput,
+         incumbent: &Incumbent,
+     ) -> Result<(Judgement, Option<Proxy>, bool), SearchError> {
++        if choices.retained_bytes().saturating_add(plan.source_names.len()
++            * std::mem::size_of::<crate::js::BindingId>()) > ASSIGNMENT_BYTES / 2 {
++            // Large explicit naming locks remain legal; do not copy them into
++            // bounded search evidence before discovering they cannot fit.
++            return self.judge.judge(self.formations, spelling, choices, plan, literals, incumbent);
++        }
+         let key = Assignment {
+             spelling: spelling.effective(),
+             choices: choices.clone(),
+@@ -883,13 +982,12 @@ impl Walker<'_, '_, '_> {
+             Judgement::Stopped | Judgement::Recalled { .. } => None,
+         };
+         if let Some(recall) = recall {
+-            match self
+-                .memo
+-                .iter_mut()
+-                .find(|(assignment, _)| *assignment == key)
+-            {
+-                Some(entry) => entry.1 = recall,
+-                None => self.memo.push((key, recall)),
++            if let Some(index) = self.memo.iter().position(|(assignment, _)| *assignment == key) {
++                self.memo[index].1 = recall;
++            } else if self.memo.len() < ASSIGNMENT_ENTRIES
++                && self.memo.iter().fold(assignment_bytes(&key), |bytes, (entry, _)|
++                    bytes.saturating_add(assignment_bytes(entry))) <= ASSIGNMENT_BYTES {
++                self.memo.push((key, recall));
+             }
+         }
+         Ok((judgement, proxy, probed))
+@@ -962,6 +1060,7 @@ impl Walker<'_, '_, '_> {
+                 .sum();
+             let joint = moves.len() > 1;
+             let mut record = ChoiceTrial {
++                estimate_codec: sites[site].estimate_codec,
+                 family: sites[site].key.family,
+                 site: if joint {
+                     format!("{} sites", moves.len())
+@@ -977,7 +1076,7 @@ impl Walker<'_, '_, '_> {
+                 pass,
+                 outcome: ChallengerOutcome::Budget,
+                 size: None,
+-                delta: None,
++                delta: None, raw_delta: None,
+                 proxy: None,
+                 audit: None,
+             };
+@@ -1008,6 +1107,7 @@ impl Walker<'_, '_, '_> {
+                     incumbent.literals,
+                     incumbent,
+                 )?;
++                record.raw_delta = self.raw_delta(&judgement, incumbent)?;
+                 self.count(&judgement, probed);
+                 if !matches!(judgement, Judgement::Recalled { .. } | Judgement::Stopped) {
+                     self.report.choices_tried += 1;
+@@ -1062,6 +1162,7 @@ impl Walker<'_, '_, '_> {
+         self.report.choices = sites
+             .iter()
+             .map(|site| ChoiceOutcome {
++                estimate_codec: site.estimate_codec,
+                 family: site.key.family,
+                 site: site.name.clone(),
+                 pinned: site.pinned,
+@@ -1085,13 +1186,13 @@ impl Walker<'_, '_, '_> {
+             pass,
+             outcome,
+             size: None,
+-            delta: None,
++            delta: None, raw_delta: None,
+             proxy: None,
+             audit: None,
+         };
+         let mut kept = false;
+         let mut seen = vec![(incumbent.spelling.effective(), incumbent.choices.clone())];
+-        for challenger in Challenger::ORDER {
++        for &challenger in self.order {
+             self.replay(incumbent)?;
+             if self.stopped {
+                 self.report
+@@ -1149,6 +1250,7 @@ impl Walker<'_, '_, '_> {
+                 incumbent.literals,
+                 incumbent,
+             )?;
++            let raw_delta = self.raw_delta(&judgement, incumbent)?;
+             self.count(&judgement, probed);
+             if !matches!(judgement, Judgement::Recalled { .. } | Judgement::Stopped) {
+                 self.report.tried += 1;
+@@ -1197,6 +1299,7 @@ impl Walker<'_, '_, '_> {
+                 outcome,
+                 size,
+                 delta,
++                raw_delta,
+                 proxy: proxy.map(|proxy| proxy.delta),
+                 audit: proxy.and_then(|proxy| proxy.audit),
+             });
+@@ -1256,7 +1359,7 @@ impl Walker<'_, '_, '_> {
+                 pass,
+                 outcome: ChallengerOutcome::Budget,
+                 size: None,
+-                delta: None,
++                delta: None, raw_delta: None,
+                 proxy: None,
+                 audit: None,
+             };
+@@ -1368,6 +1471,7 @@ impl Walker<'_, '_, '_> {
+                 plan.read_order = incumbent.spelling.read_order;
+                 let (judgement, proxy, probed) =
+                     self.judge_move(spelling, &incumbent.choices, &plan, literals, incumbent)?;
++                record.raw_delta = self.raw_delta(&judgement, incumbent)?;
+                 self.count(&judgement, probed);
+                 if !matches!(judgement, Judgement::Recalled { .. } | Judgement::Stopped) {
+                     self.report.joints_tried += 1;
+@@ -1433,6 +1537,10 @@ impl Walker<'_, '_, '_> {
+             .with_arena(|arena, _, _| arena.with_artifact(held, |view| view.sizes.get(codec)))?
+             .expect("a winner is measured under its codec");
+         let delta = result.size as i64 - held_size as i64;
++        let raw_delta = self.formations.with_arena(|arena, _, _| {
++            Ok::<_, CandidateError>(arena.with_artifact(result.artifact, |view| view.sizes.raw)? as i64
++                - arena.with_artifact(held, |view| view.sizes.raw)? as i64)
++        })?;
+         let outcome = match result.qualified {
+             // The start itself, unchanged: the portfolio holds it.
+             None if result.artifact == held => ChallengerOutcome::Identical,
+@@ -1484,6 +1592,7 @@ impl Walker<'_, '_, '_> {
+         record.outcome = outcome;
+         record.size = Some(result.size);
+         record.delta = Some(delta);
++        record.raw_delta = Some(raw_delta);
+         Ok(())
+     }
+ 
+@@ -1501,7 +1610,7 @@ impl Walker<'_, '_, '_> {
+             outcome: ChallengerOutcome::Budget,
+             start: Some(start.size),
+             size: None,
+-            delta: None,
++            delta: None, raw_delta: None,
+             proxy: None,
+             audit: None,
+         });
+@@ -1568,7 +1677,7 @@ impl Walker<'_, '_, '_> {
+             outcome: ChallengerOutcome::Budget,
+             start: None,
+             size: None,
+-            delta: None,
++            delta: None, raw_delta: None,
+             proxy: None,
+             audit: None,
+         };
+@@ -1784,7 +1893,35 @@ impl JavaScriptSearch<'_, '_> {
+                 AllocationBudget::new(Some((&mut self.compilation.ledger, WorkDomain::Optional)));
+             self.portfolio
+                 .unpin(&mut self.compilation.artifacts, &mut budget);
++            drop(budget);
+             walked?;
++            self.settle_protected(policy, request.objectives)?;
++            for codec in request.objectives.iter() {
++                let Some(stage) = report.objectives.iter_mut().find(|stage| stage.codec == codec.name()) else { continue; };
++                if objective.search.protect_effort && policy.effort() >= 13 {
++                    stage.stops = self.effort_checkpoints.first().filter(|row| row.level == 12)
++                        .and_then(|row| row.fast_stops.iter().find(|(name, _)| *name == codec.name()))
++                        .map_or_else(Vec::new, |(_, stops)| stops.clone());
++                }
++                if self.protected_selected[index(codec)] {
++                    let qualified = self.protected[index(codec)].unwrap();
++                    let before = stage.after;
++                    let artifact = qualified.artifact();
++                    stage.after = self.compilation.artifacts.with_artifact(artifact, |view| view.sizes.get(codec).unwrap())?;
++                    let provenance = self.compilation.artifacts.provenance(artifact)?;
++                    let plan = provenance.naming();
++                    stage.spelling = spelling_names(Spelling { families: provenance.description().output().families,
++                        self_named: plan.self_named, read_order: plan.read_order });
++                    stage.style = format!("{:?}", plan.style);
++                    // Selection can prefer a checkpoint whose total is larger
++                    // because one delivered entry would otherwise grow. This
++                    // is a dominance decision, not a strictly improving move.
++                    stage.protected_effort = Some((before, stage.after));
++                    stage.choices = self.protected_choices[index(codec)].clone();
++                }
++            }
++            report.effort_checkpoints = self.effort_checkpoints.clone();
++            report.effort_refusal = self.effort_refusal.clone();
+             self.terminal = Some(report);
+         }
+         Ok(self.terminal.as_ref().unwrap())
+@@ -1842,6 +1979,7 @@ impl JavaScriptSearch<'_, '_> {
+             before,
+             searched,
+             after: searched,
++            protected_effort: None,
+             spelling: Vec::new(),
+             style: String::new(),
+             trials: Vec::with_capacity(Challenger::ORDER.len()),
+@@ -1910,6 +2048,15 @@ impl JavaScriptSearch<'_, '_> {
+         }
+         // Extra combinations extend the completed ordinary search. Enabling
+         // them cannot spend the budget that produced its protected incumbent.
++        let objective_prior = match objective.search.objective_prior {
++            TacticPermission::Auto => policy.effort() >= 14,
++            TacticPermission::On => walk.starts,
++            TacticPermission::Off => false,
++        };
++        if objective_prior && walk.starts && report.examined < walk.prefix && report.judged < walk.exact {
++            self.walk_from(policy, objective, codec, "objective-prior", level0,
++                WalkPhase::Search { restarts: false }, &mut report)?;
++        }
+         if policy.tactic(TacticId::RepresentationJoints).enabled
+             && report.examined < walk.prefix && report.judged < walk.exact
+         {
+@@ -1971,7 +2118,7 @@ impl JavaScriptSearch<'_, '_> {
+         let mut record = StartTrial {
+             name: "decision-lock".into(), pass: 0,
+             outcome: ChallengerOutcome::Budget,
+-            start: None, size: None, delta: None, proxy: None, audit: None,
++            start: None, size: None, delta: None, raw_delta: None, proxy: None, audit: None,
+         };
+         let walk = policy.objective().unwrap().walk;
+         if report.examined >= walk.prefix || report.judged >= walk.exact {
+@@ -2025,6 +2172,10 @@ impl JavaScriptSearch<'_, '_> {
+                     report.scored += 1;
+                     record.start = Some(size);
+                     record.size = Some(size);
++                    record.raw_delta = Some(formations.with_arena(|arena, _, _| {
++                        Ok::<_, CandidateError>(arena.with_artifact(artifact, |view| view.sizes.raw)? as i64
++                            - arena.with_artifact(held, |view| view.sizes.raw)? as i64)
++                    })?);
+                     record.delta = Some(size as i64 - origin.size as i64);
+                     let promoted = (|| {
+                         if !judge.wins(formations, artifact, qualified, (held, origin.size))? { return Ok(false); }
+@@ -2088,7 +2239,7 @@ impl JavaScriptSearch<'_, '_> {
+                     pass: report.passes + 1,
+                     outcome,
+                     size: None,
+-                    delta: None,
++                    delta: None, raw_delta: None,
+                     proxy: None,
+                     audit: None,
+                 });
+@@ -2153,8 +2304,20 @@ impl JavaScriptSearch<'_, '_> {
+         let Self {
+             compilation,
+             portfolio,
++            assignment_evidence,
++            owner,
+             ..
+         } = self;
++        // Lower one-pass effort checkpoints must not borrow verdicts from a
++        // preceding structural start. Subsequent compatible starts can share.
++        if let Err(error) = assignment_evidence.prepare(*owner, &mut compilation.ledger) {
++            if !resource(&error) && !error.optional_memory_refusal() { return Err(error); }
++            report.starts.push(StartTrial { name: name.into(), pass: report.passes + 1,
++                outcome: ChallengerOutcome::Stopped, start: Some(size), size: None,
++                delta: None, raw_delta: None, proxy: None, audit: None });
++            return Ok(NamingStarts::default());
++        }
++        let memo = assignment_evidence.entries(candidate, codec, &output, name == "level-0");
+         let judge = Judge {
+             policy,
+             codec,
+@@ -2189,7 +2352,8 @@ impl JavaScriptSearch<'_, '_> {
+                     naming: &naming,
+                     choices_permitted: output.target_compaction,
+                     stopped: false,
+-                    memo: Vec::new(),
++                    memo,
++                    order: if name == "objective-prior" { Challenger::objective_order(codec) } else { &Challenger::ORDER },
+                     replay,
+                 };
+                 let walked = (|| {
+@@ -2235,7 +2399,7 @@ impl JavaScriptSearch<'_, '_> {
+                     outcome: ChallengerOutcome::Stopped,
+                     start: Some(size),
+                     size: None,
+-                    delta: None,
++                    delta: None, raw_delta: None,
+                     proxy: None,
+                     audit: None,
+                 });
+diff --git a/src/program/search_terminal_tests.rs b/src/program/search_terminal_tests.rs
+index c7b34ded..1fb79b0b 100644
+--- a/src/program/search_terminal_tests.rs
++++ b/src/program/search_terminal_tests.rs
+@@ -478,6 +478,10 @@ fn replay(stage: &TerminalObjective) -> usize {
+             best = end;
+         }
+     }
++    if let Some((ordinary, protected)) = stage.protected_effort {
++        assert_eq!(best, ordinary);
++        best = protected;
++    }
+     best
+ }
+ 
+@@ -607,6 +611,7 @@ fn the_choice_schedule_resets_every_site_at_once_then_orders_by_stake() {
+     use crate::js::choices::ChoiceAlternative;
+     use crate::js::{AltId, ChoiceFamily, ChoiceKey, ChoiceSite, SiteId};
+     let site = |site: u32, savings: &[(u8, i64)], applied: u8| ChoiceSite {
++        estimate_codec: crate::config::CompressionCostModel::Raw,
+             pinned: false,
+         key: ChoiceKey {
+             family: ChoiceFamily::DataEncoding,
+@@ -688,3 +693,32 @@ fn g1_compact_allocation_preserves_the_completed_search_and_delivers_its_score()
+         assert_eq!(crate::compression::measure(javascript.as_bytes(), model).unwrap(), *size);
+     }
+ }
++
++#[test]
++fn q3_protected_effort_keeps_each_completed_lower_objective_winner() {
++    for (name, codec) in [("raw", Objective::Raw), ("gzip", Objective::Gzip), ("brotli", Objective::Brotli)] {
++        let mut previous = None;
++        let mut completed = Vec::new();
++        for level in [12, 13, 14, 15] {
++            let run = search(&policy(name, level), Objectives::One(codec), true);
++            let (size, code) = run.winners[index(codec)].as_ref().unwrap();
++            assert_eq!(*size, crate::compression::measure(code.as_bytes(), codec).unwrap());
++            if let Some(before) = previous { assert!(*size <= before, "{name}/{level}: {before} -> {size}"); }
++            previous = Some(*size);
++            assert_eq!(run.report.effort_checkpoints.len(), level.saturating_sub(12) as usize);
++            if level > 12 {
++                let prefix = run.report.objectives[0].stops.iter().find(|stop| stop.level == 12).unwrap();
++                let (_, size, digest) = completed.iter().find(|(level, _, _)| *level == 12).unwrap();
++                assert_eq!((&prefix.size, &prefix.sha256), (size, digest));
++            }
++            for checkpoint in &run.report.effort_checkpoints {
++                let (_, size, digest) = &checkpoint.objectives[0];
++                let (_, expected_size, expected_digest) = completed.iter().find(|(level, _, _)| *level == checkpoint.level).unwrap();
++                assert_eq!(size, expected_size);
++                assert_eq!(digest, expected_digest);
++            }
++            use sha2::{Digest, Sha256};
++            completed.push((level, *size, format!("{:x}", Sha256::digest(code.as_bytes()))));
++        }
++    }
++}
+diff --git a/src/representation.rs b/src/representation.rs
+index dc8e5907..7ab73904 100644
+--- a/src/representation.rs
++++ b/src/representation.rs
+@@ -354,7 +354,7 @@ impl ChoiceMap {
+ }
+ 
+ /// One alternative of a discovered site: its id, its name in reports, and
+-/// the estimator's raw bytes saved against the canonical form (positive is smaller).
++/// estimated bytes saved against the canonical form (positive is smaller).
+ /// The estimate orders the codec's work; it never decides.
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ pub struct ChoiceAlternative {
+@@ -369,6 +369,8 @@ pub struct ChoiceAlternative {
+ /// offers without re-deriving it.
+ #[derive(Debug, Clone, PartialEq, Eq)]
+ pub struct ChoiceSite {
++    /// Codec used for this local ranking estimate, not the final artifact score.
++    pub estimate_codec: crate::config::CompressionCostModel,
+     pub key: ChoiceKey,
+     /// The site's source name, for reports.
+     pub name: String,
+@@ -526,6 +528,7 @@ mod tests {
+     #[test]
+     fn q1_schedule_keeps_negative_estimates_and_bounded_cross_family_moves() {
+         let site = |index, family| ChoiceSite {
++            estimate_codec: crate::config::CompressionCostModel::Raw,
+             pinned: false,
+             key: ChoiceKey {
+                 family,

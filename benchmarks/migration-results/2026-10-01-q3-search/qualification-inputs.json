@@ -1,0 +1,39 @@
+{
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/q3-search-1/lilscript",
+    "sha256": "eac4314f7016b51b8280543fbf7e376e73bbed0dcf18f4dd4a65726246e58cf7"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "prior_sha256": "82b0b40a948ca012123f9f26c2307c19c65fff915d40826e99920cb54dde7e1c",
+  "manifest_sha256": "d45cf8843838a3f9158b32b413e70fcde0e6269239170251f4e57cce7d6bb845",
+  "scope": "Four frozen generic programs; evaluation families are already exposed and excluded from fitting. Single CPU observations, not speedup estimates.",
+  "rows": [],
+  "complete": false,
+  "variants": {
+    "protected12": [
+      12,
+      ""
+    ],
+    "ordinary13": [
+      13,
+      "protect_effort=false\nobjective_prior='off'\n"
+    ],
+    "protected13": [
+      13,
+      ""
+    ],
+    "protected14": [
+      14,
+      ""
+    ]
+  },
+  "ids": [
+    "arithmetic-128",
+    "checksum-library",
+    "distance-library",
+    "interval-library"
+  ]
+}

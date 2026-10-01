@@ -1344,3 +1344,26 @@ fn an_interface_called_before_another_entry_loads_is_observed() {
     }
     let _ = fs::remove_dir_all(directory);
 }
+
+#[test]
+fn q3_scoring_workers_keep_complete_delivery_and_runtime_identical() {
+    let directory = workspace("q3-workers", &[
+        ("core.lil", "int count=0;export int bump(){count=count+1;return count;}"),
+        ("a.lil", r#"import {bump} from "./core";export int read(){return bump();}"#),
+        ("b.lil", r#"import {bump} from "./core";export int read(){return bump();}"#),
+    ]);
+    let entries = entries_in(&directory, &[("a", "a.lil"), ("b", "b.lil")]);
+    let mut config = config("mode='split'");
+    config.effort.level = 1; // Scoring workers have no work at the unmeasured level 0.
+    let mut previous = None;
+    for jobs in [1, 4] {
+        config.execution.jobs = jobs;
+        let compiled = compile_entries(&entries, &config, options()).unwrap();
+        assert_eq!(run_script(&directory, &compiled,
+            "const a=await import('./a.js');const b=await import('./b.js');console.log(a.read(),b.read(),a.read());"), "1 2 3\n");
+        let state = (delivered(&compiled), compiled.report()["resources"].clone());
+        if let Some(previous) = &previous { assert_eq!(&state, previous); } else { previous = Some(state); }
+        assert!(compiled.report()["codec_cache"]["worker_batches"].as_u64().unwrap_or(0) > 0, "{}", compiled.report());
+    }
+    fs::remove_dir_all(directory).unwrap();
+}

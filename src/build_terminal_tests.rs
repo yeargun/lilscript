@@ -216,7 +216,7 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
                 match outcome(trial) {
                     "kept" => {
                         let delta = trial["delta"].as_i64().unwrap();
-                        assert!(delta < 0, "a kept move is strictly smaller: {trial}");
+                        assert!(delta < 0 || delta == 0 && trial["raw_delta"].as_i64().is_some_and(|raw| raw < 0), "a kept move strictly improves (objective, raw): {trial}");
                         assert_eq!(trial["size"].as_i64().unwrap(), incumbent + delta);
                         incumbent += delta;
                     }
@@ -248,7 +248,7 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
         assert_eq!(delta, incumbent - best, "{start}");
         match outcome(start) {
             "kept" => {
-                assert!(delta < 0, "{start}");
+                assert!(delta < 0 || delta == 0 && start["raw_delta"].as_i64().is_some_and(|raw| raw < 0), "{start}");
                 best = incumbent;
             }
             other => assert!(
@@ -286,7 +286,7 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
     let restart = |trial: &Value| {
         trial["name"]
             .as_str()
-            .is_some_and(|name| !matches!(name, "search" | "level-0" | "beam" | "local-naming"))
+            .is_some_and(|name| name.starts_with("naming:") || name.starts_with("deferred-naming:"))
     };
     let restarts = |outcomes: &[&str]| {
         walk.iter()
@@ -327,6 +327,10 @@ fn check_stage(compiled: &ServiceCompilation, codec: &str) {
         stage["pruned"].as_u64().unwrap() as usize,
         count(false, &["pruned"]) + restarts(&["pruned"])
     );
+    if let Some(protected) = stage["protected_effort"].as_array() {
+        assert_eq!(protected[0].as_i64().unwrap(), best);
+        best = protected[1].as_i64().unwrap();
+    }
     assert_eq!(stage["after"].as_i64().unwrap(), best);
     assert!(
         best <= searched,

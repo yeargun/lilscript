@@ -389,6 +389,7 @@ impl Module {
                 Retained,
                 &mut self.choice_sites,
                 ChoiceSite {
+                    estimate_codec: crate::config::CompressionCostModel::Raw,
                     key,
                     name,
                     alternatives,

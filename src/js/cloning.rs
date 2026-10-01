@@ -282,6 +282,7 @@ impl Module {
         let budget = &mut phase;
         let result = Self {
             expressions: map(&self.expressions, budget, Expr::clone_in)?,
+            data_estimator: self.data_estimator,
             origins: budget.copy_slice(Retained, &self.origins)?,
             authored_pool: map(&self.authored_pool, budget, string)?,
             authored_pool_formed: self.authored_pool_formed,
@@ -370,6 +371,7 @@ impl Module {
             int32_hints: self.int32_hints,
             choice_sites: map(&self.choice_sites, budget, |site, budget| {
                 Ok(ChoiceSite {
+                    estimate_codec: site.estimate_codec,
                     key: site.key,
                     name: text(&site.name, budget)?,
                     alternatives: budget.copy_slice(Retained, &site.alternatives)?,

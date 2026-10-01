@@ -1,0 +1,26 @@
+[
+  {
+    "toml_jobs": 2,
+    "cli_jobs": null,
+    "exit_code": 0,
+    "effective_jobs": 2
+  },
+  {
+    "toml_jobs": 2,
+    "cli_jobs": 4,
+    "exit_code": 0,
+    "effective_jobs": 4
+  },
+  {
+    "toml_jobs": 5,
+    "cli_jobs": null,
+    "exit_code": 1,
+    "diagnostic": "/tmp/q3-cli-7got_wed/config.toml: `execution.jobs` must be between 1 and 4"
+  },
+  {
+    "toml_jobs": 1,
+    "cli_jobs": 5,
+    "exit_code": 1,
+    "diagnostic": "`execution.jobs` must be between 1 and 4"
+  }
+]

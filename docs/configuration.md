@@ -269,6 +269,8 @@ version = 3                  # explicit runtime permissions; omitted version kee
 # wall_time_ms = 60000
 
 [policy.search]
+protect_effort = true         # retain preceding effort winners from level 13
+objective_prior = "auto"     # per-objective extra ordering: auto 14+, on 13+
 codec_schedule = "staged"     # staged | immediate
 proxy_pruning = "on"          # on | audit | off; terminal proxy rejection
 deferred_naming_starts = "auto" # auto: effort 14+; on: 13+; off: never
@@ -467,9 +469,10 @@ the diagnosed level-16 startup grant for compatibility. Architecture
 
 The fast-tier walk extends a fixed sequence of moves (the replay checks in
 [testing.md](testing.md#the-effort-schedules-monotonicity-m35)). Each build
-retains its best admitted artifact. Wider structural search can explore
-different paths, and hard limits can stop them at different points; output
-that never grows between every pair of effort levels remains Q3 work.
+retains its best admitted artifact. From 13, `protect_effort=true` completes and
+retains the preceding effort under its own policy before opening the wider
+frontier. Hard limits can prevent completing or requalifying a checkpoint; the
+report identifies that limit instead of promising unbounded monotonicity.
 `candidate_search = "off"` (and `--mode development`) keeps only the level-0
 artifact at any level.
 
@@ -569,6 +572,8 @@ objective. More candidates are useful only when their result justifies the cost.
 
 | `[policy.search]` key | Default and useful situation | Tradeoff and effect of disabling/changing it |
 |---|---|---|
+| `protect_effort` | `true`; keep completed preceding-effort winners across frontier/tactic changes | Adds earlier-tier work and retained artifacts at 13+. `false` removes this guarantee; hard limits can prevent completing a checkpoint in either mode |
+| `objective_prior` | `"auto"`; additional objective-specific ordering at 14+, `"on"` at 13 | Calibrated generic priorities offer another path while retaining the ordinary winner. Extra work may earn no bytes; `"off"` skips it |
 | `deferred_naming_starts` | `"auto"`; use levels 14–16 for expensive attempts at the last few bytes, or `"on"` to opt in at 13 | Can refine an initially larger naming seed into a winner. May multiply compile time with no size change. `"off"` removes only this tail; completed ordinary winners remain protected |
 | `deferred_naming_polish` | `true`; when the deferred tail runs, combine its names with local allocation and private fields | Extra formation, memory and scoring can reveal combinations the ordinary walk misses. `false` leaves the deferred ordinary walks. No work when the tail is disabled |
 | `proxy_pruning` | `"on"`; avoid costly exact judgments of unpromising moves | A proxy can miss useful starts or moves. `"audit"` spends extra exact probes to diagnose misses without selecting from them; `"off"` explores every reached nonidentical move within the same limits. Neither is exhaustive |
@@ -1371,3 +1376,86 @@ settings under execution/resolution, outside the semantic fingerprint. Unknown
 keys, non-boolean reuse flags and an empty directory are errors. Per-module
 elaboration caching remains migration work; decision-lock replay is documented
 above.
+
+### Objective search and scoring workers
+
+```toml
+[policy.search]
+protect_effort = true
+objective_prior = "auto"
+
+[execution]
+jobs = 1
+```
+
+`protect_effort` defaults to `true`. At effort 13 and above, the compiler first
+completes the preceding effort's search, then retains its complete winner while
+trying the new frontier and newly available tactics. All requested objectives
+and preceding tiers admit their mandatory baselines before optional search.
+The preceding winner is qualified again under the current policy, including
+runtime permissions and every explicit veto. Final selection requires that no
+entry's objective cost grows. Levels 0–12 retain their existing deterministic
+walk prefixes; turning search off does not run checkpoint searches.
+
+Use `false` when faster compilation matters more than retaining a preceding
+effort's result. It removes checkpoint work and ownership; a higher effort can
+then select a larger file because its search order or frontier changed. The
+same finite hard work and memory ceilings still apply with protection on. A
+refused checkpoint or requalification is reported and the current admitted
+incumbent survives; this is not an unlimited-resource promise. Fingerprinted
+decision locks are specific to the requested effort and run only in that tier.
+
+`objective_prior` is `"auto"`, `"on"`, or `"off"` (boolean aliases are accepted).
+Auto adds a separate objective-specific ordering start at effort 14–16; on
+permits it at 13, and off skips it. Frozen generic C3 training selects different
+orders for raw, gzip and Brotli. The ordinary winner is retained before the
+extra start, and only exact whole-artifact improvement can replace it. This
+can cost extra formation and judgments for a very small or zero gain. It does
+not change the default family seed or proxy margin. No program/library name is
+a tuning input. Gzip still has no lossy proxy; Brotli's configured mode/window
+and its existing proxy quality/margin remain explicit.
+
+Data-encoding estimates now state their `estimate_codec` in choice receipts.
+Raw uses the structural byte estimate. Gzip scores isolated literal/encoding
+fragments at the configured level and window; Brotli uses the configured mode
+and window at `min(quality, 5)`. Each encoding fragment includes its complete
+generated decoder and stream arguments, named independently. This accounts for
+local helper overhead without pretending to predict surrounding dictionary
+context, final global names or shared-decoder savings. Legal alternatives remain
+in the schedule even when their estimate is negative. The configured exact
+codec judges the complete emitted artifact. Fragment estimation adds work only
+when data reconstruction is permitted; it grants no runtime permission.
+
+`execution.jobs` accepts 1–4 and defaults to 1; `-j N` / `--jobs N` overrides it.
+It controls physical scoring of independent delivered files. Single-file
+formation/search remains serial, so this flag is useful for several entries or
+split delivery rather than a one-file build. Up to four files form one fixed
+batch regardless of worker count. Completed measurements are consumed in file
+order through the ordinary qualification owner. Worker count changes neither
+policy fingerprint, deterministic logical bills nor selected bytes.
+
+Each admitted batch reserves up to 8 MiB of codec scratch plus a 512 KiB stack
+and 4 KiB metadata per file, even at jobs 1. Each worker also has a finite share
+of available work. If the reservation cannot fit, scoring uses the ordinary
+serial path; if one private encode exceeds its share, its incomplete receipt is
+discarded and that file uses the serial scorer. No worker publishes or selects
+an artifact. Deadline-constrained builds use the cooperative serial path.
+Transparent memory/disk codec hits still pay their cold logical receipt.
+
+More workers can reduce elapsed scoring time at the cost of concurrent CPU and
+scratch. Small files may be slower because thread startup costs more than the
+encode; no speedup is presumed. The report records `execution.jobs`,
+`codec_cache.worker_batches`, `worker_encodes`, `worker_fallbacks` and
+`peak_workers`, separately from logical judgments. Physical worker/caching
+settings stay outside the semantic policy fingerprint. The retired
+`--codec-jobs` remains a diagnosed compatibility flag, not a second control.
+
+Terminal reports list `effort_checkpoints` with each tier's objective bytes,
+digest, proposal/render/judgment counts and cumulative optional work within its
+objective share. `effort_refusal` explains an incomplete checkpoint.
+`protected_effort` on a final objective records the ordinary winner's score and
+the selected preceding winner's score; selection by per-entry dominance is not
+reported as a strictly improving search move. Kept moves and settled starts also
+report `raw_delta`, so an equal compressed score has an explicit raw-byte tie
+break. In a multi-objective build these
+receipts live in each independent objective's terminal report.

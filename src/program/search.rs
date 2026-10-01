@@ -21,6 +21,8 @@ use selection::Portfolio;
 mod terminal;
 #[path = "search_independent.rs"]
 mod independent;
+#[path = "search_effort.rs"]
+mod effort;
 #[path = "search_decisions.rs"]
 mod decisions;
 pub(crate) use decisions::SavedDecision;
@@ -265,6 +267,12 @@ pub struct JavaScriptSearch<'a, 'src> {
     discovery_refusal: Option<SearchError>,
     /// The walk's report, once it has run.
     terminal: Option<TerminalReport>,
+    assignment_evidence: terminal::AssignmentEvidence,
+    protected: [Option<QualifiedArtifact>; 3],
+    protected_selected: [bool; 3],
+    protected_choices: [Vec<terminal::ChoiceOutcome>; 3],
+    effort_checkpoints: Vec<effort::EffortCheckpoint>,
+    effort_refusal: Option<String>,
 }
 
 impl<'src> Compilation<'src> {
@@ -291,8 +299,12 @@ impl<'src> Compilation<'src> {
         source: SemanticId,
         policy: &ResolvedPolicy,
         request: SearchRequest,
-        observe: impl FnMut(SearchObservation<'_>),
+        mut observe: impl FnMut(SearchObservation<'_>),
     ) -> Result<JavaScriptSearch<'a, 'src>, SearchError> {
+        if policy.preceding_effort().is_some() {
+            return self.prepare_effort_search(source, policy, request,
+                &mut |compilation| Ok(compilation.ledger.seal_baseline()?), &mut observe);
+        }
         let explore = policy
             .objective()
             .is_some_and(|objective| objective.walk.starts);
@@ -403,6 +415,12 @@ impl<'src> Compilation<'src> {
             stopped: None,
             discovery_refusal: None,
             terminal: None,
+            assignment_evidence: terminal::AssignmentEvidence::default(),
+            protected: [None; 3],
+            protected_selected: [false; 3],
+            protected_choices: [Vec::new(), Vec::new(), Vec::new()],
+            effort_checkpoints: Vec::new(),
+            effort_refusal: None,
         };
         search.grow_states(1, WorkDomain::Baseline)?;
         let direct = search
@@ -480,25 +498,11 @@ impl JavaScriptSearch<'_, '_> {
         objective: Objective,
         inspect: impl FnOnce(ArtifactView<'_>, &Plan) -> R,
     ) -> Option<R> {
-        let winner = self
-            .portfolio
-            .entries
-            .get(self.portfolio.selected[index(objective)]?)
-            .unwrap();
-        Some(
-            self.compilation
-                .with_artifact(winner.artifact, |artifact| {
-                    inspect(
-                        artifact,
-                        self.compilation
-                            .artifacts
-                            .provenance(winner.artifact)
-                            .expect("search owns winner provenance")
-                            .naming(),
-                    )
-                })
-                .expect("search owns every retained winner"),
-        )
+        let artifact = self.winner_qualification(objective)?.artifact();
+        Some(self.compilation.with_artifact(artifact, |view| {
+            inspect(view, self.compilation.artifacts.provenance(artifact)
+                .expect("search owns winner provenance").naming())
+        }).expect("search owns every retained winner"))
     }
     pub fn ledger(&self) -> &BudgetLedger {
         &self.compilation.ledger
@@ -510,6 +514,12 @@ impl JavaScriptSearch<'_, '_> {
     /// Returns None without consuming a package winner; use with_winner or
     /// take_winner_artifact to preserve its required second file.
     pub fn take_winner(&mut self, objective: Objective) -> Option<String> {
+        if self.protected_selected[index(objective)] {
+            let artifact = self.protected[index(objective)]?.artifact();
+            if self.compilation.with_artifact(artifact, |view| !view.files.is_empty()).ok()? { return None; }
+            self.take_protected_winner(objective);
+            return Some(self.compilation.take_artifact(artifact).expect("search owns protected winner"));
+        }
         let mut budget =
             AllocationBudget::new(Some((&mut self.compilation.ledger, WorkDomain::Optional)));
         self.portfolio
@@ -521,10 +531,12 @@ impl JavaScriptSearch<'_, '_> {
     /// the originating Compilation. Taking one artifact consumes all
     /// objective aliases of that winner.
     pub fn take_winner_artifact(&mut self, objective: Objective) -> Option<ArtifactId> {
+        if self.protected_selected[index(objective)] { return self.take_protected_winner(objective); }
         self.portfolio.take_winner_artifact(objective)
     }
 
     pub fn winner_qualification(&self, objective: Objective) -> Option<&QualifiedArtifact> {
+        if self.protected_selected[index(objective)] { return self.protected[index(objective)].as_ref(); }
         self.portfolio
             .entries
             .get(self.portfolio.selected[index(objective)]?)?
@@ -1663,6 +1675,8 @@ fn bytes<T>(count: usize) -> Result<u64, AllocationError> {
 
 impl Drop for JavaScriptSearch<'_, '_> {
     fn drop(&mut self) {
+        self.discard_protected();
+        self.assignment_evidence.discard(self.owner, &mut self.compilation.ledger);
         let mut budget =
             AllocationBudget::new(Some((&mut self.compilation.ledger, WorkDomain::Optional)));
         self.portfolio

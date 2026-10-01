@@ -478,6 +478,10 @@ fn replay(stage: &TerminalObjective) -> usize {
             best = end;
         }
     }
+    if let Some((ordinary, protected)) = stage.protected_effort {
+        assert_eq!(best, ordinary);
+        best = protected;
+    }
     best
 }
 
@@ -607,6 +611,7 @@ fn the_choice_schedule_resets_every_site_at_once_then_orders_by_stake() {
     use crate::js::choices::ChoiceAlternative;
     use crate::js::{AltId, ChoiceFamily, ChoiceKey, ChoiceSite, SiteId};
     let site = |site: u32, savings: &[(u8, i64)], applied: u8| ChoiceSite {
+        estimate_codec: crate::config::CompressionCostModel::Raw,
             pinned: false,
         key: ChoiceKey {
             family: ChoiceFamily::DataEncoding,
@@ -686,5 +691,34 @@ fn g1_compact_allocation_preserves_the_completed_search_and_delivers_its_score()
             Objective::Gzip => crate::config::CompressionCostModel::Gzip,
             Objective::Brotli => crate::config::CompressionCostModel::Brotli };
         assert_eq!(crate::compression::measure(javascript.as_bytes(), model).unwrap(), *size);
+    }
+}
+
+#[test]
+fn q3_protected_effort_keeps_each_completed_lower_objective_winner() {
+    for (name, codec) in [("raw", Objective::Raw), ("gzip", Objective::Gzip), ("brotli", Objective::Brotli)] {
+        let mut previous = None;
+        let mut completed = Vec::new();
+        for level in [12, 13, 14, 15] {
+            let run = search(&policy(name, level), Objectives::One(codec), true);
+            let (size, code) = run.winners[index(codec)].as_ref().unwrap();
+            assert_eq!(*size, crate::compression::measure(code.as_bytes(), codec).unwrap());
+            if let Some(before) = previous { assert!(*size <= before, "{name}/{level}: {before} -> {size}"); }
+            previous = Some(*size);
+            assert_eq!(run.report.effort_checkpoints.len(), level.saturating_sub(12) as usize);
+            if level > 12 {
+                let prefix = run.report.objectives[0].stops.iter().find(|stop| stop.level == 12).unwrap();
+                let (_, size, digest) = completed.iter().find(|(level, _, _)| *level == 12).unwrap();
+                assert_eq!((&prefix.size, &prefix.sha256), (size, digest));
+            }
+            for checkpoint in &run.report.effort_checkpoints {
+                let (_, size, digest) = &checkpoint.objectives[0];
+                let (_, expected_size, expected_digest) = completed.iter().find(|(level, _, _)| *level == checkpoint.level).unwrap();
+                assert_eq!(size, expected_size);
+                assert_eq!(digest, expected_digest);
+            }
+            use sha2::{Digest, Sha256};
+            completed.push((level, *size, format!("{:x}", Sha256::digest(code.as_bytes()))));
+        }
     }
 }

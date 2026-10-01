@@ -125,9 +125,8 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "lilscript.choices.lock", value_name = "FILE")]
     write_choices: Option<PathBuf>,
 
-    /// Compiler worker threads, the one parallelism flag. Accepted; the
-    /// compiler does not run worker threads yet, so it has no effect. A
-    /// thread count never changes the output.
+    /// Scoring workers (1-4), overriding [execution].jobs. Independent
+    /// delivered files score in bounded batches; worker count preserves bytes.
     #[arg(short = 'j', long, value_name = "N")]
     jobs: Option<NonZeroUsize>,
 
@@ -257,11 +256,7 @@ fn run() -> Result<(), String> {
     if legacy_audit {
         eprintln!("warning: LILSCRIPT_WALK_AUDIT is deprecated; use --proxy-pruning audit or [policy.search] proxy_pruning = \"audit\"; an explicit --proxy-pruning overrides this adapter");
     }
-    if args.jobs.is_some() {
-        eprintln!(
-            "warning: --jobs has no effect in this compiler yet: it compiles and encodes on one thread"
-        );
-    }
+    if let Some(jobs) = args.jobs { loaded.config.execution.jobs = jobs.get(); }
     if args.write_lock {
         let path = write_lockfile(&loaded.config).map_err(|error| error.to_string())?;
         eprintln!("wrote {}", path.display());
@@ -1197,7 +1192,7 @@ fn policy_report(
         // How this run executes, after command-line overrides. Deliberately
         // outside the fingerprint: thread counts must never change the output.
         "execution": {
-            "threads": args.jobs.map(NonZeroUsize::get),
+            "threads": loaded.config.execution.jobs,
             // Removed (architecture §14.2): reported, with no effect, for
             // one release.
             "codec_workers": args.codec_jobs.map(NonZeroUsize::get),

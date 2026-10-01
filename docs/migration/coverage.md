@@ -63,14 +63,14 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M8.6 | [D2](plan.md#d2) | Source maps |
 | M8.7 | [C3](plan.md#c3), complete | Source allowlist is empty and enforced; generic policy/provenance replaces library citations |
 | M9.1 | [Q1](plan.md#q1), complete | Shared family/site/alternative contract, per-helper choices, bounded coupled moves and replay admission |
-| M9.2 | [Q3](plan.md#q3) | gzip's own prior row |
+| M9.2 | [Q3](plan.md#q3), complete | Independent objective rows and frozen training-derived optional orders |
 | M9.3 | [G3](plan.md#g3), complete | Common family/site assignments, permission vetoes and admitted final-byte choices |
 | M9.5 | [G1](plan.md#g1), complete | Live printed-order allocation, independent local/root frequency, hygienic reuse, full continuations and controlled joint alphabets |
 | M9.6 | [G2](plan.md#g2) | Complete in G2: private generic/observed eligibility, inherited/sibling slot reuse and reflected boundaries |
 | M9.7 | [Q1](plan.md#q1), complete | Record/product/call layouts use the common family contract with typed proof payloads and compatible recipe combinations |
 | M9.8 | [Q4](plan.md#q4) | the rest, after M10.3 |
 | M9.9 | [S3](plan.md#s3), complete | Constant signatures, alpha-equivalent bodies and opt-in parameterized helpers compete on final bytes |
-| M9.10 | [Q3](plan.md#q3) | Calibration |
+| M9.10 | [Q3](plan.md#q3), complete | C3 evidence retained; objective priors and data estimates qualified, unsupported global proxy changes rejected |
 | M9.11 | [G3](plan.md#g3), complete | Effect-free declaration/closure/literal groups, module/anchor barriers and gzip-window evidence |
 | M9.12 | [G3](plan.md#g3), complete | Optional forms and receiver aliases compete through the common exact artifact path |
 | M10.9 | [S4](plan.md#s4), transition [V2](plan.md#v2) | R2 unified absence/pins/defaults/optional keys, checked `a.get(i)` and R11 `charCodeAt` number/NaN implemented on both targets; qualified default adoption remains V2 |
@@ -122,9 +122,9 @@ The wording in this table identifies the previous checklist item; it is not a cl
 | M3.3c | [D2](plan.md#d2) | `single` with several entries. |
 | M3.3e | [D3](plan.md#d3) | build motionlil's ten entries as one program. |
 | M3.4 | [D3](plan.md#d3) | the LSP and `lilscript-lint` check one root. |
-| M3.5 | [Q3](plan.md#q3) | level 0 still measures exactly; |
-| M3.5 | [Q3](plan.md#q3) | monotone selection between two search levels; |
-| M3.5 | [Q3](plan.md#q3) | the data estimator is raw bytes under every objective. |
+| M3.5 | [Q3](plan.md#q3), resolved | Level 0 does no optional codec or checkpoint work |
+| M3.5 | [Q3](plan.md#q3), resolved | Completed lower-effort policies retain qualified per-objective incumbents; limits and explicit locks have documented replay boundaries |
+| M3.5 | [Q3](plan.md#q3), resolved | Decoder-inclusive estimates use each objective; legal negative alternatives remain available |
 | M3.9 | [Q2](plan.md#q2), [D3](plan.md#d3) | Unchanged-file codec receipts and complete builds have bounded persistent reuse; fingerprinted choices replay through current proof/admission owners. Per-module elaboration remains owned by D3 with its graph/session integration. |
 | M5.6 | [Q2](plan.md#q2), resolved | Entry graph and cycle checking use admitted shared graph routines; delivery placement/simulation/setters now admitted; source arena edits admitted; rendered bundle admission complete; source global analysis/planning admission is implemented; scope audit complete with explicit partial allocator coverage |
 | M8.5 / M3.3 | [Q4](plan.md#q4) | table decoders sit at the first module's root. |

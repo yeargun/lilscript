@@ -13,6 +13,8 @@ const CAPACITY: usize = 256;
 
 #[path = "artifact_compression_disk.rs"]
 mod disk;
+#[path = "artifact_compression_workers.rs"]
+mod workers;
 
 #[derive(Debug, Clone, Copy, Default, serde::Serialize)]
 pub(crate) struct MeasurementStats {
@@ -20,6 +22,10 @@ pub(crate) struct MeasurementStats {
     pub disk_hits: u64,
     pub encodes: u64,
     pub disk_write_errors: u64,
+    pub worker_encodes: u64,
+    pub worker_fallbacks: u64,
+    pub worker_batches: u64,
+    pub peak_workers: usize,
 }
 
 
@@ -45,6 +51,7 @@ pub(super) struct Measurements {
     config: crate::config::CacheConfig,
     disk: Option<disk::Disk>,
     pub(super) stats: MeasurementStats,
+    pub(super) jobs: usize,
     #[cfg(test)]
     pub(super) hits: usize,
 }
@@ -82,6 +89,13 @@ impl Measurements {
         settings: &CodecSettings,
         role: Role,
         budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, CandidateError> {
+        self.measure_prepared(owner, bytes, model, settings, role, None, budget)
+    }
+
+    pub(super) fn measure_prepared(
+        &mut self, owner: RevisionId, bytes: &[u8], model: CompressionCostModel,
+        settings: &CodecSettings, role: Role, prepared: Option<Measurement>, budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, CandidateError> {
         if model == CompressionCostModel::Raw {
             return Ok(bytes.len());
@@ -152,7 +166,10 @@ impl Measurements {
             }
         }
         self.stats.encodes += 1;
-        let measurement = compression::measure_admitted_at(bytes, model, settings, role, budget)?;
+        let measurement = match prepared {
+            Some(measurement) => { measurement.replay(budget)?; measurement }
+            None => compression::measure_admitted_at(bytes, model, settings, role, budget)?,
+        };
         if self.config.codec_reuse && reuse_enabled() {
             if self.disk.as_ref().is_some_and(|disk| disk.write(&key, measurement).is_err()) {
                 self.stats.disk_write_errors += 1;

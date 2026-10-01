@@ -1224,6 +1224,7 @@ impl Formations<'_, '_> {
                         choices.families,
                         &choices.choices,
                         self.policy.cache().normalization_reuse,
+                        self.policy.objective().map(|objective| (objective.codec, objective.codec_settings)),
                         budget,
                     )
                     .map_err(formation_error)?;
@@ -2979,7 +2980,7 @@ impl<'src> Compilation<'src> {
         domain: WorkDomain,
     ) -> Result<Option<BoundJavaScript>, CandidateError> {
         let payload = admitted_contract_payload(policy.contract(), &mut self.ledger, domain)?;
-        self.artifacts.configure_measurements(policy.cache());
+        self.artifacts.configure_measurements(policy.cache(), policy.execution());
         // Every size the compilation measures is judged with the objective's
         // codec settings (law B2).
         if let Some(objective) = policy.objective() {

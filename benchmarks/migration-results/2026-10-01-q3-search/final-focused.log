@@ -1,0 +1,7 @@
+
+running 2 tests
+test build::delivery_tests::q3_scoring_workers_keep_complete_delivery_and_runtime_identical ... ok
+test build::objective_tests::q3_level_zero_selection_uses_no_codec_or_checkpoint_work ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 2064 filtered out; finished in 0.20s
+

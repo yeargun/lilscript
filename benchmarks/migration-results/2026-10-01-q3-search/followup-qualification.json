@@ -1,0 +1,11 @@
+{
+  "tests": [
+    "build::delivery_tests::q3_scoring_workers_keep_complete_delivery_and_runtime_identical",
+    "build::objective_tests::independent_baselines_precede_optional_work_and_survive_exhaustion",
+    "build::terminal_tests::a_vetoed_family_is_never_formed",
+    "build::terminal_tests::the_stage_keeps_a_challenger_that_shrinks_the_artifact_and_rejects_one_that_grows_it",
+    "config::cache_tests::q3_worker_controls_are_strict_and_only_search_choices_change_semantic_identity"
+  ],
+  "exit_code": 101,
+  "scope": "Only four failures and the newly added strict control check."
+}

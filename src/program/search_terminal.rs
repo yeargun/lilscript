@@ -16,16 +16,16 @@
 //! The level sets only counts (`WalkSchedule`): the positions the walk may
 //! examine, the exact judgements it may make, and its passes. A pass walks
 //! the list once; a pass that keeps a move is followed by another, up to the
-//! level's number, so from level 14 the walk reaches its fixed point. Then
+//! level's number, so from level 13 the walk reaches its fixed point. Then
 //! the tail: a restart from A0 under each other naming seed, walked in passes
 //! of its own and kept only when its result is strictly smaller, and the
 //! retained structural candidates. Both stages share the representation family
 //! contract and complete-artifact admission.
 //!
 //! The fast tiers replay a fixed move sequence, and each walk retains its
-//! best admitted result. A wider structural frontier or a shared hard limit
-//! can change which moves later effort levels reach; universal non-growth
-//! across levels is not established. Decisions are sequential and deterministic
+//! best admitted result. Protected effort checkpoints retain preceding winners
+//! across changed frontiers, subject to the shared hard limits and fresh
+//! qualification. Decisions are sequential and deterministic
 //! given the request and admitted resources, independent of thread count and
 //! allocation addresses.
 //!
@@ -35,6 +35,7 @@
 //! challenger law; migration 7.34–7.37 read +128 over 20 ports that way).
 use super::*;
 use crate::js::{Challenger, ChoiceMap, Spelling};
+use crate::compilation_policy::TacticPermission;
 
 /// What became of one declared challenger on one objective's final candidate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -76,6 +77,9 @@ pub struct ChallengerTrial {
     pub size: Option<usize>,
     /// That size minus the incumbent's at the time (negative is smaller).
     pub delta: Option<i64>,
+    /// Raw byte change for a kept move or settled start; proves codec tie breaks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw_delta: Option<i64>,
     /// The proxy judge's delta against the incumbent, when it judged.
     pub proxy: Option<i64>,
     /// The audit lane's exact delta of a pruned move.
@@ -92,6 +96,9 @@ pub struct JointTrial {
     pub outcome: ChallengerOutcome,
     pub size: Option<usize>,
     pub delta: Option<i64>,
+    /// Raw byte change for a kept move or settled start; proves codec tie breaks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw_delta: Option<i64>,
     pub proxy: Option<i64>,
     /// The audit lane's exact delta of a pruned move.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -102,16 +109,20 @@ pub struct JointTrial {
 /// source name, taking one of its other alternatives.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ChoiceTrial {
+    pub estimate_codec: crate::config::CompressionCostModel,
     pub family: crate::js::ChoiceFamily,
     pub site: String,
     pub alternative: &'static str,
-    /// The estimator's raw bytes saved against the site's canonical form:
+    /// The estimator's bytes saved against the site's canonical form:
     /// the order of the schedule, never the verdict.
     pub estimate: i64,
     pub pass: usize,
     pub outcome: ChallengerOutcome,
     pub size: Option<usize>,
     pub delta: Option<i64>,
+    /// Raw byte change for a kept move or settled start; proves codec tie breaks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw_delta: Option<i64>,
     pub proxy: Option<i64>,
     /// The audit lane's exact delta of a pruned move.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -121,6 +132,7 @@ pub struct ChoiceTrial {
 /// A choice site of the delivered artifact and the alternative it took.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ChoiceOutcome {
+    pub estimate_codec: crate::config::CompressionCostModel,
     pub pinned: bool,
     pub family: crate::js::ChoiceFamily,
     pub site: String,
@@ -168,6 +180,9 @@ pub struct TerminalObjective {
     pub before: usize,
     pub searched: usize,
     pub after: usize,
+    /// Ordinary winner and delivered checkpoint after the final dominance check.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protected_effort: Option<(usize, usize)>,
     /// The delivered artifact's families and raw spelling, by name.
     pub spelling: Vec<&'static str>,
     /// The delivered artifact's naming seed.
@@ -225,7 +240,7 @@ pub struct Stop {
 const RENDER_BOUND: usize = 768 * 1024;
 
 /// The digest a stop records of an artifact's delivered files.
-fn delivered_digest(view: &ArtifactView<'_>) -> String {
+pub(super) fn delivered_digest(view: &ArtifactView<'_>) -> String {
     use sha2::{Digest, Sha256};
     if view.files.is_empty() {
         return format!("{:x}", Sha256::digest(view.javascript.as_bytes()));
@@ -267,6 +282,9 @@ pub struct StartTrial {
     /// Its walk's result, and that minus the winner's at the time.
     pub size: Option<usize>,
     pub delta: Option<i64>,
+    /// Raw byte change for a kept move or settled start; proves codec tie breaks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw_delta: Option<i64>,
     /// A restart's proxy delta against the level-0 artifact.
     pub proxy: Option<i64>,
     /// The audit lane's exact delta of a pruned move.
@@ -278,6 +296,10 @@ pub struct StartTrial {
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct TerminalReport {
     pub objectives: Vec<TerminalObjective>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub effort_checkpoints: Vec<super::effort::EffortCheckpoint>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort_refusal: Option<String>,
 }
 
 fn codec_name(codec: Objective) -> &'static str {
@@ -355,7 +377,7 @@ fn refusal(error: CandidateError) -> Result<Judgement, SearchError> {
 }
 
 /// A resource refusal from the portfolio's own admission.
-fn resource(error: &SearchError) -> bool {
+pub(super) fn resource(error: &SearchError) -> bool {
     matches!(error, SearchError::Candidate(error) if exhausted(error))
         || matches!(
             error,
@@ -696,6 +718,68 @@ struct Assignment {
     literals: crate::js::LiteralOutput,
 }
 
+/// Two source-state namespaces cover the structural winner and the direct
+/// recipe. No artifact is retained here. Entries are only bounds on whether
+/// forming an assignment can beat the current incumbent; a potentially useful
+/// assignment is always formed and admitted again.
+#[derive(Default)]
+pub(super) struct AssignmentEvidence {
+    slots: [Option<EvidenceSlot>; 2],
+    next: usize,
+    charge: Option<crate::output_budget::RetainedCharge<RevisionId>>,
+}
+struct EvidenceSlot {
+    candidate: CandidateId,
+    codec: Objective,
+    rules: crate::js::TargetRules,
+    dead_code: bool,
+    compact: bool,
+    entries: Vec<(Assignment, Recall)>,
+}
+impl AssignmentEvidence {
+    fn prepare(&mut self, owner: RevisionId, ledger: &mut BudgetLedger) -> Result<(), SearchError> {
+        if self.charge.is_some() { return Ok(()); }
+        // Include both complete namespaces and the largest Vec growth overlap.
+        // Arc-backed choices are counted conservatively in every retained key.
+        let capacity = 2 * (ASSIGNMENT_BYTES + ASSIGNMENT_ENTRIES * std::mem::size_of::<(Assignment, Recall)>());
+        let mut budget = AllocationBudget::new(Some((ledger, WorkDomain::Optional)));
+        budget.retain(crate::output_budget::AllocationClass::Retained, capacity as u64)?;
+        self.charge = Some(budget.detach_retained(owner, capacity as u64)?);
+        Ok(())
+    }
+
+    pub(super) fn discard(&mut self, owner: RevisionId, ledger: &mut BudgetLedger) {
+        self.slots = [None, None];
+        if let Some(charge) = self.charge.take() {
+            charge.discard(&owner, ledger).expect("search owns bounded assignment evidence");
+        }
+    }
+
+    fn entries(&mut self, candidate: CandidateId, codec: Objective, output: &OutputTactics,
+        reset: bool) -> &mut Vec<(Assignment, Recall)> {
+        let hit = self.slots.iter().position(|slot| slot.as_ref().is_some_and(|slot|
+            slot.candidate == candidate && slot.codec == codec && slot.rules == output.rules
+                && slot.dead_code == output.dead_code_elimination && slot.compact == output.target_compaction));
+        let index = hit.unwrap_or_else(|| { let index = self.next; self.next ^= 1; index });
+        if hit.is_none() {
+            self.slots[index] = Some(EvidenceSlot { candidate, codec, rules: output.rules,
+                dead_code: output.dead_code_elimination, compact: output.target_compaction, entries: Vec::new() });
+        }
+        let entries = &mut self.slots[index].as_mut().unwrap().entries;
+        if reset { entries.clear(); }
+        entries
+    }
+}
+
+const ASSIGNMENT_ENTRIES: usize = 512;
+const ASSIGNMENT_BYTES: usize = 256 * 1024;
+
+fn assignment_bytes(key: &Assignment) -> usize {
+    std::mem::size_of::<(Assignment, Recall)>()
+        .saturating_add(key.choices.retained_bytes())
+        .saturating_add(key.source_names.capacity() * std::mem::size_of::<crate::js::BindingId>())
+}
+
 /// One start's walks inside its candidate's formations (architecture §9.6,
 /// AM2): the list walked in passes from an incumbent, restarts from the
 /// same candidate, and the settlement of each result against the
@@ -720,13 +804,22 @@ struct Walker<'w, 'scope, 'src> {
     /// Every assignment this start's walks judged, with its verdict. Sizes
     /// only fall along a walk, so a measured assignment that was not smaller
     /// then is not smaller now; a repeat is not formed again.
-    memo: Vec<(Assignment, Recall)>,
+    memo: &'w mut Vec<(Assignment, Recall)>,
+    order: &'static [Challenger; 23],
     /// On the walk from the level-0 artifact: the lower levels whose
     /// stopping points it records.
     replay: Option<Replay>,
 }
 
 impl Walker<'_, '_, '_> {
+    fn raw_delta(&mut self, judgement: &Judgement, incumbent: &Incumbent) -> Result<Option<i64>, SearchError> {
+        let Judgement::Kept { artifact, .. } = judgement else { return Ok(None); };
+        Ok(Some(self.formations.with_arena(|arena, _, _| {
+            Ok::<_, CandidateError>(arena.with_artifact(*artifact, |view| view.sizes.raw)? as i64
+                - arena.with_artifact(incumbent.artifact, |view| view.sizes.raw)? as i64)
+        })?))
+    }
+
     /// Whether the walk may examine one more position.
     fn open(&self) -> bool {
         self.report.examined < self.walk.prefix && self.report.judged < self.walk.exact
@@ -822,6 +915,12 @@ impl Walker<'_, '_, '_> {
         literals: crate::js::LiteralOutput,
         incumbent: &Incumbent,
     ) -> Result<(Judgement, Option<Proxy>, bool), SearchError> {
+        if choices.retained_bytes().saturating_add(plan.source_names.len()
+            * std::mem::size_of::<crate::js::BindingId>()) > ASSIGNMENT_BYTES / 2 {
+            // Large explicit naming locks remain legal; do not copy them into
+            // bounded search evidence before discovering they cannot fit.
+            return self.judge.judge(self.formations, spelling, choices, plan, literals, incumbent);
+        }
         let key = Assignment {
             spelling: spelling.effective(),
             choices: choices.clone(),
@@ -883,13 +982,12 @@ impl Walker<'_, '_, '_> {
             Judgement::Stopped | Judgement::Recalled { .. } => None,
         };
         if let Some(recall) = recall {
-            match self
-                .memo
-                .iter_mut()
-                .find(|(assignment, _)| *assignment == key)
-            {
-                Some(entry) => entry.1 = recall,
-                None => self.memo.push((key, recall)),
+            if let Some(index) = self.memo.iter().position(|(assignment, _)| *assignment == key) {
+                self.memo[index].1 = recall;
+            } else if self.memo.len() < ASSIGNMENT_ENTRIES
+                && self.memo.iter().fold(assignment_bytes(&key), |bytes, (entry, _)|
+                    bytes.saturating_add(assignment_bytes(entry))) <= ASSIGNMENT_BYTES {
+                self.memo.push((key, recall));
             }
         }
         Ok((judgement, proxy, probed))
@@ -962,6 +1060,7 @@ impl Walker<'_, '_, '_> {
                 .sum();
             let joint = moves.len() > 1;
             let mut record = ChoiceTrial {
+                estimate_codec: sites[site].estimate_codec,
                 family: sites[site].key.family,
                 site: if joint {
                     format!("{} sites", moves.len())
@@ -977,7 +1076,7 @@ impl Walker<'_, '_, '_> {
                 pass,
                 outcome: ChallengerOutcome::Budget,
                 size: None,
-                delta: None,
+                delta: None, raw_delta: None,
                 proxy: None,
                 audit: None,
             };
@@ -1008,6 +1107,7 @@ impl Walker<'_, '_, '_> {
                     incumbent.literals,
                     incumbent,
                 )?;
+                record.raw_delta = self.raw_delta(&judgement, incumbent)?;
                 self.count(&judgement, probed);
                 if !matches!(judgement, Judgement::Recalled { .. } | Judgement::Stopped) {
                     self.report.choices_tried += 1;
@@ -1062,6 +1162,7 @@ impl Walker<'_, '_, '_> {
         self.report.choices = sites
             .iter()
             .map(|site| ChoiceOutcome {
+                estimate_codec: site.estimate_codec,
                 family: site.key.family,
                 site: site.name.clone(),
                 pinned: site.pinned,
@@ -1085,13 +1186,13 @@ impl Walker<'_, '_, '_> {
             pass,
             outcome,
             size: None,
-            delta: None,
+            delta: None, raw_delta: None,
             proxy: None,
             audit: None,
         };
         let mut kept = false;
         let mut seen = vec![(incumbent.spelling.effective(), incumbent.choices.clone())];
-        for challenger in Challenger::ORDER {
+        for &challenger in self.order {
             self.replay(incumbent)?;
             if self.stopped {
                 self.report
@@ -1149,6 +1250,7 @@ impl Walker<'_, '_, '_> {
                 incumbent.literals,
                 incumbent,
             )?;
+            let raw_delta = self.raw_delta(&judgement, incumbent)?;
             self.count(&judgement, probed);
             if !matches!(judgement, Judgement::Recalled { .. } | Judgement::Stopped) {
                 self.report.tried += 1;
@@ -1197,6 +1299,7 @@ impl Walker<'_, '_, '_> {
                 outcome,
                 size,
                 delta,
+                raw_delta,
                 proxy: proxy.map(|proxy| proxy.delta),
                 audit: proxy.and_then(|proxy| proxy.audit),
             });
@@ -1256,7 +1359,7 @@ impl Walker<'_, '_, '_> {
                 pass,
                 outcome: ChallengerOutcome::Budget,
                 size: None,
-                delta: None,
+                delta: None, raw_delta: None,
                 proxy: None,
                 audit: None,
             };
@@ -1368,6 +1471,7 @@ impl Walker<'_, '_, '_> {
                 plan.read_order = incumbent.spelling.read_order;
                 let (judgement, proxy, probed) =
                     self.judge_move(spelling, &incumbent.choices, &plan, literals, incumbent)?;
+                record.raw_delta = self.raw_delta(&judgement, incumbent)?;
                 self.count(&judgement, probed);
                 if !matches!(judgement, Judgement::Recalled { .. } | Judgement::Stopped) {
                     self.report.joints_tried += 1;
@@ -1433,6 +1537,10 @@ impl Walker<'_, '_, '_> {
             .with_arena(|arena, _, _| arena.with_artifact(held, |view| view.sizes.get(codec)))?
             .expect("a winner is measured under its codec");
         let delta = result.size as i64 - held_size as i64;
+        let raw_delta = self.formations.with_arena(|arena, _, _| {
+            Ok::<_, CandidateError>(arena.with_artifact(result.artifact, |view| view.sizes.raw)? as i64
+                - arena.with_artifact(held, |view| view.sizes.raw)? as i64)
+        })?;
         let outcome = match result.qualified {
             // The start itself, unchanged: the portfolio holds it.
             None if result.artifact == held => ChallengerOutcome::Identical,
@@ -1484,6 +1592,7 @@ impl Walker<'_, '_, '_> {
         record.outcome = outcome;
         record.size = Some(result.size);
         record.delta = Some(delta);
+        record.raw_delta = Some(raw_delta);
         Ok(())
     }
 
@@ -1501,7 +1610,7 @@ impl Walker<'_, '_, '_> {
             outcome: ChallengerOutcome::Budget,
             start: Some(start.size),
             size: None,
-            delta: None,
+            delta: None, raw_delta: None,
             proxy: None,
             audit: None,
         });
@@ -1568,7 +1677,7 @@ impl Walker<'_, '_, '_> {
             outcome: ChallengerOutcome::Budget,
             start: None,
             size: None,
-            delta: None,
+            delta: None, raw_delta: None,
             proxy: None,
             audit: None,
         };
@@ -1784,7 +1893,35 @@ impl JavaScriptSearch<'_, '_> {
                 AllocationBudget::new(Some((&mut self.compilation.ledger, WorkDomain::Optional)));
             self.portfolio
                 .unpin(&mut self.compilation.artifacts, &mut budget);
+            drop(budget);
             walked?;
+            self.settle_protected(policy, request.objectives)?;
+            for codec in request.objectives.iter() {
+                let Some(stage) = report.objectives.iter_mut().find(|stage| stage.codec == codec.name()) else { continue; };
+                if objective.search.protect_effort && policy.effort() >= 13 {
+                    stage.stops = self.effort_checkpoints.first().filter(|row| row.level == 12)
+                        .and_then(|row| row.fast_stops.iter().find(|(name, _)| *name == codec.name()))
+                        .map_or_else(Vec::new, |(_, stops)| stops.clone());
+                }
+                if self.protected_selected[index(codec)] {
+                    let qualified = self.protected[index(codec)].unwrap();
+                    let before = stage.after;
+                    let artifact = qualified.artifact();
+                    stage.after = self.compilation.artifacts.with_artifact(artifact, |view| view.sizes.get(codec).unwrap())?;
+                    let provenance = self.compilation.artifacts.provenance(artifact)?;
+                    let plan = provenance.naming();
+                    stage.spelling = spelling_names(Spelling { families: provenance.description().output().families,
+                        self_named: plan.self_named, read_order: plan.read_order });
+                    stage.style = format!("{:?}", plan.style);
+                    // Selection can prefer a checkpoint whose total is larger
+                    // because one delivered entry would otherwise grow. This
+                    // is a dominance decision, not a strictly improving move.
+                    stage.protected_effort = Some((before, stage.after));
+                    stage.choices = self.protected_choices[index(codec)].clone();
+                }
+            }
+            report.effort_checkpoints = self.effort_checkpoints.clone();
+            report.effort_refusal = self.effort_refusal.clone();
             self.terminal = Some(report);
         }
         Ok(self.terminal.as_ref().unwrap())
@@ -1842,6 +1979,7 @@ impl JavaScriptSearch<'_, '_> {
             before,
             searched,
             after: searched,
+            protected_effort: None,
             spelling: Vec::new(),
             style: String::new(),
             trials: Vec::with_capacity(Challenger::ORDER.len()),
@@ -1910,6 +2048,15 @@ impl JavaScriptSearch<'_, '_> {
         }
         // Extra combinations extend the completed ordinary search. Enabling
         // them cannot spend the budget that produced its protected incumbent.
+        let objective_prior = match objective.search.objective_prior {
+            TacticPermission::Auto => policy.effort() >= 14,
+            TacticPermission::On => walk.starts,
+            TacticPermission::Off => false,
+        };
+        if objective_prior && walk.starts && report.examined < walk.prefix && report.judged < walk.exact {
+            self.walk_from(policy, objective, codec, "objective-prior", level0,
+                WalkPhase::Search { restarts: false }, &mut report)?;
+        }
         if policy.tactic(TacticId::RepresentationJoints).enabled
             && report.examined < walk.prefix && report.judged < walk.exact
         {
@@ -1971,7 +2118,7 @@ impl JavaScriptSearch<'_, '_> {
         let mut record = StartTrial {
             name: "decision-lock".into(), pass: 0,
             outcome: ChallengerOutcome::Budget,
-            start: None, size: None, delta: None, proxy: None, audit: None,
+            start: None, size: None, delta: None, raw_delta: None, proxy: None, audit: None,
         };
         let walk = policy.objective().unwrap().walk;
         if report.examined >= walk.prefix || report.judged >= walk.exact {
@@ -2025,6 +2172,10 @@ impl JavaScriptSearch<'_, '_> {
                     report.scored += 1;
                     record.start = Some(size);
                     record.size = Some(size);
+                    record.raw_delta = Some(formations.with_arena(|arena, _, _| {
+                        Ok::<_, CandidateError>(arena.with_artifact(artifact, |view| view.sizes.raw)? as i64
+                            - arena.with_artifact(held, |view| view.sizes.raw)? as i64)
+                    })?);
                     record.delta = Some(size as i64 - origin.size as i64);
                     let promoted = (|| {
                         if !judge.wins(formations, artifact, qualified, (held, origin.size))? { return Ok(false); }
@@ -2088,7 +2239,7 @@ impl JavaScriptSearch<'_, '_> {
                     pass: report.passes + 1,
                     outcome,
                     size: None,
-                    delta: None,
+                    delta: None, raw_delta: None,
                     proxy: None,
                     audit: None,
                 });
@@ -2153,8 +2304,20 @@ impl JavaScriptSearch<'_, '_> {
         let Self {
             compilation,
             portfolio,
+            assignment_evidence,
+            owner,
             ..
         } = self;
+        // Lower one-pass effort checkpoints must not borrow verdicts from a
+        // preceding structural start. Subsequent compatible starts can share.
+        if let Err(error) = assignment_evidence.prepare(*owner, &mut compilation.ledger) {
+            if !resource(&error) && !error.optional_memory_refusal() { return Err(error); }
+            report.starts.push(StartTrial { name: name.into(), pass: report.passes + 1,
+                outcome: ChallengerOutcome::Stopped, start: Some(size), size: None,
+                delta: None, raw_delta: None, proxy: None, audit: None });
+            return Ok(NamingStarts::default());
+        }
+        let memo = assignment_evidence.entries(candidate, codec, &output, name == "level-0");
         let judge = Judge {
             policy,
             codec,
@@ -2189,7 +2352,8 @@ impl JavaScriptSearch<'_, '_> {
                     naming: &naming,
                     choices_permitted: output.target_compaction,
                     stopped: false,
-                    memo: Vec::new(),
+                    memo,
+                    order: if name == "objective-prior" { Challenger::objective_order(codec) } else { &Challenger::ORDER },
                     replay,
                 };
                 let walked = (|| {
@@ -2235,7 +2399,7 @@ impl JavaScriptSearch<'_, '_> {
                     outcome: ChallengerOutcome::Stopped,
                     start: Some(size),
                     size: None,
-                    delta: None,
+                    delta: None, raw_delta: None,
                     proxy: None,
                     audit: None,
                 });

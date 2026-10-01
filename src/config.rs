@@ -702,6 +702,7 @@ pub struct ProjectConfig {
     pub effort: EffortConfig,
     /// Physical build/analysis/codec reuse; never an optimization permission.
     pub cache: CacheConfig,
+    pub execution: ExecutionConfig,
     /// Explicit saved search assignments; optional, independent of transparent caches.
     pub decisions: DecisionsConfig,
     pub javascript: JavaScriptConfig,
@@ -712,6 +713,22 @@ pub struct ProjectConfig {
     pub format: FormatConfig,
     #[serde(skip)]
     pub config_dir: Option<PathBuf>,
+}
+
+/// Physical scoring workers. The deterministic batch width is fixed by the
+/// compiler, so jobs controls concurrency rather than exploration or bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, serde::Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ExecutionConfig {
+    /// 1 through 4, default 1. Only independent delivered files score together.
+    pub jobs: usize,
+}
+impl Default for ExecutionConfig { fn default() -> Self { Self { jobs: 1 } } }
+impl ExecutionConfig {
+    fn validated(self) -> Result<Self, String> {
+        if !(1..=4).contains(&self.jobs) { return Err("`execution.jobs` must be between 1 and 4".into()); }
+        Ok(self)
+    }
 }
 
 /// Saved complete JavaScript assignments, re-proved and re-judged in the
@@ -1048,7 +1065,11 @@ impl ProjectConfig {
             policy.resources.restricted_by(ceilings),
             policy.constraints,
             diagnostics,
-        ).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?))
+        ).with_hosts(self.host.clone()).with_cache(self.cache.resolved(self.config_dir.as_deref())?)
+            .with_execution(self.execution.validated()?)
+            .with_effort_overrides([self.javascript.candidate_proposal_limit,
+                self.javascript.terminal_codec_probe_limit, self.javascript.candidate_limit,
+                self.javascript.candidate_byte_budget, self.javascript.candidate_beam_width]))
     }
 
     /// The delivery part of the contract (plan M3.3). `library` is the
@@ -1222,6 +1243,7 @@ impl ProjectConfig {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        self.execution.validated()?;
         self.host.validate()?;
         if let Some(policy) = &self.policy {
             policy.validate()?;
@@ -1704,7 +1726,7 @@ impl JavaScriptOptimization {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CompressionCostModel {
     Raw,

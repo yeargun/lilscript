@@ -65,75 +65,51 @@ impl<'src> Compilation<'src> {
         total: usize,
         decisions: &[Option<SavedDecision>; 3],
         results: &mut [Option<IndependentSearchResult>; 3],
-        observe: &mut impl FnMut(SearchObservation<'_>),
+        observe: &mut dyn FnMut(SearchObservation<'_>),
     ) -> Result<BaselineSeal, SearchError> {
         let Some((&(policy, request), earlier)) = requests.split_last() else {
             // Every requested incumbent and score now exists. No later
             // objective needs to reopen Baseline or guess a memory reserve.
             return Ok(self.ledger.seal_baseline()?);
         };
-        let objective = policy.objective().unwrap();
-        let seeds = Plan::seeds_for_policy(policy).map_err(CandidateError::from)?;
-        let mut search = self.prepare_javascript_search(source, policy)?;
-        let (baseline_renders, continuation) = search.evaluate_baseline(
-            policy,
-            request.objectives,
-            &seeds[..1],
-            objective.walk.starts,
-            false,
-            observe,
-        )?;
-        continuation?;
-        let seal = search
-            .compilation
-            .prepare_independent_objectives(source, earlier, total, decisions, results, observe)?;
-        search.sealed = Some(seal);
-        let slot = index(objective.codec);
-        let share = search
-            .compilation
-            .ledger
-            .begin_objective_share(total + 1 - requests.len());
-        let (_, allowance) = search.compilation.ledger.optional_search_work();
+        let codec = policy.objective().unwrap().codec;
+        let slot = index(codec);
+        let observer = std::cell::RefCell::new(observe);
+        let mut share = None;
+        let mut allowance = 0;
+        let mut seal = None;
         let outcome = catch_unwind(AssertUnwindSafe(|| {
-            if objective.walk.starts && objective.optional_alternatives != 0 {
-                let continuation =
-                    search.continue_independent_baseline(policy, request, seeds, observe);
-                search.explore_after_baseline(
-                    policy,
-                    request,
-                    seeds,
-                    baseline_renders,
-                    continuation,
-                    observe,
-                );
-            }
+            let mut search = self.prepare_effort_search(source, policy, request,
+                &mut |compilation| {
+                    let ready = compilation.prepare_independent_objectives(source, earlier, total,
+                        decisions, results, &mut |event| observer.borrow_mut()(event))?;
+                    seal = Some(ready);
+                    share = Some(compilation.ledger.begin_objective_share(total + 1 - requests.len()));
+                    allowance = compilation.ledger.optional_search_work().1;
+                    Ok(ready)
+                }, &mut |event| observer.borrow_mut()(event))?;
             search.challenge_with_decisions(policy, request, decisions)?;
+            let used = search.compilation.ledger.optional_search_work().0;
+            let stopped = search.stopped().map(|error| format!("{error:?}"));
+            let winner = search.take_qualified_winner(codec)
+                .expect("every objective retains its qualified baseline or improvement");
+            results[slot] = Some(IndependentSearchResult {
+                winner, counters: search.counters(), terminal: search.terminal.take().unwrap(), stopped,
+                optional_work_allowance: allowance, optional_work_used: used,
+            });
             Ok::<_, SearchError>(())
         }));
-        let (used, _) = search.compilation.ledger.optional_search_work();
-        search.compilation.ledger.end_objective_share(share);
+        if let Some(share) = share { self.ledger.end_objective_share(share); }
         match outcome {
             Ok(result) => result?,
             Err(payload) => resume_unwind(payload),
         }
-        let stopped = search.stopped().map(|error| format!("{error:?}"));
-        let winner = search
-            .take_qualified_winner(objective.codec)
-            .expect("every independent objective retains its qualified baseline or improvement");
-        results[slot] = Some(IndependentSearchResult {
-            winner,
-            counters: search.counters(),
-            terminal: search.terminal.take().unwrap(),
-            stopped,
-            optional_work_allowance: allowance,
-            optional_work_used: used,
-        });
-        Ok(seal)
+        Ok(seal.expect("all mandatory objectives precede optional work"))
     }
 }
 
 impl JavaScriptSearch<'_, '_> {
-    fn continue_independent_baseline(
+    pub(super) fn continue_independent_baseline(
         &mut self,
         policy: &ResolvedPolicy,
         request: SearchRequest,

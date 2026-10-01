@@ -20,13 +20,14 @@
 //! * **dictionary** — the columns, with repeated leaf values read through
 //!   one value table sorted by frequency.
 //!
-//! **The codec judges** (L8). The estimator is the raw bytes each form
-//! saves against the literal; it orders the work and supplies the seed (the
-//! best saving above zero, else the literal), never the decision. The
-//! artifact's `ChoiceMap` names the alternative formation applies; the
-//! terminal stage offers the others, each kept only when the whole artifact
-//! shrinks under the requested codec. Raw savings estimate the work order;
-//! codec-specific savings need an exact complete-artifact measurement.
+//! **The codec judges** (L8). The estimator orders work and supplies the
+//! seed, never the final decision. Raw uses literal lengths; gzip/Brotli
+//! measure isolated literal/complete decoder fragments with the requested
+//! settings (Brotli proxy quality is capped at 5). Whole-artifact judgment
+//! includes final names, shared helpers and surrounding compression context.
+//! Legal alternatives remain available even when their estimates are negative.
+//! The artifact's `ChoiceMap` names the alternative formation applies; the
+//! terminal stage retains only an improvement under the requested codec.
 //! Historical experiments are retained outside compiler policy sources.
 //!
 //! **Exactness is the legality.** The decoded graph equals the literal's:
@@ -1340,7 +1341,7 @@ impl Module {
     }
 
     /// The data-encoding family (M9.8) on the root's constant tables: every
-    /// site with an alternative the estimator says saves bytes is recorded
+    /// site with a legal alternative is recorded, including negative estimates,
     /// in `choice_sites`, once, and takes the alternative `choices` names,
     /// or its seed. A table kept as its literal is found again by the
     /// scheduler's next round: its site is already recorded. Returns how
@@ -1392,10 +1393,15 @@ impl Module {
         }
         let mut encodings = Vec::new();
         for (index, binding, node) in &sites {
-            let literal = literal_length(node) as i64;
+            let raw_literal = literal_length(node) as i64;
+            let estimate_codec = self.data_estimator.map_or(crate::config::CompressionCostModel::Raw, |row| row.0);
+            let literal = match self.data_estimator.filter(|(codec, _)| *codec != crate::config::CompressionCostModel::Raw) {
+                Some((codec, settings)) => estimate_fragment(Some(node), None, codec, settings, budget)? as i64,
+                None => raw_literal,
+            };
             // Planning and verifying every alternative is linear in the
             // table, a few passes each.
-            budget.work(Analysis, 8 * literal as u64)?;
+            budget.work(Analysis, 8 * raw_literal as u64)?;
             let original = Decoded::of(node);
             let mut alternatives = vec![ChoiceAlternative {
                 alternative: LITERAL,
@@ -1412,7 +1418,7 @@ impl Module {
                     alternatives.push(ChoiceAlternative {
                         alternative: FRONT_CODED,
                         name: "front-coded",
-                        saving: literal - front.length() as i64,
+                        saving: raw_literal - front.length() as i64,
                     });
                     plans.push((FRONT_CODED, Encoding::FrontCoded(front)));
                 }
@@ -1434,18 +1440,21 @@ impl Module {
                         alternatives.push(ChoiceAlternative {
                             alternative,
                             name,
-                            saving: literal - plan.length() as i64,
+                            saving: raw_literal - plan.length() as i64,
                         });
                         plans.push((alternative, Encoding::Columns(plan)));
                     }
                 }
             }
-            if alternatives
-                .iter()
-                .all(|alternative| alternative.saving <= 0)
-            {
-                continue;
+            if plans.is_empty() { continue; }
+            if let Some((codec, settings)) = self.data_estimator.filter(|(codec, _)| *codec != crate::config::CompressionCostModel::Raw) {
+                for (alternative, plan) in &plans {
+                    let length = estimate_fragment(None, Some(plan), codec, settings, budget)?;
+                    alternatives.iter_mut().find(|offered| offered.alternative == *alternative).unwrap().saving = literal - length as i64;
+                }
             }
+            // A negative estimate orders a legal alternative; it cannot erase
+            // a compressed win or a shared-decoder combination from discovery.
             let key = ChoiceKey {
                 family: ChoiceFamily::DataEncoding,
                 site: match self.bindings[binding.index()].source_symbol {
@@ -1466,6 +1475,7 @@ impl Module {
                 })
                 .unwrap_or(seed);
             self.choice_sites.push(ChoiceSite {
+                estimate_codec,
             pinned: false,
                 key,
                 name: self.bindings[binding.index()].spelling.clone(),
@@ -1773,6 +1783,76 @@ impl Module {
             invocation: Invocation::Value,
         })
     }
+}
+
+/// A local fragment including the complete generated decoder. Its names and
+/// compression context differ from the final bundle, so this is only a prior.
+/// Gzip uses its configured settings; Brotli uses min(quality, 5), preserving
+/// mode/window. Estimates never prune a legal representation.
+fn estimate_fragment(
+    literal: Option<&Node>, encoding: Option<&Encoding<'_>>,
+    codec: crate::config::CompressionCostModel, settings: crate::compression::CodecSettings,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<usize, AllocationError> {
+    let mut phase = budget.scope();
+    let mut module = Module::new_in(&mut phase)?;
+    module.pristine_builtins = true;
+    let (definition, value) = match encoding {
+        None => (None, Emit { module: &mut module, budget: &mut phase }.datum(literal.unwrap())?),
+        Some(Encoding::FrontCoded(front)) => {
+            let (decoder, definition) = module.table_decoder(&mut phase)?;
+            let mut emit = Emit { module: &mut module, budget: &mut phase };
+            let keys = emit.string(&front.keys)?;
+            let values = emit.string(&front.values)?;
+            let separator = emit.string(&front.separator.to_string())?;
+            let callee = emit.read(decoder)?;
+            let value = emit.node(Expr::Call { callee, arguments: vec![keys, values, separator], invocation: Invocation::Value })?;
+            (Some(definition), value)
+        }
+        Some(Encoding::Columns(columns)) => {
+            let (decoder, definition) = module.columns_decoder(&columns.schema(), &mut phase)?;
+            let mut emit = Emit { module: &mut module, budget: &mut phase };
+            let mut arguments = emit.budget.vector(AllocationClass::Retained, columns.columns.len() + 2)?;
+            for column in &columns.columns {
+                let value = match &column.data {
+                    Data::Nodes(nodes) => {
+                        let mut items = emit.budget.vector(AllocationClass::Retained, nodes.len())?;
+                        for node in nodes { items.push(emit.datum(node)?); }
+                        emit.node(Expr::Array(items))?
+                    }
+                    _ => emit.stream(column)?,
+                };
+                arguments.push(value);
+            }
+            for dictionary in [&columns.numbers, &columns.strings].into_iter().flatten() {
+                arguments.push(emit.dictionary(dictionary)?);
+            }
+            let callee = emit.read(decoder)?;
+            let value = emit.node(Expr::Call { callee, arguments, invocation: Invocation::Value })?;
+            (Some(definition), value)
+        }
+    };
+    if let Some(definition) = definition {
+        phase.push(AllocationClass::Retained, &mut module.regions[0].statements, definition)?;
+    }
+    phase.push(AllocationClass::Retained, &mut module.regions[0].statements, Statement::Evaluate(value))?;
+    let output_error = |error: super::extract::OutputError| match error {
+        super::extract::OutputError::Admission(error) => error,
+        _ => AllocationError::Capacity,
+    };
+    let structure = super::verify::verify_in(&module, &mut phase).map_err(output_error)?;
+    let basis = super::naming::Basis::new_in(&module, &structure, &mut phase).map_err(output_error)?;
+    let names = basis.names_in(&super::naming::Plan::new(super::naming::Style::Global), &mut phase).map_err(output_error)?;
+    let bytes = super::print::render_admitted(&module, &names, usize::MAX, &mut phase).map_err(|error| match error {
+        super::print::PrintError::Admission(error) => error,
+        _ => AllocationError::Capacity,
+    })?;
+    let size = crate::compression::measure_admitted_at(bytes.as_bytes(), codec, &settings,
+        crate::compression::Role::Proxy, &mut phase).map_err(|error| match error {
+            crate::compression::CodecError::Admission(error) => error,
+            _ => AllocationError::Capacity,
+        })?.size;
+    Ok(size)
 }
 
 /// The bindings a columns decoder reads its streams through.
@@ -2101,6 +2181,33 @@ impl Emit<'_, '_, '_> {
     }
 
     /// One column's stream literal.
+    fn datum(&mut self, node: &Node) -> Result<ExprId, AllocationError> {
+        match &node.value {
+            Value::Number(value) => self.number(*value),
+            Value::String(value) => self.string(value),
+            Value::Bool(value) => self.node(Expr::Literal(Literal::Bool(*value))),
+            Value::Null => self.node(Expr::Literal(Literal::Null)),
+            Value::Array(values) => {
+                let mut items = self.budget.vector(AllocationClass::Retained, values.len())?;
+                for value in values { items.push(self.datum(value)?); }
+                self.node(Expr::Array(items))
+            }
+            Value::Object { null_proto, entries } => {
+                let mut items = self.budget.vector(AllocationClass::Retained, entries.len() + usize::from(*null_proto))?;
+                if *null_proto {
+                    let value = self.node(Expr::Literal(Literal::Null))?;
+                    items.push((Property::Named("__proto__".into()), value));
+                }
+                for (name, value) in entries {
+                    let key = self.string(name)?;
+                    let value = self.datum(value)?;
+                    items.push((Property::Computed(key), value));
+                }
+                self.node(Expr::Object(items))
+            }
+        }
+    }
+
     fn stream(&mut self, column: &Column<'_>) -> Result<ExprId, AllocationError> {
         let mut items = Vec::new();
         match &column.data {

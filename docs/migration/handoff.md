@@ -1,35 +1,29 @@
-# Migration handoff — Q2 complete; Q3 next
+# Migration handoff — Q4 active
 
-The owner requests implementation of the remaining migration, one milestone at
-a time. Commit/push are authorized. Implement coherent batches, then focused
-checks. Do not resume deferred S1 broad reruns or repeat the full library/fleet.
-One heavy build/test/measurement job at a time. No PR requested.
+Implement the entire remaining migration, one milestone at a time. Commit/push
+are authorized. Continue after each milestone. Use coherent implementation
+batches then focused checks; no repeated full library/fleet runs. One heavy job
+at a time; no PR/subagents requested.
 
-Checkout `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
-C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3/S4/Q2 are implemented. Q3 is next.
-The [index](index.md), [acceptance contract](q2-acceptance.md) and
-[coverage](coverage.md) own remaining work; [history](history.md) owns prior
-results and negative evidence. Do not treat earlier partial batches as Q2 completion.
+Q3 is complete under [its acceptance contract](q3-acceptance.md), algorithm64 /
+search33. [Evidence](../../benchmarks/migration-results/2026-10-01-q3-search/README.md)
+contains 25 focused checks, 54 release artifacts/oracles/remeasurements and CLI
+controls. The data fixture's +6 Brotli search-path regression and extra checkpoint
+cost are explicit. Do not repeat these checks without a new change or failure.
 
-Latest qualified release: `/home/azureuser/lilscript-work/bin/q2-print-1/lilscript`,
-algorithm 62 / search 32 / local facts 16. [Evidence and identities](../../benchmarks/migration-results/2026-10-01-q2-print-formation/README.md).
-The preceding connected-analysis pin is `q2-dependencies-1`, algorithm 61.
-All affected bytes and cache-on/off logical admission agree. The latest markedlil
-probe reports fewer full formations; its single CPU pair is not a stable estimate.
+Q4 is the sole active milestone. Read R9 in `docs/language.md`, M8.5/M9.8/M10.3/
+M10.19 in the archived plan and Q4 coverage. It owns const data/exact bounded
+evaluation, schema specialization, helper ownership/placement, pooling and
+remaining encoding alternatives including lazy legality/runtime gates.
+Remaining order: **Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
 
-Next: Q3, independent objective search policies, calibrated estimates/proxies,
-protected effort tiers and deterministic worker scoring. Q2 is complete under
-its explicit plan correction. Its algorithm-63 scheduler batch passes 21 focused
-checks; no release/fleet run was repeated. The initial global cache experiment
-was rejected and preserved in its evidence, not landed. Do not rerun the obsolete
-`/tmp/lilscript-q2-global-proofs-edit.py` helpers. Per-module elaboration is now
-explicitly D3 work under the shared graph/session owner. Arbitrary target-unit
-fragment relocation is not implemented or claimed.
+Per-module elaboration is required in D3 with the shared graph/session owner.
+Q2 arbitrary target-fragment relocation and S4 unrestricted public erased/
+identity/mutable ABIs are explicitly scoped future proposals, not claimed work.
+Keep independent objectives, size-focused effort13, expensive marginal tactics
+at14/15 with explicit overrides, and hard TOML vetoes. Each new control documents
+situations, gates and compile/size/runtime tradeoffs.
 
-Subsequent order: **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
-Keep separate raw/gzip/Brotli incumbents, default effort 13 size quality,
-explicit costly 14/15 strategies and hard TOML vetoes. Every new control needs
-its situation, defaults, overrides and compilation/size/runtime tradeoffs.
-Native Clang is already installed at
-`/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18`.
-Do not touch the stopped remarklil rebuild process owned by the separate rebuild.
+Workspace `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
+Native Clang: `/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18`.
+Do not touch the stopped remarklil rebuild owned by the separate task.

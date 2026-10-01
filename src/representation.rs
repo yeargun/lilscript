@@ -354,7 +354,7 @@ impl ChoiceMap {
 }
 
 /// One alternative of a discovered site: its id, its name in reports, and
-/// the estimator's raw bytes saved against the canonical form (positive is smaller).
+/// estimated bytes saved against the canonical form (positive is smaller).
 /// The estimate orders the codec's work; it never decides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ChoiceAlternative {
@@ -369,6 +369,8 @@ pub struct ChoiceAlternative {
 /// offers without re-deriving it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChoiceSite {
+    /// Codec used for this local ranking estimate, not the final artifact score.
+    pub estimate_codec: crate::config::CompressionCostModel,
     pub key: ChoiceKey,
     /// The site's source name, for reports.
     pub name: String,
@@ -526,6 +528,7 @@ mod tests {
     #[test]
     fn q1_schedule_keeps_negative_estimates_and_bounded_cross_family_moves() {
         let site = |index, family| ChoiceSite {
+            estimate_codec: crate::config::CompressionCostModel::Raw,
             pinned: false,
             key: ChoiceKey {
                 family,

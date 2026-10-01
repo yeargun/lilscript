@@ -425,3 +425,16 @@ fn independent_objective_callback_unwind_restores_allowance_and_releases_handoff
     .unwrap();
     assert_eq!(finished.ledger.retained_bytes(), 0);
 }
+
+#[test]
+fn q3_level_zero_selection_uses_no_codec_or_checkpoint_work() {
+    let config = configuration(0, "");
+    let result = compile_source("export int square(int x){return x*x;}", &config,
+        ServiceOptions { objectives: Some(Objectives::All), ..ServiceOptions::default() }).unwrap();
+    assert_eq!(result.report()["resources"]["codec_work"], 0);
+    assert_eq!(result.report()["resources"]["optional_work"], 0);
+    for codec in CODECS { assert!(result.javascript(codec).is_some()); }
+    for lane in result.report()["search"]["objectives"].as_array().unwrap() {
+        assert!(lane["terminal"]["effort_checkpoints"].is_null());
+    }
+}

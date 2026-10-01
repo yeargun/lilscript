@@ -349,7 +349,13 @@ impl OutputFamilies {
                 int32_hints: false,
                 property_mangling: false,
             },
-            Objective::Gzip | Objective::Brotli => Self {
+            // Independent rows. Training does not justify a different gzip
+            // seed yet; its later calibrated move ordering is codec-specific.
+            Objective::Gzip => Self {
+                loop_heads: true,
+                ..Self::NONE
+            },
+            Objective::Brotli => Self {
                 loop_heads: true,
                 ..Self::NONE
             },
@@ -477,6 +483,33 @@ pub enum Challenger {
 }
 
 impl Challenger {
+    /// Training-only prior, applied as an additional start after the ordinary
+    /// incumbent. Promote only moves that won in at least two generic families
+    /// in C3; missing/new families retain their compatibility order. This is
+    /// an ordering hypothesis, never a legality or compressed-size proof.
+    pub(crate) fn objective_order(codec: Objective) -> &'static [Self; 23] {
+        const RAW: [Challenger; 23] = Challenger::promoted(&[Challenger::SelfNamed]);
+        const GZIP: [Challenger; 23] = Challenger::promoted(&[
+            Challenger::OtherSeed, Challenger::SelfNamed, Challenger::CompoundAssignments]);
+        const BROTLI: [Challenger; 23] = Challenger::promoted(&[
+            Challenger::CompoundAssignments, Challenger::OtherSeed, Challenger::SelfNamed]);
+        match codec { Objective::Raw => &RAW, Objective::Gzip => &GZIP, Objective::Brotli => &BROTLI }
+    }
+
+    const fn promoted(first: &[Self]) -> [Self; 23] {
+        let mut order = Self::ORDER;
+        let mut length = 0;
+        while length < first.len() { order[length] = first[length]; length += 1; }
+        let mut index = 0;
+        while index < Self::ORDER.len() {
+            let mut position = 0;
+            while position < first.len() && first[position] as u8 != Self::ORDER[index] as u8 { position += 1; }
+            if position == first.len() { order[length] = Self::ORDER[index]; length += 1; }
+            index += 1;
+        }
+        order
+    }
+
     /// The declared schedule.
     pub const ORDER: [Self; 23] = [
         Self::Int32Hints,

@@ -7,16 +7,14 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Now
 
 - **C1, C2 and C3 are complete. S1 implementation is complete.** Its generic behavior, full language matrix and reference ports are checked; final library/CLI reruns and the complete compile-cost study are explicitly deferred at the owner's request. [Evidence](../../benchmarks/migration-results/2026-10-01-s1-complete/README.md).
-- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is complete** under its [acceptance contract](q2-acceptance.md), including the explicit reuse/resource scope correction. **Q3 is next.**
+- **S2 implementation is complete**, including its controls and focused JavaScript/native checks. [Evidence](../../benchmarks/migration-results/2026-09-30-s2-complete/README.md). **S3 is complete** under its [acceptance record](s3-acceptance.md). **Q1 is complete** under its [acceptance record](q1-acceptance.md). **G1 is complete** under its [contract](g1-acceptance.md). **G2 is complete** under its [contract](g2-acceptance.md). **G3 is complete**, under its [contract](g3-acceptance.md). **S4 is complete** under its [contract](s4-acceptance.md) and explicit [public ABI scope](s4-public-abi.md). **Q2 is complete** under its [acceptance contract](q2-acceptance.md), including the explicit reuse/resource scope correction. **Q3 is complete** under its [acceptance contract](q3-acceptance.md). **Q4 is the sole active milestone**.
 - Goal: smaller compiler-written output for **each** selected raw/gzip/Brotli objective, reliable TOML behavior, runtime parity and useful compilation-effort tradeoffs.
 
 ## Next
 
-Complete **Q3**: independent objective policies and data estimates, calibrated
-proxy decisions, protected effort progression and deterministic scoring workers.
-Use the recorded repeated-tail/judgment costs to improve useful exploration;
-default effort 13 remains size-focused, with expensive marginal tactics at 14/15
-where evidence supports it. Then follow **Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
+Complete **Q4**: const data and bounded exact evaluation, schema specialization,
+helper ownership and remaining data representations. Then follow
+**D1 → D2 → D3 → N1 → N2 → V1 → V2**.
 
 Q2's safe reuse boundaries are qualified. Per-module elaboration remains
 explicitly assigned to D3's shared graph/session integration. Arbitrary
@@ -50,7 +48,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [G3](plan.md#g3) JS generation | Stable per-site forms, guarded aliases, safe locality choices and structural printing complete |
 | [x] | [Q1](plan.md#q1) Choices | Common source/target family contract, per-site call choices, bounded joint moves and replay permissions complete |
 | [x] | [Q2](plan.md#q2) Reuse | Qualified dirty dependencies, shared/changed-site formation, persistent reuse and counted owners; scope correction explicit |
-| [~] | [Q3](plan.md#q3) Search policy | Gzip's policy, calibrated estimates/proxies and useful effort progression |
+| [x] | [Q3](plan.md#q3) Search policy | Independent objective priors/estimates, bounded assignment evidence, protected effort and deterministic file workers complete |
 | [~] | [Q4](plan.md#q4) Data | Const data, helpers, encodings and schema specialization |
 | [~] | [D1](plan.md#d1) Formats | CJS/library-IIFE/UMD and remaining manifests |
 | [~] | [D2](plan.md#d2) Consumers | Shakeability, placement, lazy effects/cycles, host modules and source maps |

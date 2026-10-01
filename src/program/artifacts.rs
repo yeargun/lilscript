@@ -327,23 +327,24 @@ impl Record {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<usize>, CandidateError> {
         let mut sizes = budget.vector(AllocationClass::Retained, self.files.len())?;
-        for file in &self.files {
-            budget.work(WorkKind::Codec, 1)?;
-            let size = match file.sizes.measured(codec) {
-                Some(size) => size,
-                None => {
-                    let size = cache.measure(
-                        owner,
-                        file.code.as_bytes(),
-                        codec,
-                        settings,
-                        crate::compression::Role::Exact,
-                        budget,
-                    )?;
-                    file.sizes.publish(codec, size)?
-                }
-            };
-            sizes.push(size);
+        for batch in self.files.chunks(4) {
+            let mut inputs = [None; 4];
+            for (index, file) in batch.iter().enumerate() {
+                if file.sizes.measured(codec).is_none() { inputs[index] = Some(file.code.as_bytes()); }
+            }
+            let prepared = cache.prepare_batch(&inputs, codec, settings, crate::compression::Role::Exact, budget)?;
+            for (index, file) in batch.iter().enumerate() {
+                budget.work(WorkKind::Codec, 1)?;
+                let size = match file.sizes.measured(codec) {
+                    Some(size) => size,
+                    None => {
+                        let size = cache.measure_prepared(owner, file.code.as_bytes(), codec, settings,
+                            crate::compression::Role::Exact, prepared[index], budget)?;
+                        file.sizes.publish(codec, size)?
+                    }
+                };
+                sizes.push(size);
+            }
         }
         Ok(sizes)
     }
@@ -618,8 +619,9 @@ impl ArtifactArena {
             bound: false,
         }
     }
-    pub(super) fn configure_measurements(&mut self, config: &crate::config::CacheConfig) {
+    pub(super) fn configure_measurements(&mut self, config: &crate::config::CacheConfig, execution: crate::config::ExecutionConfig) {
         self.measurements.get_mut().configure(config);
+        self.measurements.get_mut().jobs = execution.jobs;
     }
     pub(super) fn measurement_stats(&self) -> compression_cache::MeasurementStats {
         self.measurements.borrow().stats
@@ -1224,7 +1226,7 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         execution: JavaScriptExecution,
         choices: OutputTactics,
     ) -> Self {
-        retained.configure_measurements(policy.cache());
+        retained.configure_measurements(policy.cache(), policy.execution());
         Self {
             output,
             staging: ArtifactArena::with_settings(retained.owner, retained.settings),

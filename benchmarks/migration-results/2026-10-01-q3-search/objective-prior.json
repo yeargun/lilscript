@@ -1,0 +1,349 @@
+{
+  "training_sha256": "d0d9acc37cc78a88185d81f53544da826607311268a54032dfb136b2e04535c4",
+  "selection": "At least two generic source families with a kept win; descending summed exact savings; tie by name.",
+  "scope": "Ordering hypothesis only; preserves prior incumbent and uses fresh exact artifact judgment. No default seed or pruning-margin change.",
+  "automatic_effort": 14,
+  "explicit_on_effort": 13,
+  "objectives": {
+    "brotli": {
+      "promoted": [
+        "compound-assignments",
+        "other-objective-seed",
+        "self-named-functions"
+      ],
+      "evidence": {
+        "compound-assignments": {
+          "attempts": 21,
+          "saved": 409,
+          "families": [
+            "arithmetic",
+            "branches",
+            "records"
+          ]
+        },
+        "other-objective-seed": {
+          "attempts": 14,
+          "saved": 347,
+          "families": [
+            "arithmetic",
+            "branches"
+          ]
+        },
+        "int32-hints": {
+          "attempts": 6,
+          "saved": 24,
+          "families": [
+            "strings"
+          ]
+        },
+        "self-named-functions": {
+          "attempts": 21,
+          "saved": 11,
+          "families": [
+            "branches",
+            "strings"
+          ]
+        },
+        "conditional-returns": {
+          "attempts": 18,
+          "saved": 5,
+          "families": [
+            "branches"
+          ]
+        },
+        "block-inlining": {
+          "attempts": 22,
+          "saved": 0,
+          "families": []
+        },
+        "conditional-values": {
+          "attempts": 22,
+          "saved": 0,
+          "families": []
+        },
+        "exit-points": {
+          "attempts": 22,
+          "saved": 0,
+          "families": []
+        },
+        "flat-blocks": {
+          "attempts": 18,
+          "saved": 0,
+          "families": []
+        },
+        "logical-branches": {
+          "attempts": 18,
+          "saved": 0,
+          "families": []
+        },
+        "logical-statements": {
+          "attempts": 18,
+          "saved": 0,
+          "families": []
+        },
+        "loop-fusion": {
+          "attempts": 22,
+          "saved": 0,
+          "families": []
+        },
+        "loop-heads": {
+          "attempts": 18,
+          "saved": 0,
+          "families": []
+        },
+        "pooling-and-packing": {
+          "attempts": 0,
+          "saved": 0,
+          "families": []
+        },
+        "quotes": {
+          "attempts": 18,
+          "saved": 0,
+          "families": []
+        },
+        "read-order": {
+          "attempts": 21,
+          "saved": 0,
+          "families": []
+        },
+        "string-array-packing": {
+          "attempts": 0,
+          "saved": 0,
+          "families": []
+        },
+        "string-constants": {
+          "attempts": 22,
+          "saved": 0,
+          "families": []
+        },
+        "string-pooling": {
+          "attempts": 18,
+          "saved": 0,
+          "families": []
+        }
+      }
+    },
+    "gzip": {
+      "promoted": [
+        "other-objective-seed",
+        "self-named-functions",
+        "compound-assignments"
+      ],
+      "evidence": {
+        "other-objective-seed": {
+          "attempts": 9,
+          "saved": 738,
+          "families": [
+            "branches",
+            "strings"
+          ]
+        },
+        "conditional-returns": {
+          "attempts": 13,
+          "saved": 140,
+          "families": [
+            "branches"
+          ]
+        },
+        "self-named-functions": {
+          "attempts": 15,
+          "saved": 44,
+          "families": [
+            "branches",
+            "strings"
+          ]
+        },
+        "compound-assignments": {
+          "attempts": 13,
+          "saved": 41,
+          "families": [
+            "branches",
+            "strings"
+          ]
+        },
+        "block-inlining": {
+          "attempts": 17,
+          "saved": 0,
+          "families": []
+        },
+        "conditional-values": {
+          "attempts": 17,
+          "saved": 0,
+          "families": []
+        },
+        "exit-points": {
+          "attempts": 17,
+          "saved": 0,
+          "families": []
+        },
+        "flat-blocks": {
+          "attempts": 13,
+          "saved": 0,
+          "families": []
+        },
+        "int32-hints": {
+          "attempts": 6,
+          "saved": 0,
+          "families": []
+        },
+        "logical-branches": {
+          "attempts": 13,
+          "saved": 0,
+          "families": []
+        },
+        "logical-statements": {
+          "attempts": 13,
+          "saved": 0,
+          "families": []
+        },
+        "loop-fusion": {
+          "attempts": 17,
+          "saved": 0,
+          "families": []
+        },
+        "loop-heads": {
+          "attempts": 13,
+          "saved": 0,
+          "families": []
+        },
+        "pooling-and-packing": {
+          "attempts": 0,
+          "saved": 0,
+          "families": []
+        },
+        "quotes": {
+          "attempts": 13,
+          "saved": 0,
+          "families": []
+        },
+        "read-order": {
+          "attempts": 15,
+          "saved": 0,
+          "families": []
+        },
+        "string-array-packing": {
+          "attempts": 0,
+          "saved": 0,
+          "families": []
+        },
+        "string-constants": {
+          "attempts": 17,
+          "saved": 0,
+          "families": []
+        },
+        "string-pooling": {
+          "attempts": 13,
+          "saved": 0,
+          "families": []
+        }
+      }
+    },
+    "raw": {
+      "promoted": [
+        "self-named-functions"
+      ],
+      "evidence": {
+        "self-named-functions": {
+          "attempts": 20,
+          "saved": 90,
+          "families": [
+            "arithmetic",
+            "branches",
+            "records",
+            "strings"
+          ]
+        },
+        "block-inlining": {
+          "attempts": 20,
+          "saved": 0,
+          "families": []
+        },
+        "compound-assignments": {
+          "attempts": 10,
+          "saved": 0,
+          "families": []
+        },
+        "conditional-returns": {
+          "attempts": 10,
+          "saved": 0,
+          "families": []
+        },
+        "conditional-values": {
+          "attempts": 20,
+          "saved": 0,
+          "families": []
+        },
+        "exit-points": {
+          "attempts": 20,
+          "saved": 0,
+          "families": []
+        },
+        "flat-blocks": {
+          "attempts": 10,
+          "saved": 0,
+          "families": []
+        },
+        "int32-hints": {
+          "attempts": 4,
+          "saved": 0,
+          "families": []
+        },
+        "logical-branches": {
+          "attempts": 10,
+          "saved": 0,
+          "families": []
+        },
+        "logical-statements": {
+          "attempts": 10,
+          "saved": 0,
+          "families": []
+        },
+        "loop-fusion": {
+          "attempts": 20,
+          "saved": 0,
+          "families": []
+        },
+        "loop-heads": {
+          "attempts": 10,
+          "saved": 0,
+          "families": []
+        },
+        "other-objective-seed": {
+          "attempts": 10,
+          "saved": 0,
+          "families": []
+        },
+        "pooling-and-packing": {
+          "attempts": 0,
+          "saved": 0,
+          "families": []
+        },
+        "quotes": {
+          "attempts": 10,
+          "saved": 0,
+          "families": []
+        },
+        "read-order": {
+          "attempts": 10,
+          "saved": 0,
+          "families": []
+        },
+        "string-array-packing": {
+          "attempts": 0,
+          "saved": 0,
+          "families": []
+        },
+        "string-constants": {
+          "attempts": 20,
+          "saved": 0,
+          "families": []
+        },
+        "string-pooling": {
+          "attempts": 10,
+          "saved": 0,
+          "families": []
+        }
+      }
+    }
+  }
+}

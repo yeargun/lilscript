@@ -1,0 +1,1125 @@
+{
+  "compilers": {
+    "before": {
+      "path": "/home/azureuser/lilscript-work/bin/q2-print-1/lilscript",
+      "sha256": "2bdfa7c6ef61627dcef4ffb83d9d7d5730af322ea63422c02e378813b86b18b1"
+    },
+    "after": {
+      "path": "/home/azureuser/lilscript-work/bin/q3-search-1/lilscript",
+      "sha256": "eac4314f7016b51b8280543fbf7e376e73bbed0dcf18f4dd4a65726246e58cf7"
+    }
+  },
+  "source_sha256": "c35c6bc395f89568c5c450ac27e709772305f3040cf6cd3331f85118808ef5a9",
+  "oracle_sha256": "c71c7241279cd0f67dbed5e2f05f3abb3af190dfab023f7d63c6e122a2a271da",
+  "scope": "One affected 22KB generic data fixture, three objective lanes. Before is algorithm62, so delta also includes algorithm63 accounting; single CPU observations only.",
+  "rows": [
+    {
+      "objective": "raw",
+      "before": {
+        "exit_code": 0,
+        "wall_seconds": 0.6911180379975121,
+        "cpu_seconds": 0.690241,
+        "bytes": 7883,
+        "sha256": "a7418f6f0d9ba2ea23e5673eabd776d609a1d529d199098c0fcad56aaff6f2d1",
+        "artifact": "/home/azureuser/lilscript-work/q3-data-qualification/before-raw.mjs",
+        "explanation": {
+          "path": "/home/azureuser/lilscript-work/q3-data-qualification/before-raw.json",
+          "sha256": "07c5a0cdbb6daa564790ed486028876ae7e4291de94be4106ba343406072e6d8"
+        },
+        "resources": {
+          "baseline_work": 3953804,
+          "optional_work": 112305848,
+          "codec_work": 195,
+          "peak_retained_bytes": 2961831,
+          "frontend_logical_work": 2545176,
+          "frontend_allocation_accounting": "partial",
+          "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+          "source_buffer_capacity": 24512,
+          "frontend_phase_accounting": {
+            "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+            "main_parse_arena": "not repeated; discovery programs reused",
+            "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+            "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+            "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+            "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+            "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+            "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+            "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+            "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+            "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+            "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+            "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+            "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+            "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+            "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+            "semantic_verification": "pre-admitted work and owned scratch",
+            "module_metadata": "uninstrumented"
+          },
+          "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+          "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+          "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+          "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+          "retained_bytes_after_handoff": 0
+        },
+        "choices": [
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_772",
+            "seed": "columns",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                533
+              ]
+            ]
+          },
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "people",
+            "seed": "dictionary",
+            "delivered": "dictionary",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                2710
+              ],
+              [
+                "dictionary",
+                2850
+              ]
+            ]
+          },
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1322",
+            "seed": "front-coded",
+            "delivered": "literal",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "front-coded",
+                595
+              ],
+              [
+                "columns",
+                82
+              ],
+              [
+                "dictionary",
+                592
+              ]
+            ]
+          },
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1728",
+            "seed": "dictionary",
+            "delivered": "dictionary",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                1627
+              ],
+              [
+                "dictionary",
+                1857
+              ]
+            ]
+          }
+        ],
+        "judged": 14,
+        "checkpoints": [],
+        "oracle": true
+      },
+      "after": {
+        "exit_code": 0,
+        "wall_seconds": 0.893344034004258,
+        "cpu_seconds": 0.892644,
+        "bytes": 7883,
+        "sha256": "a7418f6f0d9ba2ea23e5673eabd776d609a1d529d199098c0fcad56aaff6f2d1",
+        "artifact": "/home/azureuser/lilscript-work/q3-data-qualification/after-raw.mjs",
+        "explanation": {
+          "path": "/home/azureuser/lilscript-work/q3-data-qualification/after-raw.json",
+          "sha256": "8d8a772b27b88073337cd4519897d6844f78bcafdf519493537c4bf2a1af5da7"
+        },
+        "resources": {
+          "baseline_work": 5343263,
+          "optional_work": 144556477,
+          "codec_work": 247,
+          "peak_retained_bytes": 3655203,
+          "frontend_logical_work": 2545176,
+          "frontend_allocation_accounting": "partial",
+          "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+          "source_buffer_capacity": 24512,
+          "frontend_phase_accounting": {
+            "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+            "main_parse_arena": "not repeated; discovery programs reused",
+            "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+            "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+            "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+            "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+            "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+            "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+            "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+            "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+            "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+            "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+            "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+            "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+            "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+            "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+            "semantic_verification": "pre-admitted work and owned scratch",
+            "module_metadata": "uninstrumented"
+          },
+          "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+          "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+          "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+          "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+          "target_allocation_accounting": "partial",
+          "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+          "retained_bytes_after_handoff": 0
+        },
+        "choices": [
+          {
+            "estimate_codec": "raw",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_772",
+            "seed": "columns",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                533
+              ]
+            ]
+          },
+          {
+            "estimate_codec": "raw",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "people",
+            "seed": "dictionary",
+            "delivered": "dictionary",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                2710
+              ],
+              [
+                "dictionary",
+                2850
+              ]
+            ]
+          },
+          {
+            "estimate_codec": "raw",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1322",
+            "seed": "front-coded",
+            "delivered": "literal",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "front-coded",
+                595
+              ],
+              [
+                "columns",
+                82
+              ],
+              [
+                "dictionary",
+                592
+              ]
+            ]
+          },
+          {
+            "estimate_codec": "raw",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1728",
+            "seed": "dictionary",
+            "delivered": "dictionary",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                1627
+              ],
+              [
+                "dictionary",
+                1857
+              ]
+            ]
+          }
+        ],
+        "judged": 14,
+        "checkpoints": [
+          {
+            "level": 12,
+            "fast_stops": [
+              [
+                "raw",
+                [
+                  {
+                    "level": 0,
+                    "size": 7990,
+                    "sha256": "9af923b765e0d862d188f4e3831795f211d15a7dde460177fb656ee9698ec901"
+                  },
+                  {
+                    "level": 1,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 2,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 3,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 4,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 5,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 6,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 7,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 8,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 9,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 10,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 11,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  },
+                  {
+                    "level": 12,
+                    "size": 7883,
+                    "sha256": "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+                  }
+                ]
+              ]
+            ],
+            "objectives": [
+              [
+                "raw",
+                7883,
+                "fe6e6737a03284aacc830465032e17a77ea89bf44a59dd9ee7b8f2b00bc7a01a"
+              ]
+            ],
+            "proposals": 0,
+            "renders": 1,
+            "judgments": 5,
+            "optional_work": 31001347,
+            "stopped": null
+          }
+        ],
+        "oracle": true
+      }
+    },
+    {
+      "objective": "gzip",
+      "before": {
+        "exit_code": 0,
+        "wall_seconds": 0.4676987240090966,
+        "cpu_seconds": 0.46712500000000007,
+        "bytes": 2673,
+        "sha256": "58a21e2de344f79372ed9f0f77a423e4ffd2da1a7be97a34f6e31ec0aa4c4097",
+        "artifact": "/home/azureuser/lilscript-work/q3-data-qualification/before-gzip.mjs",
+        "explanation": {
+          "path": "/home/azureuser/lilscript-work/q3-data-qualification/before-gzip.json",
+          "sha256": "03d5f594de919ede6f99be1b69b5a665d6ff4172d1293f804199ff2ab71860c9"
+        },
+        "resources": {
+          "baseline_work": 4074161,
+          "optional_work": 92459744,
+          "codec_work": 14128454,
+          "peak_retained_bytes": 2826881,
+          "frontend_logical_work": 2545176,
+          "frontend_allocation_accounting": "partial",
+          "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+          "source_buffer_capacity": 24512,
+          "frontend_phase_accounting": {
+            "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+            "main_parse_arena": "not repeated; discovery programs reused",
+            "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+            "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+            "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+            "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+            "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+            "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+            "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+            "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+            "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+            "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+            "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+            "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+            "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+            "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+            "semantic_verification": "pre-admitted work and owned scratch",
+            "module_metadata": "uninstrumented"
+          },
+          "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+          "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+          "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+          "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+          "retained_bytes_after_handoff": 0
+        },
+        "choices": [
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_772",
+            "seed": "columns",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                533
+              ]
+            ]
+          },
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "people",
+            "seed": "dictionary",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                2710
+              ],
+              [
+                "dictionary",
+                2850
+              ]
+            ]
+          },
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1322",
+            "seed": "front-coded",
+            "delivered": "front-coded",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "front-coded",
+                595
+              ],
+              [
+                "columns",
+                82
+              ],
+              [
+                "dictionary",
+                592
+              ]
+            ]
+          },
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1728",
+            "seed": "dictionary",
+            "delivered": "dictionary",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                1627
+              ],
+              [
+                "dictionary",
+                1857
+              ]
+            ]
+          }
+        ],
+        "judged": 5,
+        "checkpoints": [],
+        "oracle": true
+      },
+      "after": {
+        "exit_code": 0,
+        "wall_seconds": 2.2884045010141563,
+        "cpu_seconds": 2.2874440000000003,
+        "bytes": 2673,
+        "sha256": "a39c02d5e1286f06596fd07f61d766c6931f590b67372ec60fbed4605799074f",
+        "artifact": "/home/azureuser/lilscript-work/q3-data-qualification/after-gzip.mjs",
+        "explanation": {
+          "path": "/home/azureuser/lilscript-work/q3-data-qualification/after-gzip.json",
+          "sha256": "5d3a734637b3d8c276fa4860b8aefb525cbc1fd7eaa457aad3eb70a7da90ea68"
+        },
+        "resources": {
+          "baseline_work": 5307528,
+          "optional_work": 1690149352,
+          "codec_work": 1278431437,
+          "peak_retained_bytes": 3535120,
+          "frontend_logical_work": 2545176,
+          "frontend_allocation_accounting": "partial",
+          "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+          "source_buffer_capacity": 24512,
+          "frontend_phase_accounting": {
+            "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+            "main_parse_arena": "not repeated; discovery programs reused",
+            "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+            "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+            "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+            "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+            "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+            "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+            "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+            "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+            "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+            "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+            "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+            "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+            "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+            "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+            "semantic_verification": "pre-admitted work and owned scratch",
+            "module_metadata": "uninstrumented"
+          },
+          "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+          "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+          "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+          "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+          "target_allocation_accounting": "partial",
+          "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+          "retained_bytes_after_handoff": 0
+        },
+        "choices": [
+          {
+            "estimate_codec": "gzip",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_772",
+            "seed": "columns",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                120
+              ]
+            ]
+          },
+          {
+            "estimate_codec": "gzip",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "people",
+            "seed": "columns",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                73
+              ],
+              [
+                "dictionary",
+                -9
+              ]
+            ]
+          },
+          {
+            "estimate_codec": "gzip",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1322",
+            "seed": "front-coded",
+            "delivered": "front-coded",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "front-coded",
+                80
+              ],
+              [
+                "columns",
+                -25
+              ],
+              [
+                "dictionary",
+                -29
+              ]
+            ]
+          },
+          {
+            "estimate_codec": "gzip",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1728",
+            "seed": "columns",
+            "delivered": "dictionary",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                56
+              ],
+              [
+                "dictionary",
+                48
+              ]
+            ]
+          }
+        ],
+        "judged": 26,
+        "checkpoints": [
+          {
+            "level": 12,
+            "fast_stops": [
+              [
+                "gzip",
+                [
+                  {
+                    "level": 0,
+                    "size": 2765,
+                    "sha256": "378e9954bc62a81703cd13b419c4d28ea3506aa06a463bad7abe76ec9085445f"
+                  },
+                  {
+                    "level": 1,
+                    "size": 2763,
+                    "sha256": "861b4be676fe1c2abab161c51183e8381769658f27f342927d04400afcdc2b12"
+                  },
+                  {
+                    "level": 2,
+                    "size": 2763,
+                    "sha256": "861b4be676fe1c2abab161c51183e8381769658f27f342927d04400afcdc2b12"
+                  },
+                  {
+                    "level": 3,
+                    "size": 2763,
+                    "sha256": "861b4be676fe1c2abab161c51183e8381769658f27f342927d04400afcdc2b12"
+                  },
+                  {
+                    "level": 4,
+                    "size": 2763,
+                    "sha256": "861b4be676fe1c2abab161c51183e8381769658f27f342927d04400afcdc2b12"
+                  },
+                  {
+                    "level": 5,
+                    "size": 2763,
+                    "sha256": "438c2901e77a91a0a877673d7f27c486119b173145dcfae0c475d35ae8c3f1a5"
+                  },
+                  {
+                    "level": 6,
+                    "size": 2763,
+                    "sha256": "438c2901e77a91a0a877673d7f27c486119b173145dcfae0c475d35ae8c3f1a5"
+                  },
+                  {
+                    "level": 7,
+                    "size": 2763,
+                    "sha256": "438c2901e77a91a0a877673d7f27c486119b173145dcfae0c475d35ae8c3f1a5"
+                  },
+                  {
+                    "level": 8,
+                    "size": 2763,
+                    "sha256": "438c2901e77a91a0a877673d7f27c486119b173145dcfae0c475d35ae8c3f1a5"
+                  },
+                  {
+                    "level": 9,
+                    "size": 2763,
+                    "sha256": "438c2901e77a91a0a877673d7f27c486119b173145dcfae0c475d35ae8c3f1a5"
+                  },
+                  {
+                    "level": 10,
+                    "size": 2758,
+                    "sha256": "d812f8a97b7a9fe848dcb915a65191880a12811acd55b64002b2619732f7cca9"
+                  },
+                  {
+                    "level": 11,
+                    "size": 2758,
+                    "sha256": "d812f8a97b7a9fe848dcb915a65191880a12811acd55b64002b2619732f7cca9"
+                  },
+                  {
+                    "level": 12,
+                    "size": 2758,
+                    "sha256": "d812f8a97b7a9fe848dcb915a65191880a12811acd55b64002b2619732f7cca9"
+                  }
+                ]
+              ]
+            ],
+            "objectives": [
+              [
+                "gzip",
+                2758,
+                "d812f8a97b7a9fe848dcb915a65191880a12811acd55b64002b2619732f7cca9"
+              ]
+            ],
+            "proposals": 0,
+            "renders": 1,
+            "judgments": 3,
+            "optional_work": 151931714,
+            "stopped": null
+          }
+        ],
+        "oracle": true
+      }
+    },
+    {
+      "objective": "brotli",
+      "before": {
+        "exit_code": 0,
+        "wall_seconds": 2.618546742014587,
+        "cpu_seconds": 2.6175040000000003,
+        "bytes": 2085,
+        "sha256": "07e68e1f0d0d214491fe93507dcee02c545170e3e8a1087923944a964ac763ca",
+        "artifact": "/home/azureuser/lilscript-work/q3-data-qualification/before-brotli.mjs",
+        "explanation": {
+          "path": "/home/azureuser/lilscript-work/q3-data-qualification/before-brotli.json",
+          "sha256": "d4d02a452f3ea2f81c43a43a195e54b51f10faa2583b793d8f3abdb183dd6f0d"
+        },
+        "resources": {
+          "baseline_work": 3806079,
+          "optional_work": 276840968,
+          "codec_work": 2493293,
+          "peak_retained_bytes": 3577506,
+          "frontend_logical_work": 2545176,
+          "frontend_allocation_accounting": "partial",
+          "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+          "source_buffer_capacity": 24512,
+          "frontend_phase_accounting": {
+            "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+            "main_parse_arena": "not repeated; discovery programs reused",
+            "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+            "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+            "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+            "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+            "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+            "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+            "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+            "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+            "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+            "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+            "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+            "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+            "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+            "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+            "semantic_verification": "pre-admitted work and owned scratch",
+            "module_metadata": "uninstrumented"
+          },
+          "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+          "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+          "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+          "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+          "retained_bytes_after_handoff": 0
+        },
+        "choices": [
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_772",
+            "seed": "columns",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                533
+              ]
+            ]
+          },
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "people",
+            "seed": "dictionary",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                2710
+              ],
+              [
+                "dictionary",
+                2850
+              ]
+            ]
+          },
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1322",
+            "seed": "front-coded",
+            "delivered": "front-coded",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "front-coded",
+                595
+              ],
+              [
+                "columns",
+                82
+              ],
+              [
+                "dictionary",
+                592
+              ]
+            ]
+          },
+          {
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1728",
+            "seed": "dictionary",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                1627
+              ],
+              [
+                "dictionary",
+                1857
+              ]
+            ]
+          }
+        ],
+        "judged": 114,
+        "checkpoints": [],
+        "oracle": true
+      },
+      "after": {
+        "exit_code": 0,
+        "wall_seconds": 3.033341712987749,
+        "cpu_seconds": 3.0324149999999994,
+        "bytes": 2091,
+        "sha256": "a6bad86cabacf18cf050b30da2db3f48c38bf1db182a5c403d3a4bd7559662e2",
+        "artifact": "/home/azureuser/lilscript-work/q3-data-qualification/after-brotli.mjs",
+        "explanation": {
+          "path": "/home/azureuser/lilscript-work/q3-data-qualification/after-brotli.json",
+          "sha256": "fd53e3dd7ce4aa0e7e45e6d94ae62ab30ea7827c6896a812395e79db8381640f"
+        },
+        "resources": {
+          "baseline_work": 5039446,
+          "optional_work": 372217501,
+          "codec_work": 12182457,
+          "peak_retained_bytes": 4583993,
+          "frontend_logical_work": 2545176,
+          "frontend_allocation_accounting": "partial",
+          "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+          "source_buffer_capacity": 24512,
+          "frontend_phase_accounting": {
+            "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+            "main_parse_arena": "not repeated; discovery programs reused",
+            "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+            "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+            "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+            "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+            "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+            "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+            "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+            "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+            "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+            "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+            "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+            "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+            "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+            "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+            "semantic_verification": "pre-admitted work and owned scratch",
+            "module_metadata": "uninstrumented"
+          },
+          "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+          "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+          "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+          "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+          "target_allocation_accounting": "partial",
+          "target_allocation_scope": "complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+          "retained_bytes_after_handoff": 0
+        },
+        "choices": [
+          {
+            "estimate_codec": "brotli",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_772",
+            "seed": "columns",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                96
+              ]
+            ]
+          },
+          {
+            "estimate_codec": "brotli",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "people",
+            "seed": "columns",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                68
+              ],
+              [
+                "dictionary",
+                -13
+              ]
+            ]
+          },
+          {
+            "estimate_codec": "brotli",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1322",
+            "seed": "literal",
+            "delivered": "dictionary",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "front-coded",
+                -13
+              ],
+              [
+                "columns",
+                -33
+              ],
+              [
+                "dictionary",
+                -44
+              ]
+            ]
+          },
+          {
+            "estimate_codec": "brotli",
+            "pinned": false,
+            "family": "data-encoding",
+            "site": "value_0_1728",
+            "seed": "columns",
+            "delivered": "columns",
+            "offered": [
+              [
+                "literal",
+                0
+              ],
+              [
+                "columns",
+                131
+              ],
+              [
+                "dictionary",
+                119
+              ]
+            ]
+          }
+        ],
+        "judged": 100,
+        "checkpoints": [
+          {
+            "level": 12,
+            "fast_stops": [
+              [
+                "brotli",
+                [
+                  {
+                    "level": 0,
+                    "size": 2181,
+                    "sha256": "378e9954bc62a81703cd13b419c4d28ea3506aa06a463bad7abe76ec9085445f"
+                  },
+                  {
+                    "level": 1,
+                    "size": 2157,
+                    "sha256": "26aaf21a3f3195151e471d94516dc8cda0eb16cddbe7af51357617db786029ce"
+                  },
+                  {
+                    "level": 2,
+                    "size": 2157,
+                    "sha256": "26aaf21a3f3195151e471d94516dc8cda0eb16cddbe7af51357617db786029ce"
+                  },
+                  {
+                    "level": 3,
+                    "size": 2157,
+                    "sha256": "26aaf21a3f3195151e471d94516dc8cda0eb16cddbe7af51357617db786029ce"
+                  },
+                  {
+                    "level": 4,
+                    "size": 2157,
+                    "sha256": "26aaf21a3f3195151e471d94516dc8cda0eb16cddbe7af51357617db786029ce"
+                  },
+                  {
+                    "level": 5,
+                    "size": 2101,
+                    "sha256": "19ef231d8d1322d167bb4a1e6f60e0b48d89e0e5863d74496e286f334fd32c74"
+                  },
+                  {
+                    "level": 6,
+                    "size": 2101,
+                    "sha256": "19ef231d8d1322d167bb4a1e6f60e0b48d89e0e5863d74496e286f334fd32c74"
+                  },
+                  {
+                    "level": 7,
+                    "size": 2101,
+                    "sha256": "19ef231d8d1322d167bb4a1e6f60e0b48d89e0e5863d74496e286f334fd32c74"
+                  },
+                  {
+                    "level": 8,
+                    "size": 2101,
+                    "sha256": "19ef231d8d1322d167bb4a1e6f60e0b48d89e0e5863d74496e286f334fd32c74"
+                  },
+                  {
+                    "level": 9,
+                    "size": 2101,
+                    "sha256": "19ef231d8d1322d167bb4a1e6f60e0b48d89e0e5863d74496e286f334fd32c74"
+                  },
+                  {
+                    "level": 10,
+                    "size": 2101,
+                    "sha256": "0f9a94460dc708e772de17836386495bb9db93199a4da4b364ba81a9a0be1aa2"
+                  },
+                  {
+                    "level": 11,
+                    "size": 2101,
+                    "sha256": "0f9a94460dc708e772de17836386495bb9db93199a4da4b364ba81a9a0be1aa2"
+                  },
+                  {
+                    "level": 12,
+                    "size": 2101,
+                    "sha256": "0f9a94460dc708e772de17836386495bb9db93199a4da4b364ba81a9a0be1aa2"
+                  }
+                ]
+              ]
+            ],
+            "objectives": [
+              [
+                "brotli",
+                2101,
+                "0f9a94460dc708e772de17836386495bb9db93199a4da4b364ba81a9a0be1aa2"
+              ]
+            ],
+            "proposals": 0,
+            "renders": 1,
+            "judgments": 12,
+            "optional_work": 38727705,
+            "stopped": null
+          }
+        ],
+        "oracle": true
+      }
+    }
+  ],
+  "complete": true
+}

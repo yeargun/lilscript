@@ -628,10 +628,12 @@ pub(super) fn form_tail_admitted(
     families: js::OutputFamilies,
     choices: &js::ChoiceMap,
     reuse_normalization: bool,
+    data_estimator: Option<(crate::config::CompressionCostModel, crate::compression::CodecSettings)>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<js::Module, FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
     if let Some(tail) = &mut head.tail { tail.reuse_normalization = reuse_normalization; }
+    head.module.data_estimator = data_estimator;
     form_tail(head, families, choices, budget)
 }
 

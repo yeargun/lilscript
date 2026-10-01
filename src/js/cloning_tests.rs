@@ -161,6 +161,7 @@ fn payloads() -> Vec<(&'static str, Module)> {
             "reserved" => module.reserved.push(text.clone()),
             "carried" => module.carried.push(text.clone()),
             "choice" => module.choice_sites.push(ChoiceSite {
+                estimate_codec: crate::config::CompressionCostModel::Raw,
                 key: ChoiceKey {
                     family: ChoiceFamily::DataEncoding,
                     site: SiteId::Formed(0),

@@ -432,13 +432,16 @@ fn the_seed_is_the_largest_estimated_saving() {
         .unwrap();
     assert!(best.saving > 0);
     assert_eq!(site.seed, best.alternative);
-    // A tiny table saves nothing: not a site, the literal stays.
+    // A tiny table saves nothing: keep the literal seed while retaining legal
+    // alternatives for compressed and joint-decoder competition.
     let (module, _) = table_module(&Lit::O(vec![("a", Lit::N(0.5)), ("b", Lit::N(0.25))]));
     let mut formed = module.clone();
     formed
         .encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None))
         .unwrap();
-    assert!(formed.choice_sites.is_empty());
+    assert_eq!(formed.choice_sites.len(), 1);
+    assert_eq!(formed.choice_sites[0].seed, LITERAL);
+    assert!(formed.choice_sites[0].alternatives.iter().all(|offered| offered.saving <= 0));
 }
 
 #[test]
@@ -522,4 +525,43 @@ fn s4_authored_pool_constrains_array_and_table_encodings() {
         assert_eq!(pinned.pool_strings(false,&mut budget).unwrap(),0);
         assert_eq!(run(&pinned),expected);
     }
+}
+
+#[test]
+fn q3_data_ranking_uses_each_objective_and_keeps_negative_legal_alternatives() {
+    use crate::config::CompressionCostModel as Codec;
+    let literal = metrics();
+    let (original, _) = table_module(&literal);
+    let oracle = run(&original);
+    let mut estimates = Vec::new();
+    for codec in [Codec::Raw, Codec::Gzip, Codec::Brotli] {
+        for settings in [crate::compression::CodecSettings::CANONICAL,
+            crate::compression::CodecSettings {
+                gzip: crate::compression::GzipSettings { level: 1, window: 9 },
+                brotli: crate::compression::BrotliSettings { quality: 3, window: 10, mode: crate::compression::BrotliMode::Text },
+            }] {
+            let mut formed = original.clone();
+            formed.data_estimator = Some((codec, settings));
+            formed.encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None)).unwrap();
+            assert_eq!(run(&formed), oracle);
+            let site = formed.choice_sites[0].clone();
+            assert_eq!(site.estimate_codec, codec);
+            assert_eq!(site.seed, seed(&site.alternatives));
+            estimates.push(site.alternatives.iter().map(|offered| offered.saving).collect::<Vec<_>>());
+            for offered in &site.alternatives {
+                let mut alternative = original.clone();
+                alternative.data_estimator = Some((codec, settings));
+                alternative.encode_tables(&ChoiceMap::SEEDS.with(site.key, offered.alternative), &mut AllocationBudget::new(None)).unwrap();
+                assert_eq!(run(&alternative), oracle, "{codec:?}: {}", offered.name);
+            }
+        }
+    }
+    assert!(estimates.windows(2).any(|rows| rows[0] != rows[1]), "objective estimates must read actual codec streams");
+    // Even individually losing alternatives are necessary for shared helpers
+    // and for compressed-context interactions. The scheduler must see them.
+    let (mut tiny, _) = table_module(&Lit::O(vec![("a", Lit::N(0.5)), ("b", Lit::N(0.25))]));
+    tiny.encode_tables(&ChoiceMap::SEEDS, &mut AllocationBudget::new(None)).unwrap();
+    assert_eq!(tiny.choice_sites[0].seed, LITERAL);
+    assert!(tiny.choice_sites[0].alternatives.iter().any(|offered| offered.saving < 0));
+    assert!(!crate::representation::schedule(&tiny.choice_sites, false).is_empty());
 }

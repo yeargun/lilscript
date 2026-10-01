@@ -608,7 +608,12 @@ export function walkCounts(stderr) {
     pruned: stage?.pruned ?? 0,
     passes: stage?.passes ?? 0,
     starts: stage?.starts?.length ?? 0,
-    stops: (stage?.stops ?? []).map(({ level, size, sha256 }) => ({ level, size, sha256 })),
+    stops: [...new Map([
+      ...(stage?.stops ?? []).map(({ level, size, sha256 }) => [level, { level, size, sha256 }]),
+      ...(search.terminal?.effort_checkpoints ?? []).flatMap(checkpoint =>
+        checkpoint.objectives.filter(([codec]) => codec === stage?.codec)
+          .map(([, size, sha256]) => [checkpoint.level, { level: checkpoint.level, size, sha256 }])),
+    ]).values()],
   };
 }
 

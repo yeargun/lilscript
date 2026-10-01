@@ -42,7 +42,9 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version55 admits shared source analyses and deterministic effect-summary stages.
 // Version56 admits primitive/aggregate/default facts and forwarding/liveness plans.
 // Version63 qualifies six target-local proofs with complete dependency and storage keys.
-pub const POLICY_ALGORITHM_VERSION: u32 = 63;
+// Version64 protects effort checkpoints, bounds assignment evidence, ranks data
+// with objective fragments and admits fixed batches of independent file scores.
+pub const POLICY_ALGORITHM_VERSION: u32 = 64;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -63,7 +65,8 @@ pub const POLICY_ALGORITHM_VERSION: u32 = 63;
 // Version29 gates deferred naming at 14 by default and combines it with final refinements.
 // Version30 adds common per-site moves and a protected, configurable joint tail.
 // Version31 protects the prior search before compact allocation.
-pub const SEARCH_SCHEDULE_VERSION: u32 = 32;
+// Version33 adds effort checkpoints, cross-start evidence and objective priors.
+pub const SEARCH_SCHEDULE_VERSION: u32 = 33;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilationRequest {
@@ -328,6 +331,13 @@ where
 #[serde(default, deny_unknown_fields)]
 pub struct SearchSchedule {
     pub codec_schedule: CodecSchedule,
+    /// Complete lower effort checkpoints before a changed frontier, retaining
+    /// their qualified winners. False requests the legacy independent tier.
+    pub protect_effort: bool,
+    /// Additional objective-calibrated start after the ordinary incumbent:
+    /// auto at 14, on at 13, off never. Exact bytes alone admit its result.
+    #[serde(deserialize_with = "deferred_naming_permission")]
+    pub objective_prior: TacticPermission,
     /// Terminal proxy rejection: `on` (default), `audit` (also measure rejected moves) or `off` (judge every reached move exactly).
     pub proxy_pruning: ProxyPruning,
     /// Revisit pruned naming starts: `auto` from effort 14, `on` from 13, `off` never. Boolean true/false remain on/off aliases; extra compile work may yield no size win.
@@ -344,6 +354,8 @@ impl Default for SearchSchedule {
     fn default() -> Self {
         Self {
             codec_schedule: CodecSchedule::Staged,
+            protect_effort: true,
+            objective_prior: TacticPermission::Auto,
             proxy_pruning: ProxyPruning::On,
             deferred_naming_starts: TacticPermission::Auto,
             deferred_naming_polish: true,
@@ -614,6 +626,7 @@ pub fn serialize_bound<S: serde::Serializer>(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedPolicy {
     cache: crate::config::CacheConfig,
+    execution: crate::config::ExecutionConfig,
     source_contract: crate::config::LanguageConfig,
     hosts: crate::config::HostConfig,
     contract: CompilationContract,
@@ -626,6 +639,7 @@ pub struct ResolvedPolicy {
     constraints: CandidateConstraints,
     diagnostics: Vec<String>,
     fingerprint: [u8; 32],
+    effort_overrides: [Option<usize>; 5],
 }
 
 impl ResolvedPolicy {
@@ -643,6 +657,7 @@ impl ResolvedPolicy {
     ) -> Self {
         let mut policy = Self {
             cache: Default::default(),
+            execution: Default::default(),
             source_contract,
             hosts: Default::default(),
             contract,
@@ -655,6 +670,7 @@ impl ResolvedPolicy {
             constraints,
             diagnostics,
             fingerprint: [0; 32],
+            effort_overrides: [None; 5],
         };
         policy.fingerprint = Sha256::digest(policy.receipt().to_string().as_bytes()).into();
         policy
@@ -665,6 +681,11 @@ impl ResolvedPolicy {
         self
     }
     pub fn cache(&self) -> &crate::config::CacheConfig { &self.cache }
+    pub(crate) fn with_execution(mut self, execution: crate::config::ExecutionConfig) -> Self {
+        self.execution = execution;
+        self
+    }
+    pub fn execution(&self) -> crate::config::ExecutionConfig { self.execution }
 
     pub fn source_contract(&self) -> crate::config::LanguageConfig {
         self.source_contract
@@ -696,6 +717,51 @@ impl ResolvedPolicy {
     }
     pub fn effort(&self) -> u8 {
         self.effort
+    }
+    pub(crate) fn with_effort_overrides(mut self, overrides: [Option<usize>; 5]) -> Self {
+        self.effort_overrides = overrides;
+        self.fingerprint = Sha256::digest(self.receipt().to_string().as_bytes()).into();
+        self
+    }
+
+    /// Shared semantic rules have effort-independent permissions. Re-resolve
+    /// the target's automatic gates and counted search limits at a lower tier;
+    /// explicit permissions and explicit ceilings keep their original values.
+    pub(crate) fn preceding_effort(&self) -> Option<Self> {
+        let mut objective = self.objective?;
+        if self.effort < 13 || !objective.search.protect_effort || objective.walk.prefix == 0 {
+            return None;
+        }
+        let mut lower = self.clone();
+        lower.effort -= 1;
+        for id in TacticId::ALL {
+            let tactic = &mut lower.tactics[id as usize];
+            if tactic.permission == TacticPermission::Auto && lower.effort < id.spec().minimum_effort {
+                tactic.enabled = false;
+            }
+        }
+        loop {
+            let mut changed = false;
+            for id in TacticId::ALL {
+                if lower.tactics[id as usize].enabled && id.spec().prerequisites.iter()
+                    .any(|required| !lower.tactics[*required as usize].enabled) {
+                    lower.tactics[id as usize].enabled = false;
+                    changed = true;
+                }
+            }
+            if !changed { break; }
+        }
+        let structural = StructuralSchedule::at(lower.effort);
+        let [proposals, probes, candidates, bytes, width] = self.effort_overrides;
+        objective.optional_alternatives = proposals.unwrap_or(structural.proposals);
+        objective.optional_codec_probes = probes.unwrap_or(structural.codec_probes);
+        objective.retained_candidates = candidates.unwrap_or(structural.candidates);
+        objective.retained_candidate_bytes = bytes.unwrap_or(structural.bytes);
+        objective.beam_width = width.unwrap_or(structural.width);
+        objective.walk = WalkSchedule::at(lower.effort, objective.codec);
+        lower.objective = Some(objective);
+        lower.fingerprint = Sha256::digest(lower.receipt().to_string().as_bytes()).into();
+        Some(lower)
     }
     /// Effective permission for the deferred tail; actual work also needs a
     /// proxy-rejected seed and remaining resources. Explicit on preserves the
@@ -730,7 +796,7 @@ impl ResolvedPolicy {
     pub fn resolution(&self) -> serde_json::Value {
         use serde_json::json;
         json!({"configuration_version": self.configuration_version,
-        "cache": self.cache,
+        "cache": self.cache, "execution": self.execution,
         "runtime_permissions": if self.configuration_version == LEGACY_POLICY_VERSION {
             "legacy-effort-16-startup"
         } else { "explicit" },
@@ -1014,7 +1080,7 @@ impl ResolvedPolicy {
                     "request_bytes":delivery.request_bytes, "depth_bytes":delivery.depth_bytes},
             }),
         };
-        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"proxy_pruning":o.search.proxy_pruning,"deferred_naming_starts":o.search.deferred_naming_starts,"deferred_naming_starts_enabled":self.deferred_naming_starts_enabled(),"deferred_naming_polish":o.search.deferred_naming_polish,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
+        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "codec_settings":o.codec_settings, "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "walk":o.walk.receipt(), "effort_overrides":self.effort_overrides,"search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"protect_effort":o.search.protect_effort,"objective_prior":o.search.objective_prior,"proxy_pruning":o.search.proxy_pruning,"deferred_naming_starts":o.search.deferred_naming_starts,"deferred_naming_starts_enabled":self.deferred_naming_starts_enabled(),"deferred_naming_polish":o.search.deferred_naming_polish,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval}}));
         json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "configuration_version":self.configuration_version, "source_contract":self.source_contract, "host":self.hosts, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| {
             let spec = id.spec();
             let available = !spec.producers.is_empty() && (!spec.javascript_only || self.javascript_contract().is_some());
@@ -1524,9 +1590,37 @@ mod tests {
     }
 
     #[test]
+    fn q3_preceding_effort_resolves_like_standalone_with_explicit_controls() {
+        use crate::config::ProjectConfig;
+        for codec in ["raw", "gzip", "brotli"] {
+            for extra in ["", "[javascript]\ncandidate_beam_width=3\ncandidate_proposal_limit=11\nterminal_codec_probe_limit=17\ncandidate_limit=20\ncandidate_byte_budget=1000000\n[policy.tactics]\nreceiver-aliases='on'\nnaming-compaction='off'\nstartup-reconstruction='on'"] {
+                let mut config: ProjectConfig = toml::from_str(&format!("objective.codecs='{codec}'\neffort.level=16\n{extra}")).unwrap();
+                let mut resolved = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
+                for level in (12..16).rev() {
+                    let lower = resolved.preceding_effort().unwrap();
+                    config.effort.level = level;
+                    let independent = config.resolve_policy(CompilationRequest::JavaScript { preserve_root_exports: true }).unwrap();
+                    assert_eq!(lower.receipt(), independent.receipt(), "{codec}/{level}/{extra}");
+                    assert_eq!(lower.fingerprint(), independent.fingerprint());
+                    for tactic in TacticId::ALL {
+                        if tactic.spec().producers.contains(&TacticProducer::SharedRules) {
+                            assert_eq!(lower.tactic(tactic), resolved.tactic(tactic));
+                        }
+                    }
+                    resolved = lower;
+                }
+                assert!(resolved.preceding_effort().is_none());
+            }
+        }
+        assert!(js("[policy.search]\nprotect_effort=false").preceding_effort().is_none());
+    }
+
+    #[test]
     fn search_schedule_defaults_and_partial_configuration_are_resolved_once() {
         let default = SearchSchedule {
             codec_schedule: CodecSchedule::Staged,
+            protect_effort: true,
+            objective_prior: TacticPermission::Auto,
             proxy_pruning: ProxyPruning::On,
             deferred_naming_starts: TacticPermission::Auto,
             deferred_naming_polish: true,
@@ -1550,6 +1644,8 @@ mod tests {
             serde_json::json!({
                 "version": SEARCH_SCHEDULE_VERSION,
                 "codec_schedule": "immediate",
+                "protect_effort": true,
+                "objective_prior": "auto",
                 "proxy_pruning": "on",
                 "deferred_naming_starts": "auto",
                 "deferred_naming_starts_enabled": false,
@@ -1566,6 +1662,8 @@ mod tests {
             let expected = PolicyConfig {
                 search: SearchSchedule {
                     codec_schedule,
+                    protect_effort: true,
+                    objective_prior: TacticPermission::Auto,
                     proxy_pruning: ProxyPruning::Audit,
                     deferred_naming_starts: TacticPermission::Off,
                     deferred_naming_polish: false,

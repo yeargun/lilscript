@@ -1034,6 +1034,9 @@ pub struct EntryPublic {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
+    /// Local data ranking uses this objective's proxy and window. The full
+    /// artifact, with its final names and shared helpers, is judged separately.
+    pub(crate) data_estimator: Option<(crate::config::CompressionCostModel, crate::compression::CodecSettings)>,
     pub expressions: Vec<Expr>,
     pub origins: Vec<Option<SourceNodeId>>,
     /// Source-authored string values admitted to shared storage regardless of seed.
@@ -3142,6 +3145,7 @@ impl Module {
                 Retained,
                 &mut self.choice_sites,
                 ChoiceSite {
+                    estimate_codec: crate::config::CompressionCostModel::Raw,
             pinned: false,
                     key,
                     name,
@@ -3163,6 +3167,7 @@ impl Module {
         });
         Ok(Self {
             expressions: vec![],
+            data_estimator: None,
             origins: vec![],
             authored_pool: Vec::new(),
             authored_pool_formed: false,

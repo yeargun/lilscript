@@ -1068,8 +1068,6 @@ impl<'src> CheckedSourceSession<'src> {
                 "codec_work":ledger.work_by_kind(WorkKind::Codec),"peak_retained_bytes":ledger.peak_retained_bytes(),
                 "frontend_logical_work":frontend_work,
                 "frontend_allocation_accounting":"partial",
-                "target_allocation_accounting":"partial",
-                "target_allocation_scope":"complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
                 "source_buffer_accounting":if source_buffer_bytes.is_some() {"pre-admitted stable arena backing; insertion String overlap charged"} else {"caller-owned text; excluded"},
                 "source_buffer_capacity":source_buffer_bytes,
                 "frontend_phase_accounting":{
@@ -1098,7 +1096,11 @@ impl<'src> CheckedSourceSession<'src> {
                 "scope":"admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate"
             }
         });
+        report["resources"]["target_allocation_accounting"] = json!("partial");
+        report["resources"]["target_allocation_scope"] = json!("complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact");
         report["codec_cache"] = json!(codec_cache);
+        report["execution"] = json!({"jobs": javascript.as_ref().or(native.as_ref()).unwrap().execution().jobs,
+            "scoring_batch": 4, "worker_codec_bytes": 8 * 1024 * 1024});
         FinishedSourceSession { report, ledger }
     }
 }
