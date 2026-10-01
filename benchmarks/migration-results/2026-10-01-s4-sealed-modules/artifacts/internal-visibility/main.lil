@@ -1,0 +1,1 @@
+import {Crate} from "./barrel";export int run(int n){Crate b=new Crate(n);return b.read();}

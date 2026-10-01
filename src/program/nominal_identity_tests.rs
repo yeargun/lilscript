@@ -206,3 +206,77 @@ fn same_named_private_classes_are_distinct_definitions_with_identity_places() {
         .unwrap();
     assert_eq!(inherited.slot, 0);
 }
+
+#[test]
+fn s4_internal_constructor_visibility_is_not_a_public_boundary() {
+    let sources = [
+        r#"import {Box} from "./box";export int run(int n){Box b=new Box(n);return b.read();}"#,
+        "export class Box{int longPrivateField;init(int n){this.longPrivateField=n;}int read(){return this.longPrivateField;}}export constructor Box;",
+    ];
+    for public_child in [false, true] {
+        let arena = bumpalo::Bump::new();
+        let programs = sources
+            .iter()
+            .map(|s| crate::parser::parse_source(&arena, s).unwrap())
+            .collect::<Vec<_>>();
+        let mut modules = module_graph(&sources, &[&[1], &[]], &[1, 0]);
+        if public_child {
+            modules.roots.push(1);
+            modules.root_names.push("box".into());
+        }
+        let checked = crate::check::analyze_modules(&programs, &modules).unwrap();
+        let class = checked.view(1).unwrap().classes().next().unwrap();
+        assert_eq!(class.published, public_child);
+        assert_eq!(class.observed, public_child);
+        assert_eq!(
+            checked
+                .view(1)
+                .unwrap()
+                .is_reflected(class.declaration.identity),
+            public_child
+        );
+        let program = super::from_checked_modules(&programs, &checked).unwrap();
+        program.verify().unwrap();
+        assert_eq!(program.classes()[0].published, public_child);
+        assert_eq!(program.classes()[0].value.is_some(), public_child);
+        assert_eq!(
+            program
+                .exports
+                .iter()
+                .filter(|e| e.name == "Box" && matches!(e.target, super::InterfaceTarget::Value(_)))
+                .count(),
+            if public_child { 2 } else { 0 }
+        );
+    }
+}
+
+#[test]
+fn s4_constructor_reads_retain_the_shared_identity_through_internal_aliases() {
+    let sources = [
+        r#"import {Crate} from "./barrel";export JsValue ctor(){return Crate;}"#,
+        r#"import {Box as Crate} from "./box";export {Crate};export constructor Crate;"#,
+        "export class Box{int value;init(int n){this.value=n;}int read(){return this.value;}}export constructor Box;",
+    ];
+    let arena = bumpalo::Bump::new();
+    let programs = sources
+        .iter()
+        .map(|s| crate::parser::parse_source(&arena, s).unwrap())
+        .collect::<Vec<_>>();
+    let modules = module_graph(&sources, &[&[1], &[2], &[]], &[2, 1, 0]);
+    let checked = crate::check::analyze_modules(&programs, &modules).unwrap();
+    let class = checked.view(2).unwrap().classes().next().unwrap();
+    assert!(class.published && class.observed);
+    let program = super::from_checked_modules(&programs, &checked).unwrap();
+    program.verify().unwrap();
+    assert_eq!(program.classes()[0].prototype.len(), 1);
+    let cells = program
+        .exports
+        .iter()
+        .filter_map(|e| match e.target {
+            super::InterfaceTarget::Value(c) if e.name == "Box" || e.name == "Crate" => Some(c),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(cells.len(), 2);
+    assert_eq!(cells[0], cells[1]);
+}

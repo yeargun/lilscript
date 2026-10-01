@@ -1,0 +1,1 @@
+let r=class Box{constructor(r){this.longPrivateField=0;this.longPrivateField=r}read(r=void 0){return t(this,r)}},t=(t,r)=>{if(r===void 0)r=2;return t.longPrivateField+r|0},ctor=async function(){return(await Promise.resolve().then(()=>({Box:r}))).Box},run=function(e){return t(new r(e))};export{ctor,run};

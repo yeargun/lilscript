@@ -400,7 +400,8 @@ fn declaration_phase<'ast, 'src>(
     let mut aliases = InterfaceGraph::new(programs, &checked, &locals)?;
     aliases.propagate();
     aliases.install_types(programs, &mut checked, budget)?;
-    // `export constructor C` publishes the class its module's scope names.
+    // Internal exports grant visibility. Only delivery roots publish an ABI;
+    // actual constructor-value observations are seeded after body checking.
     for (module, program) in programs.iter().enumerate() {
         for export in program.exports {
             if export.kind != crate::ast::ExportKind::ConstructorValue {
@@ -427,7 +428,7 @@ fn declaration_phase<'ast, 'src>(
                 )
                 .into());
             }
-            info.published = true;
+            info.published |= checked.roots.contains(&module);
         }
     }
     Ok(DeclarationPhase {
@@ -690,6 +691,20 @@ fn body_phase<'ast, 'src>(
             exports.sort_by_key(|export| export.span.start);
         }
     }
+    // A first-class constructor observation can leave through an untyped host
+    // operation. Preserve its identity and prototype using canonical bindings,
+    // including imported aliases and used dynamic namespace members.
+    checked
+        .declarations
+        .mark_constructor_observations(&checked.facts, budget)
+        .map_err(|error| resource(checked.roots[0], error))?;
+    checked
+        .declarations
+        .mark_observed_classes()
+        .map_err(|(module, error)| ModuleCheckError {
+            module: module.expect("class declaration owner"),
+            error,
+        })?;
     // Identity tests anywhere keep their classes (R13).
     checked.declarations.mark_tested_classes();
     for &root in &checked.roots {

@@ -175,7 +175,8 @@ pub(crate) fn from_checked_source_admitted<'ast, 'src>(
     semantics: &CheckedModule<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ConversionError> {
-    from_checked_source_with_rules(source, semantics, None, false, budget).map(|(program, _)| program)
+    from_checked_source_with_rules(source, semantics, None, false, budget)
+        .map(|(program, _)| program)
 }
 
 /// Conversion, then the program rules a build permits (`rules/`), before the
@@ -203,7 +204,8 @@ pub(crate) fn from_checked_modules_admitted<'ast, 'src>(
     semantics: &CheckedModules<'ast, 'src>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<publication::PreparedProgram<'src>, ModuleConversionError> {
-    from_checked_modules_with_rules(sources, semantics, None, false, budget).map(|(program, _)| program)
+    from_checked_modules_with_rules(sources, semantics, None, false, budget)
+        .map(|(program, _)| program)
 }
 
 /// `from_checked_source_with_rules` for a module graph.
@@ -544,6 +546,9 @@ fn convert_modules<'ast, 'src>(
                         .ok_or_else(|| fail(module, "checked import outside module set"))?;
                     let target = interface_target(import.target)
                         .ok_or_else(|| fail(module, "semantic import identity capacity"))?;
+                    if !lower.materialized_interface(target).map_err(make_error)? {
+                        continue;
+                    }
                     let name = lower
                         .budget
                         .string(Retained, import.imported)
@@ -650,11 +655,10 @@ fn convert_modules<'ast, 'src>(
                 .interfaces()
                 .get(target)
                 .and_then(|interface| {
-                    interface
-                        .exports
-                        .iter()
-                        .find(|export| export.external == name
-                            && matches!(export.target, crate::check::InterfaceTarget::Value(_)))
+                    interface.exports.iter().find(|export| {
+                        export.external == name
+                            && matches!(export.target, crate::check::InterfaceTarget::Value(_))
+                    })
                 })
                 .and_then(|export| interface_target(export.target))
                 .and_then(|target| match target {
@@ -720,6 +724,12 @@ fn convert_modules<'ast, 'src>(
         for export in &semantics.interfaces()[module].exports {
             let target = interface_target(export.target)
                 .ok_or_else(|| fail(module, "checked export identity capacity"))?;
+            if !lower
+                .materialized_interface(target)
+                .map_err(|error| ModuleConversionError { module, error })?
+            {
+                continue;
+            }
             lower
                 .add_export(export.external, target)
                 .map_err(|error| ModuleConversionError { module, error })?;
@@ -1461,6 +1471,18 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 },
             )?;
         self.owned_string(value)
+    }
+    /// A constructor that only participates in typed `new` calls has no
+    /// runtime value. Its internal type interface remains; unused constructor
+    /// visibility must not force a public class/prototype into the artifact.
+    fn materialized_interface(&mut self, target: InterfaceTarget) -> Result<bool, ConversionError> {
+        let InterfaceTarget::Value(cell) = target else {
+            return Ok(true);
+        };
+        let Some(class) = self.class_of_value(cell)? else {
+            return Ok(true);
+        };
+        Ok(self.class_info(class, Span::default())?.observed)
     }
     fn add_export(&mut self, name: &str, target: InterfaceTarget) -> Result<(), ConversionError> {
         let name = self.budget.string(Retained, name)?;
@@ -5668,12 +5690,21 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             None,
             span,
         )?;
-        let receiver_type = self.semantics.expression_type(array.id).expect("checked array");
+        let receiver_type = self
+            .semantics
+            .expression_type(array.id)
+            .expect("checked array");
         let (element, length_operation) = match receiver_type {
-            Type::Array(element) => (element.as_ref().clone(), crate::primitive::Intrinsic::ArrayLength),
+            Type::Array(element) => (
+                element.as_ref().clone(),
+                crate::primitive::Intrinsic::ArrayLength,
+            ),
             ty => {
-                let kind = crate::typed_array::TypedArrayKind::from_type(ty)
-                    .ok_or(Unsupported { span, feature: "checked indexing requires an array" })?;
+                let kind =
+                    crate::typed_array::TypedArrayKind::from_type(ty).ok_or(Unsupported {
+                        span,
+                        feature: "checked indexing requires an array",
+                    })?;
                 (kind.index_value_type(), kind.length_intrinsic())
             }
         };

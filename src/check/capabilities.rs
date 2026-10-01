@@ -123,7 +123,6 @@ pub(crate) fn native(
     Ok(())
 }
 
-
 /// Enforce the selected source contract before any lowering or optimization.
 /// Its field proof is also consumed by the compatibility lint; no second
 /// syntactic assignment recognizer decides whether a default is observed.
@@ -137,14 +136,18 @@ pub(crate) fn language(
         return Ok(());
     }
     for class in view.classes() {
-        budget.work(WorkKind::Analysis,1)?;
-        if class.module != module || class.external {continue;}
+        budget.work(WorkKind::Analysis, 1)?;
+        if class.module != module || class.external {
+            continue;
+        }
         if let Some(span) = class.initialization.before_super {
-            return Err(AdmittedCheckError::new(span,
-                "`this` is used before its base constructor initializes it (R3)"));
+            return Err(AdmittedCheckError::new(
+                span,
+                "`this` is used before its base constructor initializes it (R3)",
+            ));
         }
         if let Some(&member) = class.initialization.implicit.first() {
-            let Some(NominalMember::Field {field,..}) = view.nominal_member(member) else {
+            let Some(NominalMember::Field { field, .. }) = view.nominal_member(member) else {
                 unreachable!("constructor flow records checked field identities");
             };
             return Err(AdmittedCheckError::new(field.span,format!(

@@ -892,3 +892,20 @@ served bytes. Pin `s4-field-contracts-1` has SHA-256
 `27534025c90d306509f8a9491e85a9ab47980552d2ec2f41d1a159773d6e7302`, algorithm 24,
 search 31, walk 10 and local facts 10. No full-suite, fleet, timing, Closure or
 native-complete claim. S4 remains the only active milestone.
+
+
+## 2026-10-01: S4 sealed module constructor boundaries
+
+The [sealed-module batch](../../benchmarks/migration-results/2026-10-01-s4-sealed-modules/README.md)
+separates internal constructor visibility from declared entry ABI. A shared
+canonical-binding scan preserves constructor/prototype identity for actual
+first-class and dynamic reads; unused internal constructor interfaces dissolve
+with the private class. Aliases, re-exports, multiple roots and initialization
+retain their contracts.
+
+Twelve distinct focused checks and the release build pass. Four matched graphs
+improve from 1006 → 837 raw, 703 → 613 gzip and 570 → 499 Brotli; only the private
+visibility case changes. Public/dynamic constructor behavior and final byte
+scores agree. Pin `s4-sealed-modules-1` has SHA-256 `7511059d61700fa3d8ab8ec1fe89ac0e33e8af6e03b75c45deae38e230653c56`, algorithm 25, search
+31, walk 10 and local facts 10. No full-suite, fleet, timing or Closure claim.
+S4 remains active, with observed generics and wider language/catalog work open.

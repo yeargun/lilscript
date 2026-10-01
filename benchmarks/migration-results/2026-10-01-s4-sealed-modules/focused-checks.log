@@ -1,0 +1,25 @@
+
+running 1 test
+test program::nominal_identity_tests::s4_internal_constructor_visibility_is_not_a_public_boundary ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1903 filtered out; finished in 0.00s
+
+
+running 1 test
+test program::nominal_identity_tests::s4_constructor_reads_retain_the_shared_identity_through_internal_aliases ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1903 filtered out; finished in 0.00s
+
+
+running 1 test
+test build::tests::s4_private_constructor_exports_dissolve_but_observed_values_keep_their_abi ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1903 filtered out; finished in 6.24s
+
+
+running 2 tests
+test check::modules::tests::s4_dual_class_imports_keep_type_and_constructor_identities_through_a_barrel ... ok
+test build::tests::s4_dual_class_imports_and_reexports_preserve_runtime_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1902 filtered out; finished in 0.67s
+

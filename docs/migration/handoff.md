@@ -9,7 +9,17 @@ Checkout `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
 C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3 are implemented. **S4 remains the sole active
 milestone**, under its [acceptance contract](s4-acceptance.md).
 
-The latest [S4 field batch](../../benchmarks/migration-results/2026-10-01-s4-field-contracts/README.md)
+The latest [S4 sealed-module batch](../../benchmarks/migration-results/2026-10-01-s4-sealed-modules/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-sealed-modules-1/lilscript`, SHA-256
+`7511059d61700fa3d8ab8ec1fe89ac0e33e8af6e03b75c45deae38e230653c56`.
+Algorithm 25 / search 31 / walk 10 / local facts 10. Internal constructor exports
+are visibility; only roots and actual first-class/dynamic observations preserve
+the public constructor/prototype. Twelve distinct focused checks and the release
+build pass. Four matched module graphs improve by 169 raw / 90 gzip / 71 Brotli
+bytes, entirely from private visibility; all public cells are unchanged.
+Next: remaining S4 generic/host, language/catalog and shared-consumer work.
+
+The preceding [S4 field batch](../../benchmarks/migration-results/2026-10-01-s4-field-contracts/README.md)
 and [index batch](../../benchmarks/migration-results/2026-10-01-s4-index-contracts/README.md)
 pin `/home/azureuser/lilscript-work/bin/s4-field-contracts-1/lilscript`, SHA-256
 `27534025c90d306509f8a9491e85a9ab47980552d2ec2f41d1a159773d6e7302`.

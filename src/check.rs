@@ -19,9 +19,9 @@ use crate::typed_array::TypedArrayKind;
 
 pub(crate) mod binary_types;
 pub(crate) mod capabilities;
+mod field_initialization;
 mod modules;
 mod struct_cycles;
-mod field_initialization;
 pub use field_initialization::FieldInitializationFacts;
 pub(crate) mod type_admission;
 mod type_identity;
@@ -880,7 +880,8 @@ pub struct ClassInfo<'src> {
     /// run time).
     pub value: Option<SymbolId>,
     pub external: bool,
-    /// Some module publishes the class's constructor (`export constructor`).
+    /// A delivery entry exports the constructor, or a first-class use can
+    /// expose it. Internal module visibility alone does not publish an ABI.
     pub published: bool,
     /// The class's identity is observable, so it stays a JavaScript class:
     /// it is published, has a host (extern) ancestor, or shares an internal
@@ -1351,6 +1352,47 @@ impl<'src> DeclarationTables<'src> {
             }
         }
         observe_descendants(classes);
+        Ok(())
+    }
+
+    /// Resolve constructor observations once by checked value identity. An
+    /// import/export name is only visibility, and `new C` names its type rather
+    /// than reading its constructor binding. Actual first-class reads retain a
+    /// conservative public prototype contract (including host escapes).
+    fn mark_constructor_observations(
+        &mut self,
+        facts: &[ModuleFacts<'_, 'src>],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        if self.classes.is_empty() {
+            return Ok(());
+        }
+        let mut scope = budget.scope();
+        let mut constructors = scope.filled(AllocationClass::Scratch, self.symbols.len(), None)?;
+        for (index, class) in self.classes.iter().enumerate() {
+            scope.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+            if let Some(symbol) = class.value {
+                constructors[symbol.0 as usize] = Some(index);
+            }
+        }
+        for module in facts {
+            for info in &module.source_info {
+                scope.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                if let ExpressionResolution::Binding(symbol) = info.resolution {
+                    if let Some(index) = constructors[symbol.0 as usize] {
+                        self.classes[index].published = true;
+                    }
+                }
+            }
+            for key in &module.used_dynamic_exports {
+                scope.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                if let Some(symbol) = module.dynamic_export_symbols.get(key) {
+                    if let Some(index) = constructors[symbol.0 as usize] {
+                        self.classes[index].published = true;
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -2454,6 +2496,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.declare_functions(program)?;
 
         self.analyze_items(program)?;
+        self.declarations
+            .mark_constructor_observations(std::slice::from_ref(self.facts), self.budget)?;
+        self.declarations
+            .mark_observed_classes()
+            .map_err(|(_, error)| AdmittedCheckError::Semantic(error))?;
         self.declarations.mark_tested_classes();
 
         for export in program.exports {
@@ -3423,9 +3470,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
             }
         }
-        let initialization = field_initialization::analyze(class, CheckedView {
-            declarations: self.declarations, facts: self.facts,
-        }, self.budget)?;
+        let initialization = field_initialization::analyze(
+            class,
+            CheckedView {
+                declarations: self.declarations,
+                facts: self.facts,
+            },
+            self.budget,
+        )?;
         self.declarations.classes[identity.index()].initialization = initialization;
         self.pop_type_params();
         Ok(())
@@ -6712,7 +6764,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 "get" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: vec![FunctionParameter::value(Type::Int)],
                     return_type: Box::new(nullable_type(
-                        crate::typed_array::TypedArrayKind::from_type(&ty).unwrap().index_value_type(),
+                        crate::typed_array::TypedArrayKind::from_type(&ty)
+                            .unwrap()
+                            .index_value_type(),
                     )),
                 }))),
                 "slice" | "subarray" => Ok(Type::Function(FunctionType::new(FunctionSignature {

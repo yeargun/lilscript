@@ -1,0 +1,1 @@
+import {Crate} from "./barrel";export JsValue ctor(){return Crate;}export int run(int n){Crate b=new Crate(n);return b.read();}

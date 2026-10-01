@@ -84,7 +84,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M10.5 | [S4](plan.md#s4) | Sealed virtuals and sum types (R8) |
 | M10.6 | [S4](plan.md#s4) | ABI-valued enums (R8) |
 | M10.18 | [S4](plan.md#s4) | Value structs (R4); `ref` removal after Y2 |
-| M10.10 | [S4](plan.md#s4) | Sealed modules (R16) |
+| M10.10 | [S4](plan.md#s4) | Implemented: internal constructor visibility, root ABI publication, canonical first-class/dynamic observations and zero-use singleton retirement (R16); delivery production remains D1–D3 |
 | M10.17 | [S4](plan.md#s4) | Host catalog and generics (R17, R18) |
 | M11.1 | [N1](plan.md#n1) | Toolchain owner |
 | M11.3 | [N2](plan.md#n2) | Externs per target |

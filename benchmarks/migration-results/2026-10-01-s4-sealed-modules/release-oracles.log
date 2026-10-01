@@ -1,0 +1,13 @@
+checked internal-visibility/raw
+checked internal-visibility/gzip
+checked internal-visibility/brotli
+checked public-barrel/raw
+checked public-barrel/gzip
+checked public-barrel/brotli
+checked constructor-value/raw
+checked constructor-value/gzip
+checked constructor-value/brotli
+checked dynamic-constructor/raw
+checked dynamic-constructor/gzip
+checked dynamic-constructor/brotli
+{"raw":{"before":1006,"after":837,"delta":-169},"gzip":{"before":703,"after":613,"delta":-90},"brotli":{"before":570,"after":499,"delta":-71}}

@@ -1,0 +1,446 @@
+{
+  "scope": "four matched sealed-module boundary cases; no fleet or timing claim",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/s4-sealed-modules-1/lilscript",
+    "sha256": "7511059d61700fa3d8ab8ec1fe89ac0e33e8af6e03b75c45deae38e230653c56"
+  },
+  "baseline": {
+    "path": "/home/azureuser/lilscript-work/bin/s4-field-contracts-1/lilscript",
+    "sha256": "27534025c90d306509f8a9491e85a9ab47980552d2ec2f41d1a159773d6e7302"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "totals": {
+    "raw": {
+      "before": 1006,
+      "after": 837,
+      "delta": -169
+    },
+    "gzip": {
+      "before": 703,
+      "after": 613,
+      "delta": -90
+    },
+    "brotli": {
+      "before": 570,
+      "after": 499,
+      "delta": -71
+    }
+  },
+  "rows": [
+    {
+      "id": "internal-visibility",
+      "matched": true,
+      "source_sha256": "775d7058e370cb9259ec0c69b1c76d6b6f2dd05f8c77ecd3833b51502afd9daf",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "01095c80e77fe7452e9d4888f364dea0e1e19f373f519ce91b8bb4518a1efa09",
+            "raw": 220,
+            "gzip9": 164,
+            "brotli11": 131,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 178,
+              "judged": 23
+            }
+          },
+          "after": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "d1b2fe844dc4df5c4e22c785fd94875f0859e862cad3d3873964674f71a9c3f0",
+            "raw": 51,
+            "gzip9": 70,
+            "brotli11": 55,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 284,
+              "judged": 16
+            }
+          }
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "4c308c7ec9a1aa21d6d6a31cb362981351a268631489bcaf02f67b828b3f2b13",
+            "raw": 220,
+            "gzip9": 160,
+            "brotli11": 129,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 62,
+              "judged": 4
+            }
+          },
+          "after": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "d1b2fe844dc4df5c4e22c785fd94875f0859e862cad3d3873964674f71a9c3f0",
+            "raw": 51,
+            "gzip9": 70,
+            "brotli11": 55,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 172,
+              "judged": 13
+            }
+          }
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "8fd6dbe0c83b565065a9091cc319f1dc44048be3207dd0ccd6d6651e9a7760a1",
+            "raw": 220,
+            "gzip9": 163,
+            "brotli11": 126,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 236,
+              "judged": 33
+            }
+          },
+          "after": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "d1b2fe844dc4df5c4e22c785fd94875f0859e862cad3d3873964674f71a9c3f0",
+            "raw": 51,
+            "gzip9": 70,
+            "brotli11": 55,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 200,
+              "judged": 35
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "public-barrel",
+      "matched": true,
+      "source_sha256": "aa335ebf20667301c27e049722af4552212c9cd12b788d682c21786c8b37494a",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "f8ae5008f1afbb66354ef4d92ad7e90266b1d326b398a7b67e918e3002fd8621",
+            "raw": 231,
+            "gzip9": 171,
+            "brotli11": 139,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 178,
+              "judged": 23
+            }
+          },
+          "after": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "f8ae5008f1afbb66354ef4d92ad7e90266b1d326b398a7b67e918e3002fd8621",
+            "raw": 231,
+            "gzip9": 171,
+            "brotli11": 139,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 178,
+              "judged": 23
+            }
+          }
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "d57e2c238966f1cdce4b844a422f8a14224d4079e16430d7fbc96ae09ea9c9bf",
+            "raw": 231,
+            "gzip9": 165,
+            "brotli11": 138,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 207,
+              "judged": 18
+            }
+          },
+          "after": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "d57e2c238966f1cdce4b844a422f8a14224d4079e16430d7fbc96ae09ea9c9bf",
+            "raw": 231,
+            "gzip9": 165,
+            "brotli11": 138,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 207,
+              "judged": 18
+            }
+          }
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "846a6324c466d78011734f4b3f529712ad998db59139059cff71a26390e7d2b1",
+            "raw": 231,
+            "gzip9": 168,
+            "brotli11": 136,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 236,
+              "judged": 33
+            }
+          },
+          "after": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "846a6324c466d78011734f4b3f529712ad998db59139059cff71a26390e7d2b1",
+            "raw": 231,
+            "gzip9": 168,
+            "brotli11": 136,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 236,
+              "judged": 33
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "constructor-value",
+      "matched": true,
+      "source_sha256": "9991c306de807113770e6e7cee91b08daf7dfc9c5e1df08a356ba13142dd7dd5",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "019113d38090a5664f566250f9dd0f9125f6f1b74eddfb9db6ddb5184a51a3eb",
+            "raw": 251,
+            "gzip9": 175,
+            "brotli11": 143,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 178,
+              "judged": 22
+            }
+          },
+          "after": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "019113d38090a5664f566250f9dd0f9125f6f1b74eddfb9db6ddb5184a51a3eb",
+            "raw": 251,
+            "gzip9": 175,
+            "brotli11": 143,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 178,
+              "judged": 22
+            }
+          }
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "d6c44143373f84458b6097cc589278e58d79c21ab01d4ec18bc0568ac034b7ce",
+            "raw": 251,
+            "gzip9": 170,
+            "brotli11": 137,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 236,
+              "judged": 10
+            }
+          },
+          "after": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "d6c44143373f84458b6097cc589278e58d79c21ab01d4ec18bc0568ac034b7ce",
+            "raw": 251,
+            "gzip9": 170,
+            "brotli11": 137,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 236,
+              "judged": 10
+            }
+          }
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "1de165730611f8ef03656e8c8d5712f7323bfe9e7e57899657ea09e46927391b",
+            "raw": 251,
+            "gzip9": 172,
+            "brotli11": 136,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 207,
+              "judged": 37
+            }
+          },
+          "after": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "1de165730611f8ef03656e8c8d5712f7323bfe9e7e57899657ea09e46927391b",
+            "raw": 251,
+            "gzip9": 172,
+            "brotli11": 136,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 207,
+              "judged": 37
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "dynamic-constructor",
+      "matched": true,
+      "source_sha256": "6a78422ae5107615e7c8d51b906a43ce83fe326d8e6f85fa0e11bd9b946289f5",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "aca0c219fa8be65c956b85eea5d98acf27f6ab46ec5533b8606c1f638c158944",
+            "raw": 304,
+            "gzip9": 216,
+            "brotli11": 190,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 178,
+              "judged": 22
+            }
+          },
+          "after": {
+            "config_sha256": "3a9249c78eeade84773d9a2d2c9672d4244b41dcbe0e07ec67032dcd24d0d18f",
+            "sha256": "aca0c219fa8be65c956b85eea5d98acf27f6ab46ec5533b8606c1f638c158944",
+            "raw": 304,
+            "gzip9": 216,
+            "brotli11": 190,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 178,
+              "judged": 22
+            }
+          }
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "8091a97b7d940a5ef28a66d8d8b5f0acfc38d27b6a0670c440c8354b4bec6189",
+            "raw": 304,
+            "gzip9": 208,
+            "brotli11": 174,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 91,
+              "judged": 2
+            }
+          },
+          "after": {
+            "config_sha256": "f38b69ba27aac7a0606fc9085c48d76cdb452a24784bc271856160ba4973e61e",
+            "sha256": "8091a97b7d940a5ef28a66d8d8b5f0acfc38d27b6a0670c440c8354b4bec6189",
+            "raw": 304,
+            "gzip9": 208,
+            "brotli11": 174,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 91,
+              "judged": 2
+            }
+          }
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "cb4e24c2900d30b138119ccc818b3b2624cc1ea88331cd4f8075d16b4ddb80c9",
+            "raw": 304,
+            "gzip9": 214,
+            "brotli11": 172,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 207,
+              "judged": 39
+            }
+          },
+          "after": {
+            "config_sha256": "afdc56ddfb5b16b1bf67374930c4361ed5e444ca1479f654f6e7414474145997",
+            "sha256": "cb4e24c2900d30b138119ccc818b3b2624cc1ea88331cd4f8075d16b4ddb80c9",
+            "raw": 304,
+            "gzip9": 214,
+            "brotli11": 172,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 207,
+              "judged": 39
+            }
+          }
+        }
+      }
+    }
+  ]
+}

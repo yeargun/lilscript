@@ -181,8 +181,10 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 - **Replaces.** v0.1:773-794.
 - **Status.** Dual type/constructor imports and explicit re-exports are implemented.
   S4 removes `object` singleton syntax and its checker/AST/LSP machinery after a
-  zero-use census of the maintained ports. Remaining entry-boundary propagation
-  stays owned by S4 and the delivery work.
+  zero-use census of the maintained ports. Constructor publication now follows
+  declared delivery roots and actual first-class/dynamic observations. Internal
+  visibility alone permits class dissolution and private property naming; type
+  interfaces and module initialization remain. D1–D3 own delivery production.
 
 ### R17 Host interop is declarative
 

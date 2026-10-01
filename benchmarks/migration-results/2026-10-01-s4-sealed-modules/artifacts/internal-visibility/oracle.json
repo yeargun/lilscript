@@ -1,0 +1,9 @@
+{
+  "exercise": "console.log(JSON.stringify([-2,0,5,1000].map(n=>m.run(n))));",
+  "expected": [
+    0,
+    2,
+    7,
+    1002
+  ]
+}

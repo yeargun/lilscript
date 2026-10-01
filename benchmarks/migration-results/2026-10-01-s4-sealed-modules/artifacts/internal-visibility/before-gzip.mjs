@@ -1,0 +1,1 @@
+let r=class Box{constructor(r){this.longPrivateField=0;this.longPrivateField=r}read(r=void 0){return t(this,r)}},t=(r,t)=>{if(t===void 0)t=2;return r.longPrivateField+t|0},run=function(a){return t(new r(a))};export{run};

@@ -1,0 +1,16 @@
+{
+  "exercise": "const C=m.Crate,b=new C(6);console.log(JSON.stringify([m.run(5),b.longPrivateField,b.read(),b.read(4),b.constructor===C,b instanceof C,Object.keys(b),C.length,C.prototype.read.length]));",
+  "expected": [
+    7,
+    6,
+    8,
+    10,
+    true,
+    true,
+    [
+      "longPrivateField"
+    ],
+    1,
+    0
+  ]
+}

@@ -3164,3 +3164,34 @@ fn s4_development_bounds_survive_unused_results_and_inlined_calls() {
             "[\"ok\",true,true,\"ok\",true,true,\"ok\",true,true]\n");
     }
 }
+
+#[test]
+fn s4_private_constructor_exports_dissolve_but_observed_values_keep_their_abi() {
+    let scratch=Scratch::new();
+    std::fs::write(scratch.0.join("box.lil"),
+        "export class Box{int longPrivateField;init(int n){this.longPrivateField=n;}int read(int add=2){return this.longPrivateField+add;}}export constructor Box;"
+    ).unwrap();
+    std::fs::write(scratch.0.join("barrel.lil"),
+        r#"import {Box as Crate} from "./box";export {Crate};export constructor Crate;"#
+    ).unwrap();
+    for observation in ["", "export JsValue ctor(){return Crate;}", "export constructor Crate;", "export async JsValue ctor(){auto ns=await import(\"./box\");return ns.Box;}"] {
+        std::fs::write(scratch.0.join("entry.lil"),format!(
+            "import {{Crate}} from \"./barrel\";export int run(int n){{Crate b=new Crate(n);return b.read();}}{observation}"
+        )).unwrap();
+        let compiled=compile_path(&scratch.0.join("entry.lil"),&config(""),ServiceOptions {
+            objectives:Some(Objectives::All),..ServiceOptions::default()
+        }).unwrap();
+        for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            let javascript=compiled.javascript(objective).unwrap().javascript();
+            if observation.is_empty() {
+                assert!(!javascript.contains("longPrivateField"),"{javascript}");
+                assert!(!javascript.contains("class "),"{javascript}");
+                assert_eq!(execute_javascript(javascript,"","console.log(library.run(5));"),"7\n");
+            } else {
+                assert_eq!(execute_javascript(javascript,"",
+                    "const C=library.Crate??await library.ctor();const b=new C(6);console.log(JSON.stringify([library.run(5),b.longPrivateField,b.read(),b.read(4),b.constructor===C,b instanceof C,Object.keys(b),C.length,C.prototype.read.length]));"),
+                    "[7,6,8,10,true,true,[\"longPrivateField\"],1,0]\n");
+            }
+        }
+    }
+}

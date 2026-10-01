@@ -1,0 +1,1 @@
+export class Box{int longPrivateField;init(int n){this.longPrivateField=n;}int read(int add=2){return this.longPrivateField+add;}}export constructor Box;

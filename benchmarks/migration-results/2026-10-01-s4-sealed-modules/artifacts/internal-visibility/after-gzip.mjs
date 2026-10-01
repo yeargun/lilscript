@@ -1,0 +1,1 @@
+let run=function(a){return({a}).a+2|0};export{run};
