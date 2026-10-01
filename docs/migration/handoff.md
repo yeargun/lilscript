@@ -11,17 +11,19 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 inline-for batch](../../benchmarks/migration-results/2026-10-01-s4-author-controls/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-inline-for-1/lilscript`, SHA-256
-`a883f9860bcc5389ab35350579e2f06854aa55d23050cefa6dd67153306b2a4d`.
-Algorithm 38 / search 32 / walk 10 / local facts 14. Shared source conversion
-expands authored loops with fresh local/parameter/capture banks, including
-nested and empty lists. `loop-unrolling` has an independent hard TOML veto and
-candidate/artifact/native admission provenance. Native array push admits its
-existing callable adapter for compatible default/required-parameter views.
-Ten focused checks and the release CLI build pass. Four matched programs change
-selected totals by +122 raw / −48 gzip / −49 Brotli; ordinary-loop control bytes
-are unchanged. These are explicit pins, not a general unrolling heuristic.
+The latest [S4 pooling batch](../../benchmarks/migration-results/2026-10-01-s4-pooling/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-pool-2/lilscript`, SHA-256
+`78d13f51ca5a82b1df771107160ae9afc2272bb99f09ffb7671eca9fdb152ea6`.
+Algorithm 39 / search 32 / walk 10 / local facts 14. `@pool` now reaches
+formation/replay, preserves pinned strings across templates/data encodings,
+and honors TOML vetoes. Fifteen focused checks plus three affected reruns pass.
+Four matched programs change totals by +30 raw / +27 gzip / +12 Brotli; the
+unpinned control is byte-identical. This is an explicit author tradeoff.
+
+The preceding inline-for batch expands authored loops with fresh local/capture
+banks, resource admission and independent hard TOML/replay/native permission.
+Its ten checks and +122 raw / −48 gzip / −49 Brotli matched results remain in
+history. Neither batch is an automatic pooling/unrolling heuristic change.
 
 The preceding shared-storage batch completes the [fact/rule owner audit](s4-target-facts.md).
 Its 135 focused checks and five byte-identical matched programs remain recorded.
@@ -65,13 +67,10 @@ selectors retain compatibility defaults until D3/V2's qualified transition.
    transport remain N2. Native `preserve_root_exports=false` still skips frontend
    export checking without retiring the shared program's root export table; N1
    must resolve that capability/formation mismatch.
-3. Complete R15 author controls. `RegionPolicy` in `ast.rs` currently contains
-   only `pool_strings`; the parser accepts `@pool`, but no current Program or
-   target consumer reads it. `inline for` is implemented and qualified in the
-   latest batch. `@choose` is absent.
-   Carry source policy through checked units and stable sites, enforce hard
-   TOML vetoes and replay, and document supported family alternatives. The
-   shared-consumer/removal audit is complete; Q2/Q4 own the deferred producers.
+3. Complete R15 `@choose`. `@pool` and `inline for` are implemented and
+   qualified. Carry regional choices through checked units and stable target
+   sites, enforce hard TOML vetoes and replay, and document supported families.
+   The shared-consumer/removal audit is complete; Q2/Q4 own later producers.
 4. Preserve `ref`, public constructibility and `pure` termination: Y2/Y3/Y4 have
    no approved semantic amendment. D3/V2 own qualified language-default changes.
 5. After S4 closes, continue **Q2 → Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.

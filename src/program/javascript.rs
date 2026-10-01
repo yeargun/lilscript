@@ -668,6 +668,29 @@ fn form_head(
         }
     }
     let mut module = js::Module::new_in(&mut phase)?;
+    if program.authored_pooling {
+        let mut seen = phase.filled(AllocationClass::Scratch, program.strings.len(), false)?;
+        for source in program.modules.iter() {
+            for string in &source.pooled_strings {
+                phase.work(WorkKind::Render, 1)?;
+                if std::mem::replace(&mut seen[string.index()], true) { continue; }
+                let value = &program.strings[string.index()];
+                let bytes = value.storage_bytes() as u64;
+                phase.work(WorkKind::Render, bytes)?;
+                phase.retain(AllocationClass::Retained, bytes)?;
+                let value = value.try_clone().map_err(|_| AllocationError::AllocationFailed)?;
+                phase.push(AllocationClass::Retained, &mut module.authored_pool, value)?;
+            }
+        }
+        let levels = u64::from(usize::BITS - module.authored_pool.len().leading_zeros()) + 1;
+        for value in &module.authored_pool {
+            phase.work(WorkKind::Render, levels.saturating_mul(value.storage_bytes() as u64 + 1))?;
+        }
+        module.authored_pool.sort_unstable();
+        let bytes = seen.capacity() as u64;
+        drop(seen);
+        phase.release(AllocationClass::Scratch, bytes)?;
+    }
     module.pristine_builtins = contract.assumptions.pristine_builtins;
     module.pure_property_reads = contract.assumptions.pure_property_reads;
     module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
@@ -1054,6 +1077,7 @@ fn form_tail(
         module.logical_statements = false;
         module.compound_assignments = false;
         module.quotes = false;
+        if !module.authored_pool.is_empty() { module.pool_strings(false, budget)?; }
         return Ok(module);
     };
     module.loop_head_declarations = families.loop_heads;
@@ -1090,6 +1114,9 @@ fn form_tail(
         });
     match result {
         Ok(_) => {
+            if !families.string_pooling && !module.authored_pool.is_empty() {
+                module.pool_strings(false, budget)?;
+            }
             module.form_spelling_choices(families, rules, choices, frames_hidden, year, budget)?;
             Ok(module)
         }
@@ -4757,7 +4784,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     self.work(1)?;
                     let value = self.value(unit, operand)?;
                     let spliced = match &self.module.expressions[value.index()] {
-                        js::Expr::Literal(js::Literal::String(_)) => 1,
+                        js::Expr::Literal(js::Literal::String(text)) => {
+                            usize::from(!self.module.pinned_string(text, self.budget)?)
+                        }
                         js::Expr::Template(inner) => inner.len(),
                         _ => 0,
                     };

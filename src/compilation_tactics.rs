@@ -244,8 +244,8 @@ declare_tactics! {
         analysis: A::Values, default: D::On,
         producers: &[P::StructuralSearch, P::OutputFamilies], prerequisites: &[], risks: &[R::Neutral],
         invalidates: &[I::TargetHead, I::TargetTail, I::Names, I::RenderedFiles],
-        purpose: "Share repeated literal strings or numbers through bindings.",
-        tradeoffs: "Introduces bindings and reads; repetitive literal bytes can already compress well. Structural computed-string pooling additionally needs constant-folding. Off vetoes pooling in every route."
+        purpose: "Share repeated literal strings or numbers through bindings and honor authored @pool regions.",
+        tradeoffs: "Introduces bindings and reads; repetitive literal bytes can already compress well. An authored pool admits its decoded string values even for one live use, at every effort and objective; it may increase raw or compressed size. Structural computed-string pooling additionally needs constant-folding. Off vetoes pooling in every JavaScript route and diagnoses conflicting source pins. Native string constants already share immutable payloads without an optional transformation."
     },
     StringArrayPacking {
         name: "string-array-packing", javascript_only: true, minimum_effort: 0, startup_at_level_16: true,

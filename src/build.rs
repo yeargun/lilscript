@@ -402,6 +402,8 @@ impl Frontend {
         let permitted_inlining = permitted(TacticId::Inlining);
         Some(RuleRequest {
             unroll: permitted(TacticId::LoopUnrolling),
+            pool: policies.iter().filter(|policy| policy.javascript_contract().is_some())
+                .all(|policy| policy.tactic(TacticId::StringPooling).enabled),
             fold: permitted(TacticId::ConstantFolding),
             dead_code: permitted(TacticId::DeadCodeElimination),
             inline: permitted_inlining,

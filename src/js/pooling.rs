@@ -13,8 +13,9 @@
 //!   the `string_constants` family says so, so this is where a literal
 //!   repeated where it stands gets a name.
 //!
-//! A codec already matches repeated text, and a joined string or a name
-//! breaks the match, so a codec objective keeps the literals.
+//! Codec seeds usually keep repeated literal text. Explicit @pool requests
+//! instead pin shared storage for surviving decoded string values, even when
+//! a raw estimate or a codec seed would retain their literals.
 use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 
@@ -26,6 +27,30 @@ const POOLED_NAME: usize = 2;
 const SEPARATORS: [&str; 6] = [" ", ",", "|", ";", "~", "!"];
 
 impl Module {
+    pub(crate) fn pinned_string(&self, value: &StringValue, budget: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {
+        if self.authored_pool.is_empty() { return Ok(false); }
+        let levels = u64::from(usize::BITS - self.authored_pool.len().leading_zeros()) + 1;
+        budget.work(Analysis, levels.saturating_mul(value.storage_bytes() as u64 + 1))?;
+        Ok(self.authored_pool.binary_search(value).is_ok())
+    }
+
+    /// Another representation cannot absorb the literals of a pinned pool.
+    pub(crate) fn contains_pooled_string(&self, root: ExprId, budget: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {
+        if self.authored_pool.is_empty() { return Ok(false); }
+        let mut phase = budget.scope();
+        let mut pending = phase.vector(AllocationClass::Scratch, 1)?;
+        pending.push(root);
+        while let Some(id) = pending.pop() {
+            phase.work(Analysis, 1)?;
+            let expression = &self.expressions[id.index()];
+            if let Expr::Literal(Literal::String(value)) = expression {
+                if self.pinned_string(value, &mut phase)? { return Ok(true); }
+            }
+            expression.visit_children(|child| phase.push(AllocationClass::Scratch, &mut pending, child))?;
+        }
+        Ok(false)
+    }
+
     /// Pack arrays of plain strings into one split string where shorter.
     /// Returns how many, and the renumbering map when it edited.
     pub(crate) fn pack_string_arrays(
@@ -71,6 +96,7 @@ impl Module {
                 for element in elements {
                     match &module.expressions[element.index()] {
                         Expr::Literal(Literal::String(value)) if !module.observed(*element) => {
+                            if module.pinned_string(value, budget)? { break; }
                             let Some(value) = value.as_unicode() else {
                                 break;
                             };
@@ -192,6 +218,7 @@ impl Module {
     /// first in the root. Returns how many strings.
     pub(crate) fn pool_strings(
         &mut self,
+        automatic: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         self.with_reach_tree(budget, |module, reach, budget| {
@@ -217,18 +244,34 @@ impl Module {
                     }
                 }
             }
-            // `k` uses of `L` bytes against `k` names plus `n=…,`.
-            uses.retain(|(value, sites)| {
+            // An author pin admits a decoded string value, even for one use.
+            // Ordinary candidates retain their existing raw estimate.
+            let mut kept = 0;
+            for index in 0..uses.len() {
+                let (value, sites) = &uses[index];
+                let pinned = match value {
+                    Pooled::String(value) => !module.authored_pool_formed && module.pinned_string(value, budget)?,
+                    Pooled::Number(_) => false,
+                };
                 let (count, length) = (sites.len(), value.printed());
-                count * length > count * POOLED_NAME + POOLED_NAME + length + 2
-            });
+                if pinned || automatic && count.saturating_mul(length)
+                    > count.saturating_mul(POOLED_NAME).saturating_add(POOLED_NAME + length + 2) {
+                    uses.swap(kept, index);
+                    kept += 1;
+                }
+            }
+            uses.truncate(kept);
+            // The terminal scheduler may revisit this pass. The literal in a
+            // pool's own initializer must not request another pool forever.
+            // Keep the value constraints for other encoders, but form them once.
+            module.authored_pool_formed = true;
             if uses.is_empty() {
                 return Ok(0);
             }
             // Most saved first, then by first use, so the order is stable.
             uses.sort_by(|(a, left), (b, right)| {
                 let saved = |value: &Pooled, sites: &Vec<ExprId>| {
-                    sites.len() * (value.printed() - POOLED_NAME)
+                    sites.len().saturating_mul(value.printed().saturating_sub(POOLED_NAME))
                 };
                 saved(b, right)
                     .cmp(&saved(a, left))

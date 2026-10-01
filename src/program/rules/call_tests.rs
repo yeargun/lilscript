@@ -4,7 +4,7 @@ use super::aggregate_tests::checked;
 use super::*;
 
 const CALLS: RuleRequest = RuleRequest {
-    unroll: true,
+    unroll: true, pool: true,
     fold: false,
     dead_code: true,
     inline: true,

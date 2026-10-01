@@ -13,8 +13,9 @@ Start here. [plan.md](plan.md) owns the design, dependencies and gates. [history
 ## Next
 
 Complete **S4** under its [acceptance contract](s4-acceptance.md): wider public erased
-product/union/callable crossings and R15 `@pool`/`@choose` controls. Shared
-`inline for` expansion and its TOML/replay contract are implemented. The
+product/union/callable crossings and R15 `@choose` controls. Authored string
+pooling and shared
+`inline for` expansion, including their TOML/replay contracts, are implemented. The
 [shared fact-consumer/removal audit](s4-target-facts.md) is complete.
 Identities, defaults, indexing, fields, shapes, absence, enums, payloads, generic
 sealed calls, closed private generic product transport, platform catalogs and configurable host bindings are implemented;

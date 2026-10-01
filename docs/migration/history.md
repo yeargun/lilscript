@@ -1147,3 +1147,24 @@ Pin `s4-inline-for-1`, SHA-256
 `a883f9860bcc5389ab35350579e2f06854aa55d23050cefa6dd67153306b2a4d`;
 algorithm 38 / search 32 / walk 10 / local facts 14. `@pool`, `@choose` and wider
 public ABI contracts remain S4 work. No ratchet baseline or port artifact changed.
+
+## 2026-10-01: S4 authored string pooling
+
+`@pool` now survives checked lowering, shared edits, target formation and artifact
+replay. It includes function/method defaults, nested closures and template
+chunks, retains UTF-16 values, rejects misplaced attributes and honors the hard
+JavaScript `string-pooling` veto. Native already shares immutable constants.
+Packing, table encodings and template embedding cannot absorb pinned literals;
+repeated target passes do not pool their own pool initializer.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-s4-pooling/README.md):
+immutable `s4-pool-2`, SHA-256
+`78d13f51ca5a82b1df771107160ae9afc2272bb99f09ffb7671eca9fdb152ea6`,
+algorithm 39 / search 32 / walk 10 / local facts 14. Fifteen focused checks pass,
+with three affected checks repeated after the template correction; the release
+CLI and schema check pass. Four matched programs change totals by +30 raw /
++27 gzip / +12 Brotli, with the unpinned control byte-identical. Explicit short
+string pins can cost bytes; this is not an automatic heuristic improvement.
+The record retains the fixed repeated-pass/template defects and a corrected
+data-encoding fixture. No full-library/fleet or timing claim. S4 stays active
+for `@choose` and wider public erased ABI support.

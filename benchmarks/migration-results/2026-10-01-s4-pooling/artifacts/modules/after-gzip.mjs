@@ -1,0 +1,1 @@
+let b="alpha",c="beta",probe=function(a){return(a>0?b:c)+((-a|0)>0?b:c)};export{probe};

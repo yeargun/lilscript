@@ -1,0 +1,1 @@
+let r="prefix:",t=":tail",probe=function(e){return`${r}${e}${t}`};export{probe};

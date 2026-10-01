@@ -900,6 +900,7 @@ fn share_program_without_units<'src>(program: &Program<'src>) -> Program<'src> {
         trap_index_reads: program.trap_index_reads,
         source_contract: program.source_contract,
         authored_unrolling: program.authored_unrolling,
+        authored_pooling: program.authored_pooling,
         absence_abi: program.absence_abi,
         units: Vec::new(),
         cells: program.cells.clone(),

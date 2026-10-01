@@ -1084,11 +1084,20 @@ error. Dynamic `JsValue` coercions, proxy-sensitive operations, and operations
 that may throw through the explicit JavaScript boundary are observable effects;
 writing `pure` cannot override that analysis.
 
-An `@` attribute before a top-level declaration pins a behavior to that region
-of the program, whatever the objective would decide. The one attribute is
-`@pool`: string constants written in the declaration are admitted to the string
-pool. An unknown or repeated attribute is an error. **Until M10.11** `@pool` is
-checked but has no effect on the output.
+`@pool` before a function or method admits its authored string literals and
+template chunks to shared constant storage, including defaults and nested
+closures. Surviving equal string values share a pool entry even after inlining,
+folding or removal of the original function. Dead or proved-away values need no
+storage. String-array packing and data encodings cannot absorb a pinned literal.
+An unknown, repeated or misplaced attribute is an error.
+
+JavaScript honors this pin at every effort and under raw, gzip and Brotli,
+including a single short literal whose sharing grows the output. It does not
+require optional target compaction. `policy.tactics.string-pooling = "off"`
+diagnoses a source conflict and rejects replayed pooled artifacts. Sharing adds
+bindings and reads; neither raw nor compressed savings are guaranteed. Native
+constant strings already use shared immutable payloads, so the same pin requires
+no additional native transformation. `@choose` remains unimplemented.
 
 ```lilscript
 @pool

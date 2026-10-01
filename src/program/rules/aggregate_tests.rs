@@ -3,7 +3,7 @@
 use super::*;
 use std::process::Command;
 const STORAGE: RuleRequest = RuleRequest {
-    unroll: true,
+    unroll: true, pool: true,
     fold: false,
     dead_code: false,
     inline: false,
@@ -114,7 +114,7 @@ fn s2_private_class_fields_and_alias_mutation() {
         "class State{int x=1;int y=2;}State a=new State();State b=a;b.x=4;print(a.x);print(a.y);",
         "4\n2\n",
         RuleRequest {
-            unroll: true,
+            unroll: true, pool: true,
             fold: true,
             dead_code: true,
             inline: true,
@@ -129,7 +129,7 @@ fn s2_namespace_reads_and_calls_remove_private_receiver() {
         "JsValue f=(JsValue n)=>JS.add(n,1);JsValue ns=JS.object(\"f\",f,\"n\",7);print(JS.invoke(ns,\"f\",3));print(ns[\"n\"]);",
         "4\n7\n",
         RuleRequest {
-            unroll: true,
+            unroll: true, pool: true,
             fold: true,
             dead_code: true,
             ..STORAGE
@@ -147,7 +147,7 @@ fn s2_field_constants_respect_alias_writers() {
         "int[] a=[1,2];int[] b=a;b[0]=5;print(a[0]);print(a[1]);",
         "5\n2\n",
         RuleRequest {
-            unroll: true,
+            unroll: true, pool: true,
             fold: true,
             scalar: false,
             native: false,
@@ -174,7 +174,7 @@ fn s2_record_absence_and_special_keys_keep_normalization() {
         "Record<int> r=record{a:1};r[\"b\"]=2;print(r[\"a\"]);print(r[\"b\"]);print(r[\"missing\"]==null);",
         "1\n2\ntrue\n",
         RuleRequest {
-            unroll: true,
+            unroll: true, pool: true,
             fold: true,
             dead_code: true,
             ..STORAGE
@@ -244,7 +244,7 @@ fn s2_fresh_field_collection_obeys_the_pristine_contract() {
             "JsValue state=JS.object();state[\"x\"]=3;state[\"y\"]=4;print(state[\"x\"]);print(state[\"y\"]);",
             "3\n4\n",
             RuleRequest {
-                unroll: true,
+                unroll: true, pool: true,
                 fold: true,
                 dead_code: true,
                 scalar: false,
@@ -284,7 +284,7 @@ fn s2_record_undefined_payload_keeps_nullish_normalization() {
         "Record<JsValue> state=record{x:JS.undefined()};print(JS.typeOf(state.x));",
         "object\n",
         RuleRequest {
-            unroll: true,
+            unroll: true, pool: true,
             fold: true,
             dead_code: true,
             ..STORAGE

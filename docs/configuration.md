@@ -738,8 +738,16 @@ no runtime operation and requires `target-compaction`.
 `target-compaction` permits the JavaScript target's optional rule schedule.
 Its folding, function inlining and object scalarization also require
 `constant-folding`, `inlining` and `scalar-replacement`, respectively.
-`string-pooling` controls repeated literal bindings; `string-array-packing`
-independently controls packed strings decoded with `split`. Initial output
+`string-pooling` controls repeated literal bindings and authored `@pool`
+regions. For JavaScript, `auto` (default) and `on` allow a source pin to share
+surviving decoded string values at every effort, including single short values;
+`off` diagnoses a conflicting pin and vetoes replay. Source pins do not require
+optional target compaction. They survive inlining/folding and prevent other data
+encodings from absorbing their literals. Pooling adds declarations/reads and
+compiler metadata, and may increase raw or compressed bytes. Native already
+shares immutable constant payloads without this optional JavaScript tactic.
+See the [authored pooling record](../benchmarks/migration-results/2026-10-01-s4-pooling/README.md).
+`string-array-packing` independently controls packed strings decoded with `split`. Initial output
 choices respect these vetoes for raw, gzip and Brotli. Explicit output
 assignments and reused artifact evidence are checked against the same
 permissions. Enabling one of these tactics does not override another tactic's

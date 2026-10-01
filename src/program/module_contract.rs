@@ -99,6 +99,7 @@ mod tests {
             .dependencies
             .push(module);
         Arc::make_mut(&mut program.modules).push(ModuleInterface {
+            pooled_strings: Vec::new(),
             source: empty.source_identity().clone(),
             initializer,
             dependencies: vec![root],

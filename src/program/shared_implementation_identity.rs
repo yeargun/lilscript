@@ -10,6 +10,7 @@ struct SharedIdentity {
     meaning: RevisionId,
     lineage: RewriteLineage,
     authored_unrolling: bool,
+    authored_pooling: bool,
     identity: ImplementationIdentity,
     fingerprint: u64,
     header_charge: RetainedCharge<RevisionId>,
@@ -27,12 +28,22 @@ impl SharedImplementationIdentity {
         meaning: RevisionId,
         lineage: &RewriteLineage,
         authored_unrolling: bool,
+        authored_pooling: bool,
         owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(), AllocationError> {
         budget.work(WorkKind::Analysis, 1)?;
         if cached.is_none() {
-            *cached = Some(Self::build(map, snapshot, meaning, lineage, authored_unrolling, owner, budget)?);
+            *cached = Some(Self::build(
+                map,
+                snapshot,
+                meaning,
+                lineage,
+                authored_unrolling,
+                authored_pooling,
+                owner,
+                budget,
+            )?);
         }
         Ok(())
     }
@@ -43,6 +54,7 @@ impl SharedImplementationIdentity {
         meaning: RevisionId,
         lineage: &RewriteLineage,
         authored_unrolling: bool,
+        authored_pooling: bool,
         owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Self, AllocationError> {
@@ -79,6 +91,7 @@ impl SharedImplementationIdentity {
             meaning,
             lineage,
             authored_unrolling,
+            authored_pooling,
             identity,
             fingerprint,
             header_charge,
@@ -99,10 +112,24 @@ impl SharedImplementationIdentity {
     pub(in crate::program) fn snapshot(&self) -> RevisionId {
         self.0.snapshot
     }
-    pub(in crate::program) fn tactics(&self) -> impl Iterator<Item = &crate::compilation_policy::TacticUse> {
-        use crate::compilation_policy::{TacticId, TacticUse, RuntimeRisk};
-        const UNROLL: TacticUse = TacticUse { tactic: TacticId::LoopUnrolling, risk: RuntimeRisk::Neutral };
-        self.0.lineage.tactics().iter().chain(self.0.authored_unrolling.then_some(&UNROLL))
+    pub(in crate::program) fn tactics(
+        &self,
+    ) -> impl Iterator<Item = &crate::compilation_policy::TacticUse> {
+        use crate::compilation_policy::{RuntimeRisk, TacticId, TacticUse};
+        const UNROLL: TacticUse = TacticUse {
+            tactic: TacticId::LoopUnrolling,
+            risk: RuntimeRisk::Neutral,
+        };
+        const POOL: TacticUse = TacticUse {
+            tactic: TacticId::StringPooling,
+            risk: RuntimeRisk::Neutral,
+        };
+        self.0
+            .lineage
+            .tactics()
+            .iter()
+            .chain(self.0.authored_unrolling.then_some(&UNROLL))
+            .chain(self.0.authored_pooling.then_some(&POOL))
     }
 
     pub(in crate::program) fn owner(&self) -> RevisionId {
@@ -215,6 +242,7 @@ mod tests {
             RevisionId::fresh(),
             &RewriteLineage::default(),
             false,
+            false,
             owner,
             &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional))),
         )
@@ -250,7 +278,8 @@ mod tests {
                 RevisionId::fresh(),
                 RevisionId::fresh(),
                 &RewriteLineage::default(),
-            false,
+                false,
+                false,
                 owner,
                 &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional))),
             )
@@ -295,7 +324,8 @@ mod tests {
                 RevisionId::fresh(),
                 RevisionId::fresh(),
                 &RewriteLineage::default(),
-            false,
+                false,
+                false,
                 RevisionId::fresh(),
                 &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)))
             ),

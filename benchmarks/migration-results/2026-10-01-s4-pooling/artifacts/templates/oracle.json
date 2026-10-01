@@ -1,0 +1,7 @@
+{
+  "exercise": "console.log(JSON.stringify([m.probe(\"one\"),m.probe(\"two\")]));",
+  "expected": [
+    "prefix:one:tail",
+    "prefix:two:tail"
+  ]
+}

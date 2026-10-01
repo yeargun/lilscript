@@ -49,6 +49,8 @@ use super::*;
 pub(crate) struct RuleRequest {
     /// Permission for explicit source loop expansion during conversion.
     pub(crate) unroll: bool,
+    /// JavaScript permission for authored sharing; native constants already share backing.
+    pub(crate) pool: bool,
     /// Literal and branch folding on exact values (M7.8a).
     pub(crate) fold: bool,
     /// Dead operations, dead stores and dead named functions (M5.1).

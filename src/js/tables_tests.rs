@@ -499,3 +499,27 @@ fn two_tables_of_one_schema_decode_through_one_decoder() {
     assert_eq!(decoders, 1, "one decoder for the one schema");
     assert_eq!(run(&formed), oracle);
 }
+
+
+#[test]
+fn s4_authored_pool_constrains_array_and_table_encodings() {
+    let text="authored-shared-value-with-long-repetition";
+    for (literal,packing) in [
+        (Lit::A((0..40).map(|_|Lit::S(text)).collect()),true),
+        (Lit::A((0..40).map(|i|Lit::A(vec![Lit::S(text),Lit::N(i as f64)])).collect()),false),
+    ] {
+        let (module,_)=table_module(&literal);
+        let expected=run(&module);
+        let mut ordinary=module.clone();
+        let mut budget=AllocationBudget::new(None);
+        if packing {assert!(ordinary.pack_string_arrays(ArrayPacking::Startup,&mut budget).unwrap().0>0);}
+        else {assert!(ordinary.encode_tables(&ChoiceMap::SEEDS,&mut budget).unwrap()>0);}
+        let mut pinned=module;
+        pinned.authored_pool.push(text.into());
+        assert_eq!(pinned.pack_string_arrays(ArrayPacking::Startup,&mut budget).unwrap().0,0);
+        assert_eq!(pinned.encode_tables(&ChoiceMap::SEEDS,&mut budget).unwrap(),0);
+        assert_eq!(pinned.pool_strings(false,&mut budget).unwrap(),1);
+        assert_eq!(pinned.pool_strings(false,&mut budget).unwrap(),0);
+        assert_eq!(run(&pinned),expected);
+    }
+}

@@ -194,7 +194,7 @@ pub(crate) fn from_checked_source_with_rules<'ast, 'src>(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ConversionError> {
     let mut scope = budget.scope();
-    let mut program = convert_source(source, semantics, rules.is_none_or(|r| r.unroll), &mut scope)?;
+    let mut program = convert_source(source, semantics, rules, &mut scope)?;
     hosts::apply(&mut program, semantics.view(), host_config, &mut scope).map_err(|(_, error)| error)?;
     program.trap_index_reads = trap_index_reads;
     verify_conversion(&program, source.span, &mut scope)?;
@@ -224,7 +224,7 @@ pub(crate) fn from_checked_modules_with_rules<'ast, 'src>(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(publication::PreparedProgram<'src>, RuleReceipt), ModuleConversionError> {
     let mut scope = budget.scope();
-    let mut program = convert_modules(sources, semantics, rules.is_none_or(|r| r.unroll), &mut scope)?;
+    let mut program = convert_modules(sources, semantics, rules, &mut scope)?;
     hosts::apply(&mut program, semantics.view(semantics.root()).expect("checked root"), host_config, &mut scope)
         .map_err(|(module, error)| ModuleConversionError { module: module.index(), error })?;
     program.trap_index_reads = trap_index_reads;
@@ -308,7 +308,7 @@ pub fn from_checked_source<'ast, 'src>(
 ) -> Result<Program<'src>, Unsupported> {
     let mut budget = AllocationBudget::new(None);
     let result = (|| {
-        let program = convert_source(source, semantics, true, &mut budget)?;
+        let program = convert_source(source, semantics, None, &mut budget)?;
         verify_conversion(&program, source.span, &mut budget)?;
         check_contracts(&program).map_err(|(_, violation)| ConversionError::Contract(violation))?;
         Ok(program)
@@ -394,7 +394,7 @@ fn verify_module_conversion(
 fn convert_source<'ast, 'src>(
     source: &ast::Program<'ast, 'src>,
     semantics: &CheckedModule<'ast, 'src>,
-    unroll: bool,
+    rules: Option<RuleRequest>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Program<'src>, ConversionError> {
     if !semantics.belongs_to(source.source_identity()) {
@@ -419,7 +419,8 @@ fn convert_source<'ast, 'src>(
         &[(module, "main")],
         budget,
     )?;
-    lower.unroll = unroll;
+    lower.unroll = rules.is_none_or(|r| r.unroll);
+    lower.pool_allowed = rules.is_none_or(|r| r.pool);
     lower.add_cells(|_| Some(0))?;
     lower.register_source(source)?;
     lower.emit_source(root, source)?;
@@ -436,7 +437,7 @@ pub fn from_checked_modules<'ast, 'src>(
 ) -> Result<Program<'src>, ModuleUnsupported> {
     let mut budget = AllocationBudget::new(None);
     let result = (|| {
-        let program = convert_modules(sources, semantics, true, &mut budget)?;
+        let program = convert_modules(sources, semantics, None, &mut budget)?;
         verify_module_conversion(
             &program,
             semantics.root(),
@@ -466,7 +467,7 @@ pub fn from_checked_modules<'ast, 'src>(
 fn convert_modules<'ast, 'src>(
     sources: &[ast::Program<'ast, 'src>],
     semantics: &CheckedModules<'ast, 'src>,
-    unroll: bool,
+    rules: Option<RuleRequest>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Program<'src>, ModuleConversionError> {
     let fail = |module, feature| ModuleConversionError {
@@ -515,7 +516,8 @@ fn convert_modules<'ast, 'src>(
                 error,
             }
         })?;
-    lower.unroll = unroll;
+    lower.unroll = rules.is_none_or(|r| r.unroll);
+    lower.pool_allowed = rules.is_none_or(|r| r.pool);
     for module in 1..sources.len() {
         let view = semantics.view(module).unwrap();
         lower
@@ -779,6 +781,8 @@ mod authors;
 struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
     statement_origin: Option<(ModuleId, SourceNodeId)>,
     unroll: bool,
+    pool_allowed: bool,
+    pool_region: Option<(ModuleId, Span)>,
     /// Current physical binding for each checked source symbol during expansion.
     cell_aliases: Vec<CellId>,
     checked_types: Vec<Option<TypeId>>,
@@ -860,6 +864,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 Retained,
                 &mut modules,
                 ModuleInterface {
+                    pooled_strings: Vec::new(),
                     source: source.source_identity().clone(),
                     initializer,
                     dependencies: Vec::new(),
@@ -884,6 +889,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 trap_index_reads: false,
                 source_contract: semantics.source_contract(),
                 authored_unrolling: false,
+                authored_pooling: false,
                 absence_abi: semantics.absence_abi(),
                 units: Vec::new(),
                 cells: table(Vec::new(), budget)?,
@@ -906,6 +912,8 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
             current_class: None,
             statement_origin: None,
             unroll: true,
+            pool_allowed: true,
+            pool_region: None,
             cell_aliases: Vec::new(),
             class_values: None,
             field_initializers: Default::default(),
@@ -1117,8 +1125,10 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 } else {
                     Suspension::None
                 };
+                let outer_pool = self.enter_pool(function.region.pool_strings, function.span)?;
                 self.parameters(unit, function.params)?;
                 self.statements(unit, region, function.body)?;
+                self.pool_region = outer_pool;
                 let ty = self.program.cells[cell.index()].ty;
                 let value = self.value(
                     root,
@@ -1410,6 +1420,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         continue;
                     }
                     let id = self.owned_string(decoded)?;
+                    self.authored_string(id, *part_span)?;
                     let chunk = self.value(
                         unit,
                         region,
@@ -1448,6 +1459,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         }
         let result = if operands.is_empty() {
             let id = self.owned_string(StringValue::default())?;
+            self.authored_string(id, span)?;
             self.value(
                 unit,
                 region,
@@ -2667,7 +2679,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let class = self.declared_class(declaration.name)?;
         for member in declaration.members {
             self.work(1)?;
-            let (name, this, params, body, span) = match member {
+            let (name, this, params, body, span, pool) = match member {
                 ast::ClassMember::Field(_) => continue,
                 ast::ClassMember::Method(function) => (
                     Some(function.name.name),
@@ -2675,6 +2687,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     function.params,
                     function.body,
                     function.span,
+                    function.region.pool_strings,
                 ),
                 ast::ClassMember::Constructor(constructor) => (
                     None,
@@ -2682,6 +2695,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     constructor.params,
                     constructor.body,
                     constructor.span,
+                    false,
                 ),
             };
             let member = match name {
@@ -2701,6 +2715,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span,
                 feature: "unregistered class body",
             })?;
+            let outer_pool = self.enter_pool(pool, span)?;
             let this_cell = self.cell(this)?;
             let outer = self.current_class.replace((class, this_cell));
             self.parameters_with_receiver(method.unit, Some(this), params)?;
@@ -2716,6 +2731,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             self.parameter_defaults(method.unit, params, 1)?;
             self.statements(method.unit, entry, body)?;
             self.current_class = outer;
+            self.pool_region = outer_pool;
             let ty = self.program.cells[method.cell.index()].ty;
             let value = self.value(
                 root,
@@ -4588,6 +4604,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             ),
             ExprKind::String(value, _) => {
                 let id = self.decoded_string(value, span, "invalid checked string")?;
+                self.authored_string(id, span)?;
                 (OperationKind::Constant(Constant::String(id)), vec![])
             }
             ExprKind::Bool(value, _) => {

@@ -1031,6 +1031,9 @@ pub struct EntryPublic {
 pub struct Module {
     pub expressions: Vec<Expr>,
     pub origins: Vec<Option<SourceNodeId>>,
+    /// Source-authored string values admitted to shared storage regardless of seed.
+    pub(crate) authored_pool: Vec<StringValue>,
+    pub(crate) authored_pool_formed: bool,
     /// String literals the source only observes for truthiness or
     /// nullishness (an annotation of M5.2), sorted by expression: an
     /// artifact may spell them another way (`LiteralOutput::Observed`). The
@@ -3212,6 +3215,8 @@ impl Module {
         Ok(Self {
             expressions: vec![],
             origins: vec![],
+            authored_pool: Vec::new(),
+            authored_pool_formed: false,
             functions: vec![],
             bindings: vec![],
             imports: vec![],
@@ -3383,6 +3388,7 @@ impl Module {
         let arenas = [
             bytes(&self.expressions)?,
             bytes(&self.origins)?,
+            bytes(&self.authored_pool)?,
             bytes(&self.observed_literals)?,
             bytes(&self.behaviours)?,
             bytes(&self.settled)?,
@@ -3404,6 +3410,11 @@ impl Module {
         let mut total = 0u64;
         for arena in arenas {
             total = total.checked_add(arena).ok_or(AllocationError::Capacity)?;
+        }
+        for value in &self.authored_pool {
+            let bytes = value.storage_bytes() as u64;
+            budget.work(crate::compilation_policy::WorkKind::Render, bytes + 1)?;
+            total = total.checked_add(bytes).ok_or(AllocationError::Capacity)?;
         }
         budget.work(
             crate::compilation_policy::WorkKind::Render,

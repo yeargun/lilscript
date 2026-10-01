@@ -676,7 +676,7 @@ impl Module {
                 let _ = self.pack_string_arrays(context.rules.array_packing, budget)?;
             }
             Rule::PoolStrings => {
-                let _ = self.pool_strings(budget)?;
+                let _ = self.pool_strings(true, budget)?;
             }
             Rule::EncodeTables => {
                 if let Some(choices) = choices {

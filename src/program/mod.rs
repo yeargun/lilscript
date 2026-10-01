@@ -358,6 +358,7 @@ pub struct Program<'src> {
     source_contract: crate::config::LanguageConfig,
     /// Authored expansion is retained as permission evidence through replay.
     authored_unrolling: bool,
+    authored_pooling: bool,
     absence_abi: bool,
     units: Vec<FrozenUnit>,
     // Published tables are immutable. Retaining a candidate shares their
@@ -391,6 +392,8 @@ pub struct Program<'src> {
 /// The ordered edges own initialization dependencies; the schedule is derived.
 #[derive(Debug, Clone)]
 pub struct ModuleInterface {
+    /// Checked literal values admitted by authored @pool regions.
+    pub(crate) pooled_strings: Vec<StringId>,
     pub source: crate::ast::SourceIdentity,
     pub initializer: UnitId,
     pub dependencies: Vec<ModuleId>,

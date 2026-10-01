@@ -4511,3 +4511,41 @@ fn s4_inline_for_permission_conflicts_are_source_diagnostics() {
         assert!(error.to_string().contains("loop-unrolling='off'"),"{error}");
     }
 }
+
+
+#[test]
+fn s4_pool_pins_survive_folding_inlining_and_every_objective() {
+    let source=r#"
+        @pool string small(){return "x";}
+        @pool func()->string captured(string value="default"){return ()=>`prefix:${value}`;}
+        class Labels { @pool string one(){return "one";} }
+        string label(bool condition){Labels labels=new Labels();if(condition){return small();}return labels.one();}
+        func()->string get(){return captured();}
+        @pool string lone(){return "\uD800";}
+        @pool string empty(){return ``;}
+        print(lone().codeUnitAt(0));print(label(true));print(label(false));print(get()());print(empty().length);
+    "#;
+    for effort in [0,13] {
+        let mut settings=config("");settings.effort.level=effort;
+        let built=compile_source(source,&settings,ServiceOptions {
+            target:if effort==0 {ServiceTarget::All} else {ServiceTarget::JavaScript},
+            preserve_root_exports:false, objectives:Some(Objectives::All), ..ServiceOptions::default()
+        }).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"",""),"55296\nx\none\nprefix:default\n0\n");
+        }
+        if let Some(native)=built.native_c() {assert_eq!(execute_native(native),"55296\nx\none\nprefix:default\n0\n");}
+        check_scores(&built);
+    }
+}
+
+#[test]
+fn s4_pool_diagnoses_source_conflicts_and_misplaced_attributes() {
+    let settings=config("[policy.tactics]\nstring-pooling='off'");
+    let error=compile_source("@pool string value(){return \"small\";}print(value());",&settings,ServiceOptions::default()).unwrap_err();
+    assert!(error.to_string().contains("string-pooling='off'"),"{error}");
+    for source in ["@pool extern string f();","@pool class C{}","@pool struct S{}","@pool enum E{A}","@pool shape S{}","class C{@pool string x;}"] {
+        let arena=bumpalo::Bump::new();
+        assert!(crate::parse_source(&arena,source).is_err(),"{source}");
+    }
+}

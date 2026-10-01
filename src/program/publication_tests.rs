@@ -1520,3 +1520,39 @@ fn s4_inline_for_replay_and_artifacts_retain_the_hard_veto() {
         assert_eq!(compiler.finish().retained_bytes(),0);
     });
 }
+
+
+#[test]
+fn s4_pool_pins_apply_without_compaction_and_retain_artifact_permissions() {
+    checked("@pool string label(string value){return `prefix:${value}:tail`;}print(label(\"x\"));", |program| {
+        let module=program.to_javascript().unwrap();
+        let pooled=module.regions[module.root.index()].statements.iter().filter_map(|statement|match statement {
+            crate::js::Statement::Let {value:Some(id),..} => match &module.expressions[id.index()] {
+                crate::js::Expr::Literal(crate::js::Literal::String(value)) => value.as_unicode(),
+                _ => None,
+            },
+            _=>None,
+        }).collect::<Vec<_>>();
+        assert!(pooled.contains(&"prefix:") && pooled.contains(&":tail"),"{pooled:?}");
+    });
+    checked("@pool string answer(){return \"x\";}print(answer());", |program| {
+        let module=program.to_javascript().unwrap();
+        assert!(module.regions[module.root.index()].statements.iter().any(|statement|match statement {
+            crate::js::Statement::Let {value:Some(id),..} => matches!(&module.expressions[id.index()],crate::js::Expr::Literal(crate::js::Literal::String(value)) if value.as_unicode()==Some("x")),
+            _=>false,
+        }));
+        let mut compiler=compilation();
+        let source=compiler.adopt_checked(program,WorkDomain::Baseline).unwrap();
+        let on=policy("[objective]\ncodecs=['raw']\n[policy.tactics]\ntarget-compaction='off'");
+        let off=policy("[objective]\ncodecs=['raw']\n[policy.tactics]\ntarget-compaction='off'\nstring-pooling='off'");
+        assert!(matches!(compiler.direct_javascript(source,&off,WorkDomain::Baseline),Err(CandidateError::ForbiddenTactic(crate::compilation_policy::TacticId::StringPooling))));
+        let candidate=compiler.direct_javascript(source,&on,WorkDomain::Baseline).unwrap();
+        let artifact=compiler.with_javascript_output(candidate,&on,|output| {
+            let artifact=output.render(&crate::js::selection::Plan::new(crate::js::selection::Style::Scoped))?;
+            output.retain_artifact(artifact)
+        }).unwrap().unwrap();
+        let result=compiler.qualify_artifact(artifact,&off,crate::config::CompressionCostModel::Raw,ArtifactRuntimeEvidence::default(),None,WorkDomain::Baseline);
+        assert!(matches!(result,Err(CandidateError::ForbiddenTactic(crate::compilation_policy::TacticId::StringPooling))),"{result:?}");
+        assert_eq!(compiler.finish().retained_bytes(),0);
+    });
+}

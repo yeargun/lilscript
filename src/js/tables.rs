@@ -1367,6 +1367,7 @@ impl Module {
             ) {
                 continue;
             }
+            if self.contains_pooled_string(value, budget)? { continue; }
             let mut nodes = 0;
             let node = self.datum(value, 0, &mut nodes);
             budget.work(Analysis, nodes)?;

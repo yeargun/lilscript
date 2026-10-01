@@ -69,7 +69,8 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    source-owned refusal and explicit-closure alternative.
 8. [~] Complete R15 author controls: shared `inline for` expansion, fresh capture
    banks, resource admission and the independent hard TOML veto are implemented.
-   `@pool` is parsed but not consumed and `@choose` remains absent.
+   `@pool` consumes authored literals/defaults/templates across shared edits,
+   target encodings and replay; `@choose` remains absent.
    Register/document any new behavior controls and their gates, interactions,
    costs and hard vetoes. Keep semantic assumptions separate from effort. Q4 owns
    general const-data encodings and schema specialization; Q2 owns incremental

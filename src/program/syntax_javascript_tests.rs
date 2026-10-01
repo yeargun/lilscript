@@ -45,7 +45,7 @@ fn compile_program(source: &str, config: &str, plan: Plan, shared: bool) -> Stri
         super::rules::optimize(
             program,
             super::rules::RuleRequest {
-                unroll: true,
+                unroll: true, pool: true,
                 fold: policy
                     .tactic(crate::compilation_policy::TacticId::ConstantFolding)
                     .enabled,

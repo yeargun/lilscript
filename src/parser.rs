@@ -405,6 +405,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             }
         }
         if self.match_kind(|kind| matches!(kind, TokenKind::Extern)) {
+            if !region.is_default() { return Err(self.error_here("region attributes require a function body")); }
             if is_async || is_generator {
                 return Err(self.error_here("externs must declare deferred return types directly"));
             }
@@ -460,7 +461,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::Struct)) {
-            if declared_pure || is_async || is_generator {
+            if declared_pure || is_async || is_generator || !region.is_default() {
                 return Err(self.error_here("modifiers can only apply to functions"));
             }
             return self.parse_struct_after_keyword().map(Item::Struct);
@@ -470,7 +471,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             && matches!(self.lookahead_kind(self.cursor + 1)?, Some(TokenKind::Enum));
         if flags { self.advance(); }
         if self.match_kind(|kind| matches!(kind, TokenKind::Enum)) {
-            if declared_pure || is_async || is_generator {
+            if declared_pure || is_async || is_generator || !region.is_default() {
                 return Err(self.error_here("modifiers cannot apply to an enum declaration"));
             }
             return self.parse_enum_after_keyword(flags).map(Item::Enum);
@@ -480,7 +481,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             && matches!(self.lookahead_kind(self.cursor + 1)?, Some(TokenKind::Class));
         if sealed { self.advance(); }
         if self.match_kind(|kind| matches!(kind, TokenKind::Class)) {
-            if declared_pure || is_async || is_generator {
+            if declared_pure || is_async || is_generator || !region.is_default() {
                 return Err(self.error_here("modifiers can only apply to functions"));
             }
             let mut declaration = self.parse_class_after_keyword()?;
@@ -488,7 +489,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             return Ok(Item::Class(declaration));
         }
         if self.match_kind(|kind| matches!(kind, TokenKind::Ident("shape"))) {
-            if declared_pure || is_async || is_generator {
+            if declared_pure || is_async || is_generator || !region.is_default() {
                 return Err(self.error_here("function modifiers cannot apply to a shape"));
             }
             return self.parse_shape_after_keyword().map(Item::Class);
@@ -1187,7 +1188,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                         "type parameters require a method declaration",
                     ));
                 }
-                if declared_pure || is_async || is_generator || dispatch != crate::ast::MethodDispatch::Static {
+                if declared_pure || is_async || is_generator || !region.is_default() || dispatch != crate::ast::MethodDispatch::Static {
                     return Err(AdmittedParseError::new(
                         member_name.span,
                         "modifiers can only apply to methods",

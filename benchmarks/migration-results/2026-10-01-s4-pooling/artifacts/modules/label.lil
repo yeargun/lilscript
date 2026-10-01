@@ -1,0 +1,1 @@
+@pool string choose(int n){if(n>0){return "alpha";}return "beta";}export string label(int n){return choose(n);}

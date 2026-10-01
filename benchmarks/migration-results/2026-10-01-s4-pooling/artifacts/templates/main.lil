@@ -1,0 +1,1 @@
+@pool string label(string n="fallback"){return `prefix:${n}:tail`;}export string probe(string n){return label(n);}
