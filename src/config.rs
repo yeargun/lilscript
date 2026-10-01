@@ -623,6 +623,10 @@ pub fn parse_project_config(source: &str) -> Result<ParsedConfig, String> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LanguageConfig {
+    /// `explicit` requires an ABI declaration before an enum can be observed
+    /// by host/string/JSON operations. Legacy keeps ordinal observations while
+    /// ports migrate. Declared ABI enums have the same contract in both modes.
+    pub enum_abi: EnumAbiContract,
     /// `legacy` returns an int32, using zero outside the UTF-16 string.
     /// `number` keeps ECMAScript's number/NaN result. Apply the char-code
     /// migration lint before opting in; this never depends on optimization.
@@ -656,6 +660,14 @@ pub enum CharCodeAtContract {
     #[default]
     Legacy,
     Number,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EnumAbiContract {
+    #[default]
+    Legacy,
+    Explicit,
 }
 
 impl LanguageConfig {

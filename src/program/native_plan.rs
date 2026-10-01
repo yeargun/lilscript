@@ -405,8 +405,8 @@ pub(super) fn native_type<'program, 'src>(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Option<NativeType>, NativeError> {
     Ok(Some(match ty {
-        // A closed enum is its declaration-order discriminant.
-        Type::Int | Type::Enum(_) => NativeType::I32,
+        Type::Int => NativeType::I32,
+        Type::Enum(declaration) => if declaration.is_string() { NativeType::String } else { NativeType::I32 },
         Type::Float => NativeType::F64,
         Type::Bool => NativeType::Bool,
         Type::String => NativeType::String,
@@ -2184,6 +2184,29 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             }
         };
         match &operation.kind {
+            OperationKind::Enum { declaration, operation } => {
+                use crate::primitive::EnumOperation as E;
+                let definition = self.program.enum_definition(*declaration).ok_or_else(|| error("native enum domain"))?;
+                let primitive = if definition.abi == crate::ast::EnumAbi::String { Text } else { I32 };
+                let valid = match operation {
+                    E::Abi => operand(0) == Stored(primitive) && result == Some(Stored(primitive)),
+                    E::Ordinal => operand(0) == Stored(primitive) && result == Some(Stored(I32)),
+                    E::From => operand(0) == Stored(primitive) && matches!(result, Some(Stored(NativeType::Dynamic(_)))),
+                    E::Has => operand(0) == Stored(I32) && operand(1) == Stored(I32) && result == Some(Stored(Bool)),
+                };
+                expect(valid, "native enum operation representation")?;
+                if *operation == E::From { self.helpers.require(Helper::Dynamic); }
+                if matches!(operation, E::From | E::Ordinal) {
+                    for variant in &definition.variants {
+                        work(budget, 1)?;
+                        if let Constant::String(id) = variant.value {
+                            self.strings[id.index()] = true;
+                            self.helpers.require(Helper::StringEqual);
+                        }
+                    }
+                }
+                Ok(())
+            }
             OperationKind::Constant(Constant::Integer(_)) => {
                 self.helpers.require(Helper::FromU32);
                 Ok(())

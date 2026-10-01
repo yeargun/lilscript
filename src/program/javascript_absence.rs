@@ -245,10 +245,15 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         body: js::RegionId,
         condition: js::ExprId,
     ) -> Result<(), FormationError> {
+        self.boundary_reject(body, condition, "wrong absence spelling at a declared boundary (R2)")
+    }
+
+    pub(super) fn boundary_reject(&mut self, body: js::RegionId, condition: js::ExprId, message: &str)
+        -> Result<(), FormationError> {
         let scope = self.module.regions[body.index()].scope;
         let fail = self.module.region_in(scope, self.budget)?;
         let callee = self.host_path(&["TypeError"])?;
-        let message = self.string(&"wrong absence spelling at a declared boundary (R2)".into())?;
+        let message = self.string(&message.into())?;
         let message = self.literal(js::Literal::String(message))?;
         let arguments = self
             .budget

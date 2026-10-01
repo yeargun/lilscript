@@ -10,6 +10,8 @@
 
 #[path = "javascript_shapes.rs"]
 mod shapes;
+#[path = "javascript_enums.rs"]
+mod enums;
 
 use super::demand::{
     ContextId, ContextKind, DemandError, DemandMode, DemandPlan, HelperOperation, RecordOperation,
@@ -4458,6 +4460,16 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         self.work(1)?;
         let operands = self.data(unit).operands(operation.operands).unwrap();
         let node = match operation.kind {
+            OperationKind::Enum { declaration, operation: kind } => {
+                let mut arguments = self.budget.vector(AllocationClass::Scratch, operands.len())?;
+                for &operand in operands {
+                    let value = self.value(unit, operand)?;
+                    self.budget.push(AllocationClass::Scratch, &mut arguments, value)?;
+                }
+                let value = self.enum_operation(declaration, kind, &arguments)?;
+                self.drop_scratch(arguments)?;
+                return self.save(unit, operation, value);
+            }
             OperationKind::Constant(_) => return Ok(None),
             OperationKind::Block(body) => self.statement_expression(unit, body, operation.span)?,
             OperationKind::PrepareReference { call, position } => {
@@ -4791,7 +4803,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 // Two numbers, two strings or two booleans compare the same
                 // loosely: `==` converts nothing when the types already agree.
                 let primitive = |ty: &Type<'_>| match ty {
-                    Type::Int | Type::Float | Type::Enum(_) => Some(0),
+                    Type::Int | Type::Float => Some(0),
+                    Type::Enum(declaration) => Some(if declaration.is_string() { 1 } else { 0 }),
                     Type::String => Some(1),
                     Type::Bool => Some(2),
                     _ => None,

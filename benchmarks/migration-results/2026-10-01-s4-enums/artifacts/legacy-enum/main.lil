@@ -1,0 +1,1 @@
+enum Status{Draft,Active,Sold}export int code(Status s){return match(s){Status.Draft=>7,Status.Active=>3,Status.Sold=>9};}export Status value(){return Status.Active;}

@@ -22,6 +22,7 @@ pub(crate) mod absence;
 pub(crate) mod capabilities;
 mod field_initialization;
 mod shapes;
+mod enums;
 pub use shapes::ShapeTag;
 mod modules;
 mod struct_cycles;
@@ -248,7 +249,7 @@ pub enum Type<'src> {
     Int,
     Float,
     /// An enum by its checked identity; the spelling is display data.
-    Enum(NominalType<'src>),
+    Enum(EnumType<'src>),
     String,
     Bool,
     Null,
@@ -820,6 +821,27 @@ pub struct NominalType<'src> {
 /// A struct's nominal reference.
 pub type StructType<'src> = NominalType<'src>;
 
+/// A closed domain and its canonical ABI representation. The declaration
+/// owns the values; primitive storage needs only this compact kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EnumType<'src> {
+    pub declaration: NominalType<'src>,
+    pub abi: crate::ast::EnumAbi,
+}
+
+impl<'src> std::ops::Deref for EnumType<'src> {
+    type Target = NominalType<'src>;
+    fn deref(&self) -> &Self::Target { &self.declaration }
+}
+
+impl EnumType<'_> {
+    pub(crate) fn is_string(self) -> bool { self.abi == crate::ast::EnumAbi::String }
+    pub(crate) fn is_flags(self) -> bool { self.abi == crate::ast::EnumAbi::Flags }
+    pub(crate) fn primitive(self) -> Type<'static> {
+        if self.is_string() { Type::String } else { Type::Int }
+    }
+}
+
 /// Tests that build types without a checker: one identity per spelling, so
 /// equal spellings are one declaration, as in a single scope.
 #[cfg(test)]
@@ -845,8 +867,8 @@ pub(crate) fn test_class(name: &str) -> NominalType<'_> {
     test_nominal(NominalKind::Class, name)
 }
 #[cfg(test)]
-pub(crate) fn test_enum(name: &str) -> NominalType<'_> {
-    test_nominal(NominalKind::Enum, name)
+pub(crate) fn test_enum(name: &str) -> EnumType<'_> {
+    EnumType { declaration: test_nominal(NominalKind::Enum, name), abi: crate::ast::EnumAbi::Ordinal }
 }
 
 impl PartialEq for NominalType<'_> {
@@ -977,10 +999,13 @@ pub struct MethodInfo<'src> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumInfo<'src> {
-    pub declaration: NominalType<'src>,
+    pub declaration: EnumType<'src>,
     pub module: Option<crate::module::ModuleId>,
     pub name: &'src str,
     pub variants: IndexMap<&'src str, i64>,
+    /// Declaration order, distinct from the externally observable ABI value.
+    pub values: Vec<ShapeTag<'src>>,
+    pub flag_mask: u32,
     pub span: Span,
 }
 
@@ -1097,6 +1122,7 @@ pub enum ExpressionResolution {
     #[default]
     None,
     Binding(SymbolId),
+    Enum { declaration: NominalId, operation: crate::primitive::EnumOperation },
     Builtin(BuiltinCall),
     /// Syntax on a `JsValue` that is the dynamic operation its `JS.*`
     /// spelling names (R12). Its operands are the node's own parts: the
@@ -1994,8 +2020,8 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
             Type::Struct(declaration)
             | Type::StructInstance { declaration, .. }
             | Type::Class(declaration)
-            | Type::ClassInstance { declaration, .. }
-            | Type::Enum(declaration) => Some(declaration.identity),
+            | Type::ClassInstance { declaration, .. } => Some(declaration.identity),
+            Type::Enum(declaration) => Some(declaration.identity),
             _ => None,
         }
     }
@@ -2009,7 +2035,7 @@ impl<'view, 'ast, 'src> CheckedView<'view, 'ast, 'src> {
         Some(match id.kind() {
             NominalKind::Struct => Type::Struct(declaration),
             NominalKind::Class => Type::Class(declaration),
-            NominalKind::Enum => Type::Enum(declaration),
+            NominalKind::Enum => Type::Enum(self.nominal_enum(id)?.declaration),
         })
     }
 
@@ -2836,9 +2862,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 NominalKind::Enum => {
                     let identity = NominalId::new(self.declarations.enums.len(), kind);
-                    let declaration = NominalType {
-                        identity,
-                        name: name.name,
+                    let declaration = EnumType {
+                        declaration: NominalType { identity, name: name.name },
+                        abi: match item { Item::Enum(declaration) => declaration.abi, _ => unreachable!() },
                     };
                     self.budget.push(
                         AllocationClass::Scratch,
@@ -2848,6 +2874,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             module: self.module,
                             name: name.name,
                             variants: IndexMap::new(),
+                            values: Vec::new(),
+                            flag_mask: 0,
                             span,
                         },
                     )?;
@@ -2856,29 +2884,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
             };
             self.facts.type_bindings.insert(name.name, identity);
-        }
-        Ok(())
-    }
-
-    fn define_enums(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedCheckError> {
-        for item in program.items {
-            let Item::Enum(decl) = item else {
-                continue;
-            };
-            let mut variants = IndexMap::new();
-            for (index, variant) in decl.variants.iter().enumerate() {
-                if variants.insert(variant.name, index as i64).is_some() {
-                    return Err(AdmittedCheckError::new(
-                        variant.span,
-                        format!(
-                            "duplicate variant `{}` in enum `{}`",
-                            variant.name, decl.name.name
-                        ),
-                    ));
-                }
-            }
-            let identity = self.facts.type_bindings[decl.name.name];
-            self.declarations.enums[identity.index()].variants = variants;
         }
         Ok(())
     }
@@ -5190,7 +5195,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 .facts
                 .type_bindings
                 .get(enum_name.name)
-                .is_some_and(|identity| identity.is_enum()) =>
+                .is_some_and(|identity| identity.is_enum())
+                && self.builtin_namespace_is_unshadowed(enum_name.name) =>
             {
                 let info =
                     &self.declarations.enums[self.facts.type_bindings[enum_name.name].index()];
@@ -5244,7 +5250,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 kind: ExprKind::Call { callee, args, span },
                 ..
             } => {
-                if let Some((builtin, result)) =
+                if let Some(result) = self.analyze_enum_from(callee, args, expr.id, *span)? {
+                    result
+                } else if let Some((builtin, result)) =
                     self.analyze_static_namespace_call(callee, args, *span, expected)?
                 {
                     self.facts.source_info[expr.id.index()].resolution =
@@ -6215,6 +6223,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         if matches!(
             self.facts.source_info[id.index()].resolution,
             ExpressionResolution::Primitive(crate::primitive::ResolvedIntrinsic::Method(_))
+                | ExpressionResolution::Enum { operation: crate::primitive::EnumOperation::Has, .. }
         ) {
             return Err(AdmittedCheckError::new(span,
                 "a primitive method must be called through its receiver; use a closure to pass it as a value"));
@@ -6586,6 +6595,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
         if !wildcard {
             match (&value_type, variants) {
+                (Type::Enum(declaration), _) if declaration.is_flags() => {
+                    return Err(AdmittedCheckError::new(span, "a flag-set match requires a final `_` arm for combinations and the empty set"));
+                }
                 (Type::Enum(_), Some((enum_name, variants))) if covered.len() != variants.len() => {
                     let missing = variants
                         .keys()
@@ -6655,6 +6667,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
         }
         match object_type {
+            Type::Enum(declaration) => self.enum_member(declaration, property, id),
             Type::Intersection(_) => {
                 let fields = self.shape_fields(&object_type, span)?;
                 let (_, field) = fields.into_iter().find(|(_, field)| field.name == property.name)
@@ -9238,8 +9251,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 Type::Struct(declaration)
                 | Type::StructInstance { declaration, .. }
                 | Type::Class(declaration)
-                | Type::ClassInstance { declaration, .. }
-                | Type::Enum(declaration) => Some(*declaration),
+                | Type::ClassInstance { declaration, .. } => Some(*declaration),
+                Type::Enum(declaration) => Some(declaration.declaration),
                 _ => None,
             };
             if let (Some(expected), Some(actual)) = (declaration(expected), declaration(actual)) {
@@ -10281,9 +10294,10 @@ fn contains_host_value(ty: &Type<'_>) -> bool {
 /// their type arguments, and the types a function value's crossing carries.
 fn nominals_in(ty: &Type<'_>, out: &mut Vec<NominalId>) {
     match ty {
-        Type::Class(declaration) | Type::Struct(declaration) | Type::Enum(declaration) => {
+        Type::Class(declaration) | Type::Struct(declaration) => {
             out.push(declaration.identity)
         }
+        Type::Enum(declaration) => out.push(declaration.identity),
         Type::ClassInstance { declaration, args } | Type::StructInstance { declaration, args } => {
             out.push(declaration.identity);
             for argument in args {

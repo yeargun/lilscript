@@ -114,8 +114,7 @@ pub(crate) fn measure_payload<'a, 'src, E>(
                     text(&mut measured, &mut scope, name)?;
                 }
                 Payload::Type(
-                    Type::Enum(declaration)
-                    | Type::Class(declaration)
+                    Type::Class(declaration)
                     | Type::ClassInstance { declaration, .. }
                     | Type::Struct(declaration)
                     | Type::StructInstance { declaration, .. },
@@ -124,6 +123,9 @@ pub(crate) fn measure_payload<'a, 'src, E>(
                     DefaultValue::Struct { declaration, .. }
                     | DefaultValue::NewClass { declaration, .. },
                 ) => {
+                    text(&mut measured, &mut scope, declaration.name)?;
+                }
+                Payload::Type(Type::Enum(declaration)) => {
                     text(&mut measured, &mut scope, declaration.name)?;
                 }
                 Payload::Type(Type::GenericFunction(function)) => {

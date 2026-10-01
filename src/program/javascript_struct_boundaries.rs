@@ -97,8 +97,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     }
                     None
                 }
-                (Type::Class(expected), Type::Class(actual))
-                | (Type::Enum(expected), Type::Enum(actual)) => {
+                (Type::Class(expected), Type::Class(actual)) => {
                     self.work(1)?;
                     if expected.identity != actual.identity {
                         return Err(
@@ -107,6 +106,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     }
                     None
                 }
+                (Type::Enum(expected), Type::Enum(actual)) if expected == actual => None,
                 (Type::Dynamic, Type::Dynamic) => None,
                 // These shapes need a qualified adapter/instantiated schema;
                 // a matching-looking type parameter is not enough evidence.

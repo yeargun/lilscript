@@ -1045,12 +1045,9 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                             feature: "missing checked enum domain",
                         })?;
                     let mut variants = self.budget.vector(Retained, checked.variants.len())?;
-                    for (name, value) in &checked.variants {
+                    for (name, ordinal) in &checked.variants {
                         let name = self.budget.string(Retained, name)?;
-                        let value = i32::try_from(*value).map_err(|_| Unsupported {
-                            span: declaration.span,
-                            feature: "enum value outside language domain",
-                        })?;
+                        let value = self.enum_literal(checked.values[*ordinal as usize], declaration.span)?;
                         self.budget
                             .push(Retained, &mut variants, EnumVariant { name, value })?;
                     }
@@ -1061,6 +1058,8 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                         EnumDefinition {
                             identity: checked.declaration.identity,
                             name,
+                            abi: checked.declaration.abi,
+                            flag_mask: checked.flag_mask,
                             variants,
                         },
                     )?;
@@ -2767,6 +2766,22 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             span,
         )
     }
+    fn enum_literal(&mut self, value: crate::check::ShapeTag<'src>, span: Span) -> Result<Constant, ConversionError> {
+        Ok(match value {
+            crate::check::ShapeTag::Int(value) => Constant::Integer(value),
+            crate::check::ShapeTag::String(value) => Constant::String(self.decoded_string(value, span, "invalid enum ABI string")?),
+            crate::check::ShapeTag::Bool(_) => return self.unsupported(span, "boolean enum ABI"),
+        })
+    }
+
+    fn enum_constant(&mut self, ty: TypeId, ordinal: i64, span: Span) -> Result<Constant, ConversionError> {
+        let Type::Enum(declaration) = self.program.types[ty.index()] else { return self.unsupported(span, "enum literal without its checked domain"); };
+        let value = self.semantics.nominal_enum(declaration.identity)
+            .and_then(|info| info.values.get(ordinal as usize)).copied()
+            .ok_or(Unsupported { span, feature: "enum ordinal outside its checked domain" })?;
+        self.enum_literal(value, span)
+    }
+
     /// A field's value before any `init` statement runs: the legacy defaults.
     fn field_default(
         &mut self,
@@ -2776,7 +2791,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         span: Span,
     ) -> Result<ValueId, ConversionError> {
         let constant = match &self.program.types[ty.index()] {
-            Type::Int | Type::Enum(_) => Constant::Integer(0),
+            Type::Int => Constant::Integer(0),
+            Type::Enum(_) => self.enum_constant(ty, 0, span)?,
             Type::Float => Constant::Number(0f64.to_bits()),
             Type::Bool => Constant::Boolean(false),
             Type::String => Constant::String(self.owned_string(StringValue::default())?),
@@ -3811,6 +3827,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         property: ast::Ident<'src>,
         ty: TypeId,
     ) -> Result<ValueId, ConversionError> {
+        if let ExpressionResolution::Enum { declaration, operation } = self.semantics.expression_resolution(expr.id) {
+            return self.value(unit, region, OperationKind::Enum { declaration, operation }, &[receiver], ty, Some(expr.id), expr.span());
+        }
         let span = expr.span();
         if let ExpressionResolution::Primitive(operation @ ResolvedIntrinsic::Property(_)) =
             self.semantics.expression_resolution(expr.id)
@@ -3902,10 +3921,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         span,
                         feature: "match pattern lost its checked discriminant",
                     })?;
-                Constant::Integer(i32::try_from(value).map_err(|_| Unsupported {
-                    span,
-                    feature: "enum discriminant outside int",
-                })?)
+                let ty = self.units[unit.index()].values[scrutinee.index()].ty;
+                self.enum_constant(ty, value, span)?
             }
             ast::MatchPattern::Int(value, _) => {
                 Constant::Integer(i32::try_from(value).map_err(|_| Unsupported {
@@ -4576,9 +4593,12 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             } => {
                 if let Some(value) = self.semantics.enum_variant_value(property.id) {
                     (
-                        OperationKind::Constant(Constant::Integer(value as i32)),
+                        OperationKind::Constant(self.enum_constant(ty, value, span)?),
                         vec![],
                     )
+                } else if let ExpressionResolution::Enum { declaration, operation } = self.semantics.expression_resolution(expr.id) {
+                    let receiver = self.expression(unit, region, object)?;
+                    (OperationKind::Enum { declaration, operation }, self.budget.copy_slice(Scratch, &[receiver])?)
                 } else if let ExpressionResolution::Primitive(
                     operation @ ResolvedIntrinsic::Property(_),
                 ) = self.semantics.expression_resolution(expr.id)
@@ -4883,6 +4903,16 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             }
             ExprKind::Call { callee, args, .. } => {
                 let resolution = self.semantics.expression_resolution(expr.id);
+                if let ExpressionResolution::Enum { declaration, operation } = resolution {
+                    let argument = self.expression(unit, region, &args[0].expression)?;
+                    return self.value(unit, region, OperationKind::Enum { declaration, operation }, &[argument], ty, origin, span);
+                }
+                if let ExpressionResolution::Enum { declaration, operation } = self.semantics.expression_resolution(callee.id) {
+                    let ExprKind::Member { object, .. } = &callee.kind else { return self.unsupported(span, "detached enum operation"); };
+                    let receiver = self.expression(unit, region, object)?;
+                    let argument = self.expression(unit, region, &args[0].expression)?;
+                    return self.value(unit, region, OperationKind::Enum { declaration, operation }, &[receiver, argument], ty, origin, span);
+                }
                 if resolution == ExpressionResolution::Builtin(BuiltinCall::JsUndefined)
                     && self.program.source_contract.unified_absence()
                     && matches!(self.program.types[ty.index()], Type::Null) {

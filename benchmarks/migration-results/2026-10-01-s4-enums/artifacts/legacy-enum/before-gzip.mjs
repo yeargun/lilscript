@@ -1,0 +1,1 @@
+let code=function(a){return a==0?7:a==1?3:9},value=function(){return 1};export{code,value};

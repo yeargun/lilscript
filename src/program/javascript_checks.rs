@@ -186,6 +186,7 @@ impl Crossing {
     pub(super) fn of(ty: &Type<'_>) -> Option<(Self, bool)> {
         Some(match ty {
             Type::Int => (Self::Int, false),
+            Type::Enum(declaration) => (if declaration.is_string() { Self::String } else { Self::Int }, false),
             Type::Float => (Self::Float, false),
             Type::String => (Self::String, false),
             Type::Bool => (Self::Bool, false),
@@ -242,6 +243,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         if self.contract.checks != PreconditionChecks::Development {
             return Ok(value);
         }
+        let value = self.enum_crossing(&self.program.types[ty.index()], value)?;
         let value = self.checked_absence_pin(&self.program.types[ty.index()], value)?;
         if super::super::schema::is_shape(self.program, &self.program.types[ty.index()]) {
             return self.shape_crossing(ty, value, None);

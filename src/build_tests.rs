@@ -3747,3 +3747,90 @@ fn s4_char_code_native_uses_the_same_number_contract_before_and_after_folding() 
         assert_eq!(execute_native(result.native_c().unwrap()), "true\n56832\n55296\n0\n55357\n");
     }
 }
+
+#[test]
+fn s4_enums_keep_abi_values_ordinals_collections_and_effect_order() {
+    let source = r#"
+        enum Kind:string{Text="text",Break="break",Empty=""}
+        enum Code:int{A=65,B=-7}
+        flags enum Access:int{Read=1,Write=4,High=-2147483648}
+        shape Token{data Kind kind;data Access access;}
+        extern string supply();
+        export Kind? parse(string value){return Kind.from(value);}
+        export Kind? effect(){return Kind.from(supply());}
+        export int ordinal(Kind kind){return kind.ordinal;}
+        export string abi(Kind kind){return kind.abi;}
+        export int numeric(Code code){return code.ordinal*100+code.abi;}
+        export Code? code(int value){return Code.from(value);}
+        export Access combine(Access a,Access b){return a|b;}
+        export Access? access(int value){return Access.from(value);}
+        export bool has(Access a,Access b){return a.has(b);}
+        export int classify(Kind kind){return match(kind){Kind.Text=>1,Kind.Break=>2,Kind.Empty=>3};}
+        export string optional(string text){return Kind.from(text)?.abi??"missing";}
+        export Token make(){return Token{kind:Kind.Text,access:Access.Read|Access.Write};}
+        export void update(Token token,Kind[] values){token.kind=Kind.Break;values.push(Kind.Empty);}
+        export int read(Token token){return token.kind.ordinal;}
+        export bool same(Kind[] values){return values.includes(Kind.Text);}
+    "#;
+    for checks in ["production", "development"] {
+        let result = compile_source(source, &config(&format!("checks='{checks}'\n[language]\nenum_abi='explicit'")), ServiceOptions {
+            objectives: Some(Objectives::All), ..ServiceOptions::default()
+        }).unwrap();
+        for objective in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+            assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(), "globalThis.count=0;globalThis.supply=()=>{count++;return 'break'};", r#"
+                const values=['text'],token=library.make();library.update(token,values);
+                console.log(JSON.stringify([library.parse('text'),library.parse('bad'),library.effect(),count,library.ordinal('break'),library.abi('text'),library.numeric(-7),library.code(65),library.code(0),library.combine(1,4),library.access(5),library.access(2),library.access(-2147483648),library.has(5,4),library.has(1,4),library.classify(''),library.optional('bad'),library.optional('text'),token,values,library.read(token),library.same(values)]));
+            "#), "[\"text\",null,\"break\",1,1,\"text\",93,65,null,5,5,null,-2147483648,true,false,3,\"missing\",\"text\",{\"kind\":\"break\",\"access\":5},[\"text\",\"\"],1,true]\n");
+        }
+        if checks == "development" {
+            assert_eq!(execute_javascript(result.javascript(Objective::Raw).unwrap().javascript(), "globalThis.supply=()=>'';", r#"
+                const results=[];let hooks=0;
+                for(const f of [()=>library.ordinal('bad'),()=>library.numeric(0),()=>library.combine(2,1),()=>library.combine({valueOf(){hooks++;return 1}},1),()=>library.read({kind:'bad',access:1})]){try{f();results.push(false)}catch(e){results.push(e instanceof TypeError)}}
+                results.push(hooks);console.log(JSON.stringify(results));
+            "#), "[true,true,true,true,true,0]\n");
+        }
+    }
+}
+
+#[test]
+fn s4_enums_native_and_shared_folding_preserve_declared_domains() {
+    let source = r#"
+        enum Kind:string{Text="text",Break="break"}
+        enum Code:int{A=65,B=-7}
+        flags enum Access:int{Read=1,Write=4,High=-2147483648}
+        int read(string text){Kind? kind=Kind.from(text);if(kind!=null){return kind.ordinal;}return -1;}
+        print(read("break"));print(read("bad"));print(Code.B.abi);print(Code.B.ordinal);
+        Access flags=Access.Read|Access.Write;print(flags.abi);print(flags.has(Access.Write));
+        print(Access.from(2)==null);print(Access.from(-2147483648)!=null);print(Kind.Text);print(Kind.Text.abi);
+    "#;
+    for effort in [0, 13] {
+        let mut settings = config("[language]\nenum_abi='explicit'");settings.effort.level=effort;
+        let result = compile_source(source, &settings, ServiceOptions {target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap();
+        assert_eq!(execute_native(result.native_c().unwrap()), "1\n-1\n-7\n1\n5\ntrue\ntrue\ntrue\ntext\ntext\n");
+    }
+}
+
+#[test]
+fn s4_enums_reject_invalid_domains_and_unpinned_observations() {
+    for source in [
+        "enum E:string{A=\"same\",B=\"s\\u0061me\"}",
+        "enum E:int{A=1,B=1}",
+        "enum E:int{A=2147483648}",
+        "enum E{A=1}",
+        "enum E:string{A}",
+        "flags enum E:int{A=3}",
+        "flags enum E:string{A=\"a\"}",
+        "enum E{A,B}print(E.A);",
+        "enum E{A,B}export E value(){return E.A;}",
+        "enum E{A,B}print(JSON.stringify([E.A]));",
+        "flags enum E:int{A=1,B=2}int f(E value){return match(value){E.A=>1,E.B=>2};}",
+    ] {
+        let error = compile_source(source, &config("[language]\nenum_abi='explicit'"), ServiceOptions::default()).unwrap_err();
+        assert!(matches!(error.phase, "parse" | "check"), "{source}: {error:?}");
+    }
+    let result=compile_source("enum E{A,B}export int ordinal(){return E.B.ordinal;}",&config("[language]\nenum_abi='explicit'"),ServiceOptions::default()).unwrap();
+    assert_eq!(execute_javascript(result.javascript(Objective::Brotli).unwrap().javascript(),"","console.log(library.ordinal());"),"1\n");
+    assert!(toml::from_str::<ProjectConfig>("[language]\nenum_abi='guessed'").is_err());
+    let result = compile_source("enum Kind:string{A=\"a\"}class Converter{int from(int n){return n;}}export int shadow(){Converter Kind=new Converter();return Kind.from(7);}", &config("[language]\nenum_abi='explicit'"), ServiceOptions::default()).unwrap();
+    assert_eq!(execute_javascript(result.javascript(Objective::Brotli).unwrap().javascript(), "", "console.log(library.shadow());"), "7\n");
+}

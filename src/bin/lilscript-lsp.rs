@@ -1020,10 +1020,10 @@ fn document_symbol_result(params: &Value, documents: &HashMap<String, Document>)
                     .map(|variant| {
                         document_symbol(
                             &document.text,
-                            variant.name,
+                            variant.name.name,
                             22,
-                            variant.span,
-                            variant.span,
+                            variant.name.span,
+                            variant.name.span,
                             Vec::new(),
                         )
                     })

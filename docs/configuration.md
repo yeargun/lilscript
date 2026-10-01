@@ -114,6 +114,32 @@ spelling is required. It is a language choice, not a claim that every artifact
 gets smaller. The receipt and policy fingerprint retain the choice. Unknown
 keys and values fail configuration loading; no compression level overrides it.
 
+## Enum ABI during migration
+
+`[language] enum_abi = "legacy" | "explicit"` controls observation of enums
+without a declared ABI. `legacy` is the compatibility default; `explicit`
+requires `enum Kind: string { Text = "text" }` or `enum Code: int { A = 65 }`
+before a value can cross a host boundary, print, stringify or undergo a
+representation-observing conversion. `.ordinal` explicitly returns a closed
+enum's zero-based declaration index. Declared ABI enums work identically in
+both modes. Adopt this setting after pinning existing externally observed
+enums; D3/V2 own the qualified default transition.
+
+`Kind.from(value)` validates the declared domain and returns `Kind?`;
+`kind.abi` returns its declared integer or string. `flags enum Access: int`
+names distinct single bits; combinations use `|`, `&`, `^` and `.has(flags)`.
+Zero is the empty set, `.from` refuses undeclared bits, and flag matches need a
+final wildcard because combinations are also valid. Flags have no ordinal.
+
+The declared ABI is currently the storage representation, including fields and
+mutable collections. This preserves aliases and avoids conversion on every
+crossing. Runtime domain lookup and development boundary checks can add code
+and work; constant evaluation removes proven lookups when permitted. Private
+alternative representations belong to Q4 and must convert at observations.
+The language selector never raises search effort, changes an ABI by objective,
+or bypasses an optimization veto. Both targets check the same source contract;
+receipts and cache fingerprints include it. Unknown values are rejected.
+
 ## Character codes during migration
 
 `[language] char_code_at = "legacy" | "number"` selects the `charCodeAt` source

@@ -309,6 +309,7 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         value: js::ExprId,
         incoming: bool,
     ) -> Result<js::ExprId, FormationError> {
+        let value = if incoming { self.enum_crossing(ty, value)? } else { value };
         if ty.callable_signature().is_some()
             && carries_absence(self.program, ty, self.budget)? {
             return self.public_callable_type(ty, value, incoming);

@@ -121,8 +121,8 @@ itself applies i32 coercion to those operations. Other conversions require an
 explicit standard conversion function. Arrays and nominal types do not
 implicitly coerce.
 
-Closed enums use declaration-order discriminants and do not emit a JavaScript
-metadata object:
+Plain closed enums use declaration-order discriminants and do not emit a
+JavaScript metadata object:
 
 ```lilscript
 enum Status { Draft, Active, Sold }
@@ -141,9 +141,26 @@ Duplicate variants, unknown variants, and arms after `_` are rejected. Without
 `_`, all declared variants must be covered; `_` may occur only once and last.
 The scrutinee is evaluated exactly once and only the selected arm is evaluated.
 All arms must have a common assignable result type. Enum values are nominal:
-they do not implicitly convert to `int` or to another enum. The numeric ABI is
-intended for closed LilScript code; string-valued external protocols require an
-explicit conversion such as the exhaustive `match` above.
+they do not implicitly convert to `int` or to another enum. Declare an external
+ABI with `enum Kind: string { Text = "text" }` or `enum Code: int { A = 65 }`.
+ABI values are unique; integer values fit int32 and omitted values increment the
+previous value. Every string variant declares a string literal. `Kind.from(s)`
+returns the matching `Kind?`, `kind.abi` its ABI value, and `kind.ordinal` its
+zero-based declaration index. Fields, collections and both targets retain the
+ABI value as canonical storage.
+
+`flags enum Access: int { Read = 1, Write = 4 }` declares independent bits.
+`|`, `&` and `^` combine the same flag type; `value.has(bits)` tests containment.
+Zero is valid, `.from` rejects undeclared bits, and a flag match needs a final
+`_` to cover combinations. Implicit bits use declaration order; explicit bits
+must remain distinct. There is no flag ordinal. Development crossings check
+enum/flag domains without invoking host coercion hooks.
+
+The migration setting `[language] enum_abi = "explicit"` refuses observation of
+a plain enum through host, printing, JSON or conversion operations; use a
+declared ABI or `.ordinal`. The default `legacy` preserves the old ordinal
+observations until qualified port migration. The setting is independent of
+target, effort and optimization permissions.
 
 `match` also accepts `int`, `string`, and `bool` literal patterns. Integer and
 string matches require a final `_` arm; booleans are exhaustive when both

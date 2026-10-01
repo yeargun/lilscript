@@ -40,7 +40,7 @@ impl<'src> ShapeTag<'src> {
                 | (Self::Bool(_), Type::Bool)
         )
     }
-    fn same(
+    pub(super) fn same(
         self,
         other: Self,
         span: Span,

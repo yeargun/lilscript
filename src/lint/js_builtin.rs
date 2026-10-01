@@ -908,9 +908,10 @@ impl<'ast, 'src> Walker<'_, '_, 'ast, 'src> {
             Type::Set(element) => format!("Set<{}>", self.source_type(element)?),
             Type::Task(value) => format!("Task<{}>", self.source_type(value)?),
             Type::Generator(value) => format!("Generator<{}>", self.source_type(value)?),
-            Type::Enum(declaration) | Type::Struct(declaration) | Type::Class(declaration) => {
+            Type::Struct(declaration) | Type::Class(declaration) => {
                 nominal(declaration)?
             }
+            Type::Enum(declaration) => nominal(&declaration.declaration)?,
             Type::StructInstance { declaration, args }
             | Type::ClassInstance { declaration, args } => {
                 let args = args

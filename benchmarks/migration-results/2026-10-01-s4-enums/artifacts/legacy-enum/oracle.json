@@ -1,0 +1,9 @@
+{
+  "exercise": "console.log(JSON.stringify([m.code(0),m.code(1),m.code(2),m.value()]));",
+  "expected": [
+    7,
+    3,
+    9,
+    1
+  ]
+}

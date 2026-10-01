@@ -973,3 +973,25 @@ CLI/lint/LSP release builds pass. The unchanged-contract control remains
 improves 2 raw / 2 gzip / 1 Brotli byte. Every oracle and delivered/score comparison
 passes. No full-library/fleet rerun or timing claim. S4 continues with R8,
 R17/R18 and shared-consumer completion; D3/V2 own qualified default adoption.
+
+## 2026-10-01: S4 ABI enum and flag contracts
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-s4-enums/README.md).
+Declared int/string domains and flag masks have one checked owner. Canonical ABI
+storage preserves aliases through fields, mutable collections and crossings;
+private alternate representations remain Q4. `.from`, `.abi`, `.ordinal` and
+flag operations share evaluation and native/JavaScript lowering. The explicit
+source contract rejects unpinned observations, with legacy as migration default.
+
+Three focused tests pass, including native 0/13, all JavaScript objectives,
+development domains, exact-once effects and source/config refusals. A final
+shadowing extension passes. CLI/lint/LSP release builds pass. The legacy control
+remains 91 raw / 88 gzip / 78 Brotli; the new protocol passes independent oracles
+under every objective without an old-compiler size comparison. All byte scores
+match delivered artifacts. No full-library, fleet, timing or Closure claim.
+
+Pin `s4-enums-1`, SHA-256
+`e4e7546ef440edd0ee3dc84d044d56a4b557b41a060892d8d7b91f328f12f3de`;
+algorithm 30 / search 31 / walk 10 / local facts 13. S4 remains active. Next:
+payload matching/sealed calls, R17/R18 and the fact-consumer removals, then the
+single milestone order from Q2 onward. No port artifact or baseline changed.

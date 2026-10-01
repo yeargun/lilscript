@@ -287,7 +287,7 @@ fn enum_variants_are_values_without_a_runtime_namespace_load() {
                 .iter()
                 .map(|variant| (variant.name.as_str(), variant.value))
                 .collect::<Vec<_>>(),
-            [("Red", 0), ("Blue", 1)]
+            [("Red", Constant::Integer(0)), ("Blue", Constant::Integer(1))]
         );
         let mut broken = program.clone();
         let mut changed = broken.units[0].clone().into_working();

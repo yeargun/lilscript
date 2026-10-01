@@ -355,17 +355,35 @@ fn verify_tables(
         let mut names = variants.vector(Scratch, definition.variants.len())?;
         let mut values = variants.vector(Scratch, definition.variants.len())?;
         let mut name_work = 1;
+        let mut value_work = 1;
+        let mut flag_mask = 0u32;
+        if definition.variants.is_empty() { return fail("empty enum domain"); }
         work(&mut variants, definition.variants.len())?;
-        for variant in &definition.variants {
+        for (ordinal, variant) in definition.variants.iter().enumerate() {
+            match (definition.abi, variant.value) {
+                (crate::ast::EnumAbi::Ordinal, Constant::Integer(value)) if value as usize == ordinal => {},
+                (crate::ast::EnumAbi::Int, Constant::Integer(_)) => {},
+                (crate::ast::EnumAbi::Flags, Constant::Integer(value)) if (value as u32).is_power_of_two() => { flag_mask |= value as u32; },
+                (crate::ast::EnumAbi::String, Constant::String(value)) => {
+                    let Some(text) = program.strings.get(value.index()) else { return fail("enum ABI string is out of bounds"); };
+                    value_work = value_work.max(text.storage_bytes().saturating_add(1));
+                }
+                _ => return fail("enum literal disagrees with its ABI"),
+            }
             names.push(variant.name.as_str());
             values.push(variant.value);
             name_work = name_work.max(variant.name.len().saturating_add(1));
         }
         if !scratch::unique(&mut names, &mut variants, name_work, Ord::cmp)?
-            || !scratch::unique(&mut values, &mut variants, 1, Ord::cmp)?
+            || !scratch::unique(&mut values, &mut variants, value_work, |a, b| match (a, b) {
+                (Constant::Integer(a), Constant::Integer(b)) => a.cmp(b),
+                (Constant::String(a), Constant::String(b)) => program.strings[a.index()].code_units().cmp(program.strings[b.index()].code_units()),
+                _ => unreachable!("enum ABI values were checked"),
+            })?
         {
             return fail("duplicate enum variant");
         }
+        if definition.flag_mask != flag_mask { return fail("enum flag mask disagrees with its declarations"); }
     }
     let mut previous_class = None;
     work(budget, program.classes.len())?;
@@ -1010,6 +1028,7 @@ fn verify_units(
                             (None, true)
                         }
                         OperationKind::IntBinary(_) | OperationKind::Binary(_) => (Some(2), true),
+                        OperationKind::Enum { operation, .. } => (Some(if *operation == crate::primitive::EnumOperation::Has { 2 } else { 1 }), true),
                         OperationKind::Intrinsic(_) => (None, true),
                         OperationKind::PrepareCall(call) => {
                             let Some(target) = unit.calls.get(call.index()) else {
@@ -1760,17 +1779,41 @@ fn verify_types(
         }
     };
     match &operation.kind {
+        OperationKind::Enum { declaration, operation } => {
+            use crate::primitive::EnumOperation as E;
+            let Some(definition) = program.enum_definition(*declaration) else { return Err(error()); };
+            query.work(1)?;
+            let is_enum = |ty: &Type<'_>| matches!(ty, Type::Enum(ty) if ty.identity == *declaration && ty.abi == definition.abi);
+            let primitive = |ty: &Type<'_>| if definition.abi == crate::ast::EnumAbi::String { matches!(ty, Type::String) } else { matches!(ty, Type::Int) };
+            expect(match operation {
+                E::Abi => definition.abi != crate::ast::EnumAbi::Ordinal && is_enum(operand(0)) && result.is_some_and(primitive),
+                E::Ordinal => definition.abi != crate::ast::EnumAbi::Flags && is_enum(operand(0)) && matches!(result, Some(Type::Int)),
+                E::Has => definition.abi == crate::ast::EnumAbi::Flags && is_enum(operand(0)) && is_enum(operand(1)) && matches!(result, Some(Type::Bool)),
+                E::From => definition.abi != crate::ast::EnumAbi::Ordinal && primitive(operand(0))
+                    && matches!(result, Some(Type::Nullable(inner)) if is_enum(inner)),
+            })
+        }
         OperationKind::Constant(constant) => {
+            let enum_type = match result {
+                Some(Type::Enum(declaration)) => Some(declaration),
+                Some(Type::Nullable(inner)) => match inner.as_ref() {
+                    Type::Enum(declaration) => Some(declaration),
+                    _ => None,
+                },
+                _ => None,
+            };
             let literal_type = match constant {
-                Constant::Integer(value) if matches!(result, Some(Type::Enum(_))) => {
-                    let Some(Type::Enum(declaration)) = result else {
-                        unreachable!()
-                    };
+                literal if enum_type.is_some() && !matches!(literal, Constant::Null | Constant::Undefined) => {
+                    let declaration = enum_type.unwrap();
                     query.work(1)?;
                     if let Some(definition) = program.enum_definition(declaration.identity) {
+                        if declaration.abi != definition.abi { return Err(error()); }
+                        if definition.abi == crate::ast::EnumAbi::Flags {
+                            return expect(matches!(literal, Constant::Integer(value) if (*value as u32) & !definition.flag_mask == 0));
+                        }
                         for variant in &definition.variants {
                             query.work(1)?;
-                            if variant.value == *value {
+                            if variant.value == *literal {
                                 return Ok(());
                             }
                         }

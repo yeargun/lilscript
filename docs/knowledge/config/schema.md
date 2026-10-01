@@ -13,6 +13,9 @@ Source contracts are independent of target, effort and optional tactics.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
+| `enum_abi` | `EnumAbiContract` |  | `explicit` requires an ABI declaration before an enum can be observed by host/string/JSON operations. |
+| `char_code_at` | `CharCodeAtContract` |  | `legacy` returns an int32, using zero outside the UTF-16 string. |
+| `absence` | `AbsenceContract` |  | `legacy` preserves the migration-era null-normalized internal values. |
 | `field_initialization` | `FieldInitialization` |  | `legacy` (default during port migration) supplies implicit class-field defaults. |
 
 ## `[optimization]` — closed

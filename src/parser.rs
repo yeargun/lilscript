@@ -466,11 +466,14 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             return self.parse_struct_after_keyword().map(Item::Struct);
         }
 
+        let flags = matches!(self.peek_kind(), Some(TokenKind::Ident("flags")))
+            && matches!(self.lookahead_kind(self.cursor + 1)?, Some(TokenKind::Enum));
+        if flags { self.advance(); }
         if self.match_kind(|kind| matches!(kind, TokenKind::Enum)) {
             if declared_pure || is_async || is_generator {
                 return Err(self.error_here("modifiers cannot apply to an enum declaration"));
             }
-            return self.parse_enum_after_keyword().map(Item::Enum);
+            return self.parse_enum_after_keyword(flags).map(Item::Enum);
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::Class)) {
@@ -1021,9 +1024,19 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         })
     }
 
-    fn parse_enum_after_keyword(&mut self) -> Result<EnumDecl<'arena, 'src>, AdmittedParseError> {
+    fn parse_enum_after_keyword(&mut self, flags: bool) -> Result<EnumDecl<'arena, 'src>, AdmittedParseError> {
+        use crate::ast::{EnumAbi, EnumLiteral, EnumVariantDecl};
         let keyword_span = self.previous_span();
         let name = self.expect_ident("expected enum name")?;
+        let abi = if self.match_kind(|kind| matches!(kind, TokenKind::Colon)) {
+            if self.match_kind(|kind| matches!(kind, TokenKind::Int)) {
+                if flags { EnumAbi::Flags } else { EnumAbi::Int }
+            } else if !flags && self.match_kind(|kind| matches!(kind, TokenKind::String)) {
+                EnumAbi::String
+            } else {
+                return Err(self.error_here("an enum ABI is `int` or `string`; flag sets require `int`"));
+            }
+        } else if flags { EnumAbi::Flags } else { EnumAbi::Ordinal };
         self.expect(
             |kind| matches!(kind, TokenKind::LBrace),
             "expected `{` after enum name",
@@ -1033,7 +1046,17 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             if self.is_at_end() {
                 return Err(self.error_here("unterminated enum declaration"));
             }
-            variants.push(self.expect_property_ident("expected enum variant")?)?;
+            let variant = self.expect_property_ident("expected enum variant")?;
+            let value = if self.match_kind(|kind| matches!(kind, TokenKind::Eq)) {
+                let negative = self.match_kind(|kind| matches!(kind, TokenKind::Minus));
+                let token = self.advance().ok_or_else(|| self.error_here("expected a literal enum ABI value"))?;
+                Some(match token.kind {
+                    TokenKind::IntLiteral(value) => EnumLiteral::Int(if negative { -value } else { value }, token.span),
+                    TokenKind::StringLiteral(raw) if !negative => EnumLiteral::String(strip_quotes(raw), token.span),
+                    _ => return Err(AdmittedParseError::new(token.span, "an enum ABI value is an integer or string literal")),
+                })
+            } else { None };
+            variants.push(EnumVariantDecl { name: variant, value })?;
             if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                 break;
             }
@@ -1050,6 +1073,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         }
         Ok(EnumDecl {
             name,
+            abi,
             variants: variants.into_bump_slice(),
             span: keyword_span.merge(close.span),
         })
@@ -1833,6 +1857,12 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         if self.match_kind(|kind| matches!(kind, TokenKind::Minus)) {
             let op_span = self.previous_span();
             let expr = self.parse_unary_expression()?;
+            // The positive magnitude of int32::MIN is not itself an int32.
+            // Admit the signed literal before checking its operand separately.
+            if matches!(expr.kind, ExprKind::Int(2147483648, _)) {
+                let span = op_span.merge(expr.span());
+                return Ok(Expr { id: expr.id, kind: ExprKind::Int(-2147483648, span) });
+            }
             let expr_ref = admission::alloc(self.arena, self.admission, expr)?;
             return Ok(self.source.expression(ExprKind::Unary {
                 op: UnaryOp::Neg,

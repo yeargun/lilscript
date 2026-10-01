@@ -11,21 +11,19 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 character-code batch](../../benchmarks/migration-results/2026-10-01-s4-char-code/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-char-code-1/lilscript`, SHA-256
-`a4dcf50c09d0c80a747d37091f4e3e00fd4c042541a7d317e182187f4c7fe4f1`.
-Algorithm 29 / search 31 / walk 10 / local facts 12. The opt-in number/NaN
-`charCodeAt` contract is implemented through checking, shared folding and both
-targets. Five focused checks and CLI/lint/LSP release builds pass. The unchanged
-control remains 145 raw / 126 gzip / 107 Brotli; the bounded read saves 2 raw /
-2 gzip / 1 Brotli byte under the same behavior oracle.
+The latest [S4 enum batch](../../benchmarks/migration-results/2026-10-01-s4-enums/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-enums-1/lilscript`, SHA-256
+`e4e7546ef440edd0ee3dc84d044d56a4b557b41a060892d8d7b91f328f12f3de`.
+Algorithm 30 / search 31 / walk 10 / local facts 13. ABI enums/flags now have
+checked domains, canonical storage, conversions and shared/native evaluation.
+Three focused tests and CLI/lint/LSP release builds pass. The legacy control
+stays 91 raw / 88 gzip / 78 Brotli; a new protocol oracle passes all objectives.
 
-The preceding [absence batch](../../benchmarks/migration-results/2026-10-01-s4-absence/README.md)
-implements unified absence, explicit pins, defaults, optional public keys and
-mutable absence storage. Both source contracts retain compatibility defaults
-until D3/V2's qualified transition.
+The preceding absence and character-code batches implement unified absence,
+explicit pins/defaults/optional keys and number/NaN character reads. Source
+selectors retain compatibility defaults until D3/V2's qualified transition.
 
-1. Continue S4 with R8 ABI enums/flags and payload variants/sealed virtuals.
+1. Continue S4 with R8 payload variants and sealed virtuals.
 2. Complete R17 host declarations/catalog and R18 wider erased
    generic/product/union/callable
    transport. Erased public generic shape presence currently has a source

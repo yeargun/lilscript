@@ -17,6 +17,8 @@ mod classes;
 mod collections;
 #[path = "native_dynamic.rs"]
 mod dynamic;
+#[path = "native_enums.rs"]
+mod enums;
 #[path = "native_interface.rs"]
 mod interface;
 #[path = "native_ownership.rs"]
@@ -718,6 +720,11 @@ impl Emitter<'_, '_, '_, '_, '_> {
             // `let x;`: the C local is declared at the function's start (see
             // `unit`); its first store gives it a value (R3).
             OperationKind::Declare(_) => {}
+            OperationKind::Enum { declaration, operation } => {
+                if let Some(result) = stored_result {
+                    self.enum_operation(id, result, *declaration, *operation, args)?;
+                }
+            }
             OperationKind::Initialize(cell) => {
                 if self.plan.boxed_cell(*cell) {
                     self.write(format_args!(

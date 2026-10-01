@@ -80,6 +80,13 @@ pub(crate) fn checked_binary_type_with<'src, A: TypeConstructionAdmission>(
     admission: &mut A,
 ) -> Result<Type<'src>, BinaryTypeError<A::Error>> {
     work(admission, 1)?;
+    if matches!(op, BinaryOp::BitAnd | BinaryOp::BitOr | BinaryOp::Xor) {
+        if let (Type::Enum(left), Type::Enum(right)) = (lhs, rhs) {
+            if left.is_flags() && left == right {
+                return Ok(Type::Enum(*left));
+            }
+        }
+    }
     match op {
         BinaryOp::Add if matches!(lhs, Type::String) || matches!(rhs, Type::String) => {
             if is_stringable_with(lhs, admission)? && is_stringable_with(rhs, admission)? {

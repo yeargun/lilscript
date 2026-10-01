@@ -146,7 +146,8 @@ fn fingerprint(
             Payload::Type(ty) => {
                 std::mem::discriminant(ty).hash(&mut hash);
                 match ty {
-                    Type::Enum(d) | Type::Class(d) | Type::Struct(d) => d.identity.hash(&mut hash),
+                    Type::Class(d) | Type::Struct(d) => d.identity.hash(&mut hash),
+                    Type::Enum(d) => { d.identity.hash(&mut hash); d.abi.hash(&mut hash); }
                     Type::ClassInstance { declaration, args }
                     | Type::StructInstance { declaration, args } => {
                         declaration.identity.hash(&mut hash);

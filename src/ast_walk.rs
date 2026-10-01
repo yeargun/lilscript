@@ -304,7 +304,7 @@ fn item_identifiers<'src>(item: &Item<'_, 'src>, visitor: &mut impl FnMut(&Ident
         Item::Enum(declaration) => {
             visitor(&declaration.name);
             for variant in declaration.variants {
-                visitor(&variant);
+                visitor(&variant.name);
             }
         }
         Item::Function(function) => {

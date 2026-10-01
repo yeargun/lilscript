@@ -1,0 +1,17 @@
+{
+  "exercise": "const v=['text'];m.append(v);console.log(JSON.stringify([m.parse('text'),m.parse('bad'),m.ordinal('break'),m.abi('text'),m.bits(1,4),m.has(5,4),m.invalid(2),m.invalid(5),v]));",
+  "expected": [
+    "text",
+    null,
+    1,
+    "text",
+    5,
+    true,
+    true,
+    false,
+    [
+      "text",
+      "break"
+    ]
+  ]
+}

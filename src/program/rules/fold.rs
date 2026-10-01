@@ -468,6 +468,7 @@ fn value(
             | OperationKind::CopyValue
             | OperationKind::Call(_)
             | OperationKind::Intrinsic(_)
+            | OperationKind::Enum { .. }
     ) && !root_scalar
         && !value_view
         || (behaviors[op.index()].requires_evaluation() && !values.evaluated_call(unit, op))
@@ -520,14 +521,16 @@ pub(super) fn constant(program: &Program<'_>, ty: TypeId, known: &StoredExact) -
             }
             (Type::Bool, StoredExact::Boolean(value)) => Constant::Boolean(*value),
             (Type::String, StoredExact::String(StoredString::Source(id))) => Constant::String(*id),
-            (Type::Enum(declaration), StoredExact::Integer(value))
-                if program
-                    .enum_definition(declaration.identity)?
-                    .variants
-                    .iter()
-                    .any(|variant| variant.value == *value) =>
-            {
-                Constant::Integer(*value)
+            (Type::Enum(declaration), known) => {
+                let definition = program.enum_definition(declaration.identity)?;
+                if definition.abi == crate::ast::EnumAbi::Flags {
+                    let StoredExact::Integer(value) = known else { return None; };
+                    if (*value as u32) & !definition.flag_mask != 0 { return None; }
+                    Constant::Integer(*value)
+                } else {
+                    definition.variants.iter().find(|variant|
+                        super::super::enums::literal(variant.value).as_ref() == Some(known))?.value
+                }
             }
             _ => return None,
         })

@@ -5,6 +5,8 @@ use crate::check::binary_types::TypeConstructionAdmission;
 
 #[derive(Clone, PartialEq, Eq)]
 pub(super) enum Helper<'src> {
+    Enum(NominalId, crate::primitive::EnumOperation),
+    EnumCheck(NominalId, bool),
     Clean(TypeId),
     CleanProduct(Type<'src>),
     Store(FieldRef),
@@ -14,7 +16,7 @@ pub(super) enum Helper<'src> {
 }
 
 impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
-    fn shape_tag_literal(&mut self, tag: Constant) -> Result<js::ExprId, FormationError> {
+    pub(super) fn shape_tag_literal(&mut self, tag: Constant) -> Result<js::ExprId, FormationError> {
         let literal = match tag {
             Constant::Integer(value) => js::Literal::Number(value as f64),
             Constant::Boolean(value) => js::Literal::Bool(value),
@@ -507,6 +509,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     self.shape_require(checked_body, equal)?;
                 }
                 let value = self.shape_named(descriptor, "value")?;
+                let value = self.enum_crossing(&field_ty, value)?;
                 let value = self.checked_absence_pin(&field_ty, value)?;
                 let checked = if self.checked_data_type(&field_ty) {
                     Some(self.shape_crossing_type(&field_ty, value, Some(state))?)
@@ -543,7 +546,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         )?
         .ok_or_else(|| self.error(Span::default(), "invalid checked shape schema"))
     }
-    fn shape_helper(
+    pub(super) fn shape_helper(
         &mut self,
         key: &Helper<'src>,
     ) -> Result<Option<js::BindingId>, FormationError> {
@@ -561,6 +564,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 (Helper::Clean(a), Helper::Clean(b)) => a == b,
                 (Helper::Store(a), Helper::Store(b)) => a == b,
                 (Helper::Test(a), Helper::Test(b)) => a == b,
+                (Helper::Enum(a, x), Helper::Enum(b, y)) => a == b && x == y,
+                (Helper::EnumCheck(a, x), Helper::EnumCheck(b, y)) => a == b && x == y,
                 _ => false,
             };
             if equal {
@@ -569,7 +574,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         }
         Ok(None)
     }
-    fn shape_helper_start(
+    pub(super) fn shape_helper_start(
         &mut self,
         key: Helper<'src>,
         arity: usize,
@@ -591,7 +596,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         }
         Ok((binding, body, parameters))
     }
-    fn shape_helper_finish(
+    pub(super) fn shape_helper_finish(
         &mut self,
         binding: js::BindingId,
         body: js::RegionId,
@@ -618,7 +623,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             js::Statement::Function { binding, function },
         )
     }
-    fn shape_call(
+    pub(super) fn shape_call(
         &mut self,
         binding: js::BindingId,
         args: &[js::ExprId],

@@ -20,6 +20,7 @@ mod dataflow;
 mod defaults;
 mod demand;
 pub mod effects;
+mod enums;
 mod entries;
 pub mod facts;
 mod from_source;
@@ -662,13 +663,15 @@ pub struct FieldRef {
 pub struct EnumDefinition {
     pub identity: NominalId,
     pub name: String,
+    pub abi: crate::ast::EnumAbi,
+    pub flag_mask: u32,
     pub variants: Vec<EnumVariant>,
 }
 
 #[derive(Debug, Clone)]
 pub struct EnumVariant {
     pub name: String,
-    pub value: i32,
+    pub value: Constant,
 }
 
 #[derive(Debug, Clone)]
@@ -886,6 +889,7 @@ pub enum CallTarget {
 #[derive(Debug, Clone)]
 pub enum OperationKind {
     Constant(Constant),
+    Enum { declaration: NominalId, operation: crate::primitive::EnumOperation },
     Initialize(CellId),
     /// `let x;` (R3): the cell exists, holding no value until its first
     /// store, which the checker proves precedes every read.

@@ -138,7 +138,13 @@ Typed forms should remove avoidable representation and runtime costs, and declar
   - **Representation.** Every position that reflects, prints, stringifies or converts an enum value to `JsValue` uses its ABI value, converted at that operation; enum-typed fields of reflected nominals store the ABI value. An enum without a declared ABI refuses those operations except through `.ordinal`. Only unreflected positions have a representation the compiler chooses per objective, so output never differs by objective.
 - **Replaces.** v0.1:101-123 (in particular :122 "string-valued external protocols require an explicit conversion"), :801-805.
 - **JS.** Integers or ABI strings; per-variant layouts. **Native.** `int32_t` tags, C unions, a switch or a vtable.
-- **Status.** Target (M10.5, M10.6).
+- **Status.** ABI enums/flags, conversions, exhaustive matching and checked
+  domains are implemented through shared evaluation and both targets. Declared
+  ABI values are currently canonical storage, preserving mutable aliases;
+  Q4 owns private representation alternatives with observation conversions.
+  `[language] enum_abi = "explicit"` enforces the no-ABI observation refusal;
+  `legacy` remains the migration default. Payload variants and sealed virtuals
+  remain S4 work; qualified default adoption belongs to D3/V2.
 
 ---
 

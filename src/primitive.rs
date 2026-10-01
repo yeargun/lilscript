@@ -438,6 +438,9 @@ impl IntrinsicCallContract {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EnumOperation { Abi, Ordinal, From, Has }
+
 pub(crate) fn intrinsic_call_contract(
     operation: ResolvedIntrinsic,
 ) -> Option<IntrinsicCallContract> {

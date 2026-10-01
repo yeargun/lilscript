@@ -39,7 +39,7 @@ pub const LOCAL_FACTS_PLAN: u32 = 1;
 // Version 3 transfers existing exact primitive knowledge through CopyValue.
 // Version 2 introduced shared transfer and separate resource-exhaustion effects.
 // Older receipts cannot qualify this version's answers.
-pub const LOCAL_FACTS_VERSION: u32 = 12;
+pub const LOCAL_FACTS_VERSION: u32 = 13;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Dependencies {
@@ -1205,6 +1205,7 @@ pub(super) fn primitive_transfer(unit: &UnitData, operation: &Operation) -> Prim
     use PrimitiveTransfer as T;
     match operation.kind {
         OperationKind::Constant(_)
+        | OperationKind::Enum { .. }
         | OperationKind::IntBinary(_)
         | OperationKind::Unary {
             op: UnaryOp::Not, ..
@@ -1326,6 +1327,14 @@ pub(super) fn exact(
     let operands = unit.operands(operation.operands).unwrap();
     let unknown = || StoredKnowledge::Unknown(UnknownReason::UnknownOperand);
     let value = match &operation.kind {
+        OperationKind::Enum { declaration, operation } => {
+            let Some(left) = known(operands[0]) else { return unknown(); };
+            let right = operands.get(1).and_then(|value| known(*value));
+            match super::enums::evaluate(program, *declaration, *operation, left, right, work) {
+                Some(value) => value,
+                None => return unknown(),
+            }
+        }
         OperationKind::Constant(constant) => match constant {
             Constant::Integer(value) => StoredExact::Integer(*value),
             Constant::Number(value) => StoredExact::Number(*value),

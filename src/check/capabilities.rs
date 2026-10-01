@@ -135,6 +135,7 @@ pub(crate) fn language(
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(), AdmittedCheckError> {
     if contract.unified_absence() { super::absence::check(view, module, budget)?; }
+    if contract.enum_abi == crate::config::EnumAbiContract::Explicit { super::enums::check(view, module, budget)?; }
     if contract.field_initialization == crate::config::FieldInitialization::Legacy {
         return Ok(());
     }

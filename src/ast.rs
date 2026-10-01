@@ -163,8 +163,30 @@ impl<'ast, 'src> Item<'ast, 'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumDecl<'ast, 'src> {
     pub name: Ident<'src>,
-    pub variants: &'ast [Ident<'src>],
+    pub abi: EnumAbi,
+    pub variants: &'ast [EnumVariantDecl<'src>],
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum EnumAbi {
+    #[default]
+    Ordinal,
+    Int,
+    String,
+    Flags,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnumLiteral<'src> {
+    Int(i64, Span),
+    String(&'src str, Span),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EnumVariantDecl<'src> {
+    pub name: Ident<'src>,
+    pub value: Option<EnumLiteral<'src>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

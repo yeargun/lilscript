@@ -25,7 +25,7 @@ impl Emitter<'_, '_, '_, '_, '_> {
             Destination::Place(place) => self.place(unit, place),
         }
     }
-    fn destination_type(&self, unit: UnitId, destination: Destination) -> NativeType {
+    pub(super) fn destination_type(&self, unit: UnitId, destination: Destination) -> NativeType {
         match destination {
             Destination::Value(value) => self
                 .plan

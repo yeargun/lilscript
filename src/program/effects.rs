@@ -384,7 +384,7 @@ pub(super) fn operation_effects(
                 Effects::from_behavior(EvaluationBehavior::COERCION)
             }
         }
-        Op::Constant(_) | Op::IsUndefined { .. } => Effects::NONE,
+        Op::Constant(_) | Op::IsUndefined { .. } | Op::Enum { .. } => Effects::NONE,
         // `typeof` never throws; `Array.isArray` throws on a revoked proxy.
         Op::TypeTest(target) => {
             if super::schema::is_shape(ctx.program, &ctx.program.types[target.index()]) {
