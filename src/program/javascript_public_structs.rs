@@ -21,6 +21,19 @@ use crate::primitive::ParameterPassing;
 /// the check itself bounded.
 const MAX_PUBLIC_DEPTH: usize = 32;
 
+/// A union codec needs disjoint tests in both its public and private layouts.
+/// Products are objects publicly and positional arrays privately; primitive
+/// `typeof` categories distinguish them without inspecting a field/getter.
+fn union_category(ty: &Type<'_>) -> Option<&'static str> {
+    Some(match ty {
+        Type::Struct(_) | Type::StructInstance { .. } => "object",
+        Type::Int | Type::Float => "number",
+        Type::String => "string",
+        Type::Bool => "boolean",
+        _ => return None,
+    })
+}
+
 pub(super) fn carries_product(
     ty: &Type<'_>,
     budget: &mut AllocationBudget<'_>,
@@ -79,6 +92,15 @@ pub(super) fn adaptable(
     }
     if let Type::Nullable(inner) = ty {
         return adaptable(program, inner, depth + 1, budget);
+    }
+    if let Type::Union(members) = ty {
+        for (index, member) in members.iter().enumerate() {
+            budget.work(WorkKind::Analysis, index as u64 + 1)?;
+            let Some(category) = union_category(member) else { return Ok(false); };
+            if members[..index].iter().any(|prior| union_category(prior) == Some(category))
+                || !adaptable(program, member, depth + 1, budget)? { return Ok(false); }
+        }
+        return Ok(true);
     }
     let Some(definition) = super::super::schema::struct_definition(program, ty) else {
         return Ok(false);
@@ -430,6 +452,12 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
             }
             return Ok(value);
         }
+        if matches!(ty, Type::Union(_)) && carries_product(ty, self.budget)? {
+            let codec = self.public_codec(ty, incoming)?;
+            let callee = self.reference(codec)?;
+            let arguments = self.budget.copy_slice(AllocationClass::Retained, &[value])?;
+            return self.expression(js::Expr::Call { callee, arguments, invocation: Invocation::Value });
+        }
         let Some(definition) = super::super::schema::struct_definition(self.program, ty) else {
             return Ok(value);
         };
@@ -769,7 +797,31 @@ impl<'src> Formation<'_, '_, 'src, '_, '_> {
         let body_scope = self.module.regions[body.index()].scope;
         let parameter =
             self.adapter_binding(body_scope, if incoming { "boundary" } else { "product" })?;
-        let result = if let Type::Nullable(inner) = ty {
+        let result = if let Type::Union(members) = ty {
+            let mut result = None;
+            for member in members.iter().rev() {
+                let value = self.reference(parameter)?;
+                let value = if incoming && self.contract.checks == crate::compilation_contract::PreconditionChecks::Development {
+                    if let Some((kind, absent)) = super::checks::Crossing::of(member) {
+                        let helper = self.crossing_helper(kind, absent)?;
+                        let callee = self.reference(helper)?;
+                        let arguments = self.budget.copy_slice(AllocationClass::Retained, &[value])?;
+                        self.expression(js::Expr::Call { callee, arguments, invocation: Invocation::Value })?
+                    } else { value }
+                } else { value };
+                let converted = self.public_value(member, value, incoming)?;
+                result = Some(if let Some(no) = result {
+                    let value = self.reference(parameter)?;
+                    let left = self.expression(js::Expr::Unary { op: js::Unary::TypeOf, value })?;
+                    let category = union_category(member).ok_or_else(|| self.error(Span::default(), "ambiguous public product union"))?;
+                    let text = self.string(&category.into())?;
+                    let right = self.literal(js::Literal::String(text))?;
+                    let condition = self.expression(js::Expr::Binary { op: js::Binary::StrictEqual, left, right })?;
+                    self.expression(js::Expr::Conditional { condition, yes: converted, no })?
+                } else { converted });
+            }
+            result.ok_or_else(|| self.error(Span::default(), "empty public product union"))?
+        } else if let Type::Nullable(inner) = ty {
             if incoming && inner.boundary != crate::check::AbsencePin::Auto
                 && self.contract.checks == crate::compilation_contract::PreconditionChecks::Development {
                 let left = self.reference(parameter)?;

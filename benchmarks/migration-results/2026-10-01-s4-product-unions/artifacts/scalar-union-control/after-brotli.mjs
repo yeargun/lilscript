@@ -1,0 +1,1 @@
+let size=function(value){return typeof value=="string"?value.length:value+1|0};export{size};

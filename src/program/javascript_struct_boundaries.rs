@@ -5,6 +5,24 @@
 use super::super::facts::domains::Admission;
 use super::*;
 
+/// Products at a value position have no backing-array identity. Collections
+/// containing products remain reference values and stop this particular walk.
+fn product_variant(ty: &Type<'_>, budget: &mut AllocationBudget<'_>) -> Result<bool, FormationError> {
+    let mut scope = budget.scope();
+    let mut pending = scope.vector(AllocationClass::Scratch, 1)?;
+    scope.push(AllocationClass::Scratch, &mut pending, ty)?;
+    while let Some(ty) = pending.pop() {
+        scope.work(WorkKind::Analysis, 1)?;
+        match ty {
+            Type::Struct(_) | Type::StructInstance { .. } => return Ok(true),
+            Type::Nullable(inner) => scope.push(AllocationClass::Scratch, &mut pending, inner.as_ref())?,
+            Type::Union(members) => for member in members { scope.push(AllocationClass::Scratch, &mut pending, member)?; },
+            _ => {}
+        }
+    }
+    Ok(false)
+}
+
 impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
     fn product_record_keys(&self, context: ContextId, call: CallId) -> bool {
         let data = self.data(context);
@@ -44,6 +62,33 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 }
                 (Type::Nullable(_), Type::Null) => None,
                 (Type::Nullable(expected), actual) => Some((expected.as_ref(), actual)),
+                // A checked narrowing/widening selects the same nominal
+                // private recipe. Dynamic erasure still requires a codec;
+                // an opaque union member is never that codec's permission.
+                (Type::Union(expected), actual) if !matches!(actual, Type::Dynamic | Type::Unknown) => {
+                    let actual = if let Type::Union(members) = actual { members.as_slice() }
+                        else { std::slice::from_ref(actual) };
+                    for actual in actual {
+                        let mut found = false;
+                        for expected in expected {
+                            self.work(1)?;
+                            found |= crate::check::type_relation::type_equal_with(expected, actual,
+                                &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget))?;
+                        }
+                        if !found { return Err(self.error(span, "value-struct union transfer requires an ABI adapter")); }
+                    }
+                    None
+                }
+                (expected, Type::Union(actual)) if !matches!(expected, Type::Dynamic | Type::Unknown) => {
+                    let mut found = false;
+                    for actual in actual {
+                        self.work(1)?;
+                        found |= crate::check::type_relation::type_equal_with(expected, actual,
+                            &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget))?;
+                    }
+                    if !found { return Err(self.error(span, "value-struct union narrowing requires an ABI adapter")); }
+                    None
+                }
                 (Type::Array(expected), Type::Array(actual))
                 | (Type::Record(expected), Type::Record(actual))
                 | (Type::Set(expected), Type::Set(actual))
@@ -183,7 +228,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         actual: &Type<'_>,
     ) -> Result<bool, FormationError> {
         let admitted = match actual {
-            Type::Struct(_) | Type::StructInstance { .. } | Type::Nullable(_) => {
+            Type::Struct(_) | Type::StructInstance { .. } | Type::Nullable(_) | Type::Union(_) => {
                 super::public_structs::adaptable(self.program, actual, 0, self.budget)?
             }
             // A function value is wrapped by a D2 callable adapter.
@@ -775,6 +820,12 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 self.work(1)?;
                 boundary |= self.struct_boundary_value(context, *value);
             }
+            let mut product_value = false;
+            if boundary && matches!(operation.kind, OperationKind::Binary(_) | OperationKind::TypeTest(_)) {
+                for &value in operands {
+                    product_value |= product_variant(&self.program.types[data.values[value.index()].ty.index()], self.budget)?;
+                }
+            }
             match operation.kind {
                 OperationKind::Load(mut place)
                 | OperationKind::Store(mut place)
@@ -949,12 +1000,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 // Source equality must not inherit the identity of this recipe's
                 // backing arrays. Null tests remain ordinary nullable tests.
                 OperationKind::Binary(_)
-                    if operands.iter().any(|value| {
-                        matches!(
-                            self.program.types[data.values[value.index()].ty.index()],
-                            Type::Struct(_) | Type::StructInstance { .. }
-                        )
-                    }) && !operands.iter().any(|value| {
+                    if product_value && !operands.iter().any(|value| {
                         matches!(
                             self.program.types[data.values[value.index()].ty.index()],
                             Type::Null
@@ -962,6 +1008,11 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     }) =>
                 {
                     return Err(self.error(operation.span, "value-struct comparison contract"));
+                }
+                OperationKind::TypeTest(target) if product_value
+                    && !matches!(crate::primitive::runtime_type_test(&self.program.types[target.index()]),
+                        Some(crate::primitive::RuntimeTypeTest::TypeOf(_))) => {
+                    return Err(self.error(operation.span, "a value-struct union needs a representation-independent primitive type test"));
                 }
                 _ => {}
             }

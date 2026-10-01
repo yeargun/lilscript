@@ -1086,3 +1086,20 @@ claim. Pin `s4-public-callbacks-1`, SHA-256
 algorithm 35 / search 32 / walk 10 / local facts 14. S4 remains active for wider
 public opaque transport and shared consumers/removals. No full-library/fleet,
 timing, native-completion, ratchet-baseline or port-artifact change.
+
+## 2026-10-01: S4 disjoint public product unions
+
+The [union batch](../../benchmarks/migration-results/2026-10-01-s4-product-unions/README.md)
+adds concrete product/primitive codecs shared by public parameters/results,
+`JS.assume`, `JsValue` encoding and invocation-only callbacks. Private narrowing
+and closed generic category tests preserve the product recipe. Array tests,
+class identity hooks and product identity comparisons remain refused; opaque
+transfers still need an adapter.
+
+Three focused tests and three affected opaque-boundary regressions pass, with
+the release CLI and independent artifact oracles. The scalar-union control is
+byte-identical at 76 raw / 94 gzip / 66 Brotli. New capability sizes are recorded
+without a baseline-win claim. Pin `s4-product-unions-1`, SHA-256
+`c1034897a2200225478fdbce609ee7f94c8b50d7aab621241b9c686b4d274ace`;
+algorithm 36 / search 32 / walk 10 / local facts 14. S4 remains active; no
+full-library/fleet/timing or native-completion claim.

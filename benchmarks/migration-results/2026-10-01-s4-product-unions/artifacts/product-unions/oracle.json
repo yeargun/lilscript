@@ -1,0 +1,25 @@
+{
+  "exercise": "console.log(JSON.stringify([m.change({x:3,y:4}),m.change('s'),m.flip({value:5}),m.flip(true),m.next(6),m.opaque({x:4,y:5}),m.assumed({x:8,y:9}),m.internal()]));",
+  "expected": [
+    {
+      "x": 4,
+      "y": 4
+    },
+    "s!",
+    {
+      "value": 7
+    },
+    false,
+    9,
+    {
+      "x": 4,
+      "y": 5
+    },
+    {
+      "x": 9,
+      "y": 9
+    },
+    78
+  ],
+  "setup": ""
+}

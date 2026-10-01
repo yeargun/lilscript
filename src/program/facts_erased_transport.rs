@@ -233,6 +233,12 @@ pub(in crate::program) fn closed_erased_transport<A: Admission>(
                     OperationKind::Intrinsic(ResolvedIntrinsic::Property(
                         Intrinsic::ArrayLength | Intrinsic::MapSize,
                     )) => true,
+                    // Primitive category tests do not reveal a product's
+                    // storage. Array tests would confuse its positional
+                    // backing with a source array and remain unqualified.
+                    OperationKind::TypeTest(target) => matches!(
+                        crate::primitive::runtime_type_test(&program.types[target.index()]),
+                        Some(crate::primitive::RuntimeTypeTest::TypeOf(_))),
                     OperationKind::Binary(_) => values.iter().any(|v| {
                         matches!(program.types[data.values[v.index()].ty.index()], Type::Null)
                     }),

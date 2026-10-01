@@ -1,0 +1,1 @@
+export int size(string|int value){if(value is string){return value.length;}return value+1;}

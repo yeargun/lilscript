@@ -1,0 +1,1 @@
+let size=function(a){return typeof a=="string"?a.length:a+1|0};export{size};

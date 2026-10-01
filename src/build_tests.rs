@@ -6,6 +6,61 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[test]
+fn s4_product_unions_preserve_public_schemas_and_private_narrowing() {
+    let source=r#"
+        struct Point{int x;int y;}
+        struct Box<T>{T value;}
+        export Point|string change(Point|string value){if(value is string){return value+"!";}Point p=value;p.x+=1;return p;}
+        export Box<int>|bool flip(Box<int>|bool value){if(value is bool){return !value;}Box<int> b=value;b.value+=2;return b;}
+        export Point|int next(Point|int value){if(value is int){return value+3;}Point p=value;p.y+=4;return p;}
+        export Point|string apply(func(Point|string)->(Point|string) f,Point|string value){return f(value);}
+        export JsValue opaque(Point|string value){return value;}
+        export Point|string assumed(JsValue value){Point|string item=JS.assume(value);return change(item);}
+        T pick<T>(T|string value,T fallback){if(value is string){return fallback;}return value;}
+        export int internal(){Point p=pick("other",Point{7,8});Point|string value=change(p);if(value is string){return 0;}Point q=value;return p.x*10+q.x;}
+    "#;
+    for effort in [0,13] {
+        let mut settings=config("[policy.tactics]\ninlining='off'\nconstant-folding='off'\nscalar-replacement='off'");settings.effort.level=effort;
+        let built=compile_source(source,&settings,ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"",r#"
+                const events=[],p={get x(){events.push('x');return 3},get y(){events.push('y');return 4}};
+                const changed=library.change(p),opaque=library.opaque(p);
+                console.log(JSON.stringify([changed,library.change('s'),library.flip({value:5}),library.flip(true),library.next({x:1,y:2}),library.next(6),library.apply(v=>typeof v==='string'?v+'?':({x:v.x+2,y:v.y}),{x:2,y:5}),opaque,library.assumed({x:8,y:9}),library.internal(),events]));
+            "#),"[{\"x\":4,\"y\":4},\"s!\",{\"value\":7},false,{\"x\":1,\"y\":6},9,{\"x\":4,\"y\":5},{\"x\":3,\"y\":4},{\"x\":9,\"y\":9},78,[\"x\",\"y\",\"x\",\"y\"]]\n");
+        }
+        check_scores(&built);
+    }
+}
+
+#[test]
+fn s4_product_unions_refuse_ambiguous_codecs_and_backing_observations() {
+    for source in [
+        "struct P{int x;}struct Q{int y;}export P|Q copy(P|Q value){return value;}",
+        "struct P{int x;}export P|int[] copy(P|int[] value){return value;}",
+        "struct P{int x;}bool array(P|int[] value){return value is int[];}print(array(P{1}));",
+        "struct P{int x;}extern class Host{}bool host(P|Host value){return value is Host;}print(host(P{1}));",
+        "struct P{int x;}bool same(P|string a,P|string b){return a==b;}print(same(P{1},P{1}));",
+    ] {
+        let mut settings=config("[policy.tactics]\ninlining='off'\nconstant-folding='off'");settings.effort.level=0;
+        assert!(compile_source(source,&settings,ServiceOptions::default()).is_err(),"{source}");
+    }
+}
+
+#[test]
+fn s4_product_unions_development_and_absence_use_the_selected_codec() {
+    let source="struct Point{int x;}export Point|int read(Point|int value){return value;}export Point|string|null maybe(Point|string|null value){return value;}";
+    let result=compile_source(source,&config("checks='development'"),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(codec).unwrap().javascript(),"",r#"
+            let reads=0;const point=library.read({get x(){reads++;return 9}}),bad=[];
+            for(const value of [true,2.5,'wrong',null,{x:'wrong'}]){try{library.read(value);bad.push(false)}catch(e){bad.push(e instanceof TypeError)}}
+            console.log(JSON.stringify([point,reads,library.read(3),library.maybe(null),library.maybe('s'),library.maybe({x:4}),bad]));
+        "#),"[{\"x\":9},1,3,null,\"s\",{\"x\":4},[true,true,true,true,true]]\n");
+    }
+}
+
+#[test]
 fn s4_public_callbacks_adapt_structs_without_observing_callable_identity() {
     let source=r#"
         struct Point{int x;int y;}

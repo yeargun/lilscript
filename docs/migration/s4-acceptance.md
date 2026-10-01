@@ -54,8 +54,9 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    products, captures and complete concrete callback inputs. Concrete public
    callback parameters use the value codec when identity is unobserved and uses
    are invocations; defaults/rest and development checks are implemented.
-   Wider public opaque generic/union transport
-   remains open. ABI enums/flags now carry checked values/ordinals, canonical
+   Disjoint concrete product/primitive unions now share public codecs, nullable
+   storage and representation-independent narrowing. Wider public opaque
+   generic/ambiguous-union transport remains open. ABI enums/flags now carry checked values/ordinals, canonical
    storage, domain validation and shared/native operations. Disjoint class/tagged
    payload matches and sealed calls now preserve lexical scopes, defaults/rest,
    argument order and class initialization. Erased generic receivers/methods,

@@ -11,16 +11,20 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 public callback batch](../../benchmarks/migration-results/2026-10-01-s4-public-callbacks/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-public-callbacks-1/lilscript`, SHA-256
-`4e4f5cdeb5448da427f8a15b9d4bf5d136cf0d090eb6702e25bc324a0758ddb3`.
-Algorithm 35 / search 32 / walk 10 / local facts 14. Concrete public struct-bearing
-callbacks are adapted when their use is limited to invocation, including local
-aliases, defaults and rest. Development validates original host values and
-snapshots each field once. Three focused checks and 21 affected boundary/shape
-checks pass, with the release CLI and independent artifact oracles. The product
-control is byte-identical at 175 raw / 134 gzip / 112 Brotli. Identity-observing
-or captured public callbacks still need a wider ABI.
+The latest [S4 product union batch](../../benchmarks/migration-results/2026-10-01-s4-product-unions/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-product-unions-1/lilscript`, SHA-256
+`c1034897a2200225478fdbce609ee7f94c8b50d7aab621241b9c686b4d274ace`.
+Algorithm 36 / search 32 / walk 10 / local facts 14. Concrete product/primitive
+unions use category codecs at public and assumed crossings, including nullable
+values and invocation-only callbacks. Private narrowing and erased generic
+primitive tests retain representation independence. Three focused checks and
+three opaque-boundary regressions pass, with release/artifact oracles. The
+scalar-union control is byte-identical at 76 raw / 94 gzip / 66 Brotli.
+
+The preceding public callback batch adapts concrete struct-bearing callbacks
+when their use is limited to invocation, including local aliases, defaults and
+rest. Development validates original host values and snapshots each field once.
+Identity-observing or captured public callbacks still need a wider ABI.
 
 The preceding erased transport batch supports closed private generic branches,
 recursive helpers, collections, nested products, captures and concrete callback
