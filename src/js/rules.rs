@@ -415,6 +415,7 @@ impl Module {
         mut head_unchanged: bool,
     ) -> Result<u32, RuleError> {
         let mut stable = StableRules::new();
+        let last_edited = std::cell::Cell::new(None);
         #[cfg(any(test, debug_assertions))]
         if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
             verify::check(self, &mut AllocationBudget::new(None))
@@ -439,6 +440,9 @@ impl Module {
                 }
                 let reuse = context.reuse_normalization && crate::schedule::reuses_stability() && stable.stable(rule);
                 let change = module.apply_rule(rule, context, budget, reuse)?;
+                if change.edited {
+                    last_edited.set(Some(rule));
+                }
                 stable.record(rule, &change);
                 head_unchanged &= !change.edited;
                 Ok(change.edited)
@@ -452,7 +456,7 @@ impl Module {
             },
             |rounds| {
                 RuleError::Bug(format!(
-                    "the JavaScript target rules did not reach a fixed point in {rounds} rounds"
+                    "the JavaScript target rules did not reach a fixed point in {rounds} rounds; last changing rule: {:?}", last_edited.get()
                 ))
             },
         )

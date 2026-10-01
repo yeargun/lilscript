@@ -1148,23 +1148,36 @@ codec_reuse = true
 `cache.normalization_reuse` defaults to `true`. Source return normalization and
 unreachable-code removal reuse answers only for the same immutable body revision
 (and the same created-body status). Edited and new bodies are revisited in their
-original order. Target literal folding and undefined/unreachable cleanup reuse
-stable answers only while their complete node/region/function/table dependencies
-remain unchanged. Other rules still run conservatively; this flag does not change
-search breadth, permissions, the existing fixed-point suffix schedule or shared
-fact caches. Set it to `false` for a physical-execution audit of these local
-proofs. Both modes retain the same bookkeeping admission and cold logical work,
-including partial work-limit refusals, so reuse cannot buy extra search.
+original order. Source effects retain one previous analysis per sealing during
+normalization: an entire recursive call group can be reused only with matching
+body/table revisions, resolved storage and calls, callee signatures/summaries and
+initialization answers. Changed callee effects invalidate callers; a changed
+initialization schedule can invalidate an otherwise unchanged leaf. Recursive
+solvers revisit changed dependencies in structural order and retain their
+original convergence limit. No partial recursive result is accepted as stable.
 
-This saves repeated local scans when most units or inputs are unchanged; revision
-bookkeeping and journals still have a cost. It changes neither runtime behavior
-nor the size objective. `phases_ns.rules.local_units_visited` and
-`local_units_reused` count source units selected or reused. With
-`LILSCRIPT_TIMING`, `js_rule_reuse_calls` counts target stable-proof replays;
-`js_rule_calls` counts physical rule applications. These are physical telemetry,
-not candidate eligibility. The arrays of source revisions are bounded by the
-current number of units; target proofs are one fixed stack table per rule phase.
-No proof survives that phase or crosses a compiler process.
+Target literal folding and undefined/unreachable cleanup reuse stable answers
+only while their complete node/region/function/table dependencies remain
+unchanged. Other rules still run conservatively. This flag does not change
+search breadth, permissions, the fixed-point suffix schedule or other shared
+fact caches. Set it to `false` for a physical-execution audit of these proofs.
+Both modes retain the same logical admission and search work; reuse cannot buy
+extra search. Mandatory proofs and hard TOML permissions still apply.
+
+Reuse saves repeated scans when most dependencies are unchanged. Dependency
+comparisons and retaining a previous effect analysis cost CPU and memory;
+changes to shared tables/storage can conservatively invalidate many components.
+It changes neither runtime behavior nor the size objective.
+`phases_ns.rules.local_units_visited` and `local_units_reused` count selected and
+reused local units. `effect_units_visited`, `effect_units_reused` and
+`effect_components_reused` report source effect work. With `LILSCRIPT_TIMING`,
+`source_effect_unit_calls` counts actual effect transfers,
+`source_effect_reuse_calls` counts whole-component hits, `js_rule_reuse_calls`
+counts target stable-proof replays and `js_rule_calls` counts physical target
+rule applications. These are physical telemetry, not candidate eligibility.
+Source caches hold at most the current and previous effect analyses per sealing
+and local revision arrays bounded by the units; target proofs use a fixed stack
+table. No normalization proof survives its phase or crosses a compiler process.
 
 `cache.codec_reuse` defaults to `true`: identical complete JavaScript bytes can
 reuse their gzip/Brotli measurements across artifacts and independently served

@@ -1,0 +1,5 @@
+{
+  "setup": "",
+  "exercise": "console.log(JSON.stringify([m.even(0),m.even(9),m.even(10)]));",
+  "expected": "[true,false,true]"
+}

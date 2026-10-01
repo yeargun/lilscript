@@ -56,6 +56,18 @@ and removal release their backing. 23 focused tests and 30 release oracles pass;
 all files/judgment counts match algorithm 46, with increased logical copy work.
 Initial placement and remaining source/target producers still need admission.
 
+The [effect-component batch](../../benchmarks/migration-results/2026-10-01-q2-effect-components/README.md)
+pins `q2-effect-components-2`, SHA-256
+`4cd627217bd2d5a5208fe65aee4bca6d56f74a1e9fd3afdcdeee8afbd507eac8`,
+algorithm 48. Exact SCC invalidation and dirty recursion reduce physical effect
+summary executions 1,278 → 390 on 21 case/objective pairs. 41 distinct focused
+tests and 61 successful release oracles pass. Reused/disabled files, logical
+bills and search counts match; matched prior outputs are byte-identical. Two
+prior gzip/Brotli failures are repaired separately: conditional spelling
+eligibility no longer mutates an unselected condition. No clear CPU gain or
+complete source-analysis memory claim. Previous/current effect analyses are
+phase-local; the remaining source resource owner must admit their overlap.
+
 S4 is complete under its [acceptance record](s4-acceptance.md) and
 [explicit ABI scope decision](s4-public-abi.md). Unrestricted public erased
 schemas, ambiguous unions, observable wrappers, mutable aliased product
@@ -71,7 +83,7 @@ hard TOML/replay permissions. The shared fact/removal audit is complete.
    remaining resource owners. Existing source-effect caches, fixed-point suffix
    reuse, retained target heads and exact codec memoization are starting points.
    The use-index consumer, module graph, local dirty maps and renumbering plans
-   are complete. SCC/global dependency invalidation, placement storage,
+   are complete. Remaining global rule dependencies, placement storage,
    source analysis/edit owners, cross-candidate formation,
    build/elaboration reuse and explicit decision-lock replay remain.
 

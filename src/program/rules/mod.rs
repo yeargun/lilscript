@@ -88,6 +88,9 @@ impl RuleRequest {
 pub(crate) struct RuleReceipt {
     pub(crate) local_units_visited: u64,
     pub(crate) local_units_reused: u64,
+    pub(crate) effect_units_visited: u64,
+    pub(crate) effect_units_reused: u64,
+    pub(crate) effect_components_reused: u64,
     pub(crate) rounds: u32,
     pub(crate) folded_values: u32,
     /// Calls replaced by exact constants, including bounded evaluation.
@@ -136,6 +139,17 @@ pub(crate) struct RuleReceipt {
 }
 
 impl RuleReceipt {
+    fn observe_effects(&mut self, effects: &ProgramEffects, previous: &mut Option<RevisionId>) {
+        let identity = effects.analysis_identity();
+        if *previous != Some(identity) {
+            let (visited, reused, components) = effects.reuse_stats();
+            self.effect_units_visited += visited;
+            self.effect_units_reused += reused;
+            self.effect_components_reused += components;
+            *previous = Some(identity);
+        }
+    }
+
     pub(crate) fn json(&self) -> serde_json::Value {
         let mut result = serde_json::json!({
             "rounds": self.rounds,
@@ -185,6 +199,9 @@ impl RuleReceipt {
         result["materialized_default_arguments"] = self.materialized_default_arguments.into();
         result["local_units_visited"] = self.local_units_visited.into();
         result["local_units_reused"] = self.local_units_reused.into();
+        result["effect_units_visited"] = self.effect_units_visited.into();
+        result["effect_units_reused"] = self.effect_units_reused.into();
+        result["effect_components_reused"] = self.effect_components_reused.into();
         result
     }
 }
@@ -260,7 +277,7 @@ impl std::fmt::Display for RuleError {
 }
 
 pub(crate) fn optimize_admitted<'src>(
-    program: Program<'src>,
+    mut program: Program<'src>,
     request: RuleRequest,
     budget: &mut crate::output_budget::AllocationBudget<'_>,
 ) -> Result<(Program<'src>, RuleReceipt), RuleError> {
@@ -270,6 +287,10 @@ pub(crate) fn optimize_admitted<'src>(
     if !request.any() {
         return Ok((program, receipt));
     }
+    program.views = views::ProgramViews::normalization(
+        request.reuse_normalization && crate::schedule::reuses_stability(),
+    );
+    let mut last_effects = None;
     let mut editor = edit::Editor::new(program);
     // These are target-boundary permissions, not changed source semantics.
     // Recompute them after structural edits, so a second optimization cannot
@@ -332,6 +353,7 @@ pub(crate) fn optimize_admitted<'src>(
                 return Ok(changed);
             }
             let effects = editor.program().effects(request.seal);
+            receipt.observe_effects(&effects, &mut last_effects);
             let changed = match rule {
                 ProgramRule::Defaults => defaults::apply(editor, effects.graph(), &mut receipt)
                     .map_err(str::to_string)?,
@@ -393,6 +415,7 @@ pub(crate) fn optimize_admitted<'src>(
     // target calls that omit their literal arguments.
     if request.fold {
         let effects = editor.program().effects(request.seal);
+        receipt.observe_effects(&effects, &mut last_effects);
         let plan = super::defaults::plan(editor.program(), effects.graph());
         for (unit, call, omitted) in plan.calls {
             editor.unit_mut(unit).calls[call.index()].omit_trailing = omitted;

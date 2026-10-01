@@ -3,9 +3,11 @@
 //!
 //! A view is computed from a `Program` on demand, never edited, and valid only
 //! for the unit and table revisions it records. The program owns a lazily
-//! filled cache of its views. Cloning or rebuilding a program starts an empty
-//! cache, so an edited copy never reads a view of the program it was copied
-//! from; a cached view is also checked against its dependencies.
+//! filled cache of its views. Cloning starts an empty cache. Source normalization
+//! may retain one previous effect analysis to reuse unchanged components;
+//! exact dependency checks precede reuse and the cache ends with that phase.
+//! Other views invalidate completely, and every cached current view is checked
+//! against the program revisions before it is served.
 use super::call_graph::Seal;
 use super::classes::ProgramClasses;
 use super::aggregates::ProgramAggregates;
@@ -88,6 +90,10 @@ pub enum Limit {
 #[derive(Debug, Default)]
 pub struct ProgramViews {
     slots: Slots,
+    /// Only source normalization retains a previous generation. At most one
+    /// old/current pair per sealing survives, and finish drops both.
+    previous_effects: [Option<Arc<ProgramEffects>>; 2],
+    reuse_effects: bool,
 }
 
 #[derive(Debug, Default)]
@@ -105,6 +111,21 @@ struct Slots {
 impl Clone for ProgramViews {
     fn clone(&self) -> Self {
         Self::default()
+    }
+}
+
+impl ProgramViews {
+    pub(super) fn normalization(reuse: bool) -> Self {
+        Self { reuse_effects: reuse, ..Self::default() }
+    }
+
+    pub(super) fn invalidate(&mut self) {
+        for (slot, previous) in self.slots.effects.iter_mut().zip(&mut self.previous_effects) {
+            if self.reuse_effects {
+                if let Some(current) = slot.take() { *previous = Some(current); }
+            } else { *previous = None; }
+        }
+        self.slots = Slots::default();
     }
 }
 
@@ -151,11 +172,14 @@ impl<'src> Program<'src> {
     /// replaced in place) is recomputed rather than served.
     pub fn effects(&self, seal: Seal) -> Arc<ProgramEffects> {
         let slot = &self.views.slots.effects[seal as usize];
-        let cached = slot.get_or_init(|| Arc::new(ProgramEffects::build(self, seal)));
+        let build = || Arc::new(ProgramEffects::build_reusing(
+            self, seal, self.views.previous_effects[seal as usize].as_deref(), self.views.reuse_effects,
+        ));
+        let cached = slot.get_or_init(build);
         if cached.deps().valid_for(self) {
             Arc::clone(cached)
         } else {
-            Arc::new(ProgramEffects::build(self, seal))
+            build()
         }
     }
 }

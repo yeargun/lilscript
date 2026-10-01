@@ -54,6 +54,9 @@ fn q2_local_dirty_normalization_preserves_edits_and_runtime_with_dense_rules() {
                 let reused = receipt.local_units_reused;
                 receipt.local_units_visited = 0;
                 receipt.local_units_reused = 0;
+                receipt.effect_units_visited = 0;
+                receipt.effect_units_reused = 0;
+                receipt.effect_components_reused = 0;
                 let javascript = super::super::javascript::lower(program).unwrap().render(PrintPolicy::default()).unwrap();
                 (javascript, receipt, visited, reused)
             })
@@ -184,6 +187,102 @@ fn rule_views_survive_empty_commits_and_follow_every_edit_owner() {
 }
 
 #[test]
+fn q2_effect_components_follow_body_storage_callee_and_tdz_edits() {
+    fn body(program: &Program<'_>, name: &str) -> UnitId {
+        program.cells.iter().find_map(|cell| match cell.binding {
+            CellBinding::Function(unit) if cell.name == name => Some(unit), _ => None,
+        }).unwrap()
+    }
+    fn compare(program: &Program<'_>) -> std::sync::Arc<ProgramEffects> {
+        program.verify().unwrap();
+        let actual = program.effects(Seal::Module);
+        let cold = ProgramEffects::build(program, Seal::Module);
+        assert_eq!(actual.summaries(), cold.summaries());
+        for unit in &program.units { assert_eq!(actual.roots(unit.id()), cold.roots(unit.id())); }
+        actual
+    }
+    let arena = bumpalo::Bump::new();
+    let source = "int value=3;int read(){return value;}void mutate(){value=9;}void effect(){print(2);}void caller(){effect();}void outer(){caller();}int spare(){return 7;}mutate();outer();print(read());print(spare());";
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let semantics = crate::analyze(&syntax).unwrap();
+    let mut program = from_checked_source(&syntax, &semantics).unwrap();
+    program.views = views::ProgramViews::normalization(true);
+    let mut editor = edit::Editor::new(program);
+    let before = compare(editor.program());
+    let tables = editor.program().tables_revision;
+    let spare = body(editor.program(), "spare");
+    for operation in &mut editor.unit_mut(spare).operations {
+        if let OperationKind::Constant(Constant::Integer(value)) = &mut operation.kind { *value = 8; }
+    }
+    editor.commit().unwrap();
+    assert_eq!(editor.program().tables_revision, tables);
+    let changed = compare(editor.program());
+    assert!(changed.reuse_stats().2 > 0);
+    assert!(changed.reuse_stats().0 < before.reuse_stats().0);
+    assert_eq!(run(editor.program()), "2\n9\n8\n");
+
+    // Removing a captured write changes global storage facts without changing
+    // the reader's body or the cell table.
+    let mutate = body(editor.program(), "mutate");
+    let data = editor.unit_mut(mutate);
+    let removed: Vec<_> = data.operations.iter().enumerate()
+        .filter(|(_, op)| matches!(op.kind, OperationKind::Store(_)))
+        .map(|(index, _)| OpId::from_index(index).unwrap()).collect();
+    for op in removed { edit::detach(data, op); }
+    editor.commit().unwrap();
+    assert_eq!(editor.program().tables_revision, tables);
+    compare(editor.program());
+    assert_eq!(run(editor.program()), "2\n3\n8\n");
+
+    // The caller and its caller keep their revisions, but must see the
+    // removed callee effect. Final summaries alone never key the dependency.
+    let effect = body(editor.program(), "effect");
+    let caller = body(editor.program(), "caller");
+    let outer = body(editor.program(), "outer");
+    let data = editor.unit_mut(effect);
+    let removed: Vec<_> = data.operations.iter().enumerate()
+        .filter(|(_, op)| matches!(op.kind, OperationKind::Call(_) | OperationKind::PrepareCall(_)))
+        .map(|(index, _)| OpId::from_index(index).unwrap()).collect();
+    for op in removed { edit::detach(data, op); }
+    editor.commit().unwrap();
+    assert_eq!(editor.program().tables_revision, tables);
+    let changed = compare(editor.program());
+    assert!(changed.summary(caller).unwrap().discardable());
+    assert!(changed.summary(outer).unwrap().discardable());
+    assert_eq!(run(editor.program()), "3\n8\n");
+
+    // An initialization reorder changes a leaf's TDZ answer despite identical
+    // tables, leaf/callee revisions, storage and resolved call edges.
+    let source = "int early=read();int K=4;int read(){return K;}print(early);";
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let semantics = crate::analyze(&syntax).unwrap();
+    let mut program = from_checked_source(&syntax, &semantics).unwrap();
+    program.views = views::ProgramViews::normalization(true);
+    let mut editor = edit::Editor::new(program);
+    let read = body(editor.program(), "read");
+    let before = compare(editor.program());
+    assert!(before.summary(read).unwrap().effects.may_throw);
+    let tables = editor.program().tables_revision;
+    let root = editor.program().initialization()[0];
+    let cell = |name| CellId::from_index(editor.program().cells.iter().position(|cell| cell.name == name).unwrap()).unwrap();
+    let early = cell("early"); let k = cell("K");
+    let data = editor.unit_mut(root);
+    let ops = &mut data.regions[data.entry.index()].operations;
+    let start = data.instantiation_prefix as usize;
+    let middle = ops.iter().position(|op| matches!(data.operations[op.index()].kind, OperationKind::Initialize(cell) if cell == early)).unwrap() + 1;
+    let end = ops.iter().position(|op| matches!(data.operations[op.index()].kind, OperationKind::Initialize(cell) if cell == k)).unwrap() + 1;
+    ops[start..end].rotate_left(middle-start);
+    editor.commit().unwrap();
+    assert_eq!(editor.program().tables_revision, tables);
+    let changed = compare(editor.program());
+    assert!(!changed.summary(read).unwrap().effects.may_throw);
+    assert_eq!(run(editor.program()), "4\n");
+    let program = editor.finish().unwrap();
+    // The phase's previous/current caches do not escape into publication.
+    assert_ne!(program.effects(Seal::Module).analysis_identity(), changed.analysis_identity());
+}
+
+#[test]
 fn cold_and_reused_rule_views_preserve_decisions_bytes_and_execution() {
     struct ColdViews(bool);
     impl ColdViews {
@@ -205,7 +304,10 @@ fn cold_and_reused_rule_views_preserve_decisions_bytes_and_execution() {
         ] {
             let outcomes = [false, true].map(|cold| {
                 let _guard = ColdViews::set(cold);
-                optimized(source, request, |program, receipt| {
+                optimized(source, request, |program, mut receipt| {
+                    receipt.effect_units_visited = 0;
+                    receipt.effect_units_reused = 0;
+                    receipt.effect_components_reused = 0;
                     let javascript = super::super::javascript::lower(program).unwrap()
                         .render(PrintPolicy { mangle_bindings: true }).unwrap();
                     (javascript, receipt)

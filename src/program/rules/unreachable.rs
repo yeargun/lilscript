@@ -88,7 +88,7 @@ pub(super) fn apply(editor: &mut Editor<'_>, dirty: &[bool], created: &[bool], r
         return false;
     }
     for (unit, dead) in removals {
-        let (data, _) = editor.unit_and_cells(unit);
+        let data = editor.unit_mut(unit);
         for op in dead {
             edit::detach(data, op);
             receipt.unreachable_operations += 1;

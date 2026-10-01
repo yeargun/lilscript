@@ -34,7 +34,7 @@ Old IDs remain valid historical aliases, including IDs in test ledgers, language
 | M4.6 | [S4](plan.md#s4), complete | One operation catalog, host/provider identities and shared effect transfer; `Object.hasOwn` and detached-method audit resolved |
 | M5.1 | [Q2](plan.md#q2), implemented | Rooted target `UseIndex` closes chains/cycles; the private repeated pruning walk is deleted |
 | M5.2 | [S4](plan.md#s4), complete | Shared physical binding/operation facts, regenerated after edits; duplicate target derivations removed |
-| M5.3a | [Q2](plan.md#q2) | Local source revision and three target stable-proof consumers implemented; SCC/global dirty scheduling remains |
+| M5.3a | [Q2](plan.md#q2) | Local source revisions, SCC effect invalidation/dirty propagation and three target stable-proof consumers implemented; remaining global rule dependencies stay open |
 | M5.3b | [S4](plan.md#s4), complete | Replaced proofs removed; retained generated-storage normalization classified in the [owner audit](s4-target-facts.md) |
 | M5.6 | [Q2](plan.md#q2) | Resource accounting (counts); complete retained target copies and proof payload lifetimes admitted, placement/source owners remain |
 | M5.7 | [Q2](plan.md#q2) | Incremental tail |

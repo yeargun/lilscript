@@ -861,6 +861,7 @@ impl Module {
                 Expr::Literal(Literal::Bool(flag)) => Some(flag),
                 _ => None,
             };
+            let mut negation = None;
             let (op, left, right) = if same(condition, yes) {
                 (Binary::Or, condition, no)
             } else if same(condition, no) {
@@ -871,18 +872,30 @@ impl Module {
                 match (flag(yes), flag(no)) {
                     (_, Some(false)) => (Binary::And, condition, yes),
                     (Some(true), _) => (Binary::Or, condition, no),
-                    (Some(false), _) => match self.negated(condition, budget)? {
-                        Some(negated) => (Binary::And, negated, no),
+                    (Some(false), _) => match self.negation(condition, budget)? {
+                        Some((negated, replacement)) => {
+                            negation = replacement;
+                            (Binary::And, negated, no)
+                        }
                         None => continue,
                     },
-                    (_, Some(true)) => match self.negated(condition, budget)? {
-                        Some(negated) => (Binary::Or, negated, yes),
+                    (_, Some(true)) => match self.negation(condition, budget)? {
+                        Some((negated, replacement)) => {
+                            negation = replacement;
+                            (Binary::Or, negated, yes)
+                        }
                         None => continue,
                     },
                     _ => continue,
                 }
             };
             if self.site_choice(self.expression_site(id), ChoiceFamily::LogicalBranches, seed, "logical-expression", 2, choices, budget)? {
+                // Eligibility and choice registration must not edit the tree.
+                // Negating an unselected conditional changes its meaning and
+                // makes the fixed-point driver flip it again every round.
+                if let Some(replacement) = negation {
+                    self.set_expression(condition, replacement);
+                }
                 self.set_expression(id, Expr::Binary { op, left, right });
                 changed += 1;
             }
@@ -931,13 +944,28 @@ impl Module {
         condition: ExprId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Option<ExprId>, AllocationError> {
+        let Some((value, replacement)) = self.negation(condition, budget)? else {
+            return Ok(None);
+        };
+        if let Some(replacement) = replacement {
+            self.set_expression(condition, replacement);
+        }
+        Ok(Some(value))
+    }
+
+    /// Plan the negation without editing; a spelling may be declined.
+    fn negation(
+        &self,
+        condition: ExprId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Option<(ExprId, Option<Expr>)>, AllocationError> {
         let flipped = match &self.expressions[condition.index()] {
             Expr::Unary {
                 op: Unary::Not,
                 value,
             } => {
                 let value = *value;
-                return Ok(self.boolean_valued(value, budget)?.then_some(value));
+                return Ok(self.boolean_valued(value, budget)?.then_some((value, None)));
             }
             Expr::Literal(Literal::Bool(flag)) => Expr::Literal(Literal::Bool(!flag)),
             Expr::Binary { op, left, right } => {
@@ -956,8 +984,7 @@ impl Module {
             }
             _ => return Ok(None),
         };
-        self.set_expression(condition, flipped);
-        Ok(Some(condition))
+        Ok(Some((condition, Some(flipped))))
     }
 
     /// Whether `yes` ends by leaving `region` the way `region`'s own end

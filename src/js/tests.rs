@@ -85,6 +85,46 @@ fn execute(module: &Module, setup: &str, policy: PrintPolicy) -> String {
 }
 
 #[test]
+fn q2_declined_conditional_spellings_leave_negated_conditions_unchanged() {
+    for op in [Binary::Equal, Binary::StrictNotEqual, Binary::Less] {
+        for false_arm in [true, false] {
+            for mode in 0..3 {
+                let mut module = Module::default();
+                let input = host(&mut module, "input");
+                let zero = number(&mut module, 0.0);
+                let condition = expr(&mut module, Expr::Binary { op, left: input, right: zero });
+                let flag = expr(&mut module, Expr::Literal(Literal::Bool(!false_arm)));
+                let other = number(&mut module, 7.0);
+                let (yes, no) = if false_arm { (flag, other) } else { (other, flag) };
+                let conditional = expr(&mut module, Expr::Conditional { condition, yes, no });
+                capture(&mut module, conditional);
+                let mut budget = AllocationBudget::new(None);
+                module.identify_spelling_sites(0, &mut budget).unwrap();
+                let choices = if mode == 1 {
+                    ChoiceMap::SEEDS.with(ChoiceKey {
+                        family: ChoiceFamily::LogicalBranches,
+                        site: module.expression_site(conditional).unwrap(),
+                    }, AltId(0))
+                } else { ChoiceMap::SEEDS };
+                let mut spellings = StatementSpellings::NONE;
+                spellings.logical_branches = mode != 0;
+                let before = module.render(PrintPolicy::default()).unwrap();
+                let changed = module.compress_statements_chosen(spellings, Some(&choices), &mut budget).unwrap();
+                let selected = mode == 2 && op != Binary::Less;
+                assert_eq!(changed > 0, selected);
+                if !selected { assert_eq!(module.render(PrintPolicy::default()).unwrap(), before); }
+                module.verify().unwrap();
+                for input in [-1, 0, 1] {
+                    let truth = match op { Binary::Equal => input == 0, Binary::StrictNotEqual => input != 0, _ => input < 0 };
+                    let expected = if truth == false_arm { if false_arm { "[false]" } else { "[true]" } } else { "[7]" };
+                    assert_eq!(execute(&module, &format!("const input={input};"), PrintPolicy::default()), expected);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn admitted_array_packing_grows_the_existing_arena_and_releases_its_mask() {
     use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
     let mut source = Module::default();

@@ -568,6 +568,35 @@ impl CallGraph {
     pub fn calls_from(&self, unit: UnitId) -> &[CallEdge] {
         self.outgoing.get(unit.index()).map_or(&[], Vec::as_slice)
     }
+
+    /// Inputs the effect transfer reads outside the unit being summarized.
+    /// Interface/escape changes feed initialization separately. Compare exact
+    /// storage and resolution tables, never a collision-prone digest.
+    pub(super) fn same_effect_storage(&self, other: &Self) -> bool {
+        self.seal == other.seal
+            && self.storage == other.storage
+            && self.targets == other.targets
+    }
+
+    pub(super) fn same_effect_calls(&self, other: &Self, unit: UnitId) -> bool {
+        self.callees.get(unit.index()) == other.callees.get(unit.index())
+            && self.outgoing.get(unit.index()) == other.outgoing.get(unit.index())
+            && self.recursive(unit) == other.recursive(unit)
+    }
+
+    pub(super) fn component_of(&self, unit: UnitId) -> &[UnitId] {
+        self.component.get(unit.index())
+            .and_then(|&index| self.components.get(index as usize))
+            .map_or(&[], Vec::as_slice)
+    }
+
+    pub(super) fn same_component(&self, left: UnitId, right: UnitId) -> bool {
+        self.component.get(left.index()) == self.component.get(right.index())
+    }
+
+    pub(super) fn callers_of(&self, unit: UnitId) -> &[CallEdge] {
+        self.incoming.get(unit.index()).map_or(&[], Vec::as_slice)
+    }
     /// Whether the body escapes as a value: handed to the host, stored,
     /// passed as an argument or returned. Its calls are then not all known.
     pub fn address_taken(&self, unit: UnitId) -> bool {

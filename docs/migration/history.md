@@ -1350,3 +1350,30 @@ Pin `q2-target-copies-1`, SHA-256
 `f32d84840ba334f8d9560ddb7d8d74b54be56017af9eae62b298fa15323b6a86`,
 algorithm 47. Q2 remains active for SCC/global scheduling, incremental formation,
 build/elaboration caches, decision replay and remaining admission owners.
+
+## 2026-10-01: Q2 dependency-driven effect components and conditional convergence
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-q2-effect-components/README.md).
+Exact SCC keys preserve body/table/storage/callee/initialization dependencies;
+structural and scheduled passes share answers, dirty recursion retains its
+original structural order and truncation ceiling. Constant-only source edits
+stop unnecessarily invalidating cell tables. The normalization audit flag
+forces cold execution; previous analyses end with the rule phase.
+
+41 distinct focused tests and 61 successful release artifact/runtime checks
+pass. Reuse on/off preserves files, logical work, search and semantic policy
+fingerprints. Matched prior totals remain 2,486 raw / 1,136 gzip / 867 Brotli.
+Two prior recursive-control failures are excluded from gzip/Brotli totals: a
+conditional spelling was negating a condition before consulting the selected
+alternative. Mutation now follows selection; the recursive control compiles
+and executes correctly in all objectives. The speculative inlining-cycle guard
+was removed after tracing the actual cause.
+
+Physical source effect summary executions fall 1,278 → 390 across 21 current
+case/objective pairs. Key/graph construction and copying remain, and coarse CPU
+samples show no clear overall speed gain. Analysis backing still lacks complete
+admission, so reported ledger peaks cannot establish physical memory parity.
+Pin `q2-effect-components-2`, SHA-256
+`4cd627217bd2d5a5208fe65aee4bca6d56f74a1e9fd3afdcdeee8afbd507eac8`,
+algorithm 48. Other global dependencies, formation, build/elaboration caches,
+decision replay and resource owners remain Q2 work. No full suite/fleet rerun.

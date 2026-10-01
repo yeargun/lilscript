@@ -148,7 +148,12 @@ pub(super) fn apply(
                 Ok((op, constant))
             })
             .collect::<Result<_, &'static str>>()?;
-        let (data, cells) = editor.unit_and_cells(unit);
+        let (data, cells): (&mut UnitData, &mut [Cell]) = if plan.folds.iter()
+            .any(|fold| matches!(fold, Fold::Inline { .. } | Fold::Splice { .. })) {
+            editor.unit_and_cells(unit)
+        } else {
+            (editor.unit_mut(unit), &mut [])
+        };
         for (op, constant) in constants {
             if let Some(result) = data.operations[op.index()].result {
                 let origin = values.origin(unit, result);

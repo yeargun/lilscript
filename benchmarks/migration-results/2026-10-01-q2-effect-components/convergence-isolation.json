@@ -1,0 +1,14 @@
+{
+  "inlining": {
+    "status": 0,
+    "stderr": ""
+  },
+  "private": {
+    "status": 1,
+    "stderr": "/tmp/lilscript-recursive-private.toml: invalid config: unknown variant `parameterized-helpers`, expected one of `dead-code-elimination`, `constant-folding`, `inlining`, `loop-unrolling`, `scalar-replacement`, `call-specialization`, `helper-sharing`, `target-compaction`, `statement-spellings`, `declaration-order`, `receiver-aliases`, `identifier-mangling`, `property-mangling`, `string-pooling`, `string-array-packing`, `startup-reconstruction`, `recurring-reconstruction`, `naming-search`, `naming-compaction`, `representation-joints`, `naming-alphabet`\nin `policy.tactics`\n\n"
+  },
+  "compaction": {
+    "status": 0,
+    "stderr": "warning: javascript: `policy.tactics.statement-spellings` is unavailable because required tactic `target-compaction` is disabled\nwarning: javascript: `policy.tactics.receiver-aliases` is unavailable because required tactic `target-compaction` is disabled\nwarning: javascript: `policy.tactics.property-mangling` is unavailable because required tactic `target-compaction` is disabled\n"
+  }
+}

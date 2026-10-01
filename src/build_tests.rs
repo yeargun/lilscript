@@ -6,6 +6,21 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[test]
+fn q2_recursive_conditionals_terminate_with_each_objective_and_reuse_mode() {
+    let source = "export bool even(int n){if(n==0){return true;}return odd(n-1);}bool odd(int n){if(n==0){return false;}return even(n-1);}";
+    for reuse in [false, true] {
+        let settings: ProjectConfig = toml::from_str(&format!("[optimization]\npreset='maximum'\n[effort]\nlevel=13\n[cache]\nnormalization_reuse={reuse}")).unwrap();
+        let built = compile_source(source, &settings, ServiceOptions {
+            objectives: Some(Objectives::All), ..ServiceOptions::default()
+        }).unwrap();
+        for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+            let js = built.javascript(codec).unwrap().javascript();
+            assert_eq!(execute_javascript(js, "", "console.log(JSON.stringify([library.even(0),library.even(9),library.even(10),library.even(100)]));"), "[true,false,true,true]\n");
+        }
+    }
+}
+
+#[test]
 fn s4_public_abi_checks_match_build_diagnostics_before_search() {
     let cases = [
         "struct P{int x;}struct Q{int y;}export P|Q copy(P|Q value){return value;}",

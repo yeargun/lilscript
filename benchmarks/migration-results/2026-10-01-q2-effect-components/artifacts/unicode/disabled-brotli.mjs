@@ -1,0 +1,1 @@
+let choose=function(first){let value="\ud800é";return first?value:value.slice(1)};export{choose};

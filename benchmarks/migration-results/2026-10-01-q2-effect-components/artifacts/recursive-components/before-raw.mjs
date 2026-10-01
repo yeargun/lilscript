@@ -1,0 +1,1 @@
+let even=function(b){return b==0||a(b-1|0)},a=c=>c!=0&&even(c-1|0);export{even};

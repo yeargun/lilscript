@@ -1,0 +1,1 @@
+func()->int make(int n){return ()=>{n+=1;return n;};}func()->int first=()=>0;func()->int last=()=>0;for(int i=0;i<2;i+=1){auto next=make(i*10);if(i==0){first=next;}else{last=next;}}print(first());print(last());print(first());

@@ -80,6 +80,9 @@ pub static JS_FORMATION: Bucket = Bucket::new("js_formation");
 /// Actual target-rule applications, excluding rules proved unchanged.
 /// Nested in formation; durations must not be added to that enclosing phase.
 pub static JS_RULE: Bucket = Bucket::new("js_rule");
+/// Physical source effect summaries and complete-component reuse.
+pub static SOURCE_EFFECT_UNIT: Bucket = Bucket::new("source_effect_unit");
+pub static SOURCE_EFFECT_REUSE: Bucket = Bucket::new("source_effect_reuse");
 pub static TARGET_VERIFY: Bucket = Bucket::new("target_verify");
 pub static TARGET_EDITION: Bucket = Bucket::new("target_edition");
 pub static TARGET_BASIS: Bucket = Bucket::new("target_basis");
@@ -99,7 +102,7 @@ pub static CODEC_REUSE: Bucket = Bucket::new("codec_reuse");
 pub static ADMISSION_STRUCTURE: Bucket = Bucket::new("admission_structure");
 pub static ADMISSION_PARSE: Bucket = Bucket::new("admission_parse");
 
-const PHASE_BUCKETS: [&Bucket; 15] = [
+const PHASE_BUCKETS: [&Bucket; 17] = [
     &JS_DEMAND,
     &JS_FORMATION,
     &TARGET_VERIFY,
@@ -115,6 +118,8 @@ const PHASE_BUCKETS: [&Bucket; 15] = [
     &ADMISSION_STRUCTURE,
     &ADMISSION_PARSE,
     &JS_RULE,
+    &SOURCE_EFFECT_UNIT,
+    &SOURCE_EFFECT_REUSE,
 ];
 
 /// `true` when the caller asked for a telemetry dump. Checked once; the

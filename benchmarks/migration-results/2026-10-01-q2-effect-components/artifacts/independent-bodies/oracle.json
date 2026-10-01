@@ -1,0 +1,5 @@
+{
+  "setup": "",
+  "exercise": "console.log(JSON.stringify([m.f0(1),m.f31(-1)]));",
+  "expected": "[1,-32]"
+}

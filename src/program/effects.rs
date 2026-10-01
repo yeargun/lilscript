@@ -30,6 +30,12 @@
 use super::call_graph::{CallGraph, Callee, Seal};
 use super::facts::{self, EvaluationBehavior, MemoryAccess};
 use super::initialization::ProgramInitialization;
+#[path = "effects_reuse.rs"]
+mod reuse;
+#[cfg(test)]
+#[path = "effects_reuse_tests.rs"]
+mod reuse_tests;
+
 use super::views::{Deps, Fact, Limit, Reason};
 use super::*;
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
@@ -1038,11 +1044,14 @@ impl UnitEffects {
 /// by `UnitId`).
 #[derive(Debug)]
 pub struct ProgramEffects {
+    identity: RevisionId,
+    trap_index_reads: bool,
     deps: Deps,
     graph: CallGraph,
     initialization: Arc<ProgramInitialization>,
-    units: Vec<Fact<UnitEffects>>,
-    roots: Vec<Vec<Root>>,
+    structural: reuse::SummaryPass,
+    complete: reuse::SummaryPass,
+    stats: reuse::Stats,
 }
 
 impl ProgramEffects {
@@ -1053,115 +1062,42 @@ impl ProgramEffects {
     /// are then computed again with that complete answer, which only ever
     /// removes a temporal-dead-zone throw. Both rounds are sound.
     pub fn build(program: &Program<'_>, seal: Seal) -> Self {
+        Self::build_reusing(program, seal, None, false)
+    }
+
+    pub(super) fn build_reusing(
+        program: &Program<'_>, seal: Seal, previous: Option<&Self>, enabled: bool,
+    ) -> Self {
         let graph = CallGraph::build(program, seal);
+        let deps = Deps::of_program(program);
+        let previous = previous.filter(|old| {
+            enabled && old.deps.tables == deps.tables
+                && old.trap_index_reads == program.trap_index_reads
+                && graph.same_effect_storage(&old.graph)
+        });
         let mut initialization = ProgramInitialization::structural(program, &graph);
-        // Module initializers are never called, so each one's operations
-        // are complete when it is summarized: callees come first.
-        let mut statements = vec![Vec::new(); program.units.len()];
-        Self::summarize_units(program, &graph, &initialization, Some(&mut statements));
-        initialization.schedule(program, &graph, &statements);
-        let initialization = Arc::new(initialization);
-        let (units, roots) = Self::summarize_units(program, &graph, &initialization, None);
+        let mut stats = reuse::Stats::default();
+        let structural = reuse::summarize_units(
+            program, &graph, &initialization, true, enabled,
+            previous.map(|old| reuse::Previous::new(&old.deps, &old.graph, &old.structural)),
+            None, &mut stats,
+        );
+        initialization.schedule(program, &graph, &structural.statements);
+        let complete = reuse::summarize_units(
+            program, &graph, &initialization, false, enabled,
+            enabled.then(|| reuse::Previous::new(&deps, &graph, &structural)),
+            previous.map(|old| reuse::Previous::new(&old.deps, &old.graph, &old.complete)),
+            &mut stats,
+        );
         Self {
-            deps: Deps::of_program(program),
-            graph,
-            initialization,
-            units,
-            roots,
+            identity: RevisionId::fresh(), trap_index_reads: program.trap_index_reads,
+            deps, graph, initialization: Arc::new(initialization), structural, complete, stats,
         }
     }
 
-    /// Every unit's summary over `graph`, bottom-up over its components.
-    /// `record` receives, per module initializer, each operation's effects.
-    fn summarize_units(
-        program: &Program<'_>,
-        graph: &CallGraph,
-        access: &ProgramInitialization,
-        mut record: Option<&mut Vec<Vec<Effects>>>,
-    ) -> (Vec<Fact<UnitEffects>>, Vec<Vec<Root>>) {
-        let count = program.units.len();
-        let mut declared = vec![false; count];
-        for cell in program.cells.iter() {
-            if let CellBinding::Function(unit) = cell.binding {
-                if let Some(slot) = declared.get_mut(unit.index()) {
-                    *slot |= cell.declared_pure;
-                }
-            }
-        }
-        let mut units: Vec<Fact<UnitEffects>> = (0..count)
-            .map(|_| Fact::Truncated(Limit::Iterations))
-            .collect();
-        let mut roots = vec![Vec::new(); count];
-        for component in graph.components() {
-            let recursive = component.first().is_some_and(|&unit| graph.recursive(unit));
-            // A recursive component starts from no effects and grows to its
-            // least fixed point; recursion alone makes it diverge.
-            for &unit in component {
-                units[unit.index()] = Fact::Known(
-                    UnitEffects {
-                        effects: Effects {
-                            may_diverge: recursive,
-                            ..Effects::NONE
-                        },
-                        result_primitive: Some(ParameterSet::EMPTY),
-                        declared_pure: declared[unit.index()],
-                    },
-                    Deps {
-                        tables: program.tables_revision,
-                        units: Vec::new(),
-                    },
-                );
-            }
-            let mut settled = false;
-            for _ in 0..if recursive { COMPONENT_ITERATIONS } else { 1 } {
-                let mut changed = false;
-                for &unit in component {
-                    // Module initializers are never called: their operations
-                    // are the root statements the initialization owner reads.
-                    let operations = match record.as_deref_mut() {
-                        Some(record)
-                            if program.unit(unit).is_some_and(|data| {
-                                data.kind == UnitKind::ModuleInitialization
-                            }) =>
-                        {
-                            let slot = &mut record[unit.index()];
-                            slot.clear();
-                            Some(slot)
-                        }
-                        _ => None,
-                    };
-                    let (summary, unit_roots) = summarize(
-                        program,
-                        graph,
-                        &units,
-                        unit,
-                        declared[unit.index()],
-                        access,
-                        operations,
-                    );
-                    let summary = match summary {
-                        Fact::Known(mut summary, deps) => {
-                            summary.effects.may_diverge |= recursive;
-                            Fact::Known(summary, deps)
-                        }
-                        other => other,
-                    };
-                    changed |= units[unit.index()] != summary;
-                    units[unit.index()] = summary;
-                    roots[unit.index()] = unit_roots;
-                }
-                if !changed || !recursive {
-                    settled = true;
-                    break;
-                }
-            }
-            if !settled {
-                for &unit in component {
-                    units[unit.index()] = Fact::Truncated(Limit::Iterations);
-                }
-            }
-        }
-        (units, roots)
+    pub(super) fn analysis_identity(&self) -> RevisionId { self.identity }
+    pub(super) fn reuse_stats(&self) -> (u64, u64, u64) {
+        (self.stats.visited, self.stats.reused, self.stats.components_reused)
     }
 
     pub fn deps(&self) -> &Deps {
@@ -1175,22 +1111,22 @@ impl ProgramEffects {
         &self.initialization
     }
     pub fn unit(&self, unit: UnitId) -> Option<&Fact<UnitEffects>> {
-        self.units.get(unit.index())
+        self.complete.units.get(unit.index())
     }
     pub fn summary(&self, unit: UnitId) -> Option<&UnitEffects> {
         self.unit(unit)?.known()
     }
     pub(super) fn summaries(&self) -> &[Fact<UnitEffects>] {
-        &self.units
+        &self.complete.units
     }
     pub(super) fn roots(&self, unit: UnitId) -> &[Root] {
-        self.roots.get(unit.index()).map_or(&[], Vec::as_slice)
+        self.complete.roots.get(unit.index()).map_or(&[], Vec::as_slice)
     }
 
     /// Declared `pure` units whose summary shows an observable effect, in
     /// unit order (M6.3).
     pub fn pure_violations(&self) -> Vec<UnitId> {
-        self.units
+        self.complete.units
             .iter()
             .enumerate()
             .filter_map(|(index, fact)| match fact {
@@ -1740,7 +1676,7 @@ fn summarize(
     summaries: &[Fact<UnitEffects>],
     unit: UnitId,
     declared_pure: bool,
-    access: &ProgramInitialization,
+    access: &reuse::AccessKey,
     mut record: Option<&mut Vec<Effects>>,
 ) -> (Fact<UnitEffects>, Vec<Root>) {
     let data = program.unit(unit).unwrap();
@@ -1766,12 +1702,8 @@ fn summarize(
         let mut operation_effects = operation_effects(&ctx, &values, operation);
         // An access past its cell's initialization cannot observe the
         // temporal dead zone, its only failure.
-        if operation_effects.may_throw {
-            if let Some(cell) = access_cell(data, operation) {
-                if access.initialized(program, unit, id, cell) {
-                    operation_effects.may_throw = false;
-                }
-            }
+        if operation_effects.may_throw && access.initialized(index) {
+            operation_effects.may_throw = false;
         }
         if operation_effects.may_throw && structure.caught(data, operation.region) {
             operation_effects.may_throw = false;
@@ -1803,13 +1735,7 @@ fn summarize(
         operation_effects.writes = operation_effects.writes.observable();
         effects.join(operation_effects);
     }
-    let deps = Deps {
-        tables: program.tables_revision,
-        units: std::iter::once(unit)
-            .chain(graph.calls_from(unit).iter().map(|edge| edge.callee))
-            .map(|unit| (unit, program.units[unit.index()].revision()))
-            .collect(),
-    };
+    let deps = reuse::summary_deps(program, graph, unit);
     (
         Fact::Known(
             UnitEffects {

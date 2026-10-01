@@ -64,3 +64,10 @@ The [complete target-copy batch](../../benchmarks/migration-results/2026-10-01-q
 admits nested payloads and behavior-proof lifetimes. Affected artifacts remain
 byte-identical with higher, correctly counted copy work. This closes the retained
 copy owner, not initial placement or source analysis/edit admission.
+
+The [effect-component batch](../../benchmarks/migration-results/2026-10-01-q2-effect-components/README.md)
+implements exact SCC invalidation and dirty recursive effect propagation, plus
+structural/scheduled summary reuse. Cold/reused all-objective parity passes;
+an existing conditional-choice convergence defect is repaired. Other global
+rule dependencies, analysis storage, formation and persistent build/lock work
+stay open.

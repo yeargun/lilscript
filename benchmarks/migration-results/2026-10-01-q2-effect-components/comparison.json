@@ -1,0 +1,2747 @@
+{
+  "scope": "seven generic controls, separate raw/gzip/Brotli objectives, previous pin and effect component reuse on/off; independent runtime/scored-byte oracles and deterministic logical parity; single coarse timings, no fleet claim",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-work/bin/q2-effect-components-2/lilscript",
+    "sha256": "4cd627217bd2d5a5208fe65aee4bca6d56f74a1e9fd3afdcdeee8afbd507eac8"
+  },
+  "baseline": {
+    "path": "/home/azureuser/lilscript-work/bin/q2-target-copies-1/lilscript",
+    "sha256": "f32d84840ba334f8d9560ddb7d8d74b54be56017af9eae62b298fa15323b6a86"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-work/bin/q1-complete-2/lilscript-codec",
+    "sha256": "be0fb75fd6b872267d27915bbf7c67ef752cebbfb6b4c674677c620d213831db"
+  },
+  "totals": {
+    "raw": {
+      "matched_cases": [
+        "independent-bodies",
+        "recursive-components",
+        "spellings",
+        "unicode",
+        "local-returns",
+        "captured-activations",
+        "delivered-setter"
+      ],
+      "before": 2486,
+      "after": 2486,
+      "delta": 0,
+      "repaired": []
+    },
+    "gzip": {
+      "matched_cases": [
+        "independent-bodies",
+        "spellings",
+        "unicode",
+        "local-returns",
+        "captured-activations",
+        "delivered-setter"
+      ],
+      "before": 1136,
+      "after": 1136,
+      "delta": 0,
+      "repaired": [
+        {
+          "id": "recursive-components",
+          "bytes": 92
+        }
+      ]
+    },
+    "brotli": {
+      "matched_cases": [
+        "independent-bodies",
+        "spellings",
+        "unicode",
+        "local-returns",
+        "captured-activations",
+        "delivered-setter"
+      ],
+      "before": 867,
+      "after": 867,
+      "delta": 0,
+      "repaired": [
+        {
+          "id": "recursive-components",
+          "bytes": 71
+        }
+      ]
+    }
+  },
+  "rows": [
+    {
+      "id": "independent-bodies",
+      "source_sha256": "6ca89407319ab41e0956fd7fa4476fbd8c80593fc950ed8be0d162859a15712d",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "14b260272d0d3d9e264766cf41a16508e5fb2a92b9e3ee96bbaf097b68253ede",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "9201210b9862217990abe9c8210fe2ff1de366adf86edd2c28486af328c4853a",
+                "raw": 1440,
+                "gzip9": 353,
+                "brotli11": 213
+              }
+            ],
+            "raw": 1440,
+            "gzip9": 353,
+            "brotli11": 213,
+            "logical": {
+              "baseline": 244449,
+              "optional": 4830126,
+              "codec": 36
+            },
+            "physical": {
+              "source_units": 130,
+              "source_reused": 2,
+              "target_passes": 1291,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 16359664,
+            "cpu_seconds": 0.03,
+            "wall_seconds": 0.03,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 116,
+              "judged": 5
+            }
+          },
+          "reused": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "9201210b9862217990abe9c8210fe2ff1de366adf86edd2c28486af328c4853a",
+                "raw": 1440,
+                "gzip9": 353,
+                "brotli11": 213
+              }
+            ],
+            "raw": 1440,
+            "gzip9": 353,
+            "brotli11": 213,
+            "logical": {
+              "baseline": 244449,
+              "optional": 4830126,
+              "codec": 36
+            },
+            "physical": {
+              "source_units": 130,
+              "source_reused": 2,
+              "target_passes": 1291,
+              "target_reused": 0,
+              "effect_units": 65,
+              "effect_reused": 67,
+              "effect_components_reused": 67
+            },
+            "peak_retained_bytes": 16359688,
+            "cpu_seconds": 0.03,
+            "wall_seconds": 0.03,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 116,
+              "judged": 5
+            }
+          },
+          "disabled": {
+            "config_sha256": "bca7aabadaefd800aaa68048c6238ee6de02873fa042e82f64d34a75540ec1d1",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "9201210b9862217990abe9c8210fe2ff1de366adf86edd2c28486af328c4853a",
+                "raw": 1440,
+                "gzip9": 353,
+                "brotli11": 213
+              }
+            ],
+            "raw": 1440,
+            "gzip9": 353,
+            "brotli11": 213,
+            "logical": {
+              "baseline": 244449,
+              "optional": 4830126,
+              "codec": 36
+            },
+            "physical": {
+              "source_units": 132,
+              "source_reused": 0,
+              "target_passes": 1291,
+              "target_reused": 0,
+              "effect_units": 132,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16359688,
+            "cpu_seconds": 0.03,
+            "wall_seconds": 0.03,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 116,
+              "judged": 5
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "25ebb6921bf3be127941646d037eea21be4a4312dbfb986aeb81e83215ee5ce5",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f91dd23774ae0a4cf3e4d1c38c3ec7e76357fbd95029402d3f0361e1e16ab24",
+                "raw": 1440,
+                "gzip9": 352,
+                "brotli11": 212
+              }
+            ],
+            "raw": 1440,
+            "gzip9": 352,
+            "brotli11": 212,
+            "logical": {
+              "baseline": 503660,
+              "optional": 8952592,
+              "codec": 4585013
+            },
+            "physical": {
+              "source_units": 130,
+              "source_reused": 2,
+              "target_passes": 1142,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 16580158,
+            "cpu_seconds": 0.03,
+            "wall_seconds": 0.03,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 116,
+              "judged": 2
+            }
+          },
+          "reused": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f91dd23774ae0a4cf3e4d1c38c3ec7e76357fbd95029402d3f0361e1e16ab24",
+                "raw": 1440,
+                "gzip9": 352,
+                "brotli11": 212
+              }
+            ],
+            "raw": 1440,
+            "gzip9": 352,
+            "brotli11": 212,
+            "logical": {
+              "baseline": 503660,
+              "optional": 8952592,
+              "codec": 4585013
+            },
+            "physical": {
+              "source_units": 130,
+              "source_reused": 2,
+              "target_passes": 1142,
+              "target_reused": 0,
+              "effect_units": 65,
+              "effect_reused": 67,
+              "effect_components_reused": 67
+            },
+            "peak_retained_bytes": 16580182,
+            "cpu_seconds": 0.03,
+            "wall_seconds": 0.03,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 116,
+              "judged": 2
+            }
+          },
+          "disabled": {
+            "config_sha256": "4d5d7a112a81f51a3c59186d9c8ffb122c8c1a3b4e14084541aff1d669c084cd",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f91dd23774ae0a4cf3e4d1c38c3ec7e76357fbd95029402d3f0361e1e16ab24",
+                "raw": 1440,
+                "gzip9": 352,
+                "brotli11": 212
+              }
+            ],
+            "raw": 1440,
+            "gzip9": 352,
+            "brotli11": 212,
+            "logical": {
+              "baseline": 503660,
+              "optional": 8952592,
+              "codec": 4585013
+            },
+            "physical": {
+              "source_units": 132,
+              "source_reused": 0,
+              "target_passes": 1142,
+              "target_reused": 0,
+              "effect_units": 132,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16580182,
+            "cpu_seconds": 0.03,
+            "wall_seconds": 0.03,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 116,
+              "judged": 2
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "9bcd51787d5030c8d469db24d907d0bd89aeec9e7ac9028b169c29afad89763a",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f91dd23774ae0a4cf3e4d1c38c3ec7e76357fbd95029402d3f0361e1e16ab24",
+                "raw": 1440,
+                "gzip9": 352,
+                "brotli11": 212
+              }
+            ],
+            "raw": 1440,
+            "gzip9": 352,
+            "brotli11": 212,
+            "logical": {
+              "baseline": 235549,
+              "optional": 4717786,
+              "codec": 47603
+            },
+            "physical": {
+              "source_units": 130,
+              "source_reused": 2,
+              "target_passes": 1142,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 17453677,
+            "cpu_seconds": 0.04,
+            "wall_seconds": 0.04,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 116,
+              "judged": 11
+            }
+          },
+          "reused": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f91dd23774ae0a4cf3e4d1c38c3ec7e76357fbd95029402d3f0361e1e16ab24",
+                "raw": 1440,
+                "gzip9": 352,
+                "brotli11": 212
+              }
+            ],
+            "raw": 1440,
+            "gzip9": 352,
+            "brotli11": 212,
+            "logical": {
+              "baseline": 235549,
+              "optional": 4717786,
+              "codec": 47603
+            },
+            "physical": {
+              "source_units": 130,
+              "source_reused": 2,
+              "target_passes": 1142,
+              "target_reused": 0,
+              "effect_units": 65,
+              "effect_reused": 67,
+              "effect_components_reused": 67
+            },
+            "peak_retained_bytes": 17453701,
+            "cpu_seconds": 0.04,
+            "wall_seconds": 0.04,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 116,
+              "judged": 11
+            }
+          },
+          "disabled": {
+            "config_sha256": "74dc6b28f7c97d89a3c8bcaa8d40d52ef272fa446715c6125b0adc4ba68d02f1",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f91dd23774ae0a4cf3e4d1c38c3ec7e76357fbd95029402d3f0361e1e16ab24",
+                "raw": 1440,
+                "gzip9": 352,
+                "brotli11": 212
+              }
+            ],
+            "raw": 1440,
+            "gzip9": 352,
+            "brotli11": 212,
+            "logical": {
+              "baseline": 235549,
+              "optional": 4717786,
+              "codec": 47603
+            },
+            "physical": {
+              "source_units": 132,
+              "source_reused": 0,
+              "target_passes": 1142,
+              "target_reused": 0,
+              "effect_units": 132,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 17453701,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.06,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 116,
+              "judged": 11
+            }
+          },
+          "same_files": true
+        }
+      }
+    },
+    {
+      "id": "recursive-components",
+      "source_sha256": "c7de7f5c79bc8e41470a4288f1332bdf2681283ef9be592a81ef64a82500c0f0",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "14b260272d0d3d9e264766cf41a16508e5fb2a92b9e3ee96bbaf097b68253ede",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "8ae732877b189102df7a6bab23dea3e3bfa2435580cbc5fe92f95cde5f49cddc",
+                "raw": 80,
+                "gzip9": 92,
+                "brotli11": 84
+              }
+            ],
+            "raw": 80,
+            "gzip9": 92,
+            "brotli11": 84,
+            "logical": {
+              "baseline": 19675,
+              "optional": 4266213,
+              "codec": 85
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 2,
+              "target_passes": 27692,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 16386186,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 190,
+              "judged": 10
+            }
+          },
+          "reused": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "8ae732877b189102df7a6bab23dea3e3bfa2435580cbc5fe92f95cde5f49cddc",
+                "raw": 80,
+                "gzip9": 92,
+                "brotli11": 84
+              }
+            ],
+            "raw": 80,
+            "gzip9": 92,
+            "brotli11": 84,
+            "logical": {
+              "baseline": 19675,
+              "optional": 745205,
+              "codec": 127
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 2,
+              "target_passes": 3533,
+              "target_reused": 0,
+              "effect_units": 7,
+              "effect_reused": 9,
+              "effect_components_reused": 5
+            },
+            "peak_retained_bytes": 16050812,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 190,
+              "judged": 10
+            }
+          },
+          "disabled": {
+            "config_sha256": "bca7aabadaefd800aaa68048c6238ee6de02873fa042e82f64d34a75540ec1d1",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "8ae732877b189102df7a6bab23dea3e3bfa2435580cbc5fe92f95cde5f49cddc",
+                "raw": 80,
+                "gzip9": 92,
+                "brotli11": 84
+              }
+            ],
+            "raw": 80,
+            "gzip9": 92,
+            "brotli11": 84,
+            "logical": {
+              "baseline": 19675,
+              "optional": 745205,
+              "codec": 127
+            },
+            "physical": {
+              "source_units": 12,
+              "source_reused": 0,
+              "target_passes": 3533,
+              "target_reused": 0,
+              "effect_units": 20,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16050812,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 190,
+              "judged": 10
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "failure": "compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 0, end: 0 }, feature: \"JavaScript target rules (a compiler bug): the JavaScript target rules did not reach a fixed point in 64 rounds\" }))"
+          },
+          "reused": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "8ae732877b189102df7a6bab23dea3e3bfa2435580cbc5fe92f95cde5f49cddc",
+                "raw": 80,
+                "gzip9": 92,
+                "brotli11": 84
+              }
+            ],
+            "raw": 80,
+            "gzip9": 92,
+            "brotli11": 84,
+            "logical": {
+              "baseline": 285757,
+              "optional": 10790630,
+              "codec": 10462597
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 2,
+              "target_passes": 2626,
+              "target_reused": 0,
+              "effect_units": 7,
+              "effect_reused": 9,
+              "effect_components_reused": 5
+            },
+            "peak_retained_bytes": 16340529,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 248,
+              "judged": 17
+            }
+          },
+          "disabled": {
+            "config_sha256": "4d5d7a112a81f51a3c59186d9c8ffb122c8c1a3b4e14084541aff1d669c084cd",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "8ae732877b189102df7a6bab23dea3e3bfa2435580cbc5fe92f95cde5f49cddc",
+                "raw": 80,
+                "gzip9": 92,
+                "brotli11": 84
+              }
+            ],
+            "raw": 80,
+            "gzip9": 92,
+            "brotli11": 84,
+            "logical": {
+              "baseline": 285757,
+              "optional": 10790630,
+              "codec": 10462597
+            },
+            "physical": {
+              "source_units": 12,
+              "source_reused": 0,
+              "target_passes": 2626,
+              "target_reused": 0,
+              "effect_units": 20,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16340529,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 248,
+              "judged": 17
+            }
+          },
+          "same_files": null
+        },
+        "brotli": {
+          "before": {
+            "failure": "compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 0, end: 0 }, feature: \"JavaScript target rules (a compiler bug): the JavaScript target rules did not reach a fixed point in 64 rounds\" }))"
+          },
+          "reused": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "ceba99b981905f7b6728c76b41a659a476b6480a0ea614e71235a854a3725233",
+                "raw": 86,
+                "gzip9": 93,
+                "brotli11": 71
+              }
+            ],
+            "raw": 86,
+            "gzip9": 93,
+            "brotli11": 71,
+            "logical": {
+              "baseline": 17629,
+              "optional": 555992,
+              "codec": 9423
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 2,
+              "target_passes": 2238,
+              "target_reused": 0,
+              "effect_units": 7,
+              "effect_reused": 9,
+              "effect_components_reused": 5
+            },
+            "peak_retained_bytes": 17190350,
+            "cpu_seconds": 0.02,
+            "wall_seconds": 0.02,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 304,
+              "judged": 33
+            }
+          },
+          "disabled": {
+            "config_sha256": "74dc6b28f7c97d89a3c8bcaa8d40d52ef272fa446715c6125b0adc4ba68d02f1",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "ceba99b981905f7b6728c76b41a659a476b6480a0ea614e71235a854a3725233",
+                "raw": 86,
+                "gzip9": 93,
+                "brotli11": 71
+              }
+            ],
+            "raw": 86,
+            "gzip9": 93,
+            "brotli11": 71,
+            "logical": {
+              "baseline": 17629,
+              "optional": 555992,
+              "codec": 9423
+            },
+            "physical": {
+              "source_units": 12,
+              "source_reused": 0,
+              "target_passes": 2238,
+              "target_reused": 0,
+              "effect_units": 20,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 17190350,
+            "cpu_seconds": 0.02,
+            "wall_seconds": 0.02,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 304,
+              "judged": 33
+            }
+          },
+          "same_files": null
+        }
+      }
+    },
+    {
+      "id": "spellings",
+      "source_sha256": "a44337af87de53fe10f881732ca238d6afb0bc15fe809764fe9708293d35d89f",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "14b260272d0d3d9e264766cf41a16508e5fb2a92b9e3ee96bbaf097b68253ede",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d",
+                "raw": 493,
+                "gzip9": 324,
+                "brotli11": 291
+              }
+            ],
+            "raw": 493,
+            "gzip9": 324,
+            "brotli11": 291,
+            "logical": {
+              "baseline": 157437,
+              "optional": 6230107,
+              "codec": 204
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 4426,
+              "target_reused": 1,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 18576130,
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.06,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 0,
+              "examined": 247,
+              "judged": 11
+            }
+          },
+          "reused": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d",
+                "raw": 493,
+                "gzip9": 324,
+                "brotli11": 291
+              }
+            ],
+            "raw": 493,
+            "gzip9": 324,
+            "brotli11": 291,
+            "logical": {
+              "baseline": 157437,
+              "optional": 6230107,
+              "codec": 204
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 4426,
+              "target_reused": 1,
+              "effect_units": 19,
+              "effect_reused": 41,
+              "effect_components_reused": 41
+            },
+            "peak_retained_bytes": 18576154,
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 0,
+              "examined": 247,
+              "judged": 11
+            }
+          },
+          "disabled": {
+            "config_sha256": "bca7aabadaefd800aaa68048c6238ee6de02873fa042e82f64d34a75540ec1d1",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "4f7528a4843c3d02b3aada3dee084a82b5ad7a0494f38706ae31f54174c4783d",
+                "raw": 493,
+                "gzip9": 324,
+                "brotli11": 291
+              }
+            ],
+            "raw": 493,
+            "gzip9": 324,
+            "brotli11": 291,
+            "logical": {
+              "baseline": 157437,
+              "optional": 6230107,
+              "codec": 204
+            },
+            "physical": {
+              "source_units": 36,
+              "source_reused": 0,
+              "target_passes": 4427,
+              "target_reused": 0,
+              "effect_units": 60,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 18576154,
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 0,
+              "examined": 247,
+              "judged": 11
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "25ebb6921bf3be127941646d037eea21be4a4312dbfb986aeb81e83215ee5ce5",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2cfb02b4ca4637d369c5ebe74a4a50057e314defec93254f0d22f8ca7be4efed",
+                "raw": 495,
+                "gzip9": 306,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 306,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 408963,
+              "optional": 26665529,
+              "codec": 20691104
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 4310,
+              "target_reused": 1,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 18610114,
+            "cpu_seconds": 0.07,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 165,
+              "judged": 12
+            }
+          },
+          "reused": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2cfb02b4ca4637d369c5ebe74a4a50057e314defec93254f0d22f8ca7be4efed",
+                "raw": 495,
+                "gzip9": 306,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 306,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 408963,
+              "optional": 26665529,
+              "codec": 20691104
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 4310,
+              "target_reused": 1,
+              "effect_units": 19,
+              "effect_reused": 41,
+              "effect_components_reused": 41
+            },
+            "peak_retained_bytes": 18610138,
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 165,
+              "judged": 12
+            }
+          },
+          "disabled": {
+            "config_sha256": "4d5d7a112a81f51a3c59186d9c8ffb122c8c1a3b4e14084541aff1d669c084cd",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2cfb02b4ca4637d369c5ebe74a4a50057e314defec93254f0d22f8ca7be4efed",
+                "raw": 495,
+                "gzip9": 306,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 306,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 408963,
+              "optional": 26665529,
+              "codec": 20691104
+            },
+            "physical": {
+              "source_units": 36,
+              "source_reused": 0,
+              "target_passes": 4311,
+              "target_reused": 0,
+              "effect_units": 60,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 18610138,
+            "cpu_seconds": 0.06,
+            "wall_seconds": 0.07,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 165,
+              "judged": 12
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "9bcd51787d5030c8d469db24d907d0bd89aeec9e7ac9028b169c29afad89763a",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6",
+                "raw": 495,
+                "gzip9": 311,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 311,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 140851,
+              "optional": 5832527,
+              "codec": 84024
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 3786,
+              "target_reused": 1,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 18610114,
+            "cpu_seconds": 0.13,
+            "wall_seconds": 0.13,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 241,
+              "judged": 65
+            }
+          },
+          "reused": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6",
+                "raw": 495,
+                "gzip9": 311,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 311,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 140851,
+              "optional": 5832527,
+              "codec": 84024
+            },
+            "physical": {
+              "source_units": 20,
+              "source_reused": 16,
+              "target_passes": 3786,
+              "target_reused": 1,
+              "effect_units": 19,
+              "effect_reused": 41,
+              "effect_components_reused": 41
+            },
+            "peak_retained_bytes": 18610138,
+            "cpu_seconds": 0.13,
+            "wall_seconds": 0.13,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 241,
+              "judged": 65
+            }
+          },
+          "disabled": {
+            "config_sha256": "74dc6b28f7c97d89a3c8bcaa8d40d52ef272fa446715c6125b0adc4ba68d02f1",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "cd390942bab6b44c75dc4543019a605f0e795552d965b4fe8dcc253b1f9f49c6",
+                "raw": 495,
+                "gzip9": 311,
+                "brotli11": 274
+              }
+            ],
+            "raw": 495,
+            "gzip9": 311,
+            "brotli11": 274,
+            "logical": {
+              "baseline": 140851,
+              "optional": 5832527,
+              "codec": 84024
+            },
+            "physical": {
+              "source_units": 36,
+              "source_reused": 0,
+              "target_passes": 3787,
+              "target_reused": 0,
+              "effect_units": 60,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 18610138,
+            "cpu_seconds": 0.13,
+            "wall_seconds": 0.13,
+            "work": {
+              "proposals": 5,
+              "structures": 2,
+              "renders": 6,
+              "codec_probes": 5,
+              "examined": 241,
+              "judged": 65
+            }
+          },
+          "same_files": true
+        }
+      }
+    },
+    {
+      "id": "unicode",
+      "source_sha256": "20ec07f4da9ab9fb1abbe50f8609ca6b952c6979954c1c03ffd1b5545402c934",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "14b260272d0d3d9e264766cf41a16508e5fb2a92b9e3ee96bbaf097b68253ede",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "5edca21c6ef4cfd9b338ddbe5b072383870ac9a787ae27475501f226ec9dd129",
+                "raw": 78,
+                "gzip9": 93,
+                "brotli11": 82
+              }
+            ],
+            "raw": 78,
+            "gzip9": 93,
+            "brotli11": 82,
+            "logical": {
+              "baseline": 9831,
+              "optional": 257061,
+              "codec": 63
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 1910,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 18020816,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 172,
+              "judged": 8
+            }
+          },
+          "reused": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "5edca21c6ef4cfd9b338ddbe5b072383870ac9a787ae27475501f226ec9dd129",
+                "raw": 78,
+                "gzip9": 93,
+                "brotli11": 82
+              }
+            ],
+            "raw": 78,
+            "gzip9": 93,
+            "brotli11": 82,
+            "logical": {
+              "baseline": 9831,
+              "optional": 257061,
+              "codec": 63
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 1910,
+              "target_reused": 0,
+              "effect_units": 3,
+              "effect_reused": 5,
+              "effect_components_reused": 5
+            },
+            "peak_retained_bytes": 18020840,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 172,
+              "judged": 8
+            }
+          },
+          "disabled": {
+            "config_sha256": "bca7aabadaefd800aaa68048c6238ee6de02873fa042e82f64d34a75540ec1d1",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "5edca21c6ef4cfd9b338ddbe5b072383870ac9a787ae27475501f226ec9dd129",
+                "raw": 78,
+                "gzip9": 93,
+                "brotli11": 82
+              }
+            ],
+            "raw": 78,
+            "gzip9": 93,
+            "brotli11": 82,
+            "logical": {
+              "baseline": 9831,
+              "optional": 257061,
+              "codec": 63
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 0,
+              "target_passes": 1910,
+              "target_reused": 0,
+              "effect_units": 8,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 18020840,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 172,
+              "judged": 8
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "25ebb6921bf3be127941646d037eea21be4a4312dbfb986aeb81e83215ee5ce5",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "5edca21c6ef4cfd9b338ddbe5b072383870ac9a787ae27475501f226ec9dd129",
+                "raw": 78,
+                "gzip9": 93,
+                "brotli11": 82
+              }
+            ],
+            "raw": 78,
+            "gzip9": 93,
+            "brotli11": 82,
+            "logical": {
+              "baseline": 278046,
+              "optional": 3070247,
+              "codec": 3219296
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 812,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 18043408,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 60,
+              "judged": 3
+            }
+          },
+          "reused": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "5edca21c6ef4cfd9b338ddbe5b072383870ac9a787ae27475501f226ec9dd129",
+                "raw": 78,
+                "gzip9": 93,
+                "brotli11": 82
+              }
+            ],
+            "raw": 78,
+            "gzip9": 93,
+            "brotli11": 82,
+            "logical": {
+              "baseline": 278046,
+              "optional": 3070247,
+              "codec": 3219296
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 812,
+              "target_reused": 0,
+              "effect_units": 3,
+              "effect_reused": 5,
+              "effect_components_reused": 5
+            },
+            "peak_retained_bytes": 18043432,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 60,
+              "judged": 3
+            }
+          },
+          "disabled": {
+            "config_sha256": "4d5d7a112a81f51a3c59186d9c8ffb122c8c1a3b4e14084541aff1d669c084cd",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "5edca21c6ef4cfd9b338ddbe5b072383870ac9a787ae27475501f226ec9dd129",
+                "raw": 78,
+                "gzip9": 93,
+                "brotli11": 82
+              }
+            ],
+            "raw": 78,
+            "gzip9": 93,
+            "brotli11": 82,
+            "logical": {
+              "baseline": 278046,
+              "optional": 3070247,
+              "codec": 3219296
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 0,
+              "target_passes": 812,
+              "target_reused": 0,
+              "effect_units": 8,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 18043432,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 60,
+              "judged": 3
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "9bcd51787d5030c8d469db24d907d0bd89aeec9e7ac9028b169c29afad89763a",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "271fc4ed3b5d2863466adbe2524003ea00490e83a93a5bc7467c324e954fb8cf",
+                "raw": 98,
+                "gzip9": 103,
+                "brotli11": 81
+              }
+            ],
+            "raw": 98,
+            "gzip9": 103,
+            "brotli11": 81,
+            "logical": {
+              "baseline": 9919,
+              "optional": 181236,
+              "codec": 3873
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 1142,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 18043408,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 12
+            }
+          },
+          "reused": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "271fc4ed3b5d2863466adbe2524003ea00490e83a93a5bc7467c324e954fb8cf",
+                "raw": 98,
+                "gzip9": 103,
+                "brotli11": 81
+              }
+            ],
+            "raw": 98,
+            "gzip9": 103,
+            "brotli11": 81,
+            "logical": {
+              "baseline": 9919,
+              "optional": 181236,
+              "codec": 3873
+            },
+            "physical": {
+              "source_units": 6,
+              "source_reused": 2,
+              "target_passes": 1142,
+              "target_reused": 0,
+              "effect_units": 3,
+              "effect_reused": 5,
+              "effect_components_reused": 5
+            },
+            "peak_retained_bytes": 18043432,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 12
+            }
+          },
+          "disabled": {
+            "config_sha256": "74dc6b28f7c97d89a3c8bcaa8d40d52ef272fa446715c6125b0adc4ba68d02f1",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "271fc4ed3b5d2863466adbe2524003ea00490e83a93a5bc7467c324e954fb8cf",
+                "raw": 98,
+                "gzip9": 103,
+                "brotli11": 81
+              }
+            ],
+            "raw": 98,
+            "gzip9": 103,
+            "brotli11": 81,
+            "logical": {
+              "baseline": 9919,
+              "optional": 181236,
+              "codec": 3873
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 0,
+              "target_passes": 1142,
+              "target_reused": 0,
+              "effect_units": 8,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 18043432,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 1,
+              "examined": 116,
+              "judged": 12
+            }
+          },
+          "same_files": true
+        }
+      }
+    },
+    {
+      "id": "local-returns",
+      "source_sha256": "ba0ee3d2975ca0bfc75ed71016d15c2e606ded93a5d27d9c54c76c267f21a89b",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "14b260272d0d3d9e264766cf41a16508e5fb2a92b9e3ee96bbaf097b68253ede",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "7c84df3deb8067a5d9968b8fb33bc2ca1172b9227a7fb223fe4808a479f208ef",
+                "raw": 100,
+                "gzip9": 94,
+                "brotli11": 72
+              }
+            ],
+            "raw": 100,
+            "gzip9": 94,
+            "brotli11": 72,
+            "logical": {
+              "baseline": 12989,
+              "optional": 510577,
+              "codec": 85
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 2476,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 16036726,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 228,
+              "judged": 14
+            }
+          },
+          "reused": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "7c84df3deb8067a5d9968b8fb33bc2ca1172b9227a7fb223fe4808a479f208ef",
+                "raw": 100,
+                "gzip9": 94,
+                "brotli11": 72
+              }
+            ],
+            "raw": 100,
+            "gzip9": 94,
+            "brotli11": 72,
+            "logical": {
+              "baseline": 12989,
+              "optional": 510577,
+              "codec": 85
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 2476,
+              "target_reused": 0,
+              "effect_units": 4,
+              "effect_reused": 8,
+              "effect_components_reused": 8
+            },
+            "peak_retained_bytes": 16036750,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 228,
+              "judged": 14
+            }
+          },
+          "disabled": {
+            "config_sha256": "bca7aabadaefd800aaa68048c6238ee6de02873fa042e82f64d34a75540ec1d1",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "7c84df3deb8067a5d9968b8fb33bc2ca1172b9227a7fb223fe4808a479f208ef",
+                "raw": 100,
+                "gzip9": 94,
+                "brotli11": 72
+              }
+            ],
+            "raw": 100,
+            "gzip9": 94,
+            "brotli11": 72,
+            "logical": {
+              "baseline": 12989,
+              "optional": 510577,
+              "codec": 85
+            },
+            "physical": {
+              "source_units": 12,
+              "source_reused": 0,
+              "target_passes": 2476,
+              "target_reused": 0,
+              "effect_units": 12,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16036750,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 228,
+              "judged": 14
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "25ebb6921bf3be127941646d037eea21be4a4312dbfb986aeb81e83215ee5ce5",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "0be778ee9cbbf861b143ec6549f862aaa73f5d28250407bba0db774bf4b119ed",
+                "raw": 100,
+                "gzip9": 91,
+                "brotli11": 69
+              }
+            ],
+            "raw": 100,
+            "gzip9": 91,
+            "brotli11": 69,
+            "logical": {
+              "baseline": 281058,
+              "optional": 3393609,
+              "codec": 3487797
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 781,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 16337167,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 60,
+              "judged": 4
+            }
+          },
+          "reused": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "0be778ee9cbbf861b143ec6549f862aaa73f5d28250407bba0db774bf4b119ed",
+                "raw": 100,
+                "gzip9": 91,
+                "brotli11": 69
+              }
+            ],
+            "raw": 100,
+            "gzip9": 91,
+            "brotli11": 69,
+            "logical": {
+              "baseline": 281058,
+              "optional": 3393609,
+              "codec": 3487797
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 781,
+              "target_reused": 0,
+              "effect_units": 4,
+              "effect_reused": 8,
+              "effect_components_reused": 8
+            },
+            "peak_retained_bytes": 16337191,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 60,
+              "judged": 4
+            }
+          },
+          "disabled": {
+            "config_sha256": "4d5d7a112a81f51a3c59186d9c8ffb122c8c1a3b4e14084541aff1d669c084cd",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "0be778ee9cbbf861b143ec6549f862aaa73f5d28250407bba0db774bf4b119ed",
+                "raw": 100,
+                "gzip9": 91,
+                "brotli11": 69
+              }
+            ],
+            "raw": 100,
+            "gzip9": 91,
+            "brotli11": 69,
+            "logical": {
+              "baseline": 281058,
+              "optional": 3393609,
+              "codec": 3487797
+            },
+            "physical": {
+              "source_units": 12,
+              "source_reused": 0,
+              "target_passes": 781,
+              "target_reused": 0,
+              "effect_units": 12,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16337191,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 60,
+              "judged": 4
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "9bcd51787d5030c8d469db24d907d0bd89aeec9e7ac9028b169c29afad89763a",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "0be778ee9cbbf861b143ec6549f862aaa73f5d28250407bba0db774bf4b119ed",
+                "raw": 100,
+                "gzip9": 91,
+                "brotli11": 69
+              }
+            ],
+            "raw": 100,
+            "gzip9": 91,
+            "brotli11": 69,
+            "logical": {
+              "baseline": 12930,
+              "optional": 253874,
+              "codec": 4602
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 1111,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 17187428,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 144,
+              "judged": 13
+            }
+          },
+          "reused": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "0be778ee9cbbf861b143ec6549f862aaa73f5d28250407bba0db774bf4b119ed",
+                "raw": 100,
+                "gzip9": 91,
+                "brotli11": 69
+              }
+            ],
+            "raw": 100,
+            "gzip9": 91,
+            "brotli11": 69,
+            "logical": {
+              "baseline": 12930,
+              "optional": 253874,
+              "codec": 4602
+            },
+            "physical": {
+              "source_units": 8,
+              "source_reused": 4,
+              "target_passes": 1111,
+              "target_reused": 0,
+              "effect_units": 4,
+              "effect_reused": 8,
+              "effect_components_reused": 8
+            },
+            "peak_retained_bytes": 17187452,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 144,
+              "judged": 13
+            }
+          },
+          "disabled": {
+            "config_sha256": "74dc6b28f7c97d89a3c8bcaa8d40d52ef272fa446715c6125b0adc4ba68d02f1",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "0be778ee9cbbf861b143ec6549f862aaa73f5d28250407bba0db774bf4b119ed",
+                "raw": 100,
+                "gzip9": 91,
+                "brotli11": 69
+              }
+            ],
+            "raw": 100,
+            "gzip9": 91,
+            "brotli11": 69,
+            "logical": {
+              "baseline": 12930,
+              "optional": 253874,
+              "codec": 4602
+            },
+            "physical": {
+              "source_units": 12,
+              "source_reused": 0,
+              "target_passes": 1111,
+              "target_reused": 0,
+              "effect_units": 12,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 17187452,
+            "cpu_seconds": 0,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 144,
+              "judged": 13
+            }
+          },
+          "same_files": true
+        }
+      }
+    },
+    {
+      "id": "captured-activations",
+      "source_sha256": "a1f3dca12caaacec7a9aaf06148ed9d6f0a1df23e0e4be8ddb38f980d17b3114",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "14b260272d0d3d9e264766cf41a16508e5fb2a92b9e3ee96bbaf097b68253ede",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2274cfb84d32c90282ee64abd54d1e41274a571307dc6a3e9e5acf6aab1875d3",
+                "raw": 141,
+                "gzip9": 120,
+                "brotli11": 103
+              }
+            ],
+            "raw": 141,
+            "gzip9": 120,
+            "brotli11": 103,
+            "logical": {
+              "baseline": 49129,
+              "optional": 1174863,
+              "codec": 57
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 2914,
+              "target_reused": 6,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 16073198,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 68,
+              "judged": 4
+            }
+          },
+          "reused": {
+            "config_sha256": "855b1a2a67716bfbeda0851bc8c269defab1135a80b4294347e3a178ca14319e",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2274cfb84d32c90282ee64abd54d1e41274a571307dc6a3e9e5acf6aab1875d3",
+                "raw": 141,
+                "gzip9": 120,
+                "brotli11": 103
+              }
+            ],
+            "raw": 141,
+            "gzip9": 120,
+            "brotli11": 103,
+            "logical": {
+              "baseline": 49129,
+              "optional": 1174863,
+              "codec": 57
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 2914,
+              "target_reused": 6,
+              "effect_units": 25,
+              "effect_reused": 45,
+              "effect_components_reused": 45
+            },
+            "peak_retained_bytes": 16073222,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 68,
+              "judged": 4
+            }
+          },
+          "disabled": {
+            "config_sha256": "bca7aabadaefd800aaa68048c6238ee6de02873fa042e82f64d34a75540ec1d1",
+            "policy_fingerprint": "7fe5ded657ce654c8bdcbfa982b6ff68557772b7a9b8ab19c61e41938cead270",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "2274cfb84d32c90282ee64abd54d1e41274a571307dc6a3e9e5acf6aab1875d3",
+                "raw": 141,
+                "gzip9": 120,
+                "brotli11": 103
+              }
+            ],
+            "raw": 141,
+            "gzip9": 120,
+            "brotli11": 103,
+            "logical": {
+              "baseline": 49129,
+              "optional": 1174863,
+              "codec": 57
+            },
+            "physical": {
+              "source_units": 46,
+              "source_reused": 0,
+              "target_passes": 2920,
+              "target_reused": 0,
+              "effect_units": 70,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16073222,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 68,
+              "judged": 4
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "25ebb6921bf3be127941646d037eea21be4a4312dbfb986aeb81e83215ee5ce5",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "ebb917280fe5954a46ed3928a9044056f0f76b67542d5660d2e0308aa4288b19",
+                "raw": 141,
+                "gzip9": 117,
+                "brotli11": 95
+              }
+            ],
+            "raw": 141,
+            "gzip9": 117,
+            "brotli11": 95,
+            "logical": {
+              "baseline": 306339,
+              "optional": 24647255,
+              "codec": 20662097
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 10071,
+              "target_reused": 10,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 16356554,
+            "cpu_seconds": 0.04,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 289,
+              "judged": 19
+            }
+          },
+          "reused": {
+            "config_sha256": "8b50ead5753ced96d06ad935b61bd28af2c770d6288c1bc712d29c5f78ac119d",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "ebb917280fe5954a46ed3928a9044056f0f76b67542d5660d2e0308aa4288b19",
+                "raw": 141,
+                "gzip9": 117,
+                "brotli11": 95
+              }
+            ],
+            "raw": 141,
+            "gzip9": 117,
+            "brotli11": 95,
+            "logical": {
+              "baseline": 306339,
+              "optional": 24647255,
+              "codec": 20662097
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 10071,
+              "target_reused": 10,
+              "effect_units": 25,
+              "effect_reused": 45,
+              "effect_components_reused": 45
+            },
+            "peak_retained_bytes": 16356578,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 289,
+              "judged": 19
+            }
+          },
+          "disabled": {
+            "config_sha256": "4d5d7a112a81f51a3c59186d9c8ffb122c8c1a3b4e14084541aff1d669c084cd",
+            "policy_fingerprint": "2a6da703abdc3059fd5dc3bd16293f2dd74c6a8cd4793716e485eed63ff740f7",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "ebb917280fe5954a46ed3928a9044056f0f76b67542d5660d2e0308aa4288b19",
+                "raw": 141,
+                "gzip9": 117,
+                "brotli11": 95
+              }
+            ],
+            "raw": 141,
+            "gzip9": 117,
+            "brotli11": 95,
+            "logical": {
+              "baseline": 306339,
+              "optional": 24647255,
+              "codec": 20662097
+            },
+            "physical": {
+              "source_units": 46,
+              "source_reused": 0,
+              "target_passes": 10081,
+              "target_reused": 0,
+              "effect_units": 70,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16356578,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 289,
+              "judged": 19
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "9bcd51787d5030c8d469db24d907d0bd89aeec9e7ac9028b169c29afad89763a",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "08f9a824adb40412ce6a60d2bed74f958dca4056b7875619d4254c68fc015737",
+                "raw": 141,
+                "gzip9": 118,
+                "brotli11": 94
+              }
+            ],
+            "raw": 141,
+            "gzip9": 118,
+            "brotli11": 94,
+            "logical": {
+              "baseline": 38211,
+              "optional": 2621816,
+              "codec": 21670
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 5820,
+              "target_reused": 58,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 17207937,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 289,
+              "judged": 52
+            }
+          },
+          "reused": {
+            "config_sha256": "eb9bcebe4be4e41f1526741c147e18b201a7fb5637bd9b774490403d62817178",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "08f9a824adb40412ce6a60d2bed74f958dca4056b7875619d4254c68fc015737",
+                "raw": 141,
+                "gzip9": 118,
+                "brotli11": 94
+              }
+            ],
+            "raw": 141,
+            "gzip9": 118,
+            "brotli11": 94,
+            "logical": {
+              "baseline": 38211,
+              "optional": 2621816,
+              "codec": 21670
+            },
+            "physical": {
+              "source_units": 22,
+              "source_reused": 24,
+              "target_passes": 5820,
+              "target_reused": 58,
+              "effect_units": 25,
+              "effect_reused": 45,
+              "effect_components_reused": 45
+            },
+            "peak_retained_bytes": 17207961,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 289,
+              "judged": 52
+            }
+          },
+          "disabled": {
+            "config_sha256": "74dc6b28f7c97d89a3c8bcaa8d40d52ef272fa446715c6125b0adc4ba68d02f1",
+            "policy_fingerprint": "84231daa64d4d4796ff3ba15640bcc394c09d3a64ff571fb93d5d0201d2acbfc",
+            "files": [
+              {
+                "name": "main.mjs",
+                "sha256": "08f9a824adb40412ce6a60d2bed74f958dca4056b7875619d4254c68fc015737",
+                "raw": 141,
+                "gzip9": 118,
+                "brotli11": 94
+              }
+            ],
+            "raw": 141,
+            "gzip9": 118,
+            "brotli11": 94,
+            "logical": {
+              "baseline": 38211,
+              "optional": 2621816,
+              "codec": 21670
+            },
+            "physical": {
+              "source_units": 46,
+              "source_reused": 0,
+              "target_passes": 5878,
+              "target_reused": 0,
+              "effect_units": 70,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 17207961,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 289,
+              "judged": 52
+            }
+          },
+          "same_files": true
+        }
+      }
+    },
+    {
+      "id": "delivered-setter",
+      "source_sha256": "e6c65ca742c305d789fde2c6babc7f5430afe1093965ef856046e835c2cd74a8",
+      "lanes": {
+        "raw": {
+          "before": {
+            "config_sha256": "6b3f5e93436be55ace000dee2738e756b5ff5e31c4d10dc61a4b2ebed70f35e5",
+            "policy_fingerprint": "4d7d8ac68aedcb1738d93f40361a90cc49b83bd0f4aebee14ad1857c1e623d84",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              },
+              {
+                "name": "main.js",
+                "sha256": "ab680d58780dedfc6e0f607f0d71945a497770ea37657d44e04d836b7959e682",
+                "raw": 69,
+                "gzip9": 82,
+                "brotli11": 64
+              }
+            ],
+            "raw": 154,
+            "gzip9": 178,
+            "brotli11": 142,
+            "logical": {
+              "baseline": 29422,
+              "optional": 595182,
+              "codec": 92
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 1448,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 16062079,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 91,
+              "judged": 10
+            }
+          },
+          "reused": {
+            "config_sha256": "6b3f5e93436be55ace000dee2738e756b5ff5e31c4d10dc61a4b2ebed70f35e5",
+            "policy_fingerprint": "dd52130f851852d28983aba548d4a85515835ea8c3d510f8435887a7b18b0646",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              },
+              {
+                "name": "main.js",
+                "sha256": "ab680d58780dedfc6e0f607f0d71945a497770ea37657d44e04d836b7959e682",
+                "raw": 69,
+                "gzip9": 82,
+                "brotli11": 64
+              }
+            ],
+            "raw": 154,
+            "gzip9": 178,
+            "brotli11": 142,
+            "logical": {
+              "baseline": 29422,
+              "optional": 595182,
+              "codec": 92
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 1448,
+              "target_reused": 0,
+              "effect_units": 7,
+              "effect_reused": 17,
+              "effect_components_reused": 17
+            },
+            "peak_retained_bytes": 16062103,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 91,
+              "judged": 10
+            }
+          },
+          "disabled": {
+            "config_sha256": "e5243c7bea171722c50e1a4d6210aceb71f5374a014515b9e1ba797af7e8a55a",
+            "policy_fingerprint": "dd52130f851852d28983aba548d4a85515835ea8c3d510f8435887a7b18b0646",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "1d0aa3c61f880693aebd846ae2cf6787aaaf603899346b9154fe595a5aeac604",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 78
+              },
+              {
+                "name": "main.js",
+                "sha256": "ab680d58780dedfc6e0f607f0d71945a497770ea37657d44e04d836b7959e682",
+                "raw": 69,
+                "gzip9": 82,
+                "brotli11": 64
+              }
+            ],
+            "raw": 154,
+            "gzip9": 178,
+            "brotli11": 142,
+            "logical": {
+              "baseline": 29422,
+              "optional": 595182,
+              "codec": 92
+            },
+            "physical": {
+              "source_units": 16,
+              "source_reused": 0,
+              "target_passes": 1448,
+              "target_reused": 0,
+              "effect_units": 24,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16062103,
+            "cpu_seconds": 0.01,
+            "wall_seconds": 0.01,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 0,
+              "examined": 91,
+              "judged": 10
+            }
+          },
+          "same_files": true
+        },
+        "gzip": {
+          "before": {
+            "config_sha256": "3df8c14d882b4f408db1d9a6efad7a6d9fc3871bacf01b959981379416333d77",
+            "policy_fingerprint": "bb1b12c0017a43ee9b5ffbc6e157865e74aabf65f82cbfb03ef75062b5b1d60e",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "419807405f85e0a7ee008e9f1dd7d37bf4feec1b67f0ba225a9a818bdce4e052",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 82
+              },
+              {
+                "name": "main.js",
+                "sha256": "bfd09c8bc236d77c0ca72f8c17a80908b8b46c85356a27cdb8fdd795617fa6f9",
+                "raw": 69,
+                "gzip9": 81,
+                "brotli11": 64
+              }
+            ],
+            "raw": 154,
+            "gzip9": 177,
+            "brotli11": 146,
+            "logical": {
+              "baseline": 565480,
+              "optional": 6107437,
+              "codec": 6438526
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 465,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 16354071,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 33,
+              "judged": 3
+            }
+          },
+          "reused": {
+            "config_sha256": "3df8c14d882b4f408db1d9a6efad7a6d9fc3871bacf01b959981379416333d77",
+            "policy_fingerprint": "be615c0c311431d9cae514eb37d44f4ba15d0f5e22f5d9091677f3c4baf39985",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "419807405f85e0a7ee008e9f1dd7d37bf4feec1b67f0ba225a9a818bdce4e052",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 82
+              },
+              {
+                "name": "main.js",
+                "sha256": "bfd09c8bc236d77c0ca72f8c17a80908b8b46c85356a27cdb8fdd795617fa6f9",
+                "raw": 69,
+                "gzip9": 81,
+                "brotli11": 64
+              }
+            ],
+            "raw": 154,
+            "gzip9": 177,
+            "brotli11": 146,
+            "logical": {
+              "baseline": 565480,
+              "optional": 6107437,
+              "codec": 6438526
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 465,
+              "target_reused": 0,
+              "effect_units": 7,
+              "effect_reused": 17,
+              "effect_components_reused": 17
+            },
+            "peak_retained_bytes": 16354095,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 33,
+              "judged": 3
+            }
+          },
+          "disabled": {
+            "config_sha256": "afc32093c9ac6bf7531c3ef00c92bda0114af719e42ad66f1b4bda24a9088ab9",
+            "policy_fingerprint": "be615c0c311431d9cae514eb37d44f4ba15d0f5e22f5d9091677f3c4baf39985",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "419807405f85e0a7ee008e9f1dd7d37bf4feec1b67f0ba225a9a818bdce4e052",
+                "raw": 85,
+                "gzip9": 96,
+                "brotli11": 82
+              },
+              {
+                "name": "main.js",
+                "sha256": "bfd09c8bc236d77c0ca72f8c17a80908b8b46c85356a27cdb8fdd795617fa6f9",
+                "raw": 69,
+                "gzip9": 81,
+                "brotli11": 64
+              }
+            ],
+            "raw": 154,
+            "gzip9": 177,
+            "brotli11": 146,
+            "logical": {
+              "baseline": 565480,
+              "optional": 6107437,
+              "codec": 6438526
+            },
+            "physical": {
+              "source_units": 16,
+              "source_reused": 0,
+              "target_passes": 465,
+              "target_reused": 0,
+              "effect_units": 24,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16354095,
+            "cpu_seconds": 0,
+            "wall_seconds": 0,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 33,
+              "judged": 3
+            }
+          },
+          "same_files": true
+        },
+        "brotli": {
+          "before": {
+            "config_sha256": "8a7cc3f68d7d75d78f17eb7ed19e3d0f539db9edc722c5fac22a349c926c3129",
+            "policy_fingerprint": "b4e59c47a5bb70745debe5c5e43fe5531c19713c0c950f45cb2ac150199eae35",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "a9c3a737f94aced0d7b6a13e12d25c065e8dd5d8c2b64f7f0afbaa041fcd10f4",
+                "raw": 85,
+                "gzip9": 93,
+                "brotli11": 72
+              },
+              {
+                "name": "main.js",
+                "sha256": "dad14dc017ab22a4e3ebcd44f49eb1940b7963cb769311ad12ebe8e02d99e407",
+                "raw": 69,
+                "gzip9": 81,
+                "brotli11": 65
+              }
+            ],
+            "raw": 154,
+            "gzip9": 174,
+            "brotli11": 137,
+            "logical": {
+              "baseline": 29226,
+              "optional": 1511364,
+              "codec": 15398
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 3322,
+              "target_reused": 0,
+              "effect_units": null,
+              "effect_reused": null,
+              "effect_components_reused": null
+            },
+            "peak_retained_bytes": 16819945,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 323,
+              "judged": 50
+            }
+          },
+          "reused": {
+            "config_sha256": "8a7cc3f68d7d75d78f17eb7ed19e3d0f539db9edc722c5fac22a349c926c3129",
+            "policy_fingerprint": "4a1c1fc4ee5fc1ebfd9bdf181182c5c87f801b68f6a1e7340ee0a19ab1863998",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "a9c3a737f94aced0d7b6a13e12d25c065e8dd5d8c2b64f7f0afbaa041fcd10f4",
+                "raw": 85,
+                "gzip9": 93,
+                "brotli11": 72
+              },
+              {
+                "name": "main.js",
+                "sha256": "dad14dc017ab22a4e3ebcd44f49eb1940b7963cb769311ad12ebe8e02d99e407",
+                "raw": 69,
+                "gzip9": 81,
+                "brotli11": 65
+              }
+            ],
+            "raw": 154,
+            "gzip9": 174,
+            "brotli11": 137,
+            "logical": {
+              "baseline": 29226,
+              "optional": 1511364,
+              "codec": 15398
+            },
+            "physical": {
+              "source_units": 10,
+              "source_reused": 6,
+              "target_passes": 3322,
+              "target_reused": 0,
+              "effect_units": 7,
+              "effect_reused": 17,
+              "effect_components_reused": 17
+            },
+            "peak_retained_bytes": 16819969,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 323,
+              "judged": 50
+            }
+          },
+          "disabled": {
+            "config_sha256": "3de3f83a22ec231365b3ea6b1c2c3b2e892904148600df928ee64e43b153fd34",
+            "policy_fingerprint": "4a1c1fc4ee5fc1ebfd9bdf181182c5c87f801b68f6a1e7340ee0a19ab1863998",
+            "files": [
+              {
+                "name": "lib.js",
+                "sha256": "a9c3a737f94aced0d7b6a13e12d25c065e8dd5d8c2b64f7f0afbaa041fcd10f4",
+                "raw": 85,
+                "gzip9": 93,
+                "brotli11": 72
+              },
+              {
+                "name": "main.js",
+                "sha256": "dad14dc017ab22a4e3ebcd44f49eb1940b7963cb769311ad12ebe8e02d99e407",
+                "raw": 69,
+                "gzip9": 81,
+                "brotli11": 65
+              }
+            ],
+            "raw": 154,
+            "gzip9": 174,
+            "brotli11": 137,
+            "logical": {
+              "baseline": 29226,
+              "optional": 1511364,
+              "codec": 15398
+            },
+            "physical": {
+              "source_units": 16,
+              "source_reused": 0,
+              "target_passes": 3322,
+              "target_reused": 0,
+              "effect_units": 24,
+              "effect_reused": 0,
+              "effect_components_reused": 0
+            },
+            "peak_retained_bytes": 16819969,
+            "cpu_seconds": 0.05,
+            "wall_seconds": 0.05,
+            "work": {
+              "proposals": 2,
+              "structures": 1,
+              "renders": 3,
+              "codec_probes": 2,
+              "examined": 323,
+              "judged": 50
+            }
+          },
+          "same_files": true
+        }
+      }
+    }
+  ]
+}

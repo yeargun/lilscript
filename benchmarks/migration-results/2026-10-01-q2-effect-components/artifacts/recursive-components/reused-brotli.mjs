@@ -1,0 +1,1 @@
+let even=function(n){return n==0||odd(n-1|0)},odd=n=>n==0?!1:even(n-1|0);export{even};

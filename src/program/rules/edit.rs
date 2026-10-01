@@ -91,7 +91,10 @@ impl<'src> Editor<'src> {
                 remaps[index] = Some(remap);
             }
         }
-        if !remaps.is_empty() {
+        if !remaps.is_empty() && self.program.cells.iter().any(|cell| {
+            remaps.get(cell.owner.index()).and_then(Option::as_ref)
+                .is_some_and(|remap| remap.region(cell.region) != cell.region)
+        }) {
             self.program.tables_revision = RevisionId::fresh();
             let cells = Arc::make_mut(&mut self.program.cells);
             for cell in cells.iter_mut() {
@@ -101,7 +104,7 @@ impl<'src> Editor<'src> {
             }
         }
         if changed {
-            self.program.views = ProgramViews::default();
+            self.program.views.invalidate();
         }
         self.tables_changed = false;
         #[cfg(test)]
@@ -766,7 +769,8 @@ pub(super) fn compact(data: &mut UnitData) -> Result<RegionRemap, &'static str> 
     data.calls = calls;
     data.call_arguments = call_arguments;
     data.call_instantiations = call_instantiations;
-    Ok(RegionRemap { map, moved: true })
+    let moved = map.iter().enumerate().any(|(index, region)| region.index() != index);
+    Ok(RegionRemap { map, moved })
 }
 
 /// What a graft copies from a body, and how.
