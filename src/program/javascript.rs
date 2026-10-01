@@ -695,6 +695,7 @@ fn form_head(
         crossing_checks: Vec::new(),
         shape_helpers: Vec::new(),
         class_witnesses: Vec::new(),
+        payload_cells: Vec::new(),
         int32_hints: head.int32_hints,
         property_mangling: head.property_mangling,
         preserved_properties,
@@ -1190,6 +1191,7 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     crossing_checks: Vec<((checks::Crossing, bool), js::BindingId)>,
     shape_helpers: Vec<(shapes::Helper<'src>, js::BindingId)>,
     class_witnesses: Vec<(NominalId, js::BindingId)>,
+    payload_cells: Vec<CellId>,
     /// The `int32_hints` output family: the `|0` the compiler printed before
     /// R1 and R11 after an `int` field, member or element read and an `int`
     /// host call's result.
@@ -1418,6 +1420,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         if body.kind != UnitKind::Function
             || body.constructor_of.is_some()
             || self.struct_plan.wrapped(child)
+            || self.payload_captures(child)?
         {
             return Ok(None);
         }
@@ -1967,7 +1970,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         let layers = match kind {
                             // A deferred closure lands inside a bounded
                             // consumer tree; a captured one under an Assign.
-                            OperationKind::Closure(_) => value_placement::DEFERRED_CLOSURE_ENTRY,
+                            OperationKind::Closure(created) => value_placement::DEFERRED_CLOSURE_ENTRY
+                                + if self.payload_captures(*created)? { 4 } else { 0 },
                             OperationKind::Call(_) => 2, // Assign→inline schedule Sequence→expression.
                             _ => {
                                 return Err(self
@@ -1979,10 +1983,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 for child in kind.child_regions() {
                     self.work(1)?;
-                    let owns_bindings = data.regions[child.index()].operations.iter().any(|id|
-                        matches!(data.operations[id.index()].kind, OperationKind::Initialize(cell) | OperationKind::Declare(cell)
-                            if self.program.cells[cell.index()].source_symbol.is_some()));
-                    regions[child.index()] = if expression_regions[child.index()] && !owns_bindings {
+                    if expression_regions[child.index()] { self.prepare_expression_bindings(unit, child)?; }
+                    regions[child.index()] = if expression_regions[child.index()] {
                         regions[parent.index()]
                     } else {
                         self.module.region_in(
@@ -1990,7 +1992,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             self.budget,
                         )?
                     };
-                    let layers = if expression_regions[child.index()] && owns_bindings { 4 } else { match kind {
+                    let layers = match kind {
                         // Captured owner + lazy operator + optional arm Sequence.
                         OperationKind::Select { .. } => 3,
                         OperationKind::ShortCircuit {
@@ -2008,7 +2010,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         }
                         // Statement child or loop condition/update Sequence.
                         _ => 1,
-                    } };
+                    };
                     self.budget.push(
                         AllocationClass::Scratch,
                         &mut pending,
@@ -2097,7 +2099,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 };
                 // What the cell holds, for the tree's type-directed edits.
                 self.module.bindings[binding.index()].class =
-                    value_class(&self.program.types[cell.ty.index()]);
+                    if self.payload_cell(cell_id)? { None } else { value_class(&self.program.types[cell.ty.index()]) };
                 // When the program settles a module cell (M6.5): reads in
                 // code that cannot run before then find its value.
                 if !inline {
@@ -2196,7 +2198,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             // a captured one's under its assignment.
             for (index, operation) in data.operations.iter().enumerate() {
                 self.work(1)?;
-                let (OperationKind::Closure(_), Some(result)) = (&operation.kind, operation.result)
+                let (OperationKind::Closure(created), Some(result)) = (&operation.kind, operation.result)
                 else {
                     continue;
                 };
@@ -2204,13 +2206,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 else {
                     continue;
                 };
+                let factory_layers = if self.payload_captures(*created)? { 4 } else { 0 };
                 let depth = &mut self.entry_depths[child.index()];
                 if !matches!(values[result.index()], ValueStorage::Deferred(_)) {
                     *depth = depth
                         .saturating_sub(value_placement::DEFERRED_CLOSURE_ENTRY)
                         .saturating_add(value_placement::CAPTURED_CLOSURE_ENTRY);
                 } else if closure_entries[result.index()] != 0 {
-                    *depth = closure_entries[result.index()];
+                    *depth = closure_entries[result.index()].saturating_add(factory_layers);
                 }
             }
             self.drop_scratch(closure_entries)?;
@@ -2598,8 +2601,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             self.work(1)?;
             let source = self.demand.context(candidate);
             let scope = self.contexts[candidate.index()].as_ref().unwrap();
-            if source.unit == owner {
-                let binding = scope.cells[self.demand.cell_ordinal(cell)].ok_or_else(|| {
+            let captured = scope.captures.binary_search_by_key(&cell, |(cell,_)| *cell).ok()
+                .map(|index| scope.captures[index].1);
+            if source.unit == owner || captured.is_some() {
+                let binding = captured.or_else(|| scope.cells[self.demand.cell_ordinal(cell)]).ok_or_else(|| {
                     self.error(
                         self.program.cells[cell.index()].declaration,
                         "source cell has no selected JavaScript storage",
@@ -3097,29 +3102,6 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         region: RegionId,
     ) -> Result<Option<js::ExprId>, FormationError> {
         let operations = &self.data(unit).regions[region.index()].operations;
-        // A source binding in a value region owns a fresh lexical scope at
-        // every evaluation (payload arms can create escaping closures).
-        if self.data(unit).regions[region.index()].parent.is_some()
-            && operations.iter().any(|id| matches!(self.data(unit).operations[id.index()].kind,
-                OperationKind::Initialize(cell) | OperationKind::Declare(cell)
-                    if self.program.cells[cell.index()].source_symbol.is_some())) {
-            self.statement_region(unit, region)?;
-            let body = self.plan(unit).regions[region.index()];
-            if self.demand.needs_region_result(unit, region) {
-                if let Some(value) = self.data(unit).regions[region.index()].result {
-                    let value = self.value(unit, value)?;
-                    self.statement(body, js::Statement::Return(Some(value)))?;
-                }
-            }
-            let function = js::FunctionId::try_new(self.module.functions.len()).ok_or(AllocationError::Capacity)?;
-            self.budget.push(AllocationClass::Retained, &mut self.module.functions, js::Function {
-                rest: false, parameters: Vec::new(), body, arrow: true,
-                name: js::FunctionName::Unobserved, strict: true, length: None,
-                suspension: js::Suspension::None,
-            })?;
-            let callee = self.expression(js::Expr::Function(function))?;
-            return Ok(Some(self.expression(js::Expr::Call { callee, arguments: Vec::new(), invocation: Invocation::Value })?));
-        }
         let mut cursor = 0;
         let mut expressions = Vec::new();
         while cursor < operations.len() {
@@ -4608,6 +4590,21 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 let value = self.carrier_value(unit, cell, value)?;
                 js::Expr::Assign { target, value }
             }
+            OperationKind::Declare(cell) => {
+                if !self.demand.context(unit).kind.is_inline() {
+                    let region = self.plan(unit).regions[operation.region.index()];
+                    let binding = self.cell_binding(unit, cell)?;
+                    self.statement(region, js::Statement::Let { binding, value: None })?;
+                }
+                if self.payload_cell(cell)? {
+                    let absent = self.literal(js::Literal::Undefined)?;
+                    let value = self.carrier_value(unit, cell, absent)?;
+                    let binding = self.cell_binding(unit, cell)?;
+                    let target = self.reference(binding)?;
+                    return Ok(Some(self.expression(js::Expr::Assign { target, value })?));
+                }
+                return Ok(None);
+            }
             OperationKind::IsUndefined { nullish, .. } => {
                 let left = self.value(unit, operands[0])?;
                 let right = self.literal(if nullish { js::Literal::Null } else { js::Literal::Undefined })?;
@@ -5061,6 +5058,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         _ => false,
                     });
                 let parent = self.module.regions[region.index()].scope;
+                let capture_factory = self.payload_factory(unit, created, parent)?;
+                let parent = capture_factory.as_ref().map_or(parent, |factory| self.module.regions[factory.body.index()].scope);
                 let rest_factory = if rest_scope {
                     Some(self.module.region_in(parent, self.budget)?)
                 } else {
@@ -5107,6 +5106,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     None => false,
                 };
                 self.plan_context(child, body)?;
+                if let Some(factory) = &capture_factory { self.payload_capture_bindings(child, factory)?; }
                 if let Some(form) = &method {
                     self.method_aliases(child, body, form)?;
                 }
@@ -5305,7 +5305,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         return Ok(None);
                     }
                 }
-                match constructor_of {
+                let node = match constructor_of {
                     Some(class) => self.class_expression(
                         unit,
                         operation.region,
@@ -5314,7 +5314,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         operation.span,
                     )?,
                     None => self.rest_strict_frame(function, rest && strict, rest_factory)?,
-                }
+                };
+                self.finish_payload_factory(capture_factory, node)?
             }
             _ => {
                 return Err(self.error(
@@ -5745,9 +5746,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 // `let x;` (R3), in an inlined body as in its own: the context
                 // binds the cell as `Initialize`'s `let` does.
-                OperationKind::Declare(cell) => js::Statement::Let {
-                    binding: self.cell_binding(unit, cell)?,
-                    value: None,
+                OperationKind::Declare(cell) => {
+                    let value = if self.payload_cell(cell)? {
+                        let absent = self.literal(js::Literal::Undefined)?;
+                        Some(self.carrier_value(unit, cell, absent)?)
+                    } else { None };
+                    js::Statement::Let { binding: self.cell_binding(unit, cell)?, value }
                 },
                 OperationKind::Return => {
                     let returned = if let Some(&source) = operands.first() {

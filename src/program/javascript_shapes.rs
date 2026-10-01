@@ -37,7 +37,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let helper = if let Some(helper) = self.shape_helper(&key)? {
             helper
         } else {
-            let Type::Class(declaration) = self.program.types[ty.index()] else {
+            let (Type::Class(declaration) | Type::ClassInstance { declaration, .. }) = self.program.types[ty.index()] else {
                 return Err(self.error(Span::default(), "shape test lacks nominal identity"));
             };
             let (slot, tag) = self

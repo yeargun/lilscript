@@ -4000,3 +4000,142 @@ fn s4_variants_dispatch_before_subclass_initialization_and_public_prototypes() {
     let native=compile_source(&native_source,&config(""),ServiceOptions{target:ServiceTarget::Native,preserve_root_exports:false,..ServiceOptions::default()}).unwrap();
     assert_eq!(execute_native(native.native_c().unwrap()),"1\n20\n");
 }
+
+#[test]
+fn s4_erased_variants_generic_virtual_binders_defaults_and_native_boxing() {
+    let source=r#"
+        sealed class Base<T>{T stored;init(T value){this.stored=value;}
+            virtual T pick(T value,bool stored=false){if(stored){return this.stored;}return value;}
+            virtual U echo<U>(U value){return value;}
+        }
+        class Child<S> extends Base<S>{init(S value){super(value);}
+            override S pick(S value,bool stored=true){if(stored){return this.stored;}return value;}
+            override V echo<V>(V value){return value;}
+        }
+        class Fixed extends Base<int>{init(int value){super(value);}
+            override int pick(int value,bool stored=true){return value+this.stored;}
+        }
+        string choose(bool child){Base<string> value=new Base<string>("base");if(child){value=new Child<string>("child");}return value.pick("given");}
+        int numeric(){Base<int> value=new Fixed(40);return value.pick(8);}
+        int method(){Base<string> value=new Child<string>("x");auto fn=value.echo((int n)=>n+1);return value.echo(7)+fn(2);}
+        print(choose(false));print(choose(true));print(numeric());print(method());
+    "#;
+    let arena=bumpalo::Bump::new();let parsed=crate::parser::parse_source(&arena,source).unwrap();let checked=crate::check::analyze(&parsed).unwrap();
+    let expected="given\nchild\n48\n10\n";
+    assert_eq!(crate::interpreter::interpret_program(&parsed,&checked).unwrap(),expected);
+    let built=compile_source(source,&config(""),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"",""),expected);
+    }
+    for effort in [0,13] {
+        let mut settings=config("");settings.effort.level=effort;
+        let native=compile_source(source,&settings,ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap();
+        assert_eq!(execute_native(native.native_c().unwrap()),expected);
+    }
+}
+
+#[test]
+fn s4_erased_variants_applied_payloads_use_nominal_identity_only() {
+    let source=r#"
+        class Left<T>{T value;init(T value){this.value=value;}}
+        class Right<T>{T value;init(T value){this.value=value;}}
+        Left<int>|Right<string> choose(bool left){if(left){return new Left<int>(7);}return new Right<string>("hello");}
+        int read(bool left){return match(choose(left)){Left(item)=>item.value,Right(item)=>item.value.length};}
+        print(read(true));print(read(false));
+    "#;
+    let built=compile_source(source,&config(""),ServiceOptions{objectives:Some(Objectives::All),target:ServiceTarget::All,..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"",""),"7\n5\n");
+    }
+    assert_eq!(execute_native(built.native_c().unwrap()),"7\n5\n");
+    let source=r#"
+        shape Left<T>{tag string kind="left";data T value;}
+        shape Right<T>{tag string kind="right";data T value;}
+        export int read(Left<int>|Right<string> value){return match(value){Left(item)=>item.value,Right(item)=>item.value.length};}
+    "#;
+    let built=compile_source(source,&config("checks='development'"),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"","console.log(library.read({kind:'left',value:7}));console.log(library.read({kind:'right',value:'hello'}));"),"7\n5\n");
+    }
+    for source in [
+        "class Box<T>{T value;}int read(Box<int>|Box<string> b){return match(b){Box(v)=>1};}",
+        "sealed class B{virtual T pick<T>(T v){return v;}}class C extends B{override int pick<U>(U v){return 1;}}",
+        "sealed class B<T>{virtual T pick(T v){return v;}}class C extends B<int>{override string pick(string v){return v;}}",
+    ] {
+        let error=compile_source(source,&config(""),ServiceOptions::default()).unwrap_err();
+        assert_eq!(error.phase,"check","{error:?}");
+    }
+}
+
+#[test]
+fn s4_erased_variants_await_keeps_the_original_promise_schedule() {
+    let source=r#"
+        extern Task<int> tick(int n);
+        class Left{int value=7;}class Right{int value=9;}
+        Left|Right choose(bool left){if(left){return new Left();}return new Right();}
+        export async int run(bool left){return match(choose(left)){Left(item)=>item.value+await tick(3),Right(item)=>(await tick(item.value))+1};}
+    "#;
+    let built=compile_source(source,&config(""),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),"globalThis.events=[];globalThis.tick=n=>{events.push('tick'+n);return Promise.resolve(n);};",r#"
+            async function reference(left){return left?7+await tick(3):(await tick(9))+1;}
+            async function trace(fn,left){events.length=0;const pending=fn(left);queueMicrotask(()=>events.push('queued'));pending.then(n=>events.push('done'+n));await pending;await 0;return [...events];}
+            for(const left of [true,false]){const expected=await trace(reference,left);const actual=await trace(library.run,left);if(JSON.stringify(actual)!==JSON.stringify(expected))throw Error(JSON.stringify({actual,expected}));}
+            console.log('same');
+        "#),"same\n");
+    }
+}
+
+#[test]
+fn s4_erased_variants_suspending_captures_have_fresh_shared_cells() {
+    let source=r#"
+        extern Task<int> save(func()->int read,func()->int write,int n);
+        extern Task<int> saveNested(func()->func()->int factory,int n);
+        class Left{int value;init(int n){this.value=n;}}
+        class Right{int value;init(int n){this.value=n;}}
+        Left|Right choose(int n){if(n==1){return new Right(n);}return new Left(n);}
+        export async int run(){int sum=0;for(int i=0;i<3;i++){
+            sum+=match(choose(i)){
+                Left(item)=>await save(()=>item.value,()=>{item=new Left(item.value+10);return item.value;},i),
+                Right(item)=>await save(()=>item.value,()=>{item=new Right(item.value+10);return item.value;},i)
+            };
+        }return sum;}
+        export async int condition(){int i=0;while(match(choose(i)){
+            Left(item)=>await save(()=>item.value,()=>{item=new Left(item.value+10);return item.value;},i),
+            Right(item)=>await save(()=>item.value,()=>{item=new Right(item.value+10);return item.value;},i)
+        }<2){i++;}return i;}
+        export async int nested(){int sum=0;for(int i=0;i<3;i++){
+            sum+=match(new Left(i)){Left(item)=>await saveNested(()=>()=>item.value,i)};
+        }return sum;}
+    "#;
+    let built=compile_source(source,&config(""),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    let setup=r#"
+        globalThis.events=[];globalThis.readers=[];globalThis.writers=[];globalThis.factories=[];
+        globalThis.save=(read,write,n)=>{readers.push(read);writers.push(write);events.push('save'+read());return Promise.resolve(n);};
+        globalThis.saveNested=(factory,n)=>{factories.push(factory);events.push('nested'+n);return Promise.resolve(n);};
+    "#;
+    let oracle=r#"
+        async function reference(mode){let sum=0;for(let i=0;i<3;i++){
+            let item={value:i};
+            if(mode==='nested'){sum+=await saveNested(()=>()=>item.value,i);continue;}
+            const value=await save(()=>item.value,()=>{item={value:item.value+10};return item.value;},i);
+            if(mode==='condition'&&value>=2)return i;
+            sum+=value;
+        }return sum;}
+        async function trace(fn){events.length=readers.length=writers.length=factories.length=0;
+            const pending=fn();queueMicrotask(()=>events.push('queued'));
+            pending.then(n=>events.push('done'+n));await pending;await 0;
+            const before=readers.map(f=>f());const changes=writers.map(f=>f());
+            const after=readers.map(f=>f());const nested=factories.map(f=>f()());
+            return JSON.stringify({events:[...events],before,changes,after,nested});
+        }
+        for(const mode of ['run','condition','nested']){
+            const expected=await trace(()=>reference(mode));const actual=await trace(library[mode]);
+            if(actual!==expected)throw Error(JSON.stringify({mode,actual,expected}));
+        }
+        console.log('same');
+    "#;
+    for codec in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(built.javascript(codec).unwrap().javascript(),setup,oracle),"same\n");
+    }
+}

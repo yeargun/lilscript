@@ -32,7 +32,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
 // Version17 includes class constructors/methods in live naming ownership.
 // Version18 names private generic/kept layouts and reuses sibling property slots.
 // Version19 forms stable per-site spellings, declaration order and receiver aliases.
-pub const POLICY_ALGORITHM_VERSION: u32 = 31;
+// Version32 preserves erased dispatch and fresh captured expression cells.
+pub const POLICY_ALGORITHM_VERSION: u32 = 32;
 // Version22 admits state reclamation visits, including physical artifact slots,
 // instead of reserving a worst-case Cartesian scan before any inspection.
 // Version18 admits and releases Analyzer scope and callable-context backing.
@@ -53,7 +54,7 @@ pub const POLICY_ALGORITHM_VERSION: u32 = 31;
 // Version29 gates deferred naming at 14 by default and combines it with final refinements.
 // Version30 adds common per-site moves and a protected, configurable joint tail.
 // Version31 protects the prior search before compact allocation.
-pub const SEARCH_SCHEDULE_VERSION: u32 = 31;
+pub const SEARCH_SCHEDULE_VERSION: u32 = 32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilationRequest {

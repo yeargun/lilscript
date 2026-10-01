@@ -471,6 +471,7 @@ impl<'demand, 'program, 'src, 'budget, 'ledger>
         cell: CellId,
     ) -> Result<bool, FormationError> {
         self.work(1)?;
+        if self.payload_cell(cell)? { return Ok(true); }
         if is_reference(self.program, cell)
             || self.program.cells[cell.index()].binding == CellBinding::Foreign
         {

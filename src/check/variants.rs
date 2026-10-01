@@ -1,6 +1,17 @@
 //! Payload sums reuse nominal unions, with one checked identity domain.
 use super::*;
 
+/// Class substitutions have already been applied to the inherited signature.
+/// Method binders are alpha-renamed, without observing their runtime arguments.
+pub(super) fn override_signature(method: &MethodInfo<'_>, base: &MethodInfo<'_>) -> bool {
+    type_identity::bound_signature_equal(
+        &method.signature,
+        &method.type_params,
+        &base.signature,
+        &base.type_params,
+    )
+}
+
 impl<'ast, 'src> Analyzer<'_, '_, 'ast, 'src> {
     pub(super) fn analyze_payload_match(
         &mut self,
@@ -30,14 +41,27 @@ impl<'ast, 'src> Analyzer<'_, '_, 'ast, 'src> {
                     "each payload variant must be a class or tagged shape",
                 ));
             };
-            self.class_guard(value, member, span)?;
             let info = &self.declarations.classes[declaration.identity.index()];
+            if info.shape && info.discriminant.is_none() {
+                return Err(AdmittedCheckError::new(
+                    span,
+                    "a payload shape requires a declared discriminant",
+                ));
+            }
+            if info.external {
+                return Err(AdmittedCheckError::new(
+                    span,
+                    "a closed payload domain requires program-defined variants",
+                ));
+            }
             for previous in &members[..index] {
                 self.budget
                     .work(crate::compilation_policy::WorkKind::Analysis, 1)?;
                 let (other, _) = class_type_parts(previous).unwrap();
                 let other = &self.declarations.classes[other.identity.index()];
-                let disjoint = if info.shape && other.shape {
+                let disjoint = if declaration.identity == other.declaration.identity {
+                    false
+                } else if info.shape && other.shape {
                     let (slot, tag) = info.discriminant.unwrap();
                     let (other_slot, other_tag) = other.discriminant.unwrap();
                     info.fields.get_index(slot).unwrap().0
@@ -58,6 +82,16 @@ impl<'ast, 'src> Analyzer<'_, '_, 'ast, 'src> {
                 }
             }
         }
+        for member in members {
+            let (declaration, _) = class_type_parts(member).unwrap();
+            if self.declarations.classes[declaration.identity.index()].shape {
+                self.declarations.reflect(member);
+            } else {
+                self.declarations
+                    .tested_classes
+                    .insert(declaration.identity);
+            }
+        }
         let mut covered = self
             .budget
             .vector(AllocationClass::Scratch, members.len())?;
@@ -65,29 +99,6 @@ impl<'ast, 'src> Analyzer<'_, '_, 'ast, 'src> {
         let mut wildcard = false;
         let mut result = None;
         for (index, arm) in arms.iter().enumerate() {
-            let mut nested_arrow_end = 0;
-            let mut suspension = None;
-            let mut work = Ok(());
-            crate::ast_walk::expression(&arm.value, &mut |expression| {
-                if work.is_err() {
-                    return;
-                }
-                work = self
-                    .budget
-                    .work(crate::compilation_policy::WorkKind::Analysis, 1);
-                if expression.span().start < nested_arrow_end {
-                    return;
-                }
-                match expression.kind {
-                    ExprKind::ArrowFunction { .. } => nested_arrow_end = expression.span().end,
-                    ExprKind::Await { .. } => suspension = Some(expression.span()),
-                    _ => {}
-                }
-            });
-            work?;
-            if let Some(span) = suspension {
-                return Err(AdmittedCheckError::new(span, "payload arms require a non-suspending expression; await before matching or call a separate async function (R8)"));
-            }
             self.push_scope()?;
             match arm.pattern {
                 MatchPattern::Payload {

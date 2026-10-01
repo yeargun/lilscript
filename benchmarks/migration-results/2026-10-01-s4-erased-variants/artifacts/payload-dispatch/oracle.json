@@ -1,0 +1,9 @@
+{
+  "exercise": "console.log(JSON.stringify([m.payload(true),m.payload(false),m.dispatch(false),m.dispatch(true)]));",
+  "expected": [
+    5,
+    9,
+    4,
+    8
+  ]
+}

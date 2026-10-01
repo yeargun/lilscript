@@ -40,6 +40,8 @@ ABI enums/flags, declared storage, conversions and shared/native evaluation are
 implemented in the [enum batch](../../benchmarks/migration-results/2026-10-01-s4-enums/README.md).
 Payload bindings and sealed dispatch, including captured scopes and initialization
 order, are implemented in the [variant batch](../../benchmarks/migration-results/2026-10-01-s4-variants/README.md).
+Erased generic receivers/methods and suspending captured payload arms are
+implemented in the [erased variant batch](../../benchmarks/migration-results/2026-10-01-s4-erased-variants/README.md).
 The [handoff](handoff.md) records the current scope and compiler pins.
 
 The owner requests substantial implementation batches followed by focused
@@ -57,7 +59,7 @@ verification limits honestly and use the [single milestone order](plan.md#8-work
 | [x] | [S1](plan.md#s1) Folding | Implementation complete; final library/CLI and complete paired cost verification deferred by owner |
 | [x] | [S2](plan.md#s2) Objects | Bounded aggregate facts, fields, flattening, scalar banks and physical copy elision complete; focused evidence retained |
 | [x] | [S3](plan.md#s3) Calls | Cross-module/nested-closure inlining, terminal returns, frequency and judged specialization/sharing complete |
-| [~] | [S4](plan.md#s4) Contracts | Payload variants/sealed calls, catalog/generic crossings and fact-consumer audit; staged language-default adoption belongs to V2 |
+| [~] | [S4](plan.md#s4) Contracts | Host catalog/wider generic crossings and fact-consumer audit; staged language-default adoption belongs to V2 |
 | [x] | [G1](plan.md#g1) Lexical names | Live printed-order/frequency allocation, full continuations, final-byte ties and replay controls complete; optional compaction is automatic at 14 |
 | [x] | [G2](plan.md#g2) Property names | Private generic/observed eligibility, inherited/sibling slot reuse, reflected boundaries and adapter-name fixtures complete |
 | [x] | [G3](plan.md#g3) JS generation | Stable per-site forms, guarded aliases, safe locality choices and structural printing complete |

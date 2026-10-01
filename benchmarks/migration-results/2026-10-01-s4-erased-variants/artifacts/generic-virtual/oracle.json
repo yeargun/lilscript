@@ -1,0 +1,8 @@
+{
+  "exercise": "console.log(JSON.stringify([m.run(false),m.run(true),m.generic()]));",
+  "expected": [
+    "given",
+    "child",
+    7
+  ]
+}

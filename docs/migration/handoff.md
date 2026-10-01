@@ -11,27 +11,27 @@ milestone**, under its [acceptance contract](s4-acceptance.md). Prior batch pins
 measurements and chronology remain in [history.md](history.md) and the linked
 evidence records.
 
-The latest [S4 variant batch](../../benchmarks/migration-results/2026-10-01-s4-variants/README.md)
-pins `/home/azureuser/lilscript-work/bin/s4-variants-1/lilscript`, SHA-256
-`f248fc320df0af85d647aa749cca66bf429f0b4f60bb92dd22a6ff462683e7fe`.
-Algorithm 31 / search 31 / walk 10 / local facts 14. Payload matches and sealed
-virtual/override calls now preserve lexical scopes, default/rest contracts,
-argument order and class initialization. Seven focused tests pass (six as one
-group, the corrected public module fixture separately); the CLI release build
-passes. The static-inheritance control remains 53 raw / 72 gzip / 56 Brotli;
-the new payload/dispatch capability passes an independent oracle for all codecs.
+The latest [S4 erased variant batch](../../benchmarks/migration-results/2026-10-01-s4-erased-variants/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-erased-variants-1/lilscript`, SHA-256
+`bd6ca8311a8e0b358243710b402e3d95e01970bf2e4fbec722e38eb4c128c33d`.
+Algorithm 32 / search 32 / walk 10 / local facts 14. Generic receivers/methods,
+concrete native overrides and applied payloads are implemented. Captured async
+arms preserve fresh shared bindings and the independent promise-order oracle.
+Four focused checks plus the earlier payload-scope/native test pass; CLI
+release build passes. Matched controls total −20 raw / +7 gzip / −1 Brotli.
+Keep the gzip loss as negative evidence; no fleet or timing claim.
 
 The preceding absence and character-code batches implement unified absence,
 explicit pins/defaults/optional keys and number/NaN character reads. Source
 selectors retain compatibility defaults until D3/V2's qualified transition.
 
-1. Finish R8 directly suspending payload arms and erased generic dispatch.
-   Non-suspending disjoint class/tagged-shape payloads and non-generic sealed
-   calls are implemented on JavaScript and the supported native application ABI.
+1. R8 erased generic dispatch and directly suspending payload arms are implemented.
+   Native shapes remain N2; erased type arguments never distinguish two payload
+   variants of one nominal declaration.
 2. Complete R17 host declarations/catalog and R18 wider erased
-   generic/product/union/callable
-   transport. Erased public generic shape presence currently has a source
-   diagnostic. Native shapes and absent-to-default argument transport remain N2.
+   generic/product/union/callable transport. Erased public generic shape presence
+   currently has a source diagnostic. Native shapes and absent-to-default
+   argument transport remain N2.
 3. Complete the shared-consumer audit. The contracts batch already deleted
    `raw_domains.rs` and `quiet.rs` and routed root constants through the common
    target binding facts; verify remaining consumers/transitional passes against

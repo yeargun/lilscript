@@ -11,7 +11,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         span: Span,
     ) -> Result<ValueId, ConversionError> {
         let checked = self.program.types[target.index()].clone();
-        if let Type::Class(declaration) = &checked {
+        if let Type::Class(declaration) | Type::ClassInstance { declaration, .. } = &checked {
             if !self.class_info(declaration.identity, span)?.shape
                 && !self.class_info(declaration.identity, span)?.external
             {
@@ -85,6 +85,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         name: &str,
         fallback: ClassMethod<'src>,
         arguments: &'ast [ast::Argument<'ast, 'src>],
+        method_arguments: &[Type<'src>],
         span: Span,
     ) -> Result<ValueId, ConversionError> {
         let receiver_ty = self.units[unit.index()].values[receiver.index()].ty;
@@ -168,10 +169,12 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
         // Select the body before evaluating arguments. They are lowered once:
         // lambdas retain one ownership tree and ref preparations keep their
         // exact position among argument effects. Defaults run in that body.
-        let result_type = self.class_call_result(unit, signature, None, span)?;
+        let instantiation =
+            self.class_instantiation(unit, fallback, receiver_ty, method_arguments, span)?;
+        let result_type = self.class_call_result(unit, signature, instantiation, span)?;
         let contract = CallContract {
             signature: Some(signature),
-            instantiation: None,
+            instantiation,
             supplied: u32::try_from(arguments.len() + 1).map_err(|_| AllocationError::Capacity)?,
             defaults: DefaultConvention::ApplyAtCallee,
         };

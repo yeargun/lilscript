@@ -147,8 +147,11 @@ Typed forms should remove avoidable representation and runtime costs, and declar
   identities or declared shape tags and sealed virtual/override calls are
   implemented. Arm bindings have fresh lexical scopes; dispatch evaluates its
   receiver and arguments once and uses the selected body's defaults. Erased
-  generic dispatch and directly suspending payload arms remain S4 work, with
-  source diagnostics. Qualified default adoption belongs to D3/V2.
+  generic classes/methods preserve checked base substitutions and alpha-equivalent
+  method binders. Payload arms may suspend and capture their binding: every
+  match evaluation owns a fresh shared cell, without moving `await` into another
+  async frame. Applied variants must have distinct nominal identities; erased
+  type arguments do not distinguish two variants of the same declaration. Qualified default adoption belongs to D3/V2.
 
 ---
 

@@ -931,8 +931,17 @@ default/rest/ref positions and purity; their default expressions may differ.
 Dispatch evaluates the receiver and arguments once, then executes the selected
 implementation and its defaults. Later subclass declarations need not have run
 before a base instance is used. Published constructor and prototype identities
-remain intact. Erased generic dispatch is currently source-diagnosed. The native target compiles internal
-inheritance, including calls through a base-typed reference.
+remain intact. Generic receivers and methods erase type arguments while retaining
+the checked base substitution and override signature. Method binders compare by
+position, so their names may differ. The native target adapts concrete and boxed
+callable slots when a concrete override implements a generic base contract,
+including calls through a base-typed reference.
+
+Payload matches accept applied generic classes and tagged shapes when every
+alternative has a distinct nominal identity. They cannot distinguish `Box<int>`
+from `Box<string>` at run time. An arm may await and capture its payload binding;
+escaping closures from one evaluation share that binding, and subsequent loop
+iterations receive fresh bindings. Suspension stays in the original async frame.
 
 Structs and classes that do not escape are eligible for scalar replacement.
 Class calls are statically devirtualized, including inherited calls. Crossing

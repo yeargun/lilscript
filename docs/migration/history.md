@@ -1008,3 +1008,21 @@ checks pass; no full-library rerun. The unchanged control is identical for each
 objective (53 raw / 72 gzip / 56 Brotli). New capability sizes are reported
 without a baseline-win claim. S4 remains active for directly suspending arms,
 erased generic dispatch and the wider contract/consumer audit.
+
+
+## 2026-10-01: S4 erased dispatch and suspending payload scopes
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-s4-erased-variants/README.md).
+Generic overrides use binder-aware signatures; their one prepared call retains
+checked receiver/method instantiations. Native adapts concrete slots to the
+existing boxed generic ABI. Applied payloads use disjoint nominal identities,
+never runtime type arguments. Captured expression bindings receive fresh shared
+carriers; closure creation snapshots them while await stays in the original
+frame. Four focused checks and the earlier payload/native regression pass.
+CLI release build and objective-specific artifact/oracle checks pass.
+
+Matched controls change −20 raw / +7 gzip / −1 Brotli; the gzip loss remains
+negative evidence. New capabilities have no baseline-win claim. Pin
+`s4-erased-variants-1`, SHA-256 `bd6ca8311a8e0b358243710b402e3d95e01970bf2e4fbec722e38eb4c128c33d`,
+algorithm 32 / search 32 / walk 10 / local facts 14. S4 continues with R17/R18
+and the shared-consumer audit. No full-library rerun or fleet/timing claim.

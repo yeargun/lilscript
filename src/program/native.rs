@@ -1418,7 +1418,20 @@ impl Emitter<'_, '_, '_, '_, '_> {
             let CallArgument::Value(value) = args[0] else {
                 unreachable!("native checked views take a value")
             };
-            return self.copy_value(unit, Destination::Value(result.unwrap()), value);
+            let destination = Destination::Value(result.unwrap());
+            let actual = self.plan.units[unit.index()].values[value.index()];
+            let expected = self.destination_type(unit, destination);
+            if !self.plan.compatible(ValueStorage::Value(expected), actual)
+                && !self.plan.callable_view(self.plan.value_type(actual), expected) {
+                if let Some((from,to)) = self.plan.checked_callable_adapter(ValueStorage::Value(expected), actual) {
+                    self.assignment_start(unit, destination, true)?;
+                    self.write(format_args!("ls_adapt{from}_{to}("))?;
+                    self.converted(unit, value, NativeType::Callable(from))?;
+                    self.text(")")?;
+                    return self.assignment_end(unit, destination);
+                }
+            }
+            return self.copy_value(unit, destination, value);
         }
         if let PreparedTarget::Print = target {
             let CallArgument::Value(value) = args[0] else {

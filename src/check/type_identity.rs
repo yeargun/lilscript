@@ -1,11 +1,22 @@
 //! Binder-aware structural equality. Generic binders compare by position;
 //! free parameters compare by checked identity. No temporary type graph is made.
-use super::{FunctionSignature, GenericFunctionType, Type, TypeParameterId};
+use super::{FunctionSignature, GenericFunctionType, Type, TypeParameter, TypeParameterId};
 
 type Rename<'a> = &'a dyn Fn(TypeParameterId) -> TypeParameterId;
 
 pub(super) fn generic_equal(a: &GenericFunctionType<'_>, b: &GenericFunctionType<'_>) -> bool {
     generic(a, b, &|id| id, true)
+}
+pub(super) fn bound_signature_equal(
+    a: &FunctionSignature<'_>,
+    a_binders: &[TypeParameter<'_>],
+    b: &FunctionSignature<'_>,
+    b_binders: &[TypeParameter<'_>],
+) -> bool {
+    if a_binders.len() != b_binders.len() { return false; }
+    let rename = |id| b_binders.iter().position(|p| p.identity == id)
+        .map_or(id, |index| a_binders[index].identity);
+    signature(a, b, &rename, true)
 }
 /// Storage identity keeps declared binders: a body's free references must
 /// continue to name its own signature's binders. Assignability may alpha-rename

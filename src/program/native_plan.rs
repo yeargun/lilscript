@@ -2014,6 +2014,21 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         expected: ValueStorage,
         actual: ValueStorage,
     ) -> Option<(usize, usize)> {
+        self.signature_adaptation(expected, actual, false)
+    }
+    pub(super) fn checked_callable_adapter(
+        &self,
+        expected: ValueStorage,
+        actual: ValueStorage,
+    ) -> Option<(usize, usize)> {
+        self.signature_adaptation(expected, actual, true)
+    }
+    fn signature_adaptation(
+        &self,
+        expected: ValueStorage,
+        actual: ValueStorage,
+        checked_view: bool,
+    ) -> Option<(usize, usize)> {
         let target = match expected {
             ValueStorage::Value(NativeType::Callable(target))
             | ValueStorage::Value(NativeType::Dynamic(Tagged {
@@ -2035,6 +2050,10 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             return None;
         }
         let (from, to) = (&self.signatures[source], &self.signatures[target]);
+        if checked_view && !from.source.params.iter().zip(&to.source.params).all(|(a,b)|
+            a.passing == b.passing && a.optional == b.optional && a.rest == b.rest && a.receiver == b.receiver) {
+            return None;
+        }
         let by_value = |signature: &NativeSignature<'_, '_>| {
             signature
                 .source
@@ -2051,7 +2070,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 .zip(&to.parameters)
                 .all(|(&inner, &outer)| {
                     !matches!(inner, NativeType::Callable(_))
-                        && self.compatible(ValueStorage::Value(inner), ValueStorage::Value(outer))
+                        && (self.compatible(ValueStorage::Value(inner), ValueStorage::Value(outer))
+                            || checked_view && matches!((inner, outer), (NativeType::Object(_), NativeType::Object(_))))
                 })
             && !matches!(from.result, NativeType::Callable(_))
             && self.compatible(
@@ -2069,6 +2089,10 @@ impl<'program, 'src> NativePlan<'program, 'src> {
         let Some((from, to)) = self.adaptation(expected, actual) else {
             return Ok(false);
         };
+        self.register_adapter(from, to, budget)?;
+        Ok(true)
+    }
+    fn register_adapter(&mut self, from: usize, to: usize, budget: &mut AllocationBudget<'_>) -> Result<(), NativeError> {
         signatures::require(&mut self.signatures, from, budget)?;
         signatures::require(&mut self.signatures, to, budget)?;
         work(budget, self.adapters.len())?;
@@ -2076,7 +2100,7 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             budget.push(Scratch, &mut self.adapters, (from, to))?;
         }
         self.helpers.require(Helper::ClosureRuntime);
-        Ok(true)
+        Ok(())
     }
     /// Omission follows the checked arity contract; the native ABI also passes
     /// the supplied count so a callee can distinguish absence from a zero value.
@@ -2658,18 +2682,22 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     "native omitted arguments",
                 )?;
                 match plan.calls[call.index()] {
-                    PreparedTarget::Assume => expect(
-                        arguments.len() == 1 && match (result, argument(0)) {
+                    PreparedTarget::Assume => {
+                        let valid = arguments.len() == 1 && match (result, argument(0)) {
                             (Some(Stored(expected)), Some(actual)) => {
-                                self.compatible(Stored(expected), actual)
+                                let direct = self.compatible(Stored(expected), actual)
                                     || self.callable_view(self.value_type(actual), expected)
                                     || matches!((expected, actual),
-                                        (NativeType::Object(_), Stored(NativeType::Object(_))))
+                                        (NativeType::Object(_), Stored(NativeType::Object(_))));
+                                if direct { true } else if let Some((from,to)) = self.checked_callable_adapter(Stored(expected),actual) {
+                                    self.register_adapter(from,to,budget)?;
+                                    true
+                                } else { false }
                             }
                             _ => false,
-                        },
-                        "native checked view representation",
-                    ),
+                        };
+                        expect(valid, "native checked view representation")
+                    },
                     PreparedTarget::Function(function) => {
                         expect(
                             matches!(

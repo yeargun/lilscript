@@ -2991,9 +2991,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         if method.dispatch == MethodDispatch::Override && decl.base.is_none() {
                             return Err(AdmittedCheckError::new(method.span, "an override needs an inherited virtual method"));
                         }
-                        if method.dispatch != MethodDispatch::Static && (!decl.type_params.is_empty() || !method.type_params.is_empty()) {
-                            return Err(AdmittedCheckError::new(method.span, "virtual dispatch with erased type parameters requires the generic dispatch contract (R18)"));
-                        }
                         if fields.contains_key(method.name.name)
                             || methods.contains_key(method.name.name)
                         {
@@ -3355,8 +3352,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     return Err(AdmittedCheckError::new(span,
                         format!("class `{name}` cannot override inherited member `{method_name}` without an explicit override of a virtual method")));
                 }
-                if method.signature != inherited.signature
-                    || !method.type_params.is_empty()
+                if !variants::override_signature(method, inherited)
                     || inherited.declared_pure && !method.declared_pure {
                     return Err(AdmittedCheckError::new(span, "a virtual override must preserve its parameter, result, ref/default/rest and purity contract"));
                 }
@@ -6786,7 +6782,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 if let Some(method) = class.methods.get(property.name) {
                     if method.dispatch != crate::ast::MethodDispatch::Static {
-                        return Err(AdmittedCheckError::new(property.span, "virtual dispatch with erased type parameters requires the generic dispatch contract (R18)"));
+                        self.declarations.tested_classes.insert(declaration.identity);
                     }
                     self.facts.source_info[id.index()].resolution =
                         ExpressionResolution::NominalMember(method.member);

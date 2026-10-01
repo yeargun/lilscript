@@ -1938,7 +1938,9 @@ fn verify_types(
                 && !operand(0).is_void()
                 && (crate::primitive::runtime_type_test(&program.types[target.index()]).is_some()
                     || matches!(program.types[target.index()], Type::Class(declaration)
-                        if program.class(declaration.identity).is_some_and(|class| !class.shape || class.discriminant.is_some()))),
+                        if program.class(declaration.identity).is_some_and(|class| !class.shape || class.discriminant.is_some()))
+                    || matches!(program.types[target.index()], Type::ClassInstance { declaration, .. }
+                        if program.class(declaration.identity).is_some_and(|class| class.shape && class.discriminant.is_some()))),
         ),
         OperationKind::ClosedClassTest(_) => expect(matches!(result, Some(Type::Bool)) && !operand(0).is_void()),
         OperationKind::Template => {

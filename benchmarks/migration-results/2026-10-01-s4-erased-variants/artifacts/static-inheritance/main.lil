@@ -1,0 +1,1 @@
+class Base{int n;init(int n){this.n=n;}int read(int extra=2){return this.n+extra;}}class Child extends Base{init(int n){super(n);}}export int run(int n){Base value=new Child(n);return value.read();}

@@ -4988,13 +4988,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         let _ = name;
                         if let Some(found) = self.class_method(method.owner, Some(method.member))? {
                             let receiver = self.expression(unit, region, object)?;
-                            if method.dispatch != ast::MethodDispatch::Static {
-                                return self.virtual_call(unit, region, receiver, name, found, args, span);
-                            }
                             let semantics = self.semantics;
                             let method_arguments = semantics
                                 .call_instantiation(expr.id)
                                 .map_or(&[][..], |call| &call.type_arguments);
+                            if method.dispatch != ast::MethodDispatch::Static {
+                                return self.virtual_call(unit, region, receiver, name, found, args, method_arguments, span);
+                            }
                             return self.call_class_function(
                                 unit,
                                 region,
