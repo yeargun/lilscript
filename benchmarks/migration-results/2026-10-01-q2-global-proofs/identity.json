@@ -1,0 +1,9 @@
+{
+  "baseline_commit": "a43db466d54db7ba3f19480d21925614acd3cbea",
+  "policy_algorithm": 63,
+  "patch": "compiler.patch",
+  "test_binary": "target/debug/deps/lilscript-7ffa315b6261c9c4",
+  "native_clang": "/home/azureuser/lilscript-work/toolchains/clang-18/root/usr/bin/clang-18",
+  "release_measurement": "not repeated; algorithm 62 evidence retained separately",
+  "limits": "source diff includes the reviewed resource-report metadata added after focused compilation"
+}

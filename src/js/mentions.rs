@@ -86,6 +86,20 @@ enum Pending {
 }
 
 impl Module {
+    /// A bounded query for declaration motion. The complete nested walk owns
+    /// its scratch and releases the collected set on either answer/refusal.
+    pub(super) fn statement_mentions_in(
+        &self,
+        statement: &Statement,
+        binding: BindingId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        let mut scope = budget.scope();
+        let bindings = self.statement_bindings(statement, &mut scope)?;
+        scope.work(Analysis, bindings.len().max(1).ilog2() as u64 + 1)?;
+        Ok(bindings.binary_search(&binding).is_ok())
+    }
+
     fn statement_bindings(
         &self,
         statement: &Statement,

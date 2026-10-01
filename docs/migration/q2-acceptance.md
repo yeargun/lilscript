@@ -1,6 +1,7 @@
 # Q2 reuse, scheduling and resource contract
 
-Q2 is the sole active milestone after S4 (`c85ad5d2`). Complete it before Q3.
+Q2 is complete under the scope corrections and connected qualification below.
+It follows S4 (`c85ad5d2`) and precedes Q3.
 Existing score memoization, effect/view caches, retained target heads and stable
 scheduler suffixes remain useful starting points; do not rebuild their owners.
 
@@ -8,29 +9,32 @@ scheduler suffixes remain useful starting points; do not rebuild their owners.
    admitted dependency/use index. Close unused declaration chains and cycles
    from actual roots, preserving effects, exports, pinned bindings, captures,
    initialization and strictness. Remove the old four-iteration traversal.
-2. [~] Drive remaining source/target normalization with dirty dependencies,
+2. [x] Drive remaining source/target normalization with dirty dependencies,
    retaining deterministic structural edit order and fail-closed convergence.
    Reuse stable facts only for their immutable dependencies; edited bodies and
    changed interfaces invalidate their consumers.
-3. [ ] Complete incremental/shared formation and bounded persistent reuse.
+3. [x] Complete incremental/shared formation and bounded persistent reuse.
    Repeated assignments and unchanged delivered files must not repeat physical
-   work. Include the content-addressed build/elaboration cache and the explicit
+   work. Include the content-addressed complete-build cache and the explicit
    fingerprinted decision-lock replay from M3.9. Keys include complete
    source/config/compiler/encoder identities;
    cached evidence grants neither a permission nor extra search work.
-4. [ ] Finish resource admission for graph/cycle/delivery and analysis/edit
+   The plan now assigns per-module elaboration to D3 and requires complete
+   dependency keys for formation; arbitrary source-fragment relocation is not
+   implemented or required by this milestone.
+4. [x] Finish resource admission for graph/cycle/delivery and analysis/edit
    storage, including failure cleanup. Entry graph, cycle checking and the
    target use index, edit journals, local dirty maps, renumbering plans and complete retained target copies are admitted; delivery placement, simulation and setter payloads are now
-   admitted. Source arena edits are now admitted; rendered bundle storage is admitted. Global analysis/planning owners still need completion. Count logical work independently from
+   admitted. Source arena edits are now admitted; rendered bundle storage is admitted. Source global analysis/planning owners are complete; remaining allocation coverage is explicitly partial as detailed below. Count logical work independently from
    physical cache hits and retain scaling/work/byte telemetry.
-5. [ ] Wire/document cache and scheduling controls with hard TOML behavior,
+5. [x] Wire/document cache and scheduling controls with hard TOML behavior,
    lifetime/capacity, invalidation, defaults and tradeoffs. Transparent controls
    may change physical cost but not chosen output or admission decisions under
    the same deterministic logical limits. Q3 owns search breadth and heuristics.
-6. [ ] After coherent batches, compare dense/cold and reused behavior under all
+6. [x] After coherent batches, compare dense/cold and reused behavior under all
    objectives, limits and relevant delivery forms. Use affected oracles and
    pinned measurements; reserve full-fleet/held-out qualification for V1.
-7. [ ] Remove replaced paths, retain actual results and negative evidence,
+7. [x] Remove replaced paths, retain actual results and negative evidence,
    update coverage/checklist/history/handoff, then commit/push before Q3.
 
 First implementation batch: the target use-index consumer and graph resource
@@ -328,3 +332,44 @@ is qualified with 12 focused checks and 36 all-objective release controls.
 Markedlil's full formations fall from 1,451 to 1,254 with identical output,
 judgments and logical resources. A single CPU pair is reported without a stable
 speed claim. The scheduler completion batch preregistered above remains next.
+
+**Scheduler design correction.** The proposed exact-global source proof cache is
+rejected: the existing stable-suffix scheduler already skips every unchanged
+complete-program suffix. If a later rule edited, the global proof is invalid;
+if it did not, the scheduler never calls the pass again. The initial experiment
+recorded zero hits, as this argument predicts. Classify those inputs explicitly
+and retain the suffix owner. Target rules with complete-module dependencies
+also keep that owner. Only six target rules have proved narrower inputs; their
+complete-stage receipts additionally key every journal arena length. The three
+new consumers admit their nested mention walks, traversal scratch and copied
+payloads; block splicing admits replacement backing before moving statements.
+No proof may retain a no-op pass that leaves live allocation behind. Focused
+qualification covers real reuse across irrelevant edits, every mask/arena,
+refusal prefixes, connected target rules and all-objective search parity.
+
+**Finite owner/scope audit.** The [plan correction](plan.md#q-choices-data-and-efficient-exploration)
+keeps changed-site formation and exact repeated-tail reuse in Q2, rejects
+textually changed-unit lowering as a sufficient validity criterion, and moves
+per-module elaboration to its shared graph/session owner in D3. This requirement
+remains open there. The latest markedlil trace reports four demand calls (73 ms)
+and 1,254 physical formations (43,036 ms), of which target rules account for
+42,635 ms; fragment relocation is not the demonstrated bottleneck. Whole-module
+structural invalidation therefore remains conservative. Resource accounting
+means deterministic counted work and owned candidate/artifact reservations,
+with admitted graph/delivery/source-analysis and edit owners. It does not mean
+whole-process allocator instrumentation. Frontend nested payloads, diagnostic
+and external parser allocations, legacy target-rule temporary walks and some
+formation metadata remain outside complete allocation coverage and must stay
+explicit in public receipts. Cumulative analysis bounds are not allocator-exact
+claims. Expanding Q2 into a replacement allocator would work against the owner's
+request to finish coherent compiler milestones and pursue compression quality.
+
+**Completion.** The [dependency batch](../../benchmarks/migration-results/2026-10-01-q2-global-proofs/README.md)
+passes all 21 focused checks. Earlier connected batches provide the persistent
+cache, decision-lock, delivery/resource and all-objective release evidence;
+those full workloads were not redundantly rerun. Six target-local proofs use
+complete measured stages and exact dependency/storage keys. The impossible-hit
+global cache is deleted, source inputs are explicit, controls are documented,
+and reports expose remaining allocation coverage. Tasks 1–7 are complete under
+the plan correction above. D3 still owns per-module elaboration; arbitrary
+source-fragment relocation is not implemented. Q3 is next.

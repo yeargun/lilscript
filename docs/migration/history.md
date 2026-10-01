@@ -1667,3 +1667,26 @@ fall 1,451 → 1,254, with 175 print variants and 22 complete-tree hits. CPU sam
 are 54.59 cold and 48.48 seconds enabled; one pair is not a stable timing claim.
 No full library or fleet rerun. The global scheduler audit is next within Q2;
 changed-source-unit formation and per-module elaboration remain open.
+
+## 2026-10-01: Q2 dependency audit and completion
+
+Algorithm 63 gives six target-local passes complete-stage receipts qualified by
+semantic domains and all journal arena lengths. New owners admit negation walks,
+nested declaration-mention queries, copied payloads and block-splice growth.
+The additional global cache was rejected after recording zero hits: exact-global
+invalidation and the existing suffix scheduler leave it no reusable call. Its
+patch and the initial two failed assertions remain in the [evidence](../../benchmarks/migration-results/2026-10-01-q2-global-proofs/README.md).
+
+All 21 corrected focused checks pass, covering actual reuse, invalidation,
+refusal, public artifact/search parity for raw/gzip/Brotli and native closure
+behavior. No full library, fleet or release run was repeated. The report-only
+allocator-coverage labels were reviewed after that build, not separately tested.
+
+Q2 is complete with an explicit mechanism correction: shared heads/tails and
+changed print sites reuse complete proven dependencies. Textually unchanged units
+alone cannot certify target fragments. In the recorded markedlil trace, four
+demand calls cost 73 ms and target rules cost 42,635 ms; arbitrary source-fragment
+relocation is not required or claimed. Per-module elaboration remains required
+in D3 under the shared graph/session owner. Counted resource limits and exact
+retained-copy/artifact owners do not claim whole-process allocator coverage;
+public receipts now expose remaining target as well as frontend gaps. Q3 follows.

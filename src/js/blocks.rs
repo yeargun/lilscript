@@ -42,9 +42,8 @@ impl Module {
                     }
                 }
                 self.reparent_scopes(inner_scope, outer_scope);
-                let moved = std::mem::take(self.statements_mut(inner.index()));
-                let count = moved.len();
-                self.statements_mut(region).splice(index..=index, moved);
+                let count = self.regions[inner.index()].statements.len();
+                self.splice_block(region, index, inner, budget)?;
                 flattened += 1;
                 // The spliced statements may hold blocks of their own.
                 if count == 0 {
@@ -65,51 +64,65 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
-        budget.work(Analysis, (self.bindings.len() + self.scopes.len()) as u64)?;
-        let mut declares = vec![false; self.scopes.len()];
-        for binding in &self.bindings {
-            if let Some(declared) = declares.get_mut(binding.scope.index()) {
-                *declared = true;
+        budget.with_temporary_context(self, |module, budget| {
+            budget.work(Analysis, (module.bindings.len() + module.scopes.len()) as u64)?;
+            let mut declares = budget.filled(AllocationClass::Retained, module.scopes.len(), false)?;
+            for binding in &module.bindings {
+                if let Some(declared) = declares.get_mut(binding.scope.index()) { *declared = true; }
             }
-        }
-        let mut dropped = 0;
-        for region in 0..self.regions.len() {
-            if region == self.root.index() {
-                continue;
-            }
-            let mut index = 0;
-            while index < self.regions[region].statements.len() {
-                budget.work(Analysis, 1)?;
-                let Statement::Block(inner) = self.regions[region].statements[index] else {
-                    index += 1;
+            Ok(declares)
+        }, |declares, module, budget| {
+            let mut dropped = 0;
+            for region in 0..module.regions.len() {
+                if region == module.root.index() {
                     continue;
-                };
-                let inner_scope = self.regions[inner.index()].scope;
-                let bare = inner.index() != region
-                    && !declares.get(inner_scope.index()).copied().unwrap_or(true)
-                    && !self.regions[inner.index()]
-                        .statements
-                        .iter()
-                        .any(|statement| {
-                            matches!(
-                                statement,
-                                Statement::Let { .. } | Statement::Function { .. }
-                            )
+                }
+                let mut index = 0;
+                while index < module.regions[region].statements.len() {
+                    budget.work(Analysis, 1)?;
+                    let Statement::Block(inner) = module.regions[region].statements[index] else {
+                        index += 1;
+                        continue;
+                    };
+                    let inner_scope = module.regions[inner.index()].scope;
+                    let bare = inner.index() != region
+                        && !declares.get(inner_scope.index()).copied().unwrap_or(true)
+                        && !module.regions[inner.index()]
+                            .statements
+                            .iter()
+                            .any(|statement| {
+                                matches!(
+                                    statement,
+                                    Statement::Let { .. } | Statement::Function { .. }
+                                )
                         });
                 if !bare {
                     index += 1;
                     continue;
                 }
-                let outer_scope = self.regions[region].scope;
-                budget.work(Analysis, self.scopes.len() as u64)?;
-                self.reparent_scopes(inner_scope, outer_scope);
-                let moved = std::mem::take(self.statements_mut(inner.index()));
-                self.statements_mut(region).splice(index..=index, moved);
+                let outer_scope = module.regions[region].scope;
+                budget.work(Analysis, module.scopes.len() as u64)?;
+                module.splice_block(region, index, inner, budget)?;
+                module.reparent_scopes(inner_scope, outer_scope);
                 dropped += 1;
                 // The spliced statements may be bare blocks themselves.
             }
         }
         Ok(dropped)
+        })
+    }
+
+    /// Move the contents while both region buffers belong to the target owner.
+    fn splice_block(
+        &mut self, region: usize, index: usize, inner: RegionId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        let additional = self.regions[inner.index()].statements.len().saturating_sub(1);
+        budget.reserve_vec(AllocationClass::Retained, &mut self.regions[region].statements, additional)?;
+        let moved = std::mem::take(self.statements_mut(inner.index()));
+        let bytes = crate::output_budget::vector_bytes(&moved)?;
+        self.statements_mut(region).splice(index..=index, moved);
+        budget.release(AllocationClass::Retained, bytes)
     }
 
     fn flattenable(&self, inner: RegionId) -> bool {

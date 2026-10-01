@@ -1,0 +1,29 @@
+{
+  "algorithm": 63,
+  "tests": [
+    "js::rules::contract_tests::q2_dirty_target_schedule_matches_disabled_reuse_after_later_region_edits",
+    "js::rules::contract_tests::q2_rule_refusal_closes_and_releases_its_journal",
+    "js::rules::contract_tests::q2_stable_target_rules_invalidate_only_with_complete_dependencies",
+    "js::rules::contract_tests::q2_stable_target_work_replay_matches_cold_success_and_partial_refusals",
+    "js::rules::contract_tests::q2_statement_proof_survives_expression_edit_with_identical_admission",
+    "js::rules::contract_tests::shared_host_results_guard_equal_node_operator_progress",
+    "program::javascript::reprint_tests::q2_print_reuse_keys_keep_every_structural_assignment_and_joint_permission",
+    "program::javascript::reprint_tests::q2_print_variants_match_full_formation_and_fit_the_admitted_stage",
+    "program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes",
+    "program::publication::search::terminal::tests::q2_normalization_reuse_preserves_logical_search_and_objective_bytes",
+    "program::rules::admission_tests::q2_exact_value_analysis_releases_answers_and_propagates_nested_refusals",
+    "program::rules::admission_tests::q2_legality_probes_distinguish_decline_from_refusal_and_drop_temporaries",
+    "program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations",
+    "program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates",
+    "program::rules::admission_tests::q2_source_shared_body_and_tables_keep_old_reservations_until_readers_drop",
+    "program::rules::admission_tests::q2_stable_local_plans_replay_identical_logical_work_and_peak_storage",
+    "program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return",
+    "program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution",
+    "program::rules::tests::default_transport_preserves_callee_guards_and_argument_effects",
+    "program::rules::tests::host_annotations_do_not_authorize_common_coercions",
+    "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal"
+  ],
+  "count": 21,
+  "exit_code": 0,
+  "scope": "Focused debug-library checks; no full library or fleet run."
+}

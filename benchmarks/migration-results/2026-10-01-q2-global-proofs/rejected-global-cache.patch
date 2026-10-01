@@ -1,0 +1,385 @@
+diff --git a/src/program/rules/admission_tests.rs b/src/program/rules/admission_tests.rs
+index 7ac022a2..2d5cc598 100644
+--- a/src/program/rules/admission_tests.rs
++++ b/src/program/rules/admission_tests.rs
+@@ -326,3 +326,33 @@ fn q2_stable_local_plans_replay_identical_logical_work_and_peak_storage() {
+     assert_eq!(runs[0].3, 0);
+     assert!(runs[1].3 > 0);
+ }
++
++
++#[test]
++fn q2_global_stable_passes_preserve_behavior_and_complete_admission() {
++    let arena = bumpalo::Bump::new();
++    let syntax = crate::parse_source(&arena,
++        "int leaf(int n){return n+1;}int middle(int n){return leaf(n)+1;}export int answer(int n){return middle(n)+1;}print(answer(4));"
++    ).unwrap();
++    let checked = crate::analyze(&syntax).unwrap();
++    let runs = [false, true].map(|reuse_normalization| {
++        let mut owner = ledger(100_000_000, 64 << 20);
++        let (rendered, visited, reused) = {
++            let mut budget = AllocationBudget::new(Some((&mut owner, WorkDomain::Baseline)));
++            let (prepared, receipt) = super::super::from_source::from_checked_source_with_rules(
++                &syntax, &checked, Some(RuleRequest { reuse_normalization, ..ALL }),
++                false, &Default::default(), None, &mut budget,
++            ).unwrap();
++            let rendered = super::super::javascript::lower(prepared.program()).unwrap()
++                .render(crate::js::PrintPolicy::default()).unwrap();
++            budget.with_ledger(|ledger| prepared.discard(ledger.unwrap().0));
++            (rendered, receipt.global_rules_visited, receipt.global_rules_reused)
++        };
++        assert_eq!(owner.retained_bytes(), 0);
++        (rendered, owner.work_used(WorkDomain::Baseline), owner.peak_retained_bytes(), visited, reused)
++    });
++    assert_eq!((&runs[0].0, runs[0].1, runs[0].2), (&runs[1].0, runs[1].1, runs[1].2));
++    assert_eq!(runs[0].4, 0);
++    assert!(runs[1].4 > 0, "the fixture must reuse an empty global pass");
++    assert_eq!(runs[0].3, runs[1].3 + runs[1].4);
++}
+diff --git a/src/program/rules/dirty.rs b/src/program/rules/dirty.rs
+index b0d852a1..777c5406 100644
+--- a/src/program/rules/dirty.rs
++++ b/src/program/rules/dirty.rs
+@@ -89,3 +89,95 @@ impl DirtyUnits {
+         Ok(result)
+     }
+ }
++
++/// Empty global plans can be reused only while the edit owner's complete
++/// source revision is unchanged. The revision advances for every touched body
++/// or table, even when a rule forgot to report a semantic change.
++#[derive(Clone, Copy)]
++struct GlobalStable {
++    revision: RevisionId,
++    admission: crate::admission_replay::Receipt,
++    work: GlobalWork,
++}
++
++#[derive(Clone, Copy)]
++struct GlobalWork {
++    frequency: u64,
++    aggregates: u64,
++    limits: u32,
++    evaluated: u32,
++    refused: [u32; 6],
++}
++impl GlobalWork {
++    fn between(before: &RuleReceipt, after: &RuleReceipt) -> Self {
++        Self {
++            frequency: after.call_frequency_work - before.call_frequency_work,
++            aggregates: after.aggregate_analysis_work - before.aggregate_analysis_work,
++            limits: after.aggregate_limits - before.aggregate_limits,
++            evaluated: after.evaluated_calls - before.evaluated_calls,
++            refused: std::array::from_fn(|index| {
++                after.evaluation_refusals[index] - before.evaluation_refusals[index]
++            }),
++        }
++    }
++    fn replay(self, receipt: &mut RuleReceipt) {
++        receipt.call_frequency_work += self.frequency;
++        receipt.aggregate_analysis_work += self.aggregates;
++        receipt.aggregate_limits += self.limits;
++        receipt.evaluated_calls = receipt.evaluated_calls.saturating_add(self.evaluated);
++        for (total, count) in receipt.evaluation_refusals.iter_mut().zip(self.refused) {
++            *total = total.saturating_add(count);
++        }
++    }
++}
++
++pub(super) struct DirtyGlobals {
++    seen: [Option<GlobalStable>; 9],
++    enabled: bool,
++}
++impl DirtyGlobals {
++    pub(super) fn new(enabled: bool) -> Self {
++        Self {
++            seen: [None; 9],
++            enabled,
++        }
++    }
++    pub(super) fn apply<'src>(
++        &mut self,
++        editor: &mut edit::Editor<'src>,
++        rule: ProgramRule,
++        receipt: &mut RuleReceipt,
++        budget: &mut AllocationBudget<'_>,
++        build: impl FnOnce(
++            &mut edit::Editor<'src>,
++            &mut RuleReceipt,
++            &mut AllocationBudget<'_>,
++        ) -> Result<bool, RuleError>,
++    ) -> Result<bool, RuleError> {
++        let revision = editor.revision();
++        let slot = &mut self.seen[rule as usize];
++        if let Some(stable) = slot.filter(|stable| stable.revision == revision) {
++            return budget.replay(&stable.admission, || {
++                if self.enabled {
++                    receipt.global_rules_reused += 1;
++                    stable.work.replay(receipt);
++                    Ok(false)
++                } else {
++                    receipt.global_rules_visited += 1;
++                    build(editor, receipt, &mut AllocationBudget::new(None))
++                }
++            });
++        }
++        receipt.global_rules_visited += 1;
++        let before = *receipt;
++        let (changed, admission) = budget.record(|budget| build(editor, receipt, budget))?;
++        *slot = admission
++            .filter(|stage| !changed && stage.live_bytes() == 0 && editor.revision() == revision)
++            .map(|admission| GlobalStable {
++                revision,
++                admission,
++                work: GlobalWork::between(&before, receipt),
++            });
++        Ok(changed)
++    }
++}
+diff --git a/src/program/rules/edit.rs b/src/program/rules/edit.rs
+index 87c88404..d69a2aee 100644
+--- a/src/program/rules/edit.rs
++++ b/src/program/rules/edit.rs
+@@ -20,6 +20,7 @@ use crate::output_budget::{AllocationBudget, AllocationError};
+ 
+ pub(super) struct Editor<'src> {
+     program: Program<'src>,
++    revision: RevisionId,
+     touched: Vec<bool>,
+     // A rule may retain a body while grafting it. Keep its old reservation
+     // until those readers have dropped, then retire it at commit.
+@@ -35,6 +36,7 @@ impl<'src> Editor<'src> {
+         let touched = budget.filled(Scratch, program.units.len(), false)?;
+         Ok(Self {
+             program,
++            revision: RevisionId::fresh(),
+             touched,
+             retired: Vec::new(),
+             tables_changed: false,
+@@ -48,6 +50,10 @@ impl<'src> Editor<'src> {
+         &self.program
+     }
+ 
++    pub(super) fn revision(&self) -> RevisionId {
++        self.revision
++    }
++
+     fn unique_unit(
+         &mut self,
+         unit: UnitId,
+@@ -213,6 +219,7 @@ impl<'src> Editor<'src> {
+         }
+         storage::release_vec(remaps, Scratch, budget)?;
+         if changed {
++            self.revision = RevisionId::fresh();
+             self.program.views.invalidate_in(budget)?;
+         }
+         self.tables_changed = false;
+diff --git a/src/program/rules/mod.rs b/src/program/rules/mod.rs
+index da8686cd..2063f51b 100644
+--- a/src/program/rules/mod.rs
++++ b/src/program/rules/mod.rs
+@@ -89,6 +89,8 @@ impl RuleRequest {
+ /// What the rules did, for the build receipt.
+ #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+ pub(crate) struct RuleReceipt {
++    pub(crate) global_rules_visited: u64,
++    pub(crate) global_rules_reused: u64,
+     pub(crate) local_units_visited: u64,
+     pub(crate) local_units_reused: u64,
+     pub(crate) effect_units_visited: u64,
+@@ -200,6 +202,8 @@ impl RuleReceipt {
+         });
+         result["call_frequency_work"] = self.call_frequency_work.into();
+         result["materialized_default_arguments"] = self.materialized_default_arguments.into();
++        result["global_rules_visited"] = self.global_rules_visited.into();
++        result["global_rules_reused"] = self.global_rules_reused.into();
+         result["local_units_visited"] = self.local_units_visited.into();
+         result["local_units_reused"] = self.local_units_reused.into();
+         result["effect_units_visited"] = self.effect_units_visited.into();
+@@ -303,6 +307,8 @@ pub(crate) fn optimize_admitted<'src>(
+ ) -> Result<(Program<'src>, RuleReceipt), RuleError> {
+     let mut dirty =
+         dirty::DirtyUnits::new(request.reuse_normalization && crate::schedule::reuses_stability());
++    let mut global = dirty::DirtyGlobals::new(
++        request.reuse_normalization && crate::schedule::reuses_stability());
+     let mut receipt = RuleReceipt::default();
+     if !request.any() {
+         return Ok((program, receipt));
+@@ -393,81 +399,9 @@ pub(crate) fn optimize_admitted<'src>(
+                 editor.commit_in(budget)?;
+                 return Ok(changed);
+             }
+-            let effects = editor.program().effects_in(request.seal, budget)?;
+-            receipt.observe_effects(&effects, &mut last_effects);
+-            if matches!(
+-                rule,
+-                ProgramRule::Forward
+-                    | ProgramRule::Fold
+-                    | ProgramRule::Inline
+-                    | ProgramRule::DeadCode
+-            ) {
+-                // These transfers consume the immutable class view throughout
+-                // their planning phase; mutation commits invalidate it below.
+-                drop(
+-                    editor
+-                        .program()
+-                        .primitive_classes_in(request.seal, budget)?,
+-                );
+-            }
+-            let changed = match rule {
+-                ProgramRule::Defaults => {
+-                    defaults::apply(editor, effects.graph(), &mut receipt, budget)?
+-                }
+-                ProgramRule::Returns | ProgramRule::Unreachable => unreachable!(),
+-                ProgramRule::Aggregates => {
+-                    aggregates::apply(editor, &effects, request, &mut receipt, budget)?
+-                }
+-                ProgramRule::Forward => forward::apply(editor, &effects, &mut receipt, budget)?,
+-                ProgramRule::Fold => budget.with_temporary_context(
+-                    editor,
+-                    |editor, budget| {
+-                        Ok::<_, RuleError>(values::ProgramValues::compute_in(
+-                            editor.program(),
+-                            &effects,
+-                            request.seal,
+-                            request.pristine_builtins,
+-                            budget,
+-                        )?)
+-                    },
+-                    |values, editor, budget| {
+-                        receipt.evaluated_calls =
+-                            receipt.evaluated_calls.saturating_add(values.evaluated);
+-                        for (total, count) in
+-                            receipt.evaluation_refusals.iter_mut().zip(values.refused)
+-                        {
+-                            *total = total.saturating_add(count);
+-                        }
+-                        fold::apply(editor, values, &effects, &mut receipt, budget)
+-                    },
+-                )?,
+-                ProgramRule::Inline => {
+-                    inline::apply(editor, &effects, &mut receipt, request.native, budget)?
+-                }
+-                // Unread parameters and unused results are dead code;
+-                // constant parameters are folding.
+-                ProgramRule::Parameters => budget.with_temporary_context(
+-                    editor,
+-                    |editor, budget| {
+-                        Ok::<_, RuleError>(values::ProgramValues::compute_in(
+-                            editor.program(),
+-                            &effects,
+-                            request.seal,
+-                            request.pristine_builtins,
+-                            budget,
+-                        )?)
+-                    },
+-                    |values, editor, budget| {
+-                        params::apply(editor, &effects, values, request.fold, &mut receipt, budget)
+-                    },
+-                )?,
+-                ProgramRule::DeadCode => {
+-                    dce::apply(editor, &effects, request.seal, &mut receipt, budget)?
+-                }
+-            };
+-            drop(effects);
+-            editor.commit_in(budget)?;
+-            Ok(changed)
++            global.apply(editor, rule, &mut receipt, budget, |editor, receipt, budget| {
++                apply_global_rule(editor, rule, request, receipt, &mut last_effects, budget)
++            })
+         },
+         |editor, round| {
+             if cfg!(debug_assertions) {
+@@ -518,6 +452,91 @@ pub(crate) fn optimize_admitted<'src>(
+     Ok((program, receipt))
+ }
+ 
++fn apply_global_rule(
++    editor: &mut edit::Editor<'_>,
++    rule: ProgramRule,
++    request: RuleRequest,
++    receipt: &mut RuleReceipt,
++    last_effects: &mut Option<RevisionId>,
++    budget: &mut crate::output_budget::AllocationBudget<'_>,
++) -> Result<bool, RuleError> {
++    let effects = editor.program().effects_in(request.seal, budget)?;
++    receipt.observe_effects(&effects, last_effects);
++    if matches!(
++        rule,
++        ProgramRule::Forward
++            | ProgramRule::Fold
++            | ProgramRule::Inline
++            | ProgramRule::DeadCode
++    ) {
++        // These transfers consume the immutable class view throughout
++        // their planning phase; mutation commits invalidate it below.
++        drop(
++            editor
++                .program()
++                .primitive_classes_in(request.seal, budget)?,
++        );
++    }
++    let changed = match rule {
++        ProgramRule::Defaults => {
++            defaults::apply(editor, effects.graph(), receipt, budget)?
++        }
++        ProgramRule::Returns | ProgramRule::Unreachable => unreachable!(),
++        ProgramRule::Aggregates => {
++            aggregates::apply(editor, &effects, request, receipt, budget)?
++        }
++        ProgramRule::Forward => forward::apply(editor, &effects, receipt, budget)?,
++        ProgramRule::Fold => budget.with_temporary_context(
++            editor,
++            |editor, budget| {
++                Ok::<_, RuleError>(values::ProgramValues::compute_in(
++                    editor.program(),
++                    &effects,
++                    request.seal,
++                    request.pristine_builtins,
++                    budget,
++                )?)
++            },
++            |values, editor, budget| {
++                receipt.evaluated_calls =
++                    receipt.evaluated_calls.saturating_add(values.evaluated);
++                for (total, count) in
++                    receipt.evaluation_refusals.iter_mut().zip(values.refused)
++                {
++                    *total = total.saturating_add(count);
++                }
++                fold::apply(editor, values, &effects, receipt, budget)
++            },
++        )?,
++        ProgramRule::Inline => {
++            inline::apply(editor, &effects, receipt, request.native, budget)?
++        }
++        // Unread parameters and unused results are dead code;
++        // constant parameters are folding.
++        ProgramRule::Parameters => budget.with_temporary_context(
++            editor,
++            |editor, budget| {
++                Ok::<_, RuleError>(values::ProgramValues::compute_in(
++                    editor.program(),
++                    &effects,
++                    request.seal,
++                    request.pristine_builtins,
++                    budget,
++                )?)
++            },
++            |values, editor, budget| {
++                params::apply(editor, &effects, values, request.fold, receipt, budget)
++            },
++        )?,
++        ProgramRule::DeadCode => {
++            dce::apply(editor, &effects, request.seal, receipt, budget)?
++        }
++    };
++    drop(effects);
++    editor.commit_in(budget)?;
++    Ok(changed)
++}
++
+ /// What evaluating each operation of `unit` may do, in arena order, with the
+ /// program's summaries. A cell load the initialization owner proves past the
+ /// cell's initialization cannot fail: the temporal dead zone is a passive

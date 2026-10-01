@@ -1,4 +1,4 @@
-# Migration handoff — Q2 active
+# Migration handoff — Q2 complete; Q3 next
 
 The owner requests implementation of the remaining migration, one milestone at
 a time. Commit/push are authorized. Implement coherent batches, then focused
@@ -6,7 +6,7 @@ checks. Do not resume deferred S1 broad reruns or repeat the full library/fleet.
 One heavy build/test/measurement job at a time. No PR requested.
 
 Checkout `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
-C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3/S4 are implemented. Q2 alone is active.
+C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3/S4/Q2 are implemented. Q3 is next.
 The [index](index.md), [acceptance contract](q2-acceptance.md) and
 [coverage](coverage.md) own remaining work; [history](history.md) owns prior
 results and negative evidence. Do not treat earlier partial batches as Q2 completion.
@@ -17,12 +17,14 @@ The preceding connected-analysis pin is `q2-dependencies-1`, algorithm 61.
 All affected bytes and cache-on/off logical admission agree. The latest markedlil
 probe reports fewer full formations; its single CPU pair is not a stable estimate.
 
-Next: finish the remaining global source/target scheduler dependency audit.
-A preregistration is in the Q2 contract. Then finish changed-source-unit formation,
-per-module elaboration and the finite resource/control audit, qualify the affected
-public paths once, and close Q2 honestly before Q3. Implementation helpers prepared
-in `/tmp/lilscript-q2-global-proofs-edit.py` and
-`/tmp/lilscript-q2-global-proof-tests-edit.py` are not applied at this checkpoint.
+Next: Q3, independent objective search policies, calibrated estimates/proxies,
+protected effort tiers and deterministic worker scoring. Q2 is complete under
+its explicit plan correction. Its algorithm-63 scheduler batch passes 21 focused
+checks; no release/fleet run was repeated. The initial global cache experiment
+was rejected and preserved in its evidence, not landed. Do not rerun the obsolete
+`/tmp/lilscript-q2-global-proofs-edit.py` helpers. Per-module elaboration is now
+explicitly D3 work under the shared graph/session owner. Arbitrary target-unit
+fragment relocation is not implemented or claimed.
 
 Subsequent order: **Q3 → Q4 → D1 → D2 → D3 → N1 → N2 → V1 → V2**.
 Keep separate raw/gzip/Brotli incumbents, default effort 13 size quality,

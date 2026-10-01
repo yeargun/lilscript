@@ -582,7 +582,12 @@ Omitted TOML ceilings inherit the service ceilings described below. Lower limits
 can reduce compilation cost and exploration; higher limits permit more work but
 cannot force a better result. A wall deadline depends on machine load and is
 unsuitable for reproducible size comparisons. Retained storage accounting is
-not a measurement of whole-process peak RSS.
+not a measurement of whole-process peak RSS. Reports explicitly label both
+frontend and target allocation coverage as partial. Complete target copies,
+journals, graph/delivery owners, rendered artifacts and covered analyses are
+admitted; nested frontend payloads, some formation metadata, legacy target-rule
+scratch and external admission-parser allocations do not have complete allocator
+coverage. These are counted compiler limits, not an operating-system memory cap.
 
 `--proxy-pruning on|audit|off` overrides TOML. The deprecated
 `LILSCRIPT_WALK_AUDIT` adapter enables `audit` when present (including an empty
@@ -1300,9 +1305,16 @@ payloads retain conservative cumulative bounds until their consumer finishes.
 These costs use the existing resource limits; no flag bypasses mandatory
 admission. Tight limits can refuse costs older compilers did not count.
 
-Target literal folding and undefined/unreachable cleanup reuse stable answers
-only while their complete node/region/function/table dependencies remain
-unchanged. Other rules still run conservatively. This flag does not change
+Six target passes have narrower proved dependencies: literal folding,
+undefined/unreachable cleanup, double-negation cleanup, empty-declaration joining
+and bare-block cleanup. Each reuses only a fully funded empty pass that leaves no
+live allocation. Dependency epochs and all five arena lengths qualify the saved
+complete-stage bill, including journal storage outside a rule's semantic inputs.
+Rules depending on the complete source or target keep the existing stable-suffix
+scheduler; a second whole-program cache would duplicate its work without hits.
+Algorithm 63 replaces manual cold-cost emulation with complete-stage admission
+and adds the three traversal/storage owners. Insufficient stages refuse before
+physical execution in either mode. This flag does not change
 search breadth, permissions, the fixed-point suffix schedule or other shared
 fact caches. Set it to `false` for a physical-execution audit of these proofs.
 Both modes retain the same logical admission and search work; reuse cannot buy

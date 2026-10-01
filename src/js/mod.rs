@@ -1696,9 +1696,11 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
+        let mut phase = budget.scope();
+        let budget = &mut phase;
         let mut edits = 0;
-        let mut regions = vec![self.root];
-        let mut seen = vec![false; self.regions.len()];
+        let mut regions = budget.copy_slice(AllocationClass::Scratch, &[self.root])?;
+        let mut seen = budget.filled(AllocationClass::Scratch, self.regions.len(), false)?;
         let mut pending: Vec<(ExprId, bool)> = Vec::new();
         while let Some(region) = regions.pop() {
             budget.work(Analysis, 1)?;
@@ -1708,6 +1710,13 @@ impl Module {
             for index in 0..self.regions[region.index()].statements.len() {
                 budget.work(Analysis, 1)?;
                 let statement = &self.regions[region.index()].statements[index];
+                let mut roots = 0;
+                statement.visit_expressions(|_| roots += 1);
+                budget.reserve_vec(AllocationClass::Scratch, &mut pending, roots)?;
+                let mut children = 0;
+                statement.visit_regions(|_| children += 1);
+                children += usize::from(matches!(statement, Statement::Function { .. }));
+                budget.reserve_vec(AllocationClass::Scratch, &mut regions, children)?;
                 match statement {
                     Statement::If { condition, .. } => pending.push((*condition, true)),
                     Statement::Loop {
@@ -1742,49 +1751,49 @@ impl Module {
                             else {
                                 break;
                             };
-                            let node = self.expressions[twice.index()].clone();
+                            let node = self.expressions[twice.index()].clone_in(budget)?;
                             self.set_expression(id, node);
                             edits += 1;
                         }
                     }
                     let expression = &self.expressions[id.index()];
                     for function in expression.created_functions() {
-                        regions.push(self.functions[function.index()].body);
+                        budget.push(AllocationClass::Scratch, &mut regions, self.functions[function.index()].body)?;
                     }
                     match *expression {
                         Expr::Unary {
                             op: Unary::Not,
                             value,
-                        } => pending.push((value, true)),
+                        } => budget.push(AllocationClass::Scratch, &mut pending, (value, true))?,
                         Expr::Binary {
                             op: Binary::And | Binary::Or,
                             left,
                             right,
                         } => {
-                            pending.push((left, truth));
-                            pending.push((right, truth));
+                            budget.push(AllocationClass::Scratch, &mut pending, (left, truth))?;
+                            budget.push(AllocationClass::Scratch, &mut pending, (right, truth))?;
                         }
                         Expr::Conditional { condition, yes, no } => {
-                            pending.push((condition, true));
-                            pending.push((yes, truth));
-                            pending.push((no, truth));
+                            budget.push(AllocationClass::Scratch, &mut pending, (condition, true))?;
+                            budget.push(AllocationClass::Scratch, &mut pending, (yes, truth))?;
+                            budget.push(AllocationClass::Scratch, &mut pending, (no, truth))?;
                         }
                         Expr::Sequence(ref items) => {
                             let last = items.len().saturating_sub(1);
                             for (position, item) in items.iter().enumerate() {
-                                pending.push((*item, position != last || truth));
+                                budget.push(AllocationClass::Scratch, &mut pending, (*item, position != last || truth))?;
                             }
                         }
                         _ => {
-                            let _ = expression.visit_children(|child| {
-                                pending.push((child, false));
-                                Ok::<_, ()>(())
-                            });
+                            expression.visit_children(|child|
+                                budget.push(AllocationClass::Scratch, &mut pending, (child, false)))?;
                         }
                     }
                 }
             }
         }
+        drop((regions, seen, pending));
+        phase.finish_retained()?;
         Ok(edits)
     }
 

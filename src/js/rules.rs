@@ -29,6 +29,8 @@ macro_rules! declare_rules {
         /// One rule of the JavaScript target.
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub(crate) enum Rule { $($rule),+ }
+        #[cfg(test)]
+        impl Rule { const ALL: [Self; [$(stringify!($rule)),+].len()] = [$(Self::$rule),+]; }
         static RULE_TIMINGS: [crate::timing::Bucket; [$(stringify!($rule)),+].len()] = [
             $(crate::timing::Bucket::new(concat!("js_rule_", stringify!($rule)))),+
         ];
@@ -228,24 +230,41 @@ impl Context<'_> {
 #[derive(Default)]
 struct Change { edited: bool, domains: u8 }
 
-/// Only rules with an explicit complete dependency mask and cold-work replay
-/// participate. Cross-function rules conservatively run on every pending round.
+/// Complete dependency epochs for every target rule. The six local rules
+/// have narrower proved masks; all other producers conservatively depend on
+/// the entire target. Empty, fully funded passes retain complete-stage bills.
 struct StableRules {
     epochs: [u64; 5],
     seen: [Option<[u64; 5]>; RULE_TIMINGS.len()],
+    admissions: [Option<crate::admission_replay::Receipt>; RULE_TIMINGS.len()],
+    shapes: [[usize; 5]; RULE_TIMINGS.len()],
 }
 impl StableRules {
-    fn new() -> Self { Self { epochs: [0; 5], seen: [None; RULE_TIMINGS.len()] } }
-    fn stamp(&self, rule: Rule) -> Option<[u64; 5]> {
-        let mask = match rule {
+    fn new() -> Self { Self { epochs: [0; 5], seen: [None; RULE_TIMINGS.len()], admissions: [None; RULE_TIMINGS.len()], shapes: [[0; 5]; RULE_TIMINGS.len()] } }
+    fn dependencies(rule: Rule) -> u8 {
+        match rule {
             Rule::FoldLiteralOperations => 1 | 16, // nodes and observed-literal tables
             Rule::ElideUndefined | Rule::DropUnreachable => 1 | 2 | 8,
-            _ => return None,
-        };
+            Rule::DropDoubleNegations | Rule::JoinEmptyDeclarations => 1 | 2 | 8 | 16,
+            Rule::DropBareBlocks => 2 | 4 | 16,
+            _ => 31,
+        }
+    }
+    fn stamp(&self, rule: Rule) -> Option<[u64; 5]> {
+        let mask = Self::dependencies(rule);
         Some(std::array::from_fn(|index| if mask & (1 << index) != 0 { self.epochs[index] } else { 0 }))
     }
     fn stable(&self, rule: Rule) -> bool {
         self.stamp(rule).is_some_and(|stamp| self.seen[rule as usize] == Some(stamp))
+    }
+    fn shape(module: &Module) -> [usize; 5] {
+        [module.expressions.len(), module.regions.len(), module.bindings.len(),
+            module.functions.len(), module.scopes.len()]
+    }
+    fn admission(&self, rule: Rule, module: &Module) -> Option<crate::admission_replay::Receipt> {
+        // Even a narrower semantic proof owns a journal sized from all arenas.
+        (self.stable(rule) && self.shapes[rule as usize] == Self::shape(module))
+            .then(|| self.admissions[rule as usize]).flatten()
     }
     fn record(&mut self, rule: Rule, change: &Change) {
         for index in 0..5 {
@@ -259,6 +278,8 @@ impl StableRules {
 }
 
 static STABLE_RULE_REUSE: crate::timing::Bucket = crate::timing::Bucket::new("js_rule_reuse");
+#[cfg(test)]
+thread_local! { static REUSED_PASSES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) }; }
 
 /// Rounds a rule set may take. Each rule's edits remove or move structure,
 /// so a few rounds reach the fixed point on every tree formation produces;
@@ -455,12 +476,32 @@ impl Module {
                 {
                     return Ok(false);
                 }
-                let reuse = context.reuse_normalization && crate::schedule::reuses_stability() && stable.stable(rule);
-                let change = module.apply_rule(rule, context, budget, reuse)?;
+                let (change, admission) = if let Some(admission) = stable.admission(rule, module) {
+                    let change = budget.replay(&admission, || {
+                        if context.reuse_normalization && crate::schedule::reuses_stability() {
+                            let _timing = STABLE_RULE_REUSE.scope(0);
+                            #[cfg(test)]
+                            REUSED_PASSES.with(|count| count.set(count.get() + 1));
+                            Ok(Change::default())
+                        } else {
+                            module.apply_rule(rule, context, &mut AllocationBudget::new(None))
+                        }
+                    })?;
+                    (change, Some(admission))
+                } else if StableRules::dependencies(rule) != 31 {
+                    budget.record(|budget| module.apply_rule(rule, context, budget))?
+                } else {
+                    // The scheduler already skips an unchanged whole-tree
+                    // suffix. Recording a second global proof can never hit.
+                    (module.apply_rule(rule, context, budget)?, None)
+                };
                 if change.edited {
                     last_edited.set(Some(rule));
                 }
                 stable.record(rule, &change);
+                stable.admissions[rule as usize] = admission.filter(|stage|
+                    !change.edited && stage.live_bytes() == 0);
+                stable.shapes[rule as usize] = StableRules::shape(module);
                 head_unchanged &= !change.edited;
                 Ok(change.edited)
             },
@@ -485,18 +526,17 @@ impl Module {
         rule: Rule,
         context: &Context<'_>,
         budget: &mut AllocationBudget<'_>,
-        stable: bool,
     ) -> Result<Change, RuleError> {
         if !rule.permitted(context) {
             return Ok(Change::default());
         }
-        let _timing = if stable { STABLE_RULE_REUSE.scope(0) } else { crate::timing::JS_RULE.scope(0) };
-        let _rule_timing = (!stable).then(|| RULE_TIMINGS[rule as usize].scope(0));
+        let _timing = crate::timing::JS_RULE.scope(0);
+        let _rule_timing = RULE_TIMINGS[rule as usize].scope(0);
         let lengths = [self.expressions.len(), self.regions.len(), self.bindings.len(), self.functions.len(), self.scopes.len()];
         #[cfg(any(test, debug_assertions))]
         let before = (self.clone(), self.measure(rule.progress()));
         self.open_journal_admitted(budget)?;
-        let result = if stable { self.replay_stable_rule(rule, context, budget) } else { self.run_rule(rule, context, budget) };
+        let result = self.run_rule(rule, context, budget);
         let journal = self.take_journal();
         let outcome = (|| {
             result?;
@@ -528,26 +568,6 @@ impl Module {
         })();
         journal.release(budget)?;
         outcome
-    }
-
-    /// Same logical calls and journal admission as an unchanged cold pass.
-    /// Replay preserves partial work-limit refusal as well as completed bills.
-    fn replay_stable_rule(&self, rule: Rule, context: &Context<'_>, budget: &mut AllocationBudget<'_>) -> Result<(), AllocationError> {
-        use crate::compilation_policy::WorkKind::Analysis;
-        match rule {
-            Rule::FoldLiteralOperations => {
-                if context.folds_literals() { budget.work(Analysis, self.expressions.len() as u64)?; }
-            }
-            Rule::ElideUndefined | Rule::DropUnreachable => {
-                if rule == Rule::DropUnreachable {
-                    for region in &self.regions { budget.work(Analysis, 1 + region.statements.len() as u64)?; }
-                }
-                for region in &self.regions { budget.work(Analysis, 1 + region.statements.len() as u64)?; }
-                budget.work(Analysis, self.functions.len() as u64)?;
-            }
-            _ => unreachable!("only classified stable rules can replay"),
-        }
-        Ok(())
     }
 
     /// Reachable progress only: dead arena nodes cannot hide an edit. Node
@@ -787,7 +807,7 @@ mod contract_tests {
 
     #[test]
     fn q2_stable_target_rules_invalidate_only_with_complete_dependencies() {
-        for rule in [Rule::FoldLiteralOperations, Rule::ElideUndefined, Rule::DropUnreachable] {
+        for rule in Rule::ALL {
             for domain in 0..5 {
                 let mut stable = StableRules::new();
                 assert!(!stable.stable(rule));
@@ -796,7 +816,10 @@ mod contract_tests {
                 stable.record(Rule::InlineSingleCalls, &Change { edited: true, domains: 1 << domain });
                 let invalidated = match rule {
                     Rule::FoldLiteralOperations => matches!(domain, 0 | 4),
-                    _ => matches!(domain, 0 | 1 | 3),
+                    Rule::ElideUndefined | Rule::DropUnreachable => matches!(domain, 0 | 1 | 3),
+                    Rule::DropDoubleNegations | Rule::JoinEmptyDeclarations => domain != 2,
+                    Rule::DropBareBlocks => matches!(domain, 1 | 2 | 4),
+                    _ => true,
                 };
                 assert_eq!(stable.stable(rule), !invalidated, "{rule:?}, domain {domain}");
                 assert!(!stable.stable(Rule::InlineSingleCalls));
@@ -814,26 +837,58 @@ mod contract_tests {
     #[test]
     fn q2_stable_target_work_replay_matches_cold_success_and_partial_refusals() {
         use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
-        let mut source = Module::default();
-        for value in 0..8 {
-            let id = source.expression(Expr::Literal(Literal::Number(value as f64)), None);
-            source.regions[0].statements.push(Statement::Evaluate(id));
-        }
-        for rule in [Rule::FoldLiteralOperations, Rule::ElideUndefined, Rule::DropUnreachable] {
-            for work in 0..45 {
-                for bytes in [1, 16, 1_000_000] {
-                    let runs = [false, true].map(|stable| {
+        let ledger = |work, bytes| BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+            baseline_work: work, optional_work: 0, baseline_retained_bytes: 0, retained_bytes: bytes,
+        }).unwrap();
+        for rule in Rule::ALL.into_iter().filter(|&rule| StableRules::dependencies(rule) != 31) {
+            let mut source = Module::default();
+            for value in 0..8 {
+                let id = source.expression(Expr::Literal(Literal::Number(value as f64)), None);
+                source.regions[0].statements.push(Statement::Evaluate(id));
+            }
+            source.run_rules(&[rule], &local_context(), &mut AllocationBudget::new(None)).unwrap();
+            let mut measuring = ledger(1_000_000, 1_000_000);
+            let receipt = {
+                let mut budget = AllocationBudget::new(Some((&mut measuring, WorkDomain::Baseline)));
+                let (change, receipt) = budget.record(|budget|
+                    source.apply_rule(rule, &local_context(), budget)).unwrap();
+                assert!(!change.edited);
+                let receipt = receipt.unwrap();
+                assert_eq!(receipt.live_bytes(), 0);
+                receipt
+            };
+            assert_eq!(measuring.retained_bytes(), 0);
+            let mut stable = StableRules::new();
+            stable.record(rule, &Change::default());
+            stable.admissions[rule as usize] = Some(receipt);
+            stable.shapes[rule as usize] = StableRules::shape(&source);
+            assert!(stable.admission(rule, &source).is_some());
+            // Journal admission also depends on arenas outside the semantic
+            // mask. An unrelated arena growing must invalidate the stage.
+            for domain in 0..5 {
+                stable.shapes[rule as usize][domain] += 1;
+                assert!(stable.admission(rule, &source).is_none());
+                stable.shapes[rule as usize][domain] -= 1;
+            }
+            for work in (0..45).chain([1_000_000]) {
+                for bytes in [0, 1, 16, 1_000_000] {
+                    let runs = [false, true].map(|reuse| {
                         let mut module = source.clone();
-                        let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
-                            baseline_work: work, optional_work: 0, baseline_retained_bytes: 0, retained_bytes: bytes,
-                        }).unwrap();
-                        let result = {
-                            let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
-                            module.apply_rule(rule, &local_context(), &mut budget, stable)
+                        let mut owner = ledger(work, bytes);
+                        let mut executed = false;
+                        let result: Result<Change, RuleError> = {
+                            let mut budget = AllocationBudget::new(Some((&mut owner, WorkDomain::Baseline)));
+                            budget.replay(&receipt, || {
+                                executed = true;
+                                if reuse { Ok(Change::default()) }
+                                else { module.apply_rule(rule, &local_context(), &mut AllocationBudget::new(None)) }
+                            })
                         };
-                        assert_eq!(ledger.retained_bytes(), 0);
+                        assert_eq!(executed, result.is_ok());
+                        assert_eq!(owner.retained_bytes(), 0);
                         assert_eq!(module, source);
-                        (result.is_ok(), result.err().map(|error| format!("{error:?}")), ledger.work_used(WorkDomain::Baseline), ledger.peak_retained_bytes())
+                        (result.is_ok(), result.err().map(|error| format!("{error:?}")),
+                            owner.work_used(WorkDomain::Baseline), owner.peak_retained_bytes())
                     });
                     assert_eq!(runs[0], runs[1], "{rule:?}, work {work}, bytes {bytes}");
                 }
@@ -859,6 +914,32 @@ mod contract_tests {
     }
 
     #[test]
+    fn q2_statement_proof_survives_expression_edit_with_identical_admission() {
+        use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+        let mut source = Module::default();
+        let value = source.expression(Expr::Host(Host::new("input")), None);
+        let once = source.expression(Expr::Unary { op: Unary::Not, value }, None);
+        let twice = source.expression(Expr::Unary { op: Unary::Not, value: once }, None);
+        source.regions[0].statements.push(Statement::Evaluate(twice));
+        let runs = [false, true].map(|reuse_normalization| {
+            REUSED_PASSES.with(|count| count.set(0));
+            let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+                baseline_work: 1_000_000, optional_work: 0,
+                baseline_retained_bytes: 0, retained_bytes: 1_000_000,
+            }).unwrap();
+            let mut module = source.clone();
+            let rounds = module.run_rules(&[Rule::DropBareBlocks, Rule::DropDoubleNegations],
+                &Context { reuse_normalization, ..local_context() },
+                &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)))).unwrap();
+            assert_eq!(REUSED_PASSES.with(std::cell::Cell::get), u64::from(reuse_normalization));
+            assert_eq!(ledger.retained_bytes(), 0);
+            assert!(matches!(module.expressions[twice.index()], Expr::Host(_)));
+            (module, rounds, ledger.work_used(WorkDomain::Baseline), ledger.peak_retained_bytes())
+        });
+        assert_eq!(runs[0], runs[1]);
+    }
+
+    #[test]
     fn q2_rule_refusal_closes_and_releases_its_journal() {
         use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
         let mut module = Module::default();
@@ -874,7 +955,7 @@ mod contract_tests {
         let context = Context { reuse_normalization: true, rules: TargetRules::SEMANTIC, frames_hidden: true, strict: true,
             pristine: false, prunes: true, numeric_lengths: false, year: 2022,
             statements: StatementSpellings::NONE, choices: None, families: OutputFamilies::NONE };
-        assert!(module.apply_rule(Rule::PruneDeclarations, &context, &mut budget, false).is_err());
+        assert!(module.apply_rule(Rule::PruneDeclarations, &context, &mut budget).is_err());
         assert_eq!(module.take_journal().edits(), 0);
         assert_eq!(budget.retained_bytes(AllocationClass::Retained), 64);
         assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);

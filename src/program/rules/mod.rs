@@ -239,6 +239,23 @@ enum ProgramRule {
     DeadCode,
 }
 
+/// Complete input scopes. Whole-program consumers already inherit the shared
+/// scheduler's stable-suffix proof: an additional exact-program cache cannot
+/// hit, because a later edit invalidates its key and no later edit leaves it
+/// in the pending suffix. Local consumers can reuse across unrelated edits.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RuleInputs { Unit, Creation, Program }
+impl ProgramRule {
+    fn inputs(self) -> RuleInputs {
+        match self {
+            Self::Returns => RuleInputs::Unit,
+            Self::Unreachable => RuleInputs::Creation,
+            Self::Defaults | Self::Aggregates | Self::Forward | Self::Fold
+            | Self::Inline | Self::Parameters | Self::DeadCode => RuleInputs::Program,
+        }
+    }
+}
+
 /// Default preparation fills a missing argument once; the other rules remove
 /// operations, calls or owned aggregate storage. This one-way progress makes rounds
 /// are bounded by the program's size; inlining a chain of calls takes a
@@ -365,8 +382,8 @@ pub(crate) fn optimize_admitted<'src>(
         |editor, rule| {
             // These normalizers read only UnitData. Building a whole-program
             // effect graph first would defeat their local dependency contract.
-            if matches!(rule, ProgramRule::Returns | ProgramRule::Unreachable) {
-                let created = if matches!(rule, ProgramRule::Unreachable) {
+            if rule.inputs() != RuleInputs::Program {
+                let created = if rule.inputs() == RuleInputs::Creation {
                     Some(created_units_in(editor.program(), budget)?)
                 } else {
                     None

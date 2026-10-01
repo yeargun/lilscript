@@ -1,0 +1,46 @@
+
+running 21 tests
+test js::rules::contract_tests::q2_dirty_target_schedule_matches_disabled_reuse_after_later_region_edits ... ok
+test js::rules::contract_tests::q2_rule_refusal_closes_and_releases_its_journal ... ok
+test js::rules::contract_tests::q2_stable_target_rules_invalidate_only_with_complete_dependencies ... ok
+test js::rules::contract_tests::q2_stable_target_work_replay_matches_cold_success_and_partial_refusals ... FAILED
+test js::rules::contract_tests::shared_host_results_guard_equal_node_operator_progress ... ok
+test program::javascript::reprint_tests::q2_print_reuse_keys_keep_every_structural_assignment_and_joint_permission ... ok
+test program::javascript::reprint_tests::q2_print_variants_match_full_formation_and_fit_the_admitted_stage ... ok
+test program::publication::search::terminal::tests::q2_formation_reuse_preserves_each_objectives_admission_and_bytes ... ok
+test program::publication::search::terminal::tests::q2_normalization_reuse_preserves_logical_search_and_objective_bytes ... ok
+test program::rules::admission_tests::q2_exact_value_analysis_releases_answers_and_propagates_nested_refusals ... ok
+test program::rules::admission_tests::q2_global_stable_passes_preserve_behavior_and_complete_admission ... FAILED
+test program::rules::admission_tests::q2_legality_probes_distinguish_decline_from_refusal_and_drop_temporaries ... ok
+test program::rules::admission_tests::q2_source_edit_refusals_do_not_publish_partial_programs_or_leak_reservations ... ok
+test program::rules::admission_tests::q2_source_edits_publish_exact_storage_across_grafts_signatures_and_aggregates ... ok
+test program::rules::admission_tests::q2_source_shared_body_and_tables_keep_old_reservations_until_readers_drop ... ok
+test program::rules::admission_tests::q2_stable_local_plans_replay_identical_logical_work_and_peak_storage ... ok
+test program::rules::call_tests::s3_native_inlined_closure_owns_its_captured_bank_after_return ... ok
+test program::rules::tests::cold_and_reused_rule_views_preserve_decisions_bytes_and_execution ... ok
+test program::rules::tests::default_transport_preserves_callee_guards_and_argument_effects ... ok
+test program::rules::tests::host_annotations_do_not_authorize_common_coercions ... ok
+test timing::tests::semantic_phase_timing_is_observational_and_covers_refusal ... ok
+
+failures:
+
+---- js::rules::contract_tests::q2_stable_target_work_replay_matches_cold_success_and_partial_refusals stdout ----
+
+thread 'js::rules::contract_tests::q2_stable_target_work_replay_matches_cold_success_and_partial_refusals' (1129034) panicked at src/js/rules.rs:842:17:
+assertion `left == right` failed
+  left: 204
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- program::rules::admission_tests::q2_global_stable_passes_preserve_behavior_and_complete_admission stdout ----
+
+thread 'program::rules::admission_tests::q2_global_stable_passes_preserve_behavior_and_complete_admission' (1129198) panicked at src/program/rules/admission_tests.rs:356:5:
+the fixture must reuse an empty global pass
+
+
+failures:
+    js::rules::contract_tests::q2_stable_target_work_replay_matches_cold_success_and_partial_refusals
+    program::rules::admission_tests::q2_global_stable_passes_preserve_behavior_and_complete_admission
+
+test result: FAILED. 19 passed; 2 failed; 0 ignored; 0 measured; 2038 filtered out; finished in 23.96s
+

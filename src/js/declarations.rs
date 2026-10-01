@@ -45,9 +45,13 @@ impl Module {
                         });
                         if let Some(at) = target {
                             budget.work(Analysis, (index - at) as u64)?;
-                            let named = self.regions[region].statements[at + 1..index]
-                                .iter()
-                                .any(|statement| self.statement_mentions(statement, binding));
+                            let mut named = false;
+                            for statement in &self.regions[region].statements[at + 1..index] {
+                                if self.statement_mentions_in(statement, binding, budget)? {
+                                    named = true;
+                                    break;
+                                }
+                            }
                             if !named {
                                 self.move_statement(region, index, at + 1);
                                 previous = Some(at + 1);

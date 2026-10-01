@@ -196,6 +196,27 @@ G1 can proceed on the current target tree. G2 depends on the reflected set and C
 | <a id="q3"></a>Q3 | Independent raw/gzip/Brotli policies, calibrated estimates/proxies and useful effort tiers | C3 calibration; bounded exploration; protected incumbents across levels; bytes earned per added judgment and CPU cost |
 | <a id="q4"></a>Q4 | Const data, helper ownership, pooling/encoding/layout choices and bounded specialization over static schemas | Full decoder/helper bytes counted; data exactness checked; startup, memory and hot-path costs measured; all family permissions honored |
 
+Q2's reuse boundary is a complete proved dependency set, not merely a source
+unit's own revision. Shared candidate demand/heads, immutable fact components,
+completed target tails and changed print sites supply those boundaries. A source
+edit can change callee effects, storage, captures, helper ownership and global
+binding identities in another unit: lowering only the textually changed unit is
+not a sound default. Structural changes re-form when their demand or target
+contract changes. Arbitrary target-fragment relocation is not a completion gate;
+a future proposal must establish its dependency closure and measured benefit.
+The recorded markedlil trace has four demand analyses (73 ms) against 1,254
+physical formations (43 s, almost all target rules), so a new source-fragment
+protocol would not address that measured repeated-tail cost. This is a mechanism
+correction, not a claim that arbitrary changed-source-unit reuse is implemented.
+
+Per-module elaboration reuse belongs to D3's shared module/session owner. The
+current checked model borrows its source/AST and shares canonical declarations,
+module interfaces and initialization order. Retaining a module by text hash
+without those identities would be unsound; adding an independent checker cache
+before the graph clients are unified would duplicate the owner. D3 must implement
+that reuse with the graph integration, including dependency invalidation, LSP
+edits and cold/reused diagnostic parity. Whole-build persistence remains Q2.
+
 Q2 starts from the repeated formation/scoring already observed in markedlil. Q1 migrates a family when its next useful optimization needs the common interface. Q3 does not require every Q1 family to exist first. Q4 needs the relevant const/identity facts from S4 and runtime coverage from C2. More complex search must demonstrate extra opportunities and a useful tradeoff.
 
 ### D. Delivery and integration

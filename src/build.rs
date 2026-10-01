@@ -1068,6 +1068,8 @@ impl<'src> CheckedSourceSession<'src> {
                 "codec_work":ledger.work_by_kind(WorkKind::Codec),"peak_retained_bytes":ledger.peak_retained_bytes(),
                 "frontend_logical_work":frontend_work,
                 "frontend_allocation_accounting":"partial",
+                "target_allocation_accounting":"partial",
+                "target_allocation_scope":"complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
                 "source_buffer_accounting":if source_buffer_bytes.is_some() {"pre-admitted stable arena backing; insertion String overlap charged"} else {"caller-owned text; excluded"},
                 "source_buffer_capacity":source_buffer_bytes,
                 "frontend_phase_accounting":{

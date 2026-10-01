@@ -1,0 +1,618 @@
+diff --git a/src/build.rs b/src/build.rs
+index e6844f78..9874e30b 100644
+--- a/src/build.rs
++++ b/src/build.rs
+@@ -1068,6 +1068,8 @@ impl<'src> CheckedSourceSession<'src> {
+                 "codec_work":ledger.work_by_kind(WorkKind::Codec),"peak_retained_bytes":ledger.peak_retained_bytes(),
+                 "frontend_logical_work":frontend_work,
+                 "frontend_allocation_accounting":"partial",
++                "target_allocation_accounting":"partial",
++                "target_allocation_scope":"complete retained target copies, journals, delivery plans, render/artifact buffers and covered analysis/normalization owners are admitted; remaining legacy rule scratch, some initial-formation metadata and external admission-parser allocations are not allocation-exact",
+                 "source_buffer_accounting":if source_buffer_bytes.is_some() {"pre-admitted stable arena backing; insertion String overlap charged"} else {"caller-owned text; excluded"},
+                 "source_buffer_capacity":source_buffer_bytes,
+                 "frontend_phase_accounting":{
+diff --git a/src/compilation_policy.rs b/src/compilation_policy.rs
+index 553f253d..d16496fc 100644
+--- a/src/compilation_policy.rs
++++ b/src/compilation_policy.rs
+@@ -41,8 +41,8 @@ pub const LEGACY_POLICY_VERSION: u32 = 2;
+ // Version51 admits delivery placement, trials, simulation and setter payloads.
+ // Version55 admits shared source analyses and deterministic effect-summary stages.
+ // Version56 admits primitive/aggregate/default facts and forwarding/liveness plans.
+-// Version62 reuses single-file target structure across print-site assignments.
+-pub const POLICY_ALGORITHM_VERSION: u32 = 62;
++// Version63 qualifies six target-local proofs with complete dependency and storage keys.
++pub const POLICY_ALGORITHM_VERSION: u32 = 63;
+ // Version22 admits state reclamation visits, including physical artifact slots,
+ // instead of reserving a worst-case Cartesian scan before any inspection.
+ // Version18 admits and releases Analyzer scope and callable-context backing.
+diff --git a/src/js/blocks.rs b/src/js/blocks.rs
+index ad442aac..06c92865 100644
+--- a/src/js/blocks.rs
++++ b/src/js/blocks.rs
+@@ -42,9 +42,8 @@ impl Module {
+                     }
+                 }
+                 self.reparent_scopes(inner_scope, outer_scope);
+-                let moved = std::mem::take(self.statements_mut(inner.index()));
+-                let count = moved.len();
+-                self.statements_mut(region).splice(index..=index, moved);
++                let count = self.regions[inner.index()].statements.len();
++                self.splice_block(region, index, inner, budget)?;
+                 flattened += 1;
+                 // The spliced statements may hold blocks of their own.
+                 if count == 0 {
+@@ -65,51 +64,65 @@ impl Module {
+         budget: &mut AllocationBudget<'_>,
+     ) -> Result<usize, AllocationError> {
+         use crate::compilation_policy::WorkKind::Analysis;
+-        budget.work(Analysis, (self.bindings.len() + self.scopes.len()) as u64)?;
+-        let mut declares = vec![false; self.scopes.len()];
+-        for binding in &self.bindings {
+-            if let Some(declared) = declares.get_mut(binding.scope.index()) {
+-                *declared = true;
++        budget.with_temporary_context(self, |module, budget| {
++            budget.work(Analysis, (module.bindings.len() + module.scopes.len()) as u64)?;
++            let mut declares = budget.filled(AllocationClass::Retained, module.scopes.len(), false)?;
++            for binding in &module.bindings {
++                if let Some(declared) = declares.get_mut(binding.scope.index()) { *declared = true; }
+             }
+-        }
+-        let mut dropped = 0;
+-        for region in 0..self.regions.len() {
+-            if region == self.root.index() {
+-                continue;
+-            }
+-            let mut index = 0;
+-            while index < self.regions[region].statements.len() {
+-                budget.work(Analysis, 1)?;
+-                let Statement::Block(inner) = self.regions[region].statements[index] else {
+-                    index += 1;
++            Ok(declares)
++        }, |declares, module, budget| {
++            let mut dropped = 0;
++            for region in 0..module.regions.len() {
++                if region == module.root.index() {
+                     continue;
+-                };
+-                let inner_scope = self.regions[inner.index()].scope;
+-                let bare = inner.index() != region
+-                    && !declares.get(inner_scope.index()).copied().unwrap_or(true)
+-                    && !self.regions[inner.index()]
+-                        .statements
+-                        .iter()
+-                        .any(|statement| {
+-                            matches!(
+-                                statement,
+-                                Statement::Let { .. } | Statement::Function { .. }
+-                            )
++                }
++                let mut index = 0;
++                while index < module.regions[region].statements.len() {
++                    budget.work(Analysis, 1)?;
++                    let Statement::Block(inner) = module.regions[region].statements[index] else {
++                        index += 1;
++                        continue;
++                    };
++                    let inner_scope = module.regions[inner.index()].scope;
++                    let bare = inner.index() != region
++                        && !declares.get(inner_scope.index()).copied().unwrap_or(true)
++                        && !module.regions[inner.index()]
++                            .statements
++                            .iter()
++                            .any(|statement| {
++                                matches!(
++                                    statement,
++                                    Statement::Let { .. } | Statement::Function { .. }
++                                )
+                         });
+                 if !bare {
+                     index += 1;
+                     continue;
+                 }
+-                let outer_scope = self.regions[region].scope;
+-                budget.work(Analysis, self.scopes.len() as u64)?;
+-                self.reparent_scopes(inner_scope, outer_scope);
+-                let moved = std::mem::take(self.statements_mut(inner.index()));
+-                self.statements_mut(region).splice(index..=index, moved);
++                let outer_scope = module.regions[region].scope;
++                budget.work(Analysis, module.scopes.len() as u64)?;
++                module.splice_block(region, index, inner, budget)?;
++                module.reparent_scopes(inner_scope, outer_scope);
+                 dropped += 1;
+                 // The spliced statements may be bare blocks themselves.
+             }
+         }
+         Ok(dropped)
++        })
++    }
++
++    /// Move the contents while both region buffers belong to the target owner.
++    fn splice_block(
++        &mut self, region: usize, index: usize, inner: RegionId,
++        budget: &mut AllocationBudget<'_>,
++    ) -> Result<(), AllocationError> {
++        let additional = self.regions[inner.index()].statements.len().saturating_sub(1);
++        budget.reserve_vec(AllocationClass::Retained, &mut self.regions[region].statements, additional)?;
++        let moved = std::mem::take(self.statements_mut(inner.index()));
++        let bytes = crate::output_budget::vector_bytes(&moved)?;
++        self.statements_mut(region).splice(index..=index, moved);
++        budget.release(AllocationClass::Retained, bytes)
+     }
+ 
+     fn flattenable(&self, inner: RegionId) -> bool {
+diff --git a/src/js/declarations.rs b/src/js/declarations.rs
+index 49b89651..ca52fecb 100644
+--- a/src/js/declarations.rs
++++ b/src/js/declarations.rs
+@@ -45,9 +45,13 @@ impl Module {
+                         });
+                         if let Some(at) = target {
+                             budget.work(Analysis, (index - at) as u64)?;
+-                            let named = self.regions[region].statements[at + 1..index]
+-                                .iter()
+-                                .any(|statement| self.statement_mentions(statement, binding));
++                            let mut named = false;
++                            for statement in &self.regions[region].statements[at + 1..index] {
++                                if self.statement_mentions_in(statement, binding, budget)? {
++                                    named = true;
++                                    break;
++                                }
++                            }
+                             if !named {
+                                 self.move_statement(region, index, at + 1);
+                                 previous = Some(at + 1);
+diff --git a/src/js/mentions.rs b/src/js/mentions.rs
+index 08cc9359..d448ea37 100644
+--- a/src/js/mentions.rs
++++ b/src/js/mentions.rs
+@@ -86,6 +86,20 @@ enum Pending {
+ }
+ 
+ impl Module {
++    /// A bounded query for declaration motion. The complete nested walk owns
++    /// its scratch and releases the collected set on either answer/refusal.
++    pub(super) fn statement_mentions_in(
++        &self,
++        statement: &Statement,
++        binding: BindingId,
++        budget: &mut AllocationBudget<'_>,
++    ) -> Result<bool, AllocationError> {
++        let mut scope = budget.scope();
++        let bindings = self.statement_bindings(statement, &mut scope)?;
++        scope.work(Analysis, bindings.len().max(1).ilog2() as u64 + 1)?;
++        Ok(bindings.binary_search(&binding).is_ok())
++    }
++
+     fn statement_bindings(
+         &self,
+         statement: &Statement,
+diff --git a/src/js/mod.rs b/src/js/mod.rs
+index 590926b0..454dc5b4 100644
+--- a/src/js/mod.rs
++++ b/src/js/mod.rs
+@@ -1696,9 +1696,11 @@ impl Module {
+         budget: &mut AllocationBudget<'_>,
+     ) -> Result<usize, AllocationError> {
+         use crate::compilation_policy::WorkKind::Analysis;
++        let mut phase = budget.scope();
++        let budget = &mut phase;
+         let mut edits = 0;
+-        let mut regions = vec![self.root];
+-        let mut seen = vec![false; self.regions.len()];
++        let mut regions = budget.copy_slice(AllocationClass::Scratch, &[self.root])?;
++        let mut seen = budget.filled(AllocationClass::Scratch, self.regions.len(), false)?;
+         let mut pending: Vec<(ExprId, bool)> = Vec::new();
+         while let Some(region) = regions.pop() {
+             budget.work(Analysis, 1)?;
+@@ -1708,6 +1710,13 @@ impl Module {
+             for index in 0..self.regions[region.index()].statements.len() {
+                 budget.work(Analysis, 1)?;
+                 let statement = &self.regions[region.index()].statements[index];
++                let mut roots = 0;
++                statement.visit_expressions(|_| roots += 1);
++                budget.reserve_vec(AllocationClass::Scratch, &mut pending, roots)?;
++                let mut children = 0;
++                statement.visit_regions(|_| children += 1);
++                children += usize::from(matches!(statement, Statement::Function { .. }));
++                budget.reserve_vec(AllocationClass::Scratch, &mut regions, children)?;
+                 match statement {
+                     Statement::If { condition, .. } => pending.push((*condition, true)),
+                     Statement::Loop {
+@@ -1742,49 +1751,49 @@ impl Module {
+                             else {
+                                 break;
+                             };
+-                            let node = self.expressions[twice.index()].clone();
++                            let node = self.expressions[twice.index()].clone_in(budget)?;
+                             self.set_expression(id, node);
+                             edits += 1;
+                         }
+                     }
+                     let expression = &self.expressions[id.index()];
+                     for function in expression.created_functions() {
+-                        regions.push(self.functions[function.index()].body);
++                        budget.push(AllocationClass::Scratch, &mut regions, self.functions[function.index()].body)?;
+                     }
+                     match *expression {
+                         Expr::Unary {
+                             op: Unary::Not,
+                             value,
+-                        } => pending.push((value, true)),
++                        } => budget.push(AllocationClass::Scratch, &mut pending, (value, true))?,
+                         Expr::Binary {
+                             op: Binary::And | Binary::Or,
+                             left,
+                             right,
+                         } => {
+-                            pending.push((left, truth));
+-                            pending.push((right, truth));
++                            budget.push(AllocationClass::Scratch, &mut pending, (left, truth))?;
++                            budget.push(AllocationClass::Scratch, &mut pending, (right, truth))?;
+                         }
+                         Expr::Conditional { condition, yes, no } => {
+-                            pending.push((condition, true));
+-                            pending.push((yes, truth));
+-                            pending.push((no, truth));
++                            budget.push(AllocationClass::Scratch, &mut pending, (condition, true))?;
++                            budget.push(AllocationClass::Scratch, &mut pending, (yes, truth))?;
++                            budget.push(AllocationClass::Scratch, &mut pending, (no, truth))?;
+                         }
+                         Expr::Sequence(ref items) => {
+                             let last = items.len().saturating_sub(1);
+                             for (position, item) in items.iter().enumerate() {
+-                                pending.push((*item, position != last || truth));
++                                budget.push(AllocationClass::Scratch, &mut pending, (*item, position != last || truth))?;
+                             }
+                         }
+                         _ => {
+-                            let _ = expression.visit_children(|child| {
+-                                pending.push((child, false));
+-                                Ok::<_, ()>(())
+-                            });
++                            expression.visit_children(|child|
++                                budget.push(AllocationClass::Scratch, &mut pending, (child, false)))?;
+                         }
+                     }
+                 }
+             }
+         }
++        drop((regions, seen, pending));
++        phase.finish_retained()?;
+         Ok(edits)
+     }
+ 
+diff --git a/src/js/rules.rs b/src/js/rules.rs
+index a194cb23..25665113 100644
+--- a/src/js/rules.rs
++++ b/src/js/rules.rs
+@@ -29,6 +29,8 @@ macro_rules! declare_rules {
+         /// One rule of the JavaScript target.
+         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+         pub(crate) enum Rule { $($rule),+ }
++        #[cfg(test)]
++        impl Rule { const ALL: [Self; [$(stringify!($rule)),+].len()] = [$(Self::$rule),+]; }
+         static RULE_TIMINGS: [crate::timing::Bucket; [$(stringify!($rule)),+].len()] = [
+             $(crate::timing::Bucket::new(concat!("js_rule_", stringify!($rule)))),+
+         ];
+@@ -228,25 +230,42 @@ impl Context<'_> {
+ #[derive(Default)]
+ struct Change { edited: bool, domains: u8 }
+ 
+-/// Only rules with an explicit complete dependency mask and cold-work replay
+-/// participate. Cross-function rules conservatively run on every pending round.
++/// Complete dependency epochs for every target rule. The six local rules
++/// have narrower proved masks; all other producers conservatively depend on
++/// the entire target. Empty, fully funded passes retain complete-stage bills.
+ struct StableRules {
+     epochs: [u64; 5],
+     seen: [Option<[u64; 5]>; RULE_TIMINGS.len()],
++    admissions: [Option<crate::admission_replay::Receipt>; RULE_TIMINGS.len()],
++    shapes: [[usize; 5]; RULE_TIMINGS.len()],
+ }
+ impl StableRules {
+-    fn new() -> Self { Self { epochs: [0; 5], seen: [None; RULE_TIMINGS.len()] } }
+-    fn stamp(&self, rule: Rule) -> Option<[u64; 5]> {
+-        let mask = match rule {
++    fn new() -> Self { Self { epochs: [0; 5], seen: [None; RULE_TIMINGS.len()], admissions: [None; RULE_TIMINGS.len()], shapes: [[0; 5]; RULE_TIMINGS.len()] } }
++    fn dependencies(rule: Rule) -> u8 {
++        match rule {
+             Rule::FoldLiteralOperations => 1 | 16, // nodes and observed-literal tables
+             Rule::ElideUndefined | Rule::DropUnreachable => 1 | 2 | 8,
+-            _ => return None,
+-        };
++            Rule::DropDoubleNegations | Rule::JoinEmptyDeclarations => 1 | 2 | 8 | 16,
++            Rule::DropBareBlocks => 2 | 4 | 16,
++            _ => 31,
++        }
++    }
++    fn stamp(&self, rule: Rule) -> Option<[u64; 5]> {
++        let mask = Self::dependencies(rule);
+         Some(std::array::from_fn(|index| if mask & (1 << index) != 0 { self.epochs[index] } else { 0 }))
+     }
+     fn stable(&self, rule: Rule) -> bool {
+         self.stamp(rule).is_some_and(|stamp| self.seen[rule as usize] == Some(stamp))
+     }
++    fn shape(module: &Module) -> [usize; 5] {
++        [module.expressions.len(), module.regions.len(), module.bindings.len(),
++            module.functions.len(), module.scopes.len()]
++    }
++    fn admission(&self, rule: Rule, module: &Module) -> Option<crate::admission_replay::Receipt> {
++        // Even a narrower semantic proof owns a journal sized from all arenas.
++        (self.stable(rule) && self.shapes[rule as usize] == Self::shape(module))
++            .then(|| self.admissions[rule as usize]).flatten()
++    }
+     fn record(&mut self, rule: Rule, change: &Change) {
+         for index in 0..5 {
+             if change.domains & (1 << index) != 0 {
+@@ -259,6 +278,8 @@ impl StableRules {
+ }
+ 
+ static STABLE_RULE_REUSE: crate::timing::Bucket = crate::timing::Bucket::new("js_rule_reuse");
++#[cfg(test)]
++thread_local! { static REUSED_PASSES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) }; }
+ 
+ /// Rounds a rule set may take. Each rule's edits remove or move structure,
+ /// so a few rounds reach the fixed point on every tree formation produces;
+@@ -455,12 +476,32 @@ impl Module {
+                 {
+                     return Ok(false);
+                 }
+-                let reuse = context.reuse_normalization && crate::schedule::reuses_stability() && stable.stable(rule);
+-                let change = module.apply_rule(rule, context, budget, reuse)?;
++                let (change, admission) = if let Some(admission) = stable.admission(rule, module) {
++                    let change = budget.replay(&admission, || {
++                        if context.reuse_normalization && crate::schedule::reuses_stability() {
++                            let _timing = STABLE_RULE_REUSE.scope(0);
++                            #[cfg(test)]
++                            REUSED_PASSES.with(|count| count.set(count.get() + 1));
++                            Ok(Change::default())
++                        } else {
++                            module.apply_rule(rule, context, &mut AllocationBudget::new(None))
++                        }
++                    })?;
++                    (change, Some(admission))
++                } else if StableRules::dependencies(rule) != 31 {
++                    budget.record(|budget| module.apply_rule(rule, context, budget))?
++                } else {
++                    // The scheduler already skips an unchanged whole-tree
++                    // suffix. Recording a second global proof can never hit.
++                    (module.apply_rule(rule, context, budget)?, None)
++                };
+                 if change.edited {
+                     last_edited.set(Some(rule));
+                 }
+                 stable.record(rule, &change);
++                stable.admissions[rule as usize] = admission.filter(|stage|
++                    !change.edited && stage.live_bytes() == 0);
++                stable.shapes[rule as usize] = StableRules::shape(module);
+                 head_unchanged &= !change.edited;
+                 Ok(change.edited)
+             },
+@@ -485,18 +526,17 @@ impl Module {
+         rule: Rule,
+         context: &Context<'_>,
+         budget: &mut AllocationBudget<'_>,
+-        stable: bool,
+     ) -> Result<Change, RuleError> {
+         if !rule.permitted(context) {
+             return Ok(Change::default());
+         }
+-        let _timing = if stable { STABLE_RULE_REUSE.scope(0) } else { crate::timing::JS_RULE.scope(0) };
+-        let _rule_timing = (!stable).then(|| RULE_TIMINGS[rule as usize].scope(0));
++        let _timing = crate::timing::JS_RULE.scope(0);
++        let _rule_timing = RULE_TIMINGS[rule as usize].scope(0);
+         let lengths = [self.expressions.len(), self.regions.len(), self.bindings.len(), self.functions.len(), self.scopes.len()];
+         #[cfg(any(test, debug_assertions))]
+         let before = (self.clone(), self.measure(rule.progress()));
+         self.open_journal_admitted(budget)?;
+-        let result = if stable { self.replay_stable_rule(rule, context, budget) } else { self.run_rule(rule, context, budget) };
++        let result = self.run_rule(rule, context, budget);
+         let journal = self.take_journal();
+         let outcome = (|| {
+             result?;
+@@ -530,26 +570,6 @@ impl Module {
+         outcome
+     }
+ 
+-    /// Same logical calls and journal admission as an unchanged cold pass.
+-    /// Replay preserves partial work-limit refusal as well as completed bills.
+-    fn replay_stable_rule(&self, rule: Rule, context: &Context<'_>, budget: &mut AllocationBudget<'_>) -> Result<(), AllocationError> {
+-        use crate::compilation_policy::WorkKind::Analysis;
+-        match rule {
+-            Rule::FoldLiteralOperations => {
+-                if context.folds_literals() { budget.work(Analysis, self.expressions.len() as u64)?; }
+-            }
+-            Rule::ElideUndefined | Rule::DropUnreachable => {
+-                if rule == Rule::DropUnreachable {
+-                    for region in &self.regions { budget.work(Analysis, 1 + region.statements.len() as u64)?; }
+-                }
+-                for region in &self.regions { budget.work(Analysis, 1 + region.statements.len() as u64)?; }
+-                budget.work(Analysis, self.functions.len() as u64)?;
+-            }
+-            _ => unreachable!("only classified stable rules can replay"),
+-        }
+-        Ok(())
+-    }
+-
+     /// Reachable progress only: dead arena nodes cannot hide an edit. Node
+     /// normalization orders functions before nodes; other rules use the
+     /// specific observation they retire, then nodes to break ties.
+@@ -787,7 +807,7 @@ mod contract_tests {
+ 
+     #[test]
+     fn q2_stable_target_rules_invalidate_only_with_complete_dependencies() {
+-        for rule in [Rule::FoldLiteralOperations, Rule::ElideUndefined, Rule::DropUnreachable] {
++        for rule in Rule::ALL {
+             for domain in 0..5 {
+                 let mut stable = StableRules::new();
+                 assert!(!stable.stable(rule));
+@@ -796,7 +816,10 @@ mod contract_tests {
+                 stable.record(Rule::InlineSingleCalls, &Change { edited: true, domains: 1 << domain });
+                 let invalidated = match rule {
+                     Rule::FoldLiteralOperations => matches!(domain, 0 | 4),
+-                    _ => matches!(domain, 0 | 1 | 3),
++                    Rule::ElideUndefined | Rule::DropUnreachable => matches!(domain, 0 | 1 | 3),
++                    Rule::DropDoubleNegations | Rule::JoinEmptyDeclarations => domain != 2,
++                    Rule::DropBareBlocks => matches!(domain, 1 | 2 | 4),
++                    _ => true,
+                 };
+                 assert_eq!(stable.stable(rule), !invalidated, "{rule:?}, domain {domain}");
+                 assert!(!stable.stable(Rule::InlineSingleCalls));
+@@ -814,26 +837,58 @@ mod contract_tests {
+     #[test]
+     fn q2_stable_target_work_replay_matches_cold_success_and_partial_refusals() {
+         use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+-        let mut source = Module::default();
+-        for value in 0..8 {
+-            let id = source.expression(Expr::Literal(Literal::Number(value as f64)), None);
+-            source.regions[0].statements.push(Statement::Evaluate(id));
+-        }
+-        for rule in [Rule::FoldLiteralOperations, Rule::ElideUndefined, Rule::DropUnreachable] {
+-            for work in 0..45 {
+-                for bytes in [1, 16, 1_000_000] {
+-                    let runs = [false, true].map(|stable| {
++        let ledger = |work, bytes| BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
++            baseline_work: work, optional_work: 0, baseline_retained_bytes: 0, retained_bytes: bytes,
++        }).unwrap();
++        for rule in Rule::ALL.into_iter().filter(|&rule| StableRules::dependencies(rule) != 31) {
++            let mut source = Module::default();
++            for value in 0..8 {
++                let id = source.expression(Expr::Literal(Literal::Number(value as f64)), None);
++                source.regions[0].statements.push(Statement::Evaluate(id));
++            }
++            source.run_rules(&[rule], &local_context(), &mut AllocationBudget::new(None)).unwrap();
++            let mut measuring = ledger(1_000_000, 1_000_000);
++            let receipt = {
++                let mut budget = AllocationBudget::new(Some((&mut measuring, WorkDomain::Baseline)));
++                let (change, receipt) = budget.record(|budget|
++                    source.apply_rule(rule, &local_context(), budget)).unwrap();
++                assert!(!change.edited);
++                let receipt = receipt.unwrap();
++                assert_eq!(receipt.live_bytes(), 0);
++                receipt
++            };
++            assert_eq!(measuring.retained_bytes(), 0);
++            let mut stable = StableRules::new();
++            stable.record(rule, &Change::default());
++            stable.admissions[rule as usize] = Some(receipt);
++            stable.shapes[rule as usize] = StableRules::shape(&source);
++            assert!(stable.admission(rule, &source).is_some());
++            // Journal admission also depends on arenas outside the semantic
++            // mask. An unrelated arena growing must invalidate the stage.
++            for domain in 0..5 {
++                stable.shapes[rule as usize][domain] += 1;
++                assert!(stable.admission(rule, &source).is_none());
++                stable.shapes[rule as usize][domain] -= 1;
++            }
++            for work in (0..45).chain([1_000_000]) {
++                for bytes in [0, 1, 16, 1_000_000] {
++                    let runs = [false, true].map(|reuse| {
+                         let mut module = source.clone();
+-                        let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
+-                            baseline_work: work, optional_work: 0, baseline_retained_bytes: 0, retained_bytes: bytes,
+-                        }).unwrap();
+-                        let result = {
+-                            let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)));
+-                            module.apply_rule(rule, &local_context(), &mut budget, stable)
++                        let mut owner = ledger(work, bytes);
++                        let mut executed = false;
++                        let result: Result<Change, RuleError> = {
++                            let mut budget = AllocationBudget::new(Some((&mut owner, WorkDomain::Baseline)));
++                            budget.replay(&receipt, || {
++                                executed = true;
++                                if reuse { Ok(Change::default()) }
++                                else { module.apply_rule(rule, &local_context(), &mut AllocationBudget::new(None)) }
++                            })
+                         };
+-                        assert_eq!(ledger.retained_bytes(), 0);
++                        assert_eq!(executed, result.is_ok());
++                        assert_eq!(owner.retained_bytes(), 0);
+                         assert_eq!(module, source);
+-                        (result.is_ok(), result.err().map(|error| format!("{error:?}")), ledger.work_used(WorkDomain::Baseline), ledger.peak_retained_bytes())
++                        (result.is_ok(), result.err().map(|error| format!("{error:?}")),
++                            owner.work_used(WorkDomain::Baseline), owner.peak_retained_bytes())
+                     });
+                     assert_eq!(runs[0], runs[1], "{rule:?}, work {work}, bytes {bytes}");
+                 }
+@@ -858,6 +913,32 @@ mod contract_tests {
+         assert_eq!(runs[0].1, 2);
+     }
+ 
++    #[test]
++    fn q2_statement_proof_survives_expression_edit_with_identical_admission() {
++        use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
++        let mut source = Module::default();
++        let value = source.expression(Expr::Host(Host::new("input")), None);
++        let once = source.expression(Expr::Unary { op: Unary::Not, value }, None);
++        let twice = source.expression(Expr::Unary { op: Unary::Not, value: once }, None);
++        source.regions[0].statements.push(Statement::Evaluate(twice));
++        let runs = [false, true].map(|reuse_normalization| {
++            REUSED_PASSES.with(|count| count.set(0));
++            let mut ledger = BudgetLedger::new(ResourceLimits::default(), BudgetPlan {
++                baseline_work: 1_000_000, optional_work: 0,
++                baseline_retained_bytes: 0, retained_bytes: 1_000_000,
++            }).unwrap();
++            let mut module = source.clone();
++            let rounds = module.run_rules(&[Rule::DropBareBlocks, Rule::DropDoubleNegations],
++                &Context { reuse_normalization, ..local_context() },
++                &mut AllocationBudget::new(Some((&mut ledger, WorkDomain::Baseline)))).unwrap();
++            assert_eq!(REUSED_PASSES.with(std::cell::Cell::get), u64::from(reuse_normalization));
++            assert_eq!(ledger.retained_bytes(), 0);
++            assert!(matches!(module.expressions[twice.index()], Expr::Host(_)));
++            (module, rounds, ledger.work_used(WorkDomain::Baseline), ledger.peak_retained_bytes())
++        });
++        assert_eq!(runs[0], runs[1]);
++    }
++
+     #[test]
+     fn q2_rule_refusal_closes_and_releases_its_journal() {
+         use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
+@@ -874,7 +955,7 @@ mod contract_tests {
+         let context = Context { reuse_normalization: true, rules: TargetRules::SEMANTIC, frames_hidden: true, strict: true,
+             pristine: false, prunes: true, numeric_lengths: false, year: 2022,
+             statements: StatementSpellings::NONE, choices: None, families: OutputFamilies::NONE };
+-        assert!(module.apply_rule(Rule::PruneDeclarations, &context, &mut budget, false).is_err());
++        assert!(module.apply_rule(Rule::PruneDeclarations, &context, &mut budget).is_err());
+         assert_eq!(module.take_journal().edits(), 0);
+         assert_eq!(budget.retained_bytes(AllocationClass::Retained), 64);
+         assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
+diff --git a/src/program/rules/mod.rs b/src/program/rules/mod.rs
+index da8686cd..e2b4ad1b 100644
+--- a/src/program/rules/mod.rs
++++ b/src/program/rules/mod.rs
+@@ -239,6 +239,23 @@ enum ProgramRule {
+     DeadCode,
+ }
+ 
++/// Complete input scopes. Whole-program consumers already inherit the shared
++/// scheduler's stable-suffix proof: an additional exact-program cache cannot
++/// hit, because a later edit invalidates its key and no later edit leaves it
++/// in the pending suffix. Local consumers can reuse across unrelated edits.
++#[derive(Clone, Copy, PartialEq, Eq)]
++enum RuleInputs { Unit, Creation, Program }
++impl ProgramRule {
++    fn inputs(self) -> RuleInputs {
++        match self {
++            Self::Returns => RuleInputs::Unit,
++            Self::Unreachable => RuleInputs::Creation,
++            Self::Defaults | Self::Aggregates | Self::Forward | Self::Fold
++            | Self::Inline | Self::Parameters | Self::DeadCode => RuleInputs::Program,
++        }
++    }
++}
++
+ /// Default preparation fills a missing argument once; the other rules remove
+ /// operations, calls or owned aggregate storage. This one-way progress makes rounds
+ /// are bounded by the program's size; inlining a chain of calls takes a
+@@ -365,8 +382,8 @@ pub(crate) fn optimize_admitted<'src>(
+         |editor, rule| {
+             // These normalizers read only UnitData. Building a whole-program
+             // effect graph first would defeat their local dependency contract.
+-            if matches!(rule, ProgramRule::Returns | ProgramRule::Unreachable) {
+-                let created = if matches!(rule, ProgramRule::Unreachable) {
++            if rule.inputs() != RuleInputs::Program {
++                let created = if rule.inputs() == RuleInputs::Creation {
+                     Some(created_units_in(editor.program(), budget)?)
+                 } else {
+                     None
