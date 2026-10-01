@@ -1,0 +1,1 @@
+let a=(a,p)=>{let r=a.p[0]+p|0;a.p[0],a.p=[r,a.p[1]];return a.p[0]+a.p[1]|0},run=function(p){let r={p:[1,2]};return a(r,p)+a(r,2)|0};export{run};

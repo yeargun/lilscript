@@ -31,6 +31,7 @@ pub enum TypeKind<'ast, 'src> {
     Array(&'ast TypeRef<'ast, 'src>),
     Nullable(&'ast TypeRef<'ast, 'src>),
     Union(&'ast [TypeRef<'ast, 'src>]),
+    Intersection(&'ast [TypeRef<'ast, 'src>]),
     Function {
         params: &'ast [ParameterType<'ast, 'src>],
         return_type: &'ast TypeRef<'ast, 'src>,
@@ -174,6 +175,7 @@ pub struct StructDecl<'ast, 'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDecl<'ast, 'src> {
+    pub shape: bool,
     pub name: Ident<'src>,
     pub type_params: &'ast [Ident<'src>],
     pub base: Option<TypeRef<'ast, 'src>>,
@@ -224,6 +226,10 @@ pub struct ConstructorDecl<'ast, 'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldDecl<'ast, 'src> {
+    /// An immutable literal identifying a declared shape view.
+    pub discriminant: bool,
+    /// A shape accessor may run host code; ordinary fields are data.
+    pub accessor: bool,
     pub ty: TypeRef<'ast, 'src>,
     pub name: Ident<'src>,
     /// `T name = e;` (R3): the value every construction gives the field
@@ -758,6 +764,8 @@ pub enum ExprKind<'ast, 'src> {
         span: Span,
     },
     RecordLiteral {
+        /// A named shape literal shares ordered keyed entries with records.
+        name: Option<Ident<'src>>,
         entries: &'ast [RecordElement<'ast, 'src>],
         span: Span,
     },

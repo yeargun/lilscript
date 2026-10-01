@@ -1,0 +1,25 @@
+{
+  "exercise": "let reads=0,extra=0;const a=m.make(4),b=m.copy({kind:'text',start:7,get width(){reads++;return 9},get extra(){extra++;return 1}});m.setEnd(a,0);const present=Object.keys(a);m.setEnd(a,null);console.log(JSON.stringify([a,b,present,m.test(a),m.test(null),reads,extra]));",
+  "expected": [
+    {
+      "kind": "text",
+      "start": 4,
+      "width": 3
+    },
+    {
+      "kind": "text",
+      "start": 7,
+      "width": 9
+    },
+    [
+      "kind",
+      "start",
+      "width",
+      "end"
+    ],
+    true,
+    false,
+    1,
+    0
+  ]
+}

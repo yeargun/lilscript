@@ -1,0 +1,1 @@
+struct Point{int x;int y;}shape Holder{data Point p;}int count=0;Point next(){count+=1;return Point{count,9};}export Holder make(){return Holder{p:Point{2,3}};}export Point replace(Holder h){return h.p=next();}export void update(Holder h,func()->int rhs){h.p.x=rhs();}export int calls(){return count;}

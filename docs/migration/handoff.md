@@ -9,7 +9,21 @@ Checkout `/home/azureuser/lilscript`, branch `finer/059-idiom-directed-naming`.
 C1/C2/C3/S1/S2/S3/Q1/G1/G2/G3 are implemented. **S4 remains the sole active
 milestone**, under its [acceptance contract](s4-acceptance.md).
 
-The latest [S4 generic batch](../../benchmarks/migration-results/2026-10-01-s4-observed-generics/README.md)
+The latest [S4 shape batch](../../benchmarks/migration-results/2026-10-01-s4-shapes/README.md)
+pins `/home/azureuser/lilscript-work/bin/s4-shapes-1/lilscript`, SHA-256
+`a621b1ba460dce82fbc96924a6e48b80458f46803057614943326f31077c388b`.
+Algorithm 27 / search 31 / walk 10 / local facts 10. Declared shapes,
+intersections/spread, optional keys/defaults, tags and development data checks
+are implemented. Concrete public shape/class product storage preserves value
+copies, assignment results and reentrant updates. Eight focused checks and
+CLI/lint/LSP release builds pass; two matched controls stay at 388 raw / 299 gzip /
+246 Brotli, with two new capability oracles passing all three objectives.
+Next within S4: remaining R2 absence/boundary work (including unnecessary private
+optional-key handling), R8 enums/variants, R17 catalog, R18 erased generic/opaque
+transport and the shared fact-consumer audit. Unresolved erased public shape
+presence has a source diagnostic; native storage remains N2.
+
+The preceding [S4 generic batch](../../benchmarks/migration-results/2026-10-01-s4-observed-generics/README.md)
 pins `/home/azureuser/lilscript-work/bin/s4-observed-generics-1/lilscript`, SHA-256
 `45512001bcf799d2726a576cd77c9184675b3a5a4f2be90e5443d1d40af0d3b2`.
 Algorithm 26 / search 31 / walk 10 / local facts 10. Observed generic constructor,

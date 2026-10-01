@@ -149,7 +149,7 @@ fn fingerprint(
                         declaration.identity.hash(&mut hash);
                         args.len().hash(&mut hash);
                     }
-                    Type::Union(members) => members.len().hash(&mut hash),
+                    Type::Union(members) | Type::Intersection(members) => members.len().hash(&mut hash),
                     Type::ModuleNamespace(module) => module.hash(&mut hash),
                     Type::GenericFunction(function) => {
                         function.type_params.len().hash(&mut hash);

@@ -177,6 +177,18 @@ fn unequal<A: RelationAdmission>(
         (Type::Nullable(expected), actual) => {
             relate(expected, actual, RelationMode::Assignable, admission)
         }
+        (Type::Intersection(expected), actual) => {
+            for expected in expected {
+                if !relate(expected, actual, mode, admission)? { return Ok(false); }
+            }
+            Ok(true)
+        }
+        (expected, Type::Intersection(actual)) => {
+            for actual in actual {
+                if relate(expected, actual, mode, admission)? { return Ok(true); }
+            }
+            Ok(false)
+        }
         (Type::Union(expected), Type::Union(actual)) => {
             for actual in actual {
                 let mut covered = false;

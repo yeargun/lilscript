@@ -3586,6 +3586,7 @@ fn table_bytes(
                     capacity(&class.type_params)?,
                     capacity(&class.base_arguments)?,
                     capacity(&class.prototype)?,
+                    capacity(&class.accessors)?,
                 ])?;
             }
         }

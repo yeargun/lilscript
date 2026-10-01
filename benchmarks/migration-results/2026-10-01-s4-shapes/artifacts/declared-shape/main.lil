@@ -1,0 +1,1 @@
+shape Token{tag string kind="text";data int start;data int? end;accessor int width;}export Token make(int n){return Token{start:n,width:3};}export Token copy(Token t){return Token{...t};}export void setEnd(Token t,int? end){t.end=end;}export bool test(JsValue value){return value is Token;}

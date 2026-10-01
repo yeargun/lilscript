@@ -2534,6 +2534,10 @@ fn value_matches_type(value: &Value, target: TypeKind<'_, '_>) -> Option<bool> {
         TypeKind::Named { name: "Symbol", .. } => Some(matches!(value, Value::Symbol(_))),
         TypeKind::Nullable(_) if matches!(value, Value::Null) => Some(true),
         TypeKind::Nullable(inner) => value_matches_type(value, inner.kind),
+        TypeKind::Intersection(members) => {
+            for member in members { if !value_matches_type(value, member.kind)? { return Some(false); } }
+            Some(true)
+        },
         TypeKind::Union(members) => {
             let mut matches = false;
             for member in members {

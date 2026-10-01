@@ -269,7 +269,7 @@ impl Formation<'_, '_, '_, '_, '_> {
         };
         let (mut value, remaining) = match component {
             Some(component) => (component, &path[..path.len() - 1]),
-            None => (self.place(context, root)?, path.as_slice()),
+            None => (self.storage_read(context, root)?, path.as_slice()),
         };
         for recipe in remaining.iter().rev() {
             self.work(1)?;
@@ -388,6 +388,13 @@ impl Formation<'_, '_, '_, '_, '_> {
         path: Vec<FieldRecipe>,
         replacement: js::ExprId,
     ) -> Result<js::ExprId, FormationError> {
+        if let Some(ty) = self.public_storage_type(context, root)? {
+            let current = self.place(context, root)?;
+            let value = self.public_product_update(&ty, &path, current, replacement)?;
+            self.drop_scratch(path)?;
+            let target = self.place(context, root)?;
+            return self.expression(js::Expr::Assign { target, value });
+        }
         let mut checked_place = self.place(context, root)?;
         for recipe in path.iter().rev() {
             self.work(1)?;

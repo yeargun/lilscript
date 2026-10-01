@@ -61,7 +61,9 @@ Typed forms should remove avoidable representation and runtime costs, and declar
 - **Clause.** `v is C` and `v as? C` on classes whose identity is observed, extern classes, sealed and sum-type variants, and shapes with a declared discriminant.
 - **Replaces.** v0.1:470-477 ("guards … limited to runtime categories"), `src/check.rs:9540`.
 - **JS.** `instanceof` or a tag compare. **Native.** The existing immutable per-class destructor identity; no extra instance word.
-- **Status.** Internal class identity tests and checked casts are implemented on JavaScript and native. Shape discriminants and variants follow their R5/R8 producers.
+- **Status.** Internal class identity tests and checked casts are implemented
+  on JavaScript and native. JavaScript shapes declare an immutable literal
+  `tag` for `is`/`as?`; enum/sum variants follow R8.
 
 ---
 
@@ -114,7 +116,12 @@ Typed forms should remove avoidable representation and runtime costs, and declar
   - `extern class` stays for host-constructed objects with prototype methods. `Record<T>` stays for adversarial-key dictionaries (null prototype).
 - **Replaces.** v0.1:137-143 (`object {}` typed `JsValue`, spread unsupported), :82 (`object O`) for data, the D2 refusal of structs nested in collections at boundaries (shapes are references); `assume_pure_property_reads`, `preserve_properties` and `public_aggregate_abi` for declared data.
 - **JS.** Object literals and dotted reads; data reads may be forwarded and CSE'd. Spread lowers to JavaScript spread when the source is program-constructed, and to explicit keys when it may be host-admitted. **Native.** A record with a presence bitmask; host `accessor` fields are JavaScript-only.
-- **Status.** Target (M10.1, micromark's 11 views first; spread with M10.8).
+- **Status.** Declared data/accessor shapes, contextual literals, checked
+  intersections, declared-key spread, optional writes/defaults and literal tags
+  are implemented on JavaScript. Concrete public product fields use the value
+  ABI; development checks preserve accessor evaluation and validate recursive
+  data. Native storage remains N2; erased public generic presence remains S4's
+  R18 work. Micromark adoption belongs to D3, with qualification in V1.
 
 ### R8 Closed variant sets
 

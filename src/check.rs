@@ -20,6 +20,8 @@ use crate::typed_array::TypedArrayKind;
 pub(crate) mod binary_types;
 pub(crate) mod capabilities;
 mod field_initialization;
+mod shapes;
+pub use shapes::ShapeTag;
 mod modules;
 mod struct_cycles;
 pub use field_initialization::FieldInitializationFacts;
@@ -240,6 +242,8 @@ pub enum Type<'src> {
     ModuleLoadError,
     Nullable(Box<Type<'src>>),
     Union(Vec<Type<'src>>),
+    /// A declared shape view containing every component's fields.
+    Intersection(Vec<Type<'src>>),
     Struct(StructType<'src>),
     /// A class or extern class by its checked identity.
     Class(NominalType<'src>),
@@ -296,7 +300,7 @@ impl Type<'_> {
             | Self::Generator(value)
             | Self::Nullable(value) => value.mentions_unknown(),
             Self::Map(key, value) => key.mentions_unknown() || value.mentions_unknown(),
-            Self::Union(values)
+            Self::Union(values) | Self::Intersection(values)
             | Self::StructInstance { args: values, .. }
             | Self::ClassInstance { args: values, .. } => values.iter().any(Self::mentions_unknown),
             Self::Function(signature) => signature_mentions_unknown(signature),
@@ -322,6 +326,7 @@ impl Type<'_> {
                 Box::new(value.without_unknown()),
             ),
             Self::Union(values) => normalize_union(each(values)),
+            Self::Intersection(values) => Self::Intersection(each(values)),
             Self::StructInstance { declaration, args } => Self::StructInstance {
                 declaration: *declaration,
                 args: each(args),
@@ -350,7 +355,7 @@ impl Type<'_> {
                     | Type::Generator(_)
                     | Type::Nullable(_)
                     | Type::Map(_, _)
-                    | Type::Union(_)
+                    | Type::Union(_) | Type::Intersection(_)
                     | Type::StructInstance { .. }
                     | Type::ClassInstance { .. }
                     | Type::Function(_)
@@ -377,7 +382,7 @@ impl Type<'_> {
                     current = key;
                     continue;
                 }
-                Self::Union(values)
+                Self::Union(values) | Self::Intersection(values)
                 | Self::StructInstance { args: values, .. }
                 | Self::ClassInstance { args: values, .. } => {
                     pending.extend(values.iter().filter(|ty| nested(ty)))
@@ -428,7 +433,7 @@ impl fmt::Display for Type<'_> {
             Self::Null => f.write_str("null"),
             Self::Void => f.write_str("void"),
             Self::Array(element) => match element.as_ref() {
-                Self::Union(_) => write!(f, "({element})[]"),
+                Self::Union(_) | Self::Intersection(_) => write!(f, "({element})[]"),
                 _ => write!(f, "{element}[]"),
             },
             Self::Record(value) => write!(f, "Record<{value}>"),
@@ -452,13 +457,13 @@ impl fmt::Display for Type<'_> {
             Self::ModuleNamespace(module) => write!(f, "module#{module}"),
             Self::ModuleLoadError => f.write_str("ModuleLoadError"),
             Self::Nullable(inner) => match inner.as_ref() {
-                Self::Union(_) => write!(f, "({inner})?"),
+                Self::Union(_) | Self::Intersection(_) => write!(f, "({inner})?"),
                 _ => write!(f, "{inner}?"),
             },
-            Self::Union(members) => {
+            Self::Union(members) | Self::Intersection(members) => {
                 for (index, member) in members.iter().enumerate() {
                     if index != 0 {
-                        f.write_str(" | ")?;
+                        f.write_str(if matches!(self, Self::Intersection(_)) { " & " } else { " | " })?;
                     }
                     write!(f, "{member}")?;
                 }
@@ -858,6 +863,8 @@ pub enum NominalMember<'sem, 'src> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldInfo<'src> {
+    pub accessor: bool,
+    pub has_initializer: bool,
     pub member: NominalMemberId,
     pub name: &'src str,
     pub ty: Type<'src>,
@@ -876,6 +883,9 @@ pub struct StructInfo<'src> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassInfo<'src> {
+    pub discriminant: Option<(usize, ShapeTag<'src>)>,
+    /// Plain reference data with no constructor/prototype identity.
+    pub shape: bool,
     /// The class's identity and display spelling.
     pub declaration: NominalType<'src>,
     /// The module whose scope declares it (none for a single source).
@@ -2570,6 +2580,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
         }
         self.declarations.close_reflected();
+        if self.declarations.classes.iter().any(|class| class.shape) {
+            CheckedView { declarations: self.declarations, facts: self.facts }
+                .validate_shapes(self.module, self.budget)?;
+        }
         Ok(())
     }
 
@@ -2721,6 +2735,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         AllocationClass::Scratch,
                         &mut self.declarations.classes,
                         ClassInfo {
+                            discriminant: None,
+                            shape: matches!(item, Item::Class(decl) if decl.shape),
                             declaration,
                             module: self.module,
                             name: name.name,
@@ -2829,9 +2845,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ));
             }
 
+            if base.as_ref().is_some_and(|base| self.view().is_shape(base)) {
+                return Err(AdmittedCheckError::new(decl.span, "a class cannot extend a plain shape"));
+            }
             let mut fields = IndexMap::new();
             let mut methods = IndexMap::new();
             let mut constructor = None;
+            let mut discriminant = None;
             for member in decl.members {
                 match member {
                     ClassMember::Field(field) => {
@@ -2848,9 +2868,22 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         }
                         let ty = self.resolve_value_type(field.ty, "class field")?;
                         let index = fields.len();
+                        if field.discriminant {
+                            if discriminant.is_some() {
+                                return Err(AdmittedCheckError::new(field.span, "a shape declares one discriminant"));
+                            }
+                            let tag = field.initializer.as_ref().and_then(shapes::ShapeTag::literal)
+                                .ok_or_else(|| AdmittedCheckError::new(field.span, "a shape tag requires a string, int or bool literal initializer"))?;
+                            if !tag.matches_type(&ty) {
+                                return Err(AdmittedCheckError::new(field.span, "shape tag literal disagrees with its declared type"));
+                            }
+                            discriminant = Some((index, tag));
+                        }
                         fields.insert(
                             field.name.name,
                             FieldInfo {
+                                accessor: field.accessor,
+                                has_initializer: field.initializer.is_some(),
                                 member: self.declarations.declare_member(
                                     owner,
                                     MemberSlot::field(index),
@@ -2934,9 +2967,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 info.methods = methods;
                 info.base = base;
                 info.constructor = constructor.clone();
+                info.discriminant = discriminant;
             }
             self.pop_type_params();
 
+            if decl.shape { continue; }
             // The class's name as a value is its constructor: only a class
             // kept as a JavaScript class has one at run time, and LilScript
             // constructs with `new`, never by a call (conversion refuses both).
@@ -2984,6 +3019,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     decl.base.expect("checked base").span,
                     "`extends` requires a class type",
                 ));
+            }
+            if base.as_ref().is_some_and(|base| self.view().is_shape(base)) {
+                return Err(AdmittedCheckError::new(decl.span, "an extern class cannot extend a plain shape"));
             }
             let mut fields = IndexMap::new();
             let mut methods = IndexMap::new();
@@ -3047,6 +3085,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         fields.insert(
                             field.name.name,
                             FieldInfo {
+                                accessor: true,
+                                has_initializer: false,
                                 member: self.declarations.declare_member(
                                     owner,
                                     MemberSlot::field(index),
@@ -3164,6 +3204,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             fields.insert(
                 field.name,
                 FieldInfo {
+                    accessor: field.accessor,
+                    has_initializer: field.has_initializer,
                     member: field.member,
                     name: field.name,
                     ty: substitute_type(&field.ty, &substitutions),
@@ -3256,6 +3298,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             fields.insert(
                 field.name.name,
                 FieldInfo {
+                    accessor: false,
+                    has_initializer: field.initializer.is_some(),
                     member: self.declarations.declare_member(
                         owner,
                         MemberSlot::field(index),
@@ -3489,14 +3533,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
             }
         }
-        let initialization = field_initialization::analyze(
+        let initialization = if class.shape { FieldInitializationFacts::default() } else { field_initialization::analyze(
             class,
             CheckedView {
                 declarations: self.declarations,
                 facts: self.facts,
             },
             self.budget,
-        )?;
+        )? };
         self.declarations.classes[identity.index()].initialization = initialization;
         self.pop_type_params();
         Ok(())
@@ -4631,8 +4675,16 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 Type::Dynamic
             }
+            Expr { kind: ExprKind::RecordLiteral { name, entries, span }, .. }
+                if name.is_some() || expected.is_some_and(|ty| self.view().is_shape(ty)) => {
+                    self.analyze_shape_literal(*name, entries, expected, *span)?
+                }
+            Expr { kind: ExprKind::StructLiteral { name, values, span }, .. }
+                if values.is_empty() && self.shape_name(*name).is_some() => {
+                    self.analyze_shape_literal(Some(*name), &[], expected, *span)?
+                }
             Expr {
-                kind: ExprKind::RecordLiteral { entries, span },
+                kind: ExprKind::RecordLiteral { entries, span, .. },
                 ..
             } => {
                 if expected.is_some_and(is_js_value_or_nullable_js_value) {
@@ -4881,6 +4933,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     let declaration = info.declaration;
                     self.facts.source_info[expr.id.index()].resolution =
                         ExpressionResolution::NominalConstruction(identity);
+                    if info.shape {
+                        return Err(AdmittedCheckError::new(*span, "construct a shape with a keyed literal, not `new`"));
+                    }
                     if info.external {
                         return Err(AdmittedCheckError::new(
                             *span,
@@ -5951,7 +6006,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         ),
                     ));
                 }
-                match object_type {
+                let ty = match object_type {
                     Type::Record(value) => *value,
                     // `v.k = x`: a property write with JavaScript's meaning.
                     Type::Dynamic
@@ -5961,7 +6016,15 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         Type::Dynamic
                     }
                     other => self.analyze_member_type(other, *property, expression.id, *span)?,
+                };
+                if let ExpressionResolution::NominalMember(member) = self.facts.source_info[expression.id.index()].resolution {
+                    if let Some(NominalMember::Field { owner, field }) = self.view().nominal_member(member) {
+                        if self.view().nominal_class(owner).is_some_and(|class| class.discriminant.is_some_and(|(slot,_)| slot == field.index)) {
+                            return Err(AdmittedCheckError::new(*span, "a shape discriminant is immutable"));
+                        }
+                    }
                 }
+                ty
             }
             Expr {
                 kind:
@@ -6491,6 +6554,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
         }
         match object_type {
+            Type::Intersection(_) => {
+                let fields = self.shape_fields(&object_type, span)?;
+                let (_, field) = fields.into_iter().find(|(_, field)| field.name == property.name)
+                    .ok_or_else(|| AdmittedCheckError::new(property.span, format!("shape has no field `{}`", property.name)))?;
+                self.facts.source_info[id.index()].resolution = ExpressionResolution::NominalMember(field.member);
+                Ok(field.ty)
+            }
             Type::Struct(declaration) => {
                 let name = declaration.name;
                 let field = self
@@ -8817,6 +8887,24 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 }
                 Ok(Type::Nullable(Box::new(inner)))
             }
+            TypeKind::Intersection(members) => {
+                let mut types = Vec::with_capacity(members.len());
+                for member in members {
+                    let member = self.resolve_value_type(*member, "shape intersection")?;
+                    if !self.view().is_shape(&member) {
+                        return Err(AdmittedCheckError::new(ty.span, "intersections require declared shapes"));
+                    }
+                    match member {
+                        Type::Intersection(members) => types.extend(members),
+                        member => if !types.contains(&member) { types.push(member); },
+                    }
+                }
+                // A joined view must address the same keys through every component.
+                // Preserve this common schema until the naming owner joins its slots.
+                let result = Type::Intersection(types);
+                self.declarations.reflect(&result);
+                Ok(result)
+            }
             TypeKind::Union(members) => {
                 let mut resolved = Vec::with_capacity(members.len());
                 for member in members {
@@ -8944,6 +9032,21 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             return Ok(false);
         };
         let info = &self.declarations.classes[declaration.identity.index()];
+        if info.shape {
+            if info.discriminant.is_none() {
+                return Err(AdmittedCheckError::new(span, "a shape identity test requires a declared discriminant"));
+            }
+            if !args.is_empty() || !info.type_params.is_empty() {
+                return Err(AdmittedCheckError::new(span, "a shape tag cannot test erased type arguments"));
+            }
+            if !is_js_value_or_nullable_js_value(value) && !runtime_guard_members(value).iter()
+                .all(|member| self.view().is_shape(member) || matches!(member, Type::Null)) {
+                return Err(AdmittedCheckError::new(span, "shape tag tests require a shape view or JsValue"));
+            }
+            self.declarations.reflect(target);
+            self.declarations.reflect(value);
+            return Ok(true);
+        }
         let (external, generic) = (
             info.external,
             !args.is_empty() || !info.type_params.is_empty(),
@@ -9040,6 +9143,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             return true;
         }
         match (expected, actual) {
+            (Type::Intersection(members), actual) => members.iter().all(|expected| self.is_assignable(expected, actual)),
+            (expected, Type::Intersection(members)) => members.iter().any(|actual| self.is_assignable(expected, actual)),
             (Type::Array(expected), Type::Array(actual)) => {
                 self.is_assignable(expected, actual) && self.is_assignable(actual, expected)
             }
@@ -10009,7 +10114,7 @@ fn contains_host_value(ty: &Type<'_>) -> bool {
         | Type::Generator(inner)
         | Type::Nullable(inner) => contains_host_value(inner),
         Type::Map(key, value) => contains_host_value(key) || contains_host_value(value),
-        Type::Union(types)
+        Type::Union(types) | Type::Intersection(types)
         | Type::ClassInstance { args: types, .. }
         | Type::StructInstance { args: types, .. } => types.iter().any(contains_host_value),
         Type::Function(signature) => {
@@ -10051,7 +10156,7 @@ fn nominals_in(ty: &Type<'_>, out: &mut Vec<NominalId>) {
             nominals_in(key, out);
             nominals_in(value, out);
         }
-        Type::Union(members) => {
+        Type::Union(members) | Type::Intersection(members) => {
             for member in members {
                 nominals_in(member, out);
             }

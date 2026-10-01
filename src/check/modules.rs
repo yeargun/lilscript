@@ -426,11 +426,11 @@ fn declaration_phase<'ast, 'src>(
                     )
                 })?;
             let info = &mut checked.declarations.classes[class.index()];
-            if info.external {
+            if info.external || info.shape {
                 return Err(error(
                     module,
                     export.local.span,
-                    "constructor exports require a non-extern class",
+                    "constructor exports require an internal class, not an extern class or shape",
                 )
                 .into());
             }
@@ -737,6 +737,13 @@ fn body_phase<'ast, 'src>(
     }
     // Crossings anywhere reflect their nominals, closed over fields (R6).
     checked.declarations.close_reflected();
+    if checked.declarations.classes.iter().any(|class| class.shape) {
+        for module in 0..programs.len() {
+            CheckedView { declarations: &checked.declarations, facts: &checked.facts[module] }
+                .validate_shapes(Some(module), budget)
+                .map_err(|error| AdmittedModuleCheckError { module, error })?;
+        }
+    }
     #[cfg(debug_assertions)]
     assert!(checked
         .declarations

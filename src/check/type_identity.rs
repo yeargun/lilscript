@@ -63,7 +63,7 @@ fn ty(a: &Type<'_>, b: &Type<'_>, rename: Rename<'_>, alpha: bool) -> bool {
         | (Type::Generator(a), Type::Generator(b))
         | (Type::Nullable(a), Type::Nullable(b)) => ty(a, b, rename, alpha),
         (Type::Map(a, b), Type::Map(c, d)) => ty(a, c, rename, alpha) && ty(b, d, rename, alpha),
-        (Type::Union(a), Type::Union(b)) => list(a, b, rename, alpha),
+        (Type::Union(a), Type::Union(b)) | (Type::Intersection(a), Type::Intersection(b)) => list(a, b, rename, alpha),
         (
             Type::ClassInstance {
                 declaration: a,

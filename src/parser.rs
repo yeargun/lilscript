@@ -479,6 +479,12 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             }
             return self.parse_class_after_keyword().map(Item::Class);
         }
+        if self.match_kind(|kind| matches!(kind, TokenKind::Ident("shape"))) {
+            if declared_pure || is_async || is_generator {
+                return Err(self.error_here("function modifiers cannot apply to a shape"));
+            }
+            return self.parse_shape_after_keyword().map(Item::Class);
+        }
         if self.looks_like_object_declaration() {
             return Err(self.error_here(
                 "`object` singletons were removed; use module exports or a const record",
@@ -1049,6 +1055,31 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         })
     }
 
+    fn parse_shape_after_keyword(&mut self) -> Result<ClassDecl<'arena, 'src>, AdmittedParseError> {
+        let start = self.previous_span();
+        let name = self.expect_ident("expected shape name")?;
+        let type_params = self.parse_type_params()?;
+        self.expect(|kind| matches!(kind, TokenKind::LBrace), "expected `{` after shape name")?;
+        let mut members = BumpVec::new_in(self.arena, self.admission);
+        while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
+            let discriminant = self.match_kind(|kind| matches!(kind, TokenKind::Ident("tag")));
+            let accessor = if discriminant { false } else if self.match_kind(|kind| matches!(kind, TokenKind::Ident("accessor"))) {
+                true
+            } else {
+                self.expect(|kind| matches!(kind, TokenKind::Ident("data")),
+                    "shape fields declare `data`, `accessor` or `tag`")?;
+                false
+            };
+            let mut field = self.parse_field_decl()?;
+            field.discriminant = discriminant;
+            field.accessor = accessor;
+            members.push(ClassMember::Field(field))?;
+        }
+        let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
+        Ok(ClassDecl { shape: true, name, type_params, base: None,
+            members: members.into_bump_slice(), span: start.merge(close.span) })
+    }
+
     fn parse_class_after_keyword(&mut self) -> Result<ClassDecl<'arena, 'src>, AdmittedParseError> {
         let keyword_span = self.previous_span();
         let name = self.expect_ident("expected class name")?;
@@ -1134,6 +1165,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
 
         let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
         Ok(ClassDecl {
+            shape: false,
             name,
             type_params,
             base,
@@ -1160,6 +1192,8 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         };
         let semi = self.expect_semicolon()?;
         Ok(FieldDecl {
+            discriminant: false,
+            accessor: false,
             ty,
             name,
             initializer,
@@ -1484,7 +1518,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
     }
 
     fn parse_type(&mut self) -> Result<TypeRef<'arena, 'src>, AdmittedParseError> {
-        let first = self.parse_postfix_type()?;
+        let first = self.parse_intersection_type()?;
         if !self.match_kind(|kind| matches!(kind, TokenKind::Pipe)) {
             return Ok(first);
         }
@@ -1492,7 +1526,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         let mut members = BumpVec::new_in(self.arena, self.admission);
         members.push(first)?;
         loop {
-            members.push(self.parse_postfix_type()?)?;
+            members.push(self.parse_intersection_type()?)?;
             if !self.match_kind(|kind| matches!(kind, TokenKind::Pipe)) {
                 break;
             }
@@ -1506,6 +1540,19 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             kind: TypeKind::Union(members.into_bump_slice()),
             span,
         })
+    }
+
+    fn parse_intersection_type(&mut self) -> Result<TypeRef<'arena, 'src>, AdmittedParseError> {
+        let first = self.parse_postfix_type()?;
+        if !self.match_kind(|kind| matches!(kind, TokenKind::Ampersand)) { return Ok(first); }
+        let mut members = BumpVec::new_in(self.arena, self.admission);
+        members.push(first)?;
+        loop {
+            members.push(self.parse_postfix_type()?)?;
+            if !self.match_kind(|kind| matches!(kind, TokenKind::Ampersand)) { break; }
+        }
+        let span = first.span.merge(members.last().unwrap().span);
+        Ok(TypeRef { kind: TypeKind::Intersection(members.into_bump_slice()), span })
     }
 
     fn parse_postfix_type(&mut self) -> Result<TypeRef<'arena, 'src>, AdmittedParseError> {
@@ -1961,6 +2008,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             TokenKind::If => self.parse_if_expression(token.span),
             TokenKind::Match => self.parse_match_expression(token.span),
             TokenKind::Record => self.parse_record_literal(token.span),
+            TokenKind::LBrace => self.parse_record_literal_after_open(token.span),
             TokenKind::Import => {
                 self.expect(
                     |kind| matches!(kind, TokenKind::LParen),
@@ -2018,7 +2066,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                     if name == "object" {
                         let literal = self.parse_record_literal_after_open(token.span)?;
                         let Expr {
-                            kind: ExprKind::RecordLiteral { entries, span },
+                            kind: ExprKind::RecordLiteral { entries, span, .. },
                             ..
                         } = literal
                         else {
@@ -2286,6 +2334,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             "expected `}` after record entries",
         )?;
         Ok(self.source.expression(ExprKind::RecordLiteral {
+            name: None,
             entries: entries.into_bump_slice(),
             span: keyword_span.merge(close.span),
         }))
@@ -2374,6 +2423,12 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
         &mut self,
         name: Ident<'src>,
     ) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
+        if self.check(|kind| matches!(kind, TokenKind::Ellipsis))
+            || matches!(self.lookahead_kind(self.cursor + 1)?, Some(TokenKind::Colon)) {
+            let literal = self.parse_record_literal_after_open(name.span)?;
+            let ExprKind::RecordLiteral { entries, span, .. } = literal.kind else { unreachable!() };
+            return Ok(self.source.expression(ExprKind::RecordLiteral { name: Some(name), entries, span }));
+        }
         let open = self.previous_span();
         let mut values = BumpVec::new_in(self.arena, self.admission);
 
@@ -2778,7 +2833,7 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
             }
         }
 
-        if *closing == 0 && matches!(self.lookahead_kind(index)?, Some(TokenKind::Pipe)) {
+        if *closing == 0 && matches!(self.lookahead_kind(index)?, Some(TokenKind::Pipe | TokenKind::Ampersand)) {
             let Some(end) = self.scan_type_end_inner(index + 1, closing)? else {
                 return Ok(None);
             };

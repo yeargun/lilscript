@@ -6,6 +6,58 @@ use crate::check::type_admission::TypeQueryAdmission;
 use crate::check::type_substitution::substitute_type_with;
 use crate::output_budget::{AllocationBudget, AllocationError};
 use std::borrow::Cow;
+use crate::check::binary_types::TypeConstructionAdmission;
+
+pub(super) fn is_shape(program: &Program<'_>, ty: &Type<'_>) -> bool {
+    match ty {
+        Type::Class(declaration) | Type::ClassInstance { declaration, .. } =>
+            program.class(declaration.identity).is_some_and(|class| class.shape),
+        Type::Intersection(members) => !members.is_empty() && members.iter().all(|ty| is_shape(program, ty)),
+        Type::Nullable(inner) => is_shape(program, inner),
+        _ => false,
+    }
+}
+
+/// The ordered union of checked fields. A joined view never admits conflicting
+/// field types/kinds, and keeps the original field identities for consumers.
+pub(super) fn shape_fields<'src>(program: &Program<'src>, ty: &Type<'src>,
+    query: &mut TypeQueryAdmission<'_, '_>) -> Result<Option<Vec<(FieldRef, Type<'src>)>>, AllocationError> {
+    let members = match ty { Type::Intersection(members) => members.as_slice(), _ => std::slice::from_ref(ty) };
+    let mut fields: Vec<(FieldRef, Type<'src>)> = Vec::new();
+    for member in members {
+        query.work(1)?;
+        let (Type::Class(declaration) | Type::ClassInstance { declaration, .. }) = member else { return Ok(None); };
+        let Some(class) = program.class(declaration.identity).filter(|class| class.shape) else { return Ok(None); };
+        for (slot, &(key, _)) in class.fields.iter().enumerate() {
+            query.work(fields.len() + 1)?;
+            let field = FieldRef { nominal: declaration.identity, slot: u32::try_from(slot).map_err(|_| AllocationError::Capacity)? };
+            let Some(ty) = class_field_type(program, member, field, query)? else { return Ok(None); };
+            if let Some((prior, prior_ty)) = fields.iter().find(|(prior,_)| program.class_field(*prior).is_some_and(|(name,_)| name == key)) {
+                if !crate::check::type_relation::type_equal_with(prior_ty, &ty, query)?
+                    || program.class(prior.nominal).unwrap().accessors[prior.slot as usize] != class.accessors[slot] {
+                    return Ok(None);
+                }
+                let prior_tag = program.class(prior.nominal).unwrap().discriminant
+                    .filter(|(slot,_)| *slot == prior.slot).map(|(_,tag)| tag);
+                let tag = class.discriminant.filter(|(tag_slot,_)| *tag_slot as usize == slot).map(|(_,tag)| tag);
+                let same = match (prior_tag, tag) {
+                    (Some(Constant::String(a)), Some(Constant::String(b))) => {
+                        query.work(program.strings[a.index()].storage_bytes() + program.strings[b.index()].storage_bytes())?;
+                        program.strings[a.index()] == program.strings[b.index()]
+                    }
+                    _ => prior_tag == tag,
+                };
+                if !same { return Ok(None); }
+            } else {
+                let ty = query.clone_type(&ty)?;
+                // This vector is query scratch, paid through the same owner as
+                // field substitution; type payloads retain their own admission.
+                query.push_scratch(&mut fields, (field, ty))?;
+            }
+        }
+    }
+    Ok(Some(fields))
+}
 
 pub(super) fn struct_definition<'a, 'src>(
     program: &'a Program<'src>,
@@ -103,6 +155,15 @@ pub(super) fn class_field_type<'a, 'src>(
     field: FieldRef,
     query: &mut TypeQueryAdmission<'_, '_>,
 ) -> Result<Option<Cow<'a, Type<'src>>>, AllocationError> {
+    if let Type::Intersection(members) = receiver {
+        for member in members {
+            query.work(1)?;
+            if matches!(member, Type::Class(d) | Type::ClassInstance { declaration: d, .. } if d.identity == field.nominal) {
+                return class_field_type(program, member, field, query);
+            }
+        }
+        return Ok(None);
+    }
     let (declaration, arguments) = match receiver {
         Type::Class(declaration) => (declaration, &[][..]),
         Type::ClassInstance { declaration, args } => (declaration, args.as_slice()),

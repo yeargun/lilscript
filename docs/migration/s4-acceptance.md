@@ -44,7 +44,10 @@ before Q2; do not treat a parsed feature or unused fact as completion.
    and dynamic namespace observations. Observed generic classes, their
    constructor/default/rest contracts, fixed struct callable crossings and native
    nominal identity/casts are implemented. Wider opaque generic/union transport
-   remains open. The detached primitive-method audit passes with the existing
+   remains open. Declared data/accessor shapes, intersections, spread, literal
+   tags and recursive development checks are implemented; concrete public
+   shape/class product fields use storage codecs. Erased public generic optional
+   presence remains R18, and native shapes remain N2. The detached primitive-method audit passes with the existing
    source-owned refusal and explicit-closure alternative.
 8. [ ] Register/document any new behavior controls and their gates, interactions,
    costs and hard vetoes. Keep semantic assumptions separate from effort. Q4 owns

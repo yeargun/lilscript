@@ -99,6 +99,7 @@ pub(crate) fn substitute_type_with<'types, 'src: 'types, A: SubstitutionAdmissio
             }
             Ok(Type::Nullable(admission.box_type(inner)?))
         }
+        Type::Intersection(members) => Ok(Type::Intersection(substitute_members(members, lookup, admission)?)),
         Type::Union(members) => {
             let members = substitute_members(members, lookup, admission)?;
             normalize_union_with(members, admission)

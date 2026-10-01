@@ -1,0 +1,16 @@
+{
+  "exercise": "const h=m.make(),p=m.replace(h);p.x=90;m.update(h,()=>{h.p={x:10,y:11};return 7});console.log(JSON.stringify([h,p,m.calls()]));",
+  "expected": [
+    {
+      "p": {
+        "x": 7,
+        "y": 11
+      }
+    },
+    {
+      "x": 90,
+      "y": 9
+    },
+    1
+  ]
+}

@@ -264,6 +264,15 @@ exception is described below.
   excludes them from new assignments; unproved or public shapes also keep
   their declared keys.
 
+Declared shapes do not need an unsafe property-read assumption. Their `data`
+fields carry that checked guarantee; `accessor` fields retain observable reads
+and writes. `checks = "development"` validates data descriptors and recursive
+shape/struct fields at host crossings, adding helper code and traversal work.
+Production emits only the operations required by the public representation.
+`policy.tactics.property-mangling = "off"` also preserves private shape keys;
+public keys, optional-key omission and value-copy adapters are semantic
+contracts at every effort level, including 0. Raising effort does not weaken them.
+
 ## Objective and effort
 
 `[objective] codecs` names the objective: the compiler minimizes the delivered

@@ -157,7 +157,7 @@ pub(crate) fn measure_payload<'a, 'src, E>(
                         enqueue(Payload::Type(key), &mut next, &mut pending, &mut scope)?;
                         enqueue(Payload::Type(value), &mut next, &mut pending, &mut scope)?;
                     }
-                    Type::Union(members)
+                    Type::Union(members) | Type::Intersection(members)
                     | Type::StructInstance { args: members, .. }
                     | Type::ClassInstance { args: members, .. } => {
                         add(

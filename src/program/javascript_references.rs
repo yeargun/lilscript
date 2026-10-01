@@ -1265,7 +1265,7 @@ impl<'demand, 'program, 'src, 'budget, 'ledger>
         };
         let (mut parent, remaining) = match component {
             Some(component) => (component, &path[1..path.len() - 1]),
-            None => (self.place(context, root)?, &path[1..]),
+            None => (self.storage_read(context, root)?, &path[1..]),
         };
         for recipe in remaining.iter().rev() {
             self.work(1)?;

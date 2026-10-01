@@ -919,3 +919,19 @@ focused checks and CLI/lint/LSP release builds pass. The matched class boundary
 is unchanged at 243 raw / 173 gzip / 139 Brotli; new capabilities have independent
 host oracles rather than false before comparisons. Opaque product erasure stays
 refused. S4 remains active; no full library, fleet, CPU or release qualification.
+
+## 2026-10-01: S4 declared shapes and public product storage
+
+Implemented declared shapes with data/accessor contracts, checked spread and
+intersections, optional writes/defaults, immutable tags and recursive development
+checks. Public shape/class fields use concrete value-struct codecs; projected
+updates preserve changes made during their RHS and evaluate assignment values
+once. Invalid forward intersections are refused at their declaration module.
+
+[Evidence](../../benchmarks/migration-results/2026-10-01-s4-shapes/README.md):
+algorithm 27, pin `s4-shapes-1`, eight focused checks and release CLI/lint/LSP
+builds. Two matched controls are unchanged at 388 raw / 299 gzip / 246 Brotli;
+new shape/product capability oracles pass each objective, with scored/delivered
+identity. No fleet, full library, paired CPU/runtime or native-complete claim.
+Erased public generic presence is explicitly refused pending R18; native shape
+storage remains N2. S4 stays the only active milestone.

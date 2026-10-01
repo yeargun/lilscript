@@ -632,6 +632,60 @@ constructor, including under an alias. A barrel forwards the type with
 import does not authorize a constructor re-export. Dynamic namespaces expose
 the runtime constructor under its exported name.
 
+Declared shapes are plain reference objects with checked fields:
+
+```lil
+shape Token {
+    tag string kind = "text";
+    data int start;
+    data int? end;
+    accessor int width;
+}
+Token token = Token{start: 2, width: 5};
+Token copy = Token{...token, end: 8};
+```
+
+`data` fields promise own data properties at a host crossing. `accessor` reads
+and writes may call host getters and setters, including when a read's result is
+unused. A shape has no constructor value, prototype methods or `new` operation.
+Assignment aliases its reference. Private shapes use the ordinary property
+mangling permission; reflected shapes preserve their declared keys.
+
+A keyed literal must supply every non-optional field without an initializer.
+Spread evaluates its operand once and reads only the fields of its declared
+shape, in declaration order. Extra host keys are ignored. The result owns data
+properties, including `__proto__`; inherited setters do not receive them.
+An absent optional spread field leaves an earlier entry intact, or selects the
+destination's initializer if no earlier entry supplied that field. Explicit
+absence overrides the initializer. Initializers run only where needed.
+Optional keys are omitted on construction, deleted on an absent write and
+created as own data properties on a present data-field write.
+
+`A & B` joins declared shape views. Shared keys must agree in type and
+`data`/`accessor` kind, including forward declarations. Use a contextual joined
+type for bare spread literals: `A & B joined = {...a, ...b};`. Generic named
+literals receive their arguments from the contextual type, as in
+`Box<int> box = Box{value: 1};`. An erased public field of type `T` needs
+concrete type arguments: `T = int?` omits absent keys, whereas `T = JsValue`
+keeps a present `null`. The checker refuses that unresolved storage contract;
+S4's generic transport work owns its completion.
+
+A shape may declare one immutable `tag` with a string, int or bool literal.
+Construction supplies it automatically; an explicit override must be the same
+literal, and spread must preserve it. `value is Token` and `value as? Token`
+check this declared tag. Tests do not invent constructor identity or inspect
+other fields. A dynamic tag getter is evaluated once per test; development
+checks validate the resulting shape when a checked cast admits it.
+
+Public shape/class fields containing concrete value structs use named public
+objects. Reads decode value snapshots, and writes encode them without changing
+reference identity or value-copy behavior. Nested updates read the current
+root after their RHS, so callback changes to sibling fields survive.
+`checks = "development"` validates shape data descriptors and nested shape or
+struct data at crossings, handles recursive shape graphs, and checks accessor
+results where they are read. Production trusts these contracts. Native shape
+storage is currently refused at checking; N2 owns its implementation.
+
 A published class's identity is observed, so it stays a JavaScript class, and
 so does every class sharing its internal inheritance chain: its bases, which
 stay named classes linked by `extends`/`super`, and every class that extends

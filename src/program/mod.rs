@@ -601,6 +601,11 @@ pub struct StructDefinition {
 /// own, not flattened with a base) and it has no units.
 #[derive(Debug, Clone)]
 pub struct ClassDefinition {
+    /// A shape's immutable, declared literal identity (R13).
+    pub discriminant: Option<(u32, Constant)>,
+    pub shape: bool,
+    /// Accessor slots of a shape, aligned with its field schema.
+    pub accessors: Vec<bool>,
     /// The checked identity. Two modules' private classes of one name are two
     /// definitions; `name` is display data, and an ABI name only where the
     /// class meets the host (an extern class, a host-derived class's `name`).
@@ -741,7 +746,7 @@ pub struct Operation {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Constant {
     Integer(i32),
     Number(u64),

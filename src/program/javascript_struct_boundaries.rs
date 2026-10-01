@@ -258,13 +258,14 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         } else {
             None
         };
+        let member = self.member_declared_type(context, place)?;
         let expected = match self.data(context).places[place.index()] {
             Place::Cell(cell) => &self.program.types[self.program.cells[cell.index()].ty.index()],
             Place::Field { .. } => projected
                 .as_deref()
                 .ok_or_else(|| self.error(span, "missing instantiated field type"))?,
             Place::Member { .. } | Place::ClassField { .. } | Place::Index { .. } => {
-                match self.member_declared_type(context, place)? {
+                match member.as_deref() {
                     Some(declared) => declared,
                     None => {
                         return Err(
@@ -278,44 +279,29 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         self.struct_transfer(context, value, expected, span)
     }
 
-    /// The declared type of a member or element place whose receiver is
-    /// program-owned: an array or record element (a program-owned array
-    /// holds products it stored itself; see `product_array_method` for the
-    /// host model), or an internal class field, since an instance never
-    /// reaches host code.
+    /// Physical product layout is determined by the instantiated field schema.
+    /// Reflected/extern storage is adapted by the shared storage recipe.
     fn member_declared_type(
         &mut self,
         context: ContextId,
         place: PlaceId,
-    ) -> Result<Option<&'program Type<'src>>, FormationError> {
+    ) -> Result<Option<std::borrow::Cow<'program, Type<'src>>>, FormationError> {
         self.work(1)?;
         let program = self.program;
         let data = self.data(context);
-        let (receiver, field) = match data.places[place.index()] {
-            Place::Member { receiver, .. } | Place::Index { receiver, .. } => (receiver, None),
-            Place::ClassField { receiver, field } => (receiver, Some(field)),
+        let receiver = match data.places[place.index()] {
+            Place::ClassField { .. } => {
+                self.public_storage_type(context, place)?;
+                return Ok(super::super::schema::place_type(program, data, place, self.budget)?);
+            }
+            Place::Member { receiver, .. } | Place::Index { receiver, .. } => receiver,
             _ => return Ok(None),
         };
-        Ok(
-            match &program.types[data.values[receiver.index()].ty.index()] {
-                Type::Array(inner) | Type::Record(inner) => Some(inner.as_ref()),
-                // A host object's property is a `JsValue` position.
-                dynamic @ Type::Dynamic => Some(dynamic),
-                // The field's slot in the receiver's class, whose flattened
-                // layout carries the base's fields first with the receiver's
-                // type arguments applied.
-                Type::Class(declaration) | Type::ClassInstance { declaration, .. } => {
-                    self.work(1)?;
-                    let Some(field) = field else { return Ok(None) };
-                    program
-                        .class(declaration.identity)
-                        .filter(|class| !class.external)
-                        .and_then(|class| class.fields.get(field.slot as usize))
-                        .map(|(_, ty)| &program.types[ty.index()])
-                }
-                _ => None,
-            },
-        )
+        Ok(match &program.types[data.values[receiver.index()].ty.index()] {
+            Type::Array(inner) | Type::Record(inner) => Some(std::borrow::Cow::Borrowed(inner.as_ref())),
+            dynamic @ Type::Dynamic => Some(std::borrow::Cow::Borrowed(dynamic)),
+            _ => None,
+        })
     }
 
     fn struct_load_interface(
@@ -335,6 +321,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         } else {
             None
         };
+        let member = self.member_declared_type(context, place)?;
         let declared = match data.places[place.index()] {
             Place::Cell(cell) => &self.program.types[self.program.cells[cell.index()].ty.index()],
             Place::Value(value) => &self.program.types[data.values[value.index()].ty.index()],
@@ -342,7 +329,7 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 .as_deref()
                 .ok_or_else(|| self.error(span, "missing instantiated field type"))?,
             Place::Member { .. } | Place::ClassField { .. } | Place::Index { .. } => {
-                match self.member_declared_type(context, place)? {
+                match member.as_deref() {
                     Some(declared) => declared,
                     // Dynamic host receivers lack a product interface.
                     None => {
@@ -449,41 +436,39 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     }
                 }
                 AllocationKind::Instance { class, .. } => {
-                    // An internal class instance never reaches host code, so
-                    // each field's declared type is its representation.
                     let program = self.program;
-                    self.work(1)?;
-                    let Some(class) = program.class(*class).filter(|class| !class.external) else {
-                        return Err(self.error(span, "value-struct object entry ABI adaptation"));
-                    };
-                    for (&(_, declared), &value) in class.fields.iter().zip(operands) {
+                    let definition = program.class(*class)
+                        .ok_or_else(|| self.error(span, "missing class schema"))?;
+                    for (slot, &value) in operands.iter().enumerate() {
                         self.work(1)?;
-                        if !self.struct_boundary_value(context, value) {
-                            continue;
+                        if !self.struct_boundary_value(context, value) { continue; }
+                        let ty = super::super::schema::class_field_type(program, result_type.unwrap(),
+                            FieldRef { nominal: *class, slot: slot as u32 },
+                            &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget))?
+                            .ok_or_else(|| self.error(span, "missing instantiated construction field"))?;
+                        if definition.reflected || definition.external {
+                            self.require_storage_adapter(&ty, span)?;
                         }
-                        self.struct_transfer(
-                            context,
-                            value,
-                            &program.types[declared.index()],
-                            span,
-                        )?;
+                        self.struct_transfer(context, value, &ty, span)?;
                     }
                 }
                 AllocationKind::Object(_) => {
-                    for &value in operands {
+                    let fields = if matches!(result_type, Some(Type::Intersection(_))) {
+                        super::super::schema::shape_fields(self.program, result_type.unwrap(),
+                            &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget))?
+                    } else { None };
+                    for (index, &value) in operands.iter().enumerate() {
                         self.work(1)?;
-                        if !self.struct_boundary_value(context, value) {
-                            continue;
+                        if !self.struct_boundary_value(context, value) { continue; }
+                        if let Some(fields) = &fields {
+                            let ty = &fields[index].1;
+                            self.require_storage_adapter(ty, span)?;
+                            self.struct_transfer(context, value, ty, span)?;
+                        } else if matches!(result_type, Some(Type::Dynamic)) {
+                            self.struct_transfer(context, value, &Type::Dynamic, span)?;
+                        } else {
+                            return Err(self.error(span, "value-struct object entry ABI adaptation"));
                         }
-                        // An ordinary object literal is a host object: each
-                        // entry is a `JsValue` position, where a struct takes
-                        // its D2 public shape.
-                        if !matches!(result_type, Some(Type::Dynamic)) {
-                            return Err(
-                                self.error(span, "value-struct object entry ABI adaptation")
-                            );
-                        }
-                        self.struct_transfer(context, value, &Type::Dynamic, span)?;
                     }
                 }
                 AllocationKind::Struct(identity) => {

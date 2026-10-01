@@ -67,6 +67,9 @@ pub(crate) fn native(
         if definition.module != module {
             continue;
         }
+        if definition.shape {
+            return Err(AdmittedCheckError::new(definition.span, "native shape storage is not implemented yet (N2)"));
+        }
         for field in definition.fields.values() {
             check_type(view, &field.ty, field.span, budget)?;
         }
@@ -132,7 +135,7 @@ pub(crate) fn language(
     }
     for class in view.classes() {
         budget.work(WorkKind::Analysis, 1)?;
-        if class.module != module || class.external {
+        if class.module != module || class.external || class.shape {
             continue;
         }
         if let Some(span) = class.initialization.before_super {

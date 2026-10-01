@@ -1,0 +1,21 @@
+{
+  "focused_passes": {
+    "build::tests::s4_shapes_adapt_public_products_and_preserve_reentrant_places": "/tmp/lilscript-s4-shape-product-final.log",
+    "build::tests::s4_shapes_join_views_and_keep_recursive_data_checks": "/tmp/lilscript-s4-shape-final-checks.log",
+    "build::tests::s4_shapes_keep_generic_defaults_reference_identity_and_mangling_vetoes": "/tmp/lilscript-s4-shape-final-checks.log",
+    "build::tests::s4_shapes_preserve_declared_spreads_accessors_and_optional_keys": "/tmp/lilscript-s4-shape-final-checks.log",
+    "build::tests::s4_shapes_refuse_invalid_construction_and_native_storage_at_check_time": "/tmp/lilscript-s4-shape-final-checks.log",
+    "build::tests::s4_shapes_reject_forward_intersection_conflicts_and_malformed_product_data": "/tmp/lilscript-s4-shape-final-checks.log",
+    "build::tests::s4_shape_tags_and_spread_defaults_keep_their_checked_contracts": "/tmp/lilscript-s4-shape-tags-checks.log",
+    "build::tests::s4_shapes_require_concrete_public_presence_and_keep_public_class_product_storage": "/tmp/lilscript-s4-shape-presence-checks.log"
+  },
+  "count": 8,
+  "scope": "Eight focused checks across the coherent batch; affected tests rerun after fixes. Production/development, independent raw/gzip/Brotli oracles, property veto, source diagnostics and native capability refusal.",
+  "limits": "No full library/fleet suite, native implementation qualification or paired CPU/runtime study.",
+  "negative_evidence": [
+    "Export-parameter validation initially skipped shapes; connected to descriptor/schema checks.",
+    "Optional spread/default lowering initially used the declared field type instead of the narrower shared coalescing result; corrected.",
+    "Public concrete struct fields previously exposed private products; storage reads/writes/construction and reentrant updates now adapt their ABI.",
+    "Erased public generic fields remain a check-time refusal where optional-key presence is unresolved."
+  ]
+}

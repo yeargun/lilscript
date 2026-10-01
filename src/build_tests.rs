@@ -3309,3 +3309,216 @@ fn s4_type_only_generic_exports_use_the_same_native_interface_as_module_graphs()
         }
     }
 }
+
+#[test]
+fn s4_shapes_preserve_declared_spreads_accessors_and_optional_keys() {
+    let source=r#"
+        shape Token{data string kind;data int start;data int? end;accessor int width;}
+        export Token sample(){return Token{kind:"text",start:2,width:5};}
+        export Token copy(Token source,int? end){return Token{...source,end:end};}
+        export void setEnd(Token source,int? value){source.end=value;}
+        export void dropWidth(Token source){source.width;}
+        export int touch(Token source){source.width+=1;return source.width;}
+    "#;
+    for checks in ["production","development"] {
+        let result=compile_source(source,&config(&format!("checks='{checks}'")),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",r#"
+                let reads=0,writes=0,extra=0,width=8,prototypeWrites=0;
+                const input={kind:'host',start:4,get width(){reads++;return width},set width(v){writes++;width=v},get extra(){extra++;return 99}};
+                const sample=library.sample(),copy=library.copy(input,null);
+                library.dropWidth(input);const touched=library.touch(input);
+                Object.defineProperty(Object.prototype,'end',{configurable:true,set(){prototypeWrites++}});
+                library.setEnd(sample,0);const present=Object.keys(sample);library.setEnd(sample,null);
+                delete Object.prototype.end;
+                console.log(JSON.stringify([sample,copy,present,Object.keys(sample),touched,reads,writes,extra,prototypeWrites,Object.getPrototypeOf(copy)===Object.prototype]));
+            "#),"[{\"kind\":\"text\",\"start\":2,\"width\":5},{\"kind\":\"host\",\"start\":4,\"width\":8},[\"kind\",\"start\",\"width\",\"end\"],[\"kind\",\"start\",\"width\"],9,4,1,0,0,true]\n");
+        }
+    }
+}
+
+#[test]
+fn s4_shapes_join_views_and_keep_recursive_data_checks() {
+    let source=r#"
+        shape Left{data int x;}shape Right{data string label;}
+        shape Node{data int value;data Node? next;}
+        export Left & Right merge(Left left,Right right){return {...left,...right};}
+        export int sum(Left & Right both){return both.x+both.label.length;}
+        export int read(Node node){return node.value;}
+    "#;
+    let result=compile_source(source,&config("checks='development'"),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",r#"
+            const both=library.merge({x:4,unused:3},{label:'hey'}),node={value:7};node.next=node;
+            let access=0;const outcomes=[both,library.sum(both),library.read(node)];
+            for(const value of [{get value(){access++;return 3}}, {value:'bad'}, {value:2,next:{value:false}}]){
+                try{library.read(value);outcomes.push('missed')}catch(e){outcomes.push(e instanceof TypeError)}
+            }
+            node.value='changed';try{library.read(node);outcomes.push('missed')}catch(e){outcomes.push(e instanceof TypeError)}
+            outcomes.push(access);console.log(JSON.stringify(outcomes));
+        "#),"[{\"x\":4,\"label\":\"hey\"},7,7,true,true,true,true,0]\n");
+    }
+}
+
+#[test]
+fn s4_shapes_refuse_invalid_construction_and_native_storage_at_check_time() {
+    for (source,fragment) in [
+        ("shape A{data int x;}A a=A{};","must provide"),
+        ("shape A{data int x;}A a=A{wrong:1};","no field"),
+        ("shape A{data int x;}A a=new A();","keyed literal"),
+        ("shape A{data int x;}shape B{accessor int x;}void f(A & B value){}","same type and data/accessor"),
+        ("shape A{data int x;}shape B{data string x;}void f(A & B value){}","same type and data/accessor"),
+        ("shape A{data int x;}export constructor A;","constructor exports"),
+        ("shape A{accessor int x;}pure int read(A a){return a.x;}","observable side effect"),
+    ] {
+        let error=compile_source(source,&config(""),ServiceOptions::default()).unwrap_err();
+        assert_eq!(error.phase,"check","{error:?}");assert!(error.message.contains(fragment),"{error:?}");
+    }
+    let error=compile_source("shape A{data int x;}A a=A{x:1};print(a.x);",&config(""),ServiceOptions{target:ServiceTarget::Native,..ServiceOptions::default()}).unwrap_err();
+    assert_eq!(error.phase,"check");assert!(error.message.contains("native shape storage"),"{error:?}");
+}
+
+#[test]
+fn s4_shapes_keep_generic_defaults_reference_identity_and_mangling_vetoes() {
+    let source=r#"
+        int count=0;int stamp(){count+=1;return count;}
+        shape Box<T>{data T longPayloadName;data int createdStamp=stamp();}
+        export func()->int make(int n){
+            Box<int> value=Box{longPayloadName:n};Box<int> alias=value;
+            return ()=>{alias.longPayloadName+=1;return value.longPayloadName*100+value.createdStamp;};
+        }
+    "#;
+    for permission in ["off","on"] {
+        let result=compile_source(source,&config(&format!("[policy.tactics]\nproperty-mangling='{permission}'\nscalar-replacement='off'\ninlining='off'\nconstant-folding='off'")),
+            ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            let code=result.javascript(objective).unwrap().javascript();
+            assert_eq!(execute_javascript(code,"","const first=library.make(3),second=library.make(7);console.log(JSON.stringify([first(),first(),second()]));"),"[401,501,802]\n");
+            if objective==Objective::Raw {assert_eq!(code.contains("longPayloadName"),permission=="off","{code}");}
+        }
+    }
+}
+
+#[test]
+fn s4_shapes_adapt_public_products_and_preserve_reentrant_places() {
+    let source=r#"
+        struct Point{int x;int y;}
+        shape Holder{data Point position;accessor Point observed;data Point? spare;}
+        shape Extra{data int label;}
+        export Holder make(int n){Point p=Point{n,2};return Holder{position:p,observed:p};}
+        export int update(Holder h,func()->int rhs){
+            Point saved=h.position;h.position.x=rhs();return saved.x*100+saved.y;
+        }
+        export int touch(Holder h){h.observed.x+=2;return h.observed.y;}
+        export Point? assign(Holder h,Point? p){return h.spare=p;}
+        export Holder & Extra merge(Holder h,Extra e){return {...h,...e};}
+    "#;
+    for checks in ["production","development"] {
+        let result=compile_source(source,&config(&format!("checks='{checks}'")),
+            ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",r#"
+                const h=library.make(3);let reads=0,writes=0,current={x:4,y:8};
+                Object.defineProperty(h,'observed',{enumerable:true,configurable:true,
+                    get(){reads++;return current},set(v){writes++;current=v}});
+                const saved=library.update(h,()=>{h.position={x:20,y:30};return 7});
+                const touched=library.touch(h), assigned=library.assign(h,{x:8,y:9});
+                assigned.x=99;
+                const copy=library.merge(h,{label:5,unused:10});
+                const removed=library.assign(h,null);
+                console.log(JSON.stringify([h,copy,saved,touched,reads,writes,current,removed]));
+            "#),"[{\"position\":{\"x\":7,\"y\":30},\"observed\":{\"x\":6,\"y\":8}},{\"position\":{\"x\":7,\"y\":30},\"observed\":{\"x\":6,\"y\":8},\"spare\":{\"x\":8,\"y\":9},\"label\":5},302,8,4,1,{\"x\":6,\"y\":8},null]\n");
+        }
+    }
+}
+
+#[test]
+fn s4_shapes_reject_forward_intersection_conflicts_and_malformed_product_data() {
+    for source in [
+        "shape Use{data A & B value;}shape A{data int x;}shape B{data string x;}",
+        "struct Use{A & B value;}shape A{data int x;}shape B{accessor int x;}",
+    ] {
+        let error=compile_source(source,&config(""),ServiceOptions::default()).unwrap_err();
+        assert_eq!(error.phase,"check","{error:?}");
+        assert!(error.message.contains("same type and data/accessor"),"{error:?}");
+    }
+    let source="struct Point{int x;int y;}shape Holder{data Point p;}export int read(Holder h){return h.p.x;}";
+    let result=compile_source(source,&config("checks='development'"),ServiceOptions{objectives:Some(Objectives::One(Objective::Raw)),..ServiceOptions::default()}).unwrap();
+    let code=result.javascript(Objective::Raw).unwrap().javascript();
+    assert_eq!(execute_javascript(code,"",r#"
+        let getters=0;const out=[];
+        for(const p of [{x:'bad',y:2},{x:3},{get x(){getters++;return 3},y:2}]){
+            try{out.push(library.read({p}))}catch(e){out.push(e instanceof TypeError)}
+        }
+        out.push(getters);console.log(JSON.stringify(out));
+    "#),"[true,true,true,0]\n");
+}
+
+#[test]
+fn s4_shape_tags_and_spread_defaults_keep_their_checked_contracts() {
+    let source=r#"
+        int count=0;int stamp(){count+=1;return count;}
+        shape Token{tag string kind="text";data int value;}
+        shape Partial{data int? next;}
+        shape Defaults{data int? next=stamp();}
+        shape Hostile{data int __proto__;}
+        export Token make(){return Token{kind:"t\u0065xt",value:7};}
+        export bool test(JsValue x){return x is Token;}
+        export void discard(JsValue x){x is Token;}
+        export int narrow(JsValue x){Token? t=x as? Token;if(t!=null){return t.value;}return -1;}
+        export Defaults copy(Partial p){return Defaults{...p};}
+        export Defaults absent(Partial p){return Defaults{next:null,...p};}
+        export Hostile hostile(Hostile p){return Hostile{...p};}
+        export int calls(){return count;}
+    "#;
+    for checks in ["production","development"] {
+        let result=compile_source(source,&config(&format!("checks='{checks}'")),
+            ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+        for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+            assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",r#"
+                let reads=0;const accessor={get kind(){reads++;return 'text'}};
+                const made=library.make(),tests=[library.test(made),library.test(null),library.test(4),library.test({kind:'other'})];
+                library.discard(accessor);tests.push(library.test(accessor),reads);
+                const defaults=[library.copy({}),library.copy({next:9}),library.absent({}),library.calls()];
+                const proto=library.hostile({['__proto__']:6,extra:7});
+                console.log(JSON.stringify([made,tests,library.narrow(made),library.narrow({kind:'other'}),defaults,proto,Object.getPrototypeOf(proto)===Object.prototype]));
+            "#),"[{\"kind\":\"text\",\"value\":7},[true,false,false,false,true,2],7,-1,[{\"next\":1},{\"next\":9},{},1],{\"__proto__\":6},true]\n");
+        }
+    }
+    for (source,fragment) in [
+        ("shape T{tag string kind=\"a\";}T t=T{kind:\"b\"};","declared literal"),
+        ("shape T{tag string kind=\"a\";}T t=T{};t.kind=\"b\";","immutable"),
+        ("shape T{tag string kind=\"a\";}shape U{tag string kind=\"b\";}void f(T & U t){}","discriminants must agree"),
+        ("shape T{tag string kind=\"a\";}shape U{data string kind;}T f(U u){return T{...u};}","preserve the destination"),
+        ("shape T{tag string kind;}T t=T{};","literal initializer"),
+    ] {
+        let error=compile_source(source,&config(""),ServiceOptions::default()).unwrap_err();
+        assert_eq!(error.phase,"check","{error:?}");assert!(error.message.contains(fragment),"{error:?}");
+    }
+}
+
+#[test]
+fn s4_shapes_require_concrete_public_presence_and_keep_public_class_product_storage() {
+    let refused="shape Box<T>{data T value;}export Box<T> make<T>(T value){return Box{value:value};}";
+    let error=compile_source(refused,&config(""),ServiceOptions::default()).unwrap_err();
+    assert_eq!(error.phase,"check","{error:?}");assert!(error.message.contains("optional-key storage"),"{error:?}");
+    let source=r#"
+        struct Point{int x;int y;}
+        class Holder{Point p=Point{1,2};init(){}int read(){return this.p.x;}void set(Point p){this.p=p;}}
+        export constructor Holder;
+        shape Box<T>{data T value;}
+        int calls=0;Point next(){calls+=1;return Point{calls,9};}
+        export Point expression(Holder h){return h.p=next();}
+        export int count(){return calls;}
+        export Box<int?> optional(int? value){return Box{value:value};}
+        export Box<JsValue> opaque(JsValue value){return Box{value:value};}
+    "#;
+    let result=compile_source(source,&config(""),ServiceOptions{objectives:Some(Objectives::All),..ServiceOptions::default()}).unwrap();
+    for objective in [Objective::Raw,Objective::Gzip,Objective::Brotli] {
+        assert_eq!(execute_javascript(result.javascript(objective).unwrap().javascript(),"",r#"
+            const h=new library.Holder(),p={x:5,y:6};h.set(p);p.x=90;
+            const read=h.read(),assigned=library.expression(h);assigned.x=10;
+            console.log(JSON.stringify([read,h.p,assigned,library.count(),library.optional(null),library.optional(3),library.opaque(null)]));
+        "#),"[5,{\"x\":1,\"y\":9},{\"x\":10,\"y\":9},1,{},{\"value\":3},{\"value\":null}]\n");
+    }
+}

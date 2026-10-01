@@ -172,6 +172,14 @@ fn verify_places<'program, 'src>(
                 (ty, own, true)
             }
             Place::ClassField { receiver, field } => {
+                if matches!(value_type(receiver)?, Type::Intersection(_)) {
+                    let ty = super::schema::class_field_type(program, value_type(receiver)?, field,
+                        &mut TypeQueryAdmission::new(budget))?
+                        .ok_or("shape intersection field has an incompatible owner")?;
+                    let writable = !program.class(field.nominal).is_some_and(|class| class.discriminant.is_some_and(|(slot,_)| slot == field.slot));
+                    places.push(VerifiedPlace { ty: Some(ty), root: own, writable });
+                    continue;
+                }
                 let (Type::Class(declaration) | Type::ClassInstance { declaration, .. }) =
                     value_type(receiver)?
                 else {
@@ -207,7 +215,7 @@ fn verify_places<'program, 'src>(
                     Type::Class(_) if !class.external => Some(&program.types[declared_ty.index()]),
                     _ => None,
                 };
-                (ty, own, true)
+                (ty, own, !class.discriminant.is_some_and(|(slot,_)| slot == field.slot))
             }
             Place::Index { receiver, key } => {
                 value_type(key)?;
@@ -362,6 +370,30 @@ fn verify_tables(
     let mut previous_class = None;
     work(budget, program.classes.len())?;
     for definition in program.classes.iter() {
+        if definition.shape {
+            if definition.accessors.len() != definition.fields.len()
+                || definition.external || definition.observed || definition.published
+                || definition.value.is_some() || definition.constructor.is_some()
+                || definition.base.is_some() || !definition.base_arguments.is_empty()
+                || !definition.prototype.is_empty()
+            {
+                return fail("shape metadata disagrees with its plain storage contract");
+            }
+            if let Some((slot, tag)) = definition.discriminant {
+                let Some(&(_, ty)) = definition.fields.get(slot as usize) else {
+                    return fail("shape discriminant is outside its schema");
+                };
+                if definition.accessors[slot as usize] || !matches!((tag, program.types.get(ty.index())),
+                    (Constant::Integer(_), Some(Type::Int)) | (Constant::String(_), Some(Type::String)) | (Constant::Boolean(_), Some(Type::Bool)))
+                    || matches!(tag, Constant::String(id) if id.index() >= program.strings.len()) {
+                    return fail("shape discriminant is not a literal data field of its declared type");
+                }
+            }
+        } else if !definition.accessors.is_empty() {
+            return fail("ordinary class carries shape accessor metadata");
+        } else if definition.discriminant.is_some() {
+            return fail("ordinary class carries a shape discriminant");
+        }
         if !definition.identity.is_class()
             || previous_class
                 .replace(definition.identity)
@@ -375,7 +407,7 @@ fn verify_tables(
                 return fail("class extends an undeclared class");
             };
             // A base's fields lead the derived class's flattened layout.
-            if base.fields.len() > definition.fields.len()
+            if base.shape || base.fields.len() > definition.fields.len()
                 || base
                     .fields
                     .iter()
@@ -966,7 +998,7 @@ fn verify_units(
                             let internal = match &program.types[target.index()] {
                                 crate::check::Type::Class(declaration) => program
                                     .class(declaration.identity)
-                                    .is_some_and(|class| !class.external),
+                                    .is_some_and(|class| !class.external && !class.shape),
                                 _ => false,
                             };
                             (Some(if internal { 2 } else { 1 }), true)
@@ -1854,7 +1886,8 @@ fn verify_types(
             matches!(result, Some(Type::Bool))
                 && !operand(0).is_void()
                 && (crate::primitive::runtime_type_test(&program.types[target.index()]).is_some()
-                    || matches!(program.types[target.index()], Type::Class(_))),
+                    || matches!(program.types[target.index()], Type::Class(declaration)
+                        if program.class(declaration.identity).is_some_and(|class| !class.shape || class.discriminant.is_some()))),
         ),
         OperationKind::Template => {
             if !matches!(result, Some(Type::String)) {
@@ -2138,7 +2171,18 @@ fn verify_types(
                 Ok(())
             }
             // A JS object literal.
-            AllocationKind::Object(_) => expect(matches!(result, Some(Type::Dynamic))),
+            AllocationKind::Object(keys) => {
+                if let Some(ty @ Type::Intersection(_)) = result {
+                    let fields = super::schema::shape_fields(program, ty, &mut query)?
+                        .ok_or("object construction requires a valid shape intersection")?;
+                    expect(fields.len() == keys.len() && fields.len() == operands.len())?;
+                    for (((field, ty), key), value) in fields.iter().zip(keys).zip(operands) {
+                        if program.class_field(*field).map(|(key, _)| key) != Some(*key)
+                            || !class_assignable(program, ty, value_type(*value), &mut query)? { return Err(error()); }
+                    }
+                    Ok(())
+                } else { expect(matches!(result, Some(Type::Dynamic))) }
+            }
             // An internal class instance of its result's class, holding
             // exactly its declared fields in order.
             AllocationKind::Instance { class, keys } => expect(match result {

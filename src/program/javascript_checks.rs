@@ -183,7 +183,7 @@ pub(super) enum Crossing {
 impl Crossing {
     /// The shape of a value of `ty`, and whether absence is one, or none
     /// where no cheap test tells (a class, a struct, a map, a `JsValue`).
-    fn of(ty: &Type<'_>) -> Option<(Self, bool)> {
+    pub(super) fn of(ty: &Type<'_>) -> Option<(Self, bool)> {
         Some(match ty {
             Type::Int => (Self::Int, false),
             Type::Float => (Self::Float, false),
@@ -242,6 +242,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         if self.contract.checks != PreconditionChecks::Development {
             return Ok(value);
         }
+        if super::super::schema::is_shape(self.program, &self.program.types[ty.index()]) {
+            return self.shape_crossing(ty, value, None);
+        }
         let Some((kind, absent)) = Crossing::of(&self.program.types[ty.index()]) else {
             return Ok(value);
         };
@@ -258,7 +261,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
 
     /// `function string_checked(v){if(!(typeof v==="string"))throw new
     /// TypeError(…);return v}`, formed once per shape, absence allowed or not.
-    fn crossing_helper(
+    pub(super) fn crossing_helper(
         &mut self,
         kind: Crossing,
         absent: bool,
@@ -447,7 +450,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 continue;
             }
             let ty = program.cells[cell.index()].ty;
-            if Crossing::of(&program.types[ty.index()]).is_none() {
+            if Crossing::of(&program.types[ty.index()]).is_none()
+                && !super::super::schema::is_shape(program, &program.types[ty.index()]) {
                 continue;
             }
             let binding = self.cell_binding(child, cell)?;

@@ -1,0 +1,8 @@
+{
+  "exercise": "console.log(JSON.stringify([m.run(0),m.run(4),m.run(-8)]));",
+  "expected": [
+    8,
+    16,
+    -8
+  ]
+}

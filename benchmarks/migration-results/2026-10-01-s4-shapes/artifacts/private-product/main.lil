@@ -1,0 +1,1 @@
+struct Point{int x;int y;}class Holder{Point p=Point{1,2};int next(int n){this.p.x+=n;return this.p.x+this.p.y;}}export int run(int n){Holder h=new Holder();return h.next(n)+h.next(2);}

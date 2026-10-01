@@ -1,0 +1,1 @@
+let make=function(){return{p:{x:2,y:3}}};function b(a){return{x:a[0],y:a[1]}}let d=c=>{a=a+1|0;let d=[a,9];c.p=b(d);return d};function c(a){return[a.x,a.y]}function e(a,d){let e=c(a);e[0]=d;return b(e)}let update=function(a,b){c(a.p)[0];let d=b();a.p=e(a.p,d)},calls=function(){return a},a=0;function replace(a){return b(d(a))}export{make,replace,update,calls};

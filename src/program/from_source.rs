@@ -14,6 +14,8 @@ use crate::output_budget::{
     AllocationClass::{Retained, Scratch},
     AllocationError,
 };
+#[path = "from_source_shapes.rs"]
+mod shapes;
 
 /// The frontend owns its tables exclusively until the checked Program is
 /// returned. Sharing during construction is an owner bug, not a reason to
@@ -2270,10 +2272,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             Some(signature) => Some(self.ty(&Type::Function(signature.clone()))?),
             None => None,
         };
+        let mut accessors = if info.shape { self.budget.vector(Retained, info.fields.len())? } else { Vec::new() };
+        if info.shape { for field in info.fields.values() { accessors.push(field.accessor); } }
         self.budget.push(
             Retained,
             building_table(&mut self.program.classes),
             ClassDefinition {
+                discriminant: None,
+                shape: info.shape,
+                accessors,
                 identity,
                 name,
                 module: self.current_module,
@@ -2357,10 +2364,23 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         // A JavaScript caller reaches the methods of a published class, and
         // of every class it extends, on the prototype.
         let prototype = kept && self.published_chain(identity)?;
+        let mut accessors = if info.shape { self.budget.vector(Retained, info.fields.len())? } else { Vec::new() };
+        if info.shape { for field in info.fields.values() { accessors.push(field.accessor); } }
+        let discriminant = match info.discriminant {
+            Some((slot, tag)) => Some((u32::try_from(slot).map_err(|_| AllocationError::Capacity)?, match tag {
+                crate::check::ShapeTag::Int(value) => Constant::Integer(value),
+                crate::check::ShapeTag::Bool(value) => Constant::Boolean(value),
+                crate::check::ShapeTag::String(value) => Constant::String(self.decoded_string(value, span, "invalid shape tag")?),
+            })),
+            None => None,
+        };
         self.budget.push(
             Retained,
             building_table(&mut self.program.classes),
             ClassDefinition {
+                discriminant,
+                shape: info.shape,
+                accessors,
                 identity,
                 name,
                 module: self.current_module,
@@ -5232,6 +5252,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 (self.allocation(unit, kind)?, values)
             }
             ExprKind::RecordLiteral { entries, .. } | ExprKind::ObjectLiteral { entries, .. } => {
+                if self.semantics.is_shape(&self.program.types[ty.index()]) {
+                    return self.construct_shape(unit, region, entries, ty, origin, span);
+                }
                 if entries
                     .iter()
                     .any(|entry| matches!(entry, RecordElement::Spread { .. }))
@@ -5302,6 +5325,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 return self.load_cell(unit, region, cell, span);
             }
             ExprKind::StructLiteral { values, .. } => {
+                if self.semantics.is_shape(&self.program.types[ty.index()]) {
+                    return self.construct_shape(unit, region, &[], ty, origin, span);
+                }
                 let nominal = self
                     .semantics
                     .nominal_id(&self.program.types[ty.index()])
@@ -5913,7 +5939,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             return Ok(None);
         };
         let class = declaration.identity;
-        if self.class_info(class, span)?.external {
+        if self.class_info(class, span)?.external || self.class_info(class, span)?.shape {
             return Ok(None);
         }
         if !self.kept(class, span)? {

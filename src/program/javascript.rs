@@ -8,6 +8,9 @@
 //! effects without inventing a first-class JavaScript reference or a `.call`
 //! lookup. Unsupported language/delivery contracts fail before printing.
 
+#[path = "javascript_shapes.rs"]
+mod shapes;
+
 use super::demand::{
     ContextId, ContextKind, DemandError, DemandMode, DemandPlan, HelperOperation, RecordOperation,
 };
@@ -103,6 +106,8 @@ fn load_result_recipe(
     let receiver_ty = &program.types[unit.values[receiver.index()].ty.index()];
     let result_ty = &program.types[ty.index()];
     if matches!(receiver_ty, Type::Record(_))
+        || super::schema::is_shape(program, receiver_ty)
+            && matches!(result_ty, Type::Nullable(_) | Type::Null)
         || index
             && matches!(receiver_ty, Type::Array(_))
             && matches!(result_ty, Type::Nullable(_) | Type::Null)
@@ -682,6 +687,7 @@ fn form_head(
         host_factories: Vec::new(),
         index_check: None,
         crossing_checks: Vec::new(),
+        shape_helpers: Vec::new(),
         int32_hints: head.int32_hints,
         property_mangling: head.property_mangling,
         preserved_properties,
@@ -1174,6 +1180,7 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     index_check: Option<js::BindingId>,
     /// The hoisted crossing checks, one per shape and absence.
     crossing_checks: Vec<((checks::Crossing, bool), js::BindingId)>,
+    shape_helpers: Vec<(shapes::Helper<'src>, js::BindingId)>,
     /// The `int32_hints` output family: the `|0` the compiler printed before
     /// R1 and R11 after an `int` field, member or element read and an `int`
     /// host call's result.
@@ -2848,6 +2855,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 raw = self.crossing_check(ty, raw)?;
             }
         }
+        if let Place::ClassField { field, .. } = self.data(unit).places[place.index()] {
+            if self.program.class(field.nominal).is_some_and(|class| class.shape
+                && class.accessors.get(field.slot as usize) == Some(&true)) {
+                raw = self.crossing_check(ty, raw)?;
+            }
+        }
+        raw = self.storage_decode(unit, place, raw)?;
         // A load is its JavaScript read (R1, R11), but for absence until
         // R2's second batch and a `Uint32Array` element read as an `int`.
         match load_result_recipe(self.program, self.data(unit), place, ty) {
@@ -4496,8 +4510,30 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                     return self.save(unit, operation, stored);
                 }
-                let target = self.place(unit, place)?;
-                js::Expr::Assign { target, value }
+                let public_type = self.public_storage_type(unit, place)?;
+                let mut sequence = Vec::new();
+                let result_binding = if public_type.is_some() && operation.result.is_some() {
+                    let region = self.plan(unit).regions[operation.region.index()];
+                    let scope = self.module.regions[region.index()].scope;
+                    let binding = self.fresh_binding(scope, "stored")?;
+                    self.statement(region, js::Statement::Let { binding, value: None })?;
+                    let captured = self.assign(binding, value, None)?;
+                    self.append(&mut sequence, captured)?;
+                    Some(binding)
+                } else { None };
+                let value = match result_binding { Some(binding) => self.reference(binding)?, None => value };
+                let value = if let Some(ty) = public_type { self.public_value(&ty, value, false)? } else { value };
+                let stored = if let Some(stored) = self.shape_store(unit, place, value)? { stored } else {
+                    let target = self.place(unit, place)?;
+                    self.expression(js::Expr::Assign { target, value })?
+                };
+                let Some(binding) = result_binding else { return self.save(unit, operation, stored); };
+                // An encoded store returns the original private value. Capture
+                // it once even when placement would inline its producer.
+                self.append(&mut sequence, stored)?;
+                let result = self.reference(binding)?;
+                if let Some(saved) = self.save(unit, operation, result)? { self.append(&mut sequence, saved)?; }
+                return self.sequence(sequence);
             }
             OperationKind::Initialize(cell)
                 if matches!(self.demand.context(unit).kind, ContextKind::Inline { .. }) =>
@@ -4567,6 +4603,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                 }
                 js::Expr::Construct { callee, arguments }
+            }
+            OperationKind::TypeTest(target) if super::schema::is_shape(self.program, &self.program.types[target.index()]) => {
+                let value = self.value(unit, operands[0])?;
+                let result = self.shape_test(target, value)?;
+                return self.save(unit, operation, result);
             }
             OperationKind::TypeTest(target)
                 if matches!(
@@ -4871,7 +4912,22 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                     for (slot, (&key, &operand)) in keys.iter().zip(operands).enumerate() {
                         self.work(1)?;
-                        let value = self.value(unit, operand)?;
+                        let mut value = self.value(unit, operand)?;
+                        let ty = self.data(unit).values[operation.result.unwrap().index()].ty;
+                        if let AllocationKind::Instance { class, .. } = kind {
+                            if self.program.class(*class).is_some_and(|class| class.reflected || class.external) {
+                                let ty = super::schema::class_field_type(self.program, &self.program.types[ty.index()],
+                                    FieldRef { nominal: *class, slot: slot as u32 },
+                                    &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget))?
+                                    .ok_or_else(|| self.error(operation.span, "missing construction field"))?;
+                                value = self.public_value(&ty, value, false)?;
+                            }
+                        } else if matches!(self.program.types[ty.index()], Type::Intersection(_)) {
+                            let fields = super::schema::shape_fields(self.program, &self.program.types[ty.index()],
+                                &mut crate::check::type_admission::TypeQueryAdmission::new(self.budget))?
+                                .ok_or_else(|| self.error(operation.span, "missing joined construction fields"))?;
+                            value = self.public_value(&fields[slot].1, value, false)?;
+                        }
                         // Kept a string occurrence; the printer spells an
                         // identifier key `name:` (never `__proto__:`).
                         let key = if let AllocationKind::Instance { class, .. } = kind {
@@ -4885,7 +4941,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                         };
                         self.append(&mut entries, (js::Property::Computed(key), value))?;
                     }
-                    js::Expr::Object(entries)
+                    let object = self.expression(js::Expr::Object(entries))?;
+                    let ty = self.data(unit).values[operation.result.unwrap().index()].ty;
+                    let object = self.shape_cleanup(ty, object)?;
+                    return self.save(unit, operation, object);
                 }
                 AllocationKind::Struct(identity) => {
                     self.validate_struct_schema(*identity, operation.span)?;

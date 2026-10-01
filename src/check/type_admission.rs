@@ -28,6 +28,19 @@ impl<'scope, 'ledger> TypeQueryAdmission<'scope, 'ledger> {
         Ok(())
     }
 
+    pub(crate) fn push_scratch<T>(&mut self, values: &mut Vec<T>, value: T) -> Result<(), AllocationError> {
+        self.budget.push(AllocationClass::Scratch, values, value)
+    }
+
+    pub(crate) fn string_literals_equal(&mut self, a: &str, b: &str)
+        -> Result<bool, crate::literal::StringDecodeError> {
+        let mut scope = self.budget.scope();
+        let a = crate::literal::StringValue::decode_source_admitted(a, &mut scope)?;
+        let b = crate::literal::StringValue::decode_source_admitted(b, &mut scope)?;
+        scope.work(WorkKind::Analysis, (a.storage_bytes() + b.storage_bytes()) as u64)?;
+        Ok(a == b)
+    }
+
     fn measure(&mut self, root: Payload<'_, '_>) -> Result<PayloadMeasure, AllocationError> {
         match measure_payload(root, self.budget, |_| Ok::<_, Infallible>(())) {
             Ok(measured) => Ok(measured),

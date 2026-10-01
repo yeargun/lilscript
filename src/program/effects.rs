@@ -387,6 +387,13 @@ pub(super) fn operation_effects(
         Op::Constant(_) | Op::IsUndefined { .. } => Effects::NONE,
         // `typeof` never throws; `Array.isArray` throws on a revoked proxy.
         Op::TypeTest(target) => {
+            if super::schema::is_shape(ctx.program, &ctx.program.types[target.index()]) {
+                // A tag test on a dynamic host object is one property read;
+                // proxies and getters can run arbitrary code even if unused.
+                return if super::schema::is_shape(ctx.program, ctx.ty(operands[0])) {
+                    Effects { reads: Regions::FIELDS, ..Effects::NONE }
+                } else { Effects::UNKNOWN };
+            }
             match crate::primitive::runtime_type_test(&ctx.program.types[target.index()]) {
                 Some(crate::primitive::RuntimeTypeTest::TypeOf(_)) => Effects::NONE,
                 _ => Effects {
@@ -578,6 +585,12 @@ fn place_effects(
                 } else {
                     Effects::NONE
                 }
+            }
+            Place::ClassField { field, .. } if ctx.program.class(field.nominal)
+                .is_some_and(|class| class.accessors.get(field.slot as usize) == Some(&true)) => {
+                // A checked accessor is a user-code boundary on every read,
+                // write or location check, including a getter whose result dies.
+                return Effects::UNKNOWN;
             }
             Place::Member { receiver, .. } | Place::ClassField { receiver, .. } => {
                 return object_effects(ctx, values, receiver, None, access)
